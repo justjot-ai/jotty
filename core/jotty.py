@@ -234,6 +234,22 @@ from .api import (
     WorkflowAPI,
 )
 
+# Server Layer (NEW - Minimal Client Integration)
+try:
+    from .server import (
+        JottyHTTPServer,
+        JottyServer,
+        JottyServerConfig,
+        AuthMiddleware,
+        LoggingMiddleware,
+        ErrorMiddleware,
+        SSEFormatter,
+        useChatFormatter,
+    )
+    SERVER_AVAILABLE = True
+except ImportError:
+    SERVER_AVAILABLE = False
+
 # =============================================================================
 # ALL EXPORTS
 # =============================================================================
@@ -303,6 +319,16 @@ __all__ = [
     "JottyAPI",
     "ChatAPI",
     "WorkflowAPI",
+    
+    # Server Layer (NEW - Minimal Client Integration)
+    "JottyHTTPServer",
+    "JottyServer",
+    "JottyServerConfig",
+    "AuthMiddleware",
+    "LoggingMiddleware",
+    "ErrorMiddleware",
+    "SSEFormatter",
+    "useChatFormatter",
     
     # Convenience functions
     "create_conductor",

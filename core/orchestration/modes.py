@@ -18,7 +18,21 @@ from dataclasses import dataclass
 import time
 import logging
 
-from .langgraph_orchestrator import LangGraphOrchestrator, GraphMode
+# Lazy import for langgraph - optional dependency
+LANGGRAPH_AVAILABLE = False
+LangGraphOrchestrator = None
+GraphMode = None
+
+def _import_langgraph():
+    """Lazy import langgraph orchestrator."""
+    global LANGGRAPH_AVAILABLE, LangGraphOrchestrator, GraphMode
+    if not LANGGRAPH_AVAILABLE:
+        try:
+            from .langgraph_orchestrator import LangGraphOrchestrator, GraphMode
+            LANGGRAPH_AVAILABLE = True
+        except ImportError:
+            pass
+    return LANGGRAPH_AVAILABLE
 from .conductor import Conductor
 
 logger = logging.getLogger(__name__)
@@ -159,6 +173,8 @@ class ExecutionMode:
             graph_mode = GraphMode.DYNAMIC
             agent_order = None
         
+        if not _import_langgraph():
+            raise ImportError("langgraph is required for WorkflowMode. Install with: pip install langgraph")
         self.orchestrator = LangGraphOrchestrator(
             conductor=conductor,
             mode=graph_mode,

@@ -872,6 +872,7 @@ class Conductor:
             except ImportError as e:
                 logger.warning(f"⚠️  LangGraph not available: {e}. Install with: pip install langgraph langchain-core")
                 self.use_langgraph = False
+                self.langgraph_orchestrator = None
 
         # 🔧 A-TEAM: Initialize MetadataToolRegistry (LLM-driven tool discovery!)
         # Only initialize if metadata_provider is provided (not None)
@@ -1926,15 +1927,18 @@ You can override any parameter by providing it explicitly.""")
             
             # Override mode/order if provided
             if mode or agent_order:
-                from .langgraph_orchestrator import LangGraphOrchestrator, GraphMode
-                actual_mode = GraphMode.DYNAMIC if (mode or self.langgraph_mode) == "dynamic" else GraphMode.STATIC
-                actual_order = agent_order or self.agent_order
-                
-                orchestrator = LangGraphOrchestrator(
-                    conductor=self,
-                    mode=actual_mode,
-                    agent_order=actual_order
-                )
+                try:
+                    from .langgraph_orchestrator import LangGraphOrchestrator, GraphMode
+                    actual_mode = GraphMode.DYNAMIC if (mode or self.langgraph_mode) == "dynamic" else GraphMode.STATIC
+                    actual_order = agent_order or self.agent_order
+                    
+                    orchestrator = LangGraphOrchestrator(
+                        conductor=self,
+                        mode=actual_mode,
+                        agent_order=actual_order
+                    )
+                except ImportError:
+                    raise ImportError("langgraph is required for LangGraph orchestration. Install with: pip install langgraph")
             else:
                 orchestrator = self.langgraph_orchestrator
             
