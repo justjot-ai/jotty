@@ -122,6 +122,11 @@ class SQLiteTaskQueue(TaskQueue):
                 if key == 'metadata':  # Skip metadata, store as JSON in a field if needed
                     continue
                 if value is not None:
+                    # Convert enums to their values for SQLite
+                    if hasattr(value, 'value'):
+                        value = value.value
+                    elif hasattr(value, 'name'):
+                        value = value.name
                     columns.append(key)
                     values.append(value)
                     placeholders.append('?')

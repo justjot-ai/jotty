@@ -661,7 +661,10 @@ class ExpertAgent:
         context: Optional[Dict[str, Any]] = None
     ) -> Any:
         """
-        Generate output using the trained expert agent.
+        Generate output using the expert agent.
+        
+        Training is OPTIONAL - any LLM can generate without training.
+        Training is for OPTIMIZATION (better quality, correctness, learned patterns).
         
         Args:
             task: Task description
@@ -670,10 +673,15 @@ class ExpertAgent:
         Returns:
             Generated output
         """
+        # Training is optional - expert can generate without training
+        # Training is for optimization (better quality, correctness, learned patterns)
         if not self.trained:
-            raise RuntimeError(f"Expert {self.config.name} must be trained before use")
+            logger.info(
+                f"Expert {self.config.name} not trained - using base agent. "
+                f"Training is optional (for optimization via OptimizationPipeline)"
+            )
         
-        # Use the trained agent directly (it has learned from optimization pipeline)
+        # Use the agent (trained or untrained)
         agents = self._create_agents()
         
         # Get the main agent (not teacher)
