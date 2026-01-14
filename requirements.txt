@@ -1,0 +1,11 @@
+# Core runtime dependencies for Jotty AI
+# Install with: pip install -r requirements.txt
+
+# Required dependencies
+dspy-ai>=2.0.0
+pyyaml>=6.0
+
+# Optional dependencies (uncomment as needed)
+# pymongo>=4.0.0  # MongoDB memory backend
+# redis>=4.0.0    # Redis caching
+# sqlalchemy>=2.0.0  # SQL persistence

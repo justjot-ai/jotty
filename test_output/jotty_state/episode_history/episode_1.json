@@ -1,0 +1,23 @@
+{
+  "episode": 1,
+  "metadata": {
+    "total_episodes": 0,
+    "iteration": 0
+  },
+  "trajectory": [
+    {
+      "iteration": 1,
+      "task": "HelloWorldAgent_main",
+      "actor": "HelloWorldAgent",
+      "passed": true,
+      "reward": 0.8,
+      "feedback": "Result received",
+      "success": true,
+      "actor_output": "Prediction(\n    greeting='Hello! Task received: Generate a friendly greeting'\n)",
+      "react_trajectory": {},
+      "execution_time": 0.021704435348510742
+    }
+  ],
+  "trajectory_length": 1,
+  "timestamp": 1768067917.422785
+}

@@ -1,0 +1,39 @@
+# Testing dependencies for JOTTY framework
+
+# Core testing framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-timeout==2.2.0
+pytest-xdist==3.5.0
+
+# Mocking and fixtures
+fakeredis==2.20.0
+freezegun==1.4.0
+responses==0.24.1
+
+# Code quality
+flake8==6.1.0
+black==23.12.1
+isort==5.13.2
+mypy==1.7.1
+
+# Performance testing
+pytest-benchmark==4.0.0
+memory-profiler==0.61.0
+
+# Test reporting
+pytest-html==4.1.1
+pytest-json-report==1.5.0
+
+# Async testing utilities
+aioresponses==0.7.6
+
+# Additional utilities
+faker==21.0.0
+hypothesis==6.92.2
+
+# Required for Jotty (if not already installed)
+# dspy-ai>=2.0.0
+# pyyaml>=6.0

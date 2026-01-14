@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jotty-ai"
+version = "10.0.0"
+description = "Production-Ready Multi-Agent RL Wrapper for DSPy - SYnergistic Neural Agent Processing & Self-organizing Execution"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    {name = "Soham Acharya"},
+    {name = "Anshul Chauhan"}
+]
+keywords = ["dspy", "multi-agent", "reinforcement-learning", "llm", "ai", "orchestration"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Core dependencies
+dependencies = [
+    "dspy-ai>=2.0.0",
+    "pyyaml>=6.0",
+]
+
+# Optional dependencies (install with: pip install jotty-ai[all])
+[project.optional-dependencies]
+all = [
+    "pymongo>=4.0.0",  # MongoDB memory backend
+    "redis>=4.0.0",    # Redis caching
+    "sqlalchemy>=2.0.0",  # SQL persistence
+]
+mongodb = ["pymongo>=4.0.0"]
+redis = ["redis>=4.0.0"]
+sql = ["sqlalchemy>=2.0.0"]
+
+# Development dependencies
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.12.0",
+    "isort>=5.13.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/jotty"
+Documentation = "https://github.com/yourusername/jotty/docs"
+Repository = "https://github.com/yourusername/jotty"
+Issues = "https://github.com/yourusername/jotty/issues"
+
+[tool.setuptools]
+# Let setup.py handle package discovery since it needs Python expressions
+
+[tool.setuptools.package-data]
+"Jotty.core.swarm_prompts" = ["*.md"]
+"Jotty.core.validation_prompts" = ["*.md"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"

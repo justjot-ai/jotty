@@ -1,0 +1,23 @@
+# Include README and documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include docs *.md
+
+# Include prompt files
+recursive-include core/swarm_prompts *.md
+recursive-include core/validation_prompts *.md
+
+# Include example files
+recursive-include examples *.py
+
+# Exclude test files and outputs
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *$py.class
+global-exclude *.so
+global-exclude .DS_Store
+recursive-exclude tests *
+recursive-exclude test_output *
+recursive-exclude test_outputs *
+recursive-exclude outputs *

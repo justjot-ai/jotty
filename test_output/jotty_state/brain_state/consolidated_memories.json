@@ -1,0 +1,15 @@
+{
+  "timestamp": 1768067917.422937,
+  "brain_type": "BrainInspiredMemoryManager",
+  "sleep_interval": 3,
+  "episodes_since_sleep": "0",
+  "frequency_weight": "0.3",
+  "hippocampus": "[]",
+  "max_hippocampus_size": "100",
+  "max_neocortex_size": "200",
+  "neocortex": "[]",
+  "novelty_weight": "0.4",
+  "replay_threshold": "0.4",
+  "reward_weight": "0.3",
+  "total_consolidations": "0"
+}

@@ -1,0 +1,23 @@
+{
+  "expert_name": "mermaid_expert_complex",
+  "domain": "mermaid",
+  "training_cases": [
+    {
+      "case_number": 1,
+      "task": "Generate a simple flowchart with Start and End nodes",
+      "success": false,
+      "iterations": 3,
+      "final_score": 0.0
+    },
+    {
+      "case_number": 2,
+      "task": "Create a basic sequence diagram with User and System",
+      "success": false,
+      "iterations": 3,
+      "final_score": 0.0
+    }
+  ],
+  "overall_success": false,
+  "total_cases": 2,
+  "passed_cases": 0
+}

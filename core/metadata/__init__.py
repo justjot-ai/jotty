@@ -1,0 +1,81 @@
+"""
+Metadata Layer - Tool Discovery & Metadata Management
+=====================================================
+
+Tool management, metadata fetching, and protocol implementations.
+
+Modules:
+--------
+- metadata_protocol: Metadata protocol definitions
+- metadata_fetcher: Fetch metadata from providers
+- metadata_tool_registry: Register & discover tools
+- base_metadata_provider: Base metadata provider implementation
+- tool_shed: Tool management & caching
+- tool_interceptor: Tool call interception
+"""
+
+from .base_metadata_provider import (
+    BaseMetadataProvider,
+    create_metadata_provider,
+)
+from .metadata_fetcher import (
+    CacheEntry,
+    MetaDataFetcher,
+    MetaDataFetcherSignature,
+    ToolMetadata,
+)
+from .metadata_protocol import (
+    JottyMetadataBase,
+    MetadataIntrospector,
+    MetadataProtocol,
+    MetadataToolWrapper,
+    MetadataValidator,
+    MethodMetadata,
+    jotty_method,
+)
+from .metadata_tool_registry import (
+    MetadataToolRegistry,
+)
+from .tool_interceptor import (
+    ToolCall,
+    ToolCallRegistry,
+    ToolInterceptor,
+)
+from .tool_shed import (
+    AgenticToolSelector,
+    CapabilityIndex,
+    ToolResult,
+    ToolSchema,
+    ToolShed,
+)
+
+__all__ = [
+    # base_metadata_provider
+    'BaseMetadataProvider',
+    'create_metadata_provider',
+    # metadata_fetcher
+    'CacheEntry',
+    'MetaDataFetcher',
+    'MetaDataFetcherSignature',
+    'ToolMetadata',
+    # metadata_protocol
+    'JottyMetadataBase',
+    'MetadataIntrospector',
+    'MetadataProtocol',
+    'MetadataToolWrapper',
+    'MetadataValidator',
+    'MethodMetadata',
+    'jotty_method',
+    # metadata_tool_registry
+    'MetadataToolRegistry',
+    # tool_interceptor
+    'ToolCall',
+    'ToolCallRegistry',
+    'ToolInterceptor',
+    # tool_shed
+    'AgenticToolSelector',
+    'CapabilityIndex',
+    'ToolResult',
+    'ToolSchema',
+    'ToolShed',
+]

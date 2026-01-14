@@ -1,0 +1,122 @@
+[
+  {
+    "iteration": 1,
+    "timestamp": "2026-01-13T22:09:39.827928",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 2,
+    "timestamp": "2026-01-13T22:09:39.828419",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 3,
+    "timestamp": "2026-01-13T22:09:39.833294",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 4,
+    "timestamp": "2026-01-13T22:09:39.833952",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 5,
+    "timestamp": "2026-01-13T22:09:39.835159",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 1,
+    "timestamp": "2026-01-13T22:10:17.132232",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 2,
+    "timestamp": "2026-01-13T22:10:17.132923",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 3,
+    "timestamp": "2026-01-13T22:10:17.133966",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 4,
+    "timestamp": "2026-01-13T22:10:17.134995",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  },
+  {
+    "iteration": 5,
+    "timestamp": "2026-01-13T22:10:17.135925",
+    "task": "Generate complex pipeline",
+    "student_output": "graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C",
+    "teacher_output": "graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F",
+    "student_score": 0.5,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": null,
+    "learned_pattern": "When task is 'Generate complex pipeline', use 'graph TD\n    A[Source]\n    B[Build]\n    C[Unit Tests]\n    D[Integration Tests]\n    E[Deploy Staging]\n    F[Deploy Production]\n    A --> B\n    B --> C\n    B --> D\n    C --> E\n    D --> E\n    E --> F' instead of 'graph LR\n    A[Build]\n    B[Test]\n    C[Deploy]\n    A --> B\n    B --> C'"
+  }
+]

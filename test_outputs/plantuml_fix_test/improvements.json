@@ -1,0 +1,26 @@
+[
+  {
+    "iteration": 1,
+    "timestamp": "2026-01-13T23:38:30.258409",
+    "task": "Generate simple sequence diagram",
+    "student_output": "```mermaid\nsequenceDiagram\n    participant User\n    participant System\n    \n    User->>System: Login Request\n    System->>System: Validate Credentials\n    System-->>User: Authentication Token\n    \n    User->>System: Request Data\n    System->>System: Process Request\n    System->>System: Fetch Data\n    System-->>User: Return Response\n    \n    User->>System: Logout Request\n    System->>System: Invalidate Session\n    System-->>User: Confirmation\n```\n\nThis sequence diagram illustrates a basic interaction flow:\n1. **Login Flow**: User sends login request, System validates credentials and returns authentication token\n2. **Data Request Flow**: User requests data, System processes the request, fetches data, and returns response\n3. **Logout Flow**: User sends logout request, System invalidates session and confirms\n\nThe solid arrows (->>) represent synchronous calls/requests, while dashed arrows (-->>) represent responses back to the caller.",
+    "teacher_output": "@startuml\nUser -> System: Request\nSystem --> User: Response\n@enduml",
+    "student_score": 0.0,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": "Output differs from gold standard",
+    "learned_pattern": "When task is 'Generate simple sequence diagram', use PlantUML syntax (@startuml/@enduml) instead of Mermaid syntax"
+  },
+  {
+    "iteration": 2,
+    "timestamp": "2026-01-13T23:38:48.405114",
+    "task": "Generate simple sequence diagram",
+    "student_output": "```mermaid\nsequenceDiagram\n    actor User\n    participant System\n    \n    User->>System: Request Action\n    activate System\n    System-->>System: Process Request\n    System-->>User: Return Response\n    deactivate System\n```",
+    "teacher_output": "@startuml\nUser -> System: Request\nSystem --> User: Response\n@enduml",
+    "student_score": 0.0,
+    "teacher_score": 1.0,
+    "improvement_type": "teacher_correction",
+    "difference": "Output differs from gold standard",
+    "learned_pattern": "When task is 'Generate simple sequence diagram', use PlantUML syntax (@startuml/@enduml) instead of Mermaid syntax"
+  }
+]
