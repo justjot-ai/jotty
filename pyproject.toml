@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "dspy-ai>=2.0.0",
     "pyyaml>=6.0",
+    "langgraph>=0.0.1",
 ]
 
 # Optional dependencies (install with: pip install jotty-ai[all])
