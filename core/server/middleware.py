@@ -45,6 +45,10 @@ class AuthMiddleware:
     
     def before_request(self):
         """Validate authentication before request."""
+        # Skip auth for health check endpoint
+        if request.path == '/api/health':
+            return None
+            
         if self.auth_type == "none":
             return None
         

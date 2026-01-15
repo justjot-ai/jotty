@@ -142,6 +142,14 @@ class JottyHTTPServer:
         # Register routes
         self._register_routes()
         
+        # Register provider API routes (for JustJot.ai integration)
+        try:
+            from .provider_api import provider_bp
+            self.app.register_blueprint(provider_bp)
+        except ImportError:
+            # Provider API not available (optional)
+            pass
+        
         logger.info(f"✅ Jotty HTTP Server initialized on port {self.server_config.port}")
     
     def _setup_middleware(self):
