@@ -12,6 +12,7 @@ from flask import Blueprint, request, jsonify, Response, stream_with_context
 from typing import Dict, Any, Optional
 import json
 import sys
+import dspy
 
 from ..foundation.unified_lm_provider import UnifiedLMProvider
 
@@ -63,18 +64,21 @@ def chat():
             def generate():
                 try:
                     # Use DSPy forward method for streaming
+                    # For streaming, we need to call the LM and stream the response
+                    # Most DSPy LMs don't support streaming directly, so we'll get full response and stream it
                     result = lm.forward(prompt=prompt, messages=messages)
                     
                     # Extract text from result
                     if isinstance(result, dict) and 'choices' in result:
                         text = result['choices'][0]['message']['content']
-                        # Stream character by character
-                        for char in text:
-                            yield f"data: {json.dumps({'type': 'text-delta', 'textDelta': char})}\n\n"
+                    elif isinstance(result, list) and len(result) > 0:
+                        text = result[0] if isinstance(result[0], str) else str(result[0])
                     else:
-                        # Fallback: return as single chunk
                         text = str(result)
-                        yield f"data: {json.dumps({'type': 'text-delta', 'textDelta': text})}\n\n"
+                    
+                    # Stream character by character (simulate streaming)
+                    for char in text:
+                        yield f"data: {json.dumps({'type': 'text-delta', 'textDelta': char})}\n\n"
                     
                     yield "data: [DONE]\n\n"
                 except Exception as e:
@@ -97,6 +101,9 @@ def chat():
             if isinstance(result, dict) and 'choices' in result:
                 text = result['choices'][0]['message']['content']
                 usage = result.get('usage', {})
+            elif isinstance(result, list) and len(result) > 0:
+                text = result[0] if isinstance(result[0], str) else str(result[0])
+                usage = {}
             else:
                 text = str(result)
                 usage = {}

@@ -26,6 +26,7 @@ try:
     FLASK_AVAILABLE = True
 except ImportError:
     FLASK_AVAILABLE = False
+    Response = None  # Type hint fallback
 
 from ..api import JottyAPI
 from ..foundation.agent_config import AgentConfig
