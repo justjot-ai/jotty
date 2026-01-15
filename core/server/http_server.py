@@ -146,8 +146,8 @@ class JottyHTTPServer:
     
     def _setup_middleware(self):
         """Setup middleware for authentication, logging, and error handling."""
-        # Authentication middleware
-        if self.server_config.auth_enabled:
+        # Authentication middleware - only if enabled AND not "none"
+        if self.server_config.auth_enabled and self.server_config.auth_type != "none":
             auth_middleware = AuthMiddleware(
                 auth_type=self.server_config.auth_type,
                 validate_fn=self.server_config.auth_validate_fn
