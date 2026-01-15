@@ -215,12 +215,13 @@ class MCPToolExecutor:
             raise ImportError("aiohttp required for MCP tool execution. Install: pip install aiohttp")
 
         # Map MCP tool to API endpoint
+        # Use /api/internal/* endpoints for service-to-service calls (no auth required)
         endpoint_map = {
-            "mcp__justjot__get_idea": ("GET", "/api/ideas/{id}"),
-            "mcp__justjot__list_ideas": ("GET", "/api/ideas"),
-            "mcp__justjot__search_ideas": ("POST", "/api/ideas/search"),
-            "mcp__justjot__create_idea": ("POST", "/api/ideas"),
-            "mcp__justjot__add_section": ("POST", "/api/ideas/{ideaId}/sections"),
+            "mcp__justjot__get_idea": ("GET", "/api/internal/ideas/{id}"),
+            "mcp__justjot__list_ideas": ("GET", "/api/internal/ideas"),
+            "mcp__justjot__search_ideas": ("POST", "/api/internal/ideas/search"),
+            "mcp__justjot__create_idea": ("POST", "/api/internal/ideas"),
+            "mcp__justjot__add_section": ("POST", "/api/internal/ideas/{ideaId}/sections"),
         }
 
         endpoint_info = endpoint_map.get(tool_name)
