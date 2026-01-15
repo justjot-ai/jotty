@@ -239,15 +239,21 @@ class MCPToolExecutor:
             arguments = {k: v for k, v in arguments.items() if k != "ideaId"}
 
         url = f"{self.base_url}{endpoint}"
+        
+        # Add internal service header for service-to-service calls
+        headers = {
+            "x-internal-service": "true",
+            "Content-Type": "application/json"
+        }
 
         async with aiohttp.ClientSession() as session:
             try:
                 if method == "GET":
-                    async with session.get(url, params=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    async with session.get(url, params=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                         resp.raise_for_status()
                         return await resp.json()
                 else:  # POST
-                    async with session.post(url, json=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    async with session.post(url, json=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                         resp.raise_for_status()
                         return await resp.json()
             except aiohttp.ClientError as e:
@@ -256,11 +262,11 @@ class MCPToolExecutor:
                     fallback_url = url.replace("justjot-ai-blue", "justjot-ai-green")
                     try:
                         if method == "GET":
-                            async with session.get(fallback_url, params=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            async with session.get(fallback_url, params=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                                 resp.raise_for_status()
                                 return await resp.json()
                         else:  # POST
-                            async with session.post(fallback_url, json=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            async with session.post(fallback_url, json=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                                 resp.raise_for_status()
                                 return await resp.json()
                     except Exception:
