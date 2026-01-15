@@ -31,7 +31,9 @@ class MCPToolExecutor:
             base_url: Base URL for JustJot API (default: http://localhost:3000)
         """
         self.mcp_config_path = mcp_config_path or self._find_mcp_config()
-        self.base_url = base_url or os.getenv("JUSTJOT_API_URL", "http://localhost:3000")
+        # Use environment variable or Docker service name as fallback
+        default_url = os.getenv("JUSTJOT_API_URL") or os.getenv("NEXT_PUBLIC_API_URL") or "http://justjot-ai-blue:3000"
+        self.base_url = base_url or default_url
         self.available_tools: List[MCPTool] = []
         self.tool_map: Dict[str, MCPTool] = {}
 
@@ -238,12 +240,31 @@ class MCPToolExecutor:
         url = f"{self.base_url}{endpoint}"
 
         async with aiohttp.ClientSession() as session:
-            if method == "GET":
-                async with session.get(url, params=arguments) as resp:
-                    return await resp.json()
-            else:  # POST
-                async with session.post(url, json=arguments) as resp:
-                    return await resp.json()
+            try:
+                if method == "GET":
+                    async with session.get(url, params=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                        resp.raise_for_status()
+                        return await resp.json()
+                else:  # POST
+                    async with session.post(url, json=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                        resp.raise_for_status()
+                        return await resp.json()
+            except aiohttp.ClientError as e:
+                # If blue fails, try green (for Docker blue-green deployment)
+                if "justjot-ai-blue" in self.base_url:
+                    fallback_url = url.replace("justjot-ai-blue", "justjot-ai-green")
+                    try:
+                        if method == "GET":
+                            async with session.get(fallback_url, params=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                                resp.raise_for_status()
+                                return await resp.json()
+                        else:  # POST
+                            async with session.post(fallback_url, json=arguments, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                                resp.raise_for_status()
+                                return await resp.json()
+                    except Exception:
+                        pass  # Fall through to raise original error
+                raise RuntimeError(f"Failed to call JustJot API {url}: {e}")
 
     def format_tools_for_dspy(self) -> str:
         """
