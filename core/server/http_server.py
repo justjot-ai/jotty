@@ -455,8 +455,8 @@ class JottyHTTPServer:
                             content=content,
                             timestamp=msg.get('timestamp')
                         ))
-                    except ImportError:
-                        chat_history = []
+                except ImportError:
+                    chat_history = []
                     
                     # Log provider/model being used
                     if provider:
