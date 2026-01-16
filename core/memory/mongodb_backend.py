@@ -343,7 +343,7 @@ class MongoDBMemoryBackend:
                     'goal': f"plan_{category}"
                 },
                 goal=f"plan_{category}",
-                value=0.7 if status == "completed" else 0.3
+                initial_value=0.7 if status == "completed" else 0.3
             )
             
             # Persist to MongoDB
@@ -391,15 +391,15 @@ class MongoDBMemoryBackend:
         self.load()
         
         # Then use Jotty's retrieve method
-        memories = []
-        for level in [MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL]:
-            level_memories = self.memory.retrieve(
-                query=task_description,
-                goal=goal,
-                levels=[level],
-                max_memories=max_memories
-            )
-            memories.extend(level_memories)
+        # Jotty's retrieve needs budget_tokens, estimate from max_memories
+        budget_tokens = max_memories * 200  # ~200 tokens per memory
+        
+        memories = self.memory.retrieve(
+            query=task_description,
+            goal=goal,
+            budget_tokens=budget_tokens,
+            levels=[MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL]
+        )
         
         # Format for supervisor compatibility
         context = {
@@ -448,7 +448,7 @@ class MongoDBMemoryBackend:
                     'task_id': task_id
                 },
                 goal=f"plan_{category}",
-                value=0.8
+                initial_value=0.8
             )
             
             self.save()
@@ -480,7 +480,7 @@ class MongoDBMemoryBackend:
                     'prevention_tip': self._get_prevention_tip(error_type)
                 },
                 goal=f"plan_{category}",
-                value=0.6
+                initial_value=0.6
             )
             
             self.save()
