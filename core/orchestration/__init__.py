@@ -56,6 +56,10 @@ from .optimization_pipeline import (
     create_optimization_pipeline,
 )
 
+from .task_orchestrator import TaskOrchestrator
+from .agent_spawner import AgentSpawner
+from .deployment_hook import DeploymentHook
+
 __all__ = [
     # conductor
     'Conductor',
@@ -89,4 +93,8 @@ __all__ = [
     'OptimizationConfig',
     'IterationResult',
     'create_optimization_pipeline',
+    # task_orchestrator
+    'TaskOrchestrator',
+    'AgentSpawner',
+    'DeploymentHook',
 ]
