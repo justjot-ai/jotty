@@ -6,20 +6,13 @@ Handles task context and state for workflow use cases.
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-from enum import Enum
 import time
 import logging
 
+# REFACTORING PHASE 1.2: Import TaskStatus from canonical location
+from ...foundation.types import TaskStatus
+
 logger = logging.getLogger(__name__)
-
-
-class TaskStatus(Enum):
-    """Task status."""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
 
 
 @dataclass

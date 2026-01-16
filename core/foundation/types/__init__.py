@@ -26,6 +26,7 @@ from .enums import (
     CommunicationType,
     ValidationRound,
     ContextType,
+    TaskStatus,
 )
 
 from .memory_types import (
@@ -65,6 +66,7 @@ __all__ = [
     'CommunicationType',
     'ValidationRound',
     'ContextType',
+    'TaskStatus',
     # Memory types
     'GoalNode',
     'GoalHierarchy',

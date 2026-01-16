@@ -26,6 +26,9 @@ import json
 import hashlib
 import dspy
 
+# REFACTORING PHASE 1.2: Import TaskStatus from canonical location
+from ..foundation.types import TaskStatus
+
 
 # =============================================================================
 # TODO ITEM - Shared across modules
@@ -421,16 +424,7 @@ class DecomposedQFunction:
 # =============================================================================
 # MARKOVIAN TODO - Long Horizon Task Management
 # =============================================================================
-
-class TaskStatus(Enum):
-    """Status of a subtask."""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
-    SKIPPED = "skipped"
-
+# TaskStatus enum now imported from core.foundation.types (see import section above)
 
 @dataclass
 class SubtaskState:

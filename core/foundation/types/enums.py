@@ -59,3 +59,22 @@ class ContextType(Enum):
     EXPLORATION = "exploration"   # Prefer EPISODIC, CAUSAL
     TRANSFORMATION = "transformation"  # Prefer PROCEDURAL, SEMANTIC
     DEFAULT = "default"           # Equal priority
+
+
+class TaskStatus(Enum):
+    """
+    Task status enum - unified across all subsystems.
+
+    Consolidated from roadmap.py, task.py, and workflow_context.py.
+    Contains all status values from all three sources for backward compatibility.
+    """
+    SUGGESTED = "suggested"       # From task.py - task suggested but not yet planned
+    BACKLOG = "backlog"           # From task.py - in backlog queue
+    PENDING = "pending"           # Common - waiting to start
+    IN_PROGRESS = "in_progress"   # Common - currently executing
+    COMPLETED = "completed"       # Common - successfully finished
+    FAILED = "failed"             # Common - execution failed
+    BLOCKED = "blocked"           # Common - blocked by dependencies
+    CANCELLED = "cancelled"       # From task.py - manually cancelled
+    RETRYING = "retrying"         # From task.py - retry in progress
+    SKIPPED = "skipped"           # From roadmap.py - skipped execution

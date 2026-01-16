@@ -8,18 +8,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
-
-class TaskStatus(Enum):
-    """Task status enum - matches supervisor's status values"""
-    SUGGESTED = "suggested"
-    BACKLOG = "backlog"
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
-    CANCELLED = "cancelled"
-    RETRYING = "retrying"  # Additional status for retry logic
+# REFACTORING PHASE 1.2: Import TaskStatus from canonical location
+from ..foundation.types import TaskStatus
 
 
 class TaskPriority(Enum):

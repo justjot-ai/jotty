@@ -38,6 +38,7 @@ from .types import (
     CommunicationType,
     ValidationRound,
     ContextType,
+    TaskStatus,
     # Memory types
     GoalNode,
     GoalHierarchy,
@@ -68,6 +69,7 @@ __all__ = [
     'CommunicationType',
     'ValidationRound',
     'ContextType',
+    'TaskStatus',
     # Memory types
     'GoalNode',
     'GoalHierarchy',
