@@ -217,12 +217,26 @@ class SQLiteTaskQueue(TaskQueue):
                     WHERE task_id = ?
                 """, (status, error, task_id))
             else:
-                conn.execute("""
-                    UPDATE tasks SET status = ? WHERE task_id = ?
-                """, (status, task_id))
+                # For other statuses (suggested, backlog, pending), update status and clear pid/log_file if moving away from in_progress
+                if pid is None:
+                    # Clear pid and log_file when explicitly set to None (moving away from in_progress)
+                    conn.execute("""
+                        UPDATE tasks 
+                        SET status = ?, pid = NULL, log_file = NULL, started_at = NULL, last_heartbeat = NULL
+                        WHERE task_id = ?
+                    """, (status, task_id))
+                else:
+                    conn.execute("""
+                        UPDATE tasks SET status = ? WHERE task_id = ?
+                    """, (status, task_id))
             
             conn.commit()
-            return conn.total_changes > 0
+            rows_updated = conn.total_changes
+            if rows_updated == 0:
+                # Task might not exist - log for debugging
+                import logging
+                logging.warning(f"No rows updated for task {task_id} - task may not exist")
+            return rows_updated > 0
     
     async def heartbeat(self, task_id: str) -> bool:
         """Update task heartbeat"""
