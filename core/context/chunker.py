@@ -45,10 +45,12 @@ class CombiningSignature(dspy.Signature):
     confidence = dspy.OutputField(desc="Confidence in combination (0-10)")
 
 
-class AgenticChunker:
+class LLMChunkManager:
     """
+    LLM-powered semantic chunking (formerly AgenticChunker).
+
     Smart chunker that creates semantic chunks with context preservation.
-    
+
     NO rule-based splitting! Uses LLM to find natural boundaries.
     """
     
@@ -237,3 +239,11 @@ class AgenticChunker:
         logger.info(f"   ✅ Created {len(chunks)} chunks")
         return chunks
 
+
+# =============================================================================
+# BACKWARD COMPATIBILITY - DEPRECATED ALIASES
+# =============================================================================
+# REFACTORING PHASE 1.3: Deprecation alias for renamed class
+# This will be removed in a future version.
+
+AgenticChunker = LLMChunkManager

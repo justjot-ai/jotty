@@ -360,10 +360,12 @@ class SwarmLearner:
 ActorConfig = AgentConfig
 
 
-class Conductor:
+class MultiAgentsOrchestrator:
     """
     Multi-Actor Reinforced Validation Framework.
-    
+
+    Top-level multi-agent orchestrator (formerly Conductor).
+
     Orchestrates multiple actors with:
     - Shared hierarchical memory
     - LLM-based Q-prediction
@@ -371,10 +373,10 @@ class Conductor:
     - Policy exploration when stuck
     - Smart context management
     - Online prompt learning
-    
+
     Usage:
         # Generic example - works with ANY agents
-        swarm = Conductor(
+        swarm = MultiAgentsOrchestrator(
             actors=[
                 ActorConfig("agent1", MyAgent1, ["agent1_architect.md"], ["agent1_auditor.md"]),
                 ActorConfig("agent2", MyAgent2, ["agent2_architect.md"], ["agent2_auditor.md"]),
@@ -383,7 +385,7 @@ class Conductor:
             global_architect="plan_validation.md",
             global_auditor="output_validation.md"
         )
-        
+
         result = await swarm.run(goal="Complete the task", **kwargs)
     """
     
@@ -874,7 +876,7 @@ class Conductor:
         )
         logger.info("✅ StateManager component initialized")
 
-        logger.info(f"🚀 Conductor initialized with {len(actors)} actors")
+        logger.info(f"🚀 MultiAgentsOrchestrator initialized with {len(actors)} actors")
         logger.info("🎯 All components initialized: ParameterResolver, ToolManager, StateManager")
     
     def _should_wrap_actor(self, actor_config: ActorConfig) -> bool:
@@ -4809,19 +4811,19 @@ def create_conductor(
     annotations_path: str = "user_configs/human_input_kb/annotations/annotations.json",
     global_architect: str = None,
     global_auditor: str = None
-) -> Conductor:
+) -> 'MultiAgentsOrchestrator':
     """
-    Factory to create Conductor from simple configuration.
-    
+    Factory to create MultiAgentsOrchestrator from simple configuration.
+
     Args:
         actors: List of (name, actor_instance, architect_prompts, auditor_prompts)
         config_path: Path to JOTTY config YAML
         annotations_path: Path to annotations JSON
         global_architect: Optional global Architect prompt path
         global_auditor: Optional global Auditor prompt path
-    
+
     Returns:
-        Configured Conductor instance
+        Configured MultiAgentsOrchestrator instance
     """
     import yaml
     
@@ -4859,10 +4861,33 @@ def create_conductor(
             auditor_prompts=auditors
         ))
     
-    return Conductor(
+    return MultiAgentsOrchestrator(
         actors=actor_configs,
         config=config,
         global_architect=global_architect,
         global_auditor=global_auditor,
         annotations_path=annotations_path
     )
+
+# =============================================================================
+# BACKWARD COMPATIBILITY - DEPRECATED ALIASES
+# =============================================================================
+# REFACTORING PHASE 1.3: Deprecation aliases for renamed classes
+# These will be removed in a future version.
+
+import warnings
+
+class Conductor(MultiAgentsOrchestrator):
+    """
+    Deprecated: Use MultiAgentsOrchestrator instead.
+
+    This is a backward compatibility alias that will be removed in a future version.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "Conductor is deprecated and will be removed in a future version. "
+            "Use MultiAgentsOrchestrator instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

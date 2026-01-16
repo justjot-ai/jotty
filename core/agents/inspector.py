@@ -38,23 +38,25 @@ logger = logging.getLogger(__name__)
 # SIGNATURES
 # =============================================================================
 
-class ArchitectSignature(dspy.Signature):
+class PlannerSignature(dspy.Signature):
     """🔍 Pre-Exploration Agent: Explore data and brief the actor.
-    
-    🔥 A-TEAM PHASE 2 FIX: Architect is an ADVISOR, not a gatekeeper!
-    
+
+    Renamed from ArchitectSignature for clarity (planner role, not architect).
+
+    🔥 A-TEAM PHASE 2 FIX: Planner is an ADVISOR, not a gatekeeper!
+
     YOUR ROLE:
     - EXPLORE available data using your tools
     - UNDERSTAND what data exists and its quality
     - BRIEF the actor on your findings
     - ADVISE on best approaches
     - DO NOT BLOCK execution!
-    
+
     YOU ARE A REACT AGENT WITH TOOLS:
     - CALL tools to discover tables, search terms, explore metadata
     - DO NOT just generate text
     - Base your briefing on TOOL EVIDENCE
-    
+
     CRITICAL: You are an exploration advisor, NOT a validator!
     """
     
@@ -72,9 +74,11 @@ class ArchitectSignature(dspy.Signature):
     insight_to_share: str = dspy.OutputField(desc="Key insight to share with other agents for learning")
 
 
-class AuditorSignature(dspy.Signature):
+class ReviewerSignature(dspy.Signature):
     """Post-validation agent. USE YOUR TOOLS to validate extracted data.
-    
+
+    Renamed from AuditorSignature for clarity (reviewer role, not auditor).
+
     You are a ReAct agent with tools. DO NOT just generate text.
     CALL your tools to check the extraction, then validate based on tool results.
     """
@@ -296,7 +300,7 @@ class InspectorAgent:
         self.all_tools = self.cached_tools + [self.reasoning_tool]
         
         # Create DSPy agent
-        self.signature = ArchitectSignature if is_architect else AuditorSignature
+        self.signature = PlannerSignature if is_architect else ReviewerSignature
         self.agent = dspy.ReAct(
             self.signature,
             tools=self.all_tools,
@@ -1217,3 +1221,15 @@ class MultiRoundValidator:
             parts.append(f"{r.agent_name}: {decision} (confidence: {r.confidence:.2f})\nReasoning: {r.reasoning}")
         
         return "\n---\n".join(parts)
+
+# =============================================================================
+# BACKWARD COMPATIBILITY - DEPRECATED ALIASES
+# =============================================================================
+# REFACTORING PHASE 1.3: Deprecation aliases for renamed signature classes
+# These will be removed in a future version.
+
+# Architect → Planner renaming
+ArchitectSignature = PlannerSignature
+
+# Auditor → Reviewer renaming
+AuditorSignature = ReviewerSignature

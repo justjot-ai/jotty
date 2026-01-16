@@ -11,8 +11,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class SmartContextGuard:
+class LLMContextManager:
     """
+    LLM-powered context budgeting (formerly SmartContextGuard).
+
     Ensures we NEVER exceed context length by:
     - Priority-based compression
     - Task-critical preservation (TODO always kept)
@@ -239,3 +241,11 @@ class SmartContextGuard:
 # POLICY EXPLORER - Dynamic TODO with Exploration
 # =============================================================================
 
+
+# =============================================================================
+# BACKWARD COMPATIBILITY - DEPRECATED ALIASES
+# =============================================================================
+# REFACTORING PHASE 1.3: Deprecation alias for renamed class
+# This will be removed in a future version.
+
+SmartContextGuard = LLMContextManager
