@@ -51,35 +51,17 @@ class UnifiedLMProvider:
         """
         provider = provider.lower()
         
-        # 1. OpenCode (direct DSPy LM provider)
-        if provider == 'opencode':
-            from .opencode_lm import OpenCodeLM
-            return OpenCodeLM(model=model or None, **kwargs)
-        
-        # 2. AISDKProviderLM (for Vercel AI SDK providers)
-        # This covers: anthropic, openai, google, groq, openrouter, claude-cli, cursor-cli
+        # All providers go through AISDKProviderLM for consistency
+        # This includes: opencode, openrouter, anthropic, openai, google, groq, claude-cli, cursor-cli
         try:
             from ..integration.ai_sdk_provider_adapter import AISDKProviderLM
             
-            # Map provider names
+            # Map provider names (all go through AISDKProviderLM → JustJot.ai /api/ai/execute)
             ai_sdk_provider = provider
-            if provider == 'claude-cli':
-                ai_sdk_provider = 'claude-cli'
-            elif provider == 'cursor-cli':
-                ai_sdk_provider = 'cursor-cli'
-            elif provider == 'openrouter':
-                ai_sdk_provider = 'openrouter'
-            elif provider == 'anthropic':
-                ai_sdk_provider = 'anthropic'
-            elif provider == 'openai':
-                ai_sdk_provider = 'openai'
-            elif provider == 'google':
-                ai_sdk_provider = 'google'
-            elif provider == 'groq':
-                ai_sdk_provider = 'groq'
             
             # Default models per provider
             default_models = {
+                'opencode': 'default',  # OpenCode free model (default)
                 'claude-cli': 'sonnet',
                 'cursor-cli': 'sonnet',
                 'anthropic': 'claude-3-5-sonnet-20241022',
@@ -179,11 +161,11 @@ class UnifiedLMProvider:
             return lm
         
         # Auto-detect provider priority:
-        # 1. OpenCode (free)
+        # 1. OpenCode (free) - via AISDKProviderLM
         try:
             lm = UnifiedLMProvider.create_lm('opencode')
             dspy.configure(lm=lm)
-            print("✅ DSPy configured with OpenCodeLM (free)", file=__import__('sys').stderr)
+            print("✅ DSPy configured with OpenCode (via AISDKProviderLM)", file=__import__('sys').stderr)
             return lm
         except Exception:
             pass

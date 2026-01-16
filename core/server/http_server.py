@@ -137,6 +137,10 @@ class JottyHTTPServer:
             config=config
         )
         
+        # Store jotty_api and server instance in Flask app for blueprints to access
+        self.app.jotty_api = self.jotty_api
+        self.app.jotty_server = self  # Store server instance for formatter access
+        
         # Setup middleware
         self._setup_middleware()
         
@@ -147,9 +151,46 @@ class JottyHTTPServer:
         try:
             from .provider_api import provider_bp
             self.app.register_blueprint(provider_bp)
+            print("✅ Provider API routes registered", file=sys.stderr)
         except ImportError:
             # Provider API not available (optional)
-            pass
+            print("⚠️  Provider API not available", file=sys.stderr)
+        
+        # Register agent API routes (for JustJot.ai integration)
+        try:
+            from .agent_api import agent_bp
+            self.app.register_blueprint(agent_bp)
+            print("✅ Agent API routes registered", file=sys.stderr)
+        except ImportError as e:
+            # Agent API not available (optional)
+            print(f"⚠️  Agent API not available: {e}", file=sys.stderr)
+        
+        # Register orchestrator API routes (for JustJot.ai integration)
+        try:
+            from .orchestrator_api import orchestrator_bp
+            self.app.register_blueprint(orchestrator_bp)
+            print("✅ Orchestrator API routes registered", file=sys.stderr)
+        except ImportError as e:
+            # Orchestrator API not available (optional)
+            print(f"⚠️  Orchestrator API not available: {e}", file=sys.stderr)
+        
+        # Register swarm API routes (for JustJot.ai integration)
+        try:
+            from .swarm_api import swarm_bp
+            self.app.register_blueprint(swarm_bp)
+            print("✅ Swarm API routes registered", file=sys.stderr)
+        except ImportError as e:
+            # Swarm API not available (optional)
+            print(f"⚠️  Swarm API not available: {e}", file=sys.stderr)
+        
+        # Register tool API routes (for JustJot.ai integration)
+        try:
+            from .tool_api import tool_bp
+            self.app.register_blueprint(tool_bp)
+            print("✅ Tool API routes registered", file=sys.stderr)
+        except ImportError as e:
+            # Tool API not available (optional)
+            print(f"⚠️  Tool API not available: {e}", file=sys.stderr)
         
         logger.info(f"✅ Jotty HTTP Server initialized on port {self.server_config.port}")
     
@@ -260,6 +301,19 @@ class JottyHTTPServer:
                 return jsonify({"error": "message or messages is required"}), 400
             
             agent_id = data.get('agentId')
+            provider = data.get('provider')  # Provider from request (opencode, claude-cli, etc.)
+            model = data.get('model')  # Model from request
+            
+            # Configure LM based on provider if provided
+            if provider:
+                try:
+                    from ..foundation.unified_lm_provider import UnifiedLMProvider
+                    lm = UnifiedLMProvider.create_lm(provider, model=model)
+                    import dspy
+                    dspy.configure(lm=lm)
+                    logger.info(f"🔵 CHAT: Configured LM provider: {provider}, model: {model}")
+                except Exception as e:
+                    logger.warning(f"⚠️  CHAT: Failed to configure provider {provider}: {e}, using default")
             
             # Get SSE formatter based on config
             formatter = self._get_sse_formatter()
@@ -290,6 +344,10 @@ class JottyHTTPServer:
                     except ImportError:
                         # Fallback if ChatMessage not available
                         chat_history = []
+                    
+                    # Log provider/model being used
+                    if provider:
+                        logger.info(f"🔵 CHAT: Using provider: {provider}, model: {model}, agent: {agent_id}")
                     
                     # Stream chat response
                     async_gen = self.jotty_api.chat_stream(
@@ -362,6 +420,19 @@ class JottyHTTPServer:
                 return jsonify({"error": "message or messages is required"}), 400
             
             agent_id = data.get('agentId')
+            provider = data.get('provider')  # Provider from request
+            model = data.get('model')  # Model from request
+            
+            # Configure LM based on provider if provided
+            if provider:
+                try:
+                    from ..foundation.unified_lm_provider import UnifiedLMProvider
+                    lm = UnifiedLMProvider.create_lm(provider, model=model)
+                    import dspy
+                    dspy.configure(lm=lm)
+                    logger.info(f"🔵 CHAT: Configured LM provider: {provider}, model: {model}")
+                except Exception as e:
+                    logger.warning(f"⚠️  CHAT: Failed to configure provider {provider}: {e}, using default")
             
             # Execute chat
             loop = asyncio.new_event_loop()
@@ -384,8 +455,12 @@ class JottyHTTPServer:
                             content=content,
                             timestamp=msg.get('timestamp')
                         ))
-                except ImportError:
-                    chat_history = []
+                    except ImportError:
+                        chat_history = []
+                    
+                    # Log provider/model being used
+                    if provider:
+                        logger.info(f"🔵 CHAT: Using provider: {provider}, model: {model}, agent: {agent_id}")
                 
                 result = loop.run_until_complete(
                     self.jotty_api.chat_execute(

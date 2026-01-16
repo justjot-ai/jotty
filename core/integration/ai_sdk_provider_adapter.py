@@ -66,6 +66,7 @@ class AISDKProviderLM(BaseLM):
         
         # Validate provider
         valid_providers = [
+            'opencode',  # OpenCode (free GLM model)
             'claude-cli', 'cursor-cli',  # CLI providers
             'anthropic', 'groq', 'openai', 'google', 'openrouter'  # API providers
         ]
@@ -83,19 +84,28 @@ class AISDKProviderLM(BaseLM):
         Returns:
             Response dict with 'text' or streaming data
         """
-        url = urljoin(self.base_url, '/api/ai/execute')
-        
-        # Build request payload
-        payload = {
-            'mode': 'chat',
-            'provider': self.provider,
-            'model': self.model,
-            'prompt': messages[-1]['content'] if messages else '',
-            'context': {
-                'conversationHistory': messages
-            },
-            'stream': stream
-        }
+        # OpenCode uses direct CLI execution endpoint to avoid circular dependency
+        if self.provider == 'opencode':
+            url = urljoin(self.base_url, '/api/ai/opencode')
+            payload = {
+                'prompt': messages[-1]['content'] if messages else '',
+                'model': self.model or 'default',
+                'stream': stream,
+                'conversationHistory': messages[:-1] if len(messages) > 1 else []
+            }
+        else:
+            # Other providers use unified execute endpoint
+            url = urljoin(self.base_url, '/api/ai/execute')
+            payload = {
+                'mode': 'chat',
+                'provider': self.provider,
+                'model': self.model,
+                'prompt': messages[-1]['content'] if messages else '',
+                'context': {
+                    'conversationHistory': messages
+                },
+                'stream': stream
+            }
         
         headers = {
             'Content-Type': 'application/json'
@@ -114,10 +124,17 @@ class AISDKProviderLM(BaseLM):
             else:
                 # Handle non-streaming response
                 data = response.json()
-                return {
-                    'text': data.get('result', {}).get('text', ''),
-                    'usage': data.get('usage', {})
-                }
+                # OpenCode endpoint returns {content, usage}, execute endpoint returns {result: {text}, usage}
+                if self.provider == 'opencode':
+                    return {
+                        'text': data.get('content', ''),
+                        'usage': data.get('usage', {})
+                    }
+                else:
+                    return {
+                        'text': data.get('result', {}).get('text', '') or data.get('content', ''),
+                        'usage': data.get('usage', {})
+                    }
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"AI SDK provider error ({self.provider}): {e}")
     
@@ -129,9 +146,15 @@ class AISDKProviderLM(BaseLM):
             if line:
                 line_str = line.decode('utf-8')
                 if line_str.startswith('data:'):
+                    data_str = line_str[5:].strip()
+                    if data_str == '[DONE]':
+                        break
                     try:
-                        data = json.loads(line_str[5:].strip())
-                        if 'textDelta' in data:
+                        data = json.loads(data_str)
+                        # Handle both formats: {type: 'text-delta', data: {textDelta}} and {textDelta}
+                        if data.get('type') == 'text-delta' and data.get('data', {}).get('textDelta'):
+                            text_parts.append(data['data']['textDelta'])
+                        elif 'textDelta' in data:
                             text_parts.append(data['textDelta'])
                     except json.JSONDecodeError:
                         pass
