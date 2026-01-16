@@ -116,12 +116,23 @@ class TaskOrchestrator:
             
             if running_count < self.max_concurrent:
                 # Get next pending task for this agent type
+                # Try with agent_type filter first, then without
                 task = await self.queue.dequeue(filters={
                     'status': TaskStatus.PENDING,
                     'agent_type': agent_type,
                 })
                 
+                # If no task found with agent_type filter, try without (for tasks without agent_type set)
+                if not task:
+                    task = await self.queue.dequeue(filters={
+                        'status': TaskStatus.PENDING,
+                    })
+                    # If task found but has no agent_type, use default
+                    if task and not task.agent_type:
+                        task.agent_type = agent_type
+                
                 if task:
+                    logger.info(f"Spawning task {task.task_id} ({task.title}) with {agent_type}")
                     await self._spawn_task(task)
     
     async def _spawn_task(self, task: Task):
