@@ -1,8 +1,31 @@
 """
 Base Expert Agent Framework
 
+⚠️ DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True instead.
+
 Expert agents are specialized agents that use OptimizationPipeline to ensure
 they always produce correct outputs. They can be pre-trained and validated.
+
+Migration Guide:
+    Old (deprecated):
+        from Jotty.core.experts import ExpertAgent, ExpertAgentConfig
+        config = ExpertAgentConfig(name="Expert", domain="mermaid")
+        expert = ExpertAgent(config)
+
+    New (recommended):
+        from Jotty.core.experts.expert_templates import create_mermaid_expert
+        expert = create_mermaid_expert(config=JottyConfig())
+
+    Or custom:
+        from Jotty.core.orchestration import SingleAgentOrchestrator
+        expert = SingleAgentOrchestrator(
+            agent=my_agent,
+            enable_gold_standard_learning=True,
+            gold_standards=[...],
+            domain="my_domain"
+        )
+
+This class is kept for backward compatibility only.
 """
 
 import asyncio
@@ -67,12 +90,24 @@ class ExpertAgentConfig:
 class ExpertAgent:
     """
     Base class for Expert Agents.
-    
+
+    ⚠️ DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True
+    or use expert_templates.py factory functions instead.
+
     Expert agents use OptimizationPipeline to ensure they always produce
     correct outputs. They can be pre-trained and validated.
     """
-    
+
     def __init__(self, config: ExpertAgentConfig, memory: Optional[HierarchicalMemory] = None):
+        import warnings
+        warnings.warn(
+            "ExpertAgent is deprecated. Use SingleAgentOrchestrator with "
+            "enable_gold_standard_learning=True or expert_templates factory functions instead. "
+            "See docs/PHASE_8_EXPERT_INTEGRATION_PROPOSAL.md for migration guide.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
         self.config = config
         self.data_dir = Path(config.expert_data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)

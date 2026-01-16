@@ -9,7 +9,8 @@ Modules:
 --------
 - conductor: Main orchestrator (PRIMARY ENTRY POINT) - MultiAgentsOrchestrator
 - modes: Execution modes (WorkflowMode, ChatMode)
-- single_agent_orchestrator: Single-agent episode manager (Phase 7)
+- single_agent_orchestrator: Single-agent episode manager (Phase 7-8)
+- team_templates: Factory functions for common team patterns (Phase 8)
 - jotty_core: DEPRECATED - Use single_agent_orchestrator instead
 - roadmap: Markovian TODO management for long-horizon tasks
 - dynamic_dependency_graph: Agent dependency resolution
@@ -64,6 +65,15 @@ from .task_orchestrator import TaskOrchestrator
 from .agent_spawner import AgentSpawner
 from .deployment_hook import DeploymentHook
 
+# 🆕 Phase 8: Team Templates
+from .team_templates import (
+    create_diagram_team,
+    create_sql_analytics_team,
+    create_documentation_team,
+    create_data_science_team,
+    create_custom_team
+)
+
 __all__ = [
     # conductor
     'Conductor',
@@ -103,4 +113,11 @@ __all__ = [
     'TaskOrchestrator',
     'AgentSpawner',
     'DeploymentHook',
+
+    # Phase 8: Team Templates
+    'create_diagram_team',
+    'create_sql_analytics_team',
+    'create_documentation_team',
+    'create_data_science_team',
+    'create_custom_team',
 ]

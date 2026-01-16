@@ -23,7 +23,7 @@ import asyncio
 import json
 import time
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -199,6 +199,16 @@ class SingleAgentOrchestrator:
                  config: JottyConfig = None,
                  agent_config: 'ActorConfig' = None,
                  shared_context: Optional[Dict[str, Any]] = None,
+
+                 # 🆕 Phase 8: Gold Standard Learning (optional)
+                 enable_gold_standard_learning: bool = False,
+                 gold_standards: Optional[List[Dict[str, Any]]] = None,
+                 validation_cases: Optional[List[Dict[str, Any]]] = None,
+                 domain: Optional[str] = None,
+                 domain_validator: Optional[Callable[[Any], bool]] = None,
+                 max_training_iterations: int = 5,
+                 min_validation_score: float = 1.0,
+
                  # Backward compatibility parameters
                  actor: dspy.Module = None,
                  actor_config: 'ActorConfig' = None):
@@ -214,6 +224,16 @@ class SingleAgentOrchestrator:
             config: JOTTY configuration (defaults if None)
             agent_config: ActorConfig with enable_architect/enable_auditor flags (optional)
             shared_context: SharedContext for accessing metadata (optional)
+
+            # Phase 8: Gold Standard Learning
+            enable_gold_standard_learning: Enable expert training with gold standards
+            gold_standards: List of {input, expected_output} training examples
+            validation_cases: List of validation test cases
+            domain: Domain name for the expert (e.g., "mermaid", "sql")
+            domain_validator: Custom validation function (input) -> bool
+            max_training_iterations: Max optimization iterations
+            min_validation_score: Minimum score to pass validation
+
             actor: DEPRECATED - Use 'agent' instead
             actor_config: DEPRECATED - Use 'agent_config' instead
         """
@@ -299,7 +319,43 @@ class SingleAgentOrchestrator:
         # Offline learning
         self.offline_learner = OfflineLearner(self.config)
         self.offline_learner.td_learner = self.td_learner
-        
+
+        # 🆕 Phase 8: Gold Standard Learning (optional)
+        self.enable_gold_standard_learning = enable_gold_standard_learning
+        self.gold_standards = gold_standards or []
+        self.validation_cases = validation_cases or []
+        self.domain = domain
+        self.domain_validator = domain_validator
+        self.max_training_iterations = max_training_iterations
+        self.min_validation_score = min_validation_score
+        self.optimization_pipeline = None
+
+        if enable_gold_standard_learning:
+            try:
+                from ..orchestration.optimization_pipeline import (
+                    create_optimization_pipeline,
+                    OptimizationConfig
+                )
+
+                # Create optimization pipeline for expert training
+                self.optimization_pipeline = create_optimization_pipeline(
+                    agent=self.agent,
+                    gold_standards=self.gold_standards,
+                    validation_function=domain_validator,
+                    config=OptimizationConfig(
+                        max_iterations=max_training_iterations,
+                        min_score=min_validation_score,
+                        enable_teacher_model=True,
+                        save_improvements=True
+                    )
+                )
+
+                logger.info(f"🎓 [PHASE 8] Gold standard learning enabled for domain: {domain}")
+                logger.info(f"🎓 [PHASE 8] Loaded {len(self.gold_standards)} gold standard examples")
+            except Exception as e:
+                logger.warning(f"⚠️ [PHASE 8] Failed to initialize optimization pipeline: {e}")
+                self.optimization_pipeline = None
+
         # Goal hierarchy (shared)
         self.goal_hierarchy = GoalHierarchy()
         
