@@ -154,10 +154,10 @@ class ChatExecutor:
                         yield chat_event
             else:
                 # Fallback: execute synchronously and stream result
-                result = await self.conductor.run_actor(
-                    actor_name=agent_id,
+                # Conductor.run() executes with the specified actor via kwargs
+                result = await self.conductor.run(
                     goal=message,
-                    context=agent_context
+                    **agent_context  # Pass context as kwargs (includes actor_name if specified)
                 )
                 
                 # Stream result as chat events
