@@ -1,12 +1,12 @@
 # Jotty v6.0 Architecture Refactoring Update
 
-**Date:** January 2026  
-**Phases Completed:** 1-5  
+**Date:** January 2026
+**Phases Completed:** 1-7
 **Status:** Refactoring Complete
 
 ## Overview
 
-This document describes the architectural improvements made in Jotty v6.0 refactoring (Phases 1-5). For complete architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+This document describes the architectural improvements made in Jotty v6.0 refactoring (Phases 1-7). For complete architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -145,6 +145,39 @@ BaseLearningManager              # Core interface
 - Standardizes method signatures
 - Facilitates testing (mock learners)
 - Optional (existing learners work without inheriting)
+
+---
+
+### Phase 7: Terminology Standardization
+
+**Problem:** Inconsistent actor/agent terminology
+
+**Solution:** Rename JottyCore → SingleAgentOrchestrator, standardize all terminology to "agent"
+
+#### Name Changes
+
+| Old Name | New Name | Type |
+|----------|----------|------|
+| `JottyCore` | `SingleAgentOrchestrator` | Class |
+| `actor` parameter | `agent` parameter | Parameter |
+| `self.actor` | `self.agent` | Instance variable |
+| `actor_config` | `agent_config` | Parameter |
+
+#### Hierarchical Naming
+
+```
+MultiAgentsOrchestrator  ← Top-level (multiple agents)
+    ↓
+SingleAgentOrchestrator  ← Episode-level (single agent)
+    ↓
+Validation Agents        ← Architect/Auditor agents
+```
+
+**Impact:**
+- Clear orchestrator hierarchy (Multi vs Single)
+- Consistent terminology (all use "agent")
+- Self-documenting class names
+- 100% backward compatibility via deprecation aliases
 
 ---
 
@@ -388,10 +421,10 @@ tests/
 
 ## Summary
 
-**Refactoring Complete:** Phases 1-5  
-**Lines Changed:** ~500 lines removed (duplicates), ~300 lines added (interfaces)  
-**Breaking Changes:** 0  
-**Backward Compatibility:** 100%  
+**Refactoring Complete:** Phases 1-7
+**Lines Changed:** ~500 lines removed (duplicates), ~300 lines added (interfaces)
+**Breaking Changes:** 0
+**Backward Compatibility:** 100%
 **Test Pass Rate:** 100%
 
 **Key Achievements:**
@@ -399,6 +432,7 @@ tests/
 - ✅ Eliminated duplicates
 - ✅ Unified naming conventions
 - ✅ Created learning interfaces
+- ✅ Standardized actor/agent terminology (Phase 7)
 - ✅ Maintained 100% compatibility
 
 **Next:** Use new patterns in new code, enjoy cleaner architecture! 🎉

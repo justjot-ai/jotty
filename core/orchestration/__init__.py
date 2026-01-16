@@ -7,9 +7,10 @@ task management, and dependency resolution.
 
 Modules:
 --------
-- conductor: Main orchestrator (PRIMARY ENTRY POINT)
+- conductor: Main orchestrator (PRIMARY ENTRY POINT) - MultiAgentsOrchestrator
 - modes: Execution modes (WorkflowMode, ChatMode)
-- jotty_core: Wraps agents with Architect/Auditor validation
+- single_agent_orchestrator: Single-agent episode manager (Phase 7)
+- jotty_core: DEPRECATED - Use single_agent_orchestrator instead
 - roadmap: Markovian TODO management for long-horizon tasks
 - dynamic_dependency_graph: Agent dependency resolution
 - policy_explorer: Exploration when stuck
@@ -34,10 +35,13 @@ from .dynamic_dependency_graph import (
     DependencySnapshot,
     DynamicDependencyGraph,
 )
-from .jotty_core import (
-    JottyCore,
+from .single_agent_orchestrator import (
+    SingleAgentOrchestrator,
     PersistenceManager,
     create_jotty,
+)
+from .jotty_core import (
+    JottyCore,  # Deprecated alias for SingleAgentOrchestrator
 )
 from .policy_explorer import (
     PolicyExplorer,
@@ -76,10 +80,12 @@ __all__ = [
     'CycleDetectedError',
     'DependencySnapshot',
     'DynamicDependencyGraph',
-    # jotty_core
-    'JottyCore',
+    # single_agent_orchestrator (Phase 7)
+    'SingleAgentOrchestrator',
     'PersistenceManager',
     'create_jotty',
+    # jotty_core (deprecated)
+    'JottyCore',  # Deprecated alias
     # policy_explorer
     'PolicyExplorer',
     'PolicyExplorerSignature',

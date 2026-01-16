@@ -1,12 +1,12 @@
 # Jotty Refactoring Migration Guide
 
-**Version:** 6.0  
-**Date:** January 2026  
-**Status:** Phase 1-5 Complete
+**Version:** 6.0
+**Date:** January 2026
+**Status:** Phase 1-7 Complete
 
 ## Overview
 
-This guide helps developers migrate code after the Jotty v6.0 refactoring (Phases 1-5). All changes maintain **100% backward compatibility** through deprecation aliases, so existing code continues to work.
+This guide helps developers migrate code after the Jotty v6.0 refactoring (Phases 1-7). All changes maintain **100% backward compatibility** through deprecation aliases, so existing code continues to work.
 
 ---
 
@@ -21,6 +21,14 @@ This guide helps developers migrate code after the Jotty v6.0 refactoring (Phase
 | `AuditorSignature` | `ReviewerSignature` | DSPy Signature | `agents.inspector` |
 | `SmartContextGuard` | `LLMContextManager` | Class | `context.context_guard` |
 | `AgenticChunker` | `LLMChunkManager` | Class | `context.chunker` |
+
+### Phase 7: Terminology Standardization
+
+| Old Name | New Name | Type | Module |
+|----------|----------|------|--------|
+| `JottyCore` | `SingleAgentOrchestrator` | Class | `orchestration.single_agent_orchestrator` |
+| `actor` parameter | `agent` parameter | Parameter | `SingleAgentOrchestrator.__init__()` |
+| `actor_config` parameter | `agent_config` parameter | Parameter | `SingleAgentOrchestrator.__init__()` |
 
 ---
 
@@ -222,6 +230,63 @@ from Jotty.core.learning import (
 - Creating new custom learners (inherit from base classes)
 - Dependency injection and testing (use base class types)
 - Polymorphic learner swapping
+
+---
+
+### 8. Terminology Standardization (Phase 7)
+
+**Actor → Agent Terminology:**
+
+Phase 7 renamed `JottyCore` → `SingleAgentOrchestrator` and standardized all "actor" terminology to "agent" for consistency.
+
+**Old Code:**
+```python
+from Jotty.core.orchestration.jotty_core import JottyCore
+
+jotty = JottyCore(
+    actor=my_agent,  # Old parameter name
+    architect_prompts=["planner.md"],
+    auditor_prompts=["validator.md"],
+    architect_tools=[],
+    auditor_tools=[],
+    config=config
+)
+
+result = await jotty.arun(question="...")
+```
+
+**New Code (Recommended):**
+```python
+from Jotty.core.orchestration import SingleAgentOrchestrator
+
+orchestrator = SingleAgentOrchestrator(
+    agent=my_agent,  # New parameter name
+    architect_prompts=["planner.md"],
+    auditor_prompts=["validator.md"],
+    architect_tools=[],
+    auditor_tools=[],
+    config=config
+)
+
+result = await orchestrator.arun(question="...")
+```
+
+**Backward Compatible (Still Works):**
+```python
+# Old import still works with deprecation
+from Jotty.core.orchestration.jotty_core import JottyCore
+
+# Old parameter names still work with deprecation warnings
+jotty = JottyCore(actor=my_agent, ...)  # Shows DeprecationWarning
+
+# Or use new class name with old parameter
+orchestrator = SingleAgentOrchestrator(actor=my_agent, ...)  # Shows warning
+```
+
+**Why the Change?**
+- **Consistent Hierarchy**: `MultiAgentsOrchestrator` → `SingleAgentOrchestrator` (clear multi vs single)
+- **Unified Terminology**: Everything uses "agent" (not mixed actor/agent)
+- **Self-Documenting**: Name describes scope and purpose
 
 ---
 
