@@ -54,6 +54,10 @@ from .llm_rag import (
     RecencyValueRanker,
     SlidingWindowChunker,
 )
+from .mongodb_backend import (
+    MongoDBMemoryBackend,
+    enable_mongodb_memory,
+)
 
 __all__ = [
     # memory_orchestrator
@@ -92,4 +96,7 @@ __all__ = [
     'LLMRelevanceScorer',
     'RecencyValueRanker',
     'SlidingWindowChunker',
+    # mongodb_backend
+    'MongoDBMemoryBackend',
+    'enable_mongodb_memory',
 ]
