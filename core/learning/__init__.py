@@ -16,6 +16,14 @@ Modules:
 - algorithmic_credit: Credit assignment algorithms
 """
 
+# REFACTORING PHASE 5: Base learning manager interfaces
+from .base_learning_manager import (
+    BaseLearningManager,
+    ValueBasedLearningManager,
+    RewardShapingManager,
+    MultiAgentLearningManager,
+)
+
 from .algorithmic_credit import (
     AgentContribution,
     AlgorithmicCreditAssigner,
@@ -76,6 +84,11 @@ from .shaped_rewards import (
 )
 
 __all__ = [
+    # base_learning_manager (Phase 5)
+    'BaseLearningManager',
+    'ValueBasedLearningManager',
+    'RewardShapingManager',
+    'MultiAgentLearningManager',
     # algorithmic_credit
     'AgentContribution',
     'AlgorithmicCounterfactualSignature',
