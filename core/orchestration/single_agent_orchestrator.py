@@ -331,30 +331,18 @@ class SingleAgentOrchestrator:
         self.optimization_pipeline = None
 
         if enable_gold_standard_learning:
-            try:
-                from ..orchestration.optimization_pipeline import (
-                    create_optimization_pipeline,
-                    OptimizationConfig
-                )
+            # 🎓 Phase 8: Gold Standard Learning Configuration
+            # For now, we store the configuration. Training will be implemented
+            # via a separate .train() method when OptimizationPipeline is refactored
+            # for single-agent use cases (currently designed for multi-agent pipelines)
 
-                # Create optimization pipeline for expert training
-                self.optimization_pipeline = create_optimization_pipeline(
-                    agent=self.agent,
-                    gold_standards=self.gold_standards,
-                    validation_function=domain_validator,
-                    config=OptimizationConfig(
-                        max_iterations=max_training_iterations,
-                        min_score=min_validation_score,
-                        enable_teacher_model=True,
-                        save_improvements=True
-                    )
-                )
+            logger.info(f"🎓 [PHASE 8] Gold standard learning enabled for domain: {domain}")
+            logger.info(f"🎓 [PHASE 8] Loaded {len(self.gold_standards)} gold standard examples")
+            if domain_validator:
+                logger.info(f"🎓 [PHASE 8] Domain validator configured")
 
-                logger.info(f"🎓 [PHASE 8] Gold standard learning enabled for domain: {domain}")
-                logger.info(f"🎓 [PHASE 8] Loaded {len(self.gold_standards)} gold standard examples")
-            except Exception as e:
-                logger.warning(f"⚠️ [PHASE 8] Failed to initialize optimization pipeline: {e}")
-                self.optimization_pipeline = None
+            # Note: OptimizationPipeline integration will be added in future when
+            # it supports single-agent gold standard training patterns
 
         # Goal hierarchy (shared)
         self.goal_hierarchy = GoalHierarchy()
