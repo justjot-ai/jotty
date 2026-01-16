@@ -19,7 +19,8 @@ Modules:
 """
 
 from .conductor import (
-    Conductor,
+    MultiAgentsOrchestrator,  # Phase 8: Main orchestrator class
+    Conductor,  # Backward compatibility alias
     TodoItem,
     create_conductor,
 )
@@ -76,7 +77,8 @@ from .team_templates import (
 
 __all__ = [
     # conductor
-    'Conductor',
+    'MultiAgentsOrchestrator',  # Phase 8: Main class
+    'Conductor',  # Backward compatibility
     'TodoItem',
     'create_conductor',
     # modes

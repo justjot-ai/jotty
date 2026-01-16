@@ -4800,6 +4800,70 @@ Strategy: Check if recoverable, adapt retry approach.
             else:
                 logger.debug(f"  ⚠️  {term_name}: '{key}' already exists, skipping")
 
+    def _infer_domain_from_actor(self, actor_name: str) -> str:
+        """
+        Infer domain from actor name.
+
+        Simple heuristic-based inference - extracts domain keywords from actor name.
+        Used for memory storage categorization.
+
+        Args:
+            actor_name: Name of the actor
+
+        Returns:
+            Inferred domain string (e.g., 'mermaid', 'sql', 'analysis', 'general')
+        """
+        actor_lower = actor_name.lower()
+
+        # Domain keyword mapping
+        if 'mermaid' in actor_lower or 'diagram' in actor_lower:
+            return 'mermaid'
+        elif 'sql' in actor_lower or 'database' in actor_lower or 'query' in actor_lower:
+            return 'sql'
+        elif 'latex' in actor_lower or 'math' in actor_lower:
+            return 'latex'
+        elif 'plantuml' in actor_lower or 'uml' in actor_lower:
+            return 'plantuml'
+        elif 'analyst' in actor_lower or 'analysis' in actor_lower:
+            return 'analysis'
+        elif 'visual' in actor_lower or 'chart' in actor_lower:
+            return 'visualization'
+        elif 'writer' in actor_lower or 'document' in actor_lower:
+            return 'documentation'
+        else:
+            return 'general'
+
+    def _infer_task_type_from_task(self, task_description: str) -> str:
+        """
+        Infer task type from task description.
+
+        Simple heuristic-based inference - categorizes task based on keywords.
+        Used for memory storage categorization.
+
+        Args:
+            task_description: Description of the task
+
+        Returns:
+            Inferred task type (e.g., 'generation', 'analysis', 'validation', 'general')
+        """
+        desc_lower = task_description.lower()
+
+        # Task type keyword mapping
+        if any(word in desc_lower for word in ['generate', 'create', 'build', 'write']):
+            return 'generation'
+        elif any(word in desc_lower for word in ['analyze', 'examine', 'review', 'inspect']):
+            return 'analysis'
+        elif any(word in desc_lower for word in ['validate', 'verify', 'check', 'test']):
+            return 'validation'
+        elif any(word in desc_lower for word in ['transform', 'convert', 'format', 'translate']):
+            return 'transformation'
+        elif any(word in desc_lower for word in ['query', 'search', 'find', 'retrieve']):
+            return 'retrieval'
+        elif any(word in desc_lower for word in ['visualize', 'chart', 'plot', 'diagram']):
+            return 'visualization'
+        else:
+            return 'general'
+
 
 # =============================================================================
 # FACTORY FUNCTIONS
