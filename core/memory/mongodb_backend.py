@@ -386,13 +386,20 @@ class MongoDBMemoryBackend:
         """
         goal = f"plan_{category if category and category.strip() else 'general'}"
         
-        # Use Jotty's retrieval API
-        memories = self.memory.retrieve(
-            query=task_description,
-            goal=goal,
-            levels=[MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL],
-            max_memories=max_memories
-        )
+        # Use Jotty's retrieval API via backend (loads from MongoDB first)
+        # First ensure memory is synced from MongoDB
+        self.load()
+        
+        # Then use Jotty's retrieve method
+        memories = []
+        for level in [MemoryLevel.EPISODIC, MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL]:
+            level_memories = self.memory.retrieve(
+                query=task_description,
+                goal=goal,
+                levels=[level],
+                max_memories=max_memories
+            )
+            memories.extend(level_memories)
         
         # Format for supervisor compatibility
         context = {
