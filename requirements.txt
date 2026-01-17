@@ -10,3 +10,7 @@ langgraph>=0.0.1
 # pymongo>=4.0.0  # MongoDB memory backend
 # redis>=4.0.0    # Redis caching
 # sqlalchemy>=2.0.0  # SQL persistence
+
+# Content generation (optional - for DOCX/PPTX export)
+python-docx>=0.8.11  # Word document generation
+python-pptx>=0.6.21  # PowerPoint presentation generation
