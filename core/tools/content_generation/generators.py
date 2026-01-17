@@ -122,7 +122,7 @@ class ContentGenerators:
 
             print(f"      Converting to PDF ({pdf_format.upper()})...")
 
-            # Use pandoc to convert to PDF
+            # Use pandoc to convert to PDF with optimized settings
             cmd = [
                 'pandoc',
                 str(temp_md),
@@ -130,6 +130,9 @@ class ContentGenerators:
                 '-t', 'pdf',
                 '--pdf-engine=xelatex',
                 f'--variable=papersize:{pandoc_page_size}',
+                '--variable=geometry:margin=0.75in',  # Reduce padding (0.75 inch margins, better than default 1.5in)
+                '--variable=urlcolor=blue',  # Color links blue
+                '--variable=linkcolor=blue',
                 '-o', str(pdf_path)
             ]
 
