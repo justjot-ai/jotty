@@ -15,6 +15,7 @@ REUSES:
 
 import asyncio
 import logging
+import dspy
 from typing import Dict, Any, List
 from pathlib import Path
 
@@ -24,6 +25,15 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from templates.hybrid_team_template import p2p_discovery_phase, sequential_delivery_phase
 
 logger = logging.getLogger(__name__)
+
+
+# Generic signature for workflow modes
+class GenericTaskSignature(dspy.Signature):
+    """Generic signature for any task"""
+    task: str = dspy.InputField(desc="Task to complete")
+    context: str = dspy.InputField(desc="Context and background information")
+
+    output: str = dspy.OutputField(desc="Task result or analysis")
 
 
 async def run_hierarchical_mode(
@@ -54,7 +64,7 @@ async def run_hierarchical_mode(
     # Step 1: Lead agent decomposes task (using P2P with 1 agent = lead)
     lead_config = [{
         'name': 'Lead Agent',
-        'agent': None,  # Will be created by p2p_discovery_phase
+        'agent': dspy.ChainOfThought(GenericTaskSignature),
         'expert': None,
         'tools': tools,
         'role': f'Analyze "{goal}" and decompose into {num_sub_agents} subtasks'
@@ -73,7 +83,7 @@ async def run_hierarchical_mode(
     sub_agent_configs = [
         {
             'name': f'Sub-Agent {i+1}',
-            'agent': None,
+            'agent': dspy.ChainOfThought(GenericTaskSignature),
             'expert': None,
             'tools': tools,
             'role': f'Execute subtask {i+1}'
@@ -93,7 +103,7 @@ async def run_hierarchical_mode(
     # Step 3: Lead aggregates (using sequential with 1 agent)
     aggregation_config = [{
         'name': 'Lead Agent (Aggregation)',
-        'agent': None,
+        'agent': dspy.ChainOfThought(GenericTaskSignature),
         'expert': None,
         'tools': tools,
         'role': 'Aggregate sub-agent results and make final decision'
