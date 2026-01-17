@@ -1,0 +1,58 @@
+# Learning: TD(λ)
+# ================
+# Temporal Difference learning with eligibility traces
+# Better credit assignment across multiple steps
+
+enabled: true
+algorithm: td_lambda
+implementation: core.learning.learning.TDLambdaManager
+
+# Hyperparameters
+alpha: 0.1  # Learning rate
+gamma: 0.95  # Discount factor
+lambda_: 0.9  # Eligibility trace decay
+epsilon: 0.1  # Exploration rate
+
+update:
+  frequency: 5  # Update every 5 steps
+  batch_size: 1
+  eligibility_traces: true
+  trace_decay: 0.9
+
+exploration:
+  strategy: epsilon_greedy
+  epsilon_decay: 0.995
+  epsilon_min: 0.01
+
+value_estimation:
+  enabled: true
+  predictor: llm_q_predictor
+
+credit_assignment:
+  enabled: true
+  cooperative: true
+  implementation: core.learning.algorithmic_credit.CreditAssignmentManager
+
+  assignment:
+    algorithm: shapley  # Shapley value attribution
+    window_size: 10  # Look back 10 steps
+    contribution_threshold: 0.1
+
+shaped_rewards:
+  enabled: true
+  implementation: core.learning.shaped_rewards.ShapedRewardManager
+
+  intrinsic_motivation:
+    enabled: true
+    curiosity_bonus: 0.1
+    novelty_bonus: 0.05
+
+  extrinsic_rewards:
+    task_completion: 1.0
+    partial_progress: 0.3
+    error_penalty: -0.5
+
+offline_learning:
+  enabled: false  # Offline batch learning
+  batch_size: 100
+  update_interval: 1000

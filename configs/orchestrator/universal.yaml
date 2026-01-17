@@ -1,0 +1,34 @@
+# Orchestrator: Universal Workflow
+# =================================
+# Adaptive multi-agent workflow (universal_workflow.py)
+# For dynamic task adaptation
+
+name: universal_workflow
+implementation: core.use_cases.workflow.universal_workflow.UniversalWorkflow
+
+settings:
+  max_steps: 100
+  max_retries: 10
+  timeout: 1200.0
+  retry_strategy: adaptive
+
+task_queue:
+  enabled: true
+  max_concurrent: 30
+  dependency_tracking: true
+  priority_based: true
+  adaptive_scheduling: true
+
+parameter_resolution:
+  enabled: true
+  auto_resolve: true
+  type_matching: true
+  context_injection: true
+  signature_introspection: true
+  advanced_binding: true
+
+state_tracking:
+  enabled: true
+  trajectory_tracking: true
+  checkpointing: true
+  causal_reasoning: true

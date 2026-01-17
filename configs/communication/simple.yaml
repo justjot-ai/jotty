@@ -1,0 +1,20 @@
+# Communication: Simple
+# ======================
+# Simple message bus (flat, no hierarchy)
+
+implementation: simple
+message_bus: jotty_minimal.MessageBus
+
+routing:
+  strategy: direct  # Direct agent-to-agent
+  complexity: O(n)  # Linear communication
+
+broadcast:
+  enabled: true
+
+subscription:
+  enabled: true
+
+history:
+  enabled: true
+  max_messages: 1000

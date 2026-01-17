@@ -1,0 +1,22 @@
+# MAS: Minimal
+# =============
+# Minimal multi-agent system (like MegaAgent)
+# ~1,500 lines from jotty_minimal.py
+
+implementation:
+  use_jotty_minimal: true
+  modules:
+    - simple_orchestrator
+    - simple_memory
+    - message_bus
+    - dynamic_spawner
+
+spawning:
+  enabled: true
+  max_per_agent: 3
+  complexity_threshold: 4  # Spawn less often
+  use_llm_assessment: false  # Heuristics only
+
+execution:
+  parallel: false  # Sequential only
+  max_concurrent: 1

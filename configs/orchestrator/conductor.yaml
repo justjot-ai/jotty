@@ -1,0 +1,32 @@
+# Orchestrator: Conductor
+# ========================
+# Full-featured MultiAgentsOrchestrator (conductor.py)
+# For complex workflows with validation, retry, state tracking
+
+name: multi_agents_orchestrator
+implementation: core.orchestration.conductor.MultiAgentsOrchestrator
+
+settings:
+  max_steps: 50
+  max_retries: 5
+  timeout: 600.0
+  retry_strategy: exponential_backoff
+
+task_queue:
+  enabled: true
+  max_concurrent: 15
+  dependency_tracking: true
+  priority_based: true
+  q_value_selection: false  # Requires learning module
+
+parameter_resolution:
+  enabled: true
+  auto_resolve: true
+  type_matching: true
+  context_injection: true
+  signature_introspection: true
+
+state_tracking:
+  enabled: true
+  trajectory_tracking: true
+  checkpointing: true

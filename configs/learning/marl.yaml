@@ -1,0 +1,73 @@
+# Learning: MARL (Multi-Agent Reinforcement Learning)
+# =====================================================
+# Advanced multi-agent RL with trajectory prediction
+# For research and complex coordination
+
+enabled: true
+algorithm: marl
+implementation: core.learning.predictive_marl.MARLLearningManager
+
+# Inherits TD(λ) settings
+alpha: 0.05  # Lower learning rate for stability
+gamma: 0.95
+lambda_: 0.9
+epsilon: 0.05  # Less exploration
+
+update:
+  frequency: 5
+  batch_size: 32  # Larger batches for MARL
+  eligibility_traces: true
+  trace_decay: 0.9
+
+exploration:
+  strategy: ucb  # Upper confidence bound (better for MARL)
+  ucb_c: 2.0
+  temperature: 0.5
+  boltzmann: true
+
+value_estimation:
+  enabled: true
+  predictor: llm_trajectory_predictor  # Predictive MARL
+
+# MARL-specific
+marl:
+  trajectory_prediction: true
+  prediction_horizon: 5  # Predict 5 steps ahead
+  joint_action_learning: true
+  communication_protocol: hierarchical
+  policy_sharing: true
+
+  coordination:
+    strategy: cooperative
+    reward_sharing: true
+    credit_assignment: shapley
+
+credit_assignment:
+  enabled: true
+  cooperative: true
+  shapley_values: true  # Exact Shapley value computation
+  window_size: 20
+
+shaped_rewards:
+  enabled: true
+  intrinsic_motivation:
+    enabled: true
+    curiosity_bonus: 0.15
+    novelty_bonus: 0.1
+  extrinsic_rewards:
+    task_completion: 1.0
+    partial_progress: 0.5
+    error_penalty: -0.3
+    coordination_bonus: 0.2  # Reward good coordination
+
+policy:
+  exploration_strategy: ucb
+  temperature: 0.5
+  boltzmann: true
+  adaptive: true
+
+offline_learning:
+  enabled: true
+  batch_size: 100
+  update_interval: 500
+  replay_buffer_size: 10000

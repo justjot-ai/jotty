@@ -1,0 +1,26 @@
+# Experts: Research Team
+# =======================
+# Domain experts for research tasks
+
+enabled: true
+implementation: core.experts.research_team
+
+experts:
+  researcher:
+    enabled: true
+    class: core.experts.research.ResearchExpert
+    max_instances: 5
+
+  web_searcher:
+    enabled: true
+    class: core.experts.web_search.WebSearchExpert
+    max_instances: 3
+
+  summarizer:
+    enabled: true
+    class: core.experts.summarization.SummarizationExpert
+    max_instances: 2
+
+auto_routing:
+  enabled: true
+  routing_strategy: capability_based

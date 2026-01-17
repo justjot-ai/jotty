@@ -1,0 +1,35 @@
+# Memory: Hierarchical
+# =====================
+# 3-level memory hierarchy
+# Working → Episodic → Long-term
+
+backend: hierarchical
+implementation: core.memory.hierarchical_memory.HierarchicalMemory
+
+settings:
+  max_entries: 5000
+  persist: true
+  persist_directory: ./data/memory
+
+levels:
+  working:
+    capacity: 100
+    ttl: 300  # 5 minutes
+    eviction: lru
+  episodic:
+    capacity: 1000
+    ttl: 3600  # 1 hour
+    eviction: importance
+  long_term:
+    capacity: 5000
+    ttl: null  # Permanent
+    eviction: relevance
+
+search:
+  strategy: hierarchical  # Search all levels
+  top_k: 10
+
+consolidation:
+  enabled: true
+  interval: 600  # 10 minutes
+  strategy: importance_based

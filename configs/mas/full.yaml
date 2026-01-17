@@ -1,0 +1,22 @@
+# MAS: Full
+# ==========
+# Full multi-agent system with all coordination features
+
+implementation:
+  use_jotty_minimal: false
+  modules:
+    - multi_agents_orchestrator
+    - dynamic_spawner
+    - complexity_assessor
+
+spawning:
+  enabled: true
+  max_per_agent: 10
+  complexity_threshold: 3
+  use_llm_assessment: true  # LLM-based assessment
+  hierarchical: true  # Multi-level hierarchy
+
+execution:
+  parallel: true
+  max_concurrent: 10
+  adaptive_scaling: false

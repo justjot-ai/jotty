@@ -1,0 +1,30 @@
+# Preset: Development
+# ====================
+# Fast iteration, parallel execution, basic validation
+# ~7,000 lines
+#
+# Use for: Development, testing, multi-step workflows
+
+defaults:
+  - /mas: full
+  - /orchestrator: conductor
+  - /memory: chroma
+  - /learning: none
+  - /validation: planner_reviewer
+  - /tools: registry
+  - /experts: none
+  - /communication: hierarchical
+  - _self_
+
+execution:
+  max_steps: 30
+  timeout: 300.0
+  parallel: true
+
+logging:
+  level: DEBUG  # Verbose logging for development
+
+lm:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 4000

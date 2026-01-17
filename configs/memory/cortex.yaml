@@ -1,0 +1,70 @@
+# Memory: Cortex (Brain-Inspired)
+# =================================
+# 5-level brain-inspired memory hierarchy
+# Working → Episodic → Semantic → Long-term → Persistent
+# + Sharp Wave Ripple consolidation
+
+backend: cortex
+implementation: core.memory.cortex.Cortex
+
+settings:
+  max_entries: 50000
+  persist: true
+  persist_directory: ./data/cortex
+
+levels:
+  working:
+    capacity: 100
+    ttl: 60  # 1 minute
+    eviction: lru
+    description: "Active context"
+  episodic:
+    capacity: 1000
+    ttl: 1800  # 30 minutes
+    eviction: recency
+    description: "Recent experiences"
+  semantic:
+    capacity: 5000
+    ttl: null
+    eviction: importance
+    description: "Extracted knowledge"
+  long_term:
+    capacity: 10000
+    ttl: null
+    eviction: relevance
+    description: "Important patterns"
+  persistent:
+    capacity: 50000
+    ttl: null
+    eviction: never
+    description: "Forever storage"
+
+search:
+  strategy: brain_inspired  # Hierarchical with salience
+  top_k: 10
+
+consolidation:
+  enabled: true
+  interval: 300  # 5 minutes
+  strategy: sharp_wave_ripple  # Brain-inspired
+
+  sharp_wave_ripple:
+    enabled: true
+    replay_ratio: 0.3  # 30% of experiences replayed
+    novelty_threshold: 0.7
+    salience_detection: true
+
+  hippocampal_extraction:
+    enabled: true
+    novelty_bonus: 0.2
+    salience_bonus: 0.3
+
+  offline_learning:
+    enabled: false  # Requires learning module
+    batch_size: 100
+
+brain_state:
+  mode: online  # online (awake) or offline (sleep)
+  auto_switch: true
+  sleep_interval: 3600  # Enter sleep mode every hour
+  sleep_duration: 60  # Sleep for 1 minute

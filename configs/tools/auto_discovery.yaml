@@ -1,0 +1,32 @@
+# Tools: Auto-Discovery
+# ======================
+# LLM-driven tool generation on-the-fly
+
+implementation: auto_discovery
+registry_class: core.metadata.tool_registry_manager.ToolRegistryManager
+
+tools:
+  auto_register: true
+  allow_custom: true
+  max_tools: 500
+  capability_matching: true
+
+discovery:
+  enabled: true
+  discovery_class: core.metadata.tool_discovery_manager.ToolDiscoveryManager
+
+  metadata_driven: true
+  llm_generation: true  # Generate tools via LLM
+
+  sources:
+    - metadata  # Discover from metadata
+    - signatures  # Discover from DSPy signatures
+    - python_modules  # Discover from Python imports
+
+  caching:
+    enabled: true
+    ttl: 3600  # Cache discovered tools for 1 hour
+
+interception:
+  enabled: true
+  intercept_strategy: aggressive  # Intercept all tool calls

@@ -1,0 +1,18 @@
+# Orchestrator: Simple
+# =====================
+# Simple sequential orchestrator (from jotty_minimal.py)
+
+name: simple_orchestrator
+implementation: jotty_minimal.Orchestrator
+
+settings:
+  max_steps: 10
+  max_retries: 2
+  timeout: 60.0
+  retry_strategy: exponential_backoff
+
+task_queue:
+  enabled: false
+
+parameter_resolution:
+  enabled: false

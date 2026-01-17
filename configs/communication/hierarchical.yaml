@@ -1,0 +1,25 @@
+# Communication: Hierarchical
+# ============================
+# Hierarchical routing through supervisors
+# O(log n) communication complexity (like MegaAgent)
+
+implementation: hierarchical
+message_bus: core.communication.hierarchical_bus.HierarchicalMessageBus
+
+routing:
+  strategy: hierarchical  # Route through supervisors
+  complexity: O(log_n)  # Logarithmic communication
+  max_depth: 5  # Maximum hierarchy depth
+
+broadcast:
+  enabled: true
+  scope: subtree  # Broadcast to subtree only (not global)
+
+subscription:
+  enabled: true
+  hierarchical: true  # Can subscribe to supervisor messages
+
+history:
+  enabled: true
+  max_messages: 5000
+  per_agent: 500  # Max messages per agent

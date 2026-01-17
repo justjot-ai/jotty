@@ -1,0 +1,36 @@
+# Preset: Research
+# =================
+# Full RL, brain-inspired memory, learning agents
+# ~30,000 lines
+#
+# Use for: Research, optimization, learning tasks
+
+defaults:
+  - /mas: full
+  - /orchestrator: conductor
+  - /memory: cortex
+  - /learning: td_lambda
+  - /validation: multi_round
+  - /tools: auto_discovery
+  - /experts: research
+  - /communication: slack
+  - _self_
+
+execution:
+  max_steps: 100
+  timeout: 1200.0
+  parallel: true
+
+logging:
+  level: INFO
+
+lm:
+  model: gpt-4o
+  temperature: 0.8  # More exploration
+  max_tokens: 4000
+
+# Research-specific settings
+research:
+  experiment_tracking: true
+  checkpoint_frequency: 100
+  metrics_logging: true

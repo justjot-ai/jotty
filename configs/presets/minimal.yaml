@@ -1,0 +1,33 @@
+# Preset: Minimal
+# ================
+# MegaAgent equivalent - simplest possible setup
+# ~1,500 lines, sequential execution, in-memory storage
+#
+# Use for: Learning, prototypes, simple coordination
+
+defaults:
+  - /mas: minimal
+  - /orchestrator: simple
+  - /memory: simple
+  - /learning: none
+  - /validation: none
+  - /tools: simple
+  - /experts: none
+  - /communication: simple
+  - _self_
+
+# Override execution settings
+execution:
+  max_steps: 10
+  timeout: 60.0
+  parallel: false  # Sequential only
+
+# Override logging
+logging:
+  level: INFO
+
+# LLM (lighter model for minimal)
+lm:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 2000
