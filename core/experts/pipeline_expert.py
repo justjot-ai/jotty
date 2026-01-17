@@ -8,49 +8,54 @@ Uses OptimizationPipeline to ensure it always produces valid pipeline visualizat
 import logging
 from typing import Any, Dict, List, Optional
 
-from .expert_agent import ExpertAgent, ExpertAgentConfig
+from .base_expert import BaseExpert
 
 logger = logging.getLogger(__name__)
 
 
-class PipelineExpertAgent(ExpertAgent):
+class PipelineExpertAgent(BaseExpert):
     """
     Expert agent for CI/CD pipeline diagram generation.
-    
+
     This agent is pre-trained to always generate valid pipeline diagrams
     (can be Mermaid, PlantUML, or other formats).
     """
-    
-    def __init__(self, config: Optional[ExpertAgentConfig] = None, output_format: str = "mermaid", memory=None):
+
+    def __init__(self, config=None, output_format: str = "mermaid", memory=None, improvements: Optional[List[Dict[str, Any]]] = None):
         """
         Initialize Pipeline Expert Agent.
-        
+
         Args:
             config: Optional custom configuration
             output_format: Output format ("mermaid", "plantuml", etc.)
             memory: Optional HierarchicalMemory instance
+            improvements: Optional list of learned improvements
         """
+        # Set output_format BEFORE calling super().__init__() because domain property needs it
         self.output_format = output_format
-        
-        if config is None:
-            config = ExpertAgentConfig(
-                name=f"pipeline_expert_{output_format}",
-                domain=f"pipeline_{output_format}",
-                description=f"Expert agent for generating perfect {output_format} pipeline diagrams",
-                training_gold_standards=self._get_default_training_cases(),
-                validation_cases=self._get_default_validation_cases(),
-                evaluation_function=self._evaluate_pipeline,
-                agent_module=lambda: self._create_pipeline_agent(),
-                teacher_module=lambda: self._create_pipeline_teacher()
-            )
-        
-        super().__init__(config, memory=memory)
-    
-    def _create_default_agent(self) -> Any:
-        """Create default pipeline generation agent."""
-        return self._create_pipeline_agent()
-    
-    def _create_pipeline_agent(self):
+
+        # Call BaseExpert.__init__ which will use our domain/description properties
+        super().__init__(config=config, memory=memory, improvements=improvements)
+
+    # =========================================================================
+    # REQUIRED PROPERTIES (BaseExpert interface)
+    # =========================================================================
+
+    @property
+    def domain(self) -> str:
+        """Return domain name for this expert."""
+        return f"pipeline_{self.output_format}"
+
+    @property
+    def description(self) -> str:
+        """Return description for this expert."""
+        return f"Expert agent for generating perfect {self.output_format} pipeline diagrams"
+
+    # =========================================================================
+    # DOMAIN-SPECIFIC AGENT CREATION (BaseExpert interface)
+    # =========================================================================
+
+    def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the pipeline generation agent."""
         class PipelineAgent:
             def __init__(self, output_format: str):
@@ -86,7 +91,7 @@ class PipelineExpertAgent(ExpertAgent):
         
         return PipelineAgent(self.output_format)
     
-    def _create_pipeline_teacher(self):
+    def _create_domain_teacher(self) -> Any:
         """Create the pipeline teacher agent."""
         class PipelineTeacher:
             def forward(self, **kwargs) -> Any:
@@ -98,8 +103,17 @@ class PipelineExpertAgent(ExpertAgent):
         
         return PipelineTeacher()
     
-    @staticmethod
-    async def _evaluate_pipeline(output: Any, gold_standard: str, task: str, context: Dict) -> Dict[str, Any]:
+    # =========================================================================
+    # DOMAIN-SPECIFIC EVALUATION (BaseExpert interface)
+    # =========================================================================
+
+    async def _evaluate_domain(
+        self,
+        output: Any,
+        gold_standard: str,
+        task: str,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Evaluate pipeline diagram correctness."""
         output_str = str(output).strip()
         gold_str = str(gold_standard).strip()
@@ -133,6 +147,10 @@ class PipelineExpertAgent(ExpertAgent):
             "matches_gold": matches_gold
         }
     
+    # =========================================================================
+    # TRAINING AND VALIDATION DATA (BaseExpert interface)
+    # =========================================================================
+
     def _get_default_training_cases(self) -> List[Dict[str, Any]]:
         """Get default training cases for pipelines."""
         if self.output_format == "mermaid":
@@ -188,6 +206,10 @@ class PipelineExpertAgent(ExpertAgent):
         else:
             return []
     
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
+
     async def generate_pipeline(
         self,
         stages: List[str],
@@ -196,12 +218,12 @@ class PipelineExpertAgent(ExpertAgent):
     ) -> str:
         """
         Generate a pipeline diagram.
-        
+
         Args:
             stages: List of pipeline stage names
             description: Optional description
             **kwargs: Additional context
-        
+
         Returns:
             Pipeline diagram code as string
         """

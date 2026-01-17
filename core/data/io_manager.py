@@ -451,7 +451,20 @@ class IOManager:
     def get_all_outputs(self) -> Dict[str, ActorOutput]:
         """Get all actor outputs."""
         return self.outputs.copy()
-    
+
+    def get_output_fields(self, actor_name: str) -> Dict[str, Any]:
+        """
+        Get output fields from a specific actor.
+
+        Returns:
+            Dict mapping field names to their values.
+            Empty dict if actor not found.
+        """
+        actor_output = self.outputs.get(actor_name)
+        if actor_output:
+            return actor_output.output_fields.copy()
+        return {}
+
     def clear(self):
         """Clear all outputs."""
         self.outputs.clear()

@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import re
 
-from .expert_agent import ExpertAgent, ExpertAgentConfig
+from .base_expert import BaseExpert
 
 logger = logging.getLogger(__name__)
 
@@ -23,35 +23,33 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 
-class PlantUMLExpertAgent(ExpertAgent):
+class PlantUMLExpertAgent(BaseExpert):
     """
     Expert agent for PlantUML diagram generation.
-    
+
     This agent is pre-trained to always generate valid PlantUML diagrams.
     It uses OptimizationPipeline internally to learn from mistakes.
     """
-    
-    def __init__(self, config: Optional[ExpertAgentConfig] = None, memory=None):
-        if config is None:
-            config = ExpertAgentConfig(
-                name="plantuml_expert",
-                domain="plantuml",
-                description="Expert agent for generating perfect PlantUML diagrams",
-                training_gold_standards=self._get_default_training_cases(),
-                validation_cases=self._get_default_validation_cases(),
-                evaluation_function=self._evaluate_plantuml,
-                agent_module=self._create_plantuml_agent,
-                teacher_module=self._create_plantuml_teacher
-            )
-        
-        super().__init__(config, memory=memory)
-    
-    def _create_default_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
-        """Create default PlantUML generation agent."""
-        return self._create_plantuml_agent(improvements=improvements)
-    
-    @staticmethod
-    def _create_plantuml_agent(improvements: List[Dict[str, Any]] = None):
+
+    # =========================================================================
+    # REQUIRED PROPERTIES (BaseExpert interface)
+    # =========================================================================
+
+    @property
+    def domain(self) -> str:
+        """Return domain name for this expert."""
+        return "plantuml"
+
+    @property
+    def description(self) -> str:
+        """Return description for this expert."""
+        return "Expert agent for generating perfect PlantUML diagrams"
+
+    # =========================================================================
+    # DOMAIN-SPECIFIC AGENT CREATION (BaseExpert interface)
+    # =========================================================================
+
+    def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the PlantUML generation agent using DSPy."""
         if not DSPY_AVAILABLE:
             raise ImportError("DSPy is required for expert agents. Install with: pip install dspy-ai")
@@ -103,8 +101,7 @@ class PlantUMLExpertAgent(ExpertAgent):
         agent = dspy.ChainOfThought(signature_class)
         return agent
     
-    @staticmethod
-    def _create_plantuml_teacher():
+    def _create_domain_teacher(self) -> Any:
         """Create the PlantUML teacher agent using DSPy."""
         if not DSPY_AVAILABLE:
             return None
@@ -136,8 +133,17 @@ class PlantUMLExpertAgent(ExpertAgent):
         teacher = dspy.Predict(PlantUMLTeacherSignature)
         return teacher
     
-    @staticmethod
-    async def _evaluate_plantuml(output: Any, gold_standard: str, task: str, context: Dict) -> Dict[str, Any]:
+    # =========================================================================
+    # DOMAIN-SPECIFIC EVALUATION (BaseExpert interface)
+    # =========================================================================
+
+    async def _evaluate_domain(
+        self,
+        output: Any,
+        gold_standard: str,
+        task: str,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Evaluate PlantUML diagram output."""
         output_str = str(output).strip()
         gold_str = str(gold_standard).strip()
@@ -200,6 +206,10 @@ class PlantUMLExpertAgent(ExpertAgent):
             "difference": "Missing @startuml/@enduml tags" if missing_tags else None
         }
     
+    # =========================================================================
+    # HELPER METHODS (domain-specific)
+    # =========================================================================
+
     @classmethod
     async def load_training_examples_from_github(
         cls,
@@ -269,6 +279,10 @@ class PlantUMLExpertAgent(ExpertAgent):
         
         return gold_standards
     
+    # =========================================================================
+    # TRAINING AND VALIDATION DATA (BaseExpert interface)
+    # =========================================================================
+
     @staticmethod
     def _get_default_training_cases() -> List[Dict[str, Any]]:
         """Get default training cases for PlantUML."""
@@ -329,6 +343,10 @@ State2 --> [*]
             }
         ]
     
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
+
     async def generate_plantuml(
         self,
         description: str,
@@ -337,12 +355,12 @@ State2 --> [*]
     ) -> str:
         """
         Generate a PlantUML diagram using the trained expert agent.
-        
+
         Args:
             description: Description of the diagram to generate
             diagram_type: Type of diagram (sequence, class, activity, etc.)
             **kwargs: Additional context
-        
+
         Returns:
             PlantUML diagram code as string
         """

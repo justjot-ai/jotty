@@ -33,6 +33,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 import re
 import hashlib
+import json
 
 from ..foundation.data_structures import (
     MemoryEntry, MemoryLevel, JottyConfig,

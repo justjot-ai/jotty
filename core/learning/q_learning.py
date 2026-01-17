@@ -734,18 +734,40 @@ class LLMQPredictor:
         return sorted(similar, key=lambda x: x.get('timestamp', 0), reverse=True)[:10]  # Top 10
     
     def predict_q_value(
-        self, 
-        state: Dict[str, Any], 
+        self,
+        state: Dict[str, Any],
         action: Dict[str, Any],
         goal: str = ""
     ) -> Tuple[Optional[float], Optional[float], Optional[str]]:
         """
-        Predict Q-value for a state-action pair using LLM reasoning.
-        
+        Predict Q-value for a state-action pair.
+
+        Modes:
+        - "simple": Average reward per actor (fast, reliable, for natural dependencies)
+        - "llm": LLM-based prediction (USP - semantic generalization)
+
         Returns:
             (q_value, confidence, alternative_suggestion)
         """
         try:
+            # Check mode from config
+            q_mode = getattr(self.config, 'q_value_mode', 'simple')
+
+            if q_mode == 'simple':
+                # 🔥 SIMPLE MODE: Average reward per actor
+                # Fast, reliable, perfect for natural dependencies
+                actor = action.get('actor', '')
+                if actor:
+                    # Calculate average reward for this actor from experience buffer
+                    actor_experiences = [exp for exp in self.experience_buffer
+                                       if exp.get('action', {}).get('actor') == actor]
+
+                    if actor_experiences:
+                        rewards = [exp.get('reward', 0.0) for exp in actor_experiences]
+                        avg_reward = sum(rewards) / len(rewards)
+                        return avg_reward, 0.9, None
+
+            # 🧠 LLM MODE: Semantic Q-value prediction (fallback for simple mode too)
             # Get similar experiences for few-shot learning
             similar_exps = self._get_similar_experiences(state, action)
             

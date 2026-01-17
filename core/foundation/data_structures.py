@@ -182,6 +182,12 @@ class SwarmConfig:
     actor_timeout: float = 900.0  # Specific timeout for actor execution (15 minutes)
     max_concurrent_agents: int = 10
 
+    # 🔥 CRITICAL: Natural Dependencies (RL Learning)
+    # Allow agents to execute even with missing required parameters
+    # Agents can fail naturally when dependencies aren't met (instead of blocking at parameter resolution)
+    allow_partial_execution: bool = False  # Default: False (strict parameter checking)
+    # Set to True for RL with natural dependencies (agents detect missing data themselves)
+
     # NEW: Agent-specific overrides (can be set in ActorConfig)
     max_eval_retries: int = 3  # ✅ Retry attempts for validation (was hardcoded in agent.py)
     stream_message_timeout: float = 0.15  # ✅ Streaming timeout (was hardcoded in agents)
@@ -297,6 +303,11 @@ class SwarmConfig:
     alpha_min: float = 0.001
     alpha_max: float = 0.1
     alpha_adaptation_rate: float = 0.1
+
+    # 🆕 Q-VALUE CALCULATION MODE (Natural Dependencies vs LLM Prediction)
+    # "simple": Average reward per actor (fast, reliable, perfect for natural dependencies)
+    # "llm": LLM-based Q-value prediction (USP - semantic generalization across states)
+    q_value_mode: str = "simple"  # "simple" or "llm"
 
     # NEW: Intermediate rewards (Dr. Manning)
     enable_intermediate_rewards: bool = True

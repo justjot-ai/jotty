@@ -1155,9 +1155,31 @@ class SingleAgentOrchestrator:
         # =====================================================================
         # LEARNING PHASE
         # =====================================================================
-        
-        # Determine success
-        success = proceed and valid and actor_error is None
+
+        # 🔥 CRITICAL FIX: Check agent's success field (natural dependencies)
+        # Agent can return Prediction(success=False) when data dependencies aren't met
+        agent_success = True  # Default
+        if actor_output and hasattr(actor_output, '_store') and isinstance(actor_output._store, dict):
+            agent_success = actor_output._store.get('success', True)
+            if not agent_success:
+                logger.info(f"🔍 Agent returned success=False (natural dependency check)")
+
+        # Determine episode success: ALL conditions must be true
+        # - proceed: Architect allowed execution
+        # - valid: Auditor validated output
+        # - actor_error is None: No exceptions
+        # - agent_success: Agent's own success field (NEW!)
+
+        # 🔍 DIAGNOSTIC: Log each success condition BEFORE calculation
+        logger.info(f"🔍 Success conditions breakdown:")
+        logger.info(f"   proceed={proceed} (Architect allowed execution)")
+        logger.info(f"   valid={valid} (Auditor validated output)")
+        logger.info(f"   actor_error={actor_error} (actor_error is None: {actor_error is None})")
+        logger.info(f"   agent_success={agent_success} (Agent's own success field)")
+
+        success = proceed and valid and actor_error is None and agent_success
+
+        logger.info(f"🔍 Final success: {success} (proceed AND valid AND no_error AND agent_success)")
         
         # Compute final reward
         if success:
@@ -1466,62 +1488,63 @@ class SingleAgentOrchestrator:
             raise TimeoutError(f"Actor execution timed out after {timeout}s")
     
     async def _run_actor(self, kwargs: Dict) -> Any:
-        """Run the actor (handles both sync and async)."""
-        # 🔍 A-TEAM: EXTREME DEBUG - Trace actor execution
-        logger.info(f"[🔍 ACTOR EXEC] Actor: {self.actor.__class__.__name__ if hasattr(self.actor, '__class__') else type(self.actor)}")
-        logger.info(f"[🔍 ACTOR EXEC] Is coroutine function: {asyncio.iscoroutinefunction(self.actor)}")
-        logger.info(f"[🔍 ACTOR EXEC] Input kwargs keys (before filtering): {list(kwargs.keys())}")
-        
+        """Run the agent (handles both sync and async)."""
+        # 🔍 A-TEAM: EXTREME DEBUG - Trace agent execution
+        # 🔧 PHASE 7 FIX: Use self.agent (not self.actor - renamed in Phase 7)
+        logger.info(f"[🔍 AGENT EXEC] Agent: {self.agent.__class__.__name__ if hasattr(self.agent, '__class__') else type(self.agent)}")
+        logger.info(f"[🔍 AGENT EXEC] Is coroutine function: {asyncio.iscoroutinefunction(self.agent)}")
+        logger.info(f"[🔍 AGENT EXEC] Input kwargs keys (before filtering): {list(kwargs.keys())}")
+
         # 🔧 A-TEAM: Tool interception strategy
-        # For actors that set tools dynamically in forward() (like SQLGenerator),
+        # For agents that set tools dynamically in forward() (like SQLGenerator),
         # we CAN'T wrap here because tools don't exist yet.
-        # Instead, actors should track attempts internally and return TaggedOutput.
-        # 
-        # JOTTY's tool interceptor is available for actors that DON'T track internally.
-        # Check if actor has a 'generator' attribute (DSPy ReAct pattern)
-        
+        # Instead, agents should track attempts internally and return TaggedOutput.
+        #
+        # JOTTY's tool interceptor is available for agents that DON'T track internally.
+        # Check if agent has a 'generator' attribute (DSPy ReAct pattern)
+
         original_tools = None
         wrapped_tools_applied = False
-        
+
         # DISABLED: Wrapping conflicts with dynamic tool binding in forward()
-        # if hasattr(self.actor, 'generator') and hasattr(self.actor.generator, 'tools'):
+        # if hasattr(self.agent, 'generator') and hasattr(self.agent.generator, 'tools'):
         #     # For ReAct agents with nested `generator` module
-        #     if isinstance(self.actor.generator.tools, dict) and self.actor.generator.tools:
-        #         logger.info(f"🔧 [TOOL WRAP] Detected DSPy ReAct tools: {list(self.actor.generator.tools.keys())}")
-        #         original_tools = self.actor.generator.tools.copy()
+        #     if isinstance(self.agent.generator.tools, dict) and self.agent.generator.tools:
+        #         logger.info(f"🔧 [TOOL WRAP] Detected DSPy ReAct tools: {list(self.agent.generator.tools.keys())}")
+        #         original_tools = self.agent.generator.tools.copy()
         #         wrapped_tools = self.tool_interceptor.wrap_tools(original_tools)
-        #         self.actor.generator.tools = wrapped_tools
+        #         self.agent.generator.tools = wrapped_tools
         #         wrapped_tools_applied = True
         #         logger.info(f"🔧 [TOOL WRAP] Applied wrapping")
-        
-        logger.info("🔧 [TOOL WRAP] Skipping (actor tracks attempts internally via TaggedOutput)")
-        
-        # 🔥 A-TEAM RESILIENT SYSTEM: Auto-detect actor signature and filter dynamically!
-        # This makes the system FOOLPROOF - it adapts to ANY actor signature!
-        
-        # Step 1: Get actor's expected parameters from its signature
+
+        logger.info("🔧 [TOOL WRAP] Skipping (agent tracks attempts internally via TaggedOutput)")
+
+        # 🔥 A-TEAM RESILIENT SYSTEM: Auto-detect agent signature and filter dynamically!
+        # This makes the system FOOLPROOF - it adapts to ANY agent signature!
+
+        # Step 1: Get agent's expected parameters from its signature
         expected_params = set()
         try:
-            if hasattr(self.actor, 'forward'):
+            if hasattr(self.agent, 'forward'):
                 import inspect
-                sig = inspect.signature(self.actor.forward)
+                sig = inspect.signature(self.agent.forward)
                 expected_params = set(sig.parameters.keys())
-                logger.info(f"[🔍 SIGNATURE] Actor expects parameters: {expected_params}")
-            elif hasattr(self.actor, '__call__'):
+                logger.info(f"[🔍 SIGNATURE] Agent expects parameters: {expected_params}")
+            elif hasattr(self.agent, '__call__'):
                 import inspect
-                sig = inspect.signature(self.actor.__call__)
+                sig = inspect.signature(self.agent.__call__)
                 expected_params = set(sig.parameters.keys())
-                logger.info(f"[🔍 SIGNATURE] Actor expects parameters: {expected_params}")
+                logger.info(f"[🔍 SIGNATURE] Agent expects parameters: {expected_params}")
         except Exception as e:
-            logger.warning(f"⚠️ Could not introspect actor signature: {e}")
+            logger.warning(f"⚠️ Could not introspect agent signature: {e}")
             # Fallback to static filtering if signature introspection fails
             expected_params = None
         
         # Step 2: Filter kwargs to ONLY include expected params
         if expected_params:
-            # RESILIENT APPROACH: Only pass params the actor expects
-            actor_kwargs = {k: v for k, v in kwargs.items() if k in expected_params}
-            
+            # RESILIENT APPROACH: Only pass params the agent expects
+            agent_kwargs = {k: v for k, v in kwargs.items() if k in expected_params}
+
             # Log what we filtered out
             filtered_out = set(kwargs.keys()) - expected_params
             if filtered_out:
@@ -1544,42 +1567,43 @@ class SingleAgentOrchestrator:
                 '_injected_context',
                 '_injected_instructions'
             }
-            actor_kwargs = {k: v for k, v in kwargs.items() if k not in internal_params}
-            logger.warning(f"[🔍 FILTER] Using static filter (fallback) - removed {len(set(kwargs.keys()) - set(actor_kwargs.keys()))} params")
-        
-        logger.info(f"[🔍 ACTOR EXEC] Input kwargs keys (after filtering): {list(actor_kwargs.keys())}")
-        
+            agent_kwargs = {k: v for k, v in kwargs.items() if k not in internal_params}
+            logger.warning(f"[🔍 FILTER] Using static filter (fallback) - removed {len(set(kwargs.keys()) - set(agent_kwargs.keys()))} params")
+
+        logger.info(f"[🔍 AGENT EXEC] Input kwargs keys (after filtering): {list(agent_kwargs.keys())}")
+
         try:
-            if asyncio.iscoroutinefunction(self.actor):
-                result = await self.actor(**actor_kwargs)
+            # 🔧 PHASE 7 FIX: Use self.agent (not self.actor)
+            if asyncio.iscoroutinefunction(self.agent):
+                result = await self.agent(**agent_kwargs)
             else:
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(None, lambda: self.actor(**actor_kwargs))
-            
-            # 🔍 A-TEAM: EXTREME DEBUG - Trace actor output
-            logger.info(f"[🔍 ACTOR OUTPUT] Result type: {type(result)}")
-            logger.info(f"[🔍 ACTOR OUTPUT] Result is None: {result is None}")
-            
+                result = await loop.run_in_executor(None, lambda: self.agent(**agent_kwargs))
+
+            # 🔍 A-TEAM: EXTREME DEBUG - Trace agent output
+            logger.info(f"[🔍 AGENT OUTPUT] Result type: {type(result)}")
+            logger.info(f"[🔍 AGENT OUTPUT] Result is None: {result is None}")
+
             if result is not None:
                 # Show what fields the result has
                 if hasattr(result, '_store'):
-                    logger.info(f"[🔍 ACTOR OUTPUT] DSPy Prediction with _store keys: {list(result._store.keys())}")
+                    logger.info(f"[🔍 AGENT OUTPUT] DSPy Prediction with _store keys: {list(result._store.keys())}")
                 elif isinstance(result, dict):
-                    logger.info(f"[🔍 ACTOR OUTPUT] Dict with keys: {list(result.keys())}")
+                    logger.info(f"[🔍 AGENT OUTPUT] Dict with keys: {list(result.keys())}")
                 else:
-                    logger.info(f"[🔍 ACTOR OUTPUT] Has attributes (FULL): {dir(result)}")
+                    logger.info(f"[🔍 AGENT OUTPUT] Has attributes (FULL): {dir(result)}")
             else:
-                logger.error(f"[🔍 ACTOR OUTPUT] ❌ ACTOR RETURNED NONE!")
-                
+                logger.error(f"[🔍 AGENT OUTPUT] ❌ AGENT RETURNED NONE!")
+
             return result
         except Exception as e:
-            logger.error(f"[🔍 ACTOR EXEC] ❌ Exception during actor execution: {e}")
+            logger.error(f"[🔍 AGENT EXEC] ❌ Exception during agent execution: {e}")
             import traceback
-            logger.error(f"[🔍 ACTOR EXEC] Traceback: {traceback.format_exc()}")
+            logger.error(f"[🔍 AGENT EXEC] Traceback: {traceback.format_exc()}")
             raise
         finally:
             # 🔧 A-TEAM: Cleanup (tool wrapping currently disabled)
-            # Actors track attempts internally via TaggedOutput
+            # Agents track attempts internally via TaggedOutput
             if wrapped_tools_applied:
                 logger.info(f"🔧 [TOOL WRAP] Cleanup (if needed)")
     

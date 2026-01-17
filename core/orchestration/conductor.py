@@ -90,6 +90,14 @@ from ..learning.q_learning import LLMQPredictor
 from ..context.context_guard import SmartContextGuard
 from .policy_explorer import PolicyExplorer
 
+# 🆕 REFACTORING PHASES 2.1-2.6 + 3.2-3.4: Import managers (extracted from conductor.py)
+from .managers import (
+    LearningManager, ValidationManager, ExecutionManager,
+    ParameterResolutionManager, ToolDiscoveryManager,
+    ToolExecutionManager, MetadataOrchestrationManager,
+    OutputRegistryManager, AgentLifecycleManager, StateActionManager
+)
+
 # Import brain-inspired components
 try:
     from ..memory.consolidation_engine import (
@@ -143,7 +151,7 @@ except ImportError:
 
 # Import TD(λ) Learning
 try:
-    from .learning import TDLambdaLearner
+    from ..learning.learning import TDLambdaLearner
     TD_LAMBDA_AVAILABLE = True
 except ImportError:
     TD_LAMBDA_AVAILABLE = False
@@ -454,7 +462,38 @@ class MultiAgentsOrchestrator:
         else:
             self.metadata_tool_registry = None
             logger.debug("ℹ️  MetadataToolRegistry disabled (no metadata_provider)")
-        
+
+        # 🆕 REFACTORING PHASE 3.1: Initialize Tool & Metadata managers
+        # Initialize shared scratchpad for tool caching
+        self.shared_scratchpad = {}
+
+        # ToolDiscoveryManager - Tool auto-discovery and filtering
+        self.tool_discovery_manager = ToolDiscoveryManager(
+            self.config,
+            self.metadata_tool_registry
+        )
+        logger.info("🔧 ToolDiscoveryManager initialized")
+
+        # ToolExecutionManager - Tool execution with caching
+        self.tool_execution_manager = ToolExecutionManager(
+            self.config,
+            self.metadata_tool_registry,
+            self.shared_scratchpad
+        )
+        logger.info("⚙️  ToolExecutionManager initialized (with SharedScratchpad caching)")
+
+        # MetadataOrchestrationManager - Direct metadata fetching
+        self.metadata_orchestration_manager = MetadataOrchestrationManager(
+            self.config,
+            self.metadata_provider,
+            self.metadata_tool_registry
+        )
+        logger.info("🗄️  MetadataOrchestrationManager initialized")
+
+        # 🆕 REFACTORING PHASE 3.2: OutputRegistryManager - Output detection and registration
+        # Will be initialized after data_registry (see below around line 510)
+        self.output_registry_manager = None
+
         # 🆕 A-TEAM: Build parameter mappings (user + config + defaults)
         self.param_mappings = self._build_param_mappings(custom_mappings)
         
@@ -505,7 +544,26 @@ class MultiAgentsOrchestrator:
             self.data_registry = None
             self.data_registry_tool = None
             self.registration_orchestrator = None
-        
+
+        # 🆕 REFACTORING PHASE 3.2: Initialize OutputRegistryManager
+        self.output_registry_manager = OutputRegistryManager(
+            self.config,
+            self.data_registry,
+            self.registration_orchestrator
+        )
+        logger.info("📦 OutputRegistryManager initialized")
+
+        # 🆕 REFACTORING PHASE 3.3: Initialize AgentLifecycleManager
+        self.agent_lifecycle_manager = AgentLifecycleManager(
+            self.config,
+            self.tool_discovery_manager
+        )
+        logger.info("🎭 AgentLifecycleManager initialized")
+
+        # 🆕 REFACTORING PHASE 3.4: Initialize StateActionManager
+        self.state_action_manager = StateActionManager(self.config)
+        logger.info("🎯 StateActionManager initialized")
+
         # 🤝 NEW: FeedbackChannel for agent coordination
         self.feedback_channel = FeedbackChannel()
         logger.info("📧 FeedbackChannel enabled - agents can consult each other!")
@@ -636,8 +694,20 @@ class MultiAgentsOrchestrator:
         
         # Initialize core components
         self.todo = MarkovianTODO()
-        # 🧠 A-TEAM FIX: Use FULL Q-learning implementation from q_learning.py, not the simplified local one!
-        self.q_predictor = NaturalLanguageQTable(self.config)
+        # 🆕 REFACTORING PHASE 2.1: Use LearningManager for all RL/Q-learning
+        self.learning_manager = LearningManager(self.config)
+        # Legacy accessors for backward compatibility
+        self.q_predictor = self.learning_manager.q_learner  # Alias for backward compat
+        # 🆕 REFACTORING PHASE 2.2: Use ValidationManager for all validation
+        self.validation_manager = ValidationManager(self.config)
+        # 🆕 REFACTORING PHASE 2.3: Use ExecutionManager for execution tracking
+        self.execution_manager = ExecutionManager(self.config)
+
+        # 🆕 REFACTORING PHASE 3.1: Additional managers (will be initialized after metadata_tool_registry)
+        # These are set to None here and properly initialized later (after line 463)
+        self.tool_discovery_manager = None
+        self.tool_execution_manager = None
+        self.metadata_orchestration_manager = None
         self.context_guard = SmartContextGuard(
             max_tokens=self.config.max_context_tokens
         )
@@ -710,20 +780,14 @@ class MultiAgentsOrchestrator:
         # =====================================================================
         # 🧠 Q-LEARNING WITH NEUROCHUNK TIERED MEMORY (v2.4 - A-Team Approved)
         # =====================================================================
-        if Q_LEARNING_AVAILABLE:
-            self.q_learner = NaturalLanguageQTable(self.config)
-            logger.info("🧠 Q-Learning with NeuroChunk Memory initialized")
-            logger.info("   - Tier 1: Working Memory (always in context)")
-            logger.info("   - Tier 2: Semantic Clusters (retrieval-based)")
-            logger.info("   - Tier 3: Long-term Archive (causal impact pruning)")
-        else:
-            self.q_learner = None
-            logger.warning("⚠️  Q-Learning not available")
+        # 🆕 REFACTORING PHASE 2.1: LearningManager handles Q-learner initialization
+        # Legacy accessor for backward compatibility
+        self.q_learner = self.learning_manager.q_learner if self.learning_manager.q_learner else None
         
         # TD(λ) Learning (Temporal Difference with Eligibility Traces)
         # Only initialize if RL is enabled
         if self.config.enable_rl and TD_LAMBDA_AVAILABLE:
-            from .learning import AdaptiveLearningRate
+            from ..learning.learning import AdaptiveLearningRate
             adaptive_lr = AdaptiveLearningRate(self.config)
             self.td_learner = TDLambdaLearner(self.config, adaptive_lr)
             # Log based on verbosity setting
@@ -882,20 +946,10 @@ class MultiAgentsOrchestrator:
     def _should_wrap_actor(self, actor_config: ActorConfig) -> bool:
         """
         Determine if an actor needs to be wrapped with JOTTY.
-        
-        Wrapping is needed if:
-        - Actor has validation prompts (architect_prompts or auditor_prompts)
-        - Actor has tools (architect_tools or auditor_tools)
+
+        🆕 REFACTORING PHASE 3.3: Delegated to AgentLifecycleManager.
         """
-        has_validation = (
-            actor_config.architect_prompts or 
-            actor_config.auditor_prompts
-        )
-        has_tools = (
-            actor_config.architect_tools or 
-            actor_config.auditor_tools
-        )
-        return has_validation or has_tools
+        return self.agent_lifecycle_manager.should_wrap_agent(actor_config)
     
     def _get_auto_discovered_dspy_tools(self) -> List[Any]:
         """
@@ -978,7 +1032,7 @@ class MultiAgentsOrchestrator:
                                 logger.warning(f"⚠️  {tname}({param_name}): Required parameter not resolved")
                         
                         # Check cache first (via SharedScratchpad)
-                        result = self._call_tool_with_cache(tname, **final_kwargs)
+                        result = self.tool_execution_manager.call_tool_with_cache(tname, **final_kwargs)
                         
                         # Ensure result is string (DSPy tools return strings)
                         if not isinstance(result, str):
@@ -986,14 +1040,14 @@ class MultiAgentsOrchestrator:
                         return result
                         
                     except Exception as e:
-                        error_msg = self._build_helpful_error_message(tname, tinfo, e)
+                        error_msg = self.tool_execution_manager.build_helpful_error_message(tname, tinfo, e, self.io_manager)
                         logger.error(f"❌ Tool {tname} error: {e}")
                         return json.dumps({"error": error_msg})
                 
                 return smart_tool_func
             
             # Build enhanced tool description for LLM reasoning
-            tool_desc = self._build_enhanced_tool_description(tool_name, tool_info)
+            tool_desc = self.tool_execution_manager.build_enhanced_tool_description(tool_name, tool_info)
             
             # Create dspy.Tool with smart wrapper
             tool = dspy.Tool(
@@ -1091,198 +1145,13 @@ class MultiAgentsOrchestrator:
         
         return None
     
-    def _call_tool_with_cache(self, tool_name: str, **kwargs) -> Any:
-        """
-        Call tool with caching via SharedScratchpad.
-        
-        🔥 A-TEAM: Prevents duplicate tool calls across Val agents!
-        
-        Args:
-            tool_name: Name of tool to call
-            **kwargs: Parameters for tool
-        
-        Returns:
-            Tool result (cached if available)
-        """
-        import json
-        
-        # Create cache key
-        cache_key = f"tool_call:{tool_name}:{json.dumps(kwargs, sort_keys=True)}"
-        
-        # Check cache
-        if hasattr(self, 'shared_scratchpad') and self.shared_scratchpad:
-            if cache_key in self.shared_scratchpad:
-                logger.debug(f"💾 Cache HIT: {tool_name}({list(kwargs.keys())})")
-                return self.shared_scratchpad[cache_key]
-        
-        # Call actual tool
-        logger.debug(f"📞 Calling {tool_name}({list(kwargs.keys())})")
-        result = self.metadata_tool_registry.call_tool(tool_name, **kwargs)
-        
-        # Store in cache
-        if hasattr(self, 'shared_scratchpad') and self.shared_scratchpad:
-            self.shared_scratchpad[cache_key] = result
-        
-        return result
-    
-    def _build_helpful_error_message(self, tool_name: str, tool_info: Dict, error: Exception) -> str:
-        """
-        Build helpful error message for Val agents when tool call fails.
-        
-        🔥 A-TEAM: Shows available data and how to fix the issue!
-        
-        Args:
-            tool_name: Name of tool that failed
-            tool_info: Tool metadata
-            error: Exception that occurred
-        
-        Returns:
-            Helpful error message string
-        """
-        import json
-        
-        # Extract missing parameters if it's a TypeError
-        error_str = str(error)
-        
-        # Build helpful message
-        msg_parts = [f"❌ {tool_name}() failed: {error_str}"]
-        
-        # If missing parameters, show available data
-        if 'missing' in error_str.lower() or 'required' in error_str.lower():
-            msg_parts.append("\n📦 AVAILABLE DATA (IOManager):")
-            
-            if hasattr(self, 'io_manager') and self.io_manager:
-                all_outputs = self.io_manager.get_all_outputs()
-                for actor_name, output in all_outputs.items():
-                    if hasattr(output, 'output_fields'):
-                        fields = list(output.output_fields.keys()) if isinstance(output.output_fields, dict) else []
-                        msg_parts.append(f"  • {actor_name}: {fields}")
-            else:
-                msg_parts.append("  (No IOManager available)")
-            
-            msg_parts.append("\n💡 TIP: You can provide parameters explicitly in your tool call.")
-            msg_parts.append(f"   Example: {tool_name}(param_name=value)")
-        
-        return "\n".join(msg_parts)
-    
-    def _build_enhanced_tool_description(self, tool_name: str, tool_info: Dict) -> str:
-        """
-        Build enhanced tool description for LLM reasoning.
-        
-        🔥 A-TEAM: Includes parameters, when to use, auto-resolution hints!
-        
-        Args:
-            tool_name: Name of tool
-            tool_info: Tool metadata
-        
-        Returns:
-            Enhanced description string
-        """
-        desc_parts = [tool_info['desc']]
-        
-        # Add "when to use"
-        desc_parts.append(f"\n🎯 WHEN TO USE:\n{tool_info['when']}")
-        
-        # Add parameters
-        signature = tool_info.get('signature', {})
-        params = signature.get('parameters', {})
-        
-        if params:
-            desc_parts.append("\n📋 PARAMETERS:")
-            for param_name, param_info in params.items():
-                ptype = param_info.get('annotation', 'Any')
-                required = 'REQUIRED' if param_info.get('required', True) else 'OPTIONAL'
-                pdesc = param_info.get('desc', '')
-                default = param_info.get('default')
-                
-                if default is not None:
-                    desc_parts.append(f"  • {param_name} ({ptype}) [{required}]: {pdesc} (default: {default})")
-                else:
-                    desc_parts.append(f"  • {param_name} ({ptype}) [{required}]: {pdesc}")
-        else:
-            desc_parts.append("\n📋 PARAMETERS: None (simple getter)")
-        
-        # Add returns
-        returns = tool_info.get('returns', 'str')
-        desc_parts.append(f"\n↩️  RETURNS: {returns}")
-        
-        # Add auto-resolution hint
-        if params:
-            desc_parts.append("""
-🤖 AUTO-RESOLUTION:
-Parameters you don't provide will be auto-resolved from:
-1. Previous actor outputs (IOManager) - exact name match
-2. Shared global context - exact name match
-3. Type-based matching - finds any matching type
+    # 🆕 REFACTORING PHASE 3.1: Tool methods removed - now delegated to managers
+    # - _call_tool_with_cache → tool_execution_manager.call_tool_with_cache
+    # - _build_helpful_error_message → tool_execution_manager.build_helpful_error_message
+    # - _build_enhanced_tool_description → tool_execution_manager.build_enhanced_tool_description
+    # - _get_architect_tools → tool_discovery_manager.filter_tools_for_planner
+    # - _get_auditor_tools → tool_discovery_manager.filter_tools_for_reviewer
 
-You can override any parameter by providing it explicitly.""")
-        
-        return "\n".join(desc_parts)
-    
-    def _get_architect_tools(self, all_tools: List[Any]) -> List[Any]:
-        """
-        Filter tools marked for Architect by metadata manager.
-        
-        🔥 A-TEAM CRITICAL FIX: NO HARDCODING!
-        
-        This method checks the `for_architect` flag set by @jotty_method decorator.
-        The METADATA MANAGER (user-provided, domain-specific) decides which tools
-        are for Architect, NOT JOTTY core (which is generic).
-        
-        This keeps JOTTY domain-agnostic and reusable for ANY use case!
-        """
-        filtered = []
-        for tool in all_tools:
-            # 🔥 A-TEAM FIX: Tools are dictionaries from MetadataToolRegistry
-            if isinstance(tool, dict) and tool.get('for_architect', False):
-                filtered.append(tool)
-            # Legacy support for function objects
-            elif hasattr(tool, 'func') and hasattr(tool.func, '_jotty_for_architect'):
-                if tool.func._jotty_for_architect:
-                    filtered.append(tool)
-            elif hasattr(tool, '_jotty_for_architect'):
-                if tool._jotty_for_architect:
-                    filtered.append(tool)
-        
-        logger.info(f"🔍 Architect tools: {len(filtered)}/{len(all_tools)} tools (marked by metadata manager)")
-        for tool in filtered:
-            tool_name = tool.get('name') if isinstance(tool, dict) else (tool.name if hasattr(tool, 'name') else tool.__name__)
-            logger.debug(f"   ✅ {tool_name}")
-        
-        return filtered
-    
-    def _get_auditor_tools(self, all_tools: List[Any]) -> List[Any]:
-        """
-        Filter tools marked for Auditor by metadata manager.
-        
-        🔥 A-TEAM CRITICAL FIX: NO HARDCODING!
-        
-        This method checks the `for_auditor` flag set by @jotty_method decorator.
-        The METADATA MANAGER (user-provided, domain-specific) decides which tools
-        are for Auditor, NOT JOTTY core (which is generic).
-        
-        This keeps JOTTY domain-agnostic and reusable for ANY use case!
-        """
-        filtered = []
-        for tool in all_tools:
-            # 🔥 A-TEAM FIX: Tools are dictionaries from MetadataToolRegistry
-            if isinstance(tool, dict) and tool.get('for_auditor', False):
-                filtered.append(tool)
-            # Legacy support for function objects
-            elif hasattr(tool, 'func') and hasattr(tool.func, '_jotty_for_auditor'):
-                if tool.func._jotty_for_auditor:
-                    filtered.append(tool)
-            elif hasattr(tool, '_jotty_for_auditor'):
-                if tool._jotty_for_auditor:
-                    filtered.append(tool)
-        
-        logger.info(f"✅ Auditor tools: {len(filtered)}/{len(all_tools)} tools (marked by metadata manager)")
-        for tool in filtered:
-            tool_name = tool.get('name') if isinstance(tool, dict) else (tool.name if hasattr(tool, 'name') else tool.__name__)
-            logger.debug(f"   ✅ {tool_name}")
-        
-        return filtered
-    
     def _wrap_actor_with_jotty(self, actor_config: ActorConfig):
         """
         Wrap an actor with Jotty wrapper for validation and tool support.
@@ -1302,13 +1171,13 @@ You can override any parameter by providing it explicitly.""")
         # 🔥 A-TEAM: Separate tool sets for Architect vs Auditor
         architect_tools = actor_config.architect_tools
         if architect_tools is None or len(architect_tools) == 0:
-            architect_tools = self._get_architect_tools(all_tools)
-            logger.info(f"✅ Auto-filtered {len(architect_tools)} exploration tools for Architect")
+            architect_tools = self.tool_discovery_manager.filter_tools_for_planner(all_tools)
+            logger.info(f"✅ Auto-filtered {len(architect_tools)} exploration tools for Planner (Architect)")
         
         auditor_tools = actor_config.auditor_tools
         if auditor_tools is None or len(auditor_tools) == 0:
-            auditor_tools = self._get_auditor_tools(all_tools)
-            logger.info(f"✅ Auto-filtered {len(auditor_tools)} verification tools for Auditor")
+            auditor_tools = self.tool_discovery_manager.filter_tools_for_reviewer(all_tools)
+            logger.info(f"✅ Auto-filtered {len(auditor_tools)} verification tools for Reviewer (Auditor)")
         
         logger.info(f"🔧 Wrapping actor '{actor_config.name}' with JOTTY")
         logger.info(f"  📝 Architect prompts: {len(actor_config.architect_prompts)}")
@@ -1328,15 +1197,12 @@ You can override any parameter by providing it explicitly.""")
         )
     
     def _load_annotations(self, path: Optional[str]) -> Dict[str, Any]:
-        """Load annotations for validation enrichment."""
-        if not path:
-            return {}
-        try:
-            with open(path) as f:
-                return json.load(f)
-        except Exception as e:
-            logger.warning(f"Failed to load annotations: {e}")
-            return {}
+        """
+        Load annotations for validation enrichment.
+
+        🆕 REFACTORING PHASE 3.3: Delegated to AgentLifecycleManager.
+        """
+        return self.agent_lifecycle_manager.load_annotations(path)
     
     def run_sync(
         self,
@@ -1642,7 +1508,13 @@ You can override any parameter by providing it explicitly.""")
                 self.shared_context.set('current_datetime', current_datetime)
                 logger.info(f"✅ Stored current_date={current_date}, current_datetime={current_datetime} (UTC)")
                 logger.warning("⚠️  Could not import zoneinfo, using UTC")
-        
+
+        # 🔥 CRITICAL FIX: Clear IOManager at start of each episode for natural dependencies
+        # Each episode should start fresh - data from previous episodes shouldn't persist
+        if hasattr(self, 'io_manager') and self.io_manager:
+            self.io_manager.clear()
+            logger.info("🗑️  Cleared IOManager - starting fresh episode")
+
         # 🎯 PHASE 1: Proactive Metadata Fetch (if fetcher available)
         if self.metadata_fetcher and hasattr(self.metadata_fetcher, 'fetch'):
             logger.info("=" * 80)
@@ -1654,7 +1526,7 @@ You can override any parameter by providing it explicitly.""")
                 # NO ReAct agent, NO guessing, NO missing data!
                 # User question: "Why is react agent fetching when it's already in metadata manager?"
                 # Answer: YOU'RE RIGHT! We should just call them directly!
-                fetched_data = self._fetch_all_metadata_directly()
+                fetched_data = self.metadata_orchestration_manager.fetch_all_metadata_directly()
                 
                 # 🔥 A-TEAM FIX: Store metadata in SEPARATE namespace to avoid confusion with actor outputs!
                 # Metadata = Reference data (for context/prompts)
@@ -1666,7 +1538,7 @@ You can override any parameter by providing it explicitly.""")
                 
                 # 🔥 A-TEAM CRITICAL FIX: ENRICH BUSINESS TERMS WITH PARSED FILTERS!
                 # This bridges metadata (context) with parameter flow (actor inputs)
-                self._enrich_business_terms_with_filters(fetched_data)
+                self.metadata_orchestration_manager.enrich_business_terms_with_filters(fetched_data)
             except Exception as e:
                 logger.warning(f"⚠️  Metadata fetch failed: {e}")
                 logger.warning("   Continuing without proactive metadata fetch")
@@ -1743,15 +1615,47 @@ You can override any parameter by providing it explicitly.""")
             except Exception as e:
                 logger.debug(f"Unblock check failed: {e}")
 
-            # Get next task
+            # 🆕 RL-AWARE TASK SELECTION: Build state FIRST, then use Q-values to select task
+            # This allows RL to actually improve agent ordering based on learned Q-values!
+            state = None
+            q_predictor = None
+            epsilon = getattr(self.config, 'epsilon_start', 0.1)  # Exploration rate
+
+            if self.config.enable_rl:
+                # Build current state for Q-value prediction
+                if getattr(self.config, 'enable_profiling', False):
+                    from ..utils.profiler import timed_block
+                    with timed_block(f"GetCurrentState_iter{iteration}", component="Orchestration", name=f"Build state (iteration {iteration})"):
+                        state = self._get_current_state()
+                else:
+                    state = self._get_current_state()
+
+                # Pass Q-learner to task selection (via LearningManager)
+                q_predictor = self.learning_manager.q_learner if self.learning_manager.q_learner else None
+
+            # Get next task (Q-value based if RL enabled, else fixed order)
             logger.info(f"🔍 Getting next task...")
             if getattr(self.config, 'enable_profiling', False):
                 from ..utils.profiler import timed_block
                 with timed_block(f"GetNextTask_iter{iteration}", component="Orchestration", name=f"Get next task (iteration {iteration})"):
-                    task = self.todo.get_next_task()
+                    task = self.todo.get_next_task(
+                        q_predictor=q_predictor,
+                        current_state=state,
+                        goal=goal,
+                        epsilon=epsilon
+                    )
             else:
-                task = self.todo.get_next_task()
-            logger.info(f"✅ Got task: {task.task_id if task else 'None'}")
+                task = self.todo.get_next_task(
+                    q_predictor=q_predictor,
+                    current_state=state,
+                    goal=goal,
+                    epsilon=epsilon
+                )
+
+            if self.config.enable_rl and task:
+                logger.info(f"✅ Got task: {task.task_id} (Q-value based selection)")
+            else:
+                logger.info(f"✅ Got task: {task.task_id if task else 'None'}")
 
             if not task:
                 # No tasks available - try exploration
@@ -1768,35 +1672,27 @@ You can override any parameter by providing it explicitly.""")
                     logger.warning("No tasks available and exploration exhausted")
                     break
 
-            # Predict Q-value for this task (ONLY if RL is enabled)
-            # 🔥 CRITICAL FIX: Skip expensive state building when RL is disabled
-            # This was causing 96-193 second overhead per iteration!
+            # Predict Q-value for the SELECTED task (for logging/monitoring)
             if self.config.enable_rl:
-                if getattr(self.config, 'enable_profiling', False):
-                    from ..utils.profiler import timed_block
-                    with timed_block(f"GetCurrentState_iter{iteration}", component="Orchestration", name=f"Build state (iteration {iteration})"):
-                        state = self._get_current_state()
-                else:
-                    state = self._get_current_state()
-
                 action = {'actor': task.actor, 'task': task.description}
 
                 if getattr(self.config, 'enable_profiling', False):
                     from ..utils.profiler import timed_block
                     with timed_block(f"QPrediction_iter{iteration}", component="Orchestration", name=f"Q-value prediction (iteration {iteration})"):
-                        q_value, confidence, alternative = self.q_predictor.predict_q_value(
+                        q_value, confidence, alternative = self.learning_manager.predict_q_value(
                             state, action, goal
                         )
                 else:
-                    q_value, confidence, alternative = self.q_predictor.predict_q_value(
+                    q_value, confidence, alternative = self.learning_manager.predict_q_value(
                         state, action, goal
                     )
+                q_value_str = f"{q_value:.3f}" if q_value is not None else "N/A"
+                logger.info(f"📊 Selected task Q-value: {q_value_str}")
             else:
-                # RL disabled - skip expensive state building and Q-prediction
+                # RL disabled - skip Q-prediction
                 state = {}
                 action = {'actor': task.actor, 'task': task.description}
                 q_value, confidence, alternative = None, 1.0, None
-                logger.info(f"⏭️  Skipped state building and Q-prediction (enable_rl=False)")
 
             logger.info(f"✅ RL/Q-prediction phase complete")
 
@@ -1844,7 +1740,10 @@ You can override any parameter by providing it explicitly.""")
             else:
                 context, actor_context_dict = await self._build_actor_context(task, actor_config)
             logger.info(f"✅ Context built for '{actor_config.name}'")
-            
+
+            # 🔥 CRITICAL: Start task (increment attempts counter)
+            self.todo.start_task(task.task_id)
+
             # Execute actor
             try:
                 # ⏱️  Profile actor execution
@@ -1867,14 +1766,19 @@ You can override any parameter by providing it explicitly.""")
                         actor_context_dict  # 🔥 Pass actor_context for parameter resolution
                     )
                 
-                # Auditor check
+                # 🔥 CRITICAL FIX: Check agent success FIRST (natural dependencies)
+                # If agent returns success=False, task should fail regardless of auditor
+                agent_succeeded = result.success if hasattr(result, 'success') else True
+
+                # Auditor check (only runs if agent succeeded)
                 auditor_passed, auditor_reward, auditor_feedback = await self._run_auditor(
                     actor_config,
                     result,
                     task
                 )
-                
-                if auditor_passed:
+
+                # Task succeeds only if BOTH agent AND auditor succeed
+                if agent_succeeded and auditor_passed:
                     # ================================================================
                     # COOPERATIVE REWARD (A-Team Fix)
                     # 30% own success + 40% help others + 30% predictability
@@ -1922,9 +1826,10 @@ You can override any parameter by providing it explicitly.""")
                         'q_value': q_value,
                         'confidence': confidence
                     })
-                    
+
                     # Record success for learning
-                    self.q_predictor.record_outcome(state, action, cooperative_reward)
+                    print(f"✅ Q-UPDATE: {action['actor']} → reward={cooperative_reward:.3f}")
+                    self.learning_manager.record_outcome(state, action, cooperative_reward)
                     
                     # Extract domain/task_type from actor and task
                     domain = self._infer_domain_from_actor(task.actor)
@@ -1941,23 +1846,35 @@ You can override any parameter by providing it explicitly.""")
                         task_type=task_type
                     )
                 else:
-                    self.todo.fail_task(task.task_id, auditor_feedback)  # Fixed: task.id → task.task_id
-                    
+                    # 🔥 CRITICAL FIX: Determine failure reason (agent vs auditor)
+                    if not agent_succeeded:
+                        # Agent failed due to natural dependencies (missing data, etc.)
+                        failure_reason = f"Agent failed: {result.output._store.get('_reasoning', 'Unknown') if hasattr(result.output, '_store') else 'Unknown'}"
+                        logger.info(f"❌ Task failed: Agent returned success=False ({failure_reason})")
+                    else:
+                        # Auditor rejected the output
+                        failure_reason = f"Auditor rejected: {auditor_feedback}"
+                        logger.info(f"❌ Task failed: Auditor rejected ({auditor_feedback})")
+
+                    self.todo.fail_task(task.task_id, failure_reason)  # Fixed: task.id → task.task_id
+
                     # Record intermediary values for failure (NO HARDCODING)
                     task_duration = time.time() - task_start_time
                     self.todo.record_intermediary_values(task.task_id, {  # Fixed: task.id → task.task_id
                         'duration_seconds': task_duration,
                         'reward_obtained': 0.0,
-                        'auditor_passed': False,
+                        'auditor_passed': auditor_passed,
+                        'agent_succeeded': agent_succeeded,  # NEW: Track agent success separately
                         'iteration': iteration,
                         'timestamp': time.time(),
                         'q_value': q_value,
                         'confidence': confidence,
-                        'failure_reason': auditor_feedback[:200]
+                        'failure_reason': failure_reason[:200]
                     })
-                    
+
                     # Record failure
-                    self.q_predictor.record_outcome(state, action, 0.0)
+                    print(f"❌ Q-UPDATE: {action['actor']} → reward=0.0 (failed)")
+                    self.learning_manager.record_outcome(state, action, 0.0)
                     
                     # Extract domain/task_type from actor and task
                     domain = self._infer_domain_from_actor(task.actor)
@@ -1969,7 +1886,7 @@ You can override any parameter by providing it explicitly.""")
                         content=f"""❌ FAILURE ANALYSIS (High Information Event)
 Task: {task.description}
 Actor: {task.actor}
-Reason: {auditor_feedback}
+Reason: {failure_reason}
 State: {json.dumps(state, default=str)[:500]}
 Attempt #{task.attempts + 1}""",
                         level=MemoryLevel.CAUSAL,  # Causal - learn why!
@@ -2035,22 +1952,22 @@ Attempt #{task.attempts + 1}""",
                         # Divergence-weighted reward: penalize for wrong predictions
                         divergence_penalty = 1.0 - min(1.0, divergence.total_divergence())
                         q_reward = (auditor_reward if auditor_passed else 0.0) * divergence_penalty
-                        
+
                         # Update Q-table with divergence-adjusted reward
-                        self.q_predictor.add_experience(
+                        self.learning_manager.add_experience(
                             state=state,
                             action={'actor': actor_config.name, 'task': task.task_id},
                             reward=q_reward,
                             next_state=self._get_current_state(),
                             done=False
                         )
-                        
+
                         # ================================================================
                         # 🧠 A-TEAM FIX: Extract lessons from divergence for prompt updates
                         # ================================================================
-                        if hasattr(self.q_predictor, 'Q') and self.q_predictor.Q:
-                            key = list(self.q_predictor.Q.keys())[-1]  # Most recent
-                            lessons = self.q_predictor.Q[key].get('learned_lessons', [])
+                        if self.learning_manager.q_learner and hasattr(self.learning_manager.q_learner, 'Q') and self.learning_manager.q_learner.Q:
+                            key = list(self.learning_manager.q_learner.Q.keys())[-1]  # Most recent
+                            lessons = self.learning_manager.q_learner.Q[key].get('learned_lessons', [])
                             if lessons:
                                 logger.info(f"📚 Learned: {lessons[-1][:80]}...")
                         
@@ -2318,28 +2235,28 @@ Strategy: Check if recoverable, adapt retry approach.
         # =====================================================================
         # 🧠 NEUROCHUNK MEMORY MANAGEMENT: Tier memories at end of episode
         # =====================================================================
-        if hasattr(self, 'q_learner') and self.q_learner:
+        if self.learning_manager.q_learner:
             try:
                 episode_reward = cumulative_reward
                 logger.info("🧠 Tiering Q-Learning memories (NeuroChunk)...")
-                
+
                 # Promote/demote memories between tiers based on retention scores
-                self.q_learner._promote_demote_memories(episode_reward=episode_reward)
-                
+                self.learning_manager.promote_demote_memories(episode_reward=episode_reward)
+
                 # Prune Tier 3 using causal impact scoring (every episode)
                 # Sample 10% for efficiency
-                self.q_learner.prune_tier3_by_causal_impact(sample_rate=0.1)
-                
+                self.learning_manager.prune_tier3(sample_rate=0.1)
+
                 # Log memory statistics
-                summary = self.q_learner.get_q_table_summary()
+                summary = self.learning_manager.get_q_table_summary()
                 logger.info(f"🧠 Q-Table Stats:")
-                logger.info(f"   Total entries: {summary['size']}")
+                logger.info(f"   Total entries: {summary.get('size', 0)}")
                 logger.info(f"   Tier 1 (Working): {summary.get('tier1_size', 0)} memories")
                 logger.info(f"   Tier 2 (Clusters): {summary.get('tier2_clusters', 0)} clusters")
                 logger.info(f"   Tier 3 (Archive): {summary.get('tier3_size', 0)} memories")
                 logger.info(f"   Tier 1 threshold: {summary.get('tier1_threshold', 0.8):.3f}")
                 logger.info(f"   Avg Q-value: {summary.get('avg_value', 0.0):.3f}")
-                
+
             except Exception as e:
                 logger.warning(f"⚠️  NeuroChunk memory tiering failed: {e}")
         # =====================================================================
@@ -2386,187 +2303,56 @@ Strategy: Check if recoverable, adapt retry approach.
     async def _initialize_todo_from_goal(self, goal: str, kwargs: Dict):
         """Initialize TODO items from goal."""
         # Add default tasks for each actor
+        #
+        # 🔥 CRITICAL FOR RL: If enable_rl=True, make tasks INDEPENDENT (no dependencies)
+        # so Q-learning can actually choose the execution order!
+        #
+        # If RL disabled, use sequential dependencies (original behavior)
         for i, (name, config) in enumerate(self.actors.items()):
             if config.enabled:
+                # RL mode: all tasks independent (Q-learning chooses order)
+                # Non-RL mode: sequential dependencies (fixed order)
+                task_depends_on = [] if self.config.enable_rl else [f"{prev}_main" for prev in list(self.actors.keys())[:i]]
+
+                # 🔥 CRITICAL: Natural dependency learning needs max_attempts=1
+                # Each agent should run exactly once per episode to learn from natural failures
+                # (e.g., Processor fails if Fetcher hasn't run yet, RL learns the dependency)
+                max_attempts = 1 if self.config.enable_rl else 3
+
+                logger.info(f"🔧 Creating task {name}_main with max_attempts={max_attempts} (RL={self.config.enable_rl})")
+
                 self.todo.add_task(
                     task_id=f"{name}_main",
                     description=f"Execute {name} pipeline",
                     actor=name,
-                    depends_on=[f"{prev}_main" for prev in list(self.actors.keys())[:i]],  # Fixed: dependencies → depends_on
-                    priority=1.0 - (i * 0.1)
+                    depends_on=task_depends_on,
+                    priority=1.0 - (i * 0.1),
+                    max_attempts=max_attempts
                 )
     
     def _get_current_state(self) -> Dict[str, Any]:
         """
         Get RICH current state for Q-prediction.
-        
+
         🔥 A-TEAM CRITICAL: State must capture semantic context!
-        
-        Includes:
-        1. Query semantics (what user asked)
-        2. Metadata context (tables, columns, partitions)
-        3. Error patterns (what failed)
-        4. Tool usage (what worked)
-        5. Actor outputs (what was produced)
+
+        🆕 REFACTORING PHASE 3.4: Delegated to StateActionManager.
         """
-        state = {
-            # === 1. TASK PROGRESS ===
-            'todo': {
-                'completed': len(self.todo.completed),
-                'pending': len([t for t in self.todo.subtasks.values() if t.status == TaskStatus.PENDING]),
-                'failed': len(self.todo.failed_tasks)
-            },
-            'trajectory_length': len(self.trajectory),
-            'recent_outcomes': [t.get('passed', False) for t in self.trajectory[-5:]]
-        }
-        
-        # === 2. QUERY CONTEXT (CRITICAL!) ===
-        # Try multiple sources for query
-        query = None
-        
-        # Source 1: SharedContext
-        if hasattr(self, 'shared_context') and self.shared_context:
-            query = self.shared_context.get('query') or self.shared_context.get('goal')
-        
-        # Source 2: Context guard buffers (if available)
-        if not query and hasattr(self, 'context_guard') and self.context_guard:
-            # SmartContextGuard stores content in buffers
-            for priority_buffer in self.context_guard.buffers.values():
-                for key, content, _ in priority_buffer:
-                    if key == 'ROOT_GOAL':
-                        query = content
-                        break
-                if query:
-                    break
-        
-        # Source 3: TODO root task
-        if not query and hasattr(self, 'todo') and self.todo:
-            query = self.todo.root_task
-        
-        if query:
-            state['query'] = str(query)[:200]
-        
-        # === 3. METADATA CONTEXT ===
-        if hasattr(self, 'shared_context') and self.shared_context:
-            # Get table info
-            tables = self.shared_context.get('table_names') or self.shared_context.get('relevant_tables')
-            if tables:
-                state['tables'] = tables if isinstance(tables, list) else [str(tables)]
-            
-            # Get filter info
-            filters = self.shared_context.get('filters') or self.shared_context.get('filter_conditions')
-            if filters:
-                state['filters'] = filters
-            
-            # Get resolved terms
-            resolved = self.shared_context.get('resolved_terms')
-            if resolved:
-                if isinstance(resolved, dict):
-                    state['resolved_terms'] = list(resolved.keys())[:5]
-        
-        # === 4. ACTOR OUTPUT CONTEXT ===
-        if hasattr(self, 'io_manager') and self.io_manager:
-            all_outputs = self.io_manager.get_all_outputs()
-            output_summary = {}
-            for actor_name, output in all_outputs.items():
-                if hasattr(output, 'output_fields') and output.output_fields:
-                    output_summary[actor_name] = list(output.output_fields.keys())
-            if output_summary:
-                state['actor_outputs'] = output_summary
-        
-        # === 5. ERROR PATTERNS (CRITICAL FOR LEARNING!) ===
-        if self.trajectory:
-            errors = []
-            columns_tried = []
-            working_column = None
-            
-            for step in self.trajectory:
-                # Check for errors in trajectory
-                if step.get('error'):
-                    err = step['error']
-                    if 'COLUMN_NOT_FOUND' in str(err):
-                        # Extract column name from error
-                        import re
-                        match = re.search(r"Column '(\w+)' cannot be resolved", str(err))
-                        if match:
-                            col = match.group(1)
-                            columns_tried.append(col)
-                            errors.append({'type': 'COLUMN_NOT_FOUND', 'column': col})
-                
-                # Check for success
-                if step.get('passed') and step.get('tool_calls'):
-                    for tc in step.get('tool_calls', []):
-                        if isinstance(tc, dict) and tc.get('success'):
-                            # Extract working column if SQL-related
-                            if 'query' in str(tc):
-                                # Try to find date column that worked
-                                query = str(tc.get('query', ''))
-                                for possible_col in ['dl_last_updated', 'dt', 'date', 'created_at']:
-                                    if possible_col in query.lower():
-                                        working_column = possible_col
-                                        break
-            
-            if errors:
-                state['errors'] = errors[-5:]  # Last 5 errors
-            if columns_tried:
-                state['columns_tried'] = list(dict.fromkeys(columns_tried))  # Unique
-            if working_column:
-                state['working_column'] = working_column
-                state['error_resolution'] = f"use {working_column} instead of {','.join(columns_tried[:3])}"
-        
-        # === 6. TOOL USAGE PATTERNS ===
-        successful_tools = []
-        failed_tools = []
-        tool_calls = []
-        
-        for step in self.trajectory:
-            if step.get('tool_calls'):
-                for tc in step.get('tool_calls', []):
-                    tool_name = tc.get('tool') if isinstance(tc, dict) else str(tc)
-                    tool_calls.append(tool_name)
-                    
-                    if isinstance(tc, dict):
-                        if tc.get('success'):
-                            successful_tools.append(tool_name)
-                        else:
-                            failed_tools.append(tool_name)
-        
-        if tool_calls:
-            state['tool_calls'] = tool_calls[-10:]
-        if successful_tools:
-            state['successful_tools'] = list(dict.fromkeys(successful_tools))
-        if failed_tools:
-            state['failed_tools'] = list(dict.fromkeys(failed_tools))
-        
-        # === 7. CURRENT ACTOR ===
-        if self.trajectory and self.trajectory[-1].get('actor'):
-            state['current_actor'] = self.trajectory[-1]['actor']
-        
-        # === 8. VALIDATION CONTEXT ===
-        for step in self.trajectory[-3:]:  # Last 3 steps
-            if step.get('architect_confidence'):
-                state['architect_confidence'] = step['architect_confidence']
-            if step.get('auditor_result'):
-                state['auditor_result'] = step['auditor_result']
-            if step.get('validation_passed') is not None:
-                state['validation_passed'] = step['validation_passed']
-        
-        # === 9. EXECUTION STATS ===
-        state['attempts'] = len(self.trajectory)
-        state['success'] = any(t.get('passed', False) for t in self.trajectory)
-        
-        return state
-    
+        return self.state_action_manager.get_current_state(
+            todo=self.todo,
+            trajectory=self.trajectory,
+            shared_context=getattr(self, 'shared_context', None),
+            context_guard=getattr(self, 'context_guard', None),
+            io_manager=getattr(self, 'io_manager', None)
+        )
+
     def _get_available_actions(self) -> List[Dict[str, Any]]:
-        """Get available actions for exploration."""
-        actions = []
-        for name, config in self.actors.items():
-            actions.append({
-                'actor': name,
-                'action': 'execute',
-                'enabled': config.enabled
-            })
-        return actions
+        """
+        Get available actions for exploration.
+
+        🆕 REFACTORING PHASE 3.4: Delegated to StateActionManager.
+        """
+        return self.state_action_manager.get_available_actions(self.actors)
     
     async def _build_actor_context(
         self,
@@ -3209,6 +2995,14 @@ Strategy: Check if recoverable, adapt retry approach.
         🔥 A-TEAM FIX: Use DSPy Signature object, NOT forward() method directly!
         """
         actor = actor_config.agent
+
+        # 🔥 CRITICAL FIX: Unwrap SingleAgentOrchestrator to get inner agent
+        # When agents are wrapped (e.g., for RL), signature is on the inner agent
+        if hasattr(actor, 'agent') and hasattr(actor.agent, '__class__'):
+            # This is a wrapper (like SingleAgentOrchestrator)
+            inner_agent = actor.agent
+            logger.debug(f"   🔓 Unwrapping {actor.__class__.__name__} to access inner agent: {inner_agent.__class__.__name__}")
+            actor = inner_agent
 
         # Strategy 1a: DSPy ChainOfThought (has predict.signature)
         if hasattr(actor, 'predict') and hasattr(actor.predict, 'signature'):
@@ -4309,7 +4103,7 @@ Strategy: Check if recoverable, adapt retry approach.
         # =================================================================
         # 🎯 Q-LEARNING UPDATE: Natural Language Q-Table
         # =================================================================
-        if hasattr(self, 'q_learner') and self.q_learner:
+        if self.learning_manager.q_learner:
             try:
                 # Generate natural language state description
                 completed_actors = list(self.io_manager.outputs.keys()) if hasattr(self, 'io_manager') and self.io_manager else []
@@ -4319,39 +4113,39 @@ Strategy: Check if recoverable, adapt retry approach.
                     "completed": completed_actors,
                     "attempts": len(tagged_attempts)
                 }
-                
+
                 action = {
                     "actor": actor_config.name,
                     "task": f"Execute {actor_config.name}"
                 }
-                
+
                 next_state = state.copy()
                 next_state["completed"] = completed_actors + [actor_config.name]
-                
+
                 # Compute reward (1.0 if Auditor passed, 0.0 otherwise)
                 auditor_success = all(r.is_valid for r in result.auditor_results) if hasattr(result, 'auditor_results') and result.auditor_results else True
                 reward = 1.0 if auditor_success else 0.0
-                
+
                 # Check if terminal (all actors done)
                 is_terminal = len(next_state["completed"]) == len(self.actors)
-                
+
                 # Add experience (this updates Q-table AND stores in buffer)
-                self.q_learner.add_experience(
+                self.learning_manager.add_experience(
                     state=state,
                     action=action,
                     reward=reward,
                     next_state=next_state,
                     done=is_terminal
                 )
-                
+
                 logger.debug(f"🎯 Q-Learning updated: {actor_config.name} reward={reward:.2f}, terminal={is_terminal}")
-                
+
                 # Get learned context for injection into actor prompts
-                learned_context = self.q_learner.get_learned_context(state, action)
+                learned_context = self.learning_manager.get_learned_context(state, action)
                 if learned_context:
                     logger.debug(f"📚 Learned context ({len(learned_context)} chars):")
                     logger.debug(learned_context[:200] + "..." if len(learned_context) > 200 else learned_context)
-                
+
             except Exception as e:
                 logger.warning(f"⚠️  Q-Learning update failed: {e}")
         
@@ -4408,130 +4202,6 @@ Strategy: Check if recoverable, adapt retry approach.
         
         return result
     
-    def _detect_output_type(self, output: Any) -> str:
-        """Auto-detect output type."""
-        if hasattr(output, 'to_dict'):  # DataFrame
-            return 'dataframe'
-        elif isinstance(output, str):
-            if len(output) > 100:
-                if '<html' in output[:100].lower():
-                    return 'html'
-                elif '#' in output[:100]:
-                    return 'markdown'
-            return 'text'
-        elif isinstance(output, bytes):
-            return 'binary'
-        elif isinstance(output, dict):
-            return 'json'
-        elif hasattr(output, 'output'):  # EpisodeResult
-            return 'episode_result'
-        elif hasattr(output, '__dict__'):
-            return 'prediction'
-        return 'unknown'
-    
-    def _extract_schema(self, output: Any) -> Dict[str, str]:
-        """Extract schema from output."""
-        schema = {}
-        
-        # Handle EpisodeResult
-        if hasattr(output, 'output') and hasattr(output, 'success'):
-            if output.output is not None:
-                return self._extract_schema(output.output)
-            return {}
-        
-        if hasattr(output, '__dict__'):
-            for field_name, field_value in vars(output).items():
-                if not field_name.startswith('_'):
-                    schema[field_name] = type(field_value).__name__
-        
-        elif isinstance(output, dict):
-            for key, value in output.items():
-                schema[key] = type(value).__name__
-        
-        elif hasattr(output, 'columns'):  # DataFrame
-            schema = {col: 'column' for col in output.columns}
-        
-        return schema
-    
-    def _generate_preview(self, output: Any) -> str:
-        """Generate preview of output."""
-        try:
-            if isinstance(output, str):
-                return output[:200]
-            elif hasattr(output, '__str__'):
-                return str(output)[:200]
-            elif hasattr(output, 'head'):  # DataFrame
-                return str(output.head(3))[:200]
-            return f"<{type(output).__name__}>"
-        except (AttributeError, TypeError, ValueError, Exception) as e:
-            # Preview generation failed, return safe fallback
-            logger.debug(f"Preview generation failed: {e}")
-            return "<preview unavailable>"
-    
-    def _generate_tags(self, actor_name: str, output: Any, output_type: str) -> List[str]:
-        """Generate semantic tags for output."""
-        tags = [output_type, actor_name.lower()]
-        
-        # Handle EpisodeResult
-        if hasattr(output, 'output') and hasattr(output, 'success'):
-            if output.output is not None:
-                return self._generate_tags(actor_name, output.output, output_type)
-            return tags
-        
-        # Add field names as tags
-        if hasattr(output, '__dict__'):
-            field_names = [f for f in vars(output).keys() if not f.startswith('_')]
-            tags.extend(field_names[:5])  # Top 5 fields
-        
-        elif isinstance(output, dict):
-            tags.extend(list(output.keys())[:5])
-        
-        return tags
-    
-    def _register_output_in_registry(self, actor_name: str, output: Any):
-        """Register output in Data Registry."""
-        try:
-            # Detect type
-            output_type = self._detect_output_type(output)
-            
-            # Extract schema
-            schema = self._extract_schema(output)
-            
-            # Generate tags
-            tags = self._generate_tags(actor_name, output, output_type)
-            
-            # Generate preview
-            preview = self._generate_preview(output)
-            
-            # Calculate size
-            try:
-                size = len(str(output))
-            except (TypeError, AttributeError):
-                # Size calculation failed, use 0
-                size = 0
-            
-            # Create artifact
-            artifact = DataArtifact(
-                id=f"{actor_name}_{int(time.time() * 1000)}",
-                name=actor_name,
-                source_actor=actor_name,
-                data=output,
-                data_type=output_type,
-                schema=schema,
-                tags=tags,
-                description=f"Output from {actor_name}",
-                timestamp=time.time(),
-                depends_on=[],
-                size=size,
-                preview=preview
-            )
-            
-            # Register
-            self.data_registry.register(artifact)
-            
-        except Exception as e:
-            logger.warning(f"⚠️  Failed to register output in registry: {e}")
-    
     def _register_output_in_registry_fallback(self, actor_name: str, output: Any):
         """
         DEPRECATED: Fallback registration removed - use semantic registration only!
@@ -4557,27 +4227,22 @@ Strategy: Check if recoverable, adapt retry approach.
     ) -> Tuple[bool, float, str]:
         """
         Run Auditor for actor result.
-        
+
+        🆕 REFACTORING PHASE 2.2: Delegates to ValidationManager.
+
         Incorporates:
-        - Auditor prompts
+        - Reviewer prompts
         - Annotations
         - Learned patterns
-        
+
         Returns:
             (passed, reward, feedback)
         """
-        # For now, simple check - in full impl would use Auditor agents
-        # TODO: Integrate full Auditor with prompts and annotations
-        
-        # Check if result indicates success
-        if isinstance(result, dict):
-            if result.get('success', True):
-                return True, 1.0, "Auditor passed"
-            else:
-                return False, 0.0, result.get('error', 'Auditor failed')
-        
-        # Default: assume success
-        return True, 0.8, "Result received"
+        # 🆕 Use ValidationManager for all validation logic
+        validation_result = await self.validation_manager.run_reviewer(
+            actor_config, result, task
+        )
+        return validation_result.passed, validation_result.reward, validation_result.feedback
     
     def get_actor_outputs(self) -> Dict[str, Any]:
         """
@@ -4613,192 +4278,10 @@ Strategy: Check if recoverable, adapt retry approach.
                 return output
         return None
     
-    def _fetch_all_metadata_directly(self) -> Dict[str, Any]:
-        """
-        🔥 A-TEAM CRITICAL FIX (User Insight): Fetch ALL metadata directly!
-        
-        USER QUESTION: "Why is react agent fetching when it's already in metadata manager?"
-        ANSWER: YOU'RE RIGHT! We should just call ALL methods directly!
-        
-        NO ReAct agent overhead, NO guessing, NO missing data!
-        
-        This method calls ALL @jotty_method decorated methods from metadata_provider
-        and returns a complete dictionary with ALL metadata.
-        
-        Returns:
-            Dict with ALL metadata, using semantic keys (e.g., 'business_terms', 'table_names', etc.)
-        """
-        logger.info("🔍 Fetching ALL metadata directly (no ReAct agent, no guessing)...")
-        metadata = {}
-        start_time = time.time()
-        
-        # 🔥 Call ALL metadata methods directly!
-        # 🔥 USER INSIGHT: No hardcoding! Store with original method names only.
-        # AgenticResolver will do semantic matching with ONE LLM call.
-        # This is generic and works for ANY naming convention!
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_business_contexts'):
-                logger.debug("   📞 Calling get_all_business_contexts()...")
-                result = self.metadata_provider.get_all_business_contexts()
-                metadata['get_all_business_contexts'] = result
-                logger.info(f"   ✅ get_all_business_contexts: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_business_contexts() failed: {e}")
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_table_metadata'):
-                logger.debug("   📞 Calling get_all_table_metadata()...")
-                result = self.metadata_provider.get_all_table_metadata()
-                metadata['get_all_table_metadata'] = result
-                logger.info(f"   ✅ get_all_table_metadata: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_table_metadata() failed: {e}")
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_filter_definitions'):
-                logger.debug("   📞 Calling get_all_filter_definitions()...")
-                result = self.metadata_provider.get_all_filter_definitions()
-                metadata['get_all_filter_definitions'] = result
-                logger.info(f"   ✅ get_all_filter_definitions: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_filter_definitions() failed: {e}")
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_column_metadata'):
-                logger.debug("   📞 Calling get_all_column_metadata()...")
-                result = self.metadata_provider.get_all_column_metadata()
-                metadata['get_all_column_metadata'] = result
-                logger.info(f"   ✅ get_all_column_metadata: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_column_metadata() failed: {e}")
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_term_definitions'):
-                logger.debug("   📞 Calling get_all_term_definitions()...")
-                result = self.metadata_provider.get_all_term_definitions()
-                metadata['get_all_term_definitions'] = result
-                logger.info(f"   ✅ get_all_term_definitions: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_term_definitions() failed: {e}")
-        
-        try:
-            if hasattr(self.metadata_provider, 'get_all_validations'):
-                logger.debug("   📞 Calling get_all_validations()...")
-                result = self.metadata_provider.get_all_validations()
-                metadata['get_all_validations'] = result
-                logger.info(f"   ✅ get_all_validations: {len(str(result))} chars")
-        except Exception as e:
-            logger.warning(f"   ⚠️  get_all_validations() failed: {e}")
-        
-        # 🔥 Add any other discovered methods from metadata_tool_registry
-        if hasattr(self, 'metadata_tool_registry'):
-            for tool_name in self.metadata_tool_registry.tools.keys():
-                if tool_name not in ['get_all_business_contexts', 'get_all_table_metadata', 
-                                     'get_all_filter_definitions', 'get_all_column_metadata',
-                                     'get_all_term_definitions', 'get_all_validations']:
-                    try:
-                        if hasattr(self.metadata_provider, tool_name):
-                            # ✅ FIX: Skip methods requiring positional args (prefetch phase has no args).
-                            try:
-                                sig = inspect.signature(getattr(self.metadata_provider, tool_name))
-                                required_positional = [
-                                    p.name for p in sig.parameters.values()
-                                    if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) and p.default is p.empty
-                                ]
-                                if required_positional:
-                                    logger.debug(f"   ⏭️  Skipping {tool_name}() prefetch (requires args: {required_positional})")
-                                    continue
-                            except Exception as e:
-                                logger.debug(f"   ⏭️  Skipping {tool_name}() prefetch (signature inspect failed: {e})")
-                                continue
-
-                            logger.debug(f"   📞 Calling {tool_name}()...")
-                            result = getattr(self.metadata_provider, tool_name)()
-                            metadata[tool_name] = result
-                            logger.info(f"   ✅ {tool_name}: {len(str(result))} chars")
-                    except Exception as e:
-                        logger.warning(f"   ⚠️  {tool_name}() failed: {e}")
-        
-        elapsed = time.time() - start_time
-        logger.info(f"✅ Fetched {len(metadata)} metadata items in {elapsed:.2f}s (direct calls, no LLM!)")
-        
-        return metadata
-    
-    def _enrich_business_terms_with_filters(self, fetched_data: Dict[str, Any]):
-        """
-        🔥 A-TEAM CRITICAL FIX: Enrich business_terms with parsed filter conditions!
-        
-        This bridges metadata (SharedContext) with parameter flow (actor inputs).
-        
-        GENERIC - No hardcoding! Works for ANY domain where:
-        - There are "business_terms" (categories/concepts)
-        - There are "filter_conditions_parsed" (structured constraints)
-        
-        Args:
-            fetched_data: Metadata returned by _fetch_all_metadata_directly()
-        """
-        # Check if we have both business terms and parsed filters
-        business_terms = fetched_data.get('business_terms', {})
-        parsed_filters = fetched_data.get('filter_conditions_parsed', {})
-        
-        if not business_terms or not parsed_filters:
-            logger.debug("No enrichment needed (missing business_terms or parsed_filters)")
-            return
-        
-        logger.info(f"🔄 Enriching {len(business_terms)} business terms with {len(parsed_filters)} filter specs")
-        
-        # Enrich each business term with matching filter conditions
-        enriched_count = 0
-        for term_name, term_data in business_terms.items():
-            # Try to find matching filter (generic matching!)
-            # Try exact match first
-            if term_name in parsed_filters:
-                filter_spec = parsed_filters[term_name]
-                self._merge_filter_into_term(term_data, filter_spec, term_name)
-                enriched_count += 1
-                continue
-            
-            # Try case-insensitive match
-            term_lower = term_name.lower()
-            for filter_key, filter_spec in parsed_filters.items():
-                if filter_key.lower() == term_lower:
-                    self._merge_filter_into_term(term_data, filter_spec, term_name)
-                    enriched_count += 1
-                    break
-            
-            # Try substring match (e.g., "P2P" matches "P2P transactions")
-            if not isinstance(term_data, dict) or 'fields' not in term_data:
-                for filter_key, filter_spec in parsed_filters.items():
-                    if term_lower in filter_key.lower() or filter_key.lower() in term_lower:
-                        self._merge_filter_into_term(term_data, filter_spec, term_name)
-                        enriched_count += 1
-                        break
-        
-        logger.info(f"✅ Enriched {enriched_count}/{len(business_terms)} business terms with filter conditions")
-        
-        # Update in SharedContext
-        fetched_data['business_terms'] = business_terms
-        self.shared_context.set('metadata', fetched_data)
-    
-    def _merge_filter_into_term(self, term_data: Any, filter_spec: Dict[str, Any], term_name: str):
-        """
-        Merge filter specification into business term data.
-        
-        GENERIC - works with any field names!
-        """
-        if not isinstance(term_data, dict):
-            # Can't merge into non-dict, convert to dict first
-            term_data_new = {'original': term_data}
-            term_data = term_data_new
-        
-        # Merge filter fields
-        for key, value in filter_spec.items():
-            if key not in term_data:
-                term_data[key] = value
-                logger.debug(f"  ✅ {term_name}: Added '{key}' from filter spec")
-            else:
-                logger.debug(f"  ⚠️  {term_name}: '{key}' already exists, skipping")
+    # 🆕 REFACTORING PHASE 3.1: Metadata methods removed - now delegated to MetadataOrchestrationManager
+    # - _fetch_all_metadata_directly → metadata_orchestration_manager.fetch_all_metadata_directly
+    # - _enrich_business_terms_with_filters → metadata_orchestration_manager.enrich_business_terms_with_filters
+    # - _merge_filter_into_term → metadata_orchestration_manager.merge_filter_into_term
 
     def _infer_domain_from_actor(self, actor_name: str) -> str:
         """

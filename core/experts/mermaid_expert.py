@@ -8,46 +8,40 @@ Uses OptimizationPipeline to ensure it always produces valid, correct Mermaid sy
 import logging
 from typing import Any, Dict, List, Optional
 
-from .expert_agent import ExpertAgent, ExpertAgentConfig
+from .base_expert import BaseExpert
 
 logger = logging.getLogger(__name__)
 
 
-class MermaidExpertAgent(ExpertAgent):
+class MermaidExpertAgent(BaseExpert):
     """
     Expert agent for Mermaid diagram generation.
-    
+
     This agent is pre-trained to always generate valid Mermaid diagrams.
     It uses OptimizationPipeline internally to learn from mistakes.
     """
-    
-    def __init__(self, config: Optional[ExpertAgentConfig] = None, memory=None):
-        if config is None:
-            config = ExpertAgentConfig(
-                name="mermaid_expert",
-                domain="mermaid",
-                description="Expert agent for generating perfect Mermaid diagrams",
-                training_gold_standards=self._get_default_training_cases(),
-                validation_cases=self._get_default_validation_cases(),
-                evaluation_function=self._evaluate_mermaid,
-                agent_module=self._create_mermaid_agent,
-                teacher_module=self._create_mermaid_teacher
-            )
-        
-        super().__init__(config, memory=memory)
-    
-    def _create_default_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
-        """Create default Mermaid generation agent.
-        
-        Args:
-            improvements: Optional list of improvements to inject
-        """
-        return self._create_mermaid_agent(improvements=improvements)
-    
-    @staticmethod
-    def _create_mermaid_agent(improvements: List[Dict[str, Any]] = None):
+
+    # =========================================================================
+    # REQUIRED PROPERTIES (BaseExpert interface)
+    # =========================================================================
+
+    @property
+    def domain(self) -> str:
+        """Return domain name for this expert."""
+        return "mermaid"
+
+    @property
+    def description(self) -> str:
+        """Return description for this expert."""
+        return "Expert agent for generating perfect Mermaid diagrams"
+
+    # =========================================================================
+    # DOMAIN-SPECIFIC AGENT CREATION (BaseExpert interface)
+    # =========================================================================
+
+    def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the Mermaid generation agent using DSPy (Claude/Cursor).
-        
+
         Args:
             improvements: Optional list of improvements to inject into signature
         """
@@ -94,14 +88,13 @@ class MermaidExpertAgent(ExpertAgent):
         agent = dspy.ChainOfThought(signature_class)
         return agent
     
-    @staticmethod
-    def _create_mermaid_teacher():
+    def _create_domain_teacher(self) -> Any:
         """Create the Mermaid teacher agent using DSPy."""
         try:
             import dspy
         except ImportError:
-            # Fallback to base class default teacher
-            return super()._create_default_teacher()
+            # Fallback to None (no teacher)
+            return None
         
         class MermaidTeacherSignature(dspy.Signature):
             """Provide the correct Mermaid diagram based on gold standard.
@@ -130,11 +123,20 @@ class MermaidExpertAgent(ExpertAgent):
         teacher = dspy.Predict(MermaidTeacherSignature)
         return teacher
     
-    @staticmethod
-    async def _evaluate_mermaid(output: Any, gold_standard: str, task: str, context: Dict) -> Dict[str, Any]:
+    # =========================================================================
+    # DOMAIN-SPECIFIC EVALUATION (BaseExpert interface)
+    # =========================================================================
+
+    async def _evaluate_domain(
+        self,
+        output: Any,
+        gold_standard: str,
+        task: str,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Evaluate Mermaid diagram syntax and correctness with domain-specific validation.
-        
+
         Uses domain validator for better type detection and validation.
         """
         output_str = str(output).strip()
@@ -234,6 +236,10 @@ class MermaidExpertAgent(ExpertAgent):
             "difference": "; ".join(issues) if issues else None
         }
     
+    # =========================================================================
+    # TRAINING AND VALIDATION DATA (BaseExpert interface)
+    # =========================================================================
+
     @staticmethod
     def _get_default_training_cases() -> List[Dict[str, Any]]:
         """Get default training cases for Mermaid."""
@@ -303,6 +309,10 @@ class MermaidExpertAgent(ExpertAgent):
             }
         ]
     
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
+
     async def generate_mermaid(
         self,
         description: str,
@@ -311,15 +321,15 @@ class MermaidExpertAgent(ExpertAgent):
     ) -> str:
         """
         Generate a Mermaid diagram using the trained expert agent.
-        
+
         The agent uses DSPy (Claude/Cursor) to generate diagrams from descriptions,
         and has been trained by OptimizationPipeline to always produce correct outputs.
-        
+
         Args:
             description: Description of the diagram to generate
             diagram_type: Type of diagram (flowchart, sequence, class, etc.)
             **kwargs: Additional context
-        
+
         Returns:
             Mermaid diagram code as string
         """

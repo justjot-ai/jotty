@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional
 import re
 
-from .expert_agent import ExpertAgent, ExpertAgentConfig
+from .base_expert import BaseExpert
 
 logger = logging.getLogger(__name__)
 
@@ -20,35 +20,33 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 
-class MathLaTeXExpertAgent(ExpertAgent):
+class MathLaTeXExpertAgent(BaseExpert):
     """
     Expert agent for Math LaTeX expression generation.
-    
+
     This agent is pre-trained to always generate valid Math LaTeX expressions.
     It uses OptimizationPipeline internally to learn from mistakes.
     """
-    
-    def __init__(self, config: Optional[ExpertAgentConfig] = None, memory=None):
-        if config is None:
-            config = ExpertAgentConfig(
-                name="math_latex_expert",
-                domain="math_latex",
-                description="Expert agent for generating perfect Math LaTeX expressions",
-                training_gold_standards=self._get_default_training_cases(),
-                validation_cases=self._get_default_validation_cases(),
-                evaluation_function=self._evaluate_math_latex,
-                agent_module=self._create_math_latex_agent,
-                teacher_module=self._create_math_latex_teacher
-            )
-        
-        super().__init__(config, memory=memory)
-    
-    def _create_default_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
-        """Create default Math LaTeX generation agent."""
-        return self._create_math_latex_agent(improvements=improvements)
-    
-    @staticmethod
-    def _create_math_latex_agent(improvements: List[Dict[str, Any]] = None):
+
+    # =========================================================================
+    # REQUIRED PROPERTIES (BaseExpert interface)
+    # =========================================================================
+
+    @property
+    def domain(self) -> str:
+        """Return domain name for this expert."""
+        return "math_latex"
+
+    @property
+    def description(self) -> str:
+        """Return description for this expert."""
+        return "Expert agent for generating perfect Math LaTeX expressions"
+
+    # =========================================================================
+    # DOMAIN-SPECIFIC AGENT CREATION (BaseExpert interface)
+    # =========================================================================
+
+    def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the Math LaTeX generation agent using DSPy."""
         if not DSPY_AVAILABLE:
             raise ImportError("DSPy is required for expert agents. Install with: pip install dspy-ai")
@@ -100,8 +98,7 @@ class MathLaTeXExpertAgent(ExpertAgent):
         agent = dspy.ChainOfThought(signature_class)
         return agent
     
-    @staticmethod
-    def _create_math_latex_teacher():
+    def _create_domain_teacher(self) -> Any:
         """Create the Math LaTeX teacher agent using DSPy."""
         if not DSPY_AVAILABLE:
             return None
@@ -123,7 +120,11 @@ class MathLaTeXExpertAgent(ExpertAgent):
         teacher = dspy.ChainOfThought(MathLaTeXTeacherSignature)
         return teacher
     
-    async def _evaluate_math_latex(
+    # =========================================================================
+    # DOMAIN-SPECIFIC EVALUATION (BaseExpert interface)
+    # =========================================================================
+
+    async def _evaluate_domain(
         self,
         output: Any,
         gold_standard: str,
@@ -132,13 +133,13 @@ class MathLaTeXExpertAgent(ExpertAgent):
     ) -> Dict[str, Any]:
         """
         Evaluate Math LaTeX expression.
-        
+
         Args:
             output: Generated LaTeX expression
             gold_standard: Correct LaTeX expression
             task: Task description
             context: Context dictionary
-        
+
         Returns:
             Evaluation result dictionary
         """
@@ -168,7 +169,7 @@ class MathLaTeXExpertAgent(ExpertAgent):
         # If renderer fails but structure validation passed, use structure result
         if not renderer_valid:
             # Check if structure validation passed
-            structure_valid = metadata.get("type_match", False) and len(errors) == 0
+            structure_valid = metadata.get("type_match", False) and not error_msg
             if structure_valid and "QuickLaTeX error: -1" in renderer_error:
                 # QuickLaTeX API issue, but structure is valid - accept it
                 logger.debug("QuickLaTeX API issue, but structure validation passed")
@@ -221,6 +222,10 @@ class MathLaTeXExpertAgent(ExpertAgent):
             }
         }
     
+    # =========================================================================
+    # HELPER METHODS (domain-specific)
+    # =========================================================================
+
     def _calculate_similarity(self, output: str, gold_standard: str) -> float:
         """Calculate similarity between output and gold standard."""
         # Normalize both strings
@@ -259,6 +264,10 @@ class MathLaTeXExpertAgent(ExpertAgent):
         latex = latex.replace('\\(', '$').replace('\\)', '$')
         return latex
     
+    # =========================================================================
+    # TRAINING AND VALIDATION DATA (BaseExpert interface)
+    # =========================================================================
+
     @staticmethod
     def _get_default_training_cases() -> List[Dict[str, Any]]:
         """Get default training cases for Math LaTeX."""
@@ -326,6 +335,10 @@ class MathLaTeXExpertAgent(ExpertAgent):
             }
         ]
     
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
+
     async def generate_math_latex(
         self,
         description: str,
@@ -334,12 +347,12 @@ class MathLaTeXExpertAgent(ExpertAgent):
     ) -> str:
         """
         Generate a Math LaTeX expression using the trained expert agent.
-        
+
         Args:
             description: Description of the mathematical expression
             expression_type: Type of expression (inline, display, equation, formula)
             **kwargs: Additional context
-        
+
         Returns:
             Math LaTeX expression as string
         """

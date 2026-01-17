@@ -483,9 +483,13 @@ class SubtaskState:
     
     def start(self):
         """Mark task as started."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         self.status = TaskStatus.IN_PROGRESS
         self.started_at = datetime.now()
         self.attempts += 1
+        logger.info(f"▶️  Task {self.task_id} STARTED (attempt {self.attempts}/{self.max_attempts})")
     
     def complete(self, result: Dict = None):
         """Mark task as completed."""
@@ -498,8 +502,10 @@ class SubtaskState:
         """Mark task as failed."""
         if self.attempts >= self.max_attempts:
             self.status = TaskStatus.FAILED
+            print(f"❌ Task {self.task_id} FAILED (attempts={self.attempts}, max={self.max_attempts})")
         else:
             self.status = TaskStatus.PENDING  # Retry
+            print(f"⚠️  Task {self.task_id} will RETRY (attempts={self.attempts}, max={self.max_attempts})")
         self.error = error
 
 
@@ -549,17 +555,22 @@ class MarkovianTODO:
                 f"{self.root_task}:{datetime.now().isoformat()}".encode()
             ).hexdigest()
     
-    def add_task(self, 
-                 task_id: str, 
+    def add_task(self,
+                 task_id: str,
                  description: str,
                  actor: str = "",
                  depends_on: List[str] = None,
                  estimated_duration: float = 60.0,
-                 priority: float = 1.0):
+                 priority: float = 1.0,
+                 max_attempts: int = 3):
         """
         Add a subtask - NO HARDCODING.
-        
+
         All parameters are configurable at runtime.
+
+        Args:
+            max_attempts: Maximum retry attempts (default 3).
+                          Set to 1 for natural dependency learning (no retries).
         """
         self.subtasks[task_id] = SubtaskState(
             task_id=task_id,
@@ -567,7 +578,8 @@ class MarkovianTODO:
             actor=actor,
             depends_on=depends_on or [],
             estimated_duration=estimated_duration,
-            priority=priority
+            priority=priority,
+            max_attempts=max_attempts
         )
         if task_id not in self.execution_order:
             self.execution_order.append(task_id)
@@ -581,19 +593,101 @@ class MarkovianTODO:
                 if dep_id in self.subtasks:
                     self.subtasks[dep_id].blocks.append(task_id)
     
-    def get_next_task(self) -> Optional[SubtaskState]:
+    def get_next_task(self, q_predictor=None, current_state=None, goal=None, epsilon=0.1) -> Optional[SubtaskState]:
         """
         Get next task OBJECT that can be started.
-        
+
         CRITICAL FIX: Returns SubtaskState object (not string ID) to match
         SwarmReVal interface expectations (task.actor, task.description, etc.)
-        
-        NO HARDCODING: Selection based on status and dependencies only.
+
+        🆕 RL-AWARE SELECTION: If q_predictor is provided, uses ε-greedy Q-value selection
+        instead of fixed execution_order. This allows RL to actually improve agent ordering!
+
+        Args:
+            q_predictor: Optional Q-learning predictor for value-based selection
+            current_state: Current environment state for Q-value prediction
+            goal: Current goal/task description
+            epsilon: Exploration rate (default 0.1 = 10% random exploration)
+
+        Returns:
+            Next task to execute (Q-value based if RL enabled, else fixed order)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Get all pending tasks that can start
+        available_tasks = [
+            task for task_id, task in self.subtasks.items()
+            if task.status == TaskStatus.PENDING and task.can_start(self.completed_tasks)
+        ]
+
+        # Debug: Show all task statuses
+        logger.info(f"🔍 Task statuses: {', '.join([f'{t.task_id}={t.status.name}' for t in self.subtasks.values()])}")
+
+        if not available_tasks:
+            logger.info("⚠️  No available tasks (all completed/failed/blocked)")
+            return None
+
+        # If only one task available, return it
+        if len(available_tasks) == 1:
+            return available_tasks[0]
+
+        # Log Q-predictor availability and parameters
+        logger.info(f"🔍 [get_next_task] q_predictor={q_predictor is not None}, state={current_state is not None}, goal={goal is not None}, epsilon={epsilon}")
+        logger.info(f"🔍 [get_next_task] Available tasks: {[t.actor for t in available_tasks]}")
+
+        # 🔥 RL-AWARE SELECTION: Use Q-values to choose best agent
+        if q_predictor and current_state and goal:
+            import random
+
+            logger.info("🎯 [get_next_task] Using Q-value-based selection!")
+
+            # ε-greedy: explore with probability epsilon
+            rand_value = random.random()
+            if rand_value < epsilon:
+                # EXPLORE: Random selection
+                selected_task = random.choice(available_tasks)
+                print(f"🎲 EXPLORE ({rand_value:.2f} < {epsilon}) → {selected_task.actor}")
+                logger.info(f"🎲 [get_next_task] EXPLORE mode (rand={rand_value:.3f} < eps={epsilon:.3f}) → selected {selected_task.actor}")
+                return selected_task
+            else:
+                print(f"🏆 EXPLOIT ({rand_value:.2f} >= {epsilon})")
+                logger.info(f"🏆 [get_next_task] EXPLOIT mode (rand={rand_value:.3f} >= eps={epsilon:.3f})")
+
+                # EXPLOIT: Select task with highest Q-value
+                best_task = None
+                best_q_value = float('-inf')
+                q_values_debug = []
+
+                for task in available_tasks:
+                    action = {'actor': task.actor, 'task': task.description}
+                    try:
+                        q_value, _, _ = q_predictor.predict_q_value(current_state, action, goal)
+                        q_values_debug.append(f"{task.actor}={q_value:.3f}" if q_value is not None else f"{task.actor}=None")
+                        if q_value is not None and q_value > best_q_value:
+                            best_q_value = q_value
+                            best_task = task
+                    except Exception as e:
+                        # If Q-prediction fails, skip this task
+                        logger.warning(f"⚠️  [get_next_task] Q-prediction failed for {task.actor}: {e}")
+                        pass
+
+                print(f"📊 Q-values: {', '.join(q_values_debug)}")
+                print(f"🏆 Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
+                logger.info(f"📊 [get_next_task] Q-values: {', '.join(q_values_debug)}")
+                logger.info(f"🏆 [get_next_task] Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
+
+                # If we found a task with valid Q-value, use it
+                if best_task:
+                    return best_task
+
+        # 🔄 FALLBACK: Use fixed execution order (original behavior)
+        logger.info("🔄 [get_next_task] Falling back to fixed execution order")
         for task_id in self.execution_order:
             task = self.subtasks[task_id]
             if task.status == TaskStatus.PENDING and task.can_start(self.completed_tasks):
                 return task  # ← Return OBJECT, not task_id
+
         return None
 
     def unblock_ready_tasks(self) -> int:
