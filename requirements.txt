@@ -6,6 +6,11 @@ dspy-ai>=2.0.0
 pyyaml>=6.0
 langgraph>=0.0.1
 
+# Web search (optional)
+duckduckgo-search  # Free web search for research
+cloudscraper  # Anti-CAPTCHA for web scraping
+fake-useragent  # Rotating user agents
+
 # Optional dependencies (uncomment as needed)
 # pymongo>=4.0.0  # MongoDB memory backend
 # redis>=4.0.0    # Redis caching
@@ -14,3 +19,14 @@ langgraph>=0.0.1
 # Content generation (optional - for DOCX/PPTX export)
 python-docx>=0.8.11  # Word document generation
 python-pptx>=0.6.21  # PowerPoint presentation generation
+
+# Slides generation (Paper2Slides integration)
+lightrag-hku  # RAG system for document processing
+huggingface_hub  # Model downloads
+Pillow>=10.0.0  # Image processing
+reportlab>=4.0.0  # PDF generation
+python-dotenv>=1.0.0  # Environment configuration
+tqdm  # Progress bars
+# mineru[core]==2.6.4  # OPTIONAL: Advanced PDF parsing (500MB+ install)
+#                      # Only needed for converting external PDFs to slides
+#                      # NOT needed if using Jotty-generated markdown
