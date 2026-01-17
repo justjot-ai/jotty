@@ -70,9 +70,9 @@ async def test_minimal():
 
         orchestrator = Orchestrator()
 
-        print("  Running: Write hello world in Python")
+        print("  Running: Plan Python hello world steps")
         result = await orchestrator.run(
-            goal="Write a hello world program in Python",
+            goal="Plan the steps to create a Python hello world program",
             max_steps=3
         )
 

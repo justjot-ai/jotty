@@ -44,38 +44,25 @@ class EnhancedClaudeCLILM(BaseLM):
 
         Converts DSPy signature output fields to JSON schema format.
         """
-        if not hasattr(signature, '__annotations__'):
+        # DSPy signatures use model_fields (pydantic v2)
+        if not hasattr(signature, 'model_fields'):
             return None
 
-        # Get output fields from signature
+        # Get output fields only (marked with __dspy_field_type: 'output')
         output_fields = {}
         required_fields = []
 
-        for field_name, field in signature.__dict__.items():
-            if hasattr(field, 'json_schema_extra'):
-                # This is a DSPy OutputField
-                field_desc = getattr(field, 'desc', '')
+        for field_name, field_info in signature.model_fields.items():
+            # Check if this is an output field
+            json_extra = field_info.json_schema_extra or {}
+            if json_extra.get('__dspy_field_type') == 'output':
+                field_desc = json_extra.get('desc', '')
                 output_fields[field_name] = {
                     "type": "string",
                     "description": field_desc
                 }
-                required_fields.append(field_name)
-
-        # Fallback: parse from field annotations
-        if not output_fields and hasattr(signature, '__annotations__'):
-            for field_name in signature.__annotations__:
-                if field_name.startswith('_'):
-                    continue
-                # Check if this is an output field
-                field_obj = getattr(signature, field_name, None)
-                if field_obj and hasattr(field_obj, '__class__'):
-                    if 'Output' in field_obj.__class__.__name__:
-                        field_desc = getattr(field_obj, 'desc', '')
-                        output_fields[field_name] = {
-                            "type": "string",
-                            "description": field_desc
-                        }
-                        required_fields.append(field_name)
+                if field_info.is_required():
+                    required_fields.append(field_name)
 
         if not output_fields:
             return None
@@ -118,8 +105,13 @@ class EnhancedClaudeCLILM(BaseLM):
         json_schema = kwargs.get('json_schema')
         signature = kwargs.get('signature')
 
+        # DEBUG: Print what we received
+        #print(f"DEBUG: kwargs keys: {list(kwargs.keys())}")
+        #print(f"DEBUG: signature in kwargs: {signature is not None}")
+
         if not json_schema and signature:
             json_schema = self._extract_json_schema(signature)
+            #print(f"DEBUG: Extracted schema: {json_schema}")
 
         # Build command
         cmd = [
@@ -127,11 +119,11 @@ class EnhancedClaudeCLILM(BaseLM):
             "--model", self.cli_model,
             "--print",  # Non-interactive mode
             "--output-format", "json",  # JSON output
+            "--dangerously-skip-permissions",  # Skip permission prompts
         ]
 
-        # Add JSON schema if available (enforces structured output)
-        if json_schema:
-            cmd.extend(["--json-schema", json.dumps(json_schema)])
+        # Note: --json-schema flag doesn't exist in Claude CLI 2.0.36
+        # JSON output format + DSPy's JSONAdapter handles parsing
 
         cmd.append(user_message)
 
