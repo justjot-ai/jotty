@@ -210,9 +210,13 @@ class UniversalWorkflow:
         self.tool_registry = self.conductor.metadata_tool_registry
         self.tool_manager = self.conductor.tool_manager
         self.shared_context = self.conductor.shared_context
-        self.scratchpad = self.conductor.shared_scratchpad
         self.state_manager = self.conductor.state_manager
         self.memory = self.conductor.memory if hasattr(self.conductor, 'memory') else None
+
+        # Create proper SharedScratchpad object (not dict!)
+        # Conductor uses dict, but workflow modes expect SharedScratchpad
+        from ..foundation.types.agent_types import SharedScratchpad
+        self.scratchpad = SharedScratchpad()
 
         # ONLY NEW components
         self.goal_analyzer = GoalAnalyzer()
