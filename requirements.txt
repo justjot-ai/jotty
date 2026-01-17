@@ -16,6 +16,10 @@ fake-useragent  # Rotating user agents
 # redis>=4.0.0    # Redis caching
 # sqlalchemy>=2.0.0  # SQL persistence
 
+# Modular configuration system (for tiered architecture)
+hydra-core>=1.3.0  # Configuration management
+omegaconf>=2.3.0  # YAML config parsing
+
 # Content generation (optional - for DOCX/PPTX export)
 python-docx>=0.8.11  # Word document generation
 python-pptx>=0.6.21  # PowerPoint presentation generation
