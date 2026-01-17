@@ -3,7 +3,7 @@
 Content Generation Tools for Jotty
 Ported from JustJot.ai adapters/sinks/
 
-Provides PDF, HTML, and Markdown generation with @jotty_method decorators
+Provides PDF, HTML, Markdown, DOCX, and PPTX generation
 """
 
 from pathlib import Path
@@ -13,6 +13,22 @@ import re
 from datetime import datetime
 
 from .document import Document, Section, SectionType
+
+# Optional dependencies
+try:
+    from docx import Document as DocxDocument
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    HAS_DOCX = True
+except ImportError:
+    HAS_DOCX = False
+
+try:
+    from pptx import Presentation
+    from pptx.util import Inches as PptxInches, Pt as PptxPt
+    HAS_PPTX = True
+except ImportError:
+    HAS_PPTX = False
 
 
 class ContentGenerators:
@@ -320,3 +336,201 @@ class ContentGenerators:
         print(f"      ✅ MD: {md_path.name}")
 
         return md_path
+
+    # =========================================================================
+    # DOCX Generation (via python-docx)
+    # =========================================================================
+
+    def generate_docx(
+        self,
+        document: Document,
+        output_path: Optional[Path] = None
+    ) -> Path:
+        """
+        Generate Word document from Document
+
+        Args:
+            document: Document to convert
+            output_path: Output directory (default: ./outputs/research)
+
+        Returns:
+            Path to generated .docx file
+
+        Raises:
+            RuntimeError: If python-docx not installed
+        """
+        if not HAS_DOCX:
+            raise RuntimeError(
+                "python-docx not installed. Install with: pip install python-docx"
+            )
+
+        # Determine output path
+        if output_path is None:
+            output_path = self.output_dir
+
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename
+        filename = self._sanitize_filename(document.title)
+        docx_path = output_path / f"{filename}.docx"
+
+        print(f"      Generating DOCX...")
+
+        # Create document
+        doc = DocxDocument()
+
+        # Add title
+        title = doc.add_heading(document.title, level=0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Add metadata
+        if document.author:
+            author_para = doc.add_paragraph(f"Author: {document.author}")
+            author_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            author_para.runs[0].italic = True
+
+        date_para = doc.add_paragraph(f"Date: {document.created.strftime('%Y-%m-%d')}")
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        date_para.runs[0].italic = True
+
+        doc.add_paragraph()  # Spacing
+
+        # Add sections
+        for section in document.sections:
+            if section.title:
+                doc.add_heading(section.title, level=1)
+
+            if section.type == SectionType.TEXT:
+                # Add paragraphs
+                for para in section.content.split('\n\n'):
+                    if para.strip():
+                        doc.add_paragraph(para.strip())
+
+            elif section.type == SectionType.CODE:
+                # Add code block
+                code_para = doc.add_paragraph(section.content)
+                code_para.style = 'No Spacing'
+                for run in code_para.runs:
+                    run.font.name = 'Courier New'
+                    run.font.size = Pt(10)
+
+            elif section.type == SectionType.MATH:
+                # Math as preformatted text (DOCX doesn't support LaTeX natively)
+                math_para = doc.add_paragraph(section.content)
+                math_para.style = 'Intense Quote'
+
+            elif section.type == SectionType.MERMAID:
+                # Mermaid diagrams as code blocks
+                doc.add_paragraph("Diagram:", style='Intense Quote')
+                diagram_para = doc.add_paragraph(section.content)
+                diagram_para.style = 'No Spacing'
+
+            else:
+                # Default: plain text
+                doc.add_paragraph(section.content)
+
+        # If no sections, use flat content
+        if not document.sections and document.content:
+            for para in document.content.split('\n\n'):
+                if para.strip():
+                    doc.add_paragraph(para.strip())
+
+        # Save
+        doc.save(docx_path)
+
+        print(f"      ✅ DOCX: {docx_path.name}")
+
+        return docx_path
+
+    # =========================================================================
+    # PPTX Generation (via python-pptx)
+    # =========================================================================
+
+    def generate_pptx(
+        self,
+        document: Document,
+        output_path: Optional[Path] = None
+    ) -> Path:
+        """
+        Generate PowerPoint presentation from Document
+
+        Args:
+            document: Document to convert
+            output_path: Output directory (default: ./outputs/research)
+
+        Returns:
+            Path to generated .pptx file
+
+        Raises:
+            RuntimeError: If python-pptx not installed
+        """
+        if not HAS_PPTX:
+            raise RuntimeError(
+                "python-pptx not installed. Install with: pip install python-pptx"
+            )
+
+        # Determine output path
+        if output_path is None:
+            output_path = self.output_dir
+
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename
+        filename = self._sanitize_filename(document.title)
+        pptx_path = output_path / f"{filename}.pptx"
+
+        print(f"      Generating PPTX...")
+
+        # Create presentation
+        prs = Presentation()
+
+        # Title slide
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        title = slide.shapes.title
+        subtitle = slide.placeholders[1]
+
+        title.text = document.title
+        subtitle.text = f"{document.author or 'Jotty'}\n{document.created.strftime('%Y-%m-%d')}"
+
+        # Content slides
+        for section in document.sections:
+            # Use title and content layout
+            slide_layout = prs.slide_layouts[1]
+            slide = prs.slides.add_slide(slide_layout)
+
+            title_shape = slide.shapes.title
+            body_shape = slide.placeholders[1]
+
+            title_shape.text = section.title or "Section"
+
+            # Add content based on type
+            if section.type == SectionType.TEXT:
+                text_frame = body_shape.text_frame
+                text_frame.text = section.content
+
+            elif section.type == SectionType.CODE:
+                text_frame = body_shape.text_frame
+                text_frame.text = section.content
+                # Make it monospace-like
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.name = 'Courier New'
+                        run.font.size = PptxPt(10)
+
+            elif section.type == SectionType.MERMAID:
+                text_frame = body_shape.text_frame
+                text_frame.text = f"Diagram:\n\n{section.content}"
+
+            else:
+                text_frame = body_shape.text_frame
+                text_frame.text = section.content
+
+        # Save
+        prs.save(pptx_path)
+
+        print(f"      ✅ PPTX: {pptx_path.name}")
+
+        return pptx_path
