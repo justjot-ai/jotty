@@ -161,33 +161,37 @@ class UnifiedLMProvider:
             return lm
         
         # Auto-detect provider priority:
-        # 1. OpenCode (free) - via AISDKProviderLM
-        try:
-            lm = UnifiedLMProvider.create_lm('opencode')
-            dspy.configure(lm=lm)
-            print("✅ DSPy configured with OpenCode (via AISDKProviderLM)", file=__import__('sys').stderr)
-            return lm
-        except Exception:
-            pass
-        
-        # 2. CLI providers (no API key needed)
-        if os.path.exists('/usr/local/bin/cursor') or os.path.exists('/home/coder/.local/bin/cursor-agent'):
-            try:
-                lm = UnifiedLMProvider.create_lm('cursor-cli')
-                dspy.configure(lm=lm)
-                print("✅ DSPy configured with Cursor CLI", file=__import__('sys').stderr)
-                return lm
-            except Exception:
-                pass
-        
+        # 1. Claude CLI (most reliable, local credentials)
         if os.path.exists('/usr/local/bin/claude') or os.path.exists('/usr/bin/claude'):
             try:
-                lm = UnifiedLMProvider.create_lm('claude-cli')
+                from .claude_cli_lm import ClaudeCLILM
+                lm = ClaudeCLILM(model="sonnet")
                 dspy.configure(lm=lm)
-                print("✅ DSPy configured with Claude CLI", file=__import__('sys').stderr)
+                print("✅ DSPy configured with Claude CLI (direct)", file=__import__('sys').stderr)
                 return lm
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"⚠️  Claude CLI failed: {e}", file=__import__('sys').stderr)
+
+        # 2. Cursor CLI (composer-1 model, no on-demand needed)
+        if os.path.exists('/usr/local/bin/cursor-agent'):
+            try:
+                from .cursor_cli_lm import CursorCLILM
+                lm = CursorCLILM(model="composer-1")
+                dspy.configure(lm=lm)
+                print("✅ DSPy configured with Cursor CLI (direct, composer-1)", file=__import__('sys').stderr)
+                return lm
+            except Exception as e:
+                print(f"⚠️  Cursor CLI failed: {e}", file=__import__('sys').stderr)
+
+        # 3. OpenCode (GLM via remote execution for ARM64)
+        try:
+            from .opencode_lm import OpenCodeLM
+            lm = OpenCodeLM(model="glm-4")  # Free GLM model
+            dspy.configure(lm=lm)
+            print("✅ DSPy configured with OpenCode GLM (remote)", file=__import__('sys').stderr)
+            return lm
+        except Exception as e:
+            print(f"⚠️  OpenCode failed: {e}", file=__import__('sys').stderr)
         
         # 3. API providers (require API keys)
         for provider_name in ['anthropic', 'openrouter', 'groq', 'openai', 'google']:
