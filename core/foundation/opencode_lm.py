@@ -147,7 +147,14 @@ class OpenCodeLM(BaseLM):
             escaped_prompt = shlex.quote(prompt)
             opencode_cmd = f"opencode run {escaped_prompt} --format json {model_flag}".strip()
             ssh_cmd = f"bash -lc '{opencode_cmd}'"
-            cmd = ['ssh', self.remote_host, ssh_cmd]
+            cmd = [
+                'ssh',
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'UserKnownHostsFile=/dev/null',
+                '-o', 'LogLevel=ERROR',
+                self.remote_host,
+                ssh_cmd
+            ]
         else:
             # Local execution
             import shlex
