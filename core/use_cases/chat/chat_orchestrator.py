@@ -139,29 +139,35 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         """
         Prepare context for agent execution.
-        
+
         Args:
             message: User message
             history: Conversation history
             context: Additional context
-            
+
         Returns:
             Context dictionary for agent
         """
         agent_context = {
-            "query": message,
-            "user_message": message,
+            "message": message,  # DSPy signature parameter
+            "query": message,  # Legacy compatibility
+            "user_message": message,  # Legacy compatibility
             **(context or {})
         }
-        
+
         # Add conversation history
         if history:
-            agent_context["conversation_history"] = self._format_history(history)
-            agent_context["messages"] = [
-                msg.to_dict() if hasattr(msg, 'to_dict') else str(msg)
+            # Format history for DSPy signature
+            formatted_history = [
+                msg.to_dict() if hasattr(msg, 'to_dict') else {"role": "user", "content": str(msg)}
                 for msg in history
             ]
-        
+            agent_context["history"] = formatted_history  # DSPy signature parameter
+            agent_context["conversation_history"] = self._format_history(history)  # Legacy compatibility
+            agent_context["messages"] = formatted_history  # Legacy compatibility
+        else:
+            agent_context["history"] = []  # DSPy signature parameter (default empty list)
+
         return agent_context
     
     def _format_history(self, history: List[Any]) -> str:
