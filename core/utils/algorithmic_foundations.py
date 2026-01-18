@@ -125,6 +125,135 @@ class AlgorithmicReVal:
 
 
 # =============================================================================
+# SORTING ALGORITHMS (Classic Computer Science Foundations)
+# =============================================================================
+
+class SortingAlgorithms:
+    """
+    Collection of fundamental sorting algorithms with educational and practical value.
+    All methods are static and reusable across the codebase.
+    """
+
+    @staticmethod
+    def bubble_sort(arr: list, key=None, reverse=False) -> list:
+        """
+        Bubble Sort - Simple comparison-based sorting algorithm.
+
+        Algorithm:
+        - Repeatedly steps through the list
+        - Compares adjacent elements and swaps them if they're in wrong order
+        - Pass through the list is repeated until the list is sorted
+        - Largest elements "bubble" to the end in each pass
+
+        Time Complexity:
+        - Best Case: O(n) - when array is already sorted (with optimization)
+        - Average Case: O(n²)
+        - Worst Case: O(n²) - when array is reverse sorted
+
+        Space Complexity: O(1) - in-place sorting
+
+        Stability: Stable (preserves relative order of equal elements)
+
+        Use Cases:
+        - Educational purposes (simple to understand)
+        - Small datasets (< 10-20 elements)
+        - Nearly sorted data (efficient with optimization)
+        - When simplicity is preferred over performance
+
+        Args:
+            arr: List to sort
+            key: Optional function to extract comparison key from each element
+            reverse: If True, sort in descending order
+
+        Returns:
+            Sorted list (creates a copy, doesn't modify original)
+
+        Example:
+            >>> SortingAlgorithms.bubble_sort([64, 34, 25, 12, 22, 11, 90])
+            [11, 12, 22, 25, 34, 64, 90]
+
+            >>> data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+            >>> SortingAlgorithms.bubble_sort(data, key=lambda x: x['age'])
+            [{'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]
+        """
+        # Create a copy to avoid modifying original
+        result = arr.copy()
+        n = len(result)
+
+        # Extract comparison key if provided
+        def compare_key(item):
+            return key(item) if key else item
+
+        # Bubble sort with optimization (early exit if no swaps)
+        for i in range(n):
+            swapped = False
+
+            # Last i elements are already in place
+            for j in range(0, n - i - 1):
+                # Compare adjacent elements
+                left_val = compare_key(result[j])
+                right_val = compare_key(result[j + 1])
+
+                # Swap if in wrong order
+                should_swap = left_val > right_val if not reverse else left_val < right_val
+
+                if should_swap:
+                    result[j], result[j + 1] = result[j + 1], result[j]
+                    swapped = True
+
+            # If no swaps occurred, array is sorted
+            if not swapped:
+                break
+
+        return result
+
+    @staticmethod
+    def bubble_sort_analysis(arr: list) -> dict:
+        """
+        Perform bubble sort while tracking performance metrics.
+
+        Returns:
+            Dictionary with sorted array and performance stats:
+            - sorted_array: The sorted result
+            - comparisons: Number of comparisons made
+            - swaps: Number of swaps performed
+            - passes: Number of passes through the array
+
+        Example:
+            >>> result = SortingAlgorithms.bubble_sort_analysis([64, 34, 25, 12])
+            >>> print(f"Comparisons: {result['comparisons']}, Swaps: {result['swaps']}")
+        """
+        result = arr.copy()
+        n = len(result)
+
+        comparisons = 0
+        swaps = 0
+        passes = 0
+
+        for i in range(n):
+            swapped = False
+            passes += 1
+
+            for j in range(0, n - i - 1):
+                comparisons += 1
+
+                if result[j] > result[j + 1]:
+                    result[j], result[j + 1] = result[j + 1], result[j]
+                    swaps += 1
+                    swapped = True
+
+            if not swapped:
+                break
+
+        return {
+            'sorted_array': result,
+            'comparisons': comparisons,
+            'swaps': swaps,
+            'passes': passes
+        }
+
+
+# =============================================================================
 # MUTUAL INFORMATION RETRIEVER (Memory Selection)
 # =============================================================================
 
@@ -241,13 +370,13 @@ __all__ = [
     'ShapleyValueEstimator',
     'DifferenceRewardEstimator',
     'AlgorithmicCreditAssigner',
-    
+
     # Information Theory
     'InformationWeightedMemory',
     'SurpriseEstimator',
     'InformationTheoreticStorage',
     'MutualInformationRetriever',
-    
+
     # Context Management
     'OverflowDetector',
     'ContextOverflowInfo',
@@ -255,7 +384,7 @@ __all__ = [
     'UniversalContextGuard',
     'patch_dspy_with_guard',
     'unpatch_dspy',
-    
+
     # Content Gate
     'ContentChunk',
     'ProcessedContent',
@@ -263,7 +392,10 @@ __all__ = [
     'ContentGate',
     'ContextAwareDocumentProcessor',
     'with_content_gate',
-    
+
+    # Sorting Algorithms
+    'SortingAlgorithms',
+
     # Unified Interface
     'AlgorithmicReVal'
 ]

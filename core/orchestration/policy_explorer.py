@@ -58,10 +58,12 @@ class PolicyExplorer:
     def should_explore(self, todo: MarkovianTODO) -> bool:
         """Check if we should try a new exploration."""
         # Explore if: failed tasks exist, haven't explored too much
-        has_failures = len(todo.failed) > 0
+        has_failures = len(todo.failed_tasks) > 0  # Fixed: failed_tasks is a Set
         can_explore = self.exploration_count < self.max_explorations
-        not_repeated = todo.current_path not in self.explored_paths
-        
+        # Check current_path if it exists
+        current_path = getattr(todo, 'current_path', [])
+        not_repeated = current_path not in self.explored_paths
+
         return has_failures and can_explore and not_repeated
     
     def explore(
@@ -78,24 +80,33 @@ class PolicyExplorer:
         """
         if not self.explorer:
             return []
-        
+
         self.exploration_count += 1
-        self.explored_paths.append(todo.current_path.copy())
-        
+        # Get current path if it exists, otherwise create empty list
+        current_path = getattr(todo, 'current_path', [])
+        self.explored_paths.append(current_path.copy() if current_path else [])
+
         # Gather failure info
         failed_info = []
-        for task_id in todo.failed:
-            task = todo.items.get(task_id)
+        for task_id in todo.failed_tasks:  # Fixed: failed_tasks is a Set
+            task = todo.subtasks.get(task_id)  # Fixed: subtasks not items
             if task:
                 failed_info.append({
                     'task': task.description,
                     'actor': task.actor,
-                    'reasons': task.failure_reasons
+                    'reasons': getattr(task, 'failure_reasons', [])
                 })
-        
+
         try:
+            # Get state summary if method exists
+            if hasattr(todo, 'get_state_summary'):
+                state_summary = todo.get_state_summary()
+            else:
+                # Create basic state summary from available data
+                state_summary = f"Completed: {len(todo.completed_tasks)}, Failed: {len(todo.failed_tasks)}, Total: {len(todo.subtasks)}"
+
             result = self.explorer(
-                current_state=todo.get_state_summary(),
+                current_state=state_summary,
                 failed_actions=json.dumps(failed_info, default=str),
                 available_actions=json.dumps(available_actions, default=str),
                 goal=goal

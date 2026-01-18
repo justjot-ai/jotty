@@ -968,10 +968,10 @@ class MultiAgentsOrchestrator:
         import dspy
         import json
         
-        if not hasattr(self, 'metadata_tool_registry'):
+        if not hasattr(self, 'metadata_tool_registry') or self.metadata_tool_registry is None:
             logger.warning("⚠️  No metadata_tool_registry found, returning empty tool list")
             return []
-        
+
         tools = []
         tool_names = self.metadata_tool_registry.list_tools()
         
