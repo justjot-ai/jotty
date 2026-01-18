@@ -159,7 +159,10 @@ class ChatExecutor:
                     goal=message,
                     **agent_context  # Pass context as kwargs (includes actor_name if specified)
                 )
-                
+
+                # Debug logging
+                logger.info(f"Conductor result type: {type(result)}, value: {result}")
+
                 # Stream result as chat events
                 response_text = self._extract_response(result)
                 self.context.add_message("assistant", response_text)
@@ -188,6 +191,11 @@ class ChatExecutor:
     
     def _extract_response(self, result: Any) -> str:
         """Extract response text from agent result."""
+        # Handle None result
+        if result is None:
+            logger.warning(f"Conductor returned None result, using empty string")
+            return ""
+
         if isinstance(result, dict):
             return result.get("response", result.get("output", str(result)))
         elif hasattr(result, "response"):
