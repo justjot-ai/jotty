@@ -219,10 +219,10 @@ class SQLiteTaskQueue(TaskQueue):
             else:
                 # For other statuses (suggested, backlog, pending), update status and clear pid/log_file if moving away from in_progress
                 if pid is None:
-                    # Clear pid and log_file when explicitly set to None (moving away from in_progress)
+                    # Clear pid, log_file, and all completion fields when explicitly set to None (moving away from in_progress/completed/failed)
                     conn.execute("""
-                        UPDATE tasks 
-                        SET status = ?, pid = NULL, log_file = NULL, started_at = NULL, last_heartbeat = NULL
+                        UPDATE tasks
+                        SET status = ?, pid = NULL, log_file = NULL, started_at = NULL, last_heartbeat = NULL, completed_at = NULL, error_message = NULL
                         WHERE task_id = ?
                     """, (status, task_id))
                 else:

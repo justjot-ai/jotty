@@ -153,16 +153,18 @@ class TaskOrchestrator:
                 )
                 return
             
-            # Update status to in_progress
+            # Spawn agent (project-specific implementation)
+            pid, log_file = await self.agent_spawner.spawn(task)
+
+            # Update status to in_progress with PID and log_file
             await self.queue.update_status(
                 task.task_id,
                 TaskStatus.IN_PROGRESS.value,
+                pid=pid,
+                log_file=log_file,
                 agent_type=agent_type
             )
-            
-            # Spawn agent (project-specific implementation)
-            pid, log_file = await self.agent_spawner.spawn(task)
-            
+
             # Track running task
             self._running_tasks[task.task_id] = {
                 'pid': pid,
@@ -170,10 +172,10 @@ class TaskOrchestrator:
                 'started_at': datetime.now(),
                 'agent_type': agent_type,
             }
-            
+
             # Start background monitor
             asyncio.create_task(self._monitor_task_completion(task, pid, log_file))
-            
+
             logger.info(f"Task {task.task_id} spawned (PID: {pid}, log: {log_file})")
             
         except Exception as e:
