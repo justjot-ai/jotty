@@ -148,7 +148,7 @@ class TaskOrchestrator:
                 logger.warning(f"Credentials not available for {agent_type}, skipping task {task.task_id}")
                 await self.queue.update_status(
                     task.task_id,
-                    TaskStatus.FAILED,
+                    TaskStatus.FAILED.value,
                     error=f"Credentials not available for {agent_type}"
                 )
                 return
@@ -156,7 +156,7 @@ class TaskOrchestrator:
             # Update status to in_progress
             await self.queue.update_status(
                 task.task_id,
-                TaskStatus.IN_PROGRESS,
+                TaskStatus.IN_PROGRESS.value,
                 agent_type=agent_type
             )
             
@@ -180,7 +180,7 @@ class TaskOrchestrator:
             logger.error(f"Error spawning task {task.task_id}: {e}", exc_info=True)
             await self.queue.update_status(
                 task.task_id,
-                TaskStatus.FAILED,
+                TaskStatus.FAILED.value,
                 error=str(e)
             )
     
@@ -200,7 +200,7 @@ class TaskOrchestrator:
             # Update status
             if success:
                 logger.info(f"Task {task.task_id} completed successfully")
-                await self.queue.update_status(task.task_id, TaskStatus.COMPLETED)
+                await self.queue.update_status(task.task_id, TaskStatus.COMPLETED.value)
                 
                 # Trigger deployment if hook provided
                 if self.deployment_hook and await self.deployment_hook.should_deploy(task):
@@ -214,7 +214,7 @@ class TaskOrchestrator:
                 logger.warning(f"Task {task.task_id} failed")
                 await self.queue.update_status(
                     task.task_id,
-                    TaskStatus.FAILED,
+                    TaskStatus.FAILED.value,
                     error="Task execution failed (check log file)"
                 )
             
@@ -226,7 +226,7 @@ class TaskOrchestrator:
             logger.error(f"Error monitoring task {task.task_id}: {e}", exc_info=True)
             await self.queue.update_status(
                 task.task_id,
-                TaskStatus.FAILED,
+                TaskStatus.FAILED.value,
                 error=f"Monitoring error: {str(e)}"
             )
             if task.task_id in self._running_tasks:
@@ -317,7 +317,7 @@ class TaskOrchestrator:
             logger.info(f"Removing invalid task {task_id} from running tasks")
             await self.queue.update_status(
                 task_id,
-                TaskStatus.FAILED,
+                TaskStatus.FAILED.value,
                 error="Process exited unexpectedly"
             )
             if task_id in self._running_tasks:
