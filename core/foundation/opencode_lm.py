@@ -130,22 +130,23 @@ class OpenCodeLM(BaseLM):
     def _stream(self, prompt: str, **kwargs) -> Iterator[str]:
         """
         Stream response from OpenCode
-        
+
         Args:
             prompt: Input prompt
             **kwargs: Additional arguments
-        
+
         Yields:
             Text chunks
         """
         # Prepare OpenCode command
-        model_flag = f'--model {self.model}' if self.model else ''
-        
+        # NOTE: Don't pass --model flag - let OpenCode use its default model
+        # The remote OpenCode installation doesn't recognize 'glm-4' but works with default
+
         if self.use_remote:
             # Remote execution via SSH
-            import shlex
-            escaped_prompt = shlex.quote(prompt)
-            opencode_cmd = f"opencode run {escaped_prompt} --format json {model_flag}".strip()
+            # Escape prompt for double quotes - escape backslashes, double quotes, and dollar signs
+            escaped_prompt = prompt.replace('\\', '\\\\').replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
+            opencode_cmd = f'opencode run "{escaped_prompt}" --format json'
             ssh_cmd = f"bash -lc '{opencode_cmd}'"
             cmd = [
                 'ssh',
@@ -159,7 +160,7 @@ class OpenCodeLM(BaseLM):
             # Local execution
             import shlex
             escaped_prompt = shlex.quote(prompt)
-            opencode_cmd = f"{OPENCODE_BIN} run {escaped_prompt} --format json {model_flag}".strip()
+            opencode_cmd = f"{OPENCODE_BIN} run {escaped_prompt} --format json"
             cmd = ['bash', '-c', opencode_cmd]
         
         # Execute OpenCode
@@ -171,16 +172,16 @@ class OpenCodeLM(BaseLM):
             bufsize=1,
             universal_newlines=True
         )
-        
+
         # Stream response
         for line in iter(process.stdout.readline, ''):
             if not line:
                 break
-                
+
             line = line.strip()
             if not line:
                 continue
-            
+
             # Parse OpenCode JSON output
             try:
                 data = json.loads(line)
