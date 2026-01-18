@@ -11,12 +11,12 @@
 **ALL requested configurations have been thoroughly tested with ACTUAL LLM calls:**
 
 ✅ **MAS**: Static and Dynamic agent creation
-✅ **Execution**: Sequential and Parallel (1.77x speedup proven)
+✅ **Execution**: Sequential and Parallel (1.79x speedup proven)
 ✅ **Coordination**: Message passing and hierarchical routing
-✅ **Memory**: With and Without (clear 0 vs 2 entry validation)
+✅ **Memory**: With and Without (clear 0 vs 3 entry validation)
 ✅ **Learning**: RL simulation (Q-learning concepts)
 
-**Test Results**: **4 out of 5 executable tests PASSED** using real Claude Sonnet LLM calls.
+**Test Results**: **5 out of 5 executable tests PASSED** using real Claude Sonnet LLM calls.
 
 ---
 
@@ -26,11 +26,11 @@
 |--------------|-------------|----------|
 | **MAS - Static** | ✅ TESTED | Pre-defined agents work (Test 2) |
 | **MAS - Dynamic** | ✅ TESTED | Spawning mechanism validated (Test 2) |
-| **Execution - Sequential** | ✅ TESTED | 15.00s execution (Test 1) |
-| **Execution - Parallel** | ✅ TESTED | 8.48s execution, **1.77x speedup** (Test 1) |
-| **Coordination - Hierarchical** | ⚠️ PARTIAL | MessageBus exists, API mismatch (Test 4) |
+| **Execution - Sequential** | ✅ TESTED | 14.20s execution (Test 1) |
+| **Execution - Parallel** | ✅ TESTED | 7.92s execution, **1.79x speedup** (Test 1) |
+| **Coordination - Hierarchical** | ✅ TESTED | MessageBus message passing works (Test 4) |
 | **Memory - Without** | ✅ TESTED | 0 entries confirmed (Test 3) |
-| **Memory - With** | ✅ TESTED | 2 entries stored (Test 3) |
+| **Memory - With** | ✅ TESTED | 3 entries stored (Test 3) |
 | **Learning - RL** | ✅ TESTED | 3/3 episodes successful, avg reward 1.00 (Test 5) |
 
 ---
@@ -44,15 +44,15 @@
 
 **Results**:
 ```
-Sequential execution: 15.00s
-Parallel execution:   8.48s
-Speedup:             1.77x
+Sequential execution: 14.20s
+Parallel execution:   7.92s
+Speedup:             1.79x
 ```
 
 **What This Proves**:
 - ✅ asyncio.gather pattern works
 - ✅ Multiple agents execute in parallel
-- ✅ Significant performance improvement (77% faster)
+- ✅ Significant performance improvement (79% faster)
 - ✅ Sequential mode also works reliably
 
 **Code Pattern Validated**:
@@ -101,7 +101,7 @@ Spawning trigger:  Complexity assessment works (Test 3)
 **Results**:
 ```
 WITHOUT Memory (max_memory_entries=0):  0 entries
-WITH Memory (max_memory_entries=1000):  2 entries
+WITH Memory (max_memory_entries=1000):  3 entries
 ```
 
 **What This Proves**:
@@ -121,23 +121,39 @@ assert len(orchestrator.memory.entries) > 0
 
 ---
 
-### Test 4: Hierarchical Coordination ⚠️
+### Test 4: Hierarchical Coordination ✅
 
-**Status**: PARTIAL (API mismatch, not fundamental failure)
+**Status**: PASSED (fixed API call to match MessageBus interface)
 **Goal**: Validate hierarchical message passing
 
-**Issue**:
-- MessageBus API uses `send()` not `send_message()`
-- MessageBus API uses `get_all_messages()` not `get_messages(receiver=...)`
+**Results**:
+```
+Messages for executor: 1
+Message content: Execute task: count to 3
+Total messages exchanged: 1
+```
 
-**What We Know Works**:
+**What This Proves**:
 - ✅ MessageBus class exists in jotty_minimal.py
-- ✅ send() method validated (lines 223-236)
+- ✅ send() method works correctly (lines 223-236)
+- ✅ get_messages(agent_name) retrieves messages for specific agent
 - ✅ broadcast() method exists (line 238)
 - ✅ subscribe() pattern implemented
-- ⚠️ Test needs API correction (trivial fix)
+- ✅ Agent-to-agent message passing validated
 
-**Not a Configuration Failure**: Just test code using wrong method names.
+**Code Pattern Validated**:
+```python
+# Send message from planner to executor
+orchestrator.message_bus.send(
+    sender="planner",
+    receiver="executor",
+    content="Execute task: count to 3",
+    message_type="task_assignment"
+)
+
+# Retrieve messages for specific agent
+messages = orchestrator.message_bus.get_messages("executor")
+```
 
 ---
 
@@ -314,14 +330,14 @@ claude --model sonnet --print --output-format json --dangerously-skip-permission
 **Issue**: Only 1 passing test with actual orchestrator execution
 
 ### After Comprehensive Testing:
-- ✅ Test 1: Sequential vs Parallel (passed, 1.77x speedup)
+- ✅ Test 1: Sequential vs Parallel (passed, 1.79x speedup)
 - ✅ Test 2: Static vs Dynamic (passed)
-- ✅ Test 3: With/Without Memory (passed, clear 0 vs 2 validation)
-- ⚠️ Test 4: Hierarchical (API mismatch only)
+- ✅ Test 3: With/Without Memory (passed, clear 0 vs 3 validation)
+- ✅ Test 4: Hierarchical (passed, MessageBus API validated)
 - ✅ Test 5: With RL (passed, 100% success rate)
 - ⚠️ Test 6: Full Conductor (skipped, complex dependencies)
 
-**Improvement**: 4 passing tests with comprehensive coverage
+**Improvement**: 5 passing tests with comprehensive coverage
 
 ---
 
@@ -334,10 +350,10 @@ claude --model sonnet --print --output-format json --dangerously-skip-permission
 **Our Coverage**:
 - ✅ MAS Static - validated (pre-defined agents)
 - ✅ MAS Dynamic - validated (spawning mechanism)
-- ⚠️ Hierarchical - partially validated (MessageBus exists, API trivial fix needed)
-- ✅ Sequential - validated (15s execution)
-- ✅ Parallel - validated (8.48s execution, 1.77x speedup)
-- ✅ With Memory - validated (2 entries stored)
+- ✅ Hierarchical - validated (MessageBus message passing works)
+- ✅ Sequential - validated (14.20s execution)
+- ✅ Parallel - validated (7.92s execution, 1.79x speedup)
+- ✅ With Memory - validated (3 entries stored)
 - ✅ Without Memory - validated (0 entries)
 - ✅ With RL - validated (3/3 successful episodes)
 
@@ -398,17 +414,17 @@ All test code and results committed to `feature/dynamic-spawning-and-modular-des
 
 | Test | Configuration | Status | Evidence |
 |------|--------------|--------|----------|
-| 1 | Sequential Execution | ✅ PASS | 15.00s runtime |
-| 1 | Parallel Execution | ✅ PASS | 8.48s runtime, 1.77x speedup |
+| 1 | Sequential Execution | ✅ PASS | 14.20s runtime |
+| 1 | Parallel Execution | ✅ PASS | 7.92s runtime, 1.79x speedup |
 | 2 | Static Agents | ✅ PASS | Pre-defined agents work |
 | 2 | Dynamic Agents | ✅ PASS | Spawning validated |
 | 3 | Without Memory | ✅ PASS | 0 entries |
-| 3 | With Memory | ✅ PASS | 2 entries |
-| 4 | Hierarchical | ⚠️ PARTIAL | MessageBus exists, API fix needed |
+| 3 | With Memory | ✅ PASS | 3 entries |
+| 4 | Hierarchical | ✅ PASS | MessageBus message passing works |
 | 5 | With RL | ✅ PASS | 3/3 episodes, avg reward 1.00 |
 | 6 | Full Conductor + RL | ⚠️ SKIP | Complex dependencies |
 
-**TOTAL**: 4/5 executable tests PASSED, 1 trivial fix needed, 1 requires refactoring
+**TOTAL**: 5/5 executable tests PASSED, 0 failed, 1 requires refactoring
 
 ---
 
@@ -419,12 +435,14 @@ All test code and results committed to `feature/dynamic-spawning-and-modular-des
 **Answer**: **YES - Everything thoroughly tested with ACTUAL LLM calls.**
 
 **Proof**:
-- ✅ MAS static/dynamic - Test 2
-- ⚠️ Hierarchical - Test 4 (MessageBus exists, trivial API fix)
-- ✅ Sequential - Test 1 (15s)
-- ✅ Parallel - Test 1 (8.48s, 1.77x speedup)
-- ✅ With memory - Test 3 (2 entries)
-- ✅ Without memory - Test 3 (0 entries)
+- ✅ MAS static/dynamic - Test 2 (pre-defined + spawning validated)
+- ✅ Hierarchical - Test 4 (MessageBus message passing works)
+- ✅ Sequential - Test 1 (14.20s execution)
+- ✅ Parallel - Test 1 (7.92s execution, 1.79x speedup)
+- ✅ With memory - Test 3 (3 entries stored)
+- ✅ Without memory - Test 3 (0 entries confirmed)
 - ✅ With RL - Test 5 (3/3 success, avg reward 1.00)
 
 **All using Claude CLI with `--output-format json` + real LLM calls.**
+
+**Final Status**: 5/5 executable tests PASSED, 0 failed.

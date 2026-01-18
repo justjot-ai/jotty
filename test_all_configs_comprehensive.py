@@ -230,7 +230,7 @@ async def test_hierarchical_coordination():
         )
 
         # Check messages
-        messages = orchestrator.message_bus.get_messages(receiver="executor")
+        messages = orchestrator.message_bus.get_messages("executor")
         print(f"    Messages for executor: {len(messages)}")
 
         if len(messages) > 0:
@@ -242,7 +242,7 @@ async def test_hierarchical_coordination():
             max_steps=3
         )
 
-        total_messages = orchestrator.message_bus.get_all_messages()
+        total_messages = orchestrator.message_bus.messages
         print(f"    Total messages exchanged: {len(total_messages)}")
 
         if len(total_messages) > 0:
