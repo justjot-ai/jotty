@@ -203,15 +203,19 @@ class TaskOrchestrator:
             if success:
                 logger.info(f"Task {task.task_id} completed successfully")
                 await self.queue.update_status(task.task_id, TaskStatus.COMPLETED.value)
-                
+
                 # Trigger deployment if hook provided
-                if self.deployment_hook and await self.deployment_hook.should_deploy(task):
-                    logger.info(f"Triggering deployment for task {task.task_id}")
-                    deploy_success = await self.deployment_hook.trigger(task)
-                    if deploy_success:
-                        logger.info(f"Deployment successful for task {task.task_id}")
-                    else:
-                        logger.warning(f"Deployment failed for task {task.task_id}")
+                if self.deployment_hook:
+                    # Set log_file on task object for deployment hook
+                    task.log_file = log_file
+
+                    if await self.deployment_hook.should_deploy(task):
+                        logger.info(f"Triggering deployment for task {task.task_id}")
+                        deploy_success = await self.deployment_hook.trigger(task)
+                        if deploy_success:
+                            logger.info(f"Deployment successful for task {task.task_id}")
+                        else:
+                            logger.warning(f"Deployment failed for task {task.task_id}")
             else:
                 logger.warning(f"Task {task.task_id} failed")
                 await self.queue.update_status(
