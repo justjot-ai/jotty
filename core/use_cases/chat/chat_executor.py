@@ -84,13 +84,23 @@ class ChatExecutor:
 
             execution_time = time.time() - start_time
 
+            # Convert result to serializable dict (DSPy Prediction objects are not JSON serializable)
+            result_dict = {}
+            if isinstance(result, dict):
+                result_dict = result
+            elif hasattr(result, "_store"):
+                # DSPy Prediction object - extract fields from _store
+                result_dict = dict(result._store)
+            else:
+                result_dict = {"value": str(result)}
+
             return {
                 "success": True,
                 "message": response_text,
                 "agent": agent_id,
                 "execution_time": execution_time,
                 "metadata": {
-                    "result": result,
+                    "result": result_dict,  # Now serializable!
                     "context_used": len(agent_context)
                 }
             }
