@@ -212,16 +212,45 @@ class ChatAssistant:
         )
 
     async def _get_task_summary_widget(self) -> Dict[str, Any]:
-        """Get task summary as A2UI card with list."""
+        """
+        Get task summary as A2UI widget using registered JustJot.ai adapters.
+
+        Uses kanban-board adapter to convert task data to rich UI.
+        """
         all_tasks = await self._fetch_tasks()
 
-        # Count by status
+        # Try to use registered AGUI adapter (JustJot.ai kanban renderer)
+        try:
+            from ..registry import get_agui_registry
+
+            registry = get_agui_registry()
+
+            # Format tasks as kanban board JSON (for JustJot.ai adapter)
+            kanban_data = self._format_tasks_as_kanban(all_tasks)
+
+            # Use registered adapter to convert to A2UI
+            a2ui_blocks = registry.convert_to_a2ui(
+                section_type='kanban-board',
+                content=kanban_data,
+                client_id='justjot'
+            )
+
+            if a2ui_blocks:
+                logger.info("✅ Using JustJot.ai kanban adapter for task summary")
+                # Return A2UI response with role and content
+                return {
+                    'role': 'assistant',
+                    'content': a2ui_blocks
+                }
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to use registered adapter, falling back to default: {e}")
+
+        # Fallback: Use default A2UI list format
         backlog = sum(1 for t in all_tasks if t.get('status') == 'backlog')
         in_progress = sum(1 for t in all_tasks if t.get('status') == 'in_progress')
         completed = sum(1 for t in all_tasks if t.get('status') == 'completed')
         failed = sum(1 for t in all_tasks if t.get('status') == 'failed')
 
-        # Return structured A2UI list instead of markdown
         from ..ui.a2ui import format_task_list
 
         items = [
@@ -259,6 +288,51 @@ class ChatAssistant:
             tasks=items,
             title=f"Task Summary ({len(all_tasks)} total)"
         )
+
+    def _format_tasks_as_kanban(self, tasks: List[Dict[str, Any]]) -> str:
+        """
+        Format tasks as kanban board JSON for JustJot.ai adapter.
+
+        Returns:
+            JSON string in kanban board format
+        """
+        # Group tasks by status
+        columns = [
+            {'id': 'backlog', 'title': 'Backlog', 'cards': []},
+            {'id': 'in_progress', 'title': 'In Progress', 'cards': []},
+            {'id': 'completed', 'title': 'Completed', 'cards': []},
+            {'id': 'failed', 'title': 'Failed', 'cards': []}
+        ]
+
+        status_map = {
+            'backlog': 0,
+            'in_progress': 1,
+            'completed': 2,
+            'failed': 3
+        }
+
+        for task in tasks:
+            status = task.get('status', 'backlog')
+            column_idx = status_map.get(status, 0)
+
+            card = {
+                'id': task.get('task_id', 'unknown'),
+                'title': task.get('title', task.get('description', 'Untitled Task')),
+                'description': task.get('description', ''),
+                'status': status,
+                'priority': task.get('priority', 'medium')
+            }
+
+            # Add optional fields
+            if task.get('created_at'):
+                card['dueDate'] = task['created_at']
+            if task.get('assignee'):
+                card['assignee'] = task['assignee']
+
+            columns[column_idx]['cards'].append(card)
+
+        import json
+        return json.dumps({'columns': columns})
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
         """Handle system status queries."""
