@@ -145,7 +145,7 @@ class ChatAssistant:
             )
 
         return format_task_list(
-            items=self._format_task_items(tasks),
+            tasks=self._format_task_items(tasks),
             title=f"Backlog ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
         )
 
@@ -161,7 +161,7 @@ class ChatAssistant:
             )
 
         return format_task_list(
-            items=self._format_task_items(tasks),
+            tasks=self._format_task_items(tasks),
             title=f"Completed ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
         )
 
@@ -177,7 +177,7 @@ class ChatAssistant:
             )
 
         return format_task_list(
-            items=self._format_task_items(tasks),
+            tasks=self._format_task_items(tasks),
             title=f"In Progress ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
         )
 
