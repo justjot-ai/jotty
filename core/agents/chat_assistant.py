@@ -214,37 +214,37 @@ class ChatAssistant:
 
     async def _get_task_summary_widget(self) -> Dict[str, Any]:
         """
-        Get task summary as A2UI widget using registered JustJot.ai adapters.
+        Get task summary as A2UI section block.
 
-        Uses kanban-board adapter to convert task data to rich UI.
+        Returns section block that renders actual JustJot.ai kanban renderer.
         """
         all_tasks = await self._fetch_tasks()
 
-        # Try to use registered AGUI adapter (JustJot.ai kanban renderer)
+        # Check if kanban-board section renderer is registered
         try:
             from ..registry import get_agui_registry
 
             registry = get_agui_registry()
+            adapter = registry.get('kanban-board')
 
-            # Format tasks as kanban board JSON (for JustJot.ai adapter)
-            kanban_data = self._format_tasks_as_kanban(all_tasks)
+            if adapter:
+                # Format tasks as kanban board JSON
+                kanban_data = self._format_tasks_as_kanban(all_tasks)
 
-            # Use registered adapter to convert to A2UI
-            a2ui_blocks = registry.convert_to_a2ui(
-                section_type='kanban-board',
-                content=kanban_data,
-                client_id='justjot'
-            )
+                logger.info("✅ Using JustJot.ai kanban section renderer for task summary")
 
-            if a2ui_blocks:
-                logger.info("✅ Using JustJot.ai kanban adapter for task summary")
-                # Return A2UI response with role and content (blocks are already formatted)
+                # Return section block (renders actual JustJot.ai component)
                 return {
                     'role': 'assistant',
-                    'content': a2ui_blocks  # Already A2UI blocks from adapter
+                    'content': [{
+                        'type': 'section',
+                        'section_type': 'kanban-board',
+                        'content': kanban_data,
+                        'title': f'Task Summary ({len(all_tasks)} total)'
+                    }]
                 }
         except Exception as e:
-            logger.warning(f"⚠️  Failed to use registered adapter, falling back to default: {e}")
+            logger.warning(f"⚠️  Failed to use section renderer, falling back to list: {e}")
             import traceback
             logger.debug(traceback.format_exc())
 
