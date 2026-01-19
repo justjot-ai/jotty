@@ -43,17 +43,18 @@ class ChatAssistant:
         self.config = config or {}
         logger.info("✅ ChatAssistant initialized (A2UI enabled)")
 
-    async def run(self, goal: str, **kwargs) -> Dict[str, Any]:
+    async def run(self, **kwargs) -> Dict[str, Any]:
         """
         Process user query and return A2UI response.
 
         Args:
-            goal: User's message/question
-            **kwargs: Additional context
+            **kwargs: Must include 'goal' or 'message' (user's question)
 
         Returns:
             A2UI formatted response (dict with role and content)
         """
+        # Extract goal/message from kwargs
+        goal = kwargs.get('goal') or kwargs.get('message') or ""
         goal_lower = goal.lower()
 
         # Task-related queries
