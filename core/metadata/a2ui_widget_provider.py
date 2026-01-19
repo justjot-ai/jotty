@@ -425,13 +425,21 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         # Tool 1: List available widgets
         def list_available_widgets(category: Optional[str] = None) -> str:
             """
-            List available A2UI widgets.
+            List available A2UI widgets for displaying rich visual content.
+
+            USE THIS when:
+            - User asks "what widgets are available?"
+            - You want to see which widgets you can use to display data
+
+            Available widget types:
+            - task_list: Display supervisor tasks (pending, completed, failed)
+            - product_card, flight_status, email_compose, etc. (30+ standard widgets)
 
             Args:
-                category: Optional category filter (layout, content, input, data_viz)
+                category: Optional category filter (communication, commerce, finance, travel)
 
             Returns:
-                JSON string with widget catalog
+                JSON string with widget catalog (id, name, description, category, tags)
             """
             widgets = self.list_widgets(category=category)
             return json.dumps([{
@@ -445,14 +453,28 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         # Tool 2: Render widget
         def render_widget_tool(widget_id: str, params: Optional[str] = None) -> str:
             """
-            Render A2UI widget with data.
+            DISPLAY rich visual widget to the user instead of plain text.
+
+            ⚠️ IMPORTANT: Use this tool to show visual content to users!
+            Instead of returning plain text responses, use widgets for better UX.
+
+            Common use cases:
+            - User says "show me the task list" → render_widget_tool(widget_id="task_list")
+            - User says "display completed tasks" → render_widget_tool(widget_id="task_list", params='{"status": "completed"}')
+            - User says "show a product card" → render_widget_tool(widget_id="product_card")
+            - User says "display flight status" → render_widget_tool(widget_id="flight_status")
+
+            Workflow:
+            1. Get data using other tools (e.g., list_tasks())
+            2. Pass data to this tool via params
+            3. Widget renders as rich A2UI JSON (frontend displays it visually)
 
             Args:
-                widget_id: Widget ID from catalog
-                params: JSON string with parameters for data fetching
+                widget_id: Widget ID from catalog (use list_available_widgets to see options)
+                params: Optional JSON string with widget parameters (e.g., '{"status": "completed", "limit": 50}')
 
             Returns:
-                A2UI JSON message ready for frontend rendering
+                A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)
             """
             params_dict = json.loads(params) if params else {}
             return self.render_widget_json(widget_id, params_dict)
@@ -460,13 +482,16 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         # Tool 3: Get widget schema
         def get_widget_schema(widget_id: str) -> str:
             """
-            Get JSON schema for widget data requirements.
+            Get widget data requirements and example data.
+
+            Use this to understand what data a widget needs before rendering it.
+            Shows the expected data structure and an example.
 
             Args:
                 widget_id: Widget ID from catalog
 
             Returns:
-                JSON schema for widget data
+                JSON with data_schema (required fields) and example_data (sample)
             """
             widget = self.get_widget(widget_id)
             if not widget:
