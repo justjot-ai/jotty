@@ -32,6 +32,11 @@ from .a2ui_widget_provider import (
     create_widget_provider,
     create_widget_from_dict,
 )
+from .a2ui_standard_widgets import (
+    get_standard_widget_catalog,
+    list_widget_categories,
+    get_widget_count,
+)
 from .metadata_fetcher import (
     CacheEntry,
     MetaDataFetcher,
@@ -77,6 +82,10 @@ __all__ = [
     'WidgetDefinition',
     'create_widget_provider',
     'create_widget_from_dict',
+    # a2ui_standard_widgets
+    'get_standard_widget_catalog',
+    'list_widget_categories',
+    'get_widget_count',
     # metadata_fetcher
     'CacheEntry',
     'MetaDataFetcher',
