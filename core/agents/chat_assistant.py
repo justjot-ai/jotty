@@ -10,6 +10,7 @@ Clients (like JustJot.ai) get this for free by using Jotty.
 """
 
 import logging
+import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -237,13 +238,15 @@ class ChatAssistant:
 
             if a2ui_blocks:
                 logger.info("✅ Using JustJot.ai kanban adapter for task summary")
-                # Return A2UI response with role and content
+                # Return A2UI response with role and content (blocks are already formatted)
                 return {
                     'role': 'assistant',
-                    'content': a2ui_blocks
+                    'content': a2ui_blocks  # Already A2UI blocks from adapter
                 }
         except Exception as e:
             logger.warning(f"⚠️  Failed to use registered adapter, falling back to default: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
 
         # Fallback: Use default A2UI list format
         backlog = sum(1 for t in all_tasks if t.get('status') == 'backlog')
@@ -331,7 +334,6 @@ class ChatAssistant:
 
             columns[column_idx]['cards'].append(card)
 
-        import json
         return json.dumps({'columns': columns})
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
