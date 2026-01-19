@@ -10,6 +10,7 @@ Modules:
 - metadata_fetcher: Fetch metadata from providers
 - metadata_tool_registry: Register & discover tools
 - base_metadata_provider: Base metadata provider implementation
+- mcp_metadata_provider: MCP (Model Context Protocol) provider
 - tool_shed: Tool management & caching
 - tool_interceptor: Tool call interception
 """
@@ -17,6 +18,10 @@ Modules:
 from .base_metadata_provider import (
     BaseMetadataProvider,
     create_metadata_provider,
+)
+from .mcp_metadata_provider import (
+    MCPMetadataProvider,
+    create_mcp_provider_from_functions,
 )
 from .metadata_fetcher import (
     CacheEntry,
@@ -53,6 +58,9 @@ __all__ = [
     # base_metadata_provider
     'BaseMetadataProvider',
     'create_metadata_provider',
+    # mcp_metadata_provider
+    'MCPMetadataProvider',
+    'create_mcp_provider_from_functions',
     # metadata_fetcher
     'CacheEntry',
     'MetaDataFetcher',
