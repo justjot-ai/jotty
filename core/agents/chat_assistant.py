@@ -79,7 +79,9 @@ class ChatAssistant:
 
         # Task-related queries
         if self._is_task_query(goal_lower):
-            return await self._handle_task_query(goal_lower, **kwargs)
+            # Remove conflicting keys from kwargs to avoid parameter conflicts
+            clean_kwargs = {k: v for k, v in kwargs.items() if k != 'query'}
+            return await self._handle_task_query(goal_lower, **clean_kwargs)
 
         # Status queries
         if self._is_status_query(goal_lower):
