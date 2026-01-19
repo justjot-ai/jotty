@@ -69,20 +69,21 @@ class ChatExecutor:
         
         # Execute agent
         try:
-            result = await self.conductor.run_actor(
-                actor_name=agent_id,
+            # Use conductor.run() since run_actor() doesn't exist
+            # Pass agent context as kwargs which includes actor selection
+            result = await self.conductor.run(
                 goal=message,
-                context=agent_context
+                **agent_context
             )
-            
+
             # Extract response
             response_text = self._extract_response(result)
-            
+
             # Add assistant message to context
             self.context.add_message("assistant", response_text)
-            
+
             execution_time = time.time() - start_time
-            
+
             return {
                 "success": True,
                 "message": response_text,
