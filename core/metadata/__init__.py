@@ -11,6 +11,7 @@ Modules:
 - metadata_tool_registry: Register & discover tools
 - base_metadata_provider: Base metadata provider implementation
 - mcp_metadata_provider: MCP (Model Context Protocol) provider
+- a2ui_widget_provider: A2UI (Agent-to-User Interface) widget provider
 - tool_shed: Tool management & caching
 - tool_interceptor: Tool call interception
 """
@@ -22,6 +23,14 @@ from .base_metadata_provider import (
 from .mcp_metadata_provider import (
     MCPMetadataProvider,
     create_mcp_provider_from_functions,
+)
+from .a2ui_widget_provider import (
+    A2UIWidgetProvider,
+    A2UIComponent,
+    A2UIMessage,
+    WidgetDefinition,
+    create_widget_provider,
+    create_widget_from_dict,
 )
 from .metadata_fetcher import (
     CacheEntry,
@@ -61,6 +70,13 @@ __all__ = [
     # mcp_metadata_provider
     'MCPMetadataProvider',
     'create_mcp_provider_from_functions',
+    # a2ui_widget_provider
+    'A2UIWidgetProvider',
+    'A2UIComponent',
+    'A2UIMessage',
+    'WidgetDefinition',
+    'create_widget_provider',
+    'create_widget_from_dict',
     # metadata_fetcher
     'CacheEntry',
     'MetaDataFetcher',
