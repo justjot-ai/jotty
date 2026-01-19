@@ -175,11 +175,14 @@ class ChatExecutor:
                 # Debug logging
                 logger.info(f"Conductor result type: {type(result)}, value: {result}")
 
+                # Extract final_output from SwarmResult if applicable
+                actual_result = result.final_output if hasattr(result, 'final_output') else result
+
                 # Check if result is A2UI format
-                if is_a2ui_response(result):
+                if is_a2ui_response(actual_result):
                     # Stream A2UI widgets
                     logger.info("Streaming A2UI widget response")
-                    a2ui_response = convert_to_a2ui_response(result)
+                    a2ui_response = convert_to_a2ui_response(actual_result)
 
                     # Extract text for context (combine all text blocks)
                     response_text = self._extract_text_from_a2ui(a2ui_response)
