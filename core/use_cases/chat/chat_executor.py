@@ -271,11 +271,15 @@ class ChatExecutor:
     
     def _chunk_text(self, text: str, chunk_size: int = 50) -> List[str]:
         """Split text into chunks for streaming."""
+        # Handle None or empty text
+        if not text:
+            return []
+
         # Simple sentence-based chunking
         sentences = text.split(". ")
         chunks = []
         current_chunk = ""
-        
+
         for sentence in sentences:
             if len(current_chunk) + len(sentence) < chunk_size:
                 current_chunk += sentence + ". "
@@ -283,7 +287,7 @@ class ChatExecutor:
                 if current_chunk:
                     chunks.append(current_chunk.strip())
                 current_chunk = sentence + ". "
-        
+
         if current_chunk:
             chunks.append(current_chunk.strip())
         
