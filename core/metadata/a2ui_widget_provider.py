@@ -458,20 +458,29 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             ⚠️ IMPORTANT: Use this tool to show visual content to users!
             Instead of returning plain text responses, use widgets for better UX.
 
-            Common use cases:
+            Common use cases for task_list widget:
             - User says "show me the task list" → render_widget_tool(widget_id="task_list")
+            - User says "show backlog tasks" → render_widget_tool(widget_id="task_list", params='{"status": "backlog"}')
+            - User says "display pending tasks" → render_widget_tool(widget_id="task_list", params='{"status": "pending"}')
+            - User says "show tasks in progress" → render_widget_tool(widget_id="task_list", params='{"status": "in_progress"}')
             - User says "display completed tasks" → render_widget_tool(widget_id="task_list", params='{"status": "completed"}')
+            - User says "show failed tasks" → render_widget_tool(widget_id="task_list", params='{"status": "failed"}')
+
+            Other widget examples:
             - User says "show a product card" → render_widget_tool(widget_id="product_card")
             - User says "display flight status" → render_widget_tool(widget_id="flight_status")
 
             Workflow:
-            1. Get data using other tools (e.g., list_tasks())
-            2. Pass data to this tool via params
-            3. Widget renders as rich A2UI JSON (frontend displays it visually)
+            1. Identify which widget to use (task_list, stats_card, etc.)
+            2. Extract filter parameters from user's question (status, limit, etc.)
+            3. Call this tool with widget_id and params as JSON string
+            4. Widget renders as rich A2UI JSON (frontend displays it visually)
 
             Args:
                 widget_id: Widget ID from catalog (use list_available_widgets to see options)
-                params: Optional JSON string with widget parameters (e.g., '{"status": "completed", "limit": 50}')
+                params: Optional JSON string with widget parameters
+                        For task_list: '{"status": "backlog|pending|in_progress|completed|failed", "limit": 100}'
+                        For other widgets: Check widget schema with get_widget_schema(widget_id)
 
             Returns:
                 A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)
