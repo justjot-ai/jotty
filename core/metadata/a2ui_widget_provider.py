@@ -91,6 +91,11 @@ from dataclasses import dataclass, field
 import json
 
 from .base_metadata_provider import BaseMetadataProvider
+from .widget_params_schema import (
+    WidgetParamSchema,
+    generate_param_docstring,
+    generate_tool_examples
+)
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +202,19 @@ class WidgetDefinition:
     """
     Definition of a widget in the catalog.
 
-    Clients register widgets with their component structure and data requirements.
+    Clients register widgets with their component structure, data requirements,
+    and parameter schemas for agent interaction.
+
+    Attributes:
+        id: Unique widget identifier
+        name: Human-readable name
+        description: Widget purpose and usage
+        category: Widget category (layout, content, input, data_viz, etc.)
+        component_tree: A2UI component structure template
+        data_schema: JSON schema for widget data (what data widget displays)
+        param_schema: JSON schema for widget parameters (what params agents pass)
+        example_data: Example data for testing
+        tags: Search/filter tags
     """
     id: str
     name: str
@@ -205,6 +222,7 @@ class WidgetDefinition:
     category: str  # "layout", "content", "input", "data_viz", etc.
     component_tree: List[A2UIComponent]  # Template structure
     data_schema: Dict[str, Any]  # JSON schema for required data
+    param_schema: Optional['WidgetParamSchema'] = None  # JSON schema for parameters
     example_data: Optional[Dict[str, Any]] = None
     tags: List[str] = field(default_factory=list)
 
@@ -414,6 +432,60 @@ class A2UIWidgetProvider(BaseMetadataProvider):
     # DSPy Agent Integration
     # -------------------------------------------------------------------------
 
+    def _generate_render_widget_docstring(self) -> str:
+        """
+        Generate dynamic docstring for render_widget_tool based on widget parameter schemas.
+
+        This creates agent-friendly documentation with examples for each widget's parameters.
+        """
+        lines = [
+            "DISPLAY rich visual widget to the user instead of plain text.",
+            "",
+            "⚠️ IMPORTANT: Use this tool to show visual content to users!",
+            "Instead of returning plain text responses, use widgets for better UX.",
+            ""
+        ]
+
+        # Group widgets by whether they have parameter schemas
+        widgets_with_params = []
+        widgets_without_params = []
+
+        for widget in self._widget_catalog.values():
+            if widget.param_schema and widget.param_schema.properties:
+                widgets_with_params.append(widget)
+            else:
+                widgets_without_params.append(widget)
+
+        # Document widgets with parameter schemas
+        if widgets_with_params:
+            lines.append("Widgets with parameters:")
+            lines.append("")
+            for widget in widgets_with_params:
+                lines.append(f"  {widget.id}:")
+                # Generate examples from schema
+                examples = generate_tool_examples(widget.param_schema, widget.id)
+                for example in examples[:5]:  # Limit to 5 examples per widget
+                    lines.append(f"    - {example}")
+                lines.append("")
+
+        # Document widgets without parameters
+        if widgets_without_params:
+            lines.append("Widgets without parameters (simple display):")
+            for widget in widgets_without_params[:10]:  # Limit to avoid token bloat
+                lines.append(f"  - {widget.id}: {widget.description}")
+            lines.append("")
+
+        lines.extend([
+            "Args:",
+            "    widget_id: Widget ID from catalog (use list_available_widgets to see all options)",
+            "    params: Optional JSON string with widget parameters (e.g., '{\"status\": \"completed\"}')",
+            "",
+            "Returns:",
+            "    A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)"
+        ])
+
+        return "\n".join(lines)
+
     def get_tools(self, actor_name: Optional[str] = None) -> List[Callable]:
         """
         Get tools for DSPy agents (BaseMetadataProvider interface).
@@ -450,43 +522,30 @@ class A2UIWidgetProvider(BaseMetadataProvider):
                 "tags": w.tags
             } for w in widgets], indent=2)
 
-        # Tool 2: Render widget
+        # Tool 2: Render widget (with schema-based validation)
         def render_widget_tool(widget_id: str, params: Optional[str] = None) -> str:
-            """
-            DISPLAY rich visual widget to the user instead of plain text.
-
-            ⚠️ IMPORTANT: Use this tool to show visual content to users!
-            Instead of returning plain text responses, use widgets for better UX.
-
-            Common use cases for task_list widget:
-            - User says "show me the task list" → render_widget_tool(widget_id="task_list")
-            - User says "show backlog tasks" → render_widget_tool(widget_id="task_list", params='{"status": "backlog"}')
-            - User says "display pending tasks" → render_widget_tool(widget_id="task_list", params='{"status": "pending"}')
-            - User says "show tasks in progress" → render_widget_tool(widget_id="task_list", params='{"status": "in_progress"}')
-            - User says "display completed tasks" → render_widget_tool(widget_id="task_list", params='{"status": "completed"}')
-            - User says "show failed tasks" → render_widget_tool(widget_id="task_list", params='{"status": "failed"}')
-
-            Other widget examples:
-            - User says "show a product card" → render_widget_tool(widget_id="product_card")
-            - User says "display flight status" → render_widget_tool(widget_id="flight_status")
-
-            Workflow:
-            1. Identify which widget to use (task_list, stats_card, etc.)
-            2. Extract filter parameters from user's question (status, limit, etc.)
-            3. Call this tool with widget_id and params as JSON string
-            4. Widget renders as rich A2UI JSON (frontend displays it visually)
-
-            Args:
-                widget_id: Widget ID from catalog (use list_available_widgets to see options)
-                params: Optional JSON string with widget parameters
-                        For task_list: '{"status": "backlog|pending|in_progress|completed|failed", "limit": 100}'
-                        For other widgets: Check widget schema with get_widget_schema(widget_id)
-
-            Returns:
-                A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)
-            """
+            # Parse params
             params_dict = json.loads(params) if params else {}
+
+            # Validate parameters against widget schema
+            widget = self.get_widget(widget_id)
+            if widget and widget.param_schema:
+                # Apply defaults
+                params_dict = widget.param_schema.apply_defaults(params_dict)
+
+                # Validate
+                is_valid, error_msg = widget.param_schema.validate(params_dict)
+                if not is_valid:
+                    return json.dumps({
+                        "error": f"Invalid parameters for widget '{widget_id}': {error_msg}",
+                        "widget_id": widget_id,
+                        "provided_params": params_dict
+                    })
+
             return self.render_widget_json(widget_id, params_dict)
+
+        # Set dynamic docstring based on widget schemas
+        render_widget_tool.__doc__ = self._generate_render_widget_docstring()
 
         # Tool 3: Get widget schema
         def get_widget_schema(widget_id: str) -> str:
