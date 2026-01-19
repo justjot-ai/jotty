@@ -10,6 +10,7 @@ import time
 
 from .chat_orchestrator import ChatOrchestrator
 from .chat_context import ChatContext, ChatMessage
+from ...ui.a2ui import is_a2ui_response, convert_to_a2ui_response
 
 logger = logging.getLogger(__name__)
 
@@ -174,23 +175,46 @@ class ChatExecutor:
                 # Debug logging
                 logger.info(f"Conductor result type: {type(result)}, value: {result}")
 
-                # Stream result as chat events
-                response_text = self._extract_response(result)
-                self.context.add_message("assistant", response_text)
-                
-                # Emit text chunks
-                for chunk in self._chunk_text(response_text):
+                # Check if result is A2UI format
+                if is_a2ui_response(result):
+                    # Stream A2UI widgets
+                    logger.info("Streaming A2UI widget response")
+                    a2ui_response = convert_to_a2ui_response(result)
+
+                    # Extract text for context (combine all text blocks)
+                    response_text = self._extract_text_from_a2ui(a2ui_response)
+                    self.context.add_message("assistant", response_text)
+
+                    # Emit A2UI widget event
                     yield {
-                        "type": "text_chunk",
-                        "content": chunk,
+                        "type": "a2ui_widget",
+                        "content": a2ui_response["content"],
                         "timestamp": time.time()
                     }
-                
-                yield {
-                    "type": "done",
-                    "message": response_text,
-                    "timestamp": time.time()
-                }
+
+                    yield {
+                        "type": "done",
+                        "message": response_text,
+                        "timestamp": time.time()
+                    }
+                else:
+                    # Stream plain text result
+                    response_text = self._extract_response(result)
+                    self.context.add_message("assistant", response_text)
+
+                    # Emit text chunks
+                    for chunk in self._chunk_text(response_text):
+                        yield {
+                            "type": "text_chunk",
+                            "content": chunk,
+                            "timestamp": time.time()
+                        }
+
+                    yield {
+                        "type": "done",
+                        "message": response_text,
+                        "timestamp": time.time()
+                    }
                 
         except Exception as e:
             logger.error(f"Chat streaming failed: {e}", exc_info=True)
@@ -217,6 +241,46 @@ class ChatExecutor:
             return result.final_output
         else:
             return str(result)
+
+    def _extract_text_from_a2ui(self, a2ui_response: Dict[str, Any]) -> str:
+        """
+        Extract text content from A2UI response for conversation context.
+
+        Args:
+            a2ui_response: A2UI formatted response
+
+        Returns:
+            Combined text content
+        """
+        texts = []
+        content = a2ui_response.get("content", [])
+
+        for block in content:
+            block_type = block.get("type", "")
+
+            if block_type == "text":
+                texts.append(block.get("text", ""))
+            elif block_type == "card":
+                if block.get("title"):
+                    texts.append(block["title"])
+                if block.get("subtitle"):
+                    texts.append(block["subtitle"])
+                # Recursively extract from body if it's a list
+                body = block.get("body", [])
+                if isinstance(body, list):
+                    for item in body:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            texts.append(item.get("text", ""))
+            elif block_type == "list":
+                items = block.get("items", [])
+                for item in items:
+                    if isinstance(item, dict):
+                        if item.get("title"):
+                            texts.append(item["title"])
+                        if item.get("subtitle"):
+                            texts.append(item["subtitle"])
+
+        return " ".join(texts) if texts else "A2UI widget response"
     
     def _transform_to_chat_events(self, event: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Transform agent events to chat events."""
