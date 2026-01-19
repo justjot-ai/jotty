@@ -48,14 +48,34 @@ class ChatAssistant:
         Process user query and return A2UI response.
 
         Args:
-            **kwargs: Must include 'goal' or 'message' (user's question)
+            **kwargs: May include 'goal', 'message', 'context', or 'task_description'
 
         Returns:
             A2UI formatted response (dict with role and content)
         """
-        # Extract goal/message from kwargs
-        goal = kwargs.get('goal') or kwargs.get('message') or ""
-        goal_lower = goal.lower()
+        # Debug logging
+        logger.debug(f"ChatAssistant.run() received kwargs keys: {list(kwargs.keys())}")
+
+        # Extract goal/message from kwargs (try multiple keys)
+        goal = (kwargs.get('goal') or
+                kwargs.get('message') or
+                kwargs.get('task_description') or
+                kwargs.get('query') or "")
+
+        # If still empty, try to extract from context
+        if not goal and 'context' in kwargs:
+            context = kwargs['context']
+            if isinstance(context, dict):
+                goal = context.get('ROOT_GOAL') or context.get('goal') or ""
+                logger.debug(f"Extracted goal from context: {goal}")
+
+        goal_lower = goal.lower() if goal else ""
+        logger.debug(f"Final goal: {goal}")
+
+        # If no goal provided, default to task summary
+        if not goal:
+            logger.info("No goal provided, returning task summary")
+            return await self._get_task_summary_widget()
 
         # Task-related queries
         if self._is_task_query(goal_lower):
