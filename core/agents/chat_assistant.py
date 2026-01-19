@@ -217,10 +217,11 @@ class ChatAssistant:
         Get task summary as A2UI section block.
 
         Returns section block that renders actual JustJot.ai kanban renderer.
+        Uses AGUI adapter system - fully generic, no section-specific logic.
         """
         all_tasks = await self._fetch_tasks()
 
-        # Check if kanban-board section renderer is registered
+        # Check if kanban-board section renderer is registered via AGUI
         try:
             from ..registry import get_agui_registry
 
@@ -228,18 +229,16 @@ class ChatAssistant:
             adapter = registry.get('kanban-board')
 
             if adapter:
-                # Format tasks as kanban board JSON
-                kanban_data = self._format_tasks_as_kanban(all_tasks)
+                logger.info("✅ Using JustJot.ai kanban section renderer (generic AGUI)")
 
-                logger.info("✅ Using JustJot.ai kanban section renderer for task summary")
-
-                # Return section block (renders actual JustJot.ai component)
+                # Return section block with raw task data
+                # Frontend adapter handles transformation (DRY - single source of truth)
                 return {
                     'role': 'assistant',
                     'content': [{
                         'type': 'section',
                         'section_type': 'kanban-board',
-                        'content': kanban_data,
+                        'content': {'tasks': all_tasks},  # Pass raw tasks, let adapter transform
                         'title': f'Task Summary ({len(all_tasks)} total)'
                     }]
                 }
@@ -291,50 +290,6 @@ class ChatAssistant:
             tasks=items,
             title=f"Task Summary ({len(all_tasks)} total)"
         )
-
-    def _format_tasks_as_kanban(self, tasks: List[Dict[str, Any]]) -> str:
-        """
-        Format tasks as kanban board JSON for JustJot.ai adapter.
-
-        Returns:
-            JSON string in kanban board format
-        """
-        # Group tasks by status
-        columns = [
-            {'id': 'backlog', 'title': 'Backlog', 'cards': []},
-            {'id': 'in_progress', 'title': 'In Progress', 'cards': []},
-            {'id': 'completed', 'title': 'Completed', 'cards': []},
-            {'id': 'failed', 'title': 'Failed', 'cards': []}
-        ]
-
-        status_map = {
-            'backlog': 0,
-            'in_progress': 1,
-            'completed': 2,
-            'failed': 3
-        }
-
-        for task in tasks:
-            status = task.get('status', 'backlog')
-            column_idx = status_map.get(status, 0)
-
-            card = {
-                'id': task.get('task_id', 'unknown'),
-                'title': task.get('title', task.get('description', 'Untitled Task')),
-                'description': task.get('description', ''),
-                'status': status,
-                'priority': task.get('priority', 'medium')
-            }
-
-            # Add optional fields
-            if task.get('created_at'):
-                card['dueDate'] = task['created_at']
-            if task.get('assignee'):
-                card['assignee'] = task['assignee']
-
-            columns[column_idx]['cards'].append(card)
-
-        return json.dumps({'columns': columns})
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
         """Handle system status queries."""
