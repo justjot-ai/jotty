@@ -97,12 +97,21 @@ class ChatAPI:
 
                 # Initialize local_memories for ChatAssistant (required by Conductor)
                 if hasattr(self.conductor, 'local_memories') and isinstance(self.conductor.local_memories, dict):
-                    from ..memory.hierarchical_memory import HierarchicalMemory
-                    self.conductor.local_memories["ChatAssistant"] = HierarchicalMemory(
-                        config=self.conductor.config,
-                        agent_name="ChatAssistant"
-                    )
-                    logger.debug("✅ ChatAssistant local_memories initialized")
+                    try:
+                        from ..memory.hierarchical_memory import HierarchicalMemory
+                        self.conductor.local_memories["ChatAssistant"] = HierarchicalMemory(
+                            config=self.conductor.config,
+                            agent_name="ChatAssistant"
+                        )
+                        logger.debug("✅ ChatAssistant local_memories initialized with HierarchicalMemory")
+                    except ImportError as e:
+                        # Fallback to empty object with memories attribute
+                        logger.debug(f"⚠️  HierarchicalMemory import failed ({e}), using empty fallback")
+                        class EmptyMemory:
+                            def __init__(self):
+                                self.memories = {}
+                        self.conductor.local_memories["ChatAssistant"] = EmptyMemory()
+                        logger.debug("✅ ChatAssistant local_memories initialized with empty fallback")
 
                 logger.info("✅ ChatAssistant registered successfully")
             else:
