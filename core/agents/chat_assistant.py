@@ -212,7 +212,7 @@ class ChatAssistant:
         )
 
     async def _get_task_summary_widget(self) -> Dict[str, Any]:
-        """Get task summary as A2UI card."""
+        """Get task summary as A2UI card with list."""
         all_tasks = await self._fetch_tasks()
 
         # Count by status
@@ -221,21 +221,43 @@ class ChatAssistant:
         completed = sum(1 for t in all_tasks if t.get('status') == 'completed')
         failed = sum(1 for t in all_tasks if t.get('status') == 'failed')
 
-        body_text = f"""
-📊 **Task Overview**
+        # Return structured A2UI list instead of markdown
+        from ..ui.a2ui import format_task_list
 
-- 📥 Backlog: {backlog}
-- ⚙️ In Progress: {in_progress}
-- ✅ Completed: {completed}
-- ❌ Failed: {failed}
+        items = [
+            {
+                'title': f'Backlog',
+                'subtitle': f'{backlog} tasks waiting to start',
+                'icon': 'circle',
+                'status': 'backlog',
+                'metadata': [{'label': 'Count', 'value': str(backlog)}]
+            },
+            {
+                'title': f'In Progress',
+                'subtitle': f'{in_progress} tasks currently being worked on',
+                'icon': 'circle',
+                'status': 'in_progress',
+                'metadata': [{'label': 'Count', 'value': str(in_progress)}]
+            },
+            {
+                'title': f'Completed',
+                'subtitle': f'{completed} tasks finished successfully',
+                'icon': 'check_circle',
+                'status': 'completed',
+                'metadata': [{'label': 'Count', 'value': str(completed)}]
+            },
+            {
+                'title': f'Failed',
+                'subtitle': f'{failed} tasks encountered errors',
+                'icon': 'error',
+                'status': 'failed',
+                'metadata': [{'label': 'Count', 'value': str(failed)}]
+            }
+        ]
 
-Total: {len(all_tasks)} tasks
-        """.strip()
-
-        return format_card(
-            title="Task Summary",
-            subtitle=f"Last updated: {datetime.now().strftime('%H:%M:%S')}",
-            body=body_text
+        return format_task_list(
+            tasks=items,
+            title=f"Task Summary ({len(all_tasks)} total)"
         )
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
