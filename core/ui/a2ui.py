@@ -192,6 +192,69 @@ class A2UISeparator(A2UIWidget):
         return {"type": "separator"}
 
 
+class A2UISection(A2UIWidget):
+    """
+    Section widget - renders JustJot.ai native section renderers.
+
+    This is the DRY way to display content: instead of converting section content
+    to generic A2UI blocks (list, card, etc.), we pass the native content directly
+    to JustJot's section renderers which handle all 70+ types.
+
+    Example:
+        # Kanban board
+        section = A2UISection(
+            section_type="kanban-board",
+            content={"columns": [...]},
+            title="Project Tasks"
+        )
+
+        # Chart
+        section = A2UISection(
+            section_type="chart",
+            content={"type": "bar", "data": {...}},
+            title="Performance Metrics"
+        )
+
+        # Any of 70+ section types work!
+    """
+
+    def __init__(
+        self,
+        section_type: str,
+        content: Union[Dict[str, Any], str],
+        title: Optional[str] = None,
+        props: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Create section widget.
+
+        Args:
+            section_type: JustJot section type (e.g., "kanban-board", "chart", "mermaid")
+            content: Section content in native format (dict or JSON string)
+            title: Optional title for the section
+            props: Optional additional props for the section renderer
+        """
+        self.section_type = section_type
+        self.content = content
+        self.title = title
+        self.props = props or {}
+
+    def to_dict(self) -> Dict[str, Any]:
+        widget = {
+            "type": "section",
+            "section_type": self.section_type,
+            "content": self.content
+        }
+
+        if self.title:
+            widget["title"] = self.title
+
+        if self.props:
+            widget["props"] = self.props
+
+        return widget
+
+
 class A2UIBuilder:
     """Builder for complex A2UI responses with multiple widgets."""
 
@@ -248,6 +311,17 @@ class A2UIBuilder:
     def add_separator(self) -> 'A2UIBuilder':
         """Add a separator."""
         self.widgets.append(A2UISeparator())
+        return self
+
+    def add_section(
+        self,
+        section_type: str,
+        content: Union[Dict[str, Any], str],
+        title: Optional[str] = None,
+        props: Optional[Dict[str, Any]] = None
+    ) -> 'A2UIBuilder':
+        """Add a section widget (JustJot.ai native renderer)."""
+        self.widgets.append(A2UISection(section_type, content, title, props))
         return self
 
     def build(self) -> Dict[str, Any]:
@@ -380,4 +454,70 @@ def format_text(text: str, style: Optional[str] = None) -> Dict[str, Any]:
     """
     builder = A2UIBuilder()
     builder.add_text(text, style)
+    return builder.build()
+
+
+def format_section(
+    section_type: str,
+    content: Union[Dict[str, Any], str],
+    title: Optional[str] = None,
+    props: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Format JustJot section as A2UI response (DRY way).
+
+    This is the recommended way to display any of JustJot's 70+ section types
+    in supervisor chat. Instead of using toA2UI() adapters that convert to
+    generic list/card blocks, pass the native content directly.
+
+    Args:
+        section_type: JustJot section type:
+            - Project: "kanban-board", "gantt", "sprint-planning", etc.
+            - Diagrams: "mermaid", "excalidraw", "plantuml", etc.
+            - Data: "chart", "data-table", "json", "csv", etc.
+            - Business: "swot", "business-model-canvas", "okrs", etc.
+            - And 60+ more!
+        content: Section content in native format (dict or JSON string)
+        title: Optional title displayed above the section
+        props: Optional additional props for the renderer
+
+    Returns:
+        A2UI response with section block
+
+    Example:
+        # Kanban board
+        response = format_section(
+            section_type="kanban-board",
+            content={
+                "columns": [
+                    {"id": "todo", "title": "To Do", "items": [...]},
+                    {"id": "doing", "title": "Doing", "items": [...]},
+                    {"id": "done", "title": "Done", "items": [...]}
+                ]
+            },
+            title="Sprint Tasks"
+        )
+
+        # Mermaid diagram
+        response = format_section(
+            section_type="mermaid",
+            content="graph TD; A-->B; B-->C;",
+            title="System Architecture"
+        )
+
+        # Chart
+        response = format_section(
+            section_type="chart",
+            content={
+                "type": "bar",
+                "data": {
+                    "labels": ["Jan", "Feb", "Mar"],
+                    "values": [10, 20, 30]
+                }
+            },
+            title="Monthly Revenue"
+        )
+    """
+    builder = A2UIBuilder()
+    builder.add_section(section_type, content, title, props)
     return builder.build()
