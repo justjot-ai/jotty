@@ -213,36 +213,67 @@ class ChatAssistant:
 
     async def _get_task_summary_widget(self) -> Dict[str, Any]:
         """
-        Get task summary as A2UI section block.
+        Get task summary as native kanban board (DRY way).
 
-        Returns section block that renders actual JustJot.ai kanban renderer.
-        Uses AGUI adapter system - fully generic, no section-specific logic.
+        Returns section block with native kanban format that JustJot renders directly.
+        NO adapters needed - uses return_kanban() helper.
         """
         all_tasks = await self._fetch_tasks()
 
-        # Check if kanban-board section renderer is registered via AGUI
+        # Transform tasks into kanban columns format (native JustJot format)
+        columns = [
+            {
+                "id": "backlog",
+                "title": "Backlog",
+                "items": []
+            },
+            {
+                "id": "in_progress",
+                "title": "In Progress",
+                "items": []
+            },
+            {
+                "id": "completed",
+                "title": "Completed",
+                "items": []
+            },
+            {
+                "id": "failed",
+                "title": "Failed",
+                "items": []
+            }
+        ]
+
+        # Organize tasks into columns by status
+        column_map = {
+            "backlog": 0,
+            "in_progress": 1,
+            "completed": 2,
+            "failed": 3
+        }
+
+        for task in all_tasks:
+            status = task.get('status', 'backlog')
+            col_idx = column_map.get(status, 0)
+
+            columns[col_idx]["items"].append({
+                "id": task.get('task_id', task.get('id', str(len(all_tasks)))),
+                "title": task.get('title', task.get('description', 'Untitled Task')),
+                "description": task.get('description', ''),
+                "status": status,
+                "priority": task.get('priority', 'medium'),
+                "assignee": task.get('assignee'),
+                "dueDate": task.get('created_at'),
+                "labels": task.get('labels', [])
+            })
+
+        # Use return_kanban() helper (DRY way!)
         try:
-            from ..registry import get_agui_registry
-
-            registry = get_agui_registry()
-            adapter = registry.get('kanban-board')
-
-            if adapter:
-                logger.info("✅ Using JustJot.ai kanban section renderer (generic AGUI)")
-
-                # Return section block with raw task data
-                # Frontend adapter handles transformation (DRY - single source of truth)
-                return {
-                    'role': 'assistant',
-                    'content': [{
-                        'type': 'section',
-                        'section_type': 'kanban-board',
-                        'content': {'tasks': all_tasks},  # Pass raw tasks, let adapter transform
-                        'title': f'Task Summary ({len(all_tasks)} total)'
-                    }]
-                }
+            from ..ui import return_kanban
+            logger.info("✅ Using return_kanban() - DRY section rendering")
+            return return_kanban(columns=columns, title=f'Task Summary ({len(all_tasks)} total)')
         except Exception as e:
-            logger.warning(f"⚠️  Failed to use section renderer, falling back to list: {e}")
+            logger.warning(f"⚠️  return_kanban() not available, falling back: {e}")
             import traceback
             logger.debug(traceback.format_exc())
 
