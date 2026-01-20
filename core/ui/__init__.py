@@ -15,6 +15,14 @@ from .a2ui import (
     A2UIBuilder,
 )
 
+from .justjot_helper import (
+    return_section,
+    return_kanban,
+    return_chart,
+    return_mermaid,
+    return_data_table,
+)
+
 __all__ = [
     'format_task_list',
     'format_card',
@@ -24,4 +32,10 @@ __all__ = [
     'convert_to_a2ui_response',
     'A2UISection',
     'A2UIBuilder',
+    # JustJot helpers
+    'return_section',
+    'return_kanban',
+    'return_chart',
+    'return_mermaid',
+    'return_data_table',
 ]
