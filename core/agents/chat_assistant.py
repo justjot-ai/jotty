@@ -208,7 +208,7 @@ class ChatAssistant:
                 all_items.extend(self._format_task_items(by_status[status]))
 
         return format_task_list(
-            items=all_items,
+            tasks=all_items,
             title=f"All Tasks ({len(all_tasks)} total)"
         )
 
