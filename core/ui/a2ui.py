@@ -288,7 +288,7 @@ def is_a2ui_response(response: Any) -> bool:
                 # Check if first item has A2UI widget type
                 first_item = content[0]
                 if isinstance(first_item, dict) and "type" in first_item:
-                    valid_types = ["card", "list", "text", "image", "button", "separator"]
+                    valid_types = ["card", "list", "text", "image", "button", "separator", "section"]
                     return first_item.get("type") in valid_types
 
     return False
