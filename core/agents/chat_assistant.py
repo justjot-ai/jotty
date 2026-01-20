@@ -56,6 +56,7 @@ class ChatAssistant:
         """
         # Debug logging
         logger.debug(f"ChatAssistant.run() received kwargs keys: {list(kwargs.keys())}")
+        print(f"🔥🔥🔥 ChatAssistant.run() CALLED with kwargs: {list(kwargs.keys())}", flush=True)
 
         # Extract goal/message from kwargs (try multiple keys)
         goal = (kwargs.get('goal') or
@@ -72,6 +73,7 @@ class ChatAssistant:
 
         goal_lower = goal.lower() if goal else ""
         logger.debug(f"Final goal: {goal}")
+        print(f"🔥🔥🔥 Goal: '{goal}', is_task_query: {self._is_task_query(goal_lower)}", flush=True)
 
         # If no goal provided, default to task summary
         if not goal:
@@ -121,16 +123,22 @@ class ChatAssistant:
         Returns:
             A2UI formatted task list or card
         """
+        print(f"🔥🔥🔥 _handle_task_query() called with query: '{query}'", flush=True)
+
         # Default to kanban board for any task overview/summary query
         # Only use filtered views if user explicitly asks for specific status
         if 'backlog' in query and not ('all' in query or 'summary' in query):
+            print("🔥 -> Calling _get_backlog_widget()", flush=True)
             return await self._get_backlog_widget()
         elif ('completed' in query or 'done' in query) and not ('all' in query or 'summary' in query):
+            print("🔥 -> Calling _get_completed_widget()", flush=True)
             return await self._get_completed_widget()
         elif ('pending' in query or 'in progress' in query) and not ('all' in query or 'summary' in query):
+            print("🔥 -> Calling _get_pending_widget()", flush=True)
             return await self._get_pending_widget()
         else:
             # Default: show kanban board for overview/summary/all/show queries
+            print("🔥 -> Calling _get_task_summary_widget() (kanban board)", flush=True)
             return await self._get_task_summary_widget()
 
     async def _get_backlog_widget(self) -> Dict[str, Any]:
