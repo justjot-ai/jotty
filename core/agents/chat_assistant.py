@@ -121,17 +121,16 @@ class ChatAssistant:
         Returns:
             A2UI formatted task list or card
         """
-        # Detect which tasks to show
-        if 'backlog' in query:
+        # Default to kanban board for any task overview/summary query
+        # Only use filtered views if user explicitly asks for specific status
+        if 'backlog' in query and not ('all' in query or 'summary' in query):
             return await self._get_backlog_widget()
-        elif 'completed' in query or 'done' in query:
+        elif ('completed' in query or 'done' in query) and not ('all' in query or 'summary' in query):
             return await self._get_completed_widget()
-        elif 'pending' in query or 'in progress' in query:
+        elif ('pending' in query or 'in progress' in query) and not ('all' in query or 'summary' in query):
             return await self._get_pending_widget()
-        elif 'all' in query or 'show' in query:
-            return await self._get_all_tasks_widget()
         else:
-            # Default: show task summary
+            # Default: show kanban board for overview/summary/all/show queries
             return await self._get_task_summary_widget()
 
     async def _get_backlog_widget(self) -> Dict[str, Any]:
