@@ -218,7 +218,13 @@ class ChatAssistant:
         Returns section block with native kanban format that JustJot renders directly.
         NO adapters needed - uses return_kanban() helper.
         """
+        print("=" * 80, flush=True)
+        print("🔥 _get_task_summary_widget() CALLED - NEW CODE", flush=True)
+        print("=" * 80, flush=True)
+        logger.info("🔥 _get_task_summary_widget() called - testing new kanban code")
+
         all_tasks = await self._fetch_tasks()
+        print(f"🔥 Fetched {len(all_tasks)} tasks", flush=True)
 
         # Transform tasks into kanban columns format (native JustJot format)
         columns = [
