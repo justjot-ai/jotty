@@ -1,6 +1,6 @@
 """
-JustJot Section Helper - DRY Integration
-=========================================
+JustJot Section Helper - DRY Integration with Auto-Validation
+==============================================================
 
 Helper functions for returning JustJot section data in supervisor chat.
 
@@ -8,10 +8,14 @@ IMPORTANT: This replaces the old toA2UI() adapters. Instead of converting
 sections to generic A2UI blocks (list, card), we return section blocks that
 let JustJot render the native components.
 
+AUTO-VALIDATION: All helpers automatically validate and transform content
+against section schemas fetched from JustJot.ai. This ensures data always
+matches what the section renderers expect.
+
 Usage:
     from jotty.core.ui.justjot_helper import return_section
 
-    # Return any JustJot section type
+    # Return any JustJot section type (auto-validated!)
     response = return_section(
         section_type="kanban-board",
         content={"columns": [...]},
@@ -23,6 +27,10 @@ This works for ALL 70+ JustJot section types automatically!
 
 from typing import Dict, Any, Union, Optional
 from .a2ui import format_section
+from .schema_validator import schema_registry
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def return_section(
@@ -37,6 +45,9 @@ def return_section(
     This is the DRY way - returns section blocks that preserve full
     native functionality instead of converting to generic A2UI blocks.
 
+    AUTO-VALIDATES: Content is automatically validated and transformed
+    to match the section renderer's schema (e.g., priority: 1 → 'low').
+
     Args:
         section_type: JustJot section type (e.g., "kanban-board", "chart", "mermaid")
         content: Section content in native format (dict or JSON string)
@@ -47,13 +58,14 @@ def return_section(
         A2UI response with section block
 
     Example:
-        # Kanban board
+        # Kanban board (auto-validates priority, assignee, etc.)
         response = return_section(
             section_type="kanban-board",
             content={"columns": [
-                {"id": "todo", "title": "To Do", "items": [...]},
-                {"id": "doing", "title": "Doing", "items": [...]},
-                {"id": "done", "title": "Done", "items": [...]}
+                {"id": "todo", "title": "To Do", "items": [
+                    {"id": "1", "title": "Task", "priority": 1, "assignee": "Alice"}
+                    # ↑ Automatically transforms to: priority='low', assignee={'name': 'Alice'}
+                ]},
             ]},
             title="Sprint 23 Tasks"
         )
@@ -72,6 +84,15 @@ def return_section(
             title="Performance Metrics"
         )
     """
+    # Auto-validate and transform content against schema
+    if isinstance(content, dict):
+        try:
+            content = schema_registry.validate_and_transform(section_type, content)
+            logger.debug(f"✅ Validated {section_type} content")
+        except Exception as e:
+            logger.warning(f"⚠️  Schema validation failed for {section_type}: {e}")
+            # Continue with original content
+
     return format_section(section_type, content, title, props)
 
 

@@ -1,0 +1,104 @@
+{
+  "kanban-board": {
+    "type": "kanban-board",
+    "description": "Visual task tracking with drag-and-drop columns",
+    "contentType": "json",
+    "schema": {
+      "type": "object",
+      "required": ["columns"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title"],
+            "properties": {
+              "id": {"type": "string"},
+              "title": {"type": "string"},
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "title"],
+                  "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "description": {"type": "string", "optional": true},
+                    "priority": {
+                      "type": "enum",
+                      "values": ["low", "medium", "high", "urgent"],
+                      "optional": true
+                    },
+                    "assignee": {
+                      "type": "object",
+                      "optional": true,
+                      "properties": {
+                        "name": {"type": "string"},
+                        "avatar": {"type": "string", "optional": true},
+                        "email": {"type": "string", "optional": true}
+                      }
+                    },
+                    "labels": {
+                      "type": "array",
+                      "items": {"type": "string"},
+                      "optional": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "transforms": {
+      "columns.*.items.*.priority": {
+        "from": "number",
+        "to": "enum",
+        "mapping": {"1": "low", "2": "medium", "3": "high", "4": "urgent"}
+      },
+      "columns.*.items.*.assignee": {
+        "from": "string",
+        "to": "object",
+        "fields": {"name": "$value"}
+      }
+    },
+    "llmHint": "return_kanban(columns=[{id, title, items=[{id, title, priority, assignee}]}], title)"
+  },
+  "chart": {
+    "type": "chart",
+    "description": "Data visualizations (bar, line, pie, etc)",
+    "contentType": "json",
+    "schema": {
+      "type": "object",
+      "required": ["type", "data"],
+      "properties": {
+        "type": {
+          "enum": ["bar", "column", "line", "area", "pie", "doughnut", "radar", "scatter"]
+        },
+        "data": {"type": "object"}
+      }
+    },
+    "llmHint": "return_chart(type='bar|line|pie', data={labels, datasets}, title)"
+  },
+  "mermaid": {
+    "type": "mermaid",
+    "description": "Flowcharts, sequence diagrams, etc",
+    "contentType": "text",
+    "schema": {
+      "type": "string",
+      "format": "mermaid-syntax"
+    },
+    "llmHint": "return_mermaid(diagram='graph TD\\n  A-->B', title)"
+  },
+  "data-table": {
+    "type": "data-table",
+    "description": "Structured data tables",
+    "contentType": "text",
+    "schema": {
+      "type": "string",
+      "format": "csv"
+    },
+    "llmHint": "return_data_table(csv_data='Name,Age\\nAlice,30', title)"
+  }
+}

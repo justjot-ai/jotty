@@ -123,22 +123,16 @@ class ChatAssistant:
         Returns:
             A2UI formatted task list or card
         """
-        print(f"🔥🔥🔥 _handle_task_query() called with query: '{query}'", flush=True)
-
         # Default to kanban board for any task overview/summary query
         # Only use filtered views if user explicitly asks for specific status
         if 'backlog' in query and not ('all' in query or 'summary' in query):
-            print("🔥 -> Calling _get_backlog_widget()", flush=True)
             return await self._get_backlog_widget()
         elif ('completed' in query or 'done' in query) and not ('all' in query or 'summary' in query):
-            print("🔥 -> Calling _get_completed_widget()", flush=True)
             return await self._get_completed_widget()
         elif ('pending' in query or 'in progress' in query) and not ('all' in query or 'summary' in query):
-            print("🔥 -> Calling _get_pending_widget()", flush=True)
             return await self._get_pending_widget()
         else:
             # Default: show kanban board for overview/summary/all/show queries
-            print("🔥 -> Calling _get_task_summary_widget() (kanban board)", flush=True)
             return await self._get_task_summary_widget()
 
     async def _get_backlog_widget(self) -> Dict[str, Any]:
@@ -226,13 +220,7 @@ class ChatAssistant:
         Returns section block with native kanban format that JustJot renders directly.
         NO adapters needed - uses return_kanban() helper.
         """
-        print("=" * 80, flush=True)
-        print("🔥 _get_task_summary_widget() CALLED - NEW CODE", flush=True)
-        print("=" * 80, flush=True)
-        logger.info("🔥 _get_task_summary_widget() called - testing new kanban code")
-
         all_tasks = await self._fetch_tasks()
-        print(f"🔥 Fetched {len(all_tasks)} tasks", flush=True)
 
         # Transform tasks into kanban columns format (native JustJot format)
         columns = [
@@ -266,20 +254,53 @@ class ChatAssistant:
             "failed": 3
         }
 
+        # Priority mapping: numeric (1,2,3,4) → string ('low','medium','high','urgent')
+        def map_priority(priority_value):
+            """Convert numeric priority to kanban string format."""
+            if isinstance(priority_value, str):
+                # Already a string, validate it's correct
+                if priority_value in ['low', 'medium', 'high', 'urgent']:
+                    return priority_value
+                return 'medium'  # Default fallback
+            # Numeric priority mapping
+            priority_map = {1: 'low', 2: 'medium', 3: 'high', 4: 'urgent'}
+            return priority_map.get(priority_value, 'medium')
+
+        def format_assignee(assignee_value):
+            """Convert assignee to kanban object format {name, avatar?, email?}."""
+            if not assignee_value:
+                return None
+            if isinstance(assignee_value, dict):
+                return assignee_value  # Already correct format
+            if isinstance(assignee_value, str):
+                return {"name": assignee_value}  # Convert string to object
+            return None
+
         for task in all_tasks:
             status = task.get('status', 'backlog')
             col_idx = column_map.get(status, 0)
 
-            columns[col_idx]["items"].append({
+            # Format card according to JustJot KanbanItem schema
+            card = {
                 "id": task.get('task_id', task.get('id', str(len(all_tasks)))),
                 "title": task.get('title', task.get('description', 'Untitled Task')),
-                "description": task.get('description', ''),
-                "status": status,
-                "priority": task.get('priority', 'medium'),
-                "assignee": task.get('assignee'),
-                "dueDate": task.get('created_at'),
-                "labels": task.get('labels', [])
-            })
+                "priority": map_priority(task.get('priority', 2)),  # Default to 'medium'
+            }
+
+            # Add optional fields only if present
+            if task.get('description'):
+                card["description"] = task.get('description')
+            if task.get('assignee'):
+                card["assignee"] = format_assignee(task.get('assignee'))
+            if task.get('created_at'):
+                card["dueDate"] = task.get('created_at')
+            if task.get('labels'):
+                # Ensure labels is a string array
+                labels = task.get('labels', [])
+                if isinstance(labels, list):
+                    card["labels"] = [str(l) for l in labels]
+
+            columns[col_idx]["items"].append(card)
 
         # Use return_kanban() helper (DRY way!)
         try:
