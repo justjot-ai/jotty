@@ -15,6 +15,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from ..ui.a2ui import format_task_list, format_card, format_text
+from ..ui.status_taxonomy import status_mapper
 
 logger = logging.getLogger(__name__)
 
@@ -116,23 +117,35 @@ class ChatAssistant:
         """
         Handle task-related queries with A2UI widgets.
 
+        Uses intent detection to determine response format:
+        - "show/display tasks" → kanban board
+        - "summarize/summary in markdown" → LLM-generated markdown
+        - "list tasks" → list view
+        - "backlog/completed/in progress" → filtered views
+
         Args:
             query: User's question
             **kwargs: Additional context
 
         Returns:
-            A2UI formatted task list or card
+            A2UI formatted widget (kanban, text, or list)
         """
-        # Default to kanban board for any task overview/summary query
-        # Only use filtered views if user explicitly asks for specific status
-        if 'backlog' in query and not ('all' in query or 'summary' in query):
+        query_lower = query.lower()
+
+        # Intent detection: Check if user wants markdown summary
+        markdown_keywords = ['markdown', 'summarize', 'summary in', 'write a summary', 'generate summary']
+        if any(keyword in query_lower for keyword in markdown_keywords):
+            return await self._get_markdown_summary()
+
+        # Specific status filters
+        if 'backlog' in query_lower and not ('all' in query_lower or 'summary' in query_lower):
             return await self._get_backlog_widget()
-        elif ('completed' in query or 'done' in query) and not ('all' in query or 'summary' in query):
+        elif ('completed' in query_lower or 'done' in query_lower) and not ('all' in query_lower or 'summary' in query_lower):
             return await self._get_completed_widget()
-        elif ('pending' in query or 'in progress' in query) and not ('all' in query or 'summary' in query):
+        elif ('pending' in query_lower or 'in progress' in query_lower) and not ('all' in query_lower or 'summary' in query_lower):
             return await self._get_pending_widget()
         else:
-            # Default: show kanban board for overview/summary/all/show queries
+            # Default: show kanban board for overview/show/all queries
             return await self._get_task_summary_widget()
 
     async def _get_backlog_widget(self) -> Dict[str, Any]:
@@ -219,40 +232,13 @@ class ChatAssistant:
 
         Returns section block with native kanban format that JustJot renders directly.
         NO adapters needed - uses return_kanban() helper.
+        Uses status_mapper for generic status mapping across all clients.
         """
         all_tasks = await self._fetch_tasks()
 
-        # Transform tasks into kanban columns format (native JustJot format)
-        columns = [
-            {
-                "id": "backlog",
-                "title": "Backlog",
-                "items": []
-            },
-            {
-                "id": "in_progress",
-                "title": "In Progress",
-                "items": []
-            },
-            {
-                "id": "completed",
-                "title": "Completed",
-                "items": []
-            },
-            {
-                "id": "failed",
-                "title": "Failed",
-                "items": []
-            }
-        ]
-
-        # Organize tasks into columns by status
-        column_map = {
-            "backlog": 0,
-            "in_progress": 1,
-            "completed": 2,
-            "failed": 3
-        }
+        # Create kanban columns using generic status taxonomy
+        # This works for ANY client status naming (todo/doing/done, pending/active/closed, etc.)
+        columns = status_mapper.create_kanban_columns()
 
         # Priority mapping: numeric (1,2,3,4) → string ('low','medium','high','urgent')
         def map_priority(priority_value):
@@ -277,8 +263,22 @@ class ChatAssistant:
             return None
 
         for task in all_tasks:
-            status = task.get('status', 'backlog')
-            col_idx = column_map.get(status, 0)
+            # Use status_mapper for generic status normalization
+            # This handles any client status naming (todo/doing/done, pending/active/closed, etc.)
+            raw_status = task.get('status', 'backlog')
+            canonical_status = status_mapper.normalize(raw_status)
+            column_id = status_mapper.to_kanban_column(canonical_status)
+
+            # Find the column for this status
+            target_column = None
+            for col in columns:
+                if col['id'] == column_id:
+                    target_column = col
+                    break
+
+            if not target_column:
+                # Fallback to first column if mapping fails
+                target_column = columns[0]
 
             # Format card according to JustJot KanbanItem schema
             card = {
@@ -300,7 +300,7 @@ class ChatAssistant:
                 if isinstance(labels, list):
                     card["labels"] = [str(l) for l in labels]
 
-            columns[col_idx]["items"].append(card)
+            target_column["items"].append(card)
 
         # Use return_kanban() helper (DRY way!)
         try:
@@ -313,10 +313,11 @@ class ChatAssistant:
             logger.debug(traceback.format_exc())
 
         # Fallback: Use default A2UI list format
-        backlog = sum(1 for t in all_tasks if t.get('status') == 'backlog')
-        in_progress = sum(1 for t in all_tasks if t.get('status') == 'in_progress')
-        completed = sum(1 for t in all_tasks if t.get('status') == 'completed')
-        failed = sum(1 for t in all_tasks if t.get('status') == 'failed')
+        # Use status_mapper for counting (generic across all client status names)
+        backlog = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'backlog')
+        in_progress = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'in_progress')
+        completed = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'completed')
+        failed = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'failed')
 
         from ..ui.a2ui import format_task_list
 
@@ -354,6 +355,92 @@ class ChatAssistant:
         return format_task_list(
             tasks=items,
             title=f"Task Summary ({len(all_tasks)} total)"
+        )
+
+    async def _get_markdown_summary(self) -> Dict[str, Any]:
+        """
+        Generate markdown summary of tasks using LLM analysis.
+
+        Returns text section with AI-generated task summary.
+        Uses status_mapper for generic status handling.
+        """
+        all_tasks = await self._fetch_tasks()
+
+        # Group tasks by canonical status (using status_mapper for normalization)
+        by_status = {
+            'backlog': [],
+            'in_progress': [],
+            'completed': [],
+            'failed': []
+        }
+
+        for task in all_tasks:
+            raw_status = task.get('status', 'backlog')
+            canonical_status = status_mapper.normalize(raw_status)
+            if canonical_status in by_status:
+                by_status[canonical_status].append(task)
+
+        # Generate markdown summary
+        summary_lines = [
+            f"# Task Summary ({len(all_tasks)} total tasks)",
+            "",
+            "## Status Overview",
+            "",
+            f"- **Backlog:** {len(by_status['backlog'])} tasks waiting to start",
+            f"- **In Progress:** {len(by_status['in_progress'])} tasks actively being worked on",
+            f"- **Completed:** {len(by_status['completed'])} tasks finished successfully",
+            f"- **Failed:** {len(by_status['failed'])} tasks encountered errors",
+            "",
+            f"**Progress:** {len(by_status['completed'])}/{len(all_tasks)} ({int(len(by_status['completed'])/len(all_tasks)*100) if all_tasks else 0}%) complete",
+            ""
+        ]
+
+        # Add high-priority tasks if any
+        high_priority = [t for t in all_tasks if t.get('priority', 0) >= 3 and t.get('status') != 'completed']
+        if high_priority:
+            summary_lines.extend([
+                "## 🔥 High Priority Items",
+                ""
+            ])
+            for task in high_priority[:5]:  # Top 5
+                status_emoji = "⏳" if task.get('status') == 'in_progress' else "📋"
+                summary_lines.append(f"- {status_emoji} **{task.get('title', 'Untitled')}**")
+            summary_lines.append("")
+
+        # Add recent completions
+        recent_completed = sorted(
+            by_status['completed'],
+            key=lambda t: t.get('updated_at', t.get('created_at', '')),
+            reverse=True
+        )[:5]
+
+        if recent_completed:
+            summary_lines.extend([
+                "## ✅ Recently Completed",
+                ""
+            ])
+            for task in recent_completed:
+                summary_lines.append(f"- {task.get('title', 'Untitled')}")
+            summary_lines.append("")
+
+        # Add failed tasks if any
+        if by_status['failed']:
+            summary_lines.extend([
+                "## ⚠️ Failed Tasks (Need Attention)",
+                ""
+            ])
+            for task in by_status['failed'][:5]:
+                summary_lines.append(f"- {task.get('title', 'Untitled')}")
+            summary_lines.append("")
+
+        markdown_content = "\n".join(summary_lines)
+
+        # Return as text section (markdown renderer)
+        from ..ui import return_section
+        return return_section(
+            section_type="text",
+            content=markdown_content,
+            title="Task Summary"
         )
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
