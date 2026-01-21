@@ -644,15 +644,38 @@ class ChatAssistant:
 
 
 # Factory function for easy instantiation
-def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] = None) -> ChatAssistant:
+def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] = None):
     """
-    Create a ChatAssistant agent.
+    Create a ChatAssistant agent (V1 or V2 based on API key availability).
+
+    Automatically uses V2 (LLM-driven) if ANTHROPIC_API_KEY is available,
+    otherwise falls back to V1 (keyword-based).
 
     Args:
         state_manager: Optional state manager for task queries
         config: Optional configuration
 
     Returns:
-        ChatAssistant instance
+        ChatAssistant or ChatAssistantV2 instance
     """
+    import os
+
+    # Check if Anthropic API key is available for V2
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+
+    if api_key:
+        # Use V2 (LLM-driven, truly DRY!)
+        try:
+            from .chat_assistant_v2 import ChatAssistantV2
+            logger.info("✅ Using ChatAssistant V2 (LLM-driven section selection)")
+            return ChatAssistantV2(
+                state_manager=state_manager,
+                anthropic_api_key=api_key
+            )
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to initialize ChatAssistant V2, falling back to V1: {e}")
+            # Fall through to V1
+
+    # Use V1 (keyword-based, stable fallback)
+    logger.info("✅ Using ChatAssistant V1 (keyword-based intent detection)")
     return ChatAssistant(state_manager=state_manager, config=config)
