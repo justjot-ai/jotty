@@ -661,33 +661,30 @@ def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] =
     """
     import os
 
-    print("="*80, file=sys.stderr)
-    print("🔍 DEBUG: create_chat_assistant() CALLED!", file=sys.stderr)
-    print("="*80, file=sys.stderr)
+    logger.error("="*80)
+    logger.error("🔍 DEBUG: create_chat_assistant() CALLED!")
+    logger.error("="*80)
 
     # Check if Anthropic API key is available for V2
     api_key = os.getenv('ANTHROPIC_API_KEY')
 
-    print(f"🔍 DEBUG create_chat_assistant: API key present={bool(api_key)}", file=sys.stderr)
+    logger.error(f"🔍 DEBUG create_chat_assistant: API key present={bool(api_key)}, value={'***' + api_key[-10:] if api_key else 'None'}")
 
     if api_key:
         # Use V2 (LLM-driven, truly DRY!)
         try:
             from .chat_assistant_v2 import ChatAssistantV2
-            print("✅ Using ChatAssistant V2 (LLM-driven section selection)", file=sys.stderr)
-            logger.info("✅ Using ChatAssistant V2 (LLM-driven section selection)")
+            logger.error("✅ Using ChatAssistant V2 (LLM-driven section selection)")
             return ChatAssistantV2(
                 state_manager=state_manager,
                 anthropic_api_key=api_key
             )
         except Exception as e:
-            print(f"⚠️  Failed to initialize ChatAssistant V2: {e}", file=sys.stderr)
-            logger.warning(f"⚠️  Failed to initialize ChatAssistant V2, falling back to V1: {e}")
+            logger.error(f"⚠️  Failed to initialize ChatAssistant V2: {e}")
             import traceback
-            traceback.print_exc(file=sys.stderr)
+            logger.error(traceback.format_exc())
             # Fall through to V1
 
     # Use V1 (keyword-based, stable fallback)
-    print("✅ Using ChatAssistant V1 (keyword-based intent detection)", file=sys.stderr)
-    logger.info("✅ Using ChatAssistant V1 (keyword-based intent detection)")
+    logger.error("✅ Using ChatAssistant V1 (keyword-based intent detection)")
     return ChatAssistant(state_manager=state_manager, config=config)
