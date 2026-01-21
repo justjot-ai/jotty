@@ -661,6 +661,10 @@ def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] =
     """
     import os
 
+    print("="*80, file=sys.stderr)
+    print("🔍 DEBUG: create_chat_assistant() CALLED!", file=sys.stderr)
+    print("="*80, file=sys.stderr)
+
     # Check if Anthropic API key is available for V2
     api_key = os.getenv('ANTHROPIC_API_KEY')
 
