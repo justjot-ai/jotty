@@ -11,6 +11,7 @@ Clients (like JustJot.ai) get this for free by using Jotty.
 
 import logging
 import json
+import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -663,19 +664,26 @@ def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] =
     # Check if Anthropic API key is available for V2
     api_key = os.getenv('ANTHROPIC_API_KEY')
 
+    print(f"🔍 DEBUG create_chat_assistant: API key present={bool(api_key)}", file=sys.stderr)
+
     if api_key:
         # Use V2 (LLM-driven, truly DRY!)
         try:
             from .chat_assistant_v2 import ChatAssistantV2
+            print("✅ Using ChatAssistant V2 (LLM-driven section selection)", file=sys.stderr)
             logger.info("✅ Using ChatAssistant V2 (LLM-driven section selection)")
             return ChatAssistantV2(
                 state_manager=state_manager,
                 anthropic_api_key=api_key
             )
         except Exception as e:
+            print(f"⚠️  Failed to initialize ChatAssistant V2: {e}", file=sys.stderr)
             logger.warning(f"⚠️  Failed to initialize ChatAssistant V2, falling back to V1: {e}")
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             # Fall through to V1
 
     # Use V1 (keyword-based, stable fallback)
+    print("✅ Using ChatAssistant V1 (keyword-based intent detection)", file=sys.stderr)
     logger.info("✅ Using ChatAssistant V1 (keyword-based intent detection)")
     return ChatAssistant(state_manager=state_manager, config=config)
