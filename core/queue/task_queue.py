@@ -84,7 +84,12 @@ class TaskQueue(ABC):
     async def get_running_tasks(self) -> List[Task]:
         """Get all running tasks"""
         pass
-    
+
+    @abstractmethod
+    async def get_by_filename(self, filename: str) -> Optional[Task]:
+        """Get task by filename (legacy support for supervisor)"""
+        pass
+
     @abstractmethod
     async def update_task_priority(self, task_id: str, priority: int) -> bool:
         """Update task priority (1-5)"""

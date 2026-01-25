@@ -307,9 +307,20 @@ class SQLiteTaskQueue(TaskQueue):
                 SELECT * FROM tasks WHERE status = 'in_progress'
                 ORDER BY started_at ASC
             """).fetchall()
-            
+
             return [Task.from_dict(dict(row)) for row in rows]
-    
+
+    async def get_by_filename(self, filename: str) -> Optional[Task]:
+        """Get task by filename (legacy support)"""
+        with self._get_connection() as conn:
+            row = conn.execute("""
+                SELECT * FROM tasks WHERE filename = ?
+            """, (filename,)).fetchone()
+
+            if row:
+                return Task.from_dict(dict(row))
+            return None
+
     async def update_task_priority(self, task_id: str, priority: int) -> bool:
         """Update task priority"""
         if priority < 1 or priority > 5:
