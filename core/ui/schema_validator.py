@@ -32,11 +32,15 @@ class SectionSchemaRegistry:
     Provides validation and transformation for all section types.
     """
 
-    def __init__(self, api_url: str = "http://localhost:3000/api/sections/schemas"):
+    def __init__(self, api_url: str = "http://localhost:3000/api/sections/schemas", lazy_load: bool = True):
         self.api_url = api_url
         self.schemas: Dict[str, Any] = {}
         self.cache_file = Path(__file__).parent / 'section_schemas_cache.json'
-        self._load_schemas()
+        self._loaded = False
+
+        # Lazy load by default (only load when first used)
+        if not lazy_load:
+            self._load_schemas()
 
     def _load_schemas(self):
         """Fetch schemas from JustJot.ai API or load from cache."""
@@ -115,6 +119,11 @@ class SectionSchemaRegistry:
             >>> result['columns'][0]['items'][0]['assignee']
             {'name': 'Alice'}
         """
+        # Ensure schemas loaded on first use
+        if not self._loaded:
+            self._load_schemas()
+            self._loaded = True
+
         schema = self.schemas.get(section_type)
         if not schema:
             logger.warning(f"No schema found for {section_type}, passing through")
@@ -206,10 +215,20 @@ class SectionSchemaRegistry:
 
     def get_schema(self, section_type: str) -> Optional[Dict[str, Any]]:
         """Get full schema for a section type."""
+        # Ensure schemas loaded on first use
+        if not self._loaded:
+            self._load_schemas()
+            self._loaded = True
+
         return self.schemas.get(section_type)
 
     def list_sections(self) -> list:
         """List all available section types."""
+        # Ensure schemas loaded on first use
+        if not self._loaded:
+            self._load_schemas()
+            self._loaded = True
+
         return list(self.schemas.keys())
 
 
