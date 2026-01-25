@@ -127,9 +127,15 @@ class TaskOrchestrator:
                     task = await self.queue.dequeue(filters={
                         'status': TaskStatus.PENDING,
                     })
-                    # If task found but has no agent_type, use default
-                    if task and not task.agent_type:
-                        task.agent_type = agent_type
+                    # Only assign agent_type if task doesn't have one
+                    # Skip task if it already has a different agent_type
+                    if task:
+                        if not task.agent_type:
+                            # Task has no agent type, assign this one
+                            task.agent_type = agent_type
+                        elif task.agent_type != agent_type:
+                            # Task wants different agent type, skip it for this agent
+                            task = None
                 
                 if task:
                     logger.info(f"Spawning task {task.task_id} ({task.title}) with {agent_type}")
