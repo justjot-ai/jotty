@@ -115,23 +115,23 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             pdf_filename = f"{safe_title}_{timestamp}.pdf"
             pdf_path = output_dir / pdf_filename
             
-        # Convert to PDF (check if async)
-        if inspect.iscoroutinefunction(convert_tool):
-            pdf_result = await convert_tool({
-                'input_file': tmp_md_path,
-                'output_file': str(pdf_path),
-                'title': title,
-                'author': 'Jotty V2V Research',
-                'page_size': 'a4'
-            })
-        else:
-            pdf_result = convert_tool({
-                'input_file': tmp_md_path,
-                'output_file': str(pdf_path),
-                'title': title,
-                'author': 'Jotty V2V Research',
-                'page_size': 'a4'
-            })
+            # Convert to PDF (check if async)
+            if inspect.iscoroutinefunction(convert_tool):
+                pdf_result = await convert_tool({
+                    'input_file': tmp_md_path,
+                    'output_file': str(pdf_path),
+                    'title': title,
+                    'author': 'Jotty V2V Research',
+                    'page_size': 'a4'
+                })
+            else:
+                pdf_result = convert_tool({
+                    'input_file': tmp_md_path,
+                    'output_file': str(pdf_path),
+                    'title': title,
+                    'author': 'Jotty V2V Research',
+                    'page_size': 'a4'
+                })
             
             if not pdf_result.get('success'):
                 return {
