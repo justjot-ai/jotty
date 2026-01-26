@@ -98,19 +98,20 @@ async def notebooklm_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Try NotebookLM API first, then fallback to browser automation
         use_browser = params.get('use_browser', True)
         
-        # Method 1: Try NotebookLM API (if available)
-        api_result = await _try_notebooklm_api(content, title, output_file)
-        if api_result.get('success'):
-            return api_result
-        
-        # Method 2: Use browser automation with Playwright
+        # Method 1: Use browser automation with Playwright (primary method)
         if use_browser:
-            browser_result = await _try_browser_automation(content, title, output_file)
-            if browser_result.get('success'):
-                return browser_result
+            try:
+                browser_result = await _try_browser_automation(content, title, output_file, params)
+                if browser_result.get('success'):
+                    return browser_result
+                # If browser automation fails but gives useful info, log it
+                if browser_result.get('error'):
+                    logger.warning(f"Browser automation failed: {browser_result.get('error')}")
+            except Exception as e:
+                logger.error(f"Browser automation error: {e}", exc_info=True)
         
-        # Method 3: Fallback to Pandoc (if NotebookLM unavailable)
-        logger.warning("NotebookLM unavailable, falling back to Pandoc conversion")
+        # Method 2: Fallback to Pandoc (if NotebookLM unavailable)
+        logger.info("NotebookLM browser automation unavailable, falling back to Pandoc conversion")
         return await _fallback_pandoc(content, title, output_file, params)
         
     except Exception as e:
