@@ -1,0 +1,205 @@
+"""
+MCP Client for JustJot.ai
+
+Provides programmatic access to JustJot.ai MCP tools via stdio transport.
+Alternative to HTTP API approach - uses same protocol as Claude Desktop.
+"""
+import asyncio
+import json
+import logging
+import subprocess
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+class MCPClient:
+    """
+    MCP client that communicates with JustJot.ai MCP server via stdio.
+    
+    Uses same protocol as Claude Desktop - spawns subprocess and communicates
+    via JSON-RPC over stdin/stdout.
+    """
+    
+    def __init__(
+        self,
+        server_path: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None
+    ):
+        """
+        Initialize MCP client.
+        
+        Args:
+            server_path: Path to MCP server script (default: auto-detect)
+            env: Environment variables for server process
+        """
+        self.server_path = server_path or self._find_server_path()
+        self.env = env or {}
+        self.process: Optional[subprocess.Popen] = None
+        self.request_id = 0
+        self.pending_requests: Dict[int, asyncio.Future] = {}
+        
+    def _find_server_path(self) -> str:
+        """Find JustJot.ai MCP server path."""
+        # Check common locations
+        locations = [
+            "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js",
+            Path.home() / "JustJot.ai" / "dist" / "mcp" / "server.js",
+            Path.cwd() / "JustJot.ai" / "dist" / "mcp" / "server.js"
+        ]
+        
+        for loc in locations:
+            if Path(loc).exists():
+                return str(loc)
+        
+        raise FileNotFoundError(
+            "JustJot.ai MCP server not found. "
+            "Set server_path or ensure server.js exists."
+        )
+    
+    async def connect(self):
+        """Start MCP server process and initialize connection."""
+        if self.process:
+            return  # Already connected
+        
+        # Prepare environment
+        env = os.environ.copy()
+        env.update(self.env)
+        
+        # Start server process
+        self.process = subprocess.Popen(
+            ["node", self.server_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            text=True,
+            bufsize=0
+        )
+        
+        # Start response reader
+        asyncio.create_task(self._read_responses())
+        
+        # Initialize MCP connection
+        await self._send_request("initialize", {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "jotty-mcp-client",
+                "version": "1.0.0"
+            }
+        })
+        
+        logger.info("MCP client connected")
+    
+    async def _read_responses(self):
+        """Read responses from MCP server."""
+        if not self.process:
+            return
+        
+        while True:
+            line = await asyncio.to_thread(self.process.stdout.readline)
+            if not line:
+                break
+            
+            try:
+                response = json.loads(line.strip())
+                request_id = response.get("id")
+                
+                if request_id in self.pending_requests:
+                    future = self.pending_requests.pop(request_id)
+                    future.set_result(response)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON from MCP server: {line}")
+            except Exception as e:
+                logger.error(f"Error reading MCP response: {e}")
+    
+    async def _send_request(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Send JSON-RPC request to MCP server."""
+        if not self.process:
+            await self.connect()
+        
+        self.request_id += 1
+        request = {
+            "jsonrpc": "2.0",
+            "id": self.request_id,
+            "method": method,
+            "params": params
+        }
+        
+        future = asyncio.Future()
+        self.pending_requests[self.request_id] = future
+        
+        # Send request
+        request_json = json.dumps(request) + "\n"
+        self.process.stdin.write(request_json)
+        self.process.stdin.flush()
+        
+        # Wait for response
+        response = await asyncio.wait_for(future, timeout=30.0)
+        
+        if "error" in response:
+            raise RuntimeError(f"MCP error: {response['error']}")
+        
+        return response.get("result", {})
+    
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """List available MCP tools."""
+        result = await self._send_request("tools/list", {})
+        return result.get("tools", [])
+    
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Call an MCP tool."""
+        result = await self._send_request("tools/call", {
+            "name": name,
+            "arguments": arguments
+        })
+        return result
+    
+    async def disconnect(self):
+        """Disconnect from MCP server."""
+        if self.process:
+            self.process.terminate()
+            await asyncio.wait_for(
+                asyncio.to_thread(self.process.wait),
+                timeout=5.0
+            )
+            self.process = None
+            logger.info("MCP client disconnected")
+    
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.connect()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.disconnect()
+
+
+# Convenience functions for common operations
+async def call_justjot_mcp_tool(
+    tool_name: str,
+    arguments: Dict[str, Any],
+    server_path: Optional[str] = None,
+    env: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    """
+    Call a JustJot.ai MCP tool using stdio transport.
+    
+    Args:
+        tool_name: MCP tool name (e.g., "create_idea", "list_ideas")
+        arguments: Tool arguments
+        server_path: Path to MCP server (optional)
+        env: Environment variables (optional)
+    
+    Returns:
+        Tool execution result
+    """
+    async with MCPClient(server_path=server_path, env=env) as client:
+        result = await client.call_tool(tool_name, arguments)
+        return result
+
+
+import os  # Add import at top level

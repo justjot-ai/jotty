@@ -290,18 +290,33 @@ def search_company_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             for item in items[:max_results]:
                 # Handle both dict and list item formats
                 if isinstance(item, dict):
-                    item_id = item.get('id') or item.get('company_id') or item.get('code', '')
+                    # Extract company code from URL if available
+                    url = item.get('url', '')
+                    if url:
+                        # Extract code from URL like "/company/RELIANCE/consolidated/"
+                        url_parts = url.strip('/').split('/')
+                        if 'company' in url_parts:
+                            company_idx = url_parts.index('company')
+                            if company_idx + 1 < len(url_parts):
+                                item_code = url_parts[company_idx + 1]
+                            else:
+                                item_code = str(item.get('id', ''))
+                        else:
+                            item_code = str(item.get('id', ''))
+                    else:
+                        item_code = str(item.get('id', ''))
+                    
                     item_name = item.get('name') or item.get('company_name', '')
                 else:
                     # If item is a string or other format
-                    item_id = str(item) if item else ''
+                    item_code = str(item) if item else ''
                     item_name = str(item) if item else ''
                 
-                if item_id:
+                if item_code:
                     results.append({
-                        'name': item_name or item_id,
-                        'code': item_id,
-                        'url': f"https://www.screener.in/company/{item_id}/",
+                        'name': item_name or item_code,
+                        'code': item_code,
+                        'url': f"https://www.screener.in/company/{item_code}/",
                         'industry': item.get('industry', '') if isinstance(item, dict) else '',
                     })
             
@@ -357,8 +372,8 @@ def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         max_retries = params.get('max_retries', 3)
         
         # Get company code if needed
-        company_code = company_name
-        if not company_code.isdigit() and '/' not in company_code:
+        company_code = str(company_name)
+        if not company_code.replace('/', '').replace('-', '').isalnum() and '/' not in company_code:
             # Search for company first
             search_result = search_company_tool({'query': company_name, 'max_results': 1})
             if search_result.get('success') and search_result.get('results'):
