@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """Run comprehensive research for Colgate Palmolive."""
+    """Run comprehensive research for Colgate Palmolive India."""
     try:
         from core.registry.skills_registry import get_skills_registry
         
-        logger.info("🚀 Starting comprehensive stock research for Colgate Palmolive")
+        logger.info("🚀 Starting comprehensive stock research for Colgate Palmolive India (COLPAL)")
         
         # Initialize registry
         registry = get_skills_registry()
@@ -45,16 +45,19 @@ async def main():
             logger.error("❌ comprehensive_stock_research_tool not found")
             return
         
-        # Run research
-        logger.info("📊 Running comprehensive research...")
+        # Run research for Colgate Palmolive India
+        logger.info("📊 Running comprehensive research for Colgate Palmolive India...")
         
         result = await tool({
-            'ticker': 'CL',
-            'company_name': 'Colgate Palmolive',
-            'title': 'Colgate Palmolive (CL) - Comprehensive Research Report',
+            'ticker': 'COLPAL',
+            'company_name': 'Colgate Palmolive India',
+            'country': 'India',
+            'exchange': 'NSE',
+            'title': 'Colgate Palmolive India (COLPAL) - Comprehensive Research Report',
             'author': 'Jotty Stock Research',
             'send_telegram': True,
-            'max_results_per_aspect': 10,
+            'max_results_per_aspect': 15,
+            'target_pages': 10,
             'page_size': 'a4'
         })
         
@@ -62,18 +65,22 @@ async def main():
             logger.info("✅ Research completed successfully!")
             logger.info(f"📄 Markdown: {result.get('md_path')}")
             logger.info(f"📑 PDF: {result.get('pdf_path')}")
-            logger.info(f"📊 Fundamentals: {result.get('fundamentals_research', {}).get('count', 0)} results")
-            logger.info(f"📈 Technicals: {result.get('technicals_research', {}).get('count', 0)} results")
-            logger.info(f"📰 Broker Reports: {result.get('broker_research', {}).get('count', 0)} results")
+            logger.info(f"📊 Total Research Aspects: {result.get('total_research_aspects', 0)}")
+            logger.info(f"📈 Total Search Results: {result.get('total_results', 0)}")
+            logger.info(f"📄 Target Pages: {result.get('target_pages', 10)}")
+            
+            research_summary = result.get('research_summary', {})
+            for aspect, data in research_summary.items():
+                if data.get('success'):
+                    logger.info(f"  ✅ {aspect}: {data.get('count', 0)} results")
+                else:
+                    logger.warning(f"  ⚠️  {aspect}: Failed")
+            
             logger.info(f"📱 Telegram Sent: {result.get('telegram_sent', False)}")
         else:
             logger.error(f"❌ Research failed: {result.get('error')}")
-            if 'fundamentals_research' in result:
-                logger.info(f"Fundamentals: {result.get('fundamentals_research')}")
-            if 'technicals_research' in result:
-                logger.info(f"Technicals: {result.get('technicals_research')}")
-            if 'broker_research' in result:
-                logger.info(f"Broker: {result.get('broker_research')}")
+            if 'research_summary' in result:
+                logger.info(f"Research Summary: {result.get('research_summary')}")
     
     except Exception as e:
         logger.error(f"❌ Error: {e}", exc_info=True)

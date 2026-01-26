@@ -96,8 +96,17 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
                     # Prepare message
                     message = formatted_output
                     if len(message) > 4096:  # Telegram message limit
-                        # Truncate and add summary
-                        message = formatted_output[:4000] + f"\n\n... ({len(commodities)} commodities total)"
+                        # Truncate intelligently - keep summary and first few categories
+                        lines = formatted_output.split('\n')
+                        truncated_lines = []
+                        char_count = 0
+                        for line in lines:
+                            if char_count + len(line) + 1 > 4000:
+                                break
+                            truncated_lines.append(line)
+                            char_count += len(line) + 1
+                        message = '\n'.join(truncated_lines)
+                        message += f"\n\n... ({len(commodities)} commodities total)"
                     
                     import inspect
                     if inspect.iscoroutinefunction(send_message_tool):

@@ -154,6 +154,7 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - prompt (str, required): Text generation prompt
             - model (str, optional): Claude model (default: 'sonnet')
             - max_tokens (int, optional): Maximum tokens (not used, CLI handles it)
+            - timeout (int, optional): Timeout in seconds (default: 120)
     
     Returns:
         Dictionary with:
@@ -170,9 +171,10 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         model = params.get('model', 'sonnet')
+        timeout = params.get('timeout', 120)  # Default 120s, can be overridden
         
         # Call Claude CLI
-        result = _call_claude_cli(prompt, model=model)
+        result = _call_claude_cli(prompt, model=model, timeout=timeout)
         
         if not result.get('success'):
             return result

@@ -17,15 +17,18 @@ Performs comprehensive stock research covering fundamentals, technical analysis,
 Performs comprehensive stock research and generates PDF report.
 
 **Parameters:**
-- `ticker` (str, required): Stock ticker symbol (e.g., "CL" for Colgate Palmolive)
+- `ticker` (str, required): Stock ticker symbol (e.g., "COLPAL" for Colgate Palmolive India)
 - `company_name` (str, optional): Full company name (default: uses ticker)
+- `country` (str, optional): Country/Exchange (e.g., 'India', 'NSE', 'BSE')
+- `exchange` (str, optional): Exchange name (e.g., 'NSE', 'BSE', 'NYSE')
 - `output_dir` (str, optional): Output directory for files (default: ~/jotty/reports)
 - `title` (str, optional): Report title (default: auto-generated)
 - `author` (str, optional): Report author (default: 'Jotty Stock Research')
 - `page_size` (str, optional): PDF page size - 'a4', 'a5', 'a6', 'letter' (default: 'a4')
 - `telegram_chat_id` (str, optional): Telegram chat ID (default: from env)
 - `send_telegram` (bool, optional): Send to Telegram (default: True)
-- `max_results_per_aspect` (int, optional): Max search results per aspect (default: 10)
+- `max_results_per_aspect` (int, optional): Max search results per aspect (default: 15)
+- `target_pages` (int, optional): Target report length in pages (default: 10)
 
 **Returns:**
 - `success` (bool): Whether operation succeeded
@@ -59,14 +62,23 @@ result = await tool({
 
 ## Workflow
 
-1. **Parallel Research** (3 searches in parallel):
-   - Fundamentals: "Colgate Palmolive fundamentals financial metrics"
-   - Technicals: "CL stock technical analysis price trends"
-   - Broker Reports: "Colgate Palmolive analyst reports ratings"
+1. **Comprehensive Parallel Research** (12 searches covering all aspects):
+   - Fundamentals & Financial Metrics
+   - Financial Statements & Annual Reports
+   - Valuation Analysis
+   - Business Model & Products
+   - Industry Analysis & Sector Trends
+   - Management & Corporate Governance
+   - Technical Analysis
+   - Broker Research & Analyst Reports
+   - Recent News & Developments
+   - Risks & Challenges
+   - Growth Prospects & Opportunities
+   - Dividend History & Policy
 
-2. **Combine Research**: Uses Claude CLI to synthesize research into structured markdown
+2. **AI Synthesis**: Uses Claude CLI to synthesize all research into comprehensive structured markdown (target: 10 pages)
 
-3. **Generate Markdown**: Writes formatted markdown file
+3. **Generate Markdown**: Writes detailed formatted markdown file
 
 4. **Convert to PDF**: Converts markdown to PDF
 
@@ -84,20 +96,41 @@ result = await tool({
 ## Example Output Structure
 
 ```markdown
-# Colgate Palmolive (CL) - Comprehensive Research Report
+# Colgate Palmolive India (COLPAL) - Comprehensive Research Report
 
 ## Executive Summary
-[Generated summary]
+[1-1.5 pages: Company overview, key highlights, investment thesis]
 
-## 1. Fundamentals Analysis
-[Financial metrics, business overview, competitive position]
+## Company Overview & Business Model
+[1-1.5 pages: History, segments, products, competitive advantages]
 
-## 2. Technical Analysis
-[Price trends, technical indicators, support/resistance levels]
+## Industry Analysis & Market Position
+[1 page: Industry trends, market size, competitive landscape]
 
-## 3. Broker Research & Analyst Reports
-[Analyst ratings, price targets, research highlights]
+## Financial Analysis
+[2 pages: Revenue, profitability, balance sheet, cash flow, ratios]
 
-## Conclusion
-[Summary and key takeaways]
+## Valuation Analysis
+[1-1.5 pages: Valuation metrics, peer comparison, intrinsic value]
+
+## Technical Analysis
+[1 page: Price trends, indicators, support/resistance, patterns]
+
+## Management & Corporate Governance
+[0.5-1 page: Management team, governance, ESG]
+
+## Broker Research & Analyst Coverage
+[1 page: Ratings, price targets, research highlights]
+
+## Risks & Challenges
+[1 page: Business risks, regulatory, competitive threats]
+
+## Growth Prospects & Investment Outlook
+[1 page: Growth drivers, expansion plans, opportunities]
+
+## Dividend Analysis
+[0.5 page: Dividend history, yield, sustainability]
+
+## Conclusion & Investment Recommendation
+[0.5-1 page: Key findings, thesis, recommendation]
 ```

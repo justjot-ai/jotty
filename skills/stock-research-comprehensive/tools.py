@@ -23,6 +23,8 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         params: Dictionary containing:
             - ticker (str, required): Stock ticker symbol
             - company_name (str, optional): Full company name
+            - country (str, optional): Country/Exchange (e.g., 'India', 'NSE', 'BSE')
+            - exchange (str, optional): Exchange name (e.g., 'NSE', 'BSE', 'NYSE')
             - output_dir (str, optional): Output directory
             - title (str, optional): Report title
             - author (str, optional): Report author
@@ -30,6 +32,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
             - telegram_chat_id (str, optional): Telegram chat ID
             - send_telegram (bool, optional): Send to Telegram
             - max_results_per_aspect (int, optional): Max results per research aspect
+            - target_pages (int, optional): Target report length in pages (default: 10)
     
     Returns:
         Dictionary with research results and file paths
@@ -45,13 +48,25 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
             }
         
         company_name = params.get('company_name', ticker)
+        country = params.get('country', '')
+        exchange = params.get('exchange', '')
         output_dir = params.get('output_dir', os.path.expanduser('~/jotty/reports'))
-        title = params.get('title', f'{company_name} ({ticker}) - Comprehensive Research Report')
+        
+        # Build title with country/exchange info
+        location_info = []
+        if country:
+            location_info.append(country)
+        if exchange:
+            location_info.append(exchange)
+        location_suffix = f" ({', '.join(location_info)})" if location_info else ""
+        
+        title = params.get('title', f'{company_name} ({ticker}){location_suffix} - Comprehensive Research Report')
         author = params.get('author', 'Jotty Stock Research')
         page_size = params.get('page_size', 'a4')
         telegram_chat_id = params.get('telegram_chat_id')
         send_telegram = params.get('send_telegram', True)
-        max_results = params.get('max_results_per_aspect', 10)
+        max_results = params.get('max_results_per_aspect', 15)
+        target_pages = params.get('target_pages', 10)
         
         logger.info(f"🔍 Starting comprehensive research for {company_name} ({ticker})")
         
@@ -72,8 +87,8 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
                 'error': 'Required skills not available: web-search, claude-cli-llm, file-operations, document-converter'
             }
         
-        # Step 1: Parallel research on three aspects
-        logger.info("📊 Step 1: Conducting parallel research...")
+        # Step 1: Comprehensive parallel research on multiple aspects
+        logger.info("📊 Step 1: Conducting comprehensive parallel research...")
         
         search_tool = web_search_skill.tools.get('search_web_tool')
         if not search_tool:
@@ -82,97 +97,220 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
                 'error': 'search_web_tool not found in web-search skill'
             }
         
-        # Prepare search queries
-        fundamentals_query = f"{company_name} {ticker} fundamentals financial metrics revenue earnings"
-        technicals_query = f"{ticker} stock technical analysis price trends indicators chart patterns"
-        broker_query = f"{company_name} {ticker} analyst reports ratings price target research"
+        # Build location context for searches
+        location_context = ""
+        if country:
+            location_context = f" {country}"
+        if exchange:
+            location_context += f" {exchange}"
+        
+        # Prepare comprehensive search queries covering all aspects
+        search_queries = {
+            'fundamentals': f"{company_name} {ticker}{location_context} fundamentals financial metrics revenue earnings profit margin ROE ROA debt equity",
+            'financial_statements': f"{company_name} {ticker}{location_context} financial statements balance sheet cash flow P&L annual report",
+            'valuation': f"{company_name} {ticker}{location_context} valuation P/E ratio P/B ratio EV/EBITDA DCF intrinsic value",
+            'business_model': f"{company_name} {ticker}{location_context} business model products services market share competitive advantage",
+            'industry_analysis': f"{company_name} {ticker}{location_context} industry analysis sector trends market size growth prospects",
+            'management': f"{company_name} {ticker}{location_context} management team CEO leadership corporate governance ESG",
+            'technicals': f"{company_name} {ticker}{location_context} technical analysis price trends indicators chart patterns support resistance",
+            'broker_reports': f"{company_name} {ticker}{location_context} analyst reports ratings price target research recommendations",
+            'news_sentiment': f"{company_name} {ticker}{location_context} recent news developments announcements quarterly results",
+            'risks': f"{company_name} {ticker}{location_context} risks challenges threats regulatory issues competition",
+            'growth_prospects': f"{company_name} {ticker}{location_context} growth prospects expansion plans new products market opportunities",
+            'dividend_history': f"{company_name} {ticker}{location_context} dividend history yield payout ratio dividend policy"
+        }
         
         # Execute searches in parallel
         async def run_search(query, aspect_name):
             """Run a search and return results."""
-            if inspect.iscoroutinefunction(search_tool):
-                result = await search_tool({'query': query, 'max_results': max_results})
-            else:
-                result = search_tool({'query': query, 'max_results': max_results})
-            
-            if result.get('success'):
-                logger.info(f"✅ {aspect_name} research: {result.get('count', 0)} results")
-            else:
-                logger.warning(f"⚠️  {aspect_name} research failed: {result.get('error')}")
-            
-            return result
+            try:
+                if inspect.iscoroutinefunction(search_tool):
+                    result = await search_tool({'query': query, 'max_results': max_results})
+                else:
+                    result = search_tool({'query': query, 'max_results': max_results})
+                
+                if result.get('success'):
+                    logger.info(f"✅ {aspect_name}: {result.get('count', 0)} results")
+                else:
+                    logger.warning(f"⚠️  {aspect_name} failed: {result.get('error')}")
+                
+                return result
+            except Exception as e:
+                logger.error(f"❌ {aspect_name} error: {e}")
+                return {'success': False, 'error': str(e), 'results': []}
         
         # Run all searches in parallel
-        fundamentals_result, technicals_result, broker_result = await asyncio.gather(
-            run_search(fundamentals_query, 'Fundamentals'),
-            run_search(technicals_query, 'Technicals'),
-            run_search(broker_query, 'Broker Reports'),
-            return_exceptions=True
-        )
+        logger.info(f"🔍 Running {len(search_queries)} parallel searches...")
+        search_tasks = [
+            run_search(query, aspect_name) 
+            for aspect_name, query in search_queries.items()
+        ]
         
-        # Handle exceptions
-        if isinstance(fundamentals_result, Exception):
-            fundamentals_result = {'success': False, 'error': str(fundamentals_result), 'results': []}
-        if isinstance(technicals_result, Exception):
-            technicals_result = {'success': False, 'error': str(technicals_result), 'results': []}
-        if isinstance(broker_result, Exception):
-            broker_result = {'success': False, 'error': str(broker_result), 'results': []}
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        
+        # Organize results by aspect
+        research_data = {}
+        for (aspect_name, _), result in zip(search_queries.items(), search_results):
+            if isinstance(result, Exception):
+                research_data[aspect_name] = {'success': False, 'error': str(result), 'results': []}
+            else:
+                research_data[aspect_name] = result
         
         # Step 2: Combine research using Claude CLI
-        logger.info("🤖 Step 2: Synthesizing research with Claude...")
+        logger.info("🤖 Step 2: Synthesizing comprehensive research with Claude...")
         
-        # Prepare research content for Claude
+        # Prepare comprehensive research content for Claude
         research_content = f"""
-# Research Data for {company_name} ({ticker})
+# Comprehensive Research Data for {company_name} ({ticker}){location_suffix}
 
-## Fundamentals Research
+## Company Information
+- **Ticker:** {ticker}
+- **Company:** {company_name}
+- **Location:** {country or 'Not specified'}{f' ({exchange})' if exchange else ''}
+- **Report Date:** {datetime.now().strftime('%Y-%m-%d')}
+
 """
         
-        if fundamentals_result.get('success') and fundamentals_result.get('results'):
-            for i, result in enumerate(fundamentals_result['results'][:5], 1):
-                research_content += f"\n### {i}. {result.get('title', 'Untitled')}\n"
-                research_content += f"**URL:** {result.get('url', '')}\n"
-                research_content += f"**Summary:** {result.get('snippet', 'No summary available')}\n\n"
-        else:
-            research_content += "\nNo fundamentals research results available.\n\n"
+        # Add all research aspects
+        aspect_titles = {
+            'fundamentals': 'Fundamentals & Financial Metrics',
+            'financial_statements': 'Financial Statements & Annual Reports',
+            'valuation': 'Valuation Analysis',
+            'business_model': 'Business Model & Products',
+            'industry_analysis': 'Industry Analysis & Sector Trends',
+            'management': 'Management & Corporate Governance',
+            'technicals': 'Technical Analysis',
+            'broker_reports': 'Broker Research & Analyst Reports',
+            'news_sentiment': 'Recent News & Developments',
+            'risks': 'Risks & Challenges',
+            'growth_prospects': 'Growth Prospects & Opportunities',
+            'dividend_history': 'Dividend History & Policy'
+        }
         
-        research_content += "\n## Technical Analysis Research\n"
+        for aspect_name, aspect_title in aspect_titles.items():
+            research_content += f"\n## {aspect_title}\n\n"
+            result = research_data.get(aspect_name, {})
+            
+            if result.get('success') and result.get('results'):
+                for i, res in enumerate(result['results'][:8], 1):  # Top 8 results per aspect
+                    research_content += f"### {i}. {res.get('title', 'Untitled')}\n"
+                    research_content += f"**URL:** {res.get('url', '')}\n"
+                    snippet = res.get('snippet', 'No summary available')
+                    if snippet:
+                        research_content += f"**Summary:** {snippet[:500]}\n\n"  # Limit snippet length
+                    else:
+                        research_content += "\n"
+            else:
+                research_content += f"No {aspect_title.lower()} research results available.\n\n"
         
-        if technicals_result.get('success') and technicals_result.get('results'):
-            for i, result in enumerate(technicals_result['results'][:5], 1):
-                research_content += f"\n### {i}. {result.get('title', 'Untitled')}\n"
-                research_content += f"**URL:** {result.get('url', '')}\n"
-                research_content += f"**Summary:** {result.get('snippet', 'No summary available')}\n\n"
-        else:
-            research_content += "\nNo technical analysis research results available.\n\n"
-        
-        research_content += "\n## Broker Research & Analyst Reports\n"
-        
-        if broker_result.get('success') and broker_result.get('results'):
-            for i, result in enumerate(broker_result['results'][:5], 1):
-                research_content += f"\n### {i}. {result.get('title', 'Untitled')}\n"
-                research_content += f"**URL:** {result.get('url', '')}\n"
-                research_content += f"**Summary:** {result.get('snippet', 'No summary available')}\n\n"
-        else:
-            research_content += "\nNo broker research results available.\n\n"
-        
-        # Generate comprehensive report using Claude
-        claude_prompt = f"""Create a comprehensive stock research report for {company_name} ({ticker}) based on the following research data.
+        # Generate comprehensive 10-page report using Claude
+        claude_prompt = f"""Create a comprehensive, detailed stock research report for {company_name} ({ticker}){location_suffix} based on the extensive research data provided below.
 
-The report should be well-structured markdown with the following sections:
+**IMPORTANT REQUIREMENTS:**
+- Target length: Approximately {target_pages} pages (when converted to PDF)
+- Be extremely thorough, detailed, and analytical
+- Include specific numbers, metrics, data points, and dates wherever available
+- Cover EVERY aspect comprehensively
+- Use professional financial analysis language
+- Structure the report with clear sections and subsections
 
-1. **Executive Summary** - Brief overview of the company and key findings
-2. **Fundamentals Analysis** - Financial metrics, business model, competitive position, growth prospects
-3. **Technical Analysis** - Price trends, technical indicators, support/resistance levels, chart patterns
-4. **Broker Research & Analyst Reports** - Analyst ratings, price targets, key research highlights
-5. **Conclusion** - Summary of key takeaways and investment considerations
+**REPORT STRUCTURE (Expand each section with detailed subsections):**
 
-Use the research data provided below. Be thorough, analytical, and professional. Include specific data points and metrics where available.
+1. **Executive Summary** (1-1.5 pages)
+   - Company overview and business description
+   - Key investment highlights
+   - Current stock price and market cap
+   - Quick snapshot of financials
+   - Investment thesis summary
 
-Research Data:
+2. **Company Overview & Business Model** (1-1.5 pages)
+   - Company history and background
+   - Business segments and product portfolio
+   - Geographic presence and market position
+   - Competitive advantages and moats
+   - Strategic initiatives
+
+3. **Industry Analysis & Market Position** (1 page)
+   - Industry overview and trends
+   - Market size and growth prospects
+   - Competitive landscape
+   - Industry challenges and opportunities
+   - Company's position within the industry
+
+4. **Financial Analysis** (2 pages)
+   - Revenue trends and growth drivers
+   - Profitability analysis (margins, ROE, ROA)
+   - Balance sheet strength
+   - Cash flow analysis
+   - Key financial ratios and comparisons
+   - Historical performance trends
+
+5. **Valuation Analysis** (1-1.5 pages)
+   - Current valuation metrics (P/E, P/B, EV/EBITDA)
+   - Peer comparison
+   - DCF analysis (if data available)
+   - Intrinsic value estimation
+   - Valuation conclusion
+
+6. **Technical Analysis** (1 page)
+   - Price trends and patterns
+   - Key support and resistance levels
+   - Technical indicators (RSI, MACD, Moving Averages)
+   - Chart patterns
+   - Trading recommendations
+
+7. **Management & Corporate Governance** (0.5-1 page)
+   - Management team overview
+   - Corporate governance practices
+   - ESG factors
+   - Management track record
+
+8. **Broker Research & Analyst Coverage** (1 page)
+   - Analyst ratings summary
+   - Consensus price targets
+   - Key research highlights from major brokers
+   - Analyst recommendations breakdown
+   - Recent upgrades/downgrades
+
+9. **Risks & Challenges** (1 page)
+   - Key business risks
+   - Regulatory risks
+   - Competitive threats
+   - Market risks
+   - Company-specific challenges
+
+10. **Growth Prospects & Investment Outlook** (1 page)
+    - Growth drivers and catalysts
+    - Expansion plans
+    - New product launches
+    - Market opportunities
+    - Future outlook
+
+11. **Dividend Analysis** (0.5 page)
+    - Dividend history
+    - Current yield
+    - Payout ratio
+    - Dividend sustainability
+
+12. **Conclusion & Investment Recommendation** (0.5-1 page)
+    - Summary of key findings
+    - Investment thesis
+    - Risk-reward assessment
+    - Target price (if applicable)
+    - Final recommendation
+
+**RESEARCH DATA:**
 {research_content}
 
-Generate the complete markdown report now:"""
+**INSTRUCTIONS:**
+- Write in a professional, analytical tone suitable for institutional investors
+- Include specific numbers, percentages, dates, and metrics from the research data
+- Use tables, bullet points, and structured formatting for clarity
+- Be comprehensive - aim for {target_pages} pages of detailed content
+- If certain data is missing, note it but still provide analysis based on available information
+- Ensure the report is thorough enough to serve as a complete investment research document
+
+Generate the complete, detailed markdown report now:"""
         
         generate_tool = claude_skill.tools.get('generate_text_tool')
         if not generate_tool:
@@ -181,18 +319,28 @@ Generate the complete markdown report now:"""
                 'error': 'generate_text_tool not found in claude-cli-llm skill'
             }
         
+        # Use longer timeout for comprehensive report generation (10 pages)
+        # Default timeout is 120s, but we need more for comprehensive reports
+        # Pass timeout directly - generate_text_tool now accepts it
         if inspect.iscoroutinefunction(generate_tool):
-            claude_result = await generate_tool({'prompt': claude_prompt, 'model': 'sonnet'})
+            claude_result = await generate_tool({
+                'prompt': claude_prompt,
+                'model': 'sonnet',
+                'timeout': 600  # 10 minutes for comprehensive report
+            })
         else:
-            claude_result = generate_tool({'prompt': claude_prompt, 'model': 'sonnet'})
+            claude_result = generate_tool({
+                'prompt': claude_prompt,
+                'model': 'sonnet',
+                'timeout': 600  # 10 minutes for comprehensive report
+            })
         
         if not claude_result.get('success'):
             return {
                 'success': False,
                 'error': f'Claude generation failed: {claude_result.get("error")}',
-                'fundamentals_research': fundamentals_result,
-                'technicals_research': technicals_result,
-                'broker_research': broker_result
+                'research_summary': {k: {'success': v.get('success'), 'count': v.get('count', 0)} 
+                                    for k, v in research_data.items()}
             }
         
         markdown_content = claude_result.get('text', '')
@@ -311,28 +459,28 @@ Generate the complete markdown report now:"""
                 else:
                     logger.warning(f"⚠️  Telegram send failed: {telegram_result.get('error')}")
         
+        # Prepare summary of research results
+        research_summary = {}
+        for aspect_name, result in research_data.items():
+            research_summary[aspect_name] = {
+                'success': result.get('success', False),
+                'count': result.get('count', 0),
+                'results': result.get('results', [])[:2]  # Top 2 for summary
+            }
+        
         return {
             'success': True,
             'ticker': ticker,
             'company_name': company_name,
+            'country': country,
+            'exchange': exchange,
             'md_path': str(md_path),
             'pdf_path': pdf_output_path,
-            'fundamentals_research': {
-                'success': fundamentals_result.get('success'),
-                'count': fundamentals_result.get('count', 0),
-                'results': fundamentals_result.get('results', [])[:3]  # First 3 for summary
-            },
-            'technicals_research': {
-                'success': technicals_result.get('success'),
-                'count': technicals_result.get('count', 0),
-                'results': technicals_result.get('results', [])[:3]
-            },
-            'broker_research': {
-                'success': broker_result.get('success'),
-                'count': broker_result.get('count', 0),
-                'results': broker_result.get('results', [])[:3]
-            },
-            'telegram_sent': telegram_sent
+            'research_summary': research_summary,
+            'total_research_aspects': len(search_queries),
+            'total_results': sum(r.get('count', 0) for r in research_data.values()),
+            'telegram_sent': telegram_sent,
+            'target_pages': target_pages
         }
         
     except Exception as e:

@@ -32,6 +32,8 @@ async def search_and_create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - max_results (int, optional): Maximum search results (default: 10)
             - summary_length (str, optional): 'brief', 'comprehensive', 'detailed' (default: 'comprehensive')
             - use_mcp_client (bool, optional): Use MCP client instead of HTTP API (default: True)
+            - userId (str, optional): Clerk user ID (default: 'user_mcp_client')
+            - author (str, optional): Author name (default: 'Jotty MCP Client')
     
     Returns:
         Dictionary with:
@@ -180,8 +182,8 @@ Provide the summary in markdown format with clear sections."""
                             'title': title or f"Research: {topic.title()}",
                             'description': description or f"Research and analysis on {topic}",
                             'tags': tags + ['research', 'ai-generated'],
-                            'userId': 'mcp-client-user',  # Required by MongoDB schema
-                            'author': 'Jotty MCP Client',
+                            'userId': params.get('userId') or 'user_mcp_client',  # Use provided userId or default
+                            'author': params.get('author') or 'Jotty MCP Client',
                             'sections': _create_sections_from_summary(summary_text, search_results)
                         })
                         if idea_result.get('success'):
@@ -200,8 +202,8 @@ Provide the summary in markdown format with clear sections."""
                         'title': title or f"Research: {topic.title()}",
                         'description': description or f"Research and analysis on {topic}",
                         'tags': tags + ['research', 'ai-generated'],
-                        'userId': 'mcp-client-user',  # Required by MongoDB schema
-                        'author': 'Jotty MCP Client',
+                        'userId': params.get('userId') or 'user_mcp_client',  # Use provided userId or default
+                        'author': params.get('author') or 'Jotty MCP Client',
                         'sections': _create_sections_from_summary(summary_text, search_results)
                     })
                     if idea_result.get('success'):

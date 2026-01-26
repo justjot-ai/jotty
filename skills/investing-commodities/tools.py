@@ -144,7 +144,7 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             
             commodities.append(commodity_data)
         
-        # Also try to extract from tables more systematically
+        # Extract from tables more systematically - this is the main source
         tables = soup.find_all('table')
         for table in tables:
             rows = table.find_all('tr')
@@ -152,33 +152,52 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 continue
             
             # Check if table contains commodity data
-            table_text = ' '.join([row.get_text() for row in rows[:3]]).lower()
-            if any(kw in table_text for kw_list in commodity_keywords.values() for kw in kw_list):
-                headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(['th', 'td'])]
+            table_text = ' '.join([row.get_text() for row in rows[:5]]).lower()
+            has_commodities = any(kw in table_text for kw_list in commodity_keywords.values() for kw in kw_list)
+            
+            if has_commodities:
+                # Get headers from first row
+                header_row = rows[0]
+                header_cells = header_row.find_all(['th', 'td'])
+                headers = [cell.get_text(strip=True).lower() for cell in header_cells]
                 
-                # Find column indices
+                # Find column indices - be more flexible
                 name_idx = None
                 last_idx = None
                 change_idx = None
                 change_pct_idx = None
                 
                 for i, header in enumerate(headers):
-                    if 'name' in header or 'commodity' in header:
+                    header_lower = header.lower().strip()
+                    if header_lower == '':
+                        continue  # Skip empty headers
+                    if ('name' in header_lower or 'commodity' in header_lower) and name_idx is None:
                         name_idx = i
-                    if 'last' in header:
+                    if 'last' in header_lower and last_idx is None:
                         last_idx = i
-                    if 'change' in header and '%' not in header:
+                    if (('change' in header_lower or 'chg' in header_lower) and '%' not in header_lower 
+                        and change_idx is None and header_lower not in ['chg.', 'change']):
+                        # Make sure it's not the percentage column
                         change_idx = i
-                    if 'change' in header and '%' in header or 'chg' in header and '%' in header:
+                    if (('change' in header_lower or 'chg' in header_lower) and '%' in header_lower) and change_pct_idx is None:
                         change_pct_idx = i
                 
+                # Debug: log what we found
+                logger.debug(f"Table headers: {headers}, name_idx={name_idx}, last_idx={last_idx}, change_idx={change_idx}, change_pct_idx={change_pct_idx}")
+                
+                # If we found a name column, extract data
                 if name_idx is not None:
                     for row in rows[1:]:
                         cells = row.find_all(['td', 'th'])
                         if len(cells) <= name_idx:
                             continue
                         
-                        name_cell = cells[name_idx]
+                        # Extract name - handle empty first column
+                        name_cell_idx = name_idx
+                        if name_cell_idx >= len(cells):
+                            continue
+                        
+                        name_cell = cells[name_cell_idx]
                         name_link = name_cell.find('a')
                         if name_link:
                             name = name_link.get_text(strip=True)
@@ -187,39 +206,148 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                             name = name_cell.get_text(strip=True)
                             href = ''
                         
+                        # Clean name - remove extra text
+                        if name:
+                            # Remove "derived" and other suffixes
+                            name = name.replace('derived', '').strip()
+                            # Remove extra whitespace
+                            name = ' '.join(name.split())
+                            # Take first line if multiline
+                            name = name.split('\n')[0].strip()
+                            # Remove leading/trailing special chars
+                            name = name.strip('•').strip()
+                        
                         if not name or len(name) < 2:
                             continue
                         
-                        # Skip if already added
+                        # Skip stock tickers
+                        if len(name) <= 5 and name.isupper() and not any(kw in name.lower() for kw_list in commodity_keywords.values() for kw in kw_list):
+                            continue
+                        
+                        # Extract price data FIRST (before duplicate check)
+                        last_price = 'N/A'
+                        change_val = 'N/A'
+                        change_pct_val = 'N/A'
+                        
+                        # Extract Last price
+                        if last_idx is not None and last_idx < len(cells):
+                            last_text = cells[last_idx].get_text(strip=True)
+                            # Clean up price - remove commas, check if it's a valid number
+                            if last_text and last_text != '—' and last_text != '':
+                                # Check if it looks like a price (has digits)
+                                if any(char.isdigit() for char in last_text):
+                                    last_price = last_text.replace(',', '')  # Keep formatting but remove commas for parsing
+                        
+                        # Extract Change
+                        if change_idx is not None and change_idx < len(cells):
+                            change_text = cells[change_idx].get_text(strip=True)
+                            if change_text and change_text != '—' and change_text != '':
+                                # Should start with + or - and contain digits
+                                if change_text.startswith(('+', '-')) and any(char.isdigit() for char in change_text):
+                                    change_val = change_text
+                        
+                        # Extract Change %
+                        if change_pct_idx is not None and change_pct_idx < len(cells):
+                            change_pct_text = cells[change_pct_idx].get_text(strip=True)
+                            if change_pct_text and change_pct_text != '—' and change_pct_text != '':
+                                if '%' in change_pct_text:
+                                    change_pct_val = change_pct_text
+                        
+                        # If we didn't get change_pct from dedicated column, try to find it in other cells
+                        if change_pct_val == 'N/A' and change_pct_idx is None:
+                            for i, cell in enumerate(cells):
+                                if i == name_idx or i == last_idx:
+                                    continue
+                                cell_text = cell.get_text(strip=True)
+                                if cell_text and '%' in cell_text and ('+' in cell_text or '-' in cell_text):
+                                    change_pct_val = cell_text
+                                    break
+                        
+                        # If we have change but not change_pct, try to calculate or find it
+                        if change_val != 'N/A' and change_pct_val == 'N/A':
+                            # Look for percentage in nearby cells
+                            for i in range(max(0, change_idx-1 if change_idx else 0), min(len(cells), (change_idx+3 if change_idx else len(cells)))):
+                                if i == name_idx:
+                                    continue
+                                cell_text = cells[i].get_text(strip=True)
+                                if cell_text and '%' in cell_text:
+                                    change_pct_val = cell_text
+                                    break
+                        
+                        # Check if already added - if so, update with price data instead of skipping
+                        existing_idx = None
+                        for idx, existing in enumerate(commodities):
+                            if existing.get('name', '').lower() == name.lower():
+                                existing_idx = idx
+                                break
+                        
+                        if existing_idx is not None:
+                            # Update existing entry with price data
+                            existing = commodities[existing_idx]
+                            # Only update if we have better data
+                            if last_price != 'N/A' and existing.get('last') == 'N/A':
+                                existing['last'] = last_price
+                            if change_val != 'N/A' and existing.get('change') == 'N/A':
+                                existing['change'] = change_val
+                            if change_pct_val != 'N/A' and existing.get('change_pct') == 'N/A':
+                                existing['change_pct'] = change_pct_val
+                            continue  # Skip adding duplicate
+                        
+                        # Skip if already seen (but not in commodities list)
                         if name.lower() in seen_commodities:
                             continue
                         
                         # Only add if it's a commodity
                         name_lower = name.lower()
-                        if not any(kw in name_lower for kw_list in commodity_keywords.values() for kw in kw_list):
+                        is_commodity = any(kw in name_lower for kw_list in commodity_keywords.values() for kw in kw_list)
+                        if not is_commodity:
                             if not href or '/commodities/' not in href.lower():
                                 continue
                         
                         seen_commodities.add(name.lower())
                         
-                        # Extract price data
+                        # Check if already added - if so, update with price data instead of skipping
+                        existing_idx = None
+                        for idx, existing in enumerate(commodities):
+                            if existing.get('name', '').lower() == name.lower():
+                                existing_idx = idx
+                                break
+                        
+                        if existing_idx is not None:
+                            # Update existing entry with price data
+                            existing = commodities[existing_idx]
+                            # Only update if we have better data
+                            if last_price != 'N/A' and existing.get('last') == 'N/A':
+                                existing['last'] = last_price
+                            if change_val != 'N/A' and existing.get('change') == 'N/A':
+                                existing['change'] = change_val
+                            if change_pct_val != 'N/A' and existing.get('change_pct') == 'N/A':
+                                existing['change_pct'] = change_pct_val
+                            continue  # Skip adding duplicate
+                        
+                        # Skip if already seen (but not in commodities list)
+                        if name.lower() in seen_commodities:
+                            continue
+                        
+                        seen_commodities.add(name.lower())
+                        
+                        # Determine category
+                        category = 'other'
+                        if any(kw in name_lower for kw in commodity_keywords['metals']):
+                            category = 'metals'
+                        elif any(kw in name_lower for kw in commodity_keywords['energy']):
+                            category = 'energy'
+                        elif any(kw in name_lower for kw in commodity_keywords['agriculture']):
+                            category = 'agriculture'
+                        
                         commodity_data = {
                             'name': name,
                             'url': href if href.startswith('http') else f"https://www.investing.com{href}" if href else '',
-                            'last': cells[last_idx].get_text(strip=True) if last_idx and last_idx < len(cells) else 'N/A',
-                            'change': cells[change_idx].get_text(strip=True) if change_idx and change_idx < len(cells) else 'N/A',
-                            'change_pct': cells[change_pct_idx].get_text(strip=True) if change_pct_idx and change_pct_idx < len(cells) else 'N/A',
+                            'last': last_price,
+                            'change': change_val,
+                            'change_pct': change_pct_val,
+                            'category': category
                         }
-                        
-                        # Determine category
-                        if any(kw in name_lower for kw in commodity_keywords['metals']):
-                            commodity_data['category'] = 'metals'
-                        elif any(kw in name_lower for kw in commodity_keywords['energy']):
-                            commodity_data['category'] = 'energy'
-                        elif any(kw in name_lower for kw in commodity_keywords['agriculture']):
-                            commodity_data['category'] = 'agriculture'
-                        else:
-                            commodity_data['category'] = 'other'
                         
                         commodities.append(commodity_data)
         
@@ -281,9 +409,6 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if output_format == 'json':
             formatted_output = json.dumps(commodities, indent=2)
         elif output_format == 'markdown':
-            formatted_output = f"# Commodities Prices\n\n"
-            formatted_output += f"*Fetched: {timestamp}*\n\n"
-            
             # Group by category
             by_category = {}
             for c in commodities:
@@ -292,23 +417,88 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     by_category[cat] = []
                 by_category[cat].append(c)
             
+            # Category emojis and headers
+            category_info = {
+                'energy': {'emoji': '⚡', 'title': 'Energy'},
+                'metals': {'emoji': '🥇', 'title': 'Metals'},
+                'agriculture': {'emoji': '🌾', 'title': 'Agriculture'},
+                'other': {'emoji': '📊', 'title': 'Other'}
+            }
+            
+            # Build formatted output
+            formatted_output = f"📈 *Commodities Prices*\n"
+            formatted_output += f"🕐 {timestamp}\n\n"
+            
+            # Summary stats
+            total_count = len(commodities)
+            up_count = sum(1 for c in commodities if c.get('change_pct', '').startswith('+'))
+            down_count = sum(1 for c in commodities if c.get('change_pct', '').startswith('-'))
+            
+            formatted_output += f"📊 *Summary:* {total_count} commodities | "
+            formatted_output += f"📈 {up_count} up | 📉 {down_count} down\n\n"
+            formatted_output += "─" * 40 + "\n\n"
+            
+            # Format each category
             for cat in ['energy', 'metals', 'agriculture', 'other']:
-                if cat in by_category:
-                    formatted_output += f"## {cat.title()}\n\n"
-                    formatted_output += "| Name | Last | Change | Change % |\n"
-                    formatted_output += "|------|------|--------|----------|\n"
+                if cat in by_category and by_category[cat]:
+                    info = category_info.get(cat, {'emoji': '📊', 'title': cat.title()})
+                    formatted_output += f"{info['emoji']} *{info['title']}*\n\n"
                     
-                    for c in by_category[cat]:
+                    # Sort by change % (highest first)
+                    sorted_commodities = sorted(
+                        by_category[cat],
+                        key=lambda x: (
+                            float(x.get('change_pct', '0%').replace('%', '').replace('+', '').replace('-', '') or 0)
+                            if x.get('change_pct', 'N/A') != 'N/A' and '%' in str(x.get('change_pct', ''))
+                            else -999
+                        ),
+                        reverse=True
+                    )
+                    
+                    # Format as clean list (better for Telegram)
+                    for c in sorted_commodities:
                         name = c.get('name', 'N/A')
                         last = c.get('last', 'N/A')
                         change = c.get('change', 'N/A')
                         change_pct = c.get('change_pct', 'N/A')
-                        formatted_output += f"| {name} | {last} | {change} | {change_pct} |\n"
-                    formatted_output += "\n"
+                        
+                        # Clean up values
+                        if last == 'N/A' or not last or last.strip() == '':
+                            last = '—'
+                        if change == 'N/A' or not change or change.strip() == '':
+                            change = '—'
+                        if change_pct == 'N/A' or not change_pct or change_pct.strip() == '':
+                            change_pct = '—'
+                        
+                        # Format change indicator
+                        if change_pct != '—' and change_pct != 'N/A':
+                            if change_pct.startswith('+'):
+                                indicator = '📈'
+                            elif change_pct.startswith('-'):
+                                indicator = '📉'
+                            else:
+                                indicator = '➡️'
+                        else:
+                            indicator = '➡️'
+                        
+                        # Format the line
+                        formatted_output += f"• *{name}*\n"
+                        formatted_output += f"  💵 {last}"
+                        if change != '—' and change != 'N/A':
+                            formatted_output += f" | {change}"
+                        if change_pct != '—' and change_pct != 'N/A':
+                            formatted_output += f" {indicator} {change_pct}"
+                        formatted_output += "\n\n"
+                    
+                    formatted_output += "─" * 40 + "\n\n"
         else:  # text
-            formatted_output = f"Commodities Prices (Fetched: {timestamp})\n\n"
+            formatted_output = f"📈 Commodities Prices\n"
+            formatted_output += f"🕐 {timestamp}\n\n"
             for c in commodities:
-                formatted_output += f"{c.get('name', 'N/A')}: {c.get('last', 'N/A')} ({c.get('change_pct', 'N/A')})\n"
+                name = c.get('name', 'N/A')
+                last = c.get('last', 'N/A')
+                change_pct = c.get('change_pct', 'N/A')
+                formatted_output += f"• {name}: {last} ({change_pct})\n"
         
         return {
             'success': True,
