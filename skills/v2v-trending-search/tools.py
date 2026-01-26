@@ -55,29 +55,70 @@ async def search_v2v_trending_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 'error': 'search_web_tool not found'
             }
         
-        # Search V2V.ai
-        search_query = f"site:v2v.ai {query}" if query != 'trending topics' else "site:v2v.ai trending"
+        # Search V2V.ai - try different search strategies
+        # V2V.ai might require authentication or have different URL structure
+        search_queries = [
+            f"site:v2v.ai {query}",
+            f"v2v.ai {query}",
+            f"{query} v2v",
+            f"site:v2v.ai trending" if query == 'trending topics' else f"site:v2v.ai {query}"
+        ]
+        
+        # Try first query, if no results try alternatives
+        search_query = search_queries[0]
         
         # Check if search_tool is async
         import inspect
-        if inspect.iscoroutinefunction(search_tool):
-            search_result = await search_tool({
-                'query': search_query,
-                'max_results': max_results
-            })
-        else:
-            search_result = search_tool({
-                'query': search_query,
-                'max_results': max_results
-            })
         
-        if not search_result.get('success'):
+        # Try multiple search queries if first one fails
+        results = []
+        search_result = None
+        
+        for attempt_query in search_queries:
+            if inspect.iscoroutinefunction(search_tool):
+                search_result = await search_tool({
+                    'query': attempt_query,
+                    'max_results': max_results
+                })
+            else:
+                search_result = search_tool({
+                    'query': attempt_query,
+                    'max_results': max_results
+                })
+            
+            if search_result.get('success'):
+                results = search_result.get('results', [])
+                if results:
+                    logger.info(f"✅ Found {len(results)} results with query: {attempt_query}")
+                    break
+            else:
+                logger.debug(f"Query '{attempt_query}' failed: {search_result.get('error')}")
+        
+        if not results:
+            # If no results, try general web search without site: restriction
+            logger.info("Trying general web search for V2V...")
+            if inspect.iscoroutinefunction(search_tool):
+                search_result = await search_tool({
+                    'query': f"v2v.ai {query}",
+                    'max_results': max_results
+                })
+            else:
+                search_result = search_tool({
+                    'query': f"v2v.ai {query}",
+                    'max_results': max_results
+                })
+            
+            if search_result.get('success'):
+                results = search_result.get('results', [])
+                # Filter to V2V.ai URLs
+                results = [r for r in results if 'v2v.ai' in r.get('url', '').lower()]
+        
+        if not results:
             return {
                 'success': False,
-                'error': f"Search failed: {search_result.get('error')}"
+                'error': f"No results found for V2V.ai search. V2V.ai may require authentication or the site structure may have changed.",
+                'hint': 'Try using last30days-claude-cli skill instead for research'
             }
-        
-        results = search_result.get('results', [])
         
         if output_format == 'json':
             return {
