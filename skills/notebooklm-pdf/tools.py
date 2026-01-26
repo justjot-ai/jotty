@@ -374,13 +374,24 @@ async def _fallback_pandoc(content: str, title: str, output_file: Path, params: 
                     spec.loader.exec_module(doc_converter_module)
                     convert_to_pdf_tool = doc_converter_module.convert_to_pdf_tool
                     
-                    result = await convert_to_pdf_tool({
-                        'input_file': tmp_path,
-                        'output_file': str(output_file),
-                        'title': title,
-                        'author': params.get('author', 'Jotty Framework'),
-                        'page_size': params.get('page_size', 'a4')
-                    })
+                    # Check if it's async or sync
+                    import inspect
+                    if inspect.iscoroutinefunction(convert_to_pdf_tool):
+                        result = await convert_to_pdf_tool({
+                            'input_file': tmp_path,
+                            'output_file': str(output_file),
+                            'title': title,
+                            'author': params.get('author', 'Jotty Framework'),
+                            'page_size': params.get('page_size', 'a4')
+                        })
+                    else:
+                        result = convert_to_pdf_tool({
+                            'input_file': tmp_path,
+                            'output_file': str(output_file),
+                            'title': title,
+                            'author': params.get('author', 'Jotty Framework'),
+                            'page_size': params.get('page_size', 'a4')
+                        })
                     
                     if result.get('success'):
                         return {
