@@ -183,7 +183,7 @@ Provide the summary in markdown format with clear sections."""
                             'title': title or f"Research: {topic.title()}",
                             'description': description or f"Research and analysis on {topic}",
                             'tags': tags + ['research', 'ai-generated'],
-                            'userId': params.get('userId') or 'user_mcp_client',  # Use provided userId or default
+                            'userId': params.get('userId') or '697765723425c87b977930b5',  # Use provided userId or default to setia.naveen@gmail.com
                             'author': params.get('author') or 'Jotty MCP Client',
                             'sections': _create_sections_from_summary(summary_text, search_results)
                         })
@@ -203,7 +203,7 @@ Provide the summary in markdown format with clear sections."""
                         'title': title or f"Research: {topic.title()}",
                         'description': description or f"Research and analysis on {topic}",
                         'tags': tags + ['research', 'ai-generated'],
-                        'userId': params.get('userId') or 'user_mcp_client',  # Use provided userId or default
+                        'userId': params.get('userId') or '697765723425c87b977930b5',  # Use provided userId or default to setia.naveen@gmail.com
                         'author': params.get('author') or 'Jotty MCP Client',
                         'sections': _create_sections_from_summary(summary_text, search_results)
                     })
