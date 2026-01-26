@@ -17,13 +17,13 @@ Complete workflow: Screener.in → Analysis → PDF → Telegram
 **Parameters:**
 - `symbols` (str or list, required): Company symbol(s) - e.g., "RELIANCE" or ["RELIANCE", "TCS"]
 - `analysis_type` (str, optional): Analysis type - 'comprehensive', 'quick', 'ratios_only', default: 'comprehensive'
-- `telegram_chat_id` (str, optional): Telegram chat ID (overrides TELEGRAM_CHAT_ID env var)
-- `telegram_token` (str, optional): Telegram bot token (overrides TELEGRAM_TOKEN env var)
+- `send_telegram` (bool, optional): Send to Telegram (default: True)
+- `telegram_chat_id` (str, optional): Telegram chat ID (uses TELEGRAM_CHAT_ID env var if not provided)
 - `output_dir` (str, optional): Output directory for PDF, default: './output'
 - `title` (str, optional): Custom PDF title
 - `use_proxy` (bool, optional): Use proxy for screener.in, default: True
 
-**Note:** Telegram credentials are automatically read from environment variables (`TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID`) if not provided. The skill will attempt to send to Telegram if credentials are available.
+**Note:** Uses the same Telegram credentials pattern as other Jotty skills. The `telegram-sender` skill automatically reads `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID` from environment variables if not provided as parameters.
 
 **Returns:**
 - `success` (bool): Whether workflow succeeded

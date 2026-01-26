@@ -25,7 +25,8 @@ class MCPClient:
     def __init__(
         self,
         server_path: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None
+        env: Optional[Dict[str, str]] = None,
+        mongodb_uri: Optional[str] = None
     ):
         """
         Initialize MCP client.
@@ -33,9 +34,26 @@ class MCPClient:
         Args:
             server_path: Path to MCP server script (default: auto-detect)
             env: Environment variables for server process
+            mongodb_uri: MongoDB connection string (default: from env or localhost)
         """
         self.server_path = server_path or self._find_server_path()
-        self.env = env or {}
+        
+        # Prepare environment - include MongoDB URI
+        self.env = env.copy() if env else {}
+        
+        # Set MongoDB URI (priority: parameter > env var > default)
+        if mongodb_uri:
+            self.env['MONGODB_URI'] = mongodb_uri
+        elif 'MONGODB_URI' not in self.env:
+            # Try to get from environment or use default
+            self.env['MONGODB_URI'] = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/justjot')
+        
+        # Include Clerk secret if available
+        if 'CLERK_SECRET_KEY' not in self.env:
+            clerk_key = os.getenv('CLERK_SECRET_KEY')
+            if clerk_key:
+                self.env['CLERK_SECRET_KEY'] = clerk_key
+        
         self.process: Optional[subprocess.Popen] = None
         self.request_id = 0
         self.pending_requests: Dict[int, asyncio.Future] = {}
