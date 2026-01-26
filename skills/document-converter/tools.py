@@ -58,6 +58,7 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         pandoc_size = page_size_map.get(page_size, 'a4paper')
         
         # Build pandoc command - use geometry package with proper syntax
+        # Add wrapping and formatting options for better PDF rendering
         cmd = [
             'pandoc',
             str(input_path),
@@ -65,8 +66,19 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             '--pdf-engine=xelatex',
             '--standalone',  # Generate standalone document
             '-V', f'geometry:{pandoc_size},margin=1in',
-            '-V', 'fontsize=11pt'  # Ensure readable font size
+            '-V', 'fontsize=11pt',  # Ensure readable font size
+            '-V', 'linestretch=1.15',  # Better line spacing (1.15 = 15% extra)
+            '-V', 'urlcolor=blue',  # Make URLs blue
+            '-V', 'linkcolor=blue',  # Make links blue
+            '--toc',  # Add table of contents
+            '--toc-depth=3',  # TOC depth
+            '--highlight-style=tango',  # Code highlighting style
+            '-V', 'colorlinks=true',  # Colored links
+            '-V', 'breakurl=true',  # Break long URLs
         ]
+        
+        # Add URL wrapping support via geometry package
+        # Pandoc will automatically wrap text, but we ensure URLs break properly
         
         # Add metadata
         title = params.get('title')

@@ -86,7 +86,12 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         research_content = research_result.get('output', '')
         
         # Step 2: Create markdown file
-        output_dir = Path(params.get('output_dir', str(Path.home() / 'jotty' / 'reports')))
+        # Default to stock_market/outputs, fallback to ~/jotty/reports
+        default_output = Path(__file__).parent.parent.parent.parent / 'outputs'
+        if not default_output.exists():
+            default_output = Path.home() / 'jotty' / 'reports'
+        
+        output_dir = Path(params.get('output_dir', str(default_output)))
         output_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -96,6 +101,9 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Generate report title
         report_title = params.get('title', f'{topic.title()} Research Report')
         author = params.get('author', 'Jotty Framework')
+        
+        # Format research content with proper wrapping
+        formatted_content = _format_markdown_for_pdf(research_content)
         
         # Create comprehensive markdown report
         report_content = f"""# {report_title}
@@ -107,7 +115,7 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 ---
 
-{research_content}
+{formatted_content}
 
 ---
 
@@ -173,5 +181,135 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'success': False,
             'error': str(e)
         }
+
+def _format_markdown_for_pdf(content: str) -> str:
+    """
+    Format markdown content for better PDF rendering.
+    
+    Handles:
+    - Long lines wrapping (Pandoc handles this, but we format URLs and lists better)
+    - URL formatting with proper line breaks
+    - List formatting
+    - Code blocks
+    - Better paragraph separation
+    """
+    import textwrap
+    
+    lines = content.split('\n')
+    formatted_lines = []
+    in_code_block = False
+    in_list = False
+    
+    for i, line in enumerate(lines):
+        original_line = line
+        stripped = line.strip()
+        
+        # Track code blocks
+        if stripped.startswith('```'):
+            in_code_block = not in_code_block
+            formatted_lines.append(line)
+            continue
+        
+        # Inside code blocks - preserve exactly
+        if in_code_block:
+            formatted_lines.append(line)
+            continue
+        
+        # Empty lines - preserve
+        if not stripped:
+            formatted_lines.append('')
+            in_list = False
+            continue
+        
+        # Headers - keep as is
+        if stripped.startswith('#'):
+            formatted_lines.append(line)
+            in_list = False
+            continue
+        
+        # Horizontal rules
+        if stripped.startswith('---') or stripped.startswith('***'):
+            formatted_lines.append(line)
+            in_list = False
+            continue
+        
+        # Lists - format better
+        if stripped.startswith(('-', '*', '+', '1.', '2.', '3.', '4.', '5.')):
+            in_list = True
+            # Extract list marker and content
+            marker_match = None
+            for marker in ['- ', '* ', '+ ', '1. ', '2. ', '3. ', '4. ', '5. ']:
+                if stripped.startswith(marker):
+                    marker_match = marker
+                    break
+            
+            if marker_match:
+                content_part = stripped[len(marker_match):].strip()
+                # Wrap long list items
+                if len(content_part) > 75:
+                    wrapped = textwrap.wrap(content_part, width=75, 
+                                           initial_indent='  ', 
+                                           subsequent_indent='  ')
+                    formatted_lines.append(f"{marker_match}{wrapped[0]}")
+                    for wrap_line in wrapped[1:]:
+                        formatted_lines.append(wrap_line)
+                else:
+                    formatted_lines.append(line)
+            else:
+                formatted_lines.append(line)
+            continue
+        
+        # URLs on their own line - format better
+        if stripped.startswith('http://') or stripped.startswith('https://'):
+            # Long URLs - break them if needed
+            if len(stripped) > 100:
+                # Try to break at path segments
+                url_parts = stripped.split('/')
+                if len(url_parts) > 3:
+                    base = '/'.join(url_parts[:3])
+                    path = '/'.join(url_parts[3:])
+                    formatted_lines.append(base)
+                    formatted_lines.append('  ' + path)
+                else:
+                    formatted_lines.append(line)
+            else:
+                formatted_lines.append(line)
+            continue
+        
+        # Lines with URLs in them - format better
+        if 'http' in line and ('**URL:**' in line or 'URL:' in line):
+            # Format URL lines
+            if '**URL:**' in line:
+                parts = line.split('**URL:**')
+                if len(parts) == 2:
+                    formatted_lines.append(parts[0] + '**URL:**')
+                    url_part = parts[1].strip()
+                    if len(url_part) > 90:
+                        # Wrap long URLs
+                        wrapped = textwrap.wrap(url_part, width=90, 
+                                              initial_indent='  ',
+                                              subsequent_indent='  ')
+                        formatted_lines.extend(wrapped)
+                    else:
+                        formatted_lines.append('  ' + url_part)
+                else:
+                    formatted_lines.append(line)
+            else:
+                formatted_lines.append(line)
+            continue
+        
+        # Regular paragraphs - wrap for better readability
+        # Pandoc will handle wrapping, but we can format long paragraphs
+        if len(stripped) > 100 and not in_list:
+            # Wrap long paragraphs (but preserve structure)
+            wrapped = textwrap.wrap(stripped, width=100, 
+                                  break_long_words=False,
+                                  break_on_hyphens=False)
+            formatted_lines.extend(wrapped)
+        else:
+            formatted_lines.append(line)
+    
+    return '\n'.join(formatted_lines)
+
 
 __all__ = ['research_to_pdf_tool']
