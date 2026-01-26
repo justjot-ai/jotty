@@ -30,9 +30,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from skills.oauth_automation.tools import oauth_login_tool
 except ImportError:
-    print("❌ Could not import oauth_automation skill")
-    print("Make sure you're running from the Jotty directory")
-    sys.exit(1)
+    # Try direct import
+    try:
+        import importlib.util
+        skill_path = Path(__file__).parent.parent / 'skills' / 'oauth-automation' / 'tools.py'
+        if skill_path.exists():
+            spec = importlib.util.spec_from_file_location("oauth_tools", skill_path)
+            if spec and spec.loader:
+                oauth_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(oauth_module)
+                oauth_login_tool = oauth_module.oauth_login_tool
+            else:
+                raise ImportError("Could not load oauth module")
+        else:
+            raise ImportError(f"Skill file not found: {skill_path}")
+    except Exception as e:
+        print(f"❌ Could not import oauth_automation skill: {e}")
+        print("Make sure you're running from the Jotty directory")
+        sys.exit(1)
 
 
 async def main():
