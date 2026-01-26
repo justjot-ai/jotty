@@ -100,9 +100,16 @@ async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 pass
         
         # Handle different response formats
+        idea = {}
+        idea_id = None
+        
         if isinstance(data, dict):
-            # Check if it's already parsed JSON
-            if 'id' in data or '_id' in data:
+            # Check if it's already parsed JSON with id
+            if 'id' in data:
+                idea_id = data['id']
+                idea = data
+            elif '_id' in data:
+                idea_id = data['_id']
                 idea = data
             elif 'content' in data:
                 # MCP format with content array
@@ -110,9 +117,23 @@ async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 if isinstance(content, list) and len(content) > 0:
                     text_content = content[0].get('text', '')
                     try:
-                        idea = json.loads(text_content)
+                        parsed = json.loads(text_content)
+                        idea = parsed
+                        idea_id = parsed.get('_id') or parsed.get('id')
                     except:
-                        idea = {'id': None, 'text': text_content}
+                        # Try to extract ID from text if it's a JSON string
+                        if 'id' in text_content or '_id' in text_content:
+                            try:
+                                # Look for JSON-like structure in text
+                                import re
+                                id_match = re.search(r'"id"\s*:\s*"([^"]+)"', text_content)
+                                if not id_match:
+                                    id_match = re.search(r'"_id"\s*:\s*"([^"]+)"', text_content)
+                                if id_match:
+                                    idea_id = id_match.group(1)
+                            except:
+                                pass
+                        idea = {'id': idea_id, 'text': text_content}
                 else:
                     idea = data
             else:
@@ -123,7 +144,7 @@ async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {
             'success': True,
             'idea': idea,
-            'id': idea.get('_id') or idea.get('id')
+            'id': idea_id or idea.get('_id') or idea.get('id')
         }
     else:
         return result
