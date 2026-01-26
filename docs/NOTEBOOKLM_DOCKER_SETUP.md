@@ -8,26 +8,29 @@ For Docker environments without a display, NotebookLM authentication requires sp
 
 ### Step 1: Authenticate Outside Docker
 
-On a machine with a display, authenticate once:
+On a machine with a display, use the standalone authentication script:
 
 ```bash
 # On your local machine (with display)
 cd /var/www/sites/personal/stock_market/Jotty
-python3 << 'EOF'
-import asyncio
-from skills.notebooklm_pdf.tools import notebooklm_pdf_tool
 
-async def authenticate():
-    result = await notebooklm_pdf_tool({
-        'content': '# Test\n\nTest',
-        'title': 'Auth Test',
-        'headless': False,  # Show browser
-        'user_data_dir': '/tmp/notebooklm_auth'  # Custom location
-    })
-    print("Authentication complete! Profile saved to /tmp/notebooklm_auth")
+# Install Playwright if not already installed
+pip install playwright
+playwright install chromium
 
-asyncio.run(authenticate())
-EOF
+# Run authentication script
+python3 scripts/auth_notebooklm.py --profile-dir /tmp/notebooklm_profile
+```
+
+The script will:
+1. Open a browser window
+2. Navigate to NotebookLM
+3. Wait for you to sign in manually
+4. Save the authenticated browser profile
+
+**Alternative**: Use default location (`~/.notebooklm_browser`):
+```bash
+python3 scripts/auth_notebooklm.py
 ```
 
 ### Step 2: Copy Profile to Docker Host
@@ -59,33 +62,25 @@ docker run -v /path/to/notebooklm_profile:/app/.notebooklm_browser \
 
 ## Method 2: Using Cookies (Alternative)
 
-### Step 1: Extract Cookies from Browser
+### Step 1: Extract Cookies from Browser Profile
 
-On a machine with a display, extract cookies after signing in:
+After authenticating (using `auth_notebooklm.py`), extract cookies:
 
-```python
-# extract_cookies.py
-from playwright.sync_api import sync_playwright
-import json
-
-with sync_playwright() as p:
-    browser = p.chromium.launch_persistent_context(
-        user_data_dir='/tmp/notebooklm_auth',
-        headless=False
-    )
-    page = browser.pages[0]
-    page.goto('https://notebooklm.google.com')
-    input("Sign in, then press Enter...")
-    
-    cookies = page.context.cookies()
-    print(json.dumps(cookies, indent=2))
-    
-    # Save to file
-    with open('notebooklm_cookies.json', 'w') as f:
-        json.dump(cookies, f, indent=2)
-    
-    browser.close()
+```bash
+# Extract cookies from authenticated profile
+python3 scripts/extract_notebooklm_cookies.py --profile-dir /tmp/notebooklm_profile
 ```
+
+Or use default profile location:
+```bash
+python3 scripts/extract_notebooklm_cookies.py
+```
+
+This will:
+1. Load the authenticated browser profile
+2. Extract cookies
+3. Save to `cookies.json`
+4. Show Docker environment variable command
 
 ### Step 2: Use Cookies in Docker
 
