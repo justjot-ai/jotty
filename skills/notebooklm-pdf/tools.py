@@ -10,13 +10,39 @@ Supports multiple methods:
 import asyncio
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import json
 import tempfile
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+
+def _load_cookies_from_env() -> Optional[List[Dict[str, Any]]]:
+    """
+    Load cookies from environment variable for Docker/headless authentication.
+    
+    Cookies should be provided as JSON string in NOTEBOOKLM_COOKIES env var.
+    Format: [{"name": "cookie_name", "value": "cookie_value", "domain": ".google.com", ...}, ...]
+    """
+    cookies_json = os.getenv('NOTEBOOKLM_COOKIES')
+    if not cookies_json:
+        return None
+    
+    try:
+        import json
+        cookies = json.loads(cookies_json)
+        # Ensure cookies have required fields
+        for cookie in cookies:
+            if 'domain' not in cookie:
+                cookie['domain'] = '.google.com'
+            if 'path' not in cookie:
+                cookie['path'] = '/'
+        return cookies
+    except Exception as e:
+        logger.warning(f"Failed to parse cookies from environment: {e}")
+        return None
 
 
 async def notebooklm_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -163,12 +189,30 @@ async def _try_browser_automation(content: str, title: str, output_file: Path, p
             return {'success': False, 'error': 'Playwright not available. Install with: pip install playwright && playwright install'}
         
         # Check for user data directory (for persistent login)
+        # In Docker, mount a pre-authenticated browser profile
         user_data_dir = params.get('user_data_dir') or os.getenv('NOTEBOOKLM_USER_DATA_DIR')
         if not user_data_dir:
             # Use default location
             user_data_dir = str(Path.home() / '.notebooklm_browser')
         
-        headless_mode = params.get('headless', True)  # Default to headless, but allow override
+        # In Docker/headless environments, always use headless=True
+        # But check if we have an authenticated profile
+        headless_mode = params.get('headless', True)
+        
+        # Check if we're in Docker or headless environment
+        is_docker = os.path.exists('/.dockerenv') or os.getenv('DOCKER_CONTAINER') == 'true'
+        if is_docker:
+            headless_mode = True
+            logger.info("Docker environment detected, using headless mode")
+        
+        # Check if authenticated profile exists
+        profile_exists = Path(user_data_dir).exists()
+        if not profile_exists and headless_mode:
+            logger.warning(f"Browser profile not found at {user_data_dir}")
+            logger.info("For Docker/headless environments, you need to:")
+            logger.info("1. Authenticate outside Docker and copy the browser profile")
+            logger.info("2. Mount the profile directory as a volume")
+            logger.info("3. Set NOTEBOOKLM_USER_DATA_DIR environment variable")
         
         # Create temporary markdown file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp_file:
@@ -219,15 +263,39 @@ async def _try_browser_automation(content: str, title: str, output_file: Path, p
                 
                 if needs_sign_in:
                     if headless_mode:
+                        # In Docker/headless mode, check for alternative auth methods
                         logger.warning("NotebookLM requires sign-in, but browser is in headless mode.")
-                        logger.info("Please run with headless=False or sign in manually first.")
-                        logger.info("Setting NOTEBOOKLM_USER_DATA_DIR will persist your login.")
-                        await browser.close()
-                        return {
-                            'success': False,
-                            'error': 'NotebookLM requires sign-in. Run with headless=False or sign in manually first.',
-                            'hint': 'Set headless=False in params or sign in manually to persist session'
-                        }
+                        
+                        # Try to use cookies if provided
+                        cookies = params.get('cookies') or _load_cookies_from_env()
+                        if cookies:
+                            logger.info("Attempting to use provided cookies for authentication...")
+                            await page.context.add_cookies(cookies)
+                            await page.reload()
+                            await page.wait_for_timeout(3000)
+                            # Check again if still needs sign in
+                            needs_sign_in = False
+                            for selector in sign_in_selectors:
+                                try:
+                                    sign_in_element = await page.query_selector(selector)
+                                    if sign_in_element and await sign_in_element.is_visible():
+                                        needs_sign_in = True
+                                        break
+                                except:
+                                    continue
+                        
+                        if needs_sign_in:
+                            await browser.close()
+                            return {
+                                'success': False,
+                                'error': 'NotebookLM requires sign-in, but headless mode prevents manual sign-in.',
+                                'hint': 'For Docker/headless environments:\n'
+                                       '1. Authenticate outside Docker and copy browser profile\n'
+                                       '2. Mount profile as volume: -v /host/profile:/app/.notebooklm_browser\n'
+                                       '3. Set NOTEBOOKLM_USER_DATA_DIR=/app/.notebooklm_browser\n'
+                                       '4. Or provide cookies via NOTEBOOKLM_COOKIES env var',
+                                'docker_setup': True
+                            }
                     else:
                         logger.warning("NotebookLM requires sign-in.")
                         logger.info("Please sign in manually in the browser window, then press Enter to continue...")
