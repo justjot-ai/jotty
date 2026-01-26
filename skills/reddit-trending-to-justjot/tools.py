@@ -172,55 +172,107 @@ async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, A
         
         # Step 3: Sink - Create JustJot idea
         logger.info("💡 Step 3: Creating JustJot idea...")
-        mcp_skill = registry.get_skill('mcp-justjot')
-        if not mcp_skill:
-            return {
-                'success': False,
-                'error': 'mcp-justjot skill not available'
-            }
         
-        create_idea_tool = mcp_skill.tools.get('create_idea_tool')
-        if not create_idea_tool:
-            return {
-                'success': False,
-                'error': 'create_idea_tool not found'
-            }
+        # Try MCP client first (local), fallback to HTTP API (cmd.dev)
+        use_mcp_client = params.get('use_mcp_client', True)
+        idea_result = None
         
-        # Generate idea title
-        title = params.get('title', f'Reddit Trends: {topic}')
-        description = params.get('description', f'Reddit trending topics about {topic}')
+        if use_mcp_client:
+            try:
+                from core.integration.mcp_client import MCPClient
+                from pathlib import Path
+                
+                server_path = "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js"
+                if Path(server_path).exists():
+                    logger.info("Using MCP client (stdio transport)...")
+                    
+                    # Generate idea title
+                    title = params.get('title', f'Reddit Trends: {topic}')
+                    description = params.get('description', f'Reddit trending topics about {topic}')
+                    
+                    async with MCPClient(server_path=server_path) as client:
+                        mcp_result = await client.call_tool("create_idea", {
+                            "title": title,
+                            "description": description,
+                            "tags": params.get('tags', ['reddit', 'trending', topic.lower()]),
+                            "sections": [
+                                {
+                                    "title": "Reddit Trending Posts",
+                                    "content": markdown_content,
+                                    "type": "text"
+                                }
+                            ],
+                            "status": "Draft"
+                        })
+                        
+                        if mcp_result.get('isError'):
+                            raise Exception(mcp_result.get('content', 'MCP error'))
+                        
+                        idea_data = mcp_result.get('content', {})
+                        idea_result = {
+                            'success': True,
+                            'idea': idea_data,
+                            'id': idea_data.get('_id') or idea_data.get('id')
+                        }
+                else:
+                    logger.info("MCP server not found, falling back to HTTP API...")
+                    use_mcp_client = False
+            except Exception as e:
+                logger.warning(f"MCP client failed: {e}, falling back to HTTP API...")
+                use_mcp_client = False
         
-        # Create idea with markdown content as first section
-        if inspect.iscoroutinefunction(create_idea_tool):
-            idea_result = await create_idea_tool({
-                'title': title,
-                'description': description,
-                'tags': params.get('tags', ['reddit', 'trending', topic.lower()]),
-                'sections': [
-                    {
-                        'title': 'Reddit Trending Posts',
-                        'content': markdown_content,
-                        'type': 'text'  # Markdown text section
-                    }
-                ],
-                'templateName': 'default',
-                'status': 'Draft'
-            })
-        else:
-            idea_result = create_idea_tool({
-                'title': title,
-                'description': description,
-                'tags': params.get('tags', ['reddit', 'trending', topic.lower()]),
-                'sections': [
-                    {
-                        'title': 'Reddit Trending Posts',
-                        'content': markdown_content,
-                        'type': 'text'
-                    }
-                ],
-                'templateName': 'default',
-                'status': 'Draft'
-            })
+        # Fallback to HTTP API
+        if not use_mcp_client or not idea_result:
+            logger.info("Using HTTP API...")
+            mcp_skill = registry.get_skill('mcp-justjot')
+            if not mcp_skill:
+                return {
+                    'success': False,
+                    'error': 'mcp-justjot skill not available'
+                }
+            
+            create_idea_tool = mcp_skill.tools.get('create_idea_tool')
+            if not create_idea_tool:
+                return {
+                    'success': False,
+                    'error': 'create_idea_tool not found'
+                }
+            
+            # Generate idea title
+            title = params.get('title', f'Reddit Trends: {topic}')
+            description = params.get('description', f'Reddit trending topics about {topic}')
+            
+            # Create idea with markdown content as first section
+            if inspect.iscoroutinefunction(create_idea_tool):
+                idea_result = await create_idea_tool({
+                    'title': title,
+                    'description': description,
+                    'tags': params.get('tags', ['reddit', 'trending', topic.lower()]),
+                    'sections': [
+                        {
+                            'title': 'Reddit Trending Posts',
+                            'content': markdown_content,
+                            'type': 'text'  # Markdown text section
+                        }
+                    ],
+                    'templateName': 'default',
+                    'status': 'Draft'
+                })
+            else:
+                idea_result = create_idea_tool({
+                    'title': title,
+                    'description': description,
+                    'tags': params.get('tags', ['reddit', 'trending', topic.lower()]),
+                    'sections': [
+                        {
+                            'title': 'Reddit Trending Posts',
+                            'content': markdown_content,
+                            'type': 'text'
+                        }
+                    ],
+                    'templateName': 'default',
+                    'status': 'Draft'
+                })
         
         if not idea_result.get('success'):
             return {

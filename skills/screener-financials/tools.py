@@ -453,29 +453,35 @@ def _extract_pl_data(soup: BeautifulSoup) -> Dict[str, Any]:
     """Extract Profit & Loss data from soup."""
     pl_data = {}
     
-    # Look for P&L table
-    # Screener.in uses specific class names - adjust based on actual HTML structure
-    tables = soup.find_all('table', class_=re.compile(r'data-table|financial|pl', re.I))
+    # Screener.in uses tables with class "data-table responsive-text-nowrap"
+    # P&L tables typically contain "Sales", "Expenses", "Operating Profit", etc.
+    tables = soup.find_all('table', class_='data-table')
     
     for table in tables:
-        headers = []
-        rows = []
+        # Check if this is a P&L table by looking for P&L keywords
+        table_text = table.get_text().lower()
+        pl_keywords = ['sales', 'revenue', 'expenses', 'operating profit', 'net profit', 'ebitda']
         
-        # Extract headers
-        header_row = table.find('thead')
-        if header_row:
-            headers = [th.get_text(strip=True) for th in header_row.find_all('th')]
-        
-        # Extract rows
-        for tr in table.find_all('tr'):
-            cells = [td.get_text(strip=True) for td in tr.find_all('td')]
-            if cells:
-                rows.append(cells)
-        
-        if headers and rows:
-            pl_data['headers'] = headers
-            pl_data['rows'] = rows
-            break
+        if any(keyword in table_text for keyword in pl_keywords):
+            headers = []
+            rows = []
+            
+            # Extract headers from thead
+            thead = table.find('thead')
+            if thead:
+                headers = [th.get_text(strip=True) for th in thead.find_all(['th', 'td'])]
+            
+            # Extract data rows (skip header row if no thead)
+            tbody = table.find('tbody') or table
+            for tr in tbody.find_all('tr'):
+                cells = [td.get_text(strip=True) for td in tr.find_all(['td', 'th'])]
+                if cells and len(cells) > 1:  # Skip empty rows
+                    rows.append(cells)
+            
+            if headers and rows:
+                pl_data['headers'] = headers
+                pl_data['rows'] = rows
+                break  # Found P&L table
     
     return pl_data
 
@@ -484,26 +490,31 @@ def _extract_balance_sheet_data(soup: BeautifulSoup) -> Dict[str, Any]:
     """Extract Balance Sheet data from soup."""
     bs_data = {}
     
-    # Similar to P&L extraction
-    tables = soup.find_all('table', class_=re.compile(r'data-table|financial|balance', re.I))
+    # Balance Sheet tables contain keywords like "Equity", "Assets", "Liabilities", "Borrowings"
+    tables = soup.find_all('table', class_='data-table')
     
     for table in tables:
-        headers = []
-        rows = []
+        table_text = table.get_text().lower()
+        bs_keywords = ['equity capital', 'reserves', 'borrowings', 'assets', 'liabilities', 'share capital']
         
-        header_row = table.find('thead')
-        if header_row:
-            headers = [th.get_text(strip=True) for th in header_row.find_all('th')]
-        
-        for tr in table.find_all('tr'):
-            cells = [td.get_text(strip=True) for td in tr.find_all('td')]
-            if cells:
-                rows.append(cells)
-        
-        if headers and rows:
-            bs_data['headers'] = headers
-            bs_data['rows'] = rows
-            break
+        if any(keyword in table_text for keyword in bs_keywords):
+            headers = []
+            rows = []
+            
+            thead = table.find('thead')
+            if thead:
+                headers = [th.get_text(strip=True) for th in thead.find_all(['th', 'td'])]
+            
+            tbody = table.find('tbody') or table
+            for tr in tbody.find_all('tr'):
+                cells = [td.get_text(strip=True) for td in tr.find_all(['td', 'th'])]
+                if cells and len(cells) > 1:
+                    rows.append(cells)
+            
+            if headers and rows:
+                bs_data['headers'] = headers
+                bs_data['rows'] = rows
+                break  # Found Balance Sheet table
     
     return bs_data
 
@@ -512,44 +523,75 @@ def _extract_cash_flow_data(soup: BeautifulSoup) -> Dict[str, Any]:
     """Extract Cash Flow data from soup."""
     cf_data = {}
     
-    tables = soup.find_all('table', class_=re.compile(r'data-table|financial|cash', re.I))
+    # Cash Flow tables contain keywords like "Operating", "Investing", "Financing", "Cash"
+    tables = soup.find_all('table', class_='data-table')
     
     for table in tables:
-        headers = []
-        rows = []
+        table_text = table.get_text().lower()
+        cf_keywords = ['operating activities', 'investing activities', 'financing activities', 'cash flow', 'net cash']
         
-        header_row = table.find('thead')
-        if header_row:
-            headers = [th.get_text(strip=True) for th in header_row.find_all('th')]
-        
-        for tr in table.find_all('tr'):
-            cells = [td.get_text(strip=True) for td in tr.find_all('td')]
-            if cells:
-                rows.append(cells)
-        
-        if headers and rows:
-            cf_data['headers'] = headers
-            cf_data['rows'] = rows
-            break
+        if any(keyword in table_text for keyword in cf_keywords):
+            headers = []
+            rows = []
+            
+            thead = table.find('thead')
+            if thead:
+                headers = [th.get_text(strip=True) for th in thead.find_all(['th', 'td'])]
+            
+            tbody = table.find('tbody') or table
+            for tr in tbody.find_all('tr'):
+                cells = [td.get_text(strip=True) for td in tr.find_all(['td', 'th'])]
+                if cells and len(cells) > 1:
+                    rows.append(cells)
+            
+            if headers and rows:
+                cf_data['headers'] = headers
+                cf_data['rows'] = rows
+                break  # Found Cash Flow table
     
     return cf_data
 
 
 def _extract_ratios(soup: BeautifulSoup) -> Dict[str, Any]:
-    """Extract key financial ratios."""
+    """Extract key financial ratios from screener.in HTML."""
     ratios = {}
     
-    # Look for ratio sections
-    ratio_sections = soup.find_all(['div', 'section'], class_=re.compile(r'ratio|metric|key', re.I))
+    # Pattern 1: Ratios in <li class="flex flex-space-between"> with <span class="name"> and <span class="number">
+    ratio_items = soup.find_all('li', class_=lambda x: x and 'flex' in str(x) and 'flex-space-between' in str(x))
     
-    for section in ratio_sections:
-        # Extract key-value pairs
-        for item in section.find_all(['div', 'span'], class_=re.compile(r'ratio|metric', re.I)):
-            label = item.find(class_=re.compile(r'label|name', re.I))
-            value = item.find(class_=re.compile(r'value|number', re.I))
+    for item in ratio_items:
+        name_span = item.find('span', class_='name')
+        number_span = item.find('span', class_='number')
+        
+        if name_span and number_span:
+            ratio_name = name_span.get_text(strip=True)
+            ratio_value = number_span.get_text(strip=True)
             
-            if label and value:
-                ratios[label.get_text(strip=True)] = value.get_text(strip=True)
+            # Filter for actual ratios (not navigation items)
+            if ratio_name and ratio_value and len(ratio_name) < 50:  # Reasonable ratio name length
+                ratios[ratio_name] = ratio_value
+    
+    # Pattern 2: Growth metrics in ranges-table
+    ranges_tables = soup.find_all('table', class_='ranges-table')
+    for table in ranges_tables:
+        rows = table.find_all('tr')
+        metric_name = None
+        
+        for row in rows:
+            cells = [td.get_text(strip=True) for td in row.find_all(['td', 'th'])]
+            if len(cells) >= 2:
+                # First row usually has metric name
+                if not metric_name and cells[0] and ':' not in cells[0]:
+                    metric_name = cells[0]
+                elif cells[0] and ':' in cells[0]:
+                    # Format: "10 Years: 5%"
+                    period = cells[0].replace(':', '').strip()
+                    value = cells[1].strip()
+                    if metric_name and period and value:
+                        ratios[f"{metric_name} ({period})"] = value
+                elif metric_name and cells[0] and cells[1]:
+                    # Format: period in first cell, value in second
+                    ratios[f"{metric_name} ({cells[0]})"] = cells[1]
     
     return ratios
 
