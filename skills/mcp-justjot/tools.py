@@ -13,14 +13,23 @@ import requests
 logger = logging.getLogger(__name__)
 
 # Default JustJot.ai API URL
-# Priority: JUSTJOT_API_URL > NEXT_PUBLIC_API_URL > cmd.dev > localhost
-DEFAULT_API_URL = (
-    os.getenv("JUSTJOT_API_URL") or 
-    os.getenv("NEXT_PUBLIC_API_URL") or 
-    os.getenv("JUSTJOT_BASE_URL") or
-    "https://justjot.ai.cmd.dev" or  # cmd.dev deployment
-    "http://localhost:3000"  # Fallback to localhost
-)
+# Priority: JUSTJOT_API_URL > NEXT_PUBLIC_API_URL > JUSTJOT_BASE_URL > cmd.dev > localhost
+def _get_api_url() -> str:
+    """Get JustJot.ai API URL with fallback priority."""
+    # Check environment variables in priority order
+    url = (
+        os.getenv("JUSTJOT_API_URL") or 
+        os.getenv("NEXT_PUBLIC_API_URL") or 
+        os.getenv("JUSTJOT_BASE_URL")
+    )
+    
+    if url:
+        return url
+    
+    # Fallback to cmd.dev (production deployment)
+    return "https://justjot.ai.cmd.dev"
+
+DEFAULT_API_URL = _get_api_url()
 
 
 def _call_justjot_api(

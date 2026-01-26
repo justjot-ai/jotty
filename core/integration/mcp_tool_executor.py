@@ -32,14 +32,21 @@ class MCPToolExecutor:
         """
         self.mcp_config_path = mcp_config_path or self._find_mcp_config()
         # Use environment variable or cmd.dev or Docker service name as fallback
-        default_url = (
-            os.getenv("JUSTJOT_API_URL") or 
-            os.getenv("NEXT_PUBLIC_API_URL") or 
-            os.getenv("JUSTJOT_BASE_URL") or
-            "https://justjot.ai.cmd.dev" or  # cmd.dev deployment
-            "http://justjot-ai-blue:3000"  # Docker service fallback
-        )
-        self.base_url = base_url or default_url
+        if base_url:
+            self.base_url = base_url
+        else:
+            # Check environment variables in priority order
+            url = (
+                os.getenv("JUSTJOT_API_URL") or 
+                os.getenv("NEXT_PUBLIC_API_URL") or 
+                os.getenv("JUSTJOT_BASE_URL")
+            )
+            
+            if url:
+                self.base_url = url
+            else:
+                # Fallback to cmd.dev (production) or Docker service
+                self.base_url = "https://justjot.ai.cmd.dev"  # cmd.dev deployment
         self.available_tools: List[MCPTool] = []
         self.tool_map: Dict[str, MCPTool] = {}
 
