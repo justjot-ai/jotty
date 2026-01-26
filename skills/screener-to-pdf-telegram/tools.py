@@ -202,24 +202,29 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
         
         # Try multiple possible return keys
         pdf_path = (
+            pdf_result.get('output_path') or  # document-converter returns 'output_path'
             pdf_result.get('output_file') or 
-            pdf_result.get('pdf_path') or 
-            pdf_result.get('output_path') or
-            str(pdf_output_file) if pdf_output_file.exists() else None
+            pdf_result.get('pdf_path')
         )
         
         # Verify PDF was created
-        if pdf_path and not Path(pdf_path).exists():
+        if not pdf_path or not Path(pdf_path).exists():
             # Try the expected output file
             if pdf_output_file.exists():
                 pdf_path = str(pdf_output_file)
             else:
-                logger.warning(f"PDF file not found at {pdf_path}, checking output_dir")
-                # Look for PDF files in output_dir
-                pdf_files = list(output_dir.glob('*.pdf'))
+                logger.warning(f"PDF file not found at expected location, checking output_dir")
+                # Look for PDF files in output_dir matching our pattern
+                pdf_files = list(output_dir.glob(f'{symbol_str}_analysis_*.pdf'))
                 if pdf_files:
                     pdf_path = str(pdf_files[-1])  # Use most recent
                     logger.info(f"Found PDF: {pdf_path}")
+                else:
+                    logger.error(f"PDF file not created at {pdf_output_file}")
+                    return {
+                        'success': False,
+                        'error': f'PDF file was not created at expected location: {pdf_output_file}'
+                    }
         
         # Step 6: Send to Telegram
         telegram_sent = False

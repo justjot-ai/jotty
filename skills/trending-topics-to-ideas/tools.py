@@ -308,7 +308,6 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
         logger.info(f"   Source: {source}")
         logger.info(f"   Query: {query}")
         logger.info(f"   Max topics: {max_topics}")
-        logger.info()
         
         # Step 1: Get trending topics
         logger.info("📡 Step 1: Getting trending topics...")
