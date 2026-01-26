@@ -88,16 +88,22 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Step 2: Create markdown file
         # Default to stock_market/outputs directory
         # __file__ is skills/research-to-pdf/tools.py
-        # Go up: research-to-pdf -> skills -> Jotty -> stock_market -> outputs
-        stock_market_root = Path(__file__).parent.parent.parent.parent.parent
+        # Go up: research-to-pdf -> skills -> Jotty -> stock_market
+        current_file = Path(__file__).resolve()
+        # From skills/research-to-pdf/tools.py: up 3 levels to Jotty, then up 1 to stock_market
+        jotty_dir = current_file.parent.parent.parent
+        stock_market_root = jotty_dir.parent
         default_output = stock_market_root / 'outputs'
         
-        # Fallback to ~/jotty/reports if stock_market/outputs doesn't exist
-        if not default_output.exists() and not params.get('output_dir'):
-            default_output = Path.home() / 'jotty' / 'reports'
+        # Ensure directory exists or use fallback
+        if not default_output.exists():
+            default_output.mkdir(parents=True, exist_ok=True)
         
+        # Use provided output_dir or default
         output_dir = Path(params.get('output_dir', str(default_output)))
         output_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(f"Output directory: {output_dir}")
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         safe_topic = topic.replace(' ', '_').replace('/', '_')[:50]  # Sanitize filename
