@@ -53,78 +53,175 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         
         commodities = []
         
-        # Find all commodity tables
-        # Look for tables with commodity data
-        tables = soup.find_all('table')
+        # Find all links to commodities pages
+        commodity_links = soup.find_all('a', href=lambda x: x and '/commodities/' in x.lower())
         
+        commodity_keywords = {
+            'metals': ['gold', 'silver', 'copper', 'platinum', 'palladium'],
+            'energy': ['oil', 'brent', 'crude', 'gas', 'natural gas', 'heating oil', 'heating'],
+            'agriculture': ['corn', 'wheat', 'coffee', 'sugar', 'cotton', 'cocoa', 'soybean', 'soy']
+        }
+        
+        seen_commodities = set()
+        
+        # Extract from commodity links
+        for link in commodity_links:
+            name = link.get_text(strip=True)
+            href = link.get('href', '')
+            
+            # Skip if empty or already seen
+            if not name or len(name) < 2 or name.lower() in seen_commodities:
+                continue
+            
+            # Skip stock tickers (short all-caps)
+            if len(name) <= 5 and name.isupper() and not any(kw in name.lower() for kw_list in commodity_keywords.values() for kw in kw_list):
+                continue
+            
+            # Skip if not a commodity name
+            name_lower = name.lower()
+            is_commodity = any(
+                kw in name_lower for kw_list in commodity_keywords.values() for kw in kw_list
+            ) or '/commodities/' in href.lower()
+            
+            if not is_commodity:
+                continue
+            
+            seen_commodities.add(name.lower())
+            
+            # Determine category
+            category = 'other'
+            if any(kw in name_lower for kw in commodity_keywords['metals']):
+                category = 'metals'
+            elif any(kw in name_lower for kw in commodity_keywords['energy']):
+                category = 'energy'
+            elif any(kw in name_lower for kw in commodity_keywords['agriculture']):
+                category = 'agriculture'
+            
+            # Try to find price data near the link
+            # Look in parent row or nearby elements
+            parent = link.parent
+            price_data = {}
+            
+            # Check if parent is a table row
+            if parent and parent.name == 'td':
+                row = parent.parent if parent.parent and parent.parent.name == 'tr' else None
+                if row:
+                    cells = row.find_all(['td', 'th'])
+                    cell_texts = [cell.get_text(strip=True) for cell in cells]
+                    
+                    # Find price, change, change% in cells
+                    for text in cell_texts:
+                        if not text:
+                            continue
+                        
+                        # Last price: number with decimal, no %
+                        if '.' in text and any(char.isdigit() for char in text) and '%' not in text and '+' not in text and '-' not in text:
+                            try:
+                                # Try to parse as float
+                                float(text.replace(',', ''))
+                                if 'last' not in price_data:
+                                    price_data['last'] = text
+                            except:
+                                pass
+                        
+                        # Change %: contains %
+                        if '%' in text and ('+' in text or '-' in text):
+                            price_data['change_pct'] = text
+                        
+                        # Change: starts with + or -
+                        if text.startswith(('+', '-')) and any(char.isdigit() for char in text) and '%' not in text:
+                            price_data['change'] = text
+            
+            # Build commodity entry
+            commodity_data = {
+                'name': name,
+                'url': href if href.startswith('http') else f"https://www.investing.com{href}" if href else '',
+                'category': category,
+                'last': price_data.get('last', 'N/A'),
+                'change': price_data.get('change', 'N/A'),
+                'change_pct': price_data.get('change_pct', 'N/A')
+            }
+            
+            commodities.append(commodity_data)
+        
+        # Also try to extract from tables more systematically
+        tables = soup.find_all('table')
         for table in tables:
-            # Check if this is a commodities table
             rows = table.find_all('tr')
             if len(rows) < 2:
                 continue
             
-            # Try to find header row
-            header_row = rows[0]
-            headers_text = [th.get_text(strip=True) for th in header_row.find_all(['th', 'td'])]
-            
-            # Look for commodity-specific headers
-            if any(keyword in ' '.join(headers_text).lower() for keyword in ['name', 'last', 'change', 'chg']):
-                # This looks like a commodities table
-                for row in rows[1:]:  # Skip header
-                    cells = row.find_all(['td', 'th'])
-                    if len(cells) < 3:
-                        continue
-                    
-                    # Try to extract commodity name (usually in first cell, might be a link)
-                    name_cell = cells[0]
-                    name_link = name_cell.find('a')
-                    if name_link:
-                        name = name_link.get_text(strip=True)
-                        commodity_url = name_link.get('href', '')
-                    else:
-                        name = name_cell.get_text(strip=True)
-                        commodity_url = ''
-                    
-                    if not name or len(name) < 2:
-                        continue
-                    
-                    # Extract price data
-                    commodity_data = {
-                        'name': name,
-                        'url': commodity_url if commodity_url.startswith('http') else f"https://www.investing.com{commodity_url}" if commodity_url else '',
-                    }
-                    
-                    # Try to extract last price, change, change %
-                    cell_texts = [cell.get_text(strip=True) for cell in cells]
-                    
-                    # Look for price-like values (numbers with decimals)
-                    for i, text in enumerate(cell_texts[1:], start=1):
-                        if not text:
+            # Check if table contains commodity data
+            table_text = ' '.join([row.get_text() for row in rows[:3]]).lower()
+            if any(kw in table_text for kw_list in commodity_keywords.values() for kw in kw_list):
+                headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(['th', 'td'])]
+                
+                # Find column indices
+                name_idx = None
+                last_idx = None
+                change_idx = None
+                change_pct_idx = None
+                
+                for i, header in enumerate(headers):
+                    if 'name' in header or 'commodity' in header:
+                        name_idx = i
+                    if 'last' in header:
+                        last_idx = i
+                    if 'change' in header and '%' not in header:
+                        change_idx = i
+                    if 'change' in header and '%' in header or 'chg' in header and '%' in header:
+                        change_pct_idx = i
+                
+                if name_idx is not None:
+                    for row in rows[1:]:
+                        cells = row.find_all(['td', 'th'])
+                        if len(cells) <= name_idx:
                             continue
                         
-                        # Try to identify what each cell contains
-                        if i == 1 and any(char.isdigit() for char in text):
-                            # Likely last price
-                            commodity_data['last'] = text
-                        elif '%' in text:
-                            # Likely change %
-                            commodity_data['change_pct'] = text
-                        elif text.startswith(('+', '-')) and any(char.isdigit() for char in text):
-                            # Likely change
-                            commodity_data['change'] = text
-                    
-                    # Determine category
-                    name_lower = name.lower()
-                    if any(metal in name_lower for metal in ['gold', 'silver', 'copper', 'platinum', 'palladium']):
-                        commodity_data['category'] = 'metals'
-                    elif any(energy in name_lower for energy in ['oil', 'gas', 'heating', 'brent', 'crude', 'natural']):
-                        commodity_data['category'] = 'energy'
-                    elif any(agri in name_lower for agri in ['corn', 'wheat', 'coffee', 'sugar', 'cotton', 'cocoa', 'soybean']):
-                        commodity_data['category'] = 'agriculture'
-                    else:
-                        commodity_data['category'] = 'other'
-                    
-                    commodities.append(commodity_data)
+                        name_cell = cells[name_idx]
+                        name_link = name_cell.find('a')
+                        if name_link:
+                            name = name_link.get_text(strip=True)
+                            href = name_link.get('href', '')
+                        else:
+                            name = name_cell.get_text(strip=True)
+                            href = ''
+                        
+                        if not name or len(name) < 2:
+                            continue
+                        
+                        # Skip if already added
+                        if name.lower() in seen_commodities:
+                            continue
+                        
+                        # Only add if it's a commodity
+                        name_lower = name.lower()
+                        if not any(kw in name_lower for kw_list in commodity_keywords.values() for kw in kw_list):
+                            if not href or '/commodities/' not in href.lower():
+                                continue
+                        
+                        seen_commodities.add(name.lower())
+                        
+                        # Extract price data
+                        commodity_data = {
+                            'name': name,
+                            'url': href if href.startswith('http') else f"https://www.investing.com{href}" if href else '',
+                            'last': cells[last_idx].get_text(strip=True) if last_idx and last_idx < len(cells) else 'N/A',
+                            'change': cells[change_idx].get_text(strip=True) if change_idx and change_idx < len(cells) else 'N/A',
+                            'change_pct': cells[change_pct_idx].get_text(strip=True) if change_pct_idx and change_pct_idx < len(cells) else 'N/A',
+                        }
+                        
+                        # Determine category
+                        if any(kw in name_lower for kw in commodity_keywords['metals']):
+                            commodity_data['category'] = 'metals'
+                        elif any(kw in name_lower for kw in commodity_keywords['energy']):
+                            commodity_data['category'] = 'energy'
+                        elif any(kw in name_lower for kw in commodity_keywords['agriculture']):
+                            commodity_data['category'] = 'agriculture'
+                        else:
+                            commodity_data['category'] = 'other'
+                        
+                        commodities.append(commodity_data)
         
         # If we didn't find data in tables, try alternative approach
         if not commodities:
