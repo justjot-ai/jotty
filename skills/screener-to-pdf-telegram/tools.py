@@ -226,29 +226,41 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
                         'error': f'PDF file was not created at expected location: {pdf_output_file}'
                     }
         
-        # Step 6: Send to Telegram
+        # Step 6: Send to Telegram (using same pattern as other skills)
         telegram_sent = False
-        telegram_chat_id = params.get('telegram_chat_id')
-        
-        if telegram_chat_id:
+        if params.get('send_telegram', True):
             logger.info("📱 Step 6: Sending to Telegram...")
             
             telegram_skill = registry.get_skill('telegram-sender')
             if telegram_skill:
                 send_file_tool = telegram_skill.tools.get('send_telegram_file_tool')
                 if send_file_tool:
-                    telegram_result = send_file_tool({
-                        'file_path': pdf_path,
-                        'chat_id': telegram_chat_id,
-                        'token': params.get('telegram_token'),
-                        'caption': f"📊 Financial Analysis: {', '.join([c['name'] for c in companies_analyzed])}"
-                    })
+                    telegram_chat_id = params.get('telegram_chat_id')
+                    # telegram-sender skill automatically uses env vars if chat_id not provided
                     
-                    if telegram_result.get('success'):
-                        telegram_sent = True
+                    import inspect
+                    if inspect.iscoroutinefunction(send_file_tool):
+                        telegram_result = await send_file_tool({
+                            'file_path': pdf_path,
+                            'chat_id': telegram_chat_id,  # Can be None, will use env var
+                            'caption': f"📊 Financial Analysis: {', '.join([c['name'] for c in companies_analyzed])}"
+                        })
+                    else:
+                        telegram_result = send_file_tool({
+                            'file_path': pdf_path,
+                            'chat_id': telegram_chat_id,  # Can be None, will use env var
+                            'caption': f"📊 Financial Analysis: {', '.join([c['name'] for c in companies_analyzed])}"
+                        })
+                    
+                    telegram_sent = telegram_result.get('success', False)
+                    if telegram_sent:
                         logger.info("   ✅ Sent to Telegram")
                     else:
                         logger.warning(f"   ⚠️  Telegram send failed: {telegram_result.get('error')}")
+                else:
+                    logger.warning("   ⚠️  send_telegram_file_tool not found")
+            else:
+                logger.warning("   ⚠️  telegram-sender skill not available")
         
         return {
             'success': True,
