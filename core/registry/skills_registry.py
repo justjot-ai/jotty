@@ -28,6 +28,18 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 import importlib.util
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Load .env from Jotty root directory
+    current_file = Path(__file__).resolve()
+    jotty_root = current_file.parent.parent.parent  # core/registry -> core -> Jotty
+    env_file = jotty_root / ".env"
+    if env_file.exists():
+        load_dotenv(env_file, override=False)  # Don't override existing env vars
+except ImportError:
+    pass  # python-dotenv not available, fall back to os.getenv
+
 logger = logging.getLogger(__name__)
 
 

@@ -7,6 +7,7 @@ Communicates via stdio transport like Claude Desktop.
 import asyncio
 import logging
 import os
+import json
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,36 @@ async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     
     if result.get('success'):
         data = result.get('data', {})
-        idea = data.get('content', {}) if isinstance(data, dict) else data
+        
+        # MCP returns content as text string, need to parse JSON
+        if isinstance(data, str):
+            try:
+                import json
+                data = json.loads(data)
+            except:
+                pass
+        
+        # Handle different response formats
+        if isinstance(data, dict):
+            # Check if it's already parsed JSON
+            if 'id' in data or '_id' in data:
+                idea = data
+            elif 'content' in data:
+                # MCP format with content array
+                content = data.get('content', [])
+                if isinstance(content, list) and len(content) > 0:
+                    text_content = content[0].get('text', '')
+                    try:
+                        idea = json.loads(text_content)
+                    except:
+                        idea = {'id': None, 'text': text_content}
+                else:
+                    idea = data
+            else:
+                idea = data
+        else:
+            idea = {'id': None, 'data': data}
+        
         return {
             'success': True,
             'idea': idea,

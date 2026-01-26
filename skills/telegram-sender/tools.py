@@ -9,6 +9,18 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# Load environment variables from .env file if available
+try:
+    from dotenv import load_dotenv
+    # Try to load .env from Jotty root (parent of skills directory)
+    current_file = Path(__file__).resolve()
+    jotty_root = current_file.parent.parent.parent  # skills/telegram-sender -> skills -> Jotty
+    env_file = jotty_root / ".env"
+    if env_file.exists():
+        load_dotenv(env_file, override=False)  # Don't override existing env vars
+except ImportError:
+    pass  # python-dotenv not available, fall back to os.getenv
+
 logger = logging.getLogger(__name__)
 
 
