@@ -4,6 +4,7 @@ V2V to PDF + Telegram + reMarkable Skill
 Complete workflow: Search V2V → Generate PDF → Send to Telegram and reMarkable.
 """
 import asyncio
+import inspect
 import logging
 from pathlib import Path
 from typing import Dict, Any
@@ -57,7 +58,6 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         search_tool = v2v_skill.tools.get('search_v2v_trending_tool')
-        import inspect
         if inspect.iscoroutinefunction(search_tool):
             search_result = await search_tool({
                 'query': query,
@@ -116,7 +116,6 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             pdf_path = output_dir / pdf_filename
             
         # Convert to PDF (check if async)
-        import inspect
         if inspect.iscoroutinefunction(convert_tool):
             pdf_result = await convert_tool({
                 'input_file': tmp_md_path,
