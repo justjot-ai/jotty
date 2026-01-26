@@ -397,5 +397,7 @@ def _format_as_compact(topic: str, date_range: str, data: Dict[str, Any], tool: 
     return "\n".join(lines)
 
 
-# Export tool function
-__all__ = ['last30days_claude_cli']
+# Export tool function - registry looks for functions ending in _tool or callable attributes
+last30days_claude_cli_tool = last30days_claude_cli
+
+__all__ = ['last30days_claude_cli', 'last30days_claude_cli_tool']
