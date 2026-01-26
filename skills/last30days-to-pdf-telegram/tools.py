@@ -18,6 +18,70 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+def _json_to_markdown(data: Dict[str, Any], topic: str) -> str:
+    """Convert last30days JSON output to markdown."""
+    lines = [
+        f"# Research Results: \"{topic}\"",
+        f"",
+        f"**Date Range:** {data.get('date_range', 'Last 30 days')}",
+        f"**Mode:** Jotty Web Search (DuckDuckGo)",
+        f"",
+    ]
+    
+    # Reddit section
+    if 'reddit' in data and data['reddit']:
+        lines.append("## Reddit Discussions")
+        lines.append("")
+        for item in data['reddit'][:10]:
+            lines.append(f"### {item.get('title', 'Untitled')}")
+            if item.get('url'):
+                lines.append(f"**URL:** {item['url']}")
+            if item.get('insights'):
+                lines.append(f"**Insights:** {item['insights']}")
+            lines.append("")
+    
+    # X section
+    if 'x' in data and data['x']:
+        lines.append("## X/Twitter Posts")
+        lines.append("")
+        for item in data['x'][:10]:
+            if item.get('text'):
+                lines.append(f"**{item.get('author', 'Unknown')}:** {item['text'][:200]}...")
+            if item.get('url'):
+                lines.append(f"**URL:** {item['url']}")
+            lines.append("")
+    
+    # Web section
+    if 'web' in data and data['web']:
+        lines.append("## Web Sources")
+        lines.append("")
+        for item in data['web'][:10]:
+            lines.append(f"### {item.get('title', 'Untitled')}")
+            if item.get('url'):
+                lines.append(f"**URL:** {item['url']}")
+            if item.get('insights'):
+                lines.append(f"**Insights:** {item['insights']}")
+            lines.append("")
+    
+    # Patterns
+    if 'patterns' in data and data['patterns']:
+        lines.append("## Key Patterns")
+        lines.append("")
+        for pattern in data['patterns']:
+            lines.append(f"- {pattern}")
+        lines.append("")
+    
+    # Recommendations
+    if 'recommendations' in data and data['recommendations']:
+        lines.append("## Recommendations")
+        lines.append("")
+        for rec in data['recommendations']:
+            lines.append(f"- {rec}")
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
 async def last30days_to_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research topic using last30days, generate PDF, and send to Telegram.
@@ -77,14 +141,14 @@ async def last30days_to_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, A
                 'topic': topic,
                 'deep': params.get('deep', False),
                 'quick': params.get('quick', False),
-                'output_format': 'markdown'
+                'emit': 'md'  # Request markdown format
             })
         else:
             research_result = research_tool({
                 'topic': topic,
                 'deep': params.get('deep', False),
                 'quick': params.get('quick', False),
-                'output_format': 'markdown'
+                'emit': 'md'  # Request markdown format
             })
         
         if not research_result.get('success'):
@@ -93,7 +157,24 @@ async def last30days_to_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, A
                 'error': f"Research failed: {research_result.get('error')}"
             }
         
-        markdown_content = research_result.get('content', research_result.get('markdown', ''))
+        # last30days returns 'output' field, check format
+        research_output = research_result.get('output', '')
+        output_format = research_result.get('format', 'compact')
+        
+        # If format is 'md', output is already markdown
+        # If format is 'json', need to convert
+        # If format is 'compact', need to convert
+        if output_format == 'md':
+            markdown_content = research_output
+        elif output_format == 'json':
+            # Convert JSON to markdown
+            import json
+            data = research_output if isinstance(research_output, dict) else json.loads(research_output)
+            markdown_content = _json_to_markdown(data, topic)
+        else:  # compact
+            # Use compact output as markdown (it's already text)
+            markdown_content = research_output
+        
         if not markdown_content:
             return {
                 'success': False,

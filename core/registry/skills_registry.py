@@ -241,6 +241,30 @@ class SkillsRegistry:
         tools: Dict[str, Callable] = {}
         
         try:
+            # Add venv site-packages to sys.path if available
+            import sys
+            if hasattr(self, 'dependency_manager') and self.dependency_manager:
+                venv_manager = self.dependency_manager.venv_manager
+                if venv_manager and venv_manager.shared_venv_path:
+                    # Detect Python version dynamically
+                    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+                    venv_site_packages = venv_manager.shared_venv_path / 'lib' / f'python{python_version}' / 'site-packages'
+                    
+                    # If not found, try to find any pythonX.Y directory
+                    if not venv_site_packages.exists():
+                        lib_dir = venv_manager.shared_venv_path / 'lib'
+                        if lib_dir.exists():
+                            for subdir in lib_dir.iterdir():
+                                if subdir.is_dir() and subdir.name.startswith('python'):
+                                    potential_site_packages = subdir / 'site-packages'
+                                    if potential_site_packages.exists():
+                                        venv_site_packages = potential_site_packages
+                                        break
+                    
+                    if venv_site_packages.exists() and str(venv_site_packages) not in sys.path:
+                        sys.path.insert(0, str(venv_site_packages))
+                        logger.debug(f"Added venv site-packages to sys.path: {venv_site_packages}")
+            
             # Dynamically import the module
             spec = importlib.util.spec_from_file_location("skill_tools", tools_file)
             if spec and spec.loader:

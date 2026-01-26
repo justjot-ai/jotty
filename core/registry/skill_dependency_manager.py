@@ -63,6 +63,10 @@ class SkillDependencyManager:
             'accelerate': 'accelerate',
             'pytz': 'pytz',
             'dateutil': 'python-dateutil',
+            'psutil': 'psutil',
+            'bs4': 'beautifulsoup4',
+            'BeautifulSoup': 'beautifulsoup4',
+            'html2text': 'html2text',
         }
         
         # Extract imports
