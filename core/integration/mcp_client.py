@@ -201,7 +201,8 @@ async def call_justjot_mcp_tool(
     tool_name: str,
     arguments: Dict[str, Any],
     server_path: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None
+    env: Optional[Dict[str, str]] = None,
+    mongodb_uri: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Call a JustJot.ai MCP tool using stdio transport.
@@ -211,13 +212,23 @@ async def call_justjot_mcp_tool(
         arguments: Tool arguments
         server_path: Path to MCP server (optional)
         env: Environment variables (optional)
+        mongodb_uri: MongoDB connection string (optional)
     
     Returns:
         Tool execution result
     """
-    async with MCPClient(server_path=server_path, env=env) as client:
+    async with MCPClient(server_path=server_path, env=env, mongodb_uri=mongodb_uri) as client:
         result = await client.call_tool(tool_name, arguments)
+        # Parse result - MCP returns content array
+        if isinstance(result, dict) and 'content' in result:
+            content = result['content']
+            if isinstance(content, list) and len(content) > 0:
+                text_content = content[0].get('text', '')
+                try:
+                    return json.loads(text_content)
+                except:
+                    return {'text': text_content}
         return result
 
 
-import os  # Add import at top level
+import os

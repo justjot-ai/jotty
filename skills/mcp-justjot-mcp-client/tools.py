@@ -33,11 +33,15 @@ async def _call_mcp_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str,
         if os.getenv("CLERK_SECRET_KEY"):
             env["CLERK_SECRET_KEY"] = os.getenv("CLERK_SECRET_KEY")
         
+        # Get MongoDB URI
+        mongodb_uri = os.getenv("MONGODB_URI")
+        
         # Call MCP tool
         result = await call_justjot_mcp_tool(
             tool_name=tool_name,
             arguments=arguments,
-            env=env
+            env=env,
+            mongodb_uri=mongodb_uri
         )
         
         return {
