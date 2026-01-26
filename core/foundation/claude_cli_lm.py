@@ -4,6 +4,7 @@ Claude CLI DSPy LM Provider
 
 Part of Jotty multi-agent framework.
 Uses Claude CLI with JSON schema support for structured output.
+Automatically loads skills from Jotty's skills registry.
 """
 
 import subprocess
@@ -17,12 +18,37 @@ from typing import Dict, Any, Optional
 class ClaudeCLILM(BaseLM):
     """DSPy-compatible LM using Claude CLI with JSON schema enforcement."""
 
-    def __init__(self, model="sonnet", **kwargs):
+    def __init__(self, model="sonnet", enable_skills=True, **kwargs):
+        """
+        Initialize Claude CLI LM.
+        
+        Args:
+            model: Claude model (sonnet, opus, haiku)
+            enable_skills: Whether to enable Jotty skills (default: True)
+            **kwargs: Additional arguments
+        """
         super().__init__(model=f"claude-cli/{model}", **kwargs)
         self.cli_model = model
+        self.enable_skills = enable_skills
         self._verify_cli_available()
         self.provider = "claude-cli"
         self.history = []
+        
+        # Load skills if enabled
+        if self.enable_skills:
+            try:
+                from ..registry.skills_registry import get_skills_registry
+                self.skills_registry = get_skills_registry()
+                self.skills_registry.init()
+                self.skills = self.skills_registry.list_skills()
+                print(f"✓ Loaded {len(self.skills)} skills for Claude CLI")
+            except Exception as e:
+                print(f"⚠️  Failed to load skills: {e}")
+                self.skills_registry = None
+                self.skills = []
+        else:
+            self.skills_registry = None
+            self.skills = []
 
     def _verify_cli_available(self):
         """Check if claude CLI is available."""
@@ -134,6 +160,11 @@ class ClaudeCLILM(BaseLM):
         # Add JSON schema if available (enforces structured output)
         if json_schema:
             cmd.extend(["--json-schema", json.dumps(json_schema)])
+        
+        # Note: Claude CLI automatically discovers skills in ~/.claude/skills/
+        # Skills are available via /skillname syntax (e.g., /last30days)
+        # No need to explicitly pass them via --tools parameter
+        # The skills registry ensures skills are loaded and available
 
         cmd.append(user_message)
 
