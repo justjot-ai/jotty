@@ -171,21 +171,37 @@ def _make_request(url: str, use_proxy: bool = True, max_retries: int = 3) -> Opt
         if proxies:
             logger.debug(f"Using proxy: {proxies.get('http', 'none')}")
     
+    # Try with proxy first, then fallback to direct connection
+    proxy_attempts = 0
+    max_proxy_attempts = 2 if use_proxy else 0
+    
     for attempt in range(max_retries):
         try:
+            # Try proxy first (if enabled and available)
+            current_proxies = proxies if (use_proxy and proxy_attempts < max_proxy_attempts) else None
+            
             response = requests.get(
                 url,
                 headers=headers,
-                proxies=proxies,
+                proxies=current_proxies,
                 timeout=15,
                 allow_redirects=True
             )
             
             # Check if blocked
             if response.status_code == 403 or 'blocked' in response.text.lower():
-                if proxies:
-                    _proxy_rotator.mark_proxy_failed(proxies.get('http', ''))
-                    proxies = _proxy_rotator.get_proxy()  # Try next proxy
+                if current_proxies:
+                    _proxy_rotator.mark_proxy_failed(current_proxies.get('http', ''))
+                    proxy_attempts += 1
+                    if proxy_attempts < max_proxy_attempts:
+                        proxies = _proxy_rotator.get_proxy()
+                        time.sleep(1)
+                        continue
+                    else:
+                        # Fallback to direct connection
+                        logger.info("Proxies failed, falling back to direct connection")
+                        proxies = None
+                        continue
                 
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)  # Exponential backoff
@@ -195,9 +211,24 @@ def _make_request(url: str, use_proxy: bool = True, max_retries: int = 3) -> Opt
             return response
             
         except requests.RequestException as e:
-            if proxies:
-                _proxy_rotator.mark_proxy_failed(proxies.get('http', ''))
-                proxies = _proxy_rotator.get_proxy()
+            # If proxy error, try direct connection
+            if current_proxies and ('proxy' in str(e).lower() or 'tunnel' in str(e).lower()):
+                if current_proxies:
+                    _proxy_rotator.mark_proxy_failed(current_proxies.get('http', ''))
+                proxy_attempts += 1
+                
+                if proxy_attempts < max_proxy_attempts:
+                    proxies = _proxy_rotator.get_proxy()
+                    logger.debug(f"Proxy failed, trying next proxy: {e}")
+                    time.sleep(1)
+                    continue
+                else:
+                    # Fallback to direct connection
+                    logger.info("All proxies failed, using direct connection")
+                    proxies = None
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
             
             if attempt < max_retries - 1:
                 wait_time = 2 ** attempt + random.uniform(0, 1)
@@ -248,13 +279,31 @@ def search_company_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             data = response.json()
             results = []
             
-            for item in data.get('results', [])[:max_results]:
-                results.append({
-                    'name': item.get('name', ''),
-                    'code': item.get('id', ''),
-                    'url': f"https://www.screener.in/company/{item.get('id', '')}/",
-                    'industry': item.get('industry', ''),
-                })
+            # Handle both list and dict responses
+            if isinstance(data, list):
+                items = data
+            elif isinstance(data, dict):
+                items = data.get('results', [])
+            else:
+                items = []
+            
+            for item in items[:max_results]:
+                # Handle both dict and list item formats
+                if isinstance(item, dict):
+                    item_id = item.get('id') or item.get('company_id') or item.get('code', '')
+                    item_name = item.get('name') or item.get('company_name', '')
+                else:
+                    # If item is a string or other format
+                    item_id = str(item) if item else ''
+                    item_name = str(item) if item else ''
+                
+                if item_id:
+                    results.append({
+                        'name': item_name or item_id,
+                        'code': item_id,
+                        'url': f"https://www.screener.in/company/{item_id}/",
+                        'industry': item.get('industry', '') if isinstance(item, dict) else '',
+                    })
             
             return {
                 'success': True,
