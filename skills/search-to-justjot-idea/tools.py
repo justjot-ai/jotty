@@ -33,6 +33,7 @@ async def search_and_create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - summary_length (str, optional): 'brief', 'comprehensive', 'detailed' (default: 'comprehensive')
             - use_mcp_client (bool, optional): Use MCP client instead of HTTP API (default: True)
             - userId (str, optional): Clerk user ID (default: 'user_mcp_client')
+              Note: Use your actual Clerk user ID to see ideas in dashboard
             - author (str, optional): Author name (default: 'Jotty MCP Client')
     
     Returns:

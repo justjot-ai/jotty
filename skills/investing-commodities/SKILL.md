@@ -10,7 +10,7 @@ Fetches latest commodities prices from investing.com.
 
 **Parameters:**
 - `category` (str, optional): Category filter - 'energy', 'metals', 'agriculture', or 'all' (default: 'all')
-- `format` (str, optional): Output format - 'json', 'markdown', 'text' (default: 'markdown')
+- `format` (str, optional): Output format - 'json', 'html', 'markdown', 'text' (default: 'html')
 
 **Returns:**
 - `success` (bool): Whether fetch succeeded

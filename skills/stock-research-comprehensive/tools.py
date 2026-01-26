@@ -159,7 +159,13 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         # Step 2: Combine research using Claude CLI
         logger.info("🤖 Step 2: Synthesizing comprehensive research with Claude...")
         
+        # Calculate total results for logging
+        total_results = sum(r.get('count', 0) for r in research_data.values())
+        total_snippets = sum(min(len(r.get('results', [])), 5) for r in research_data.values())
+        logger.info(f"📊 Total research data: {total_results} results, sending top {total_snippets} snippets to Claude")
+        
         # Prepare comprehensive research content for Claude
+        # Optimized: Top 5 results per aspect, 300 char snippets
         research_content = f"""
 # Comprehensive Research Data for {company_name} ({ticker}){location_suffix}
 
@@ -168,6 +174,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
 - **Company:** {company_name}
 - **Location:** {country or 'Not specified'}{f' ({exchange})' if exchange else ''}
 - **Report Date:** {datetime.now().strftime('%Y-%m-%d')}
+- **Research Sources:** {total_results} total results across {len(search_queries)} research aspects
 
 """
         
@@ -192,12 +199,14 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
             result = research_data.get(aspect_name, {})
             
             if result.get('success') and result.get('results'):
-                for i, res in enumerate(result['results'][:8], 1):  # Top 8 results per aspect
+                # Use top 5 most relevant results per aspect (reduced from 8)
+                for i, res in enumerate(result['results'][:5], 1):
                     research_content += f"### {i}. {res.get('title', 'Untitled')}\n"
                     research_content += f"**URL:** {res.get('url', '')}\n"
                     snippet = res.get('snippet', 'No summary available')
                     if snippet:
-                        research_content += f"**Summary:** {snippet[:500]}\n\n"  # Limit snippet length
+                        # Limit snippet to 300 chars (reduced from 500) to keep prompt manageable
+                        research_content += f"**Summary:** {snippet[:300]}\n\n"
                     else:
                         research_content += "\n"
             else:
@@ -307,10 +316,12 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
 - Include specific numbers, percentages, dates, and metrics from the research data
 - Use tables, bullet points, and structured formatting for clarity
 - Be comprehensive - aim for {target_pages} pages of detailed content
+- Synthesize information from multiple sources - don't just list facts, provide analysis
 - If certain data is missing, note it but still provide analysis based on available information
 - Ensure the report is thorough enough to serve as a complete investment research document
+- Focus on actionable insights and investment implications
 
-Generate the complete, detailed markdown report now:"""
+**NOTE:** The research data above contains summaries from {total_results} search results. Use this information to create a comprehensive, well-structured report. Generate the complete, detailed markdown report now:"""
         
         generate_tool = claude_skill.tools.get('generate_text_tool')
         if not generate_tool:

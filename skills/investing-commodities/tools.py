@@ -408,6 +408,101 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         
         if output_format == 'json':
             formatted_output = json.dumps(commodities, indent=2)
+        elif output_format == 'html':
+            # HTML format - professional broker watchlist style
+            formatted_output = f"""<b>📈 COMMODITIES WATCHLIST</b>
+<i>🕐 {timestamp}</i>
+
+"""
+            
+            # Summary
+            up_count = sum(1 for c in commodities if c.get('change_pct', '').startswith('+'))
+            down_count = sum(1 for c in commodities if c.get('change_pct', '').startswith('-'))
+            neutral_count = len(commodities) - up_count - down_count
+            
+            formatted_output += f"""<b>📊 Summary:</b> <code>{len(commodities)}</code> commodities | 
+🟢 <b>{up_count}</b> up | 🔴 <b>{down_count}</b> down | ⚪ <b>{neutral_count}</b> neutral
+
+"""
+            
+            # Group by category
+            by_category = {}
+            for c in commodities:
+                cat = c.get('category', 'other')
+                if cat not in by_category:
+                    by_category[cat] = []
+                by_category[cat].append(c)
+            
+            category_emojis = {
+                'energy': '⚡',
+                'metals': '🥇',
+                'agriculture': '🌾',
+                'other': '📊'
+            }
+            
+            for cat in ['energy', 'metals', 'agriculture', 'other']:
+                if cat in by_category and by_category[cat]:
+                    emoji = category_emojis.get(cat, '📊')
+                    formatted_output += f"\n<b>{emoji} {cat.upper()}</b>\n"
+                    formatted_output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    
+                    # Sort by change % (highest first)
+                    sorted_commodities = sorted(
+                        by_category[cat],
+                        key=lambda x: (
+                            float(x.get('change_pct', '0%').replace('%', '').replace('+', '').replace('-', '') or 0)
+                            if x.get('change_pct', 'N/A') != 'N/A' and '%' in str(x.get('change_pct', ''))
+                            else -999
+                        ),
+                        reverse=True
+                    )
+                    
+                    for c in sorted_commodities:
+                        name = c.get('name', 'N/A')
+                        last = c.get('last', 'N/A')
+                        change = c.get('change', 'N/A')
+                        change_pct = c.get('change_pct', 'N/A')
+                        
+                        # Clean values
+                        if last in ['N/A', '—', '']:
+                            last_display = '—'
+                        else:
+                            last_display = last
+                        
+                        if change in ['N/A', '—', '']:
+                            change_display = ''
+                        else:
+                            change_display = change
+                        
+                        if change_pct in ['N/A', '—', '']:
+                            change_pct_display = ''
+                            color_emoji = ''
+                        else:
+                            change_pct_display = change_pct
+                            if change_pct.startswith('+'):
+                                color_emoji = '🟢'
+                            elif change_pct.startswith('-'):
+                                color_emoji = '🔴'
+                            else:
+                                color_emoji = '⚪'
+                        
+                        # Format as compact watchlist entry (broker style - all on one line)
+                        # Truncate long names
+                        name_display = name[:20] if len(name) > 20 else name
+                        
+                        # Build the line
+                        line = f"<b>{name_display:<20}</b>"
+                        line += f" <code>{last_display:>10}</code>"
+                        
+                        if change_display:
+                            line += f" <code>{change_display:>8}</code>"
+                        
+                        if change_pct_display:
+                            line += f" {color_emoji} <b>{change_pct_display}</b>"
+                        
+                        formatted_output += line + "\n"
+                    
+                    formatted_output += "\n"
         elif output_format == 'markdown':
             # Group by category
             by_category = {}

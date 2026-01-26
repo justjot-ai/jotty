@@ -12,7 +12,7 @@ Fetches commodities prices and sends formatted report to Telegram.
 - `category` (str, optional): Category filter - 'energy', 'metals', 'agriculture', or 'all' (default: 'all')
 - `send_telegram` (bool, optional): Whether to send to Telegram (default: True)
 - `telegram_chat_id` (str, optional): Telegram chat ID (uses env var if not provided)
-- `format` (str, optional): Message format - 'markdown' or 'text' (default: 'markdown')
+- `format` (str, optional): Message format - 'html', 'markdown', or 'text' (default: 'html')
 
 **Returns:**
 - `success` (bool): Whether operation succeeded

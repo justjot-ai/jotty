@@ -45,7 +45,7 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
         
         category = params.get('category', 'all')
         send_telegram = params.get('send_telegram', True)
-        message_format = params.get('format', 'markdown')
+        message_format = params.get('format', 'html')  # Default to HTML for beautiful formatting
         
         # Step 1: Fetch commodities prices
         logger.info(f"Fetching commodities prices (category: {category})...")
@@ -108,18 +108,26 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
                         message = '\n'.join(truncated_lines)
                         message += f"\n\n... ({len(commodities)} commodities total)"
                     
+                    # Determine parse mode
+                    if message_format == 'html':
+                        parse_mode = 'HTML'
+                    elif message_format == 'markdown':
+                        parse_mode = 'Markdown'
+                    else:
+                        parse_mode = None
+                    
                     import inspect
                     if inspect.iscoroutinefunction(send_message_tool):
                         telegram_result = await send_message_tool({
                             'message': message,
                             'chat_id': telegram_chat_id,
-                            'parse_mode': 'Markdown' if message_format == 'markdown' else None
+                            'parse_mode': parse_mode
                         })
                     else:
                         telegram_result = send_message_tool({
                             'message': message,
                             'chat_id': telegram_chat_id,
-                            'parse_mode': 'Markdown' if message_format == 'markdown' else None
+                            'parse_mode': parse_mode
                         })
                     
                     telegram_sent = telegram_result.get('success', False)
