@@ -1,12 +1,32 @@
 import requests
+import logging
 from typing import Dict, Any
 from urllib.parse import urljoin, urlparse
 import re
+
+logger = logging.getLogger(__name__)
+
+# Try to use duckduckgo-search library if available
+DDG_AVAILABLE = False
+try:
+    # Try new package name first
+    try:
+        from ddgs import DDGS
+        DDG_AVAILABLE = True
+    except ImportError:
+        # Fallback to old package name
+        from duckduckgo_search import DDGS
+        DDG_AVAILABLE = True
+except ImportError:
+    DDG_AVAILABLE = False
+    logger.info("duckduckgo-search/ddgs library not available, using HTML parsing fallback")
 
 
 def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search the web using DuckDuckGo (no API key required).
+    
+    Uses duckduckgo-search library if available, otherwise falls back to HTML parsing.
     
     Args:
         params: Dictionary containing:
@@ -30,10 +50,37 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         
         max_results = min(params.get('max_results', 10), 20)
         
-        # Use DuckDuckGo HTML search (no API key needed)
+        # Use duckduckgo-search library if available (much more reliable)
+        if DDG_AVAILABLE:
+            try:
+                with DDGS() as ddgs:
+                    results_list = list(ddgs.text(query, max_results=max_results))
+                
+                results = []
+                for item in results_list:
+                    # Handle both 'href' and 'url' keys
+                    url = item.get('href') or item.get('url', '')
+                    results.append({
+                        'title': item.get('title', 'Untitled'),
+                        'url': url,
+                        'snippet': item.get('body', '') or item.get('snippet', '')
+                    })
+                
+                if results:
+                    return {
+                        'success': True,
+                        'results': results,
+                        'count': len(results),
+                        'query': query
+                    }
+            except Exception as e:
+                logger.warning(f"duckduckgo-search library failed: {e}, falling back to HTML")
+                # Fall through to HTML parsing fallback
+        
+        # Fallback: Use DuckDuckGo HTML search (less reliable)
         url = 'https://html.duckduckgo.com/html/'
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         params_data = {
             'q': query
@@ -42,48 +89,52 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         response = requests.get(url, params=params_data, headers=headers, timeout=10)
         response.raise_for_status()
         
-        # Parse HTML results (simple regex-based extraction)
+        # Parse HTML results - DuckDuckGo HTML structure may vary
         html = response.text
         
         results = []
+        seen_urls = set()
         
-        # DuckDuckGo HTML structure: results are in <div class="result">
-        # Extract title, link, and snippet
-        result_pattern = r'<div class="result[^"]*">.*?<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</a>.*?<a[^>]*class="result__snippet"[^>]*>([^<]+)</a>'
+        # Try to find result links - look for common patterns
+        # Modern DuckDuckGo uses different structures
+        link_patterns = [
+            r'<a[^>]*href="(https?://[^"]+)"[^>]*class="[^"]*result[^"]*"[^>]*>([^<]+)</a>',
+            r'<a[^>]*class="[^"]*result[^"]*"[^>]*href="(https?://[^"]+)"[^>]*>([^<]+)</a>',
+            r'<a[^>]*href="(https?://[^"]+)"[^>]*>([^<]+)</a>',
+        ]
         
-        matches = re.finditer(result_pattern, html, re.DOTALL)
-        
-        for match in matches:
-            if len(results) >= max_results:
-                break
+        for pattern in link_patterns:
+            matches = re.finditer(pattern, html, re.DOTALL | re.IGNORECASE)
             
-            url_match = match.group(1)
-            title = match.group(2).strip()
-            snippet = match.group(3).strip()
-            
-            # Clean up HTML entities
-            title = re.sub(r'&[^;]+;', '', title)
-            snippet = re.sub(r'&[^;]+;', '', snippet)
-            
-            results.append({
-                'title': title,
-                'url': url_match,
-                'snippet': snippet
-            })
-        
-        # Fallback: if regex didn't work, try simpler extraction
-        if not results:
-            # Try alternative pattern
-            link_pattern = r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)</a>'
-            links = re.findall(link_pattern, html)
-            
-            for url_match, title in links[:max_results]:
+            for match in matches:
+                if len(results) >= max_results:
+                    break
+                
+                url_match = match.group(1) if len(match.groups()) >= 1 else None
+                title = match.group(2) if len(match.groups()) >= 2 else ''
+                
+                if not url_match or url_match in seen_urls:
+                    continue
+                
+                # Skip internal DuckDuckGo URLs and special URLs
+                if any(skip in url_match.lower() for skip in ['duckduckgo.com', 'javascript:', 'data:', 'mailto:']):
+                    continue
+                
+                seen_urls.add(url_match)
+                
+                # Clean up HTML entities
                 title = re.sub(r'&[^;]+;', '', title.strip())
-                results.append({
-                    'title': title,
-                    'url': url_match,
-                    'snippet': ''
-                })
+                title = title.replace('&nbsp;', ' ').strip()
+                
+                if title and len(title) > 3:  # Valid title
+                    results.append({
+                        'title': title,
+                        'url': url_match,
+                        'snippet': ''
+                    })
+            
+            if results:
+                break
         
         return {
             'success': True,

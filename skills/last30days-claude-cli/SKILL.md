@@ -1,10 +1,10 @@
 # last30days-claude-cli
 
-Research any topic across Reddit + X + Web from the last 30 days using Claude CLI LM (no API keys required).
+Research any topic across Reddit + X + Web from the last 30 days using Jotty's web search tools (no API keys required).
 
 ## Description
 
-This skill researches topics from the last 30 days using Claude CLI's built-in WebSearch tool. Unlike the original last30days skill, this version doesn't require OpenAI or xAI API keys - it uses Claude CLI LM directly.
+This skill researches topics from the last 30 days using Jotty's built-in web-search skill (DuckDuckGo). Unlike the original last30days skill, this version doesn't require OpenAI or xAI API keys - it uses Jotty's web search tools directly.
 
 ## Features
 

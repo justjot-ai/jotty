@@ -1,25 +1,36 @@
 """
-last30days-claude-cli: Research topics using Claude CLI LM (no API keys required).
+last30days-claude-cli: Research topics using Jotty's web search tools (no API keys required).
 
-This skill uses Claude CLI's WebSearch tool to research topics from the last 30 days
+This skill uses Jotty's built-in web-search skill to research topics from the last 30 days
 across Reddit, X/Twitter, and the web.
 """
 
 import asyncio
 import json
-import os
-import subprocess
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Import Jotty's web search tool
+try:
+    import sys
+    from pathlib import Path as PathLib
+    jotty_root = PathLib(__file__).parent.parent.parent
+    sys.path.insert(0, str(jotty_root / 'skills' / 'web-search'))
+    from tools import search_web_tool, fetch_webpage_tool
+except ImportError:
+    logger.warning("Could not import web-search tools, will use fallback")
+    search_web_tool = None
+    fetch_webpage_tool = None
+
 
 async def last30days_claude_cli(params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Research a topic from the last 30 days using Claude CLI LM.
+    Research a topic from the last 30 days using Jotty's web search tools.
     
     Args:
         params: Dictionary containing:
@@ -39,6 +50,12 @@ async def last30days_claude_cli(params: Dict[str, Any]) -> Dict[str, Any]:
             'error': 'Topic is required'
         }
     
+    if not search_web_tool:
+        return {
+            'success': False,
+            'error': 'Web search tool not available. Ensure web-search skill is installed.'
+        }
+    
     tool = params.get('tool', '')
     quick = params.get('quick', False)
     deep = params.get('deep', False)
@@ -51,188 +68,183 @@ async def last30days_claude_cli(params: Dict[str, Any]) -> Dict[str, Any]:
     
     # Determine search depth
     if quick:
-        num_searches = 3
-        search_depth = "quick"
+        max_results_per_query = 5
+        num_queries = 3
     elif deep:
-        num_searches = 8
-        search_depth = "deep"
+        max_results_per_query = 15
+        num_queries = 8
     else:
-        num_searches = 5
-        search_depth = "default"
+        max_results_per_query = 10
+        num_queries = 5
     
     try:
-        # Build research query for Claude CLI
-        research_prompt = f"""Research the topic "{topic}" from the last 30 days ({date_range}).
-
-Find discussions, posts, and articles about this topic across:
-1. Reddit (site:reddit.com)
-2. X/Twitter (site:x.com OR site:twitter.com)
-3. Web (blogs, news, documentation)
-
-For each source, provide:
-- Title/headline
-- URL
-- Key insights or quotes
-- Date (if available)
-- Engagement metrics (upvotes, likes, etc.) if visible
-
-Search queries to use:
-- "{topic} site:reddit.com"
-- "{topic} site:x.com OR site:twitter.com"
-- "{topic} 2026"
-- "{topic} latest"
-- "{'best ' + topic if 'best' not in topic.lower() else topic}"
-
-Return a structured summary with:
-1. Key findings from Reddit
-2. Key findings from X/Twitter
-3. Key findings from Web
-4. Common patterns across all sources
-5. Top recommendations or insights
-
-Format the output as JSON with this structure:
-{{
-  "topic": "{topic}",
-  "date_range": "{date_range}",
-  "reddit": [
-    {{
-      "title": "...",
-      "url": "...",
-      "insights": "...",
-      "date": "...",
-      "engagement": "..."
-    }}
-  ],
-  "x": [
-    {{
-      "text": "...",
-      "url": "...",
-      "author": "...",
-      "insights": "...",
-      "date": "..."
-    }}
-  ],
-  "web": [
-    {{
-      "title": "...",
-      "url": "...",
-      "insights": "...",
-      "date": "..."
-    }}
-  ],
-  "patterns": ["pattern1", "pattern2", ...],
-  "recommendations": ["rec1", "rec2", ...]
-}}"""
+        logger.info(f"Researching topic: {topic} (last 30 days)")
         
-        # Call Claude CLI with WebSearch tool
-        # Use stdin for prompt input
-        cmd = [
-            'claude',
-            '--model', 'sonnet',
-            '--print',
-            '--output-format', 'json',
-            '--tools', 'WebSearch',
-            '--'
-        ]
+        # Build search queries - use simpler queries that work better with DuckDuckGo
+        queries = []
         
-        logger.info(f"Calling Claude CLI for topic: {topic}")
+        # Reddit searches (simpler format)
+        queries.append({
+            'query': f'{topic} reddit',
+            'type': 'reddit',
+            'max_results': max_results_per_query
+        })
         
-        # Prepare environment (let Claude use credentials file, not API key)
-        env = os.environ.copy()
-        api_key = env.get('ANTHROPIC_API_KEY', '')
-        if api_key.startswith('sk-ant-oat'):
-            # Remove OAuth token - let Claude use credentials file
-            env.pop('ANTHROPIC_API_KEY', None)
+        # X/Twitter searches
+        queries.append({
+            'query': f'{topic} twitter',
+            'type': 'x',
+            'max_results': max_results_per_query
+        })
+        queries.append({
+            'query': f'{topic} x.com',
+            'type': 'x',
+            'max_results': max_results_per_query
+        })
         
-        result = subprocess.run(
-            cmd,
-            input=research_prompt,
-            capture_output=True,
-            text=True,
-            timeout=180,  # 3 minutes timeout
-            env=env
-        )
+        # Web searches
+        queries.append({
+            'query': f'{topic} 2026',
+            'type': 'web',
+            'max_results': max_results_per_query
+        })
+        queries.append({
+            'query': f'{topic} latest',
+            'type': 'web',
+            'max_results': max_results_per_query
+        })
         
-        if result.returncode != 0:
-            logger.error(f"Claude CLI error: {result.stderr}")
-            return {
-                'success': False,
-                'error': f"Claude CLI failed: {result.stderr}",
-                'stdout': result.stdout
-            }
+        if not quick:
+            queries.append({
+                'query': f'best {topic}' if 'best' not in topic.lower() else topic,
+                'type': 'web',
+                'max_results': max_results_per_query
+            })
+            queries.append({
+                'query': f'{topic} news',
+                'type': 'web',
+                'max_results': max_results_per_query
+            })
         
-        # Parse response
-        try:
-            response_data = json.loads(result.stdout.strip())
+        # Limit number of queries based on depth
+        queries = queries[:num_queries]
+        
+        # Execute searches in parallel
+        reddit_items = []
+        x_items = []
+        web_items = []
+        
+        search_tasks = []
+        for q in queries:
+            search_tasks.append(_search_async(q))
+        
+        # Wait for all searches to complete
+        results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        
+        # Process results
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Search failed: {result}")
+                continue
             
-            # Extract structured output if available
-            if 'structured_output' in response_data:
-                research_data = response_data['structured_output']
-            elif 'result' in response_data:
-                # Try to parse result as JSON
-                result_text = response_data['result']
-                try:
-                    research_data = json.loads(result_text)
-                except (json.JSONDecodeError, TypeError):
-                    # If result is text, try to extract JSON from it
-                    import re
-                    json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
-                    if json_match:
-                        try:
-                            research_data = json.loads(json_match.group())
-                        except json.JSONDecodeError:
-                            # Fallback: create structured data from text
-                            research_data = _parse_text_response(result_text, topic)
-                    else:
-                        research_data = _parse_text_response(result_text, topic)
-            else:
-                # Try to extract JSON from raw stdout
-                import re
-                json_match = re.search(r'\{.*\}', result.stdout, re.DOTALL)
-                if json_match:
-                    try:
-                        research_data = json.loads(json_match.group())
-                    except json.JSONDecodeError:
-                        research_data = _parse_text_response(result.stdout, topic)
-                else:
-                    research_data = _parse_text_response(result.stdout, topic)
+            if not result.get('success'):
+                continue
             
-            # Format output based on emit mode
-            if emit == 'json':
-                return {
-                    'success': True,
-                    'output': research_data,
-                    'format': 'json'
-                }
-            elif emit == 'md':
-                # Convert to markdown
-                markdown = _format_as_markdown(topic, date_range, research_data, tool)
-                return {
-                    'success': True,
-                    'output': markdown,
-                    'format': 'md'
-                }
-            else:  # compact
-                compact = _format_as_compact(topic, date_range, research_data, tool)
-                return {
-                    'success': True,
-                    'output': compact,
-                    'format': 'compact'
-                }
+            query_type = queries[i]['type']
+            search_results = result.get('results', [])
+            
+            for item in search_results:
+                url = item.get('url', '')
+                title = item.get('title', '')
+                snippet = item.get('snippet', '')
                 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Claude CLI response: {e}")
+                # Categorize by URL and query type
+                # Priority: URL pattern > query type
+                if 'reddit.com' in url.lower() or '/r/' in url.lower():
+                    reddit_items.append({
+                        'title': title,
+                        'url': url,
+                        'insights': snippet,
+                        'date': _extract_date_from_url(url),
+                        'engagement': None
+                    })
+                elif 'x.com' in url.lower() or 'twitter.com' in url.lower() or '/status/' in url.lower():
+                    x_items.append({
+                        'text': snippet or title,
+                        'url': url,
+                        'author': _extract_author_from_url(url),
+                        'insights': snippet,
+                        'date': _extract_date_from_url(url)
+                    })
+                elif query_type == 'reddit' and ('reddit' in title.lower() or 'reddit' in snippet.lower()):
+                    # Query was for Reddit but URL doesn't match - still categorize as Reddit
+                    reddit_items.append({
+                        'title': title,
+                        'url': url,
+                        'insights': snippet,
+                        'date': _extract_date_from_url(url),
+                        'engagement': None
+                    })
+                elif query_type == 'x' and ('twitter' in title.lower() or 'x.com' in title.lower() or 'twitter' in snippet.lower()):
+                    # Query was for X but URL doesn't match - still categorize as X
+                    x_items.append({
+                        'text': snippet or title,
+                        'url': url,
+                        'author': _extract_author_from_url(url),
+                        'insights': snippet,
+                        'date': _extract_date_from_url(url)
+                    })
+                else:
+                    # Everything else is web
+                    web_items.append({
+                        'title': title,
+                        'url': url,
+                        'insights': snippet,
+                        'date': _extract_date_from_url(url)
+                    })
+        
+        # Remove duplicates by URL
+        reddit_items = _deduplicate_by_url(reddit_items)
+        x_items = _deduplicate_by_url(x_items)
+        web_items = _deduplicate_by_url(web_items)
+        
+        # Extract patterns and recommendations
+        patterns = _extract_patterns(reddit_items + x_items + web_items, topic)
+        recommendations = patterns[:5]  # Top 5 patterns as recommendations
+        
+        # Build structured data
+        research_data = {
+            'topic': topic,
+            'date_range': date_range,
+            'reddit': reddit_items[:20],  # Limit to top 20
+            'x': x_items[:20],
+            'web': web_items[:20],
+            'patterns': patterns[:10],
+            'recommendations': recommendations
+        }
+        
+        # Format output based on emit mode
+        if emit == 'json':
             return {
-                'success': False,
-                'error': f"Failed to parse response: {e}",
-                'raw_output': result.stdout
+                'success': True,
+                'output': research_data,
+                'format': 'json'
+            }
+        elif emit == 'md':
+            markdown = _format_as_markdown(topic, date_range, research_data, tool)
+            return {
+                'success': True,
+                'output': markdown,
+                'format': 'md'
+            }
+        else:  # compact
+            compact = _format_as_compact(topic, date_range, research_data, tool)
+            return {
+                'success': True,
+                'output': compact,
+                'format': 'compact'
             }
             
-    except subprocess.TimeoutExpired:
-        return {
-            'success': False,
-            'error': 'Research timed out after 3 minutes'
-        }
     except Exception as e:
         logger.error(f"Error in last30days_claude_cli: {e}", exc_info=True)
         return {
@@ -241,13 +253,111 @@ Format the output as JSON with this structure:
         }
 
 
+async def _search_async(query_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute a web search asynchronously."""
+    if not search_web_tool:
+        return {'success': False, 'error': 'Web search tool not available'}
+    
+    # Run in thread pool since search_web_tool is synchronous
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        search_web_tool,
+        {'query': query_info['query'], 'max_results': query_info['max_results']}
+    )
+
+
+def _extract_date_from_url(url: str) -> Optional[str]:
+    """Try to extract date from URL (e.g., reddit URLs sometimes have dates)."""
+    # Reddit URLs: /r/subreddit/comments/id/title/
+    # X URLs: /username/status/id
+    # Most URLs don't have dates, return None
+    return None
+
+
+def _extract_author_from_url(url: str) -> str:
+    """Extract author/username from URL."""
+    # X/Twitter: https://x.com/username/status/...
+    match = re.search(r'(?:x\.com|twitter\.com)/([^/]+)', url)
+    if match:
+        return match.group(1)
+    return 'Unknown'
+
+
+def _deduplicate_by_url(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove duplicate items by URL."""
+    seen_urls = set()
+    unique_items = []
+    for item in items:
+        url = item.get('url', '')
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            unique_items.append(item)
+    return unique_items
+
+
+def _extract_patterns(items: List[Dict[str, Any]], topic: str) -> List[str]:
+    """Extract common patterns and insights from search results."""
+    patterns = []
+    
+    # Collect all insights/snippets and titles
+    texts = []
+    for item in items:
+        text = item.get('insights', '') or item.get('text', '') or item.get('title', '')
+        if text:
+            texts.append(text.lower())
+    
+    # Extract meaningful phrases (2-3 word combinations)
+    phrase_freq = {}
+    stop_words = {'that', 'this', 'with', 'from', 'have', 'been', 'will', 'would', 'your', 'their', 'there', 'these', 'those', 'which', 'what', 'when', 'where', 'about', 'after', 'before'}
+    
+    for text in texts:
+        # Extract 2-word phrases
+        words = re.findall(r'\b\w{3,}\b', text)
+        for i in range(len(words) - 1):
+            word1, word2 = words[i], words[i+1]
+            if word1 not in stop_words and word2 not in stop_words:
+                phrase = f"{word1} {word2}"
+                phrase_freq[phrase] = phrase_freq.get(phrase, 0) + 1
+    
+    # Get top phrases
+    top_phrases = sorted(phrase_freq.items(), key=lambda x: x[1], reverse=True)[:15]
+    
+    # Filter out topic-related phrases (they're obvious)
+    topic_words = set(topic.lower().split())
+    
+    for phrase, count in top_phrases:
+        phrase_words = set(phrase.split())
+        # Skip if phrase is just topic words
+        if phrase_words.issubset(topic_words):
+            continue
+        if count >= 2:  # Appears in at least 2 sources
+            patterns.append(f"{phrase} (mentioned {count}x)")
+    
+    # If we don't have enough patterns, add single important words
+    if len(patterns) < 5:
+        word_freq = {}
+        for text in texts:
+            words = re.findall(r'\b\w{5,}\b', text)  # Words with 5+ chars
+            for word in words:
+                if word not in stop_words and word not in topic_words:
+                    word_freq[word] = word_freq.get(word, 0) + 1
+        
+        top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+        for word, count in top_words:
+            if count >= 2 and word not in [p.split()[0] for p in patterns]:
+                patterns.append(f"{word} (mentioned {count}x)")
+    
+    return patterns[:10]  # Return top 10 patterns
+
+
 def _format_as_markdown(topic: str, date_range: str, data: Dict[str, Any], tool: str = '') -> str:
     """Format research data as markdown."""
     lines = [
         f"# Research Results: \"{topic}\"",
         f"",
         f"**Date Range:** {date_range}",
-        f"**Mode:** Claude CLI WebSearch",
+        f"**Mode:** Jotty Web Search (DuckDuckGo)",
         f"",
     ]
     
@@ -311,49 +421,6 @@ def _format_as_markdown(topic: str, date_range: str, data: Dict[str, Any], tool:
     return "\n".join(lines)
 
 
-def _parse_text_response(text: str, topic: str) -> Dict[str, Any]:
-    """Parse Claude CLI text response into structured data."""
-    # Extract URLs and content from text
-    import re
-    
-    reddit_items = []
-    x_items = []
-    web_items = []
-    patterns = []
-    
-    # Look for Reddit URLs
-    reddit_urls = re.findall(r'https?://(?:www\.)?reddit\.com/r/[^\s\)]+', text)
-    for url in reddit_urls[:10]:
-        reddit_items.append({
-            'url': url,
-            'title': f'Reddit discussion about {topic}',
-            'insights': 'Found via WebSearch'
-        })
-    
-    # Look for X/Twitter URLs
-    x_urls = re.findall(r'https?://(?:www\.)?(?:x\.com|twitter\.com)/[^\s\)]+', text)
-    for url in x_urls[:10]:
-        x_items.append({
-            'url': url,
-            'text': f'Post about {topic}',
-            'author': 'Unknown'
-        })
-    
-    # Extract key sentences as patterns
-    sentences = re.split(r'[.!?]\s+', text)
-    for sentence in sentences[:10]:
-        if len(sentence) > 20 and topic.lower() in sentence.lower():
-            patterns.append(sentence.strip())
-    
-    return {
-        'topic': topic,
-        'reddit': reddit_items,
-        'x': x_items,
-        'web': web_items,
-        'patterns': patterns[:5],
-        'recommendations': patterns[:3],
-        'raw_text': text[:1000]  # Keep first 1000 chars for reference
-    }
 
 
 def _format_as_compact(topic: str, date_range: str, data: Dict[str, Any], tool: str = '') -> str:
@@ -361,7 +428,7 @@ def _format_as_compact(topic: str, date_range: str, data: Dict[str, Any], tool: 
     lines = [
         f"Research Results: \"{topic}\"",
         f"Date Range: {date_range}",
-        f"Mode: Claude CLI WebSearch",
+        f"Mode: Jotty Web Search (DuckDuckGo)",
         "",
     ]
     
