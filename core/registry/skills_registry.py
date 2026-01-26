@@ -94,6 +94,7 @@ class SkillsRegistry:
         self.claude_skills_dir = Path.home() / ".claude" / "skills"
         
         self.loaded_skills: Dict[str, SkillDefinition] = {}
+        self.composite_skills: Dict[str, Any] = {}  # Store composite skills
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
         
