@@ -23,6 +23,7 @@ Note: This is framework code, not client-specific.
 import os
 import json
 import logging
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 import importlib.util
@@ -89,13 +90,12 @@ class SkillsRegistry:
         self.skills_dir = Path(skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         
+        # Also check Claude Code skills directory (~/.claude/skills)
+        self.claude_skills_dir = Path.home() / ".claude" / "skills"
+        
         self.loaded_skills: Dict[str, SkillDefinition] = {}
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
-        
-        # Dependency management
-        from .skill_dependency_manager import get_dependency_manager
-        self.dependency_manager = get_dependency_manager()
         
         # Dependency management
         from .skill_dependency_manager import get_dependency_manager
@@ -114,54 +114,82 @@ class SkillsRegistry:
         """
         Load all skills and return tools.
         
+        Checks both ~/jotty/skills and ~/.claude/skills for compatibility.
+        
         Returns:
             Dict mapping tool names to execute functions
             (can be merged into Jotty's tool registry)
         """
         all_tools: Dict[str, Callable] = {}
         
-        if not self.skills_dir.exists():
+        # Load from Jotty skills directory
+        if self.skills_dir.exists():
+            for skill_dir in self.skills_dir.iterdir():
+                if skill_dir.is_dir():
+                    try:
+                        skill = self._load_skill(skill_dir.name, self.skills_dir)
+                        
+                        # Auto-install dependencies if needed
+                        dep_result = self.dependency_manager.ensure_skill_dependencies(
+                            skill_dir.name, skill_dir
+                        )
+                        if dep_result["success"] and dep_result.get("installed"):
+                            logger.info(f"✅ Installed dependencies for {skill_dir.name}: {dep_result['installed']}")
+                        elif not dep_result["success"]:
+                            logger.warning(f"⚠️  Dependency installation failed for {skill_dir.name}: {dep_result.get('error')}")
+                        
+                        all_tools.update(skill.tools)
+                        self.loaded_skills[skill.name] = skill
+                        logger.info(f"Loaded skill: {skill.name} ({len(skill.tools)} tools)")
+                    except Exception as e:
+                        logger.error(f"Failed to load skill {skill_dir.name}: {e}")
+        else:
             logger.warning(f"Skills directory not found: {self.skills_dir}")
-            return all_tools
         
-        for skill_dir in self.skills_dir.iterdir():
-            if skill_dir.is_dir():
-                try:
-                    skill = self._load_skill(skill_dir.name)
-                    
-                    # Auto-install dependencies if needed
-                    dep_result = self.dependency_manager.ensure_skill_dependencies(
-                        skill_dir.name, skill_dir
-                    )
-                    if dep_result["success"] and dep_result.get("installed"):
-                        logger.info(f"✅ Installed dependencies for {skill_dir.name}: {dep_result['installed']}")
-                    elif not dep_result["success"]:
-                        logger.warning(f"⚠️  Dependency installation failed for {skill_dir.name}: {dep_result.get('error')}")
-                    
-                    all_tools.update(skill.tools)
-                    self.loaded_skills[skill.name] = skill
-                    logger.info(f"Loaded skill: {skill.name} ({len(skill.tools)} tools)")
-                except Exception as e:
-                    logger.error(f"Failed to load skill {skill_dir.name}: {e}")
+        # Load from Claude Code skills directory (~/.claude/skills)
+        if self.claude_skills_dir.exists():
+            for skill_dir in self.claude_skills_dir.iterdir():
+                if skill_dir.is_dir():
+                    try:
+                        skill = self._load_skill(skill_dir.name, self.claude_skills_dir)
+                        
+                        # Skip if already loaded from Jotty directory
+                        if skill.name in self.loaded_skills:
+                            logger.debug(f"Skipping {skill.name} from Claude directory (already loaded from Jotty)")
+                            continue
+                        
+                        all_tools.update(skill.tools)
+                        self.loaded_skills[skill.name] = skill
+                        logger.info(f"Loaded Claude Code skill: {skill.name} ({len(skill.tools)} tools)")
+                    except Exception as e:
+                        logger.error(f"Failed to load Claude Code skill {skill_dir.name}: {e}")
         
         return all_tools
     
-    def _load_skill(self, skill_name: str) -> SkillDefinition:
+    def _load_skill(self, skill_name: str, base_dir: Optional[Path] = None) -> SkillDefinition:
         """
         Load a single skill from disk.
         
         Args:
             skill_name: Name of skill directory
+            base_dir: Base directory to load from (default: self.skills_dir)
             
         Returns:
             SkillDefinition with tools
         """
-        skill_dir = self.skills_dir / skill_name
+        if base_dir is None:
+            base_dir = self.skills_dir
+        
+        skill_dir = base_dir / skill_name
         skill_md = skill_dir / "SKILL.md"
         tools_py = skill_dir / "tools.py"
+        scripts_dir = skill_dir / "scripts"
         
-        if not tools_py.exists():
-            raise FileNotFoundError(f"Skill {skill_name} missing tools.py")
+        # Check if it's a Python-based Claude Code skill (has scripts/ directory)
+        is_claude_code_skill = scripts_dir.exists() and scripts_dir.is_dir()
+        
+        if not tools_py.exists() and not is_claude_code_skill:
+            raise FileNotFoundError(f"Skill {skill_name} missing tools.py and no scripts/ directory found")
         
         # Read SKILL.md for metadata
         description = ""
@@ -174,16 +202,27 @@ class SkillsRegistry:
                     if len(desc_match) > 1:
                         description = desc_match[1].strip()
                     break
+                # Also check for description in markdown format
+                if line.startswith("# "):
+                    # First heading is usually the title/description
+                    if not description:
+                        description = line[2:].strip()
         
-        # Load tools.py
-        # In production, this would compile TS/JS or use proper Python imports
-        tools = self._load_tools_from_file(tools_py)
+        # Load tools
+        if is_claude_code_skill:
+            # Load Python-based Claude Code skill
+            tools = self._load_claude_code_skill(skill_dir, skill_name, content if skill_md.exists() else "")
+        elif tools_py.exists():
+            # Load standard Python tools.py
+            tools = self._load_tools_from_file(tools_py)
+        else:
+            tools = {}
         
         return SkillDefinition(
             name=skill_name,
             description=description or f"Skill: {skill_name}",
             tools=tools,
-            metadata={"path": str(skill_dir)}
+            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
         )
     
     def _load_tools_from_file(self, tools_file: Path) -> Dict[str, Callable]:
@@ -255,6 +294,144 @@ class SkillsRegistry:
                 "message": f"Tool {tool_name} executed (mock - implement in tools.py)",
             }
         return mock_execute
+    
+    def _load_claude_code_skill(self, skill_dir: Path, skill_name: str, skill_md_content: str) -> Dict[str, Callable]:
+        """
+        Load Python-based Claude Code skill (e.g., last30days).
+        
+        Claude Code skills have Python scripts in scripts/ directory instead of tools.py.
+        This method creates wrapper tools that execute the Python scripts.
+        
+        Args:
+            skill_dir: Skill directory path
+            skill_name: Skill name
+            skill_md_content: Content of SKILL.md for metadata extraction
+            
+        Returns:
+            Dict mapping tool names to execute functions
+        """
+        tools: Dict[str, Callable] = {}
+        scripts_dir = skill_dir / "scripts"
+        
+        if not scripts_dir.exists():
+            logger.warning(f"Claude Code skill {skill_name} has no scripts/ directory")
+            return tools
+        
+        # Look for main script (skill_name.py) or any .py files
+        main_script = scripts_dir / f"{skill_name}.py"
+        
+        if main_script.exists():
+            # Create wrapper tool for main script
+            tool_name = skill_name.replace("-", "_")
+            tools[tool_name] = self._create_claude_code_executor(main_script, skill_dir, skill_md_content)
+        else:
+            # Look for other Python scripts
+            for script_file in scripts_dir.glob("*.py"):
+                tool_name = script_file.stem.replace("-", "_")
+                tools[tool_name] = self._create_claude_code_executor(script_file, skill_dir, skill_md_content)
+        
+        return tools
+    
+    def _create_claude_code_executor(self, script_path: Path, skill_dir: Path, skill_md_content: str) -> Callable:
+        """
+        Create executor function for Claude Code Python script.
+        
+        Args:
+            script_path: Path to Python script
+            skill_dir: Skill directory
+            skill_md_content: SKILL.md content for description extraction
+            
+        Returns:
+            Callable tool executor function
+        """
+        async def execute_claude_code_skill(params: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Execute Claude Code Python skill script.
+            
+            Supports common parameters:
+            - topic: Research topic
+            - tool: Target tool (e.g., "ChatGPT")
+            - quick: Faster research
+            - deep: Comprehensive research
+            - sources: Source selection (auto, reddit, x, both)
+            - emit: Output format (compact, json, md, context, path)
+            - refresh: Bypass cache
+            """
+            try:
+                # Build command arguments
+                args = []
+                
+                if params.get("topic"):
+                    args.append(f'"{params["topic"]}"')
+                
+                if params.get("tool"):
+                    args.append(f'for {params["tool"]}')
+                
+                if params.get("quick"):
+                    args.append("--quick")
+                
+                if params.get("deep"):
+                    args.append("--deep")
+                
+                if params.get("sources"):
+                    args.append(f"--sources={params['sources']}")
+                
+                if params.get("emit"):
+                    args.append(f"--emit={params['emit']}")
+                
+                if params.get("refresh"):
+                    args.append("--refresh")
+                
+                # Execute Python script
+                cmd = ["python3", str(script_path)] + args
+                
+                result = subprocess.run(
+                    cmd,
+                    cwd=str(skill_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=120,  # 2 minutes timeout
+                )
+                
+                if result.returncode != 0:
+                    logger.error(f"Claude Code skill execution failed: {result.stderr}")
+                    return {
+                        "success": False,
+                        "error": result.stderr or "Script execution failed",
+                        "stdout": result.stdout,
+                    }
+                
+                # Parse output based on emit format
+                if params.get("emit") == "json":
+                    try:
+                        output = json.loads(result.stdout)
+                        return {"success": True, **output}
+                    except json.JSONDecodeError:
+                        return {
+                            "success": True,
+                            "output": result.stdout,
+                            "format": "json",
+                            "raw": True,
+                        }
+                
+                return {
+                    "success": True,
+                    "output": result.stdout,
+                    "format": params.get("emit", "compact"),
+                }
+            except subprocess.TimeoutExpired:
+                return {
+                    "success": False,
+                    "error": "Script execution timed out (120s limit)",
+                }
+            except Exception as e:
+                logger.error(f"Error executing Claude Code skill: {e}")
+                return {
+                    "success": False,
+                    "error": str(e),
+                }
+        
+        return execute_claude_code_skill
     
     def get_registered_tools(self) -> Dict[str, Callable]:
         """
