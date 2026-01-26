@@ -42,6 +42,9 @@ def _call_justjot_api(
     """
     Call JustJot.ai API endpoint.
     
+    Uses /api/internal/* endpoints for service-to-service calls (no auth required).
+    Falls back to /api/* endpoints if internal not available.
+    
     Args:
         method: HTTP method (GET, POST, PUT, DELETE)
         endpoint: API endpoint path
@@ -52,13 +55,24 @@ def _call_justjot_api(
     Returns:
         API response as dictionary
     """
-    url = f"{DEFAULT_API_URL}{endpoint}"
+    # Use internal API endpoints for service-to-service calls
+    # These bypass authentication (use x-internal-service header)
+    internal_endpoint = endpoint
+    if endpoint.startswith('/api/ideas'):
+        internal_endpoint = endpoint.replace('/api/ideas', '/api/internal/ideas')
+    elif endpoint.startswith('/api/templates'):
+        internal_endpoint = endpoint.replace('/api/templates', '/api/internal/templates')
+    elif endpoint.startswith('/api/tags'):
+        internal_endpoint = endpoint.replace('/api/tags', '/api/internal/tags')
+    
+    url = f"{DEFAULT_API_URL}{internal_endpoint}"
     
     default_headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-internal-service": "true"  # Service-to-service call (bypasses auth)
     }
     
-    # Add auth token if available
+    # Add auth token if available (fallback)
     auth_token = os.getenv("JUSTJOT_AUTH_TOKEN")
     if auth_token:
         default_headers["Authorization"] = f"Bearer {auth_token}"
