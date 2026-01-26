@@ -86,9 +86,14 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         research_content = research_result.get('output', '')
         
         # Step 2: Create markdown file
-        # Default to stock_market/outputs, fallback to ~/jotty/reports
-        default_output = Path(__file__).parent.parent.parent.parent / 'outputs'
-        if not default_output.exists():
+        # Default to stock_market/outputs directory
+        # __file__ is skills/research-to-pdf/tools.py
+        # Go up: research-to-pdf -> skills -> Jotty -> stock_market -> outputs
+        stock_market_root = Path(__file__).parent.parent.parent.parent.parent
+        default_output = stock_market_root / 'outputs'
+        
+        # Fallback to ~/jotty/reports if stock_market/outputs doesn't exist
+        if not default_output.exists() and not params.get('output_dir'):
             default_output = Path.home() / 'jotty' / 'reports'
         
         output_dir = Path(params.get('output_dir', str(default_output)))
@@ -277,26 +282,62 @@ def _format_markdown_for_pdf(content: str) -> str:
             continue
         
         # Lines with URLs in them - format better
-        if 'http' in line and ('**URL:**' in line or 'URL:' in line):
-            # Format URL lines
+        if 'http' in line:
+            # Handle **URL:** format
             if '**URL:**' in line:
                 parts = line.split('**URL:**')
                 if len(parts) == 2:
-                    formatted_lines.append(parts[0] + '**URL:**')
+                    formatted_lines.append(parts[0].rstrip() + ' **URL:**')
                     url_part = parts[1].strip()
-                    if len(url_part) > 90:
-                        # Wrap long URLs
-                        wrapped = textwrap.wrap(url_part, width=90, 
-                                              initial_indent='  ',
-                                              subsequent_indent='  ')
-                        formatted_lines.extend(wrapped)
+                    # Break long URLs at path segments or wrap
+                    if len(url_part) > 85:
+                        # Try to break at / characters
+                        if url_part.count('/') > 3:
+                            url_parts = url_part.split('/', 3)
+                            base = '/'.join(url_parts[:3]) + '/'
+                            path = url_parts[3] if len(url_parts) > 3 else ''
+                            formatted_lines.append('  ' + base)
+                            if path:
+                                # Wrap the path part
+                                wrapped_path = textwrap.wrap(path, width=85,
+                                                           initial_indent='  ',
+                                                           subsequent_indent='  ')
+                                formatted_lines.extend(wrapped_path)
+                        else:
+                            # Just wrap the URL
+                            wrapped = textwrap.wrap(url_part, width=85,
+                                                  initial_indent='  ',
+                                                  subsequent_indent='  ',
+                                                  break_long_words=False)
+                            formatted_lines.extend(wrapped)
                     else:
                         formatted_lines.append('  ' + url_part)
                 else:
                     formatted_lines.append(line)
-            else:
-                formatted_lines.append(line)
-            continue
+                continue
+            # Handle other URL patterns in text
+            elif len(stripped) > 100:
+                # Extract URLs and wrap text around them
+                import re
+                url_pattern = r'https?://[^\s\)]+'
+                urls = re.findall(url_pattern, line)
+                if urls:
+                    # Replace URLs with placeholders, wrap text, then restore URLs
+                    text_without_urls = line
+                    for i, url in enumerate(urls):
+                        text_without_urls = text_without_urls.replace(url, f'__URL_{i}__', 1)
+                    
+                    # Wrap the text
+                    wrapped_text = textwrap.wrap(text_without_urls, width=100,
+                                               break_long_words=False)
+                    
+                    # Restore URLs
+                    for wrapped_line in wrapped_text:
+                        restored = wrapped_line
+                        for i, url in enumerate(urls):
+                            restored = restored.replace(f'__URL_{i}__', url)
+                        formatted_lines.append(restored)
+                    continue
         
         # Regular paragraphs - wrap for better readability
         # Pandoc will handle wrapping, but we can format long paragraphs
