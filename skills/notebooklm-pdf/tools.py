@@ -145,7 +145,7 @@ async def _try_notebooklm_api(content: str, title: str, output_file: Path) -> Di
     return {'success': False, 'error': 'NotebookLM API not yet implemented'}
 
 
-async def _try_browser_automation(content: str, title: str, output_file: Path) -> Dict[str, Any]:
+async def _try_browser_automation(content: str, title: str, output_file: Path, params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Use browser automation (Playwright) to interact with NotebookLM web interface.
     
@@ -162,10 +162,12 @@ async def _try_browser_automation(content: str, title: str, output_file: Path) -
             return {'success': False, 'error': 'Playwright not available. Install with: pip install playwright && playwright install'}
         
         # Check for user data directory (for persistent login)
-        user_data_dir = os.getenv('NOTEBOOKLM_USER_DATA_DIR')
+        user_data_dir = params.get('user_data_dir') or os.getenv('NOTEBOOKLM_USER_DATA_DIR')
         if not user_data_dir:
             # Use default location
             user_data_dir = str(Path.home() / '.notebooklm_browser')
+        
+        headless_mode = params.get('headless', True)  # Default to headless, but allow override
         
         # Create temporary markdown file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp_file:
@@ -177,8 +179,9 @@ async def _try_browser_automation(content: str, title: str, output_file: Path) -
                 # Launch browser with persistent context (to maintain login)
                 browser = await p.chromium.launch_persistent_context(
                     user_data_dir=user_data_dir,
-                    headless=False,  # Set to False to see what's happening
-                    viewport={'width': 1920, 'height': 1080}
+                    headless=headless_mode,
+                    viewport={'width': 1920, 'height': 1080},
+                    args=['--disable-blink-features=AutomationControlled']  # Avoid detection
                 )
                 
                 # Get or create page
@@ -192,141 +195,246 @@ async def _try_browser_automation(content: str, title: str, output_file: Path) -
                 logger.info("Navigating to NotebookLM...")
                 await page.goto('https://notebooklm.google.com', wait_until='networkidle', timeout=30000)
                 
-                # Check if we need to sign in
+                # Wait for page to load
                 await page.wait_for_timeout(3000)
-                sign_in_elements = await page.query_selector_all('text=Sign in')
-                if sign_in_elements:
-                    logger.warning("NotebookLM requires sign-in.")
-                    logger.info("Please sign in manually in the browser window, then the script will continue.")
-                    logger.info("Waiting 60 seconds for manual sign-in...")
-                    await page.wait_for_timeout(60000)  # Wait for manual sign-in
+                
+                # Check if we need to sign in
+                sign_in_selectors = [
+                    'text=Sign in',
+                    'a:has-text("Sign in")',
+                    'button:has-text("Sign in")',
+                    '[aria-label*="Sign in"]'
+                ]
+                
+                needs_sign_in = False
+                for selector in sign_in_selectors:
+                    try:
+                        sign_in_element = await page.query_selector(selector)
+                        if sign_in_element and await sign_in_element.is_visible():
+                            needs_sign_in = True
+                            break
+                    except:
+                        continue
+                
+                if needs_sign_in:
+                    if headless_mode:
+                        logger.warning("NotebookLM requires sign-in, but browser is in headless mode.")
+                        logger.info("Please run with headless=False or sign in manually first.")
+                        logger.info("Setting NOTEBOOKLM_USER_DATA_DIR will persist your login.")
+                        await browser.close()
+                        return {
+                            'success': False,
+                            'error': 'NotebookLM requires sign-in. Run with headless=False or sign in manually first.',
+                            'hint': 'Set headless=False in params or sign in manually to persist session'
+                        }
+                    else:
+                        logger.warning("NotebookLM requires sign-in.")
+                        logger.info("Please sign in manually in the browser window, then press Enter to continue...")
+                        logger.info("Waiting 90 seconds for manual sign-in...")
+                        await page.wait_for_timeout(90000)  # Wait for manual sign-in
                 
                 # Try to create new notebook or upload
                 logger.info("Looking for upload/create notebook options...")
+                
+                # Wait for page to be fully loaded
+                await page.wait_for_load_state('networkidle')
+                await page.wait_for_timeout(2000)
                 
                 # Method 1: Look for "New notebook" or "+" button
                 new_notebook_selectors = [
                     'button:has-text("New notebook")',
                     'button:has-text("New")',
+                    'button:has-text("+")',
                     '[aria-label*="New notebook"]',
                     '[aria-label*="Create"]',
-                    'button[aria-label*="new"]'
+                    '[aria-label*="new notebook"]',
+                    'button[aria-label*="New"]',
+                    '.new-notebook-button',
+                    '[data-testid*="new"]'
                 ]
                 
+                notebook_created = False
                 for selector in new_notebook_selectors:
                     try:
                         button = await page.query_selector(selector)
-                        if button:
+                        if button and await button.is_visible():
                             await button.click()
-                            await page.wait_for_timeout(2000)
-                            logger.info(f"Clicked: {selector}")
-                            break
-                    except:
-                        continue
-                
-                # Method 2: Look for file upload
-                upload_selectors = [
-                    'input[type="file"]',
-                    '[aria-label*="upload"]',
-                    '[aria-label*="Upload"]',
-                    'button:has-text("Upload")'
-                ]
-                
-                uploaded = False
-                for selector in upload_selectors:
-                    try:
-                        upload_element = await page.query_selector(selector)
-                        if upload_element:
-                            if selector.startswith('input'):
-                                await upload_element.set_input_files(tmp_path)
-                            else:
-                                # Click button and then find file input
-                                await upload_element.click()
-                                await page.wait_for_timeout(1000)
-                                file_input = await page.query_selector('input[type="file"]')
-                                if file_input:
-                                    await file_input.set_input_files(tmp_path)
-                            
-                            logger.info(f"Uploaded file via: {selector}")
-                            uploaded = True
-                            await page.wait_for_timeout(5000)  # Wait for upload
+                            await page.wait_for_timeout(3000)  # Wait for notebook creation
+                            logger.info(f"✅ Clicked: {selector}")
+                            notebook_created = True
                             break
                     except Exception as e:
                         logger.debug(f"Selector {selector} failed: {e}")
                         continue
                 
-                if not uploaded:
-                    logger.warning("Could not find upload option. Trying drag-and-drop...")
-                    # Try drag and drop
+                if not notebook_created:
+                    logger.info("No 'New notebook' button found, trying to find upload area...")
+                
+                # Method 2: Look for file upload or paste content
+                # NotebookLM might support pasting text directly
+                logger.info("Attempting to paste content directly...")
+                
+                # Try to find a text area or content editor
+                editor_selectors = [
+                    'textarea',
+                    '[contenteditable="true"]',
+                    '[role="textbox"]',
+                    '.editor',
+                    '[data-testid*="editor"]',
+                    'div[contenteditable]'
+                ]
+                
+                content_pasted = False
+                for selector in editor_selectors:
                     try:
-                        await page.evaluate(f"""
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.md,.txt,.markdown';
-                            input.onchange = (e) => {{
-                                const file = e.target.files[0];
-                                const reader = new FileReader();
-                                reader.onload = (e) => {{
-                                    // Try to paste content
-                                    document.body.dispatchEvent(new ClipboardEvent('paste', {{
-                                        clipboardData: new DataTransfer()
-                                    }}));
-                                }};
-                                reader.readAsText(file);
-                            }};
-                            input.click();
-                        """)
-                        await page.wait_for_timeout(3000)
-                    except:
-                        pass
+                        editor = await page.query_selector(selector)
+                        if editor and await editor.is_visible():
+                            await editor.click()
+                            await page.wait_for_timeout(500)
+                            # Paste content
+                            await editor.fill(content)
+                            await page.wait_for_timeout(2000)
+                            logger.info(f"✅ Pasted content into: {selector}")
+                            content_pasted = True
+                            break
+                    except Exception as e:
+                        logger.debug(f"Editor selector {selector} failed: {e}")
+                        continue
+                
+                # If no editor found, try file upload
+                if not content_pasted:
+                    logger.info("No editor found, trying file upload...")
+                    upload_selectors = [
+                        'input[type="file"]',
+                        '[aria-label*="upload"]',
+                        '[aria-label*="Upload"]',
+                        'button:has-text("Upload")',
+                        '[data-testid*="upload"]'
+                    ]
+                    
+                    for selector in upload_selectors:
+                        try:
+                            upload_element = await page.query_selector(selector)
+                            if upload_element:
+                                if selector.startswith('input'):
+                                    await upload_element.set_input_files(tmp_path)
+                                    logger.info(f"✅ Uploaded file via: {selector}")
+                                    content_pasted = True
+                                    await page.wait_for_timeout(5000)  # Wait for upload
+                                    break
+                                else:
+                                    # Click button and then find file input
+                                    await upload_element.click()
+                                    await page.wait_for_timeout(2000)
+                                    file_input = await page.query_selector('input[type="file"]')
+                                    if file_input:
+                                        await file_input.set_input_files(tmp_path)
+                                        logger.info(f"✅ Uploaded file via button: {selector}")
+                                        content_pasted = True
+                                        await page.wait_for_timeout(5000)
+                                        break
+                        except Exception as e:
+                            logger.debug(f"Upload selector {selector} failed: {e}")
+                            continue
+                
+                if not content_pasted:
+                    logger.warning("Could not find upload option. Trying keyboard paste...")
+                    # Try keyboard paste as last resort
+                    try:
+                        # Focus on page body and paste
+                        await page.keyboard.press('Tab')  # Focus somewhere
+                        await page.keyboard.press('Tab')
+                        await page.keyboard.press('Tab')
+                        await page.keyboard.type(content[:100])  # Type first 100 chars as test
+                        await page.wait_for_timeout(2000)
+                        logger.info("Attempted keyboard input")
+                    except Exception as e:
+                        logger.debug(f"Keyboard paste failed: {e}")
                 
                 # Wait for processing
                 logger.info("Waiting for NotebookLM to process content...")
-                await page.wait_for_timeout(10000)
+                await page.wait_for_timeout(8000)
+                
+                # Check if content was successfully added
+                page_content = await page.content()
+                if content[:50].lower() in page_content.lower():
+                    logger.info("✅ Content appears to be in the notebook")
+                else:
+                    logger.warning("⚠️  Content may not have been added successfully")
                 
                 # Try to export as PDF
                 logger.info("Looking for export/download options...")
+                await page.wait_for_timeout(2000)
+                
                 export_selectors = [
                     'button:has-text("Export")',
                     'button:has-text("Download")',
+                    'button:has-text("PDF")',
+                    'button:has-text("Save")',
                     '[aria-label*="Export"]',
                     '[aria-label*="Download"]',
-                    'button:has-text("PDF")',
-                    'button:has-text("Save")'
+                    '[aria-label*="export"]',
+                    '[data-testid*="export"]',
+                    '[data-testid*="download"]',
+                    'a:has-text("Export")',
+                    'a:has-text("Download")'
                 ]
                 
+                pdf_exported = False
                 for selector in export_selectors:
                     try:
                         export_button = await page.query_selector(selector)
-                        if export_button:
-                            async with page.expect_download(timeout=10000) as download_info:
+                        if export_button and await export_button.is_visible():
+                            logger.info(f"Found export button: {selector}")
+                            # Wait for download
+                            try:
+                                async with page.expect_download(timeout=15000) as download_info:
+                                    await export_button.click()
+                                
+                                download = await download_info.value
+                                await download.save_as(output_file)
+                                
+                                if output_file.exists():
+                                    logger.info(f"✅ PDF downloaded successfully: {output_file}")
+                                    pdf_exported = True
+                                    break
+                            except Exception as e:
+                                logger.debug(f"Download wait failed for {selector}: {e}")
+                                # Try clicking again without download wait
                                 await export_button.click()
-                            
-                            download = await download_info.value
-                            await download.save_as(output_file)
-                            await browser.close()
-                            
-                            if output_file.exists():
-                                logger.info(f"PDF downloaded successfully: {output_file}")
-                                return {
-                                    'success': True,
-                                    'pdf_path': str(output_file),
-                                    'method': 'browser_automation'
-                                }
+                                await page.wait_for_timeout(5000)
+                                # Check if file was downloaded to default location
+                                downloads_dir = Path.home() / 'Downloads'
+                                if downloads_dir.exists():
+                                    pdf_files = list(downloads_dir.glob('*.pdf'))
+                                    if pdf_files:
+                                        latest_pdf = max(pdf_files, key=lambda p: p.stat().st_mtime)
+                                        import shutil
+                                        shutil.copy2(latest_pdf, output_file)
+                                        if output_file.exists():
+                                            logger.info(f"✅ PDF copied from Downloads: {output_file}")
+                                            pdf_exported = True
+                                            break
                     except Exception as e:
                         logger.debug(f"Export selector {selector} failed: {e}")
                         continue
                 
-                # If we get here, export didn't work
-                logger.warning("Could not find export option. Browser will remain open for manual export.")
-                logger.info(f"Please manually export the notebook as PDF and save to: {output_file}")
                 await browser.close()
                 
-                return {
-                    'success': False,
-                    'error': 'Could not find export option. Please export manually from NotebookLM.',
-                    'note': f'Content uploaded. Please export PDF manually to: {output_file}'
-                }
+                if pdf_exported and output_file.exists():
+                    return {
+                        'success': True,
+                        'pdf_path': str(output_file),
+                        'method': 'browser_automation',
+                        'file_size': output_file.stat().st_size
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Could not find export option or download failed.',
+                        'note': f'Content may have been uploaded. Please export PDF manually from NotebookLM to: {output_file}',
+                        'hint': 'Try running with headless=False to see what\'s happening'
+                    }
                 
         finally:
             # Clean up temp file
