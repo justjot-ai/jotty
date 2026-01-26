@@ -184,9 +184,11 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
         
         pdf_title = params.get('title') or f"Financial Analysis: {', '.join([c['name'] for c in companies_analyzed])}"
         
+        pdf_output_file = output_dir / f'{symbol_str}_analysis_{timestamp}.pdf'
+        
         pdf_result = convert_pdf_tool({
             'input_file': str(markdown_file),
-            'output_file': str(output_dir / f'{symbol_str}_analysis_{timestamp}.pdf'),
+            'output_file': str(pdf_output_file),
             'title': pdf_title,
             'author': 'Jotty Financial Analysis',
             'page_size': 'a4'
@@ -198,7 +200,26 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
                 'error': f'PDF conversion failed: {pdf_result.get("error")}'
             }
         
-        pdf_path = pdf_result.get('output_file') or pdf_result.get('pdf_path')
+        # Try multiple possible return keys
+        pdf_path = (
+            pdf_result.get('output_file') or 
+            pdf_result.get('pdf_path') or 
+            pdf_result.get('output_path') or
+            str(pdf_output_file) if pdf_output_file.exists() else None
+        )
+        
+        # Verify PDF was created
+        if pdf_path and not Path(pdf_path).exists():
+            # Try the expected output file
+            if pdf_output_file.exists():
+                pdf_path = str(pdf_output_file)
+            else:
+                logger.warning(f"PDF file not found at {pdf_path}, checking output_dir")
+                # Look for PDF files in output_dir
+                pdf_files = list(output_dir.glob('*.pdf'))
+                if pdf_files:
+                    pdf_path = str(pdf_files[-1])  # Use most recent
+                    logger.info(f"Found PDF: {pdf_path}")
         
         # Step 6: Send to Telegram
         telegram_sent = False

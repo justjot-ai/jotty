@@ -399,11 +399,9 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
         logger.info(f"✅ Found {len(topics)} trending topics")
         for i, topic in enumerate(topics, 1):
             logger.info(f"   {i}. {topic}")
-        logger.info()
         
         # Step 2: Process each topic in parallel
         logger.info(f"🚀 Step 2: Processing {len(topics)} topics in parallel...")
-        logger.info()
         
         tasks = [
             _process_single_topic(topic, i, registry, params)
@@ -430,7 +428,6 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
         
         successful = sum(1 for r in processed_results if r.get('success'))
         
-        logger.info()
         logger.info(f"✅ Processing complete!")
         logger.info(f"   Topics processed: {successful}/{len(topics)}")
         logger.info(f"   Ideas created: {ideas_created}")
