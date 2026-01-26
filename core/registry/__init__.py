@@ -24,6 +24,15 @@ from .client_registration_helpers import (
     get_registered_adapters_for_client,
     export_adapters_for_agent
 )
+from .skills_registry import (
+    SkillsRegistry,
+    SkillDefinition,
+    get_skills_registry,
+)
+from .skill_generator import (
+    SkillGenerator,
+    get_skill_generator,
+)
 
 __all__ = [
     # Core registries
@@ -35,6 +44,13 @@ __all__ = [
     'get_tools_registry',
     'UnifiedRegistry',
     'get_unified_registry',
+    # Skills registry (framework-level)
+    'SkillsRegistry',
+    'SkillDefinition',
+    'get_skills_registry',
+    # Skill generator (AI-powered)
+    'SkillGenerator',
+    'get_skill_generator',
     # AGUI component registry
     'AGUIComponentRegistry',
     'AGUIComponentAdapter',
