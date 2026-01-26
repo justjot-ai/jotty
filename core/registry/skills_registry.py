@@ -67,8 +67,24 @@ class SkillsRegistry:
             skill_generator: Optional SkillGenerator for AI-powered skill creation
         """
         if skills_dir is None:
-            home = os.path.expanduser("~")
-            skills_dir = os.path.join(home, "jotty", "skills")
+            # Priority: env var > repo-relative > user home
+            skills_dir = os.getenv("JOTTY_SKILLS_DIR")
+            
+            if not skills_dir:
+                # Try repo-relative (for development)
+                # __file__ is core/registry/skills_registry.py
+                # Go up: core/registry -> core -> Jotty -> skills
+                current_file = Path(__file__).resolve()
+                repo_root = current_file.parent.parent.parent  # core/registry -> core -> Jotty
+                repo_skills = repo_root / "skills"
+                if repo_skills.exists() or repo_root.name == "Jotty":
+                    # Create if doesn't exist (we're in repo)
+                    repo_skills.mkdir(exist_ok=True)
+                    skills_dir = str(repo_skills)
+                else:
+                    # Fallback to user home (for installed packages)
+                    home = os.path.expanduser("~")
+                    skills_dir = os.path.join(home, "jotty", "skills")
         
         self.skills_dir = Path(skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
@@ -76,6 +92,14 @@ class SkillsRegistry:
         self.loaded_skills: Dict[str, SkillDefinition] = {}
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
+        
+        # Dependency management
+        from .skill_dependency_manager import get_dependency_manager
+        self.dependency_manager = get_dependency_manager()
+        
+        # Dependency management
+        from .skill_dependency_manager import get_dependency_manager
+        self.dependency_manager = get_dependency_manager()
     
     def init(self) -> None:
         """Initialize and load all skills."""
@@ -104,6 +128,16 @@ class SkillsRegistry:
             if skill_dir.is_dir():
                 try:
                     skill = self._load_skill(skill_dir.name)
+                    
+                    # Auto-install dependencies if needed
+                    dep_result = self.dependency_manager.ensure_skill_dependencies(
+                        skill_dir.name, skill_dir
+                    )
+                    if dep_result["success"] and dep_result.get("installed"):
+                        logger.info(f"✅ Installed dependencies for {skill_dir.name}: {dep_result['installed']}")
+                    elif not dep_result["success"]:
+                        logger.warning(f"⚠️  Dependency installation failed for {skill_dir.name}: {dep_result.get('error')}")
+                    
                     all_tools.update(skill.tools)
                     self.loaded_skills[skill.name] = skill
                     logger.info(f"Loaded skill: {skill.name} ({len(skill.tools)} tools)")
@@ -233,6 +267,14 @@ class SkillsRegistry:
         tools: Dict[str, Callable] = {}
         for skill in self.loaded_skills.values():
             tools.update(skill.tools)
+        
+        # Add package management tools
+        from .skill_package_tools import create_package_management_tools
+        from .skill_venv_manager import get_venv_manager
+        venv_manager = get_venv_manager()
+        package_tools = create_package_management_tools(venv_manager)
+        tools.update(package_tools)
+        
         return tools
     
     def get_tool_metadata(self) -> Dict[str, Dict[str, str]]:

@@ -33,6 +33,14 @@ from .skill_generator import (
     SkillGenerator,
     get_skill_generator,
 )
+from .skill_venv_manager import (
+    SkillVenvManager,
+    get_venv_manager,
+)
+from .skill_dependency_manager import (
+    SkillDependencyManager,
+    get_dependency_manager,
+)
 
 __all__ = [
     # Core registries
@@ -51,6 +59,12 @@ __all__ = [
     # Skill generator (AI-powered)
     'SkillGenerator',
     'get_skill_generator',
+    # Skill venv manager
+    'SkillVenvManager',
+    'get_venv_manager',
+    # Skill dependency manager
+    'SkillDependencyManager',
+    'get_dependency_manager',
     # AGUI component registry
     'AGUIComponentRegistry',
     'AGUIComponentAdapter',

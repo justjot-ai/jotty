@@ -32,7 +32,7 @@ class SkillGenerator:
     similar to Clawd.bot's capability.
     """
     
-    def __init__(self, skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None):
+    def __init__(self, skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry=None):
         """
         Initialize skill generator.
         
@@ -40,13 +40,31 @@ class SkillGenerator:
             skills_dir: Directory where skills are stored
             lm: DSPy BaseLM instance (uses Jotty's unified LLM interface)
                 If None, uses dspy.configure() default LM
+            skills_registry: Optional SkillsRegistry instance for auto-reload after generation
         """
         if skills_dir is None:
-            home = os.path.expanduser("~")
-            skills_dir = os.path.join(home, "jotty", "skills")
+            # Priority: env var > repo-relative > user home
+            skills_dir = os.getenv("JOTTY_SKILLS_DIR")
+            
+            if not skills_dir:
+                # Try repo-relative (for development)
+                # __file__ is core/registry/skill_generator.py
+                # Go up: core/registry -> core -> Jotty -> skills
+                current_file = Path(__file__).resolve()
+                repo_root = current_file.parent.parent.parent  # core/registry -> core -> Jotty
+                repo_skills = repo_root / "skills"
+                if repo_skills.exists() or repo_root.name == "Jotty":
+                    # Create if doesn't exist (we're in repo)
+                    repo_skills.mkdir(exist_ok=True)
+                    skills_dir = str(repo_skills)
+                else:
+                    # Fallback to user home (for installed packages)
+                    home = os.path.expanduser("~")
+                    skills_dir = os.path.join(home, "jotty", "skills")
         
         self.skills_dir = Path(skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
+        self.skills_registry = skills_registry  # For auto-reload after generation
         
         # Use provided LM or get from DSPy configuration (same approach as supervisor)
         if lm:
@@ -117,12 +135,47 @@ class SkillGenerator:
         
         logger.info(f"✅ Generated skill: {skill_name}")
         
+        # Auto-reload skill if registry is available
+        reloaded = False
+        tool_tested = False
+        
+        if self.skills_registry:
+            try:
+                # Reload skills to pick up new one
+                self.skills_registry.load_all_skills()
+                reloaded = True
+                logger.info(f"✅ Skill '{skill_name}' auto-reloaded")
+                
+                # Test tool execution if possible
+                skill = self.skills_registry.get_skill(skill_name)
+                if skill and skill.tools:
+                    # Try to test first tool with empty params (safe test)
+                    first_tool_name = list(skill.tools.keys())[0]
+                    first_tool = skill.tools[first_tool_name]
+                    
+                    try:
+                        # Test with empty params (tool should handle gracefully)
+                        test_result = first_tool({})
+                        tool_tested = True
+                        if test_result.get('success'):
+                            logger.info(f"✅ Tool '{first_tool_name}' test passed")
+                        else:
+                            logger.info(f"⚠️  Tool '{first_tool_name}' test returned: {test_result.get('error', 'unknown')}")
+                    except Exception as e:
+                        logger.warning(f"⚠️  Tool '{first_tool_name}' test failed: {e}")
+            except Exception as e:
+                logger.warning(f"⚠️  Auto-reload failed: {e}")
+        else:
+            logger.info(f"💡 Skill '{skill_name}' generated. Pass skills_registry to generator for auto-reload.")
+        
         return {
             "name": skill_name,
             "description": description,
             "path": str(skill_dir),
             "skill_md": str(skill_md_path),
             "tools_py": str(tools_py_path),
+            "reloaded": reloaded,
+            "tool_tested": tool_tested,
         }
     
     def _generate_skill_md(
@@ -454,18 +507,22 @@ Generate the improved, runnable Python code:"""
 _generator_instance: Optional[SkillGenerator] = None
 
 
-def get_skill_generator(skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None) -> SkillGenerator:
+def get_skill_generator(skills_dir: Optional[str] = None, lm: Optional[BaseLM] = None, skills_registry=None) -> SkillGenerator:
     """
     Get singleton skill generator instance.
     
     Args:
         skills_dir: Directory where skills are stored
         lm: Optional DSPy BaseLM instance (uses unified LLM provider if None)
+        skills_registry: Optional SkillsRegistry for auto-reload after generation
     
     Returns:
         SkillGenerator instance using Jotty's unified LLM interface
     """
     global _generator_instance
     if _generator_instance is None:
-        _generator_instance = SkillGenerator(skills_dir, lm)
+        _generator_instance = SkillGenerator(skills_dir, lm, skills_registry)
+    elif skills_registry and not _generator_instance.skills_registry:
+        # Update registry if provided
+        _generator_instance.skills_registry = skills_registry
     return _generator_instance
