@@ -58,10 +58,18 @@ async def search_v2v_trending_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Search V2V.ai
         search_query = f"site:v2v.ai {query}" if query != 'trending topics' else "site:v2v.ai trending"
         
-        search_result = await search_tool({
-            'query': search_query,
-            'max_results': max_results
-        })
+        # Check if search_tool is async
+        import inspect
+        if inspect.iscoroutinefunction(search_tool):
+            search_result = await search_tool({
+                'query': search_query,
+                'max_results': max_results
+            })
+        else:
+            search_result = search_tool({
+                'query': search_query,
+                'max_results': max_results
+            })
         
         if not search_result.get('success'):
             return {

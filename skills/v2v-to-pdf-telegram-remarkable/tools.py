@@ -57,10 +57,17 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         search_tool = v2v_skill.tools.get('search_v2v_trending_tool')
-        search_result = await search_tool({
-            'query': query,
-            'format': 'markdown'
-        })
+        import inspect
+        if inspect.iscoroutinefunction(search_tool):
+            search_result = await search_tool({
+                'query': query,
+                'format': 'markdown'
+            })
+        else:
+            search_result = search_tool({
+                'query': query,
+                'format': 'markdown'
+            })
         
         if not search_result.get('success'):
             return {
@@ -108,8 +115,18 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             pdf_filename = f"{safe_title}_{timestamp}.pdf"
             pdf_path = output_dir / pdf_filename
             
-            # Convert to PDF
+        # Convert to PDF (check if async)
+        import inspect
+        if inspect.iscoroutinefunction(convert_tool):
             pdf_result = await convert_tool({
+                'input_file': tmp_md_path,
+                'output_file': str(pdf_path),
+                'title': title,
+                'author': 'Jotty V2V Research',
+                'page_size': 'a4'
+            })
+        else:
+            pdf_result = convert_tool({
                 'input_file': tmp_md_path,
                 'output_file': str(pdf_path),
                 'title': title,
@@ -134,11 +151,18 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     send_file_tool = telegram_skill.tools.get('send_telegram_file_tool')
                     if send_file_tool:
                         telegram_chat_id = params.get('telegram_chat_id')
-                        telegram_result = await send_file_tool({
-                            'file_path': str(pdf_path),
-                            'chat_id': telegram_chat_id,
-                            'caption': f"📊 {title}\n\nGenerated from V2V.ai trending search"
-                        })
+                        if inspect.iscoroutinefunction(send_file_tool):
+                            telegram_result = await send_file_tool({
+                                'file_path': str(pdf_path),
+                                'chat_id': telegram_chat_id,
+                                'caption': f"📊 {title}\n\nGenerated from V2V.ai trending search"
+                            })
+                        else:
+                            telegram_result = send_file_tool({
+                                'file_path': str(pdf_path),
+                                'chat_id': telegram_chat_id,
+                                'caption': f"📊 {title}\n\nGenerated from V2V.ai trending search"
+                            })
                         telegram_sent = telegram_result.get('success', False)
                         if telegram_sent:
                             logger.info("✅ Sent to Telegram")
@@ -158,11 +182,18 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     send_remarkable_tool = remarkable_skill.tools.get('send_to_remarkable_tool')
                     if send_remarkable_tool:
                         remarkable_folder = params.get('remarkable_folder', '/')
-                        remarkable_result = await send_remarkable_tool({
-                            'file_path': str(pdf_path),
-                            'folder': remarkable_folder,
-                            'document_name': safe_title
-                        })
+                        if inspect.iscoroutinefunction(send_remarkable_tool):
+                            remarkable_result = await send_remarkable_tool({
+                                'file_path': str(pdf_path),
+                                'folder': remarkable_folder,
+                                'document_name': safe_title
+                            })
+                        else:
+                            remarkable_result = send_remarkable_tool({
+                                'file_path': str(pdf_path),
+                                'folder': remarkable_folder,
+                                'document_name': safe_title
+                            })
                         remarkable_sent = remarkable_result.get('success', False)
                         if remarkable_sent:
                             logger.info("✅ Sent to reMarkable")
