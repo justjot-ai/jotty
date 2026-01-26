@@ -308,21 +308,84 @@ async def _google_oauth_login(
             if needs_2fa:
                 logger.info("⚠️  2FA detected")
                 
-                if two_factor_code:
+                # Check for authenticator push notification
+                await page.wait_for_timeout(2000)
+                page_content = await page.content().lower()
+                
+                push_indicators = [
+                    'check your phone',
+                    'tap yes on your phone',
+                    'approve the sign-in',
+                    'authenticator',
+                    'push notification',
+                    'notification sent'
+                ]
+                
+                is_push_notification = any(indicator in page_content for indicator in push_indicators)
+                
+                if is_push_notification:
+                    logger.info("📱 Authenticator push notification detected")
+                    logger.info("   Waiting for you to approve on your phone...")
+                    
+                    if headless:
+                        logger.warning("⚠️  Push notification requires user interaction")
+                        logger.info("   Please approve the notification on your phone")
+                        logger.info("   The script will wait up to 60 seconds...")
+                    else:
+                        logger.info("   👉 Please check your phone and approve the sign-in request")
+                        logger.info("   👉 The script will wait for approval...")
+                    
+                    # Wait for approval (check for redirect or success indicators)
+                    max_wait_time = 60  # seconds
+                    check_interval = 2  # seconds
+                    waited = 0
+                    
+                    while waited < max_wait_time:
+                        await page.wait_for_timeout(check_interval * 1000)
+                        waited += check_interval
+                        
+                        current_url = page.url
+                        page_content_check = await page.content().lower()
+                        
+                        # Check if we've moved past 2FA
+                        if 'accounts.google.com/signin' not in current_url or \
+                           'notebooklm.google.com' in current_url or \
+                           not any(indicator in page_content_check for indicator in two_factor_indicators):
+                            logger.info("✅ Push notification approved!")
+                            break
+                        
+                        # Show progress
+                        if waited % 10 == 0:
+                            logger.info(f"   ⏳ Still waiting... ({waited}/{max_wait_time}s)")
+                    
+                    if waited >= max_wait_time:
+                        await browser.close()
+                        return {
+                            'success': False,
+                            'error': 'Push notification approval timeout. Please approve on your phone and try again.',
+                            'needs_2fa': True,
+                            'is_push': True
+                        }
+                
+                elif two_factor_code:
+                    # Manual code entry
                     logger.info("Entering 2FA code...")
                     code_selectors = [
                         'input[type="tel"]',
                         'input[name="totpPin"]',
                         'input[aria-label*="code"]',
-                        'input[aria-label*="verification"]'
+                        'input[aria-label*="verification"]',
+                        'input[id="totpPin"]'
                     ]
                     
+                    code_entered = False
                     for selector in code_selectors:
                         try:
                             code_input = await page.query_selector(selector)
                             if code_input and await code_input.is_visible():
                                 await code_input.fill(two_factor_code)
                                 await page.wait_for_timeout(1000)
+                                logger.info("✅ 2FA code entered")
                                 
                                 # Click Verify/Next
                                 for next_sel in next_selectors:
@@ -331,22 +394,38 @@ async def _google_oauth_login(
                                         if verify_btn and await verify_btn.is_visible():
                                             await verify_btn.click()
                                             await page.wait_for_timeout(3000)
+                                            logger.info("✅ Verification submitted")
+                                            code_entered = True
                                             break
                                     except:
                                         continue
-                                break
-                        except:
+                                if code_entered:
+                                    break
+                        except Exception as e:
+                            logger.debug(f"Code selector {selector} failed: {e}")
                             continue
+                    
+                    if not code_entered:
+                        await browser.close()
+                        return {
+                            'success': False,
+                            'error': 'Could not enter 2FA code'
+                        }
                 else:
+                    # No code provided and not push notification
                     if not headless:
-                        logger.info("Please enter 2FA code in the browser window...")
-                        input("Press Enter after entering 2FA code...")
+                        logger.info("⚠️  2FA required")
+                        logger.info("   Please complete 2FA in the browser window...")
+                        logger.info("   (Enter code or approve push notification)")
+                        input("Press Enter after completing 2FA...")
+                        await page.wait_for_timeout(3000)
                     else:
                         await browser.close()
                         return {
                             'success': False,
-                            'error': '2FA required. Provide two_factor_code parameter or run with headless=False',
-                            'needs_2fa': True
+                            'error': '2FA required. Approve push notification on your phone or provide two_factor_code parameter',
+                            'needs_2fa': True,
+                            'is_push': True
                         }
             
             # Wait for redirect/authentication
