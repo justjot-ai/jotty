@@ -347,41 +347,137 @@ async def _fallback_pandoc(content: str, title: str, output_file: Path, params: 
     """
     try:
         # Create temporary markdown file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as tmp_file:
             tmp_file.write(content)
             tmp_path = tmp_file.name
         
         try:
-            # Use document-converter skill
-            from skills.document_converter.tools import convert_to_pdf_tool
+            # Import document-converter skill using relative path
+            import sys
+            from pathlib import Path
             
-            result = await convert_to_pdf_tool({
-                'input_file': tmp_path,
-                'output_file': str(output_file),
-                'title': title,
-                'author': params.get('author', 'Jotty Framework'),
-                'page_size': params.get('page_size', 'a4')
-            })
+            # Get the skills directory
+            current_file = Path(__file__).resolve()
+            skills_dir = current_file.parent.parent
             
-            if result.get('success'):
-                return {
-                    'success': True,
-                    'pdf_path': result.get('output_path', str(output_file)),
-                    'method': 'pandoc_fallback',
-                    'note': 'NotebookLM unavailable, used Pandoc instead'
-                }
+            # Add to path if not already there
+            if str(skills_dir) not in sys.path:
+                sys.path.insert(0, str(skills_dir))
+            
+            # Import using relative import
+            import importlib.util
+            doc_converter_path = skills_dir / 'document-converter' / 'tools.py'
+            if doc_converter_path.exists():
+                spec = importlib.util.spec_from_file_location("document_converter_tools", doc_converter_path)
+                if spec and spec.loader:
+                    doc_converter_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(doc_converter_module)
+                    convert_to_pdf_tool = doc_converter_module.convert_to_pdf_tool
+                    
+                    result = await convert_to_pdf_tool({
+                        'input_file': tmp_path,
+                        'output_file': str(output_file),
+                        'title': title,
+                        'author': params.get('author', 'Jotty Framework'),
+                        'page_size': params.get('page_size', 'a4')
+                    })
+                    
+                    if result.get('success'):
+                        return {
+                            'success': True,
+                            'pdf_path': result.get('output_path', str(output_file)),
+                            'method': 'pandoc_fallback',
+                            'note': 'NotebookLM unavailable, used Pandoc instead'
+                        }
+                    else:
+                        return result
             else:
-                return result
+                # Direct Pandoc call if module not available
+                return await _direct_pandoc_call(tmp_path, output_file, title, params)
                 
         finally:
             # Clean up temp file
-            Path(tmp_path).unlink()
+            if Path(tmp_path).exists():
+                Path(tmp_path).unlink()
             
     except Exception as e:
         logger.error(f"Pandoc fallback failed: {e}", exc_info=True)
         return {
             'success': False,
             'error': f'Pandoc fallback failed: {str(e)}'
+        }
+
+
+async def _direct_pandoc_call(input_path: Path, output_path: Path, title: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Direct Pandoc call without using document-converter skill.
+    """
+    try:
+        import subprocess
+        
+        # Check if pandoc is available
+        pandoc_check = subprocess.run(['which', 'pandoc'], capture_output=True)
+        if pandoc_check.returncode != 0:
+            return {
+                'success': False,
+                'error': 'Pandoc not found. Install with: sudo apt-get install pandoc or brew install pandoc'
+            }
+        
+        # Build pandoc command
+        cmd = [
+            'pandoc',
+            str(input_path),
+            '-o', str(output_path),
+            '--pdf-engine=xelatex',
+            '--standalone',
+            '-V', 'geometry:a4paper,margin=1in',
+            '-V', 'fontsize=11pt',
+            '-V', 'linestretch=1.15',
+            '-V', 'urlcolor=blue',
+            '-V', 'linkcolor=blue',
+            '--toc',
+            '--toc-depth=3',
+        ]
+        
+        if title:
+            cmd.extend(['-M', f'title={title}'])
+        
+        author = params.get('author', 'Jotty Framework')
+        if author:
+            cmd.extend(['-M', f'author={author}'])
+        
+        # Execute pandoc
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode != 0:
+            return {
+                'success': False,
+                'error': f'Pandoc conversion failed: {result.stderr}'
+            }
+        
+        if output_path.exists():
+            return {
+                'success': True,
+                'pdf_path': str(output_path),
+                'method': 'pandoc_direct',
+                'note': 'NotebookLM unavailable, used Pandoc directly'
+            }
+        else:
+            return {
+                'success': False,
+                'error': 'Pandoc completed but output file not found'
+            }
+            
+    except Exception as e:
+        logger.error(f"Direct Pandoc call failed: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': f'Direct Pandoc call failed: {str(e)}'
         }
 
 
