@@ -1,0 +1,72 @@
+version: '3.8'
+
+# Database containers for testing Jotty database-tools skill
+# Usage: docker-compose -f docker-compose.databases.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jotty-postgres
+    environment:
+      POSTGRES_USER: jotty
+      POSTGRES_PASSWORD: jotty123
+      POSTGRES_DB: jottydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jotty -d jottydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0
+    container_name: jotty-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_USER: jotty
+      MYSQL_PASSWORD: jotty123
+      MYSQL_DATABASE: jottydb
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "jotty", "-pjotty123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest  # ARM64 compatible
+    container_name: jotty-mssql
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: Jotty@123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    cap_add:
+      - SYS_PTRACE
+
+  redis:
+    image: redis:7-alpine
+    container_name: jotty-redis
+    ports:
+      - "6380:6379"  # Use 6380 to avoid conflict
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mysql_data:
+  mssql_data:
+  redis_data:

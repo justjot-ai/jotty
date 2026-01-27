@@ -24,6 +24,7 @@ categories:
       - mcp-builder
       - webapp-testing
       - artifacts-builder
+      - database-tools
 
   search:
     description: "Web search and scraping"
