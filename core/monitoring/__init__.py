@@ -12,6 +12,8 @@ from .monitoring_framework import (
     PerformanceMetrics,
     ExecutionStatus,
 )
+from .profiler import PerformanceProfiler, ProfileSegment, ProfileReport, profile_function
+from .profiler import PerformanceProfiler, ProfileSegment, ProfileReport, profile_function
 
 __all__ = [
     'CostTracker',
@@ -23,4 +25,9 @@ __all__ = [
     'ExecutionMetrics',
     'PerformanceMetrics',
     'ExecutionStatus',
+    # Profiling
+    'PerformanceProfiler',
+    'ProfileSegment',
+    'ProfileReport',
+    'profile_function',
 ]

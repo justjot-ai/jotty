@@ -1147,9 +1147,18 @@ class SingleAgentOrchestrator:
             logger.info(f"⏩ ACTOR-level Auditor skipped for '{self.agent_config.name}' (disabled)")
             valid = (actor_output is not None and actor_error is None)
             self._override_metadata = None
+        elif not self.agent_config or (self.agent_config and not self.agent_config.enable_auditor):
+            # No agent_config or auditor disabled - assume valid if actor succeeded
+            logger.info(f"⏩ ACTOR-level Auditor skipped (no config or disabled)")
+            valid = (actor_output is not None and actor_error is None)
+            self._override_metadata = None
         elif proceed and actor_output is not None:
             # Auditor enabled but conditions not met
             valid = False
+            self._override_metadata = None
+        else:
+            # Default: invalid if no output or error
+            valid = (actor_output is not None and actor_error is None)
             self._override_metadata = None
         
         # =====================================================================
@@ -1523,20 +1532,38 @@ class SingleAgentOrchestrator:
         # This makes the system FOOLPROOF - it adapts to ANY agent signature!
 
         # Step 1: Get agent's expected parameters from its signature
+        # Use same logic as Conductor for DSPy modules
         expected_params = set()
         try:
-            if hasattr(self.agent, 'forward'):
+            # Strategy 1a: DSPy ChainOfThought (has predict.signature)
+            if hasattr(self.agent, 'predict') and hasattr(self.agent.predict, 'signature'):
+                signature = self.agent.predict.signature
+                if hasattr(signature, 'input_fields'):
+                    expected_params = set(signature.input_fields.keys())
+                    logger.info(f"[🔍 SIGNATURE] Agent expects parameters (DSPy predict.signature): {expected_params}")
+            
+            # Strategy 1b: DSPy module with signature attribute
+            elif hasattr(self.agent, 'signature') and hasattr(self.agent.signature, 'input_fields'):
+                expected_params = set(self.agent.signature.input_fields.keys())
+                logger.info(f"[🔍 SIGNATURE] Agent expects parameters (DSPy signature): {expected_params}")
+            
+            # Strategy 2: Inspect forward method
+            elif hasattr(self.agent, 'forward'):
                 import inspect
                 sig = inspect.signature(self.agent.forward)
-                expected_params = set(sig.parameters.keys())
-                logger.info(f"[🔍 SIGNATURE] Agent expects parameters: {expected_params}")
+                expected_params = set(sig.parameters.keys()) - {'self'}
+                logger.info(f"[🔍 SIGNATURE] Agent expects parameters (forward): {expected_params}")
+            
+            # Strategy 3: Inspect __call__
             elif hasattr(self.agent, '__call__'):
                 import inspect
                 sig = inspect.signature(self.agent.__call__)
-                expected_params = set(sig.parameters.keys())
-                logger.info(f"[🔍 SIGNATURE] Agent expects parameters: {expected_params}")
+                expected_params = set(sig.parameters.keys()) - {'self', 'args', 'kwargs'}
+                logger.info(f"[🔍 SIGNATURE] Agent expects parameters (__call__): {expected_params}")
         except Exception as e:
             logger.warning(f"⚠️ Could not introspect agent signature: {e}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             # Fallback to static filtering if signature introspection fails
             expected_params = None
         

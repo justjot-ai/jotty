@@ -7,6 +7,7 @@ import dspy
 from typing import Dict, List, Any
 import random
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 

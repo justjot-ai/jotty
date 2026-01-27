@@ -1666,7 +1666,16 @@ class MultiAgentsOrchestrator:
                         goal
                     )
                     for new_task in new_tasks:
-                        self.todo.subtasks[new_task.task_id] = new_task  # Fixed: .id → .task_id
+                        # Convert TodoItem to SubtaskState
+                        if hasattr(new_task, 'id'):  # TodoItem
+                            self.todo.add_task(
+                                task_id=new_task.id,
+                                description=new_task.description,
+                                actor=new_task.actor if hasattr(new_task, 'actor') else 'unknown',
+                                depends_on=[]
+                            )
+                        else:  # Already SubtaskState
+                            self.todo.subtasks[new_task.task_id] = new_task
                     continue
                 else:
                     logger.warning("No tasks available and exploration exhausted")
@@ -2211,14 +2220,17 @@ Strategy: Check if recoverable, adapt retry approach.
             last_actor = list(self.io_manager.outputs.values())[-1]
             if last_actor.output_fields:
                 # Generic field names - try common patterns first, then use ALL fields
-                # Priority: final_output (standard), output (common), result (generic)
+                # Priority: final_output (standard), refined_solution (reviewer), output (common), result (generic)
                 final_output = (
                     last_actor.output_fields.get('final_output') or
+                    last_actor.output_fields.get('refined_solution') or  # Reviewer agent output
                     last_actor.output_fields.get('output') or
                     last_actor.output_fields.get('result') or
                     last_actor.output_fields.get('sql_query') or  # Common for SQL agents
                     last_actor.output_fields.get('answer') or     # Common for QA agents
-                    last_actor.output_fields.get('response')      # Common for chat agents
+                    last_actor.output_fields.get('response') or    # Common for chat agents
+                    last_actor.output_fields.get('plan') or        # Planner output
+                    last_actor.output_fields.get('execution')      # Executor output
                 )
                 
                 # If still None, use the FULL output_fields dict as final_output

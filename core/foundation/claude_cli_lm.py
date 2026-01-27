@@ -72,38 +72,69 @@ class ClaudeCLILM(BaseLM):
 
         Converts DSPy signature output fields to JSON schema format.
         """
-        if not hasattr(signature, '__annotations__'):
+        if signature is None:
+            return None
+            
+        # Handle both class and instance
+        if isinstance(signature, type):
+            signature_class = signature
+        else:
+            signature_class = signature.__class__ if hasattr(signature, '__class__') else None
+        
+        if signature_class is None:
             return None
 
         # Get output fields from signature
         output_fields = {}
         required_fields = []
 
-        for field_name, field in signature.__dict__.items():
-            if hasattr(field, 'json_schema_extra'):
-                # This is a DSPy OutputField
-                field_desc = getattr(field, 'desc', '')
-                output_fields[field_name] = {
-                    "type": "string",
-                    "description": field_desc
-                }
-                required_fields.append(field_name)
-
-        # Fallback: parse from field annotations
-        if not output_fields and hasattr(signature, '__annotations__'):
-            for field_name in signature.__annotations__:
+        # Try to get fields from signature class
+        if hasattr(signature_class, '__dict__'):
+            for field_name, field in signature_class.__dict__.items():
                 if field_name.startswith('_'):
                     continue
-                # Check if this is an output field
-                field_obj = getattr(signature, field_name, None)
-                if field_obj and hasattr(field_obj, '__class__'):
-                    if 'Output' in field_obj.__class__.__name__:
-                        field_desc = getattr(field_obj, 'desc', '')
+                # Check if this is a DSPy OutputField
+                if hasattr(field, '__class__'):
+                    class_name = field.__class__.__name__
+                    if 'Output' in class_name or 'Field' in class_name:
+                        field_desc = getattr(field, 'desc', '')
+                        # Determine type from field name or description
+                        field_type = "string"
+                        if 'confidence' in field_name.lower() or 'float' in str(type(field)):
+                            field_type = "number"
+                        elif 'int' in str(type(field)):
+                            field_type = "integer"
+                        elif 'bool' in str(type(field)):
+                            field_type = "boolean"
+                        
                         output_fields[field_name] = {
-                            "type": "string",
+                            "type": field_type,
                             "description": field_desc
                         }
                         required_fields.append(field_name)
+
+        # Fallback: parse from annotations
+        if not output_fields and hasattr(signature_class, '__annotations__'):
+            for field_name, field_type in signature_class.__annotations__.items():
+                if field_name.startswith('_'):
+                    continue
+                field_obj = getattr(signature_class, field_name, None)
+                if field_obj:
+                    field_desc = getattr(field_obj, 'desc', '')
+                    # Map Python types to JSON types
+                    json_type = "string"
+                    if 'float' in str(field_type) or 'float' in str(field_obj):
+                        json_type = "number"
+                    elif 'int' in str(field_type):
+                        json_type = "integer"
+                    elif 'bool' in str(field_type):
+                        json_type = "boolean"
+                    
+                    output_fields[field_name] = {
+                        "type": json_type,
+                        "description": field_desc
+                    }
+                    required_fields.append(field_name)
 
         if not output_fields:
             return None
@@ -145,6 +176,14 @@ class ClaudeCLILM(BaseLM):
         # Try to get JSON schema from kwargs if signature is passed
         json_schema = kwargs.get('json_schema')
         signature = kwargs.get('signature')
+        
+        # Also check if signature is in the prompt context (DSPy sometimes passes it differently)
+        if not signature:
+            # Try to extract from messages
+            for msg in messages:
+                if isinstance(msg, dict) and 'signature' in msg:
+                    signature = msg['signature']
+                    break
 
         if not json_schema and signature:
             json_schema = self._extract_json_schema(signature)
@@ -177,12 +216,15 @@ class ClaudeCLILM(BaseLM):
             # Remove OAuth token - let Claude use credentials file
             env.pop('ANTHROPIC_API_KEY', None)
 
+        # Get timeout from kwargs or use default (30s for code gen, 60s for planning, 120s for others)
+        timeout = kwargs.get('timeout', 120)
+        
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             env=env,
-            timeout=kwargs.get('timeout', 120)  # Increased timeout
+            timeout=timeout
         )
 
         if result.returncode != 0:

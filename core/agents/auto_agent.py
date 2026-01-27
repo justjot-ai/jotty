@@ -1,6 +1,7 @@
 """
-AutoAgent - Autonomous task execution with skill discovery.
+AutoAgent - Autonomous task execution with fully agentic planning.
 
+Uses AgenticPlanner for all planning decisions (no hardcoded logic).
 Takes any open-ended task, discovers relevant skills, plans execution,
 and runs the workflow automatically.
 """
@@ -11,6 +12,8 @@ from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+
+from .agentic_planner import AgenticPlanner
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +69,8 @@ class AutoAgent:
         default_output_skill: str = "telegram-sender",
         enable_output: bool = True,
         max_steps: int = 10,
-        timeout: int = 300
+        timeout: int = 300,
+        planner: Optional[AgenticPlanner] = None
     ):
         """
         Initialize AutoAgent.
@@ -76,11 +80,15 @@ class AutoAgent:
             enable_output: Whether to send output to messaging
             max_steps: Maximum execution steps
             timeout: Default timeout for operations
+            planner: Optional AgenticPlanner instance (creates new if None)
         """
         self.default_output_skill = default_output_skill
         self.enable_output = enable_output
         self.max_steps = max_steps
         self.timeout = timeout
+
+        # Use agentic planner for all planning decisions
+        self.planner = planner or AgenticPlanner()
 
         self._registry = None
         self._manifest = None
@@ -98,34 +106,10 @@ class AutoAgent:
             self._manifest = get_skills_manifest()
 
     def _infer_task_type(self, task: str) -> TaskType:
-        """Infer the type of task from description."""
-        task_lower = task.lower()
-
-        # Comparison patterns
-        if any(w in task_lower for w in ['vs', 'versus', 'compare', 'difference', 'between']):
-            return TaskType.COMPARISON
-
-        # Creation patterns
-        if any(w in task_lower for w in ['create', 'make', 'generate', 'build', 'write', 'design']):
-            return TaskType.CREATION
-
-        # Communication patterns
-        if any(w in task_lower for w in ['send', 'share', 'post', 'notify', 'message']):
-            return TaskType.COMMUNICATION
-
-        # Analysis patterns
-        if any(w in task_lower for w in ['analyze', 'analysis', 'report', 'statistics', 'data']):
-            return TaskType.ANALYSIS
-
-        # Research patterns (default for questions/topics)
-        if any(w in task_lower for w in ['what', 'how', 'why', 'explain', 'learn', 'research']):
-            return TaskType.RESEARCH
-
-        # Short phrases without action words = research
-        if len(task.split()) <= 5:
-            return TaskType.RESEARCH
-
-        return TaskType.UNKNOWN
+        """Infer task type using agentic planner (semantic understanding)."""
+        task_type, reasoning, confidence = self.planner.infer_task_type(task)
+        logger.debug(f"Task type inference: {task_type.value} (confidence: {confidence:.2f})")
+        return task_type
 
     def _discover_skills(self, task: str) -> List[Dict[str, Any]]:
         """Discover relevant skills for task."""
@@ -151,227 +135,25 @@ class AutoAgent:
         self,
         task: str,
         task_type: TaskType,
-        skills: List[Dict[str, Any]]
+        skills: List[Dict[str, Any]],
+        previous_outputs: Optional[Dict[str, Any]] = None
     ) -> List[ExecutionStep]:
         """
-        Plan execution steps based on task type and available skills.
+        Plan execution steps using agentic planner (fully LLM-based).
         """
-        steps = []
-        skill_names = [s['name'] for s in skills]
-
-        # Build plan based on task type
-        if task_type == TaskType.COMPARISON:
-            steps = self._plan_comparison(task, skill_names)
-        elif task_type == TaskType.RESEARCH:
-            steps = self._plan_research(task, skill_names)
-        elif task_type == TaskType.CREATION:
-            steps = self._plan_creation(task, skill_names)
-        elif task_type == TaskType.ANALYSIS:
-            steps = self._plan_analysis(task, skill_names)
-        else:
-            # Default: research flow
-            steps = self._plan_research(task, skill_names)
-
-        return steps[:self.max_steps]
-
-    def _plan_comparison(self, task: str, skills: List[str]) -> List[ExecutionStep]:
-        """Plan for comparison tasks."""
-        steps = []
-
-        # Step 1: Web search
-        if 'web-search' in skills:
-            steps.append(ExecutionStep(
-                skill_name='web-search',
-                tool_name='search_web_tool',
-                params={'query': task, 'max_results': 10},
-                description='Search for comparison information',
-                output_key='search_results'
-            ))
-
-        # Step 2: Generate comparison with LLM
-        if 'claude-cli-llm' in skills:
-            steps.append(ExecutionStep(
-                skill_name='claude-cli-llm',
-                tool_name='generate_text_tool',
-                params={
-                    'prompt': f'''Create a detailed comparison for: {task}
-
-Include:
-1. A comparison table with key differences
-2. When to use each option
-3. Pros and cons of each
-4. Recommendation based on use case
-
-Use the following research for context:
-{{{{search_results}}}}''',
-                    'model': 'sonnet',
-                    'timeout': 120
-                },
-                description='Generate comparison analysis',
-                depends_on=[0] if 'web-search' in skills else [],
-                output_key='comparison_text'
-            ))
-
-        # Step 3: Create slides (optional)
-        if 'slide-generator' in skills:
-            steps.append(ExecutionStep(
-                skill_name='slide-generator',
-                tool_name='generate_slides_from_topic_tool',
-                params={
-                    'topic': task,
-                    'n_slides': 8,
-                    'template': 'dark',
-                    'export_as': 'pdf',
-                    'send_telegram': self.enable_output
-                },
-                description='Generate presentation slides',
-                depends_on=[1] if 'claude-cli-llm' in skills else [],
-                output_key='slides',
-                optional=True
-            ))
-
+        steps, reasoning = self.planner.plan_execution(
+            task=task,
+            task_type=task_type,
+            skills=skills,
+            previous_outputs=previous_outputs,
+            max_steps=self.max_steps
+        )
+        logger.debug(f"Execution plan reasoning: {reasoning}")
         return steps
 
-    def _plan_research(self, task: str, skills: List[str]) -> List[ExecutionStep]:
-        """Plan for research tasks."""
-        steps = []
-
-        # Step 1: Web search
-        if 'web-search' in skills:
-            steps.append(ExecutionStep(
-                skill_name='web-search',
-                tool_name='search_web_tool',
-                params={'query': task, 'max_results': 10},
-                description='Search for information',
-                output_key='search_results'
-            ))
-
-        # Step 2: Summarize/analyze with LLM
-        if 'claude-cli-llm' in skills:
-            steps.append(ExecutionStep(
-                skill_name='claude-cli-llm',
-                tool_name='generate_text_tool',
-                params={
-                    'prompt': f'''Research and explain: {task}
-
-Provide:
-1. Clear explanation of the topic
-2. Key concepts and terminology
-3. Important points to understand
-4. Practical examples if applicable
-
-Use the following research for context:
-{{{{search_results}}}}''',
-                    'model': 'sonnet',
-                    'timeout': 120
-                },
-                description='Generate research summary',
-                depends_on=[0] if 'web-search' in skills else [],
-                output_key='research_text'
-            ))
-        elif 'summarize' in skills:
-            steps.append(ExecutionStep(
-                skill_name='summarize',
-                tool_name='summarize_text_tool',
-                params={
-                    'text': '{{search_results}}',
-                    'length': 'medium',
-                    'style': 'paragraph'
-                },
-                description='Summarize research',
-                depends_on=[0] if 'web-search' in skills else [],
-                output_key='research_text'
-            ))
-
-        return steps
-
-    def _plan_creation(self, task: str, skills: List[str]) -> List[ExecutionStep]:
-        """Plan for creation tasks."""
-        steps = []
-
-        # Determine what to create
-        task_lower = task.lower()
-
-        if any(w in task_lower for w in ['slide', 'presentation', 'ppt']):
-            if 'slide-generator' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='slide-generator',
-                    tool_name='generate_slides_from_topic_tool',
-                    params={
-                        'topic': task,
-                        'n_slides': 10,
-                        'template': 'dark',
-                        'export_as': 'both',
-                        'send_telegram': self.enable_output
-                    },
-                    description='Generate presentation',
-                    output_key='slides'
-                ))
-
-        elif any(w in task_lower for w in ['image', 'picture', 'art']):
-            if 'openai-image-gen' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='openai-image-gen',
-                    tool_name='generate_image_tool',
-                    params={'prompt': task, 'size': '1024x1024'},
-                    description='Generate image',
-                    output_key='image'
-                ))
-            elif 'image-generator' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='image-generator',
-                    tool_name='generate_image_tool',
-                    params={'prompt': task},
-                    description='Generate image',
-                    output_key='image'
-                ))
-
-        elif any(w in task_lower for w in ['pdf', 'document', 'report']):
-            # Research first, then create PDF
-            if 'web-search' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='web-search',
-                    tool_name='search_web_tool',
-                    params={'query': task, 'max_results': 10},
-                    description='Research topic',
-                    output_key='search_results'
-                ))
-
-            if 'claude-cli-llm' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='claude-cli-llm',
-                    tool_name='generate_text_tool',
-                    params={
-                        'prompt': f'Write a detailed document about: {task}\n\nResearch:\n{{{{search_results}}}}',
-                        'model': 'sonnet',
-                        'timeout': 180
-                    },
-                    description='Generate document content',
-                    depends_on=[0] if 'web-search' in skills else [],
-                    output_key='document_text'
-                ))
-
-        else:
-            # Default: use LLM to create content
-            if 'claude-cli-llm' in skills:
-                steps.append(ExecutionStep(
-                    skill_name='claude-cli-llm',
-                    tool_name='generate_text_tool',
-                    params={
-                        'prompt': task,
-                        'model': 'sonnet',
-                        'timeout': 120
-                    },
-                    description='Generate content',
-                    output_key='content'
-                ))
-
-        return steps
-
-    def _plan_analysis(self, task: str, skills: List[str]) -> List[ExecutionStep]:
-        """Plan for analysis tasks."""
-        # Similar to research but with more data focus
-        return self._plan_research(task, skills)
+    # All hardcoded planning methods removed - now using AgenticPlanner
+    # _plan_comparison, _plan_research, _plan_creation, _plan_analysis
+    # are replaced by planner.plan_execution() which uses LLM reasoning
 
     async def _execute_tool(
         self,
@@ -456,19 +238,37 @@ Use the following research for context:
         logger.info(f"Task type: {task_type.value}")
 
         # Step 2: Discover skills
-        skills = self._discover_skills(task)
-        skill_names = [s['name'] for s in skills]
-        logger.info(f"Discovered skills: {skill_names}")
+        all_skills = self._discover_skills(task)
+        logger.info(f"Discovered {len(all_skills)} potential skills")
 
-        if not skills:
-            # Fallback to basic skills
-            skills = [
-                {'name': 'web-search', 'category': 'search'},
-                {'name': 'claude-cli-llm', 'category': 'llm'}
-            ]
-            skill_names = ['web-search', 'claude-cli-llm']
+        # Step 2.5: Select best skills using agentic planner
+        if all_skills:
+            skills, selection_reasoning = self.planner.select_skills(
+                task=task,
+                available_skills=all_skills,
+                max_skills=8
+            )
+            logger.info(f"Selected {len(skills)} skills: {[s.get('name') for s in skills]}")
+            logger.debug(f"Selection reasoning: {selection_reasoning}")
+        else:
+            # Fallback: try to get skills from registry
+            self._init_dependencies()
+            if self._registry:
+                all_skills_list = self._registry.list_skills()
+                skills = [
+                    {
+                        'name': s['name'],
+                        'description': s.get('description', ''),
+                        'tools': s.get('tools', [])
+                    }
+                    for s in all_skills_list[:10]
+                ]
+                if skills:
+                    skills, _ = self.planner.select_skills(task, skills, max_skills=5)
+            else:
+                skills = []
 
-        # Step 3: Plan execution
+        # Step 3: Plan execution using agentic planner
         steps = self._plan_execution(task, task_type, skills)
         logger.info(f"Planned {len(steps)} steps")
 
@@ -479,7 +279,7 @@ Use the following research for context:
         steps_executed = 0
 
         for i, step in enumerate(steps):
-            logger.info(f"Step {i+1}: {step.description}")
+            logger.info(f"Step {i+1}/{len(steps)}: {step.description}")
 
             # Resolve params with previous outputs
             resolved_params = self._resolve_params(step.params, outputs)
@@ -496,14 +296,31 @@ Use the following research for context:
                 skills_used.append(step.skill_name)
                 steps_executed += 1
                 logger.info(f"  ✅ Success")
+                
+                # If step failed but we have outputs, try replanning with new context
+                # This enables adaptive planning based on intermediate results
             else:
                 error_msg = result.get('error', 'Unknown error')
                 errors.append(f"Step {i+1} ({step.skill_name}): {error_msg}")
                 logger.warning(f"  ❌ Failed: {error_msg}")
 
-                if not step.optional:
-                    # Continue anyway for robustness
-                    pass
+                # For optional steps, continue; for required steps, consider replanning
+                if not step.optional and i < len(steps) - 1:
+                    # Try to replan remaining steps with current context
+                    logger.info(f"  🔄 Attempting to replan remaining steps with current context")
+                    try:
+                        remaining_steps, _ = self.planner.plan_execution(
+                            task=task,
+                            task_type=task_type,
+                            skills=skills,
+                            previous_outputs=outputs,
+                            max_steps=self.max_steps - i - 1
+                        )
+                        # Replace remaining steps with replanned ones
+                        steps = steps[:i+1] + remaining_steps
+                        logger.info(f"  ✅ Replanned {len(remaining_steps)} remaining steps")
+                    except Exception as e:
+                        logger.warning(f"  ⚠️  Replanning failed: {e}, continuing with original plan")
 
         # Determine final output
         final_output = None

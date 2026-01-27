@@ -613,6 +613,56 @@ class SkillsRegistry:
             Collection info dict or None
         """
         return self.loaded_collections.get(name)
+    
+    # =============================================================================
+    # Agent Conversion (Refactoring #4)
+    # =============================================================================
+    
+    async def get_agent_for_skill(
+        self,
+        skill_name: str,
+        agent_name: Optional[str] = None
+    ):
+        """
+        Get or create AgentConfig for a skill.
+        
+        Args:
+            skill_name: Name of skill
+            agent_name: Optional custom agent name
+            
+        Returns:
+            AgentConfig or None
+        """
+        try:
+            from .skill_to_agent_converter import SkillToAgentConverter
+            converter = SkillToAgentConverter()
+            return await converter.create_agent_from_skill_name(skill_name, agent_name)
+        except Exception as e:
+            logger.warning(f"Failed to convert skill '{skill_name}' to agent: {e}")
+            return None
+    
+    async def list_agents_from_skills(
+        self,
+        agent_name_prefix: Optional[str] = None
+    ) -> List[Any]:
+        """
+        List all agents created from skills.
+        
+        Args:
+            agent_name_prefix: Optional prefix for agent names
+            
+        Returns:
+            List of AgentConfig
+        """
+        try:
+            from .skill_to_agent_converter import SkillToAgentConverter
+            converter = SkillToAgentConverter()
+            
+            skills = list(self.loaded_skills.values())
+            return await converter.convert_skills_to_agents(skills, agent_name_prefix)
+        except Exception as e:
+            logger.warning(f"Failed to convert skills to agents: {e}")
+            return []
 
 
 # Singleton instance

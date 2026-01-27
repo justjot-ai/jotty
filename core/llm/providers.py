@@ -93,7 +93,13 @@ class ClaudeCLIProvider:
         """
         try:
             # Build command - use stdin for prompt (handles long inputs)
-            cmd = ["claude", "--model", model, "-p"]
+            # Add --system-prompt to ignore workspace context (isolate from git/codebase)
+            system_prompt = (
+                "You are a helpful AI assistant. Only respond to the user's prompt. "
+                "Ignore any workspace, git, codebase, or file system context. "
+                "Focus solely on answering the user's question directly."
+            )
+            cmd = ["claude", "--model", model, "-p", "--system-prompt", system_prompt]
 
             # Handle OAuth tokens that don't work with --print mode
             env = os.environ.copy()
