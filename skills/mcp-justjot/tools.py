@@ -178,9 +178,21 @@ async def create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         'description': params.get('description', ''),
         'templateName': params.get('templateName', 'default'),
         'tags': params.get('tags', []),
-        'status': params.get('status', 'active')
+        'status': params.get('status', 'Draft')
     }
-    
+
+    # Include sections if provided
+    if params.get('sections'):
+        idea_data['sections'] = params['sections']
+
+    # Include userId if provided (for assignment)
+    if params.get('userId'):
+        idea_data['userId'] = params['userId']
+
+    # Include author if provided
+    if params.get('author'):
+        idea_data['author'] = params['author']
+
     result = _call_justjot_api('POST', '/api/ideas', data=idea_data)
     
     if result.get('success'):
