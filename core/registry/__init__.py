@@ -29,6 +29,8 @@ from .skills_registry import (
     SkillDefinition,
     get_skills_registry,
 )
+from .tool_collection import ToolCollection
+from .tool_validation import ToolValidator, validate_tool_attributes, ValidationResult
 from .skill_generator import (
     SkillGenerator,
     get_skill_generator,
@@ -56,6 +58,12 @@ __all__ = [
     'SkillsRegistry',
     'SkillDefinition',
     'get_skills_registry',
+    # Tool collections
+    'ToolCollection',
+    # Tool validation
+    'ToolValidator',
+    'validate_tool_attributes',
+    'ValidationResult',
     # Skill generator (AI-powered)
     'SkillGenerator',
     'get_skill_generator',

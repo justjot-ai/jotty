@@ -2,9 +2,11 @@
 Unified LLM Interface
 
 Single interface for all LLM providers with automatic fallback support.
+Includes cost tracking integration.
 """
 import os
 import logging
+import time
 from typing import Dict, Any, Optional, List
 
 from .providers import (
@@ -18,6 +20,14 @@ from .providers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Optional cost tracking import (if available)
+try:
+    from ..monitoring.cost_tracker import CostTracker
+    COST_TRACKING_AVAILABLE = True
+except ImportError:
+    COST_TRACKING_AVAILABLE = False
+    CostTracker = None
 
 
 # Default provider order for fallback
@@ -47,6 +57,7 @@ class UnifiedLLM:
         default_model: str = "sonnet",
         fallback_order: Optional[List[str]] = None,
         timeout: int = 120,
+        cost_tracker: Optional['CostTracker'] = None,
     ):
         """
         Initialize UnifiedLLM.
@@ -56,11 +67,13 @@ class UnifiedLLM:
             default_model: Default model name
             fallback_order: Order of providers to try on failure
             timeout: Default timeout in seconds
+            cost_tracker: Optional CostTracker instance for cost tracking
         """
         self.default_provider = default_provider
         self.default_model = default_model
         self.fallback_order = fallback_order or DEFAULT_FALLBACK_ORDER
         self.timeout = timeout
+        self.cost_tracker = cost_tracker
 
     def generate(
         self,
@@ -91,6 +104,9 @@ class UnifiedLLM:
         model = model or self.default_model
         timeout = timeout or self.timeout
 
+        # Track start time for duration calculation
+        start_time = time.time()
+        
         # Try primary provider
         response = self._call_provider(
             provider=provider,
@@ -100,6 +116,10 @@ class UnifiedLLM:
             max_tokens=max_tokens,
             **kwargs
         )
+        
+        # Track cost if cost tracker is available
+        duration = time.time() - start_time
+        self._track_cost(response, provider, model, duration)
 
         # If successful or fallback disabled, return
         if response.success or not fallback:
@@ -114,6 +134,7 @@ class UnifiedLLM:
 
             logger.info(f"Trying fallback provider: {fallback_provider}")
 
+            fallback_start_time = time.time()
             response = self._call_provider(
                 provider=fallback_provider,
                 prompt=prompt,
@@ -122,6 +143,10 @@ class UnifiedLLM:
                 max_tokens=max_tokens,
                 **kwargs
             )
+            
+            # Track cost for fallback call
+            fallback_duration = time.time() - fallback_start_time
+            self._track_cost(response, fallback_provider, model, fallback_duration)
 
             if response.success:
                 logger.info(f"Fallback provider {fallback_provider} succeeded")
@@ -133,6 +158,44 @@ class UnifiedLLM:
             error=f"All providers failed. Last error: {response.error}",
             provider=provider,
             model=model
+        )
+    
+    def _track_cost(
+        self,
+        response: LLMResponse,
+        provider: str,
+        model: str,
+        duration: float
+    ):
+        """
+        Track cost for an LLM call.
+        
+        Args:
+            response: LLMResponse from provider
+            provider: Provider name
+            model: Model name
+            duration: Call duration in seconds
+        """
+        if not self.cost_tracker or not COST_TRACKING_AVAILABLE:
+            return
+        
+        # Extract token counts from response
+        input_tokens = 0
+        output_tokens = 0
+        
+        if response.usage:
+            input_tokens = response.usage.get("input_tokens", 0)
+            output_tokens = response.usage.get("output_tokens", 0)
+        
+        # Record the call
+        self.cost_tracker.record_llm_call(
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=response.success,
+            error=response.error if not response.success else None,
+            duration=duration
         )
 
     def _call_provider(

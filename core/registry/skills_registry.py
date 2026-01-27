@@ -107,12 +107,16 @@ class SkillsRegistry:
         
         self.loaded_skills: Dict[str, SkillDefinition] = {}
         self.composite_skills: Dict[str, Any] = {}  # Store composite skills
+        self.loaded_collections: Dict[str, Any] = {}  # Store loaded tool collections
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
         
         # Dependency management
         from .skill_dependency_manager import get_dependency_manager
         self.dependency_manager = get_dependency_manager()
+        
+        # Tool collections
+        self.loaded_collections: Dict[str, Any] = {}  # Store loaded collections
     
     def init(self) -> None:
         """Initialize and load all skills."""
@@ -526,6 +530,89 @@ class SkillsRegistry:
     def get_skill(self, name: str) -> Optional[SkillDefinition]:
         """Get a specific skill by name."""
         return self.loaded_skills.get(name)
+    
+    def load_collection(self, collection: 'ToolCollection', collection_name: Optional[str] = None) -> Dict[str, Callable]:
+        """
+        Load a tool collection into the registry.
+        
+        Args:
+            collection: ToolCollection instance
+            collection_name: Optional name for the collection (default: auto-generated)
+            
+        Returns:
+            Dict mapping tool names to execute functions
+            
+        Example:
+            from core.registry.tool_collection import ToolCollection
+            
+            collection = ToolCollection.from_hub("collection-slug", trust_remote_code=True)
+            registry.load_collection(collection)
+        """
+        from .tool_collection import ToolCollection
+        
+        if not isinstance(collection, ToolCollection):
+            raise TypeError(f"Expected ToolCollection, got {type(collection)}")
+        
+        # Generate collection name if not provided
+        if collection_name is None:
+            collection_name = f"collection_{len(self.loaded_collections)}"
+        
+        # Convert tools to SkillDefinitions
+        skill_definitions = collection.to_skill_definitions()
+        
+        # Register each skill
+        all_tools: Dict[str, Callable] = {}
+        for skill_def in skill_definitions:
+            if skill_def:
+                # Add collection prefix to avoid conflicts
+                prefixed_name = f"{collection_name}_{skill_def.name}"
+                
+                # Register skill
+                self.loaded_skills[prefixed_name] = skill_def
+                all_tools.update(skill_def.tools)
+                
+                logger.info(f"Loaded tool from collection: {prefixed_name}")
+        
+        # Store collection
+        self.loaded_collections[collection_name] = {
+            "collection": collection,
+            "tools": all_tools,
+            "source": collection.source,
+            "metadata": collection.metadata
+        }
+        
+        logger.info(f"Loaded collection '{collection_name}' with {len(skill_definitions)} tools")
+        
+        return all_tools
+    
+    def list_collections(self) -> List[Dict[str, Any]]:
+        """
+        List all loaded collections.
+        
+        Returns:
+            List of collection metadata dicts
+        """
+        return [
+            {
+                "name": name,
+                "source": info["source"],
+                "tool_count": len(info["tools"]),
+                "metadata": info["metadata"]
+            }
+            for name, info in self.loaded_collections.items()
+        ]
+    
+    def get_collection(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a loaded collection by name.
+        
+        Args:
+            name: Collection name
+            
+        Returns:
+            Collection info dict or None
+        """
+        return self.loaded_collections.get(name)
 
 
 # Singleton instance

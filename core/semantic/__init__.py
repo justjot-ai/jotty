@@ -42,7 +42,14 @@ from .models import (
 )
 from .extractors import BaseExtractor, DatabaseExtractor, DDLExtractor, MongoDBExtractor
 from .lookml import LookMLGenerator, View, Explore, Dimension, Measure, Join
-from .query import SemanticQueryEngine
+from .query import SemanticQueryEngine, MongoDBQueryEngine
+from .query import (
+    ConnectorXLoader,
+    DataLoaderFactory,
+    OutputFormat,
+    SQLDatePreprocessor,
+    MongoDBDatePreprocessor,
+)
 
 
 class SemanticLayer:
@@ -73,6 +80,7 @@ class SemanticLayer:
         self._lookml_generator: Optional[LookMLGenerator] = None
         self._lookml_model = None
         self._query_engine: Optional[SemanticQueryEngine] = None
+        self._mongodb_query_engine: Optional[MongoDBQueryEngine] = None
 
     @classmethod
     def from_database(
@@ -252,6 +260,23 @@ class SemanticLayer:
             )
         return self._query_engine
 
+    @property
+    def mongodb_query_engine(self) -> Optional[MongoDBQueryEngine]:
+        """Get MongoDB query engine (only for MongoDB databases)."""
+        if self._mongodb_query_engine is None and self.is_mongodb:
+            self._mongodb_query_engine = MongoDBQueryEngine(
+                schema=self.schema,
+                lookml_model=self.lookml_model,
+                uri=self.connection_params.get("uri"),
+                database=self.connection_params.get("database")
+            )
+        return self._mongodb_query_engine
+
+    @property
+    def is_mongodb(self) -> bool:
+        """Check if this is a MongoDB database."""
+        return self.connection_params.get("db_type") == "mongodb"
+
     def to_lookml(self, pretty: bool = True) -> str:
         """
         Generate LookML string.
@@ -283,11 +308,19 @@ class SemanticLayer:
 
         Args:
             question: Natural language question
-            execute: Whether to execute the generated SQL
+            execute: Whether to execute the generated query
 
         Returns:
-            Dictionary with generated SQL and optional results
+            Dictionary with generated query and optional results
         """
+        # Use MongoDB query engine for MongoDB databases
+        if self.is_mongodb:
+            return self.mongodb_query_engine.generate_pipeline(
+                question=question,
+                execute=execute
+            )
+
+        # Use SQL query engine for other databases
         return self.query_engine.generate_sql(
             question=question,
             execute=execute,
@@ -304,6 +337,8 @@ class SemanticLayer:
         Returns:
             List of suggested natural language queries
         """
+        if self.is_mongodb:
+            return self.mongodb_query_engine.suggest_queries(num_suggestions)
         return self.query_engine.suggest_queries(num_suggestions)
 
     def validate_sql(self, sql: str) -> Dict[str, Any]:
@@ -415,4 +450,5 @@ __all__ = [
 
     # Query
     "SemanticQueryEngine",
+    "MongoDBQueryEngine",
 ]

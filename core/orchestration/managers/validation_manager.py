@@ -3,12 +3,32 @@ ValidationManager - Manages validation logic (Planner/Reviewer).
 
 Extracted from conductor.py to improve maintainability and testability.
 All validation-related logic is centralized here.
+
+Enhanced with OAgents verification strategies:
+- Single validation (default)
+- List-wise verification (best performing)
+- Pair-wise verification
+- Confidence-based selection
 """
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Import auditor types (optional, graceful fallback)
+try:
+    from ..orchestration.auditor_types import (
+        AuditorType,
+        ListWiseAuditor,
+        PairWiseAuditor,
+        ConfidenceBasedAuditor,
+        MergedResult
+    )
+    AUDITOR_TYPES_AVAILABLE = True
+except ImportError:
+    AUDITOR_TYPES_AVAILABLE = False
+    logger.debug("Auditor types not available")
 
 
 @dataclass
@@ -43,9 +63,40 @@ class ValidationManager:
         self.config = config
         self.validation_count = 0
         self.approval_count = 0
+        
+        # Auditor type configuration
+        if AUDITOR_TYPES_AVAILABLE:
+            auditor_type_str = getattr(config, 'auditor_type', 'single')
+            # Handle both string and enum values
+            if isinstance(auditor_type_str, str):
+                try:
+                    self.auditor_type = AuditorType(auditor_type_str)
+                except ValueError:
+                    self.auditor_type = AuditorType.SINGLE
+            elif isinstance(auditor_type_str, AuditorType):
+                self.auditor_type = auditor_type_str
+            else:
+                self.auditor_type = AuditorType.SINGLE
+        else:
+            self.auditor_type = None
+        
+        # Initialize auditor instances if needed
+        self.list_wise_auditor = None
+        self.pair_wise_auditor = None
+        self.confidence_auditor = None
+        
+        if AUDITOR_TYPES_AVAILABLE and self.auditor_type != AuditorType.SINGLE:
+            if self.auditor_type == AuditorType.LIST_WISE:
+                self.list_wise_auditor = ListWiseAuditor()
+            elif self.auditor_type == AuditorType.PAIR_WISE:
+                self.pair_wise_auditor = PairWiseAuditor()
+            elif self.auditor_type == AuditorType.CONFIDENCE_BASED:
+                self.confidence_auditor = ConfidenceBasedAuditor()
 
         logger.info("✅ ValidationManager initialized")
         logger.info(f"   Multi-round: {config.enable_multi_round if hasattr(config, 'enable_multi_round') else False}")
+        if AUDITOR_TYPES_AVAILABLE:
+            logger.info(f"   Auditor type: {self.auditor_type.value if self.auditor_type else 'single'}")
 
     async def run_planner(
         self,
@@ -77,7 +128,8 @@ class ValidationManager:
         self,
         actor_config,
         result: Any,
-        task: Any
+        task: Any,
+        multiple_results: Optional[List[Any]] = None
     ) -> ValidationResult:
         """
         Run Reviewer for actor result (post-execution validation).
@@ -86,17 +138,74 @@ class ValidationManager:
         - Reviewer prompts
         - Annotations
         - Learned patterns
+        - OAgents verification strategies (if enabled)
 
         Args:
             actor_config: Configuration for the actor
-            result: Result from actor execution
+            result: Result from actor execution (single result)
             task: Task that was executed
+            multiple_results: Optional list of multiple results for list-wise verification
 
         Returns:
             ValidationResult with passed/failed, reward, and feedback
         """
         self.validation_count += 1
+        
+        # Use list-wise verification if multiple results provided and enabled
+        if (AUDITOR_TYPES_AVAILABLE and 
+            multiple_results and 
+            len(multiple_results) > 1 and 
+            self.auditor_type == AuditorType.LIST_WISE and 
+            self.list_wise_auditor):
+            
+            logger.debug(f"Using list-wise verification for {len(multiple_results)} results")
+            merged = self.list_wise_auditor.verify_and_merge(multiple_results)
+            
+            self.approval_count += 1
+            return ValidationResult(
+                passed=merged.verification_score > 0.5,
+                reward=merged.verification_score,
+                feedback=f"List-wise verification: {merged.reasoning}",
+                confidence=merged.confidence
+            )
+        
+        # Use pair-wise verification if multiple results provided and enabled
+        if (AUDITOR_TYPES_AVAILABLE and 
+            multiple_results and 
+            len(multiple_results) > 1 and 
+            self.auditor_type == AuditorType.PAIR_WISE and 
+            self.pair_wise_auditor):
+            
+            logger.debug(f"Using pair-wise verification for {len(multiple_results)} results")
+            merged = self.pair_wise_auditor.verify_and_select(multiple_results)
+            
+            self.approval_count += 1
+            return ValidationResult(
+                passed=merged.verification_score > 0.5,
+                reward=merged.verification_score,
+                feedback=f"Pair-wise verification: {merged.reasoning}",
+                confidence=merged.confidence
+            )
+        
+        # Use confidence-based selection if multiple results provided and enabled
+        if (AUDITOR_TYPES_AVAILABLE and 
+            multiple_results and 
+            len(multiple_results) > 1 and 
+            self.auditor_type == AuditorType.CONFIDENCE_BASED and 
+            self.confidence_auditor):
+            
+            logger.debug(f"Using confidence-based selection for {len(multiple_results)} results")
+            merged = self.confidence_auditor.select_best(multiple_results)
+            
+            self.approval_count += 1
+            return ValidationResult(
+                passed=merged.verification_score > 0.5,
+                reward=merged.verification_score,
+                feedback=f"Confidence-based selection: {merged.reasoning}",
+                confidence=merged.confidence
+            )
 
+        # Default: Single result validation (existing logic)
         # Simple validation logic (extracted from conductor.py _run_auditor)
         # TODO: Future enhancement - integrate InspectorAgent with is_architect=False
 

@@ -10,6 +10,8 @@ import re
 
 from ..models import Schema
 from ..lookml import LookMLGenerator, LookMLModel
+from .date_preprocessor import SQLDatePreprocessor, DatePreprocessorFactory
+from .data_loader import ConnectorXLoader, DataLoaderFactory, OutputFormat
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,9 @@ class SemanticQueryEngine:
 
         self.db_type = db_type or (schema.database_type if schema else "unknown")
         self._context_cache: Optional[str] = None
+        self._date_preprocessor = SQLDatePreprocessor(dialect=self.db_type)
+        self._data_loader: Optional[ConnectorXLoader] = None
+        self._connection_params: Dict[str, Any] = {}
 
     def get_context(self) -> str:
         """
@@ -124,10 +129,18 @@ class SemanticQueryEngine:
         except ImportError:
             return {"success": False, "error": "core.llm module not available"}
 
+        # Preprocess dates in the question using common date preprocessor
+        processed_question, date_context = self._date_preprocessor.preprocess(question)
+
         context = self.get_context()
+
+        # Add date context if dates were found
+        if date_context:
+            context += self._date_preprocessor.get_context_hint(date_context)
+
         dialect_hint = self.DIALECT_HINTS.get(self.db_type, "Use standard SQL syntax.")
 
-        prompt = self._build_prompt(question, context, dialect_hint)
+        prompt = self._build_prompt(processed_question, context, dialect_hint)
 
         # Generate SQL using LLM
         response = llm_generate(
@@ -146,6 +159,8 @@ class SemanticQueryEngine:
         result = {
             "success": True,
             "question": question,
+            "processed_question": processed_question if date_context else None,
+            "date_context": date_context if date_context else None,
             "generated_sql": sql,
             "db_type": self.db_type,
             "model": response.model,
@@ -352,3 +367,169 @@ SQL:"""
 
         except Exception as e:
             return {"valid": False, "error": str(e)}
+
+    def set_connection(self, **connection_params):
+        """
+        Set database connection parameters for query execution.
+
+        Args:
+            **connection_params: Connection parameters (host, port, database, user, password, etc.)
+        """
+        self._connection_params = connection_params
+        self._data_loader = None  # Reset loader to use new params
+
+    @property
+    def data_loader(self) -> ConnectorXLoader:
+        """
+        Get or create ConnectorX data loader.
+
+        Returns:
+            ConnectorXLoader instance for fast DataFrame loading
+        """
+        if self._data_loader is None and self._connection_params:
+            # Remove db_type from params to avoid duplicate
+            params = {k: v for k, v in self._connection_params.items() if k != 'db_type'}
+            self._data_loader = DataLoaderFactory.create(
+                db_type=self._connection_params.get('db_type', self.db_type),
+                **params
+            )
+        return self._data_loader
+
+    def load_dataframe(
+        self,
+        query: str,
+        output_format: str = "pandas",
+        partition_on: str = None,
+        partition_num: int = None,
+        **kwargs
+    ) -> Any:
+        """
+        Load query results directly into a DataFrame using ConnectorX.
+
+        This is 10-20x faster than traditional Pandas read_sql for large datasets.
+
+        Args:
+            query: SQL query to execute
+            output_format: Output format ("pandas", "polars", "arrow")
+            partition_on: Column to partition on for parallel loading
+            partition_num: Number of partitions for parallel loading
+            **kwargs: Additional ConnectorX options
+
+        Returns:
+            DataFrame in the requested format
+
+        Example:
+            # Fast Pandas DataFrame
+            df = engine.load_dataframe("SELECT * FROM large_table")
+
+            # Even faster with Polars
+            df = engine.load_dataframe("SELECT * FROM large_table", output_format="polars")
+
+            # Parallel loading for very large tables
+            df = engine.load_dataframe(
+                "SELECT * FROM huge_table",
+                partition_on="id",
+                partition_num=4
+            )
+        """
+        if not self.data_loader:
+            raise ValueError("Connection parameters not set. Call set_connection() first.")
+
+        return self.data_loader.load(
+            query=query,
+            output_format=OutputFormat(output_format.lower()),
+            partition_on=partition_on,
+            partition_num=partition_num,
+            **kwargs
+        )
+
+    def query_to_dataframe(
+        self,
+        question: str,
+        output_format: str = "pandas",
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Generate SQL from natural language and load results into DataFrame.
+
+        Combines NL-to-SQL generation with fast ConnectorX loading.
+
+        Args:
+            question: Natural language question
+            output_format: Output format ("pandas", "polars", "arrow")
+            **kwargs: Additional options
+
+        Returns:
+            Dictionary with generated SQL and DataFrame result
+        """
+        # Generate SQL
+        result = self.generate_sql(question, execute=False)
+
+        if not result.get('success'):
+            return result
+
+        sql = result.get('generated_sql')
+
+        # Load into DataFrame using ConnectorX
+        try:
+            df = self.load_dataframe(sql, output_format=output_format, **kwargs)
+            result['dataframe'] = df
+            result['row_count'] = len(df) if hasattr(df, '__len__') else None
+            result['executed'] = True
+        except Exception as e:
+            result['dataframe_error'] = str(e)
+            result['executed'] = False
+
+        return result
+
+    def _execute_sql_fast(
+        self,
+        sql: str,
+        connection_params: Dict[str, Any],
+        output_format: str = "pandas"
+    ) -> Dict[str, Any]:
+        """
+        Execute SQL using ConnectorX for faster DataFrame loading.
+
+        Args:
+            sql: SQL query to execute
+            connection_params: Database connection parameters
+            output_format: Output format
+
+        Returns:
+            Dictionary with DataFrame results
+        """
+        try:
+            loader = DataLoaderFactory.create(
+                db_type=connection_params.get('db_type', self.db_type),
+                **connection_params
+            )
+
+            df = loader.load(sql, output_format=OutputFormat(output_format.lower()))
+
+            # Convert DataFrame to list of dicts for consistency
+            if output_format.lower() == 'pandas':
+                rows = df.to_dict('records')
+                columns = list(df.columns)
+            elif output_format.lower() == 'polars':
+                rows = df.to_dicts()
+                columns = df.columns
+            else:
+                # Arrow table
+                rows = df.to_pydict()
+                columns = df.column_names
+
+            return {
+                "success": True,
+                "columns": columns,
+                "rows": rows[:100],
+                "row_count": len(rows),
+                "truncated": len(rows) > 100,
+                "dataframe": df,
+                "loader": "connectorx"
+            }
+
+        except Exception as e:
+            logger.warning(f"ConnectorX execution failed, falling back to SQLAlchemy: {e}")
+            # Fallback to SQLAlchemy
+            return self._execute_sql(sql, connection_params)

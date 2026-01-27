@@ -558,6 +558,48 @@ class SwarmConfig:
 
     # Recovery Management
     enable_recovery_management: bool = False  # Intelligent failure recovery
+
+    # =========================================================================
+    # 22. COST TRACKING & MONITORING (NEW - OAgents Integration)
+    # =========================================================================
+    # Cost tracking and efficiency metrics
+    enable_cost_tracking: bool = False  # Track LLM API costs (opt-in)
+    cost_budget: Optional[float] = None  # Optional cost limit (in USD)
+    cost_tracking_file: Optional[str] = None  # Path to save cost tracking data
+    
+    # Monitoring framework
+    enable_monitoring: bool = False  # Enable comprehensive monitoring (opt-in)
+    monitoring_output_dir: Optional[str] = None  # Directory for monitoring reports
+    
+    # Efficiency metrics
+    enable_efficiency_metrics: bool = False  # Calculate efficiency scores (requires cost tracking)
+    baseline_cost_per_success: Optional[float] = None  # Baseline for efficiency comparison
+    
+    # =========================================================================
+    # 23. REPRODUCIBILITY & EVALUATION (NEW - OAgents Integration)
+    # =========================================================================
+    # Reproducibility guarantees
+    random_seed: Optional[int] = None  # Fixed random seed for reproducibility
+    numpy_seed: Optional[int] = None  # NumPy random seed (if available)
+    torch_seed: Optional[int] = None  # PyTorch random seed (if available)
+    python_hash_seed: Optional[int] = None  # Python hash randomization seed
+    enable_deterministic: bool = True  # Enable deterministic operations
+    
+    # Evaluation framework
+    enable_evaluation: bool = False  # Enable evaluation framework (opt-in)
+    evaluation_n_runs: int = 5  # Number of evaluation runs
+    evaluation_output_dir: Optional[str] = None  # Directory for evaluation results
+    
+    # =========================================================================
+    # 24. AUDITOR TYPES (NEW - OAgents Integration)
+    # =========================================================================
+    # Auditor type selection (OAgents verification strategies)
+    auditor_type: str = "single"  # "single", "list_wise", "pair_wise", "confidence_based"
+    enable_list_wise_verification: bool = False  # Enable list-wise verification (opt-in)
+    list_wise_min_results: int = 2  # Minimum results for list-wise verification
+    list_wise_max_results: int = 5  # Maximum results for list-wise verification
+    list_wise_merge_strategy: str = "best_score"  # "best_score", "consensus", "weighted"
+    
     recovery_max_retries: int = 3
     custom_recovery_strategies: Dict[str, Callable] = field(default_factory=dict)  # Pluggable strategies
 
@@ -578,6 +620,28 @@ class SwarmConfig:
 
         if self.max_description_chars is None:
             self.max_description_chars = self.max_description_tokens * 4  # 5k tokens → 20k chars
+        
+        # Set reproducibility seeds if configured
+        if self.random_seed is not None:
+            try:
+                from ..evaluation.reproducibility import set_reproducible_seeds
+                set_reproducible_seeds(
+                    random_seed=self.random_seed,
+                    numpy_seed=self.numpy_seed or self.random_seed,
+                    torch_seed=self.torch_seed or self.random_seed,
+                    python_hash_seed=self.python_hash_seed or self.random_seed,
+                    enable_deterministic=self.enable_deterministic
+                )
+            except ImportError:
+                pass  # Evaluation module not available
+        
+        # Set auditor type if list-wise verification enabled
+        if self.enable_list_wise_verification:
+            try:
+                from ..orchestration.auditor_types import AuditorType
+                self.auditor_type = AuditorType.LIST_WISE.value
+            except ImportError:
+                pass  # Auditor types not available
 
     @property
     def memory_budget(self) -> int:

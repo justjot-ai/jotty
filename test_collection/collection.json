@@ -1,0 +1,8 @@
+{
+  "source": "test",
+  "metadata": {},
+  "tools": [
+    {
+      "name": "test_tool",
+      "description": "A test tool",
+      "forward": 
