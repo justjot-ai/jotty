@@ -1,0 +1,6 @@
+# LaTeX Generator Skill Requirements
+# Note: Requires LaTeX distribution (e.g., texlive) to be installed on the system
+# Install with: sudo apt-get install texlive-latex-base texlive-latex-extra texlive-latex-recommended
+
+# Python dependencies are minimal - uses standard library only
+# No additional Python packages required

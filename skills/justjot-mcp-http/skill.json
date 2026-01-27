@@ -1,0 +1,45 @@
+{
+  "name": "justjot-mcp-http",
+  "version": "1.0.0",
+  "description": "JustJot.ai MCP HTTP Skill - Access JustJot.ai ideas via HTTP MCP (global standard)",
+  "author": "Jotty Framework",
+  "category": "integration",
+  "tags": ["justjot", "mcp", "http", "ideas", "remote"],
+  "tools": {
+    "list_ideas": {
+      "description": "List ideas from JustJot.ai via HTTP MCP",
+      "async": true
+    },
+    "create_idea": {
+      "description": "Create an idea in JustJot.ai via HTTP MCP",
+      "async": true
+    },
+    "get_idea": {
+      "description": "Get an idea from JustJot.ai via HTTP MCP",
+      "async": true
+    },
+    "update_idea": {
+      "description": "Update an idea in JustJot.ai via HTTP MCP",
+      "async": true
+    },
+    "delete_idea": {
+      "description": "Delete an idea from JustJot.ai via HTTP MCP",
+      "async": true
+    },
+    "get_ideas_by_tag": {
+      "description": "Get ideas by tag from JustJot.ai via HTTP MCP",
+      "async": true
+    }
+  },
+  "config": {
+    "JUSTJOT_API_URL": {
+      "description": "JustJot.ai API base URL",
+      "default": "https://justjot.ai",
+      "required": false
+    },
+    "JUSTJOT_AUTH_TOKEN": {
+      "description": "Authentication token for JustJot.ai API",
+      "required": false
+    }
+  }
+}

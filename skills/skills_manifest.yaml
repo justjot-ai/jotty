@@ -1,0 +1,242 @@
+# Jotty Skills Manifest
+# Categories and metadata for skill discovery
+# New skills are auto-discovered and added to 'uncategorized' until classified
+
+version: "1.0"
+auto_discover: true  # Automatically detect new skills not in manifest
+
+categories:
+  core:
+    description: "Fundamental building blocks - basic operations"
+    icon: "🔧"
+    skills:
+      - calculator
+      - file-operations
+      - shell-exec
+      - text-utils
+      - text-chunker
+      - time-converter
+      - process-manager
+      - http-client
+      - skill-discovery
+      - domain-name-brainstormer
+      - skill-creator
+      - mcp-builder
+      - webapp-testing
+      - artifacts-builder
+
+  search:
+    description: "Web search and scraping"
+    icon: "🔍"
+    skills:
+      - web-search
+      - web-scraper
+      - arxiv-downloader
+
+  llm:
+    description: "AI/LLM providers and interfaces"
+    icon: "🤖"
+    skills:
+      - claude-cli-llm
+      - gemini
+      - openai-image-gen
+      - openai-whisper-api
+      - summarize
+
+  documents:
+    description: "Document creation and manipulation"
+    icon: "📄"
+    skills:
+      - pdf-tools
+      - xlsx-tools
+      - docx-tools
+      - pptx-editor
+      - document-converter
+      - slide-generator
+      - latex-generator
+      - presenton
+
+  media:
+    description: "Image, video, audio, and creative tools"
+    icon: "🎨"
+    skills:
+      - image-generator
+      - gif-creator
+      - algorithmic-art
+      - youtube-downloader
+      - mindmap-generator
+      - financial-visualization
+      - image-enhancer
+      - brand-guidelines
+      - theme-factory
+      - video-downloader
+      - slack-gif-creator
+      - canvas-design
+
+  messaging:
+    description: "Communication platforms"
+    icon: "💬"
+    skills:
+      - telegram-sender
+      - slack
+      - discord
+      - remarkable-sender
+      - remarkable-upload
+
+  productivity:
+    description: "Project management and notes"
+    icon: "📋"
+    skills:
+      - github
+      - notion
+      - trello
+      - obsidian
+      - mcp-justjot
+      - mcp-justjot-mcp-client
+      - changelog-generator
+      - file-organizer
+      - invoice-organizer
+      - raffle-winner-picker
+      - internal-comms
+      - notion-knowledge-capture
+      - notion-meeting-intelligence
+      - notion-research-documentation
+      - notion-spec-to-implementation
+
+  entertainment:
+    description: "Music and media control"
+    icon: "🎵"
+    skills:
+      - spotify
+
+  research:
+    description: "Research and analysis composite skills"
+    icon: "📊"
+    skills:
+      - stock-research-comprehensive
+      - stock-research-deep
+      - screener-financials
+      - last30days-claude-cli
+      - content-repurposer
+      - research-to-pdf
+      - notebooklm-pdf
+      - lead-research-assistant
+      - meeting-insights-analyzer
+      - competitive-ads-extractor
+      - content-research-writer
+
+  finance:
+    description: "Financial data and analysis"
+    icon: "💰"
+    skills:
+      - investing-commodities
+      - weather-checker
+      - financial-visualization
+
+  pipelines:
+    description: "End-to-end workflows (Source → Process → Sink)"
+    icon: "🔄"
+    skills:
+      - last30days-to-pdf-telegram
+      - last30days-to-pdf-remarkable
+      - last30days-to-epub-telegram
+      - screener-to-pdf-telegram
+      - investing-commodities-to-telegram
+      - v2v-to-pdf-telegram-remarkable
+      - v2v-trending-search
+      - search-summarize-pdf-telegram
+      - search-summarize-pdf-telegram-v2
+      - reddit-trending-to-justjot
+      - research-to-notion
+      - meeting-intelligence-pipeline
+      - content-branding-pipeline
+      - dev-workflow
+      - media-production-pipeline
+      - notion-knowledge-pipeline
+      - product-launch-pipeline
+      - trending-topics-to-ideas
+      - search-to-justjot-idea
+      - transformer-paper-pipeline
+
+  auth:
+    description: "Authentication and security"
+    icon: "🔐"
+    skills:
+      - oauth-automation
+
+# Tags for cross-cutting concerns (skills can have multiple tags)
+tags:
+  telegram:
+    description: "Skills that send to Telegram"
+    skills: [telegram-sender, last30days-to-pdf-telegram, screener-to-pdf-telegram, investing-commodities-to-telegram, search-summarize-pdf-telegram]
+
+  remarkable:
+    description: "Skills for reMarkable tablet"
+    skills: [remarkable-sender, remarkable-upload, last30days-to-pdf-remarkable, v2v-to-pdf-telegram-remarkable]
+
+  pdf:
+    description: "Skills that work with PDFs"
+    skills: [pdf-tools, document-converter, research-to-pdf, notebooklm-pdf, last30days-to-pdf-telegram]
+
+  openai:
+    description: "Skills using OpenAI APIs"
+    skills: [openai-image-gen, openai-whisper-api]
+
+  google:
+    description: "Skills using Google APIs"
+    skills: [gemini]
+
+  stocks:
+    description: "Stock market related"
+    skills: [stock-research-comprehensive, stock-research-deep, screener-financials, investing-commodities]
+
+  justjot:
+    description: "JustJot.ai integration"
+    skills: [mcp-justjot, mcp-justjot-mcp-client, reddit-trending-to-justjot, search-to-justjot-idea, trending-topics-to-ideas]
+
+# Skill metadata overrides (for skills that need extra info)
+skill_metadata:
+  claude-cli-llm:
+    requires_auth: true
+    env_vars: [ANTHROPIC_API_KEY]
+
+  gemini:
+    requires_auth: true
+    env_vars: [GOOGLE_API_KEY, GEMINI_API_KEY]
+
+  openai-image-gen:
+    requires_auth: true
+    env_vars: [OPENAI_API_KEY]
+
+  openai-whisper-api:
+    requires_auth: true
+    env_vars: [OPENAI_API_KEY]
+
+  telegram-sender:
+    requires_auth: true
+    env_vars: [TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID]
+
+  slack:
+    requires_auth: true
+    env_vars: [SLACK_BOT_TOKEN]
+
+  discord:
+    requires_auth: true
+    env_vars: [DISCORD_BOT_TOKEN]
+
+  github:
+    requires_auth: true
+    env_vars: []
+    requires_cli: [gh]
+
+  notion:
+    requires_auth: true
+    env_vars: [NOTION_API_KEY]
+
+  trello:
+    requires_auth: true
+    env_vars: [TRELLO_API_KEY, TRELLO_TOKEN]
+
+  spotify:
+    requires_auth: true
+    env_vars: [SPOTIFY_ACCESS_TOKEN]

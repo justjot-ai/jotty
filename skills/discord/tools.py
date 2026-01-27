@@ -1,0 +1,604 @@
+"""
+Discord Skill
+
+Interact with Discord using the Discord API via requests.
+"""
+import os
+import requests
+import logging
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+
+# Load environment variables from .env file if available
+try:
+    from dotenv import load_dotenv
+    # Try to load .env from Jotty root (parent of skills directory)
+    current_file = Path(__file__).resolve()
+    jotty_root = current_file.parent.parent.parent  # skills/discord -> skills -> Jotty
+    env_file = jotty_root / ".env"
+    if env_file.exists():
+        load_dotenv(env_file, override=False)  # Don't override existing env vars
+except ImportError:
+    pass  # python-dotenv not available, fall back to os.getenv
+
+logger = logging.getLogger(__name__)
+
+DISCORD_API_BASE = "https://discord.com/api/v10"
+
+
+class DiscordAPIClient:
+    """Helper class for Discord API interactions."""
+
+    def __init__(self, token: Optional[str] = None):
+        self.token = token or self._get_token()
+
+    def _get_token(self) -> Optional[str]:
+        """Get Discord token from environment or config file."""
+        # Try environment variable first
+        token = os.getenv('DISCORD_BOT_TOKEN')
+        if token:
+            return token
+
+        # Try config file
+        config_path = Path.home() / ".config" / "discord" / "token"
+        if config_path.exists():
+            return config_path.read_text().strip()
+
+        return None
+
+    def _get_headers(self) -> Dict[str, str]:
+        """Get headers for API requests."""
+        return {
+            "Authorization": f"Bot {self.token}",
+            "Content-Type": "application/json"
+        }
+
+    def _make_request(self, endpoint: str, method: str = "POST",
+                      json_data: Optional[Dict] = None,
+                      params: Optional[Dict] = None) -> Dict[str, Any]:
+        """Make a request to Discord API."""
+        url = f"{DISCORD_API_BASE}{endpoint}"
+
+        try:
+            if method == "GET":
+                response = requests.get(url, headers=self._get_headers(), params=params, timeout=30)
+            elif method == "POST":
+                response = requests.post(url, headers=self._get_headers(), json=json_data, timeout=30)
+            elif method == "PUT":
+                response = requests.put(url, headers=self._get_headers(), json=json_data, timeout=30)
+            elif method == "DELETE":
+                response = requests.delete(url, headers=self._get_headers(), timeout=30)
+            else:
+                return {'success': False, 'error': f'Unsupported HTTP method: {method}'}
+
+            # Discord API returns 204 No Content for some successful operations
+            if response.status_code == 204:
+                return {'success': True}
+
+            # Check for rate limiting
+            if response.status_code == 429:
+                retry_after = response.json().get('retry_after', 1)
+                return {
+                    'success': False,
+                    'error': f'Rate limited. Retry after {retry_after} seconds',
+                    'retry_after': retry_after
+                }
+
+            # Handle errors
+            if response.status_code >= 400:
+                try:
+                    error_data = response.json()
+                    return {
+                        'success': False,
+                        'error': error_data.get('message', f'HTTP {response.status_code}'),
+                        'code': error_data.get('code'),
+                        'errors': error_data.get('errors')
+                    }
+                except Exception:
+                    return {
+                        'success': False,
+                        'error': f'HTTP {response.status_code}: {response.text}'
+                    }
+
+            result = response.json()
+            return {'success': True, **result}
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Discord API request failed: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+
+
+def send_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send a message to a Discord channel.
+
+    Args:
+        params: Dictionary containing:
+            - channel_id (str, required): Channel ID to send message to
+            - content (str, required): Message content (up to 2000 characters)
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+            - tts (bool, optional): Whether this is a TTS message (default: False)
+            - embed (dict, optional): Embed object to include
+            - embeds (list, optional): Array of embed objects (max 10)
+            - message_reference (dict, optional): Message reference for replies
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether message was sent
+            - id (str): Message ID
+            - channel_id (str): Channel ID
+            - content (str): Message content
+            - author (dict): Author information
+            - timestamp (str): Message timestamp
+            - error (str, optional): Error message if failed
+    """
+    try:
+        channel_id = params.get('channel_id')
+        content = params.get('content')
+
+        if not channel_id:
+            return {'success': False, 'error': 'channel_id parameter is required'}
+
+        if not content and not params.get('embed') and not params.get('embeds'):
+            return {'success': False, 'error': 'content, embed, or embeds parameter is required'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        payload = {}
+
+        if content:
+            if len(content) > 2000:
+                return {'success': False, 'error': 'Message content cannot exceed 2000 characters'}
+            payload['content'] = content
+
+        if params.get('tts'):
+            payload['tts'] = params['tts']
+
+        if params.get('embed'):
+            payload['embeds'] = [params['embed']]
+        elif params.get('embeds'):
+            payload['embeds'] = params['embeds'][:10]  # Max 10 embeds
+
+        if params.get('message_reference'):
+            payload['message_reference'] = params['message_reference']
+
+        logger.info(f"Sending Discord message to channel {channel_id}")
+        result = client._make_request(f'/channels/{channel_id}/messages', method="POST", json_data=payload)
+
+        if result.get('success'):
+            return {
+                'success': True,
+                'id': result.get('id'),
+                'channel_id': result.get('channel_id'),
+                'content': result.get('content'),
+                'author': result.get('author'),
+                'timestamp': result.get('timestamp'),
+                'embeds': result.get('embeds', [])
+            }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Discord send message error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to send Discord message: {str(e)}'}
+
+
+def list_channels_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    List channels in a Discord guild (server).
+
+    Args:
+        params: Dictionary containing:
+            - guild_id (str, required): Guild ID to list channels from
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether request succeeded
+            - channels (list): List of channel objects with id, name, type, etc.
+            - channel_count (int): Number of channels
+            - error (str, optional): Error message if failed
+    """
+    try:
+        guild_id = params.get('guild_id')
+
+        if not guild_id:
+            return {'success': False, 'error': 'guild_id parameter is required'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        logger.info(f"Listing Discord channels for guild {guild_id}")
+        result = client._make_request(f'/guilds/{guild_id}/channels', method="GET")
+
+        if result.get('success'):
+            # The result is a list, not a dict with 'channels' key
+            channels = []
+            for key, value in result.items():
+                if key != 'success' and isinstance(value, dict):
+                    channels.append(value)
+
+            # If result is directly a list (when unpacked)
+            if not channels and isinstance(result, dict):
+                # Remove 'success' key and treat rest as channel data
+                channels_data = {k: v for k, v in result.items() if k != 'success'}
+                if channels_data:
+                    channels = list(channels_data.values()) if all(isinstance(v, dict) for v in channels_data.values()) else []
+
+            # Re-fetch to get proper list
+            url = f"{DISCORD_API_BASE}/guilds/{guild_id}/channels"
+            response = requests.get(url, headers=client._get_headers(), timeout=30)
+            if response.status_code == 200:
+                channels = response.json()
+
+            # Channel type mapping
+            channel_types = {
+                0: 'text',
+                2: 'voice',
+                4: 'category',
+                5: 'announcement',
+                10: 'announcement_thread',
+                11: 'public_thread',
+                12: 'private_thread',
+                13: 'stage_voice',
+                14: 'directory',
+                15: 'forum',
+                16: 'media'
+            }
+
+            return {
+                'success': True,
+                'channels': [
+                    {
+                        'id': ch.get('id'),
+                        'name': ch.get('name'),
+                        'type': channel_types.get(ch.get('type'), ch.get('type')),
+                        'type_id': ch.get('type'),
+                        'position': ch.get('position'),
+                        'parent_id': ch.get('parent_id'),
+                        'topic': ch.get('topic'),
+                        'nsfw': ch.get('nsfw', False)
+                    }
+                    for ch in channels if isinstance(ch, dict)
+                ],
+                'channel_count': len(channels)
+            }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Discord list channels error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to list Discord channels: {str(e)}'}
+
+
+def read_messages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Read recent messages from a Discord channel.
+
+    Args:
+        params: Dictionary containing:
+            - channel_id (str, required): Channel ID to read messages from
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+            - limit (int, optional): Number of messages to retrieve (default: 50, max: 100)
+            - before (str, optional): Get messages before this message ID
+            - after (str, optional): Get messages after this message ID
+            - around (str, optional): Get messages around this message ID
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether request succeeded
+            - messages (list): List of message objects
+            - message_count (int): Number of messages returned
+            - error (str, optional): Error message if failed
+    """
+    try:
+        channel_id = params.get('channel_id')
+
+        if not channel_id:
+            return {'success': False, 'error': 'channel_id parameter is required'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        query_params = {
+            'limit': min(params.get('limit', 50), 100)
+        }
+
+        if params.get('before'):
+            query_params['before'] = params['before']
+        if params.get('after'):
+            query_params['after'] = params['after']
+        if params.get('around'):
+            query_params['around'] = params['around']
+
+        logger.info(f"Reading messages from Discord channel {channel_id}")
+
+        # Make direct request since the result is a list
+        url = f"{DISCORD_API_BASE}/channels/{channel_id}/messages"
+        response = requests.get(url, headers=client._get_headers(), params=query_params, timeout=30)
+
+        if response.status_code == 200:
+            messages = response.json()
+            return {
+                'success': True,
+                'messages': [
+                    {
+                        'id': msg.get('id'),
+                        'content': msg.get('content'),
+                        'author': {
+                            'id': msg.get('author', {}).get('id'),
+                            'username': msg.get('author', {}).get('username'),
+                            'discriminator': msg.get('author', {}).get('discriminator'),
+                            'global_name': msg.get('author', {}).get('global_name'),
+                            'bot': msg.get('author', {}).get('bot', False)
+                        },
+                        'timestamp': msg.get('timestamp'),
+                        'edited_timestamp': msg.get('edited_timestamp'),
+                        'attachments': msg.get('attachments', []),
+                        'embeds': msg.get('embeds', []),
+                        'reactions': msg.get('reactions', []),
+                        'referenced_message': msg.get('referenced_message'),
+                        'thread': msg.get('thread')
+                    }
+                    for msg in messages
+                ],
+                'message_count': len(messages)
+            }
+        elif response.status_code == 429:
+            data = response.json()
+            return {
+                'success': False,
+                'error': f'Rate limited. Retry after {data.get("retry_after", 1)} seconds',
+                'retry_after': data.get('retry_after')
+            }
+        else:
+            try:
+                error_data = response.json()
+                return {
+                    'success': False,
+                    'error': error_data.get('message', f'HTTP {response.status_code}')
+                }
+            except Exception:
+                return {'success': False, 'error': f'HTTP {response.status_code}'}
+
+    except Exception as e:
+        logger.error(f"Discord read messages error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to read Discord messages: {str(e)}'}
+
+
+def add_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Add an emoji reaction to a message.
+
+    Args:
+        params: Dictionary containing:
+            - channel_id (str, required): Channel ID where the message is
+            - message_id (str, required): Message ID to react to
+            - emoji (str, required): Emoji to add (unicode emoji or custom emoji format name:id)
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether reaction was added
+            - channel_id (str): Channel ID
+            - message_id (str): Message ID
+            - emoji (str): Emoji added
+            - error (str, optional): Error message if failed
+    """
+    try:
+        channel_id = params.get('channel_id')
+        message_id = params.get('message_id')
+        emoji = params.get('emoji')
+
+        if not channel_id:
+            return {'success': False, 'error': 'channel_id parameter is required'}
+
+        if not message_id:
+            return {'success': False, 'error': 'message_id parameter is required'}
+
+        if not emoji:
+            return {'success': False, 'error': 'emoji parameter is required'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        # URL encode the emoji for the request
+        import urllib.parse
+        encoded_emoji = urllib.parse.quote(emoji)
+
+        logger.info(f"Adding reaction {emoji} to message {message_id} in channel {channel_id}")
+        result = client._make_request(
+            f'/channels/{channel_id}/messages/{message_id}/reactions/{encoded_emoji}/@me',
+            method="PUT"
+        )
+
+        if result.get('success'):
+            return {
+                'success': True,
+                'channel_id': channel_id,
+                'message_id': message_id,
+                'emoji': emoji
+            }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Discord add reaction error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to add Discord reaction: {str(e)}'}
+
+
+def get_user_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get details about a Discord user.
+
+    Args:
+        params: Dictionary containing:
+            - user_id (str, required): User ID to get info for
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether request succeeded
+            - user (dict): User information including id, username, discriminator, avatar, etc.
+            - error (str, optional): Error message if failed
+    """
+    try:
+        user_id = params.get('user_id')
+
+        if not user_id:
+            return {'success': False, 'error': 'user_id parameter is required'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        logger.info(f"Getting Discord user info for {user_id}")
+        result = client._make_request(f'/users/{user_id}', method="GET")
+
+        if result.get('success'):
+            return {
+                'success': True,
+                'user': {
+                    'id': result.get('id'),
+                    'username': result.get('username'),
+                    'discriminator': result.get('discriminator'),
+                    'global_name': result.get('global_name'),
+                    'avatar': result.get('avatar'),
+                    'avatar_url': f"https://cdn.discordapp.com/avatars/{result.get('id')}/{result.get('avatar')}.png" if result.get('avatar') else None,
+                    'bot': result.get('bot', False),
+                    'system': result.get('system', False),
+                    'banner': result.get('banner'),
+                    'accent_color': result.get('accent_color'),
+                    'public_flags': result.get('public_flags')
+                }
+            }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Discord get user info error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to get Discord user info: {str(e)}'}
+
+
+def create_thread_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create a thread in a Discord channel.
+
+    Args:
+        params: Dictionary containing:
+            - channel_id (str, required): Channel ID to create thread in
+            - name (str, required): Thread name (1-100 characters)
+            - token (str, optional): Discord bot token (defaults to DISCORD_BOT_TOKEN env var)
+            - message_id (str, optional): Message ID to start thread from (creates thread from message)
+            - auto_archive_duration (int, optional): Minutes until auto-archive (60, 1440, 4320, 10080)
+            - type (int, optional): Thread type - 10 (announcement), 11 (public), 12 (private). Default: 11
+            - invitable (bool, optional): Whether non-moderators can add users (private threads only)
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether thread was created
+            - id (str): Thread ID
+            - name (str): Thread name
+            - parent_id (str): Parent channel ID
+            - owner_id (str): Thread owner ID
+            - type (int): Channel type
+            - error (str, optional): Error message if failed
+    """
+    try:
+        channel_id = params.get('channel_id')
+        name = params.get('name')
+        message_id = params.get('message_id')
+
+        if not channel_id:
+            return {'success': False, 'error': 'channel_id parameter is required'}
+
+        if not name:
+            return {'success': False, 'error': 'name parameter is required'}
+
+        if len(name) > 100:
+            return {'success': False, 'error': 'Thread name cannot exceed 100 characters'}
+
+        client = DiscordAPIClient(params.get('token'))
+
+        if not client.token:
+            return {
+                'success': False,
+                'error': 'Discord token required. Set DISCORD_BOT_TOKEN env var or provide token parameter'
+            }
+
+        payload = {
+            'name': name
+        }
+
+        if params.get('auto_archive_duration'):
+            valid_durations = [60, 1440, 4320, 10080]
+            duration = params['auto_archive_duration']
+            if duration not in valid_durations:
+                return {'success': False, 'error': f'auto_archive_duration must be one of {valid_durations}'}
+            payload['auto_archive_duration'] = duration
+
+        if message_id:
+            # Create thread from existing message
+            endpoint = f'/channels/{channel_id}/messages/{message_id}/threads'
+        else:
+            # Create thread without a message (forum/text channel)
+            endpoint = f'/channels/{channel_id}/threads'
+            if params.get('type'):
+                payload['type'] = params['type']
+            if params.get('invitable') is not None:
+                payload['invitable'] = params['invitable']
+
+        logger.info(f"Creating Discord thread '{name}' in channel {channel_id}")
+        result = client._make_request(endpoint, method="POST", json_data=payload)
+
+        if result.get('success'):
+            return {
+                'success': True,
+                'id': result.get('id'),
+                'name': result.get('name'),
+                'parent_id': result.get('parent_id'),
+                'owner_id': result.get('owner_id'),
+                'type': result.get('type'),
+                'thread_metadata': result.get('thread_metadata')
+            }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Discord create thread error: {e}", exc_info=True)
+        return {'success': False, 'error': f'Failed to create Discord thread: {str(e)}'}
+
+
+__all__ = [
+    'send_message_tool',
+    'list_channels_tool',
+    'read_messages_tool',
+    'add_reaction_tool',
+    'get_user_info_tool',
+    'create_thread_tool'
+]

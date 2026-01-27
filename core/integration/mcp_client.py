@@ -42,11 +42,30 @@ class MCPClient:
         self.env = env.copy() if env else {}
         
         # Set MongoDB URI (priority: parameter > env var > default)
+        # IMPORTANT: JustJot.ai container on cmd.dev uses LOCAL MongoDB:
+        # mongodb://justjot:ksG07jjmU9lO5zNd61W3Su9J@mongo:27017/justjot?authSource=admin
+        # MCP client must use same database to match
         if mongodb_uri:
             self.env['MONGODB_URI'] = mongodb_uri
         elif 'MONGODB_URI' not in self.env:
             # Try to get from environment or use default
-            self.env['MONGODB_URI'] = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/justjot')
+            # Default to local Docker MongoDB (same as JustJot.ai container uses)
+            # From outside Docker, use localhost instead of 'mongo' hostname
+            default_uri = os.getenv(
+                'MONGODB_URI',
+                'mongodb://justjot:ksG07jjmU9lO5zNd61W3Su9J@localhost:27017/justjot?authSource=admin'
+            )
+            # If URI points to planmyinvesting database, change to justjot
+            # This ensures MCP client writes to same database as JustJot.ai API reads from
+            if '/planmyinvesting' in default_uri:
+                # Change database to justjot and add authSource if not present
+                default_uri = default_uri.replace('/planmyinvesting', '/justjot')
+                if 'authSource' not in default_uri:
+                    default_uri += '?authSource=planmyinvesting'
+            # If URI uses 'mongo' hostname (Docker internal), change to 'localhost' for external access
+            if '@mongo:' in default_uri:
+                default_uri = default_uri.replace('@mongo:', '@localhost:')
+            self.env['MONGODB_URI'] = default_uri
         
         # Include Clerk secret if available
         if 'CLERK_SECRET_KEY' not in self.env:

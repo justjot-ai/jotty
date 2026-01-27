@@ -213,15 +213,20 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
                 research_content += f"No {aspect_title.lower()} research results available.\n\n"
         
         # Generate comprehensive 10-page report using Claude
-        claude_prompt = f"""Create a comprehensive, detailed stock research report for {company_name} ({ticker}){location_suffix} based on the extensive research data provided below.
+        claude_prompt = f"""WRITE A COMPLETE, DETAILED STOCK RESEARCH REPORT for {company_name} ({ticker}){location_suffix} based on the extensive research data provided below.
+
+**CRITICAL: YOU MUST WRITE OUT THE COMPLETE, FULL REPORT CONTENT - NOT A SUMMARY, OVERVIEW, OR DESCRIPTION**
 
 **IMPORTANT REQUIREMENTS:**
-- Target length: Approximately {target_pages} pages (when converted to PDF)
-- Be extremely thorough, detailed, and analytical
-- Include specific numbers, metrics, data points, and dates wherever available
-- Cover EVERY aspect comprehensively
-- Use professional financial analysis language
-- Structure the report with clear sections and subsections
+- Target length: {target_pages} FULL PAGES of detailed content (approximately 5,000-8,000 words minimum)
+- WRITE OUT EVERY SECTION IN COMPLETE DETAIL - each section should be 400-800 words with multiple paragraphs
+- Be extremely thorough, detailed, and analytical - write extensive paragraphs of analysis for each subsection
+- Include specific numbers, metrics, data points, and dates wherever available from the research data
+- Cover EVERY aspect comprehensively with extensive written analysis - don't skip or summarize
+- Use professional financial analysis language suitable for institutional investors
+- Structure the report with clear sections and subsections using markdown headers
+- DO NOT write summaries, overviews, or descriptions - WRITE THE ACTUAL FULL REPORT CONTENT WITH ALL DETAILS
+- Expand each point with detailed explanations, analysis, and context
 
 **REPORT STRUCTURE (Expand each section with detailed subsections):**
 
@@ -311,17 +316,45 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
 **RESEARCH DATA:**
 {research_content}
 
-**INSTRUCTIONS:**
+**CRITICAL INSTRUCTIONS - READ CAREFULLY:**
+- WRITE THE COMPLETE, FULL REPORT CONTENT - NOT A SUMMARY OR DESCRIPTION
+- Each major section should be 400-800 words with multiple detailed paragraphs
+- Executive Summary should be 300-500 words
 - Write in a professional, analytical tone suitable for institutional investors
-- Include specific numbers, percentages, dates, and metrics from the research data
+- Include specific numbers, percentages, dates, and metrics from the research data above
 - Use tables, bullet points, and structured formatting for clarity
-- Be comprehensive - aim for {target_pages} pages of detailed content
-- Synthesize information from multiple sources - don't just list facts, provide analysis
-- If certain data is missing, note it but still provide analysis based on available information
+- Be comprehensive - aim for {target_pages} FULL PAGES ({target_pages * 500}-{target_pages * 800} words minimum)
+- Synthesize information from multiple sources - don't just list facts, provide deep analytical paragraphs
+- Expand each subsection with 3-5 detailed paragraphs explaining the analysis
+- If certain data is missing, note it but still provide extensive analysis based on available information
 - Ensure the report is thorough enough to serve as a complete investment research document
 - Focus on actionable insights and investment implications
 
-**NOTE:** The research data above contains summaries from {total_results} search results. Use this information to create a comprehensive, well-structured report. Generate the complete, detailed markdown report now:"""
+**FORMAT REQUIREMENTS:**
+- Start immediately with: "# {company_name} ({ticker}){location_suffix} - Comprehensive Research Report"
+- Write out ALL 12 sections in FULL DETAIL with complete content
+- Each major section should have multiple subsections (###) with detailed paragraphs
+- Use markdown formatting (## for sections, ### for subsections, **bold** for emphasis, tables where appropriate)
+- Include specific data points, financial metrics, percentages, and analysis throughout
+- Write paragraphs, not bullet points (use bullets only for lists within paragraphs)
+
+**WORD COUNT TARGETS PER SECTION:**
+1. Executive Summary: 300-500 words
+2. Company Overview: 500-700 words  
+3. Industry Analysis: 400-600 words
+4. Financial Analysis: 600-900 words (most detailed)
+5. Valuation Analysis: 500-700 words
+6. Technical Analysis: 400-600 words
+7. Management: 300-500 words
+8. Broker Research: 400-600 words
+9. Risks: 400-600 words
+10. Growth Prospects: 400-600 words
+11. Dividend Analysis: 300-400 words
+12. Conclusion: 300-500 words
+
+**NOTE:** The research data above contains summaries from {total_results} search results. 
+
+**START WRITING THE COMPLETE REPORT NOW. BEGIN WITH THE HEADER AND EXECUTIVE SUMMARY, THEN CONTINUE WITH ALL SECTIONS IN FULL DETAIL. DO NOT STOP UNTIL YOU HAVE WRITTEN ALL {target_pages} PAGES OF CONTENT:**"""
         
         generate_tool = claude_skill.tools.get('generate_text_tool')
         if not generate_tool:
@@ -331,19 +364,23 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
             }
         
         # Use longer timeout for comprehensive report generation (10 pages)
-        # Default timeout is 120s, but we need more for comprehensive reports
-        # Pass timeout directly - generate_text_tool now accepts it
+        # Increased to 30 minutes (1800s) - generating full detailed report takes time
+        timeout_seconds = 1800  # 30 minutes for comprehensive report generation
+        
+        logger.info(f"⏱️  Using {timeout_seconds//60} minute timeout for Claude generation")
+        logger.info(f"📝 Generating comprehensive {target_pages}-page report (target: 5,000-8,000 words)")
+        
         if inspect.iscoroutinefunction(generate_tool):
             claude_result = await generate_tool({
                 'prompt': claude_prompt,
                 'model': 'sonnet',
-                'timeout': 600  # 10 minutes for comprehensive report
+                'timeout': timeout_seconds
             })
         else:
             claude_result = generate_tool({
                 'prompt': claude_prompt,
                 'model': 'sonnet',
-                'timeout': 600  # 10 minutes for comprehensive report
+                'timeout': timeout_seconds
             })
         
         if not claude_result.get('success'):
