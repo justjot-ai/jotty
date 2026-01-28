@@ -56,3 +56,4 @@ temp/
 *.tmp
 .env
 output/
+node_modules/

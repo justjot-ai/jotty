@@ -159,9 +159,16 @@ class AutoAgent:
         self,
         skill_name: str,
         tool_name: str,
-        params: Dict[str, Any]
+        params: Dict[str, Any],
+        max_retries: int = 2
     ) -> Dict[str, Any]:
-        """Execute a single tool."""
+        """
+        Execute a single tool with retry logic for network errors.
+        
+        For web-related tools, will also try alternative tools if primary fails.
+        """
+        import time
+        
         self._init_dependencies()
         skill = self._registry.get_skill(skill_name) if self._registry else None
         if not skill:
@@ -182,16 +189,128 @@ class AutoAgent:
                 error_msg += f'. Available tools in {skill_name}: {available_tools[:5]}'
             return {'success': False, 'error': error_msg}
 
-        try:
-            if inspect.iscoroutinefunction(tool):
-                result = await tool(params)
-            else:
-                result = tool(params)
-            return result
-        except Exception as e:
-            logger.error(f"Tool execution failed: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
-
+        # Retry logic for network errors
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                if inspect.iscoroutinefunction(tool):
+                    result = await tool(params)
+                else:
+                    result = tool(params)
+                
+                # If success, return immediately
+                if result.get('success', False):
+                    return result
+                
+                # If failure but not a network error, return immediately (no retry)
+                error_msg = result.get('error', '')
+                if error_msg and 'Network error' not in error_msg and 'timeout' not in error_msg.lower() and 'Request' not in error_msg:
+                    return result
+                
+                # Network error - retry
+                last_error = error_msg
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s
+                    logger.debug(f"  Retrying {skill_name}.{tool_name} after {wait_time}s (attempt {attempt + 2}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return result
+                    
+            except Exception as e:
+                error_str = str(e)
+                # Check if it's a network-related error
+                is_network_error = any(keyword in error_str.lower() for keyword in [
+                    'network', 'timeout', 'connection', 'request', 'http', 'dns', 'socket'
+                ]) or 'requests' in str(type(e))
+                
+                if is_network_error and attempt < max_retries - 1:
+                    # Network exception - retry
+                    last_error = error_str
+                    wait_time = 2 ** attempt
+                    logger.debug(f"  Retrying {skill_name}.{tool_name} after network error (attempt {attempt + 2}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Non-network exception or retries exhausted - don't retry
+                    logger.error(f"Tool execution failed: {e}", exc_info=True)
+                    return {'success': False, 'error': error_str}
+            except Exception as e:
+                # Non-network exception - don't retry
+                logger.error(f"Tool execution failed: {e}", exc_info=True)
+                return {'success': False, 'error': str(e)}
+        
+        # All retries exhausted
+        return {'success': False, 'error': last_error or f'Failed after {max_retries} attempts'}
+    
+    async def _try_alternative_web_tools(
+        self,
+        step: ExecutionStep,
+        params: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Try alternative web tools when primary web-search tool fails.
+        
+        Alternatives:
+        1. web-scraper (if URL is available)
+        2. http-client (if URL is available)
+        """
+        self._init_dependencies()
+        if not self._registry:
+            return None
+        
+        # Extract URL from params if available
+        url = params.get('url') or params.get('query')
+        if not url or '{' in str(url) or '${' in str(url):
+            # URL not available or has unresolved template variables
+            return None
+        
+        # Try web-scraper as alternative
+        scraper_skill = self._registry.get_skill('web-scraper')
+        if scraper_skill and hasattr(scraper_skill, 'tools'):
+            scraper_tool = scraper_skill.tools.get('scrape_website_tool')
+            if scraper_tool:
+                try:
+                    logger.debug(f"  Trying web-scraper as alternative...")
+                    scraper_params = {'url': url} if url.startswith('http') else params
+                    if inspect.iscoroutinefunction(scraper_tool):
+                        result = await scraper_tool(scraper_params)
+                    else:
+                        result = scraper_tool(scraper_params)
+                    
+                    if result.get('success'):
+                        logger.info(f"  ✅ Alternative tool (web-scraper) succeeded")
+                        return result
+                except Exception as e:
+                    logger.debug(f"  web-scraper alternative failed: {e}")
+        
+        # Try http-client as alternative
+        http_skill = self._registry.get_skill('http-client')
+        if http_skill and hasattr(http_skill, 'tools'):
+            http_tool = http_skill.tools.get('http_get_tool')
+            if http_tool and url.startswith('http'):
+                try:
+                    logger.debug(f"  Trying http-client as alternative...")
+                    http_params = {'url': url}
+                    if inspect.iscoroutinefunction(http_tool):
+                        result = await http_tool(http_params)
+                    else:
+                        result = http_tool(http_params)
+                    
+                    if result.get('success'):
+                        # Convert HTTP response to web-search format
+                        logger.info(f"  ✅ Alternative tool (http-client) succeeded")
+                        return {
+                            'success': True,
+                            'url': url,
+                            'content': str(result.get('body', '')),
+                            'title': 'Fetched Content'
+                        }
+                except Exception as e:
+                    logger.debug(f"  http-client alternative failed: {e}")
+        
+        return None
+    
     def _validate_and_filter_steps(
         self,
         steps: List[ExecutionStep],
@@ -315,32 +434,169 @@ class AutoAgent:
         params: Dict[str, Any],
         outputs: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Resolve template variables in params."""
+        """
+        Resolve template variables in params.
+        
+        Supports formats:
+        - ${step_name.field} - get field from output
+        - ${step_name.output.field} - get field from output dict
+        - ${step_name[0].field} - array indexing
+        - {step_name.field} - without $ prefix
+        """
+        import re
+        
         resolved = {}
 
-        for key, value in params.items():
-            if isinstance(value, str) and '{{' in value:
-                # Replace template variables
-                for out_key, out_value in outputs.items():
-                    placeholder = '{{' + out_key + '}}'
-                    if placeholder in value:
-                        # Convert output to string for insertion
-                        if isinstance(out_value, dict):
-                            if 'results' in out_value:
-                                # Format search results
-                                results = out_value['results']
-                                formatted = '\n'.join([
-                                    f"- {r.get('title', '')}: {r.get('snippet', '')}"
-                                    for r in results[:5]
-                                ])
-                                value = value.replace(placeholder, formatted)
-                            elif 'text' in out_value:
-                                value = value.replace(placeholder, out_value['text'])
-                            else:
-                                value = value.replace(placeholder, str(out_value))
+        def resolve_path(path: str, outputs: Dict[str, Any]) -> Any:
+            """
+            Resolve a path like:
+            - 'search_results.results[0].url' (nested)
+            - 'search_results[0].url' (direct array access - smart fallback)
+            - 'search_results.url' (simple key)
+            """
+            import re
+            
+            # Handle direct array access: search_results[0].url
+            # Split by . but preserve array indices
+            parts = []
+            current = ''
+            i = 0
+            while i < len(path):
+                if path[i] == '[':
+                    if current:
+                        parts.append(current)
+                        current = ''
+                    # Find the closing ]
+                    j = i + 1
+                    while j < len(path) and path[j] != ']':
+                        j += 1
+                    if j < len(path):
+                        parts.append(f'[{path[i+1:j]}]')
+                        i = j + 1
+                    else:
+                        current += path[i]
+                        i += 1
+                elif path[i] == '.':
+                    if current:
+                        parts.append(current)
+                        current = ''
+                    i += 1
+                else:
+                    current += path[i]
+                    i += 1
+            if current:
+                parts.append(current)
+            
+            value = outputs
+            
+            for idx, part in enumerate(parts):
+                if value is None:
+                    return None
+                
+                # Handle array indexing: [0] or key[0]
+                if part.startswith('[') and part.endswith(']'):
+                    # Direct array access: [0]
+                    try:
+                        index = int(part[1:-1])
+                        
+                        # Smart fallback: if value is a dict with 'results' key, use that
+                        # This handles cases like {search_results[0].url} where search_results
+                        # is a dict with a 'results' array inside
+                        if isinstance(value, dict) and 'results' in value:
+                            value = value['results']
+                        
+                        if isinstance(value, (list, tuple)) and index < len(value):
+                            value = value[index]
                         else:
-                            value = value.replace(placeholder, str(out_value))
+                            return None
+                    except (ValueError, IndexError, TypeError):
+                        return None
+                elif '[' in part and ']' in part:
+                    # Key with array: key[0]
+                    key = part.split('[')[0]
+                    index_str = part.split('[')[1].split(']')[0]
+                    try:
+                        index = int(index_str)
+                        
+                        # Get the value for the key
+                        if isinstance(value, dict):
+                            key_value = value.get(key)
+                        else:
+                            return None
+                        
+                        # Smart fallback: if key_value is a dict with 'results' key, use that
+                        # This handles cases like {search_results[0].url} where search_results is a dict
+                        # with a 'results' array inside
+                        if isinstance(key_value, dict) and 'results' in key_value:
+                            key_value = key_value['results']
+                        
+                        # Now try to index
+                        if isinstance(key_value, (list, tuple)) and index < len(key_value):
+                            value = key_value[index]
+                        elif isinstance(key_value, dict):
+                            # If it's still a dict, maybe it's a list-like dict? Try direct access
+                            return None
+                        else:
+                            return None
+                    except (ValueError, IndexError, TypeError):
+                        return None
+                else:
+                    # Regular key access
+                    if isinstance(value, dict):
+                        value = value.get(part)
+                    else:
+                        return None
+                
+                if value is None:
+                    break
+            
+            return value
+
+        for key, value in params.items():
+            if isinstance(value, str):
+                # Handle ${...} format
+                pattern = r'\$\{([^}]+)\}'
+                def replacer(match):
+                    path = match.group(1)
+                    resolved_value = resolve_path(path, outputs)
+                    return str(resolved_value) if resolved_value is not None else match.group(0)
+                
+                value = re.sub(pattern, replacer, value)
+                
+                # Handle {...} format (without $)
+                pattern2 = r'\{([^}]+)\}'
+                value = re.sub(pattern2, replacer, value)
+                
+                # Handle {{...}} format (double braces)
+                pattern3 = r'\{\{([^}]+)\}\}'
+                def replacer3(match):
+                    out_key = match.group(1)
+                    out_value = outputs.get(out_key)
+                    if isinstance(out_value, dict):
+                        if 'results' in out_value:
+                            # Format search results
+                            results = out_value['results']
+                            formatted = '\n'.join([
+                                f"- {r.get('title', '')}: {r.get('snippet', '')}"
+                                for r in results[:5]
+                            ])
+                            return formatted
+                        elif 'text' in out_value:
+                            return out_value['text']
+                        else:
+                            return str(out_value)
+                    return str(out_value) if out_value is not None else match.group(0)
+                
+                value = re.sub(pattern3, replacer3, value)
+                
                 resolved[key] = value
+            elif isinstance(value, dict):
+                resolved[key] = self._resolve_params(value, outputs)
+            elif isinstance(value, list):
+                resolved[key] = [
+                    self._resolve_params(item, outputs) if isinstance(item, dict) else item
+                    for item in value
+                ]
             else:
                 resolved[key] = value
 
@@ -508,6 +764,18 @@ class AutoAgent:
                 error_msg = result.get('error', 'Unknown error')
                 errors.append(f"Step {i+1} ({step.skill_name}): {error_msg}")
                 logger.warning(f"  ❌ Failed: {error_msg}")
+
+                # Try alternative web tools for network errors
+                if ('Network error' in error_msg or 'timeout' in error_msg.lower() or 
+                    'Request' in error_msg) and step.skill_name == 'web-search':
+                    logger.info(f"  🔄 Trying alternative web tools for network error...")
+                    alternative_result = await self._try_alternative_web_tools(step, resolved_params)
+                    if alternative_result and alternative_result.get('success'):
+                        outputs[step.output_key or f'step_{i}'] = alternative_result
+                        skills_used.append(step.skill_name)
+                        steps_executed += 1
+                        logger.info(f"  ✅ Success with alternative tool")
+                        continue
 
                 # For optional steps, continue; for required steps, consider replanning
                 if not step.optional and i < len(steps) - 1 and replan_count < max_replans:

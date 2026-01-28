@@ -8,9 +8,16 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to PDF format using Pandoc.
     
+    IMPORTANT: Pandoc can convert FROM markdown, HTML, DOCX, EPUB, LaTeX, etc. 
+    but CANNOT convert FROM PDF. Always use the original source file (markdown/HTML/DOCX) 
+    as input, not a PDF file.
+    
+    Supported input formats: markdown (.md), HTML (.html), DOCX (.docx), EPUB (.epub), 
+    LaTeX (.tex), reStructuredText (.rst), Textile, MediaWiki, etc.
+    
     Args:
         params: Dictionary containing:
-            - input_file (str, required): Path to input file
+            - input_file (str, required): Path to input file (markdown, HTML, DOCX, etc. - NOT PDF)
             - output_file (str, optional): Output PDF path
             - page_size (str, optional): Page size (a4, a5, a6, letter, remarkable), default: 'a4'
             - title (str, optional): Document title
@@ -35,6 +42,13 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return {
                 'success': False,
                 'error': f'Input file not found: {input_file}'
+            }
+        
+        # Check if trying to convert from PDF (not supported)
+        if input_path.suffix.lower() == '.pdf':
+            return {
+                'success': False,
+                'error': 'Pandoc cannot convert FROM PDF. Use the original source file (markdown, HTML, DOCX, etc.) as input instead of a PDF file.'
             }
         
         # Determine output path
@@ -206,9 +220,16 @@ def convert_to_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to DOCX format using Pandoc.
     
+    IMPORTANT: Pandoc CANNOT convert FROM PDF. Use the original source file 
+    (markdown, HTML, etc.) as input, not a PDF file.
+    
+    Supported input formats: markdown (.md), HTML (.html), EPUB (.epub), 
+    LaTeX (.tex), reStructuredText (.rst), Textile, MediaWiki, etc.
+    NOT supported: PDF (.pdf) - Pandoc cannot read PDF files.
+    
     Args:
         params: Dictionary containing:
-            - input_file (str, required): Path to input file
+            - input_file (str, required): Path to input file (markdown, HTML, etc. - NOT PDF)
             - output_file (str, optional): Output DOCX path
             - title (str, optional): Document title
     
@@ -227,6 +248,14 @@ def convert_to_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         input_path = Path(input_file)
+        
+        # Check if trying to convert from PDF (not supported) - check BEFORE file existence
+        if input_path.suffix.lower() == '.pdf':
+            return {
+                'success': False,
+                'error': 'Pandoc cannot convert FROM PDF. Use the original source file (markdown, HTML, DOCX, etc.) as input instead of a PDF file.'
+            }
+        
         if not input_path.exists():
             return {
                 'success': False,
@@ -277,9 +306,16 @@ def convert_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to HTML format using Pandoc.
     
+    IMPORTANT: Pandoc CANNOT convert FROM PDF. Use the original source file 
+    (markdown, DOCX, etc.) as input, not a PDF file.
+    
+    Supported input formats: markdown (.md), DOCX (.docx), EPUB (.epub), 
+    LaTeX (.tex), reStructuredText (.rst), Textile, MediaWiki, etc.
+    NOT supported: PDF (.pdf) - Pandoc cannot read PDF files.
+    
     Args:
         params: Dictionary containing:
-            - input_file (str, required): Path to input file
+            - input_file (str, required): Path to input file (markdown, DOCX, etc. - NOT PDF)
             - output_file (str, optional): Output HTML path
             - title (str, optional): Document title
             - standalone (bool, optional): Generate standalone HTML, default: True
@@ -299,6 +335,14 @@ def convert_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         
         input_path = Path(input_file)
+        
+        # Check if trying to convert from PDF (not supported) - check BEFORE file existence
+        if input_path.suffix.lower() == '.pdf':
+            return {
+                'success': False,
+                'error': 'Pandoc cannot convert FROM PDF. Use the original source file (markdown, DOCX, HTML, etc.) as input instead of a PDF file.'
+            }
+        
         if not input_path.exists():
             return {
                 'success': False,
