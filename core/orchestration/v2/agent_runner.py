@@ -49,6 +49,7 @@ class AgentRunner:
         task_planner=None,  # Shared TaskPlanner (V2)
         task_board=None,  # Shared TaskBoard (V2)
         swarm_memory=None,  # Shared SwarmMemory (V2)
+        swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
     ):
         """
         Initialize AgentRunner.
@@ -59,6 +60,7 @@ class AgentRunner:
             task_planner: Shared TaskPlanner (optional)
             task_board: Shared TaskBoard (optional)
             swarm_memory: Shared SwarmMemory (optional)
+            swarm_state_manager: SwarmStateManager for state tracking (optional)
         """
         self.agent = agent
         self.config = config
@@ -68,6 +70,12 @@ class AgentRunner:
         self.task_planner = task_planner
         self.task_board = task_board
         self.swarm_memory = swarm_memory
+        self.swarm_state_manager = swarm_state_manager
+        
+        # Get agent state tracker (creates if doesn't exist)
+        if self.swarm_state_manager:
+            self.agent_tracker = self.swarm_state_manager.get_agent_tracker(self.agent_name)
+            logger.info(f"📊 AgentStateTracker initialized for '{self.agent_name}'")
         
         from pathlib import Path
         
@@ -140,6 +148,10 @@ class AgentRunner:
         
         logger.info(f"🚀 AgentRunner.run: {self.agent_name} - {goal[:50]}...")
         
+        # Start episode for TD(λ) learning (if enabled)
+        if self.agent_learner:
+            self.agent_learner.start_episode(goal)
+        
         # 1. Architect (pre-execution planning)
         architect_results, proceed = await self.architect_validator.validate(
             goal=goal,
@@ -148,11 +160,38 @@ class AgentRunner:
             is_architect=True
         )
         
-        # Architect doesn't block (exploration only)
-        if not proceed and architect_results:
+        # Track architect validation in state
+        if self.swarm_state_manager:
+            avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results) if architect_results else 0.0
+            self.agent_tracker.record_validation(
+                validation_type='architect',
+                passed=proceed,
+                confidence=avg_confidence,
+                feedback=architect_results[0].reasoning if architect_results else None
+            )
+            # Record swarm-level step
+            self.swarm_state_manager.record_swarm_step({
+                'agent': self.agent_name,
+                'step': 'architect',
+                'proceed': proceed,
+                'confidence': avg_confidence,
+                'architect_confidence': avg_confidence
+            })
+        
+        # Architect doesn't block (exploration only) but log confidence concerns
+        if architect_results:
             avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results)
             if avg_confidence < 0.3:
-                logger.warning(f"⚠️  Architect low confidence: {avg_confidence:.2f}")
+                logger.warning(
+                    f"⚠️  Architect VERY LOW confidence: {avg_confidence:.2f} "
+                    f"(Decision: {'PROCEED' if proceed else 'BLOCKED'}). "
+                    f"Consider gathering more information before execution."
+                )
+            elif avg_confidence < 0.5 and proceed:
+                logger.info(
+                    f"ℹ️  Architect LOW confidence: {avg_confidence:.2f} but proceeding. "
+                    f"Execution will proceed but results may be uncertain."
+                )
         
         # 2. Agent execution
         try:
@@ -167,38 +206,99 @@ class AgentRunner:
                 # Callable
                 agent_output = await self.agent(goal, **kwargs) if asyncio.iscoroutinefunction(self.agent) else self.agent(goal, **kwargs)
             
-            # 3. Auditor (post-execution validation)
+            # Build trajectory BEFORE auditor validation (so auditor can see execution history)
+            trajectory = []
+            if hasattr(agent_output, '__dict__'):
+                trajectory.append({
+                    'step': 1,
+                    'action': 'execute',
+                    'output': str(agent_output)[:500],
+                    'success': True  # Will be updated after validation
+                })
+            else:
+                trajectory.append({
+                    'step': 1,
+                    'action': 'execute',
+                    'output': str(agent_output)[:500] if agent_output else None,
+                    'success': True  # Will be updated after validation
+                })
+            
+            # 3. Auditor (post-execution validation) - now with trajectory
             auditor_results, passed = await self.auditor_validator.validate(
                 goal=goal,
                 inputs={'goal': goal, 'output': str(agent_output)},
-                trajectory=[],
+                trajectory=trajectory,  # Pass trajectory so auditor can see execution history
                 is_architect=False
             )
             
             success = passed
             # ValidationResult has 'reasoning', not 'feedback'
             auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
+            auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
             
-            # 4. Learning update (if enabled)
-            if self.agent_learner and success:
-                # Simple reward: 1.0 if passed, 0.0 if failed
-                reward = 1.0 if success else 0.0
-                self.agent_learner.update(
-                    state={'goal': goal},
-                    action={'output': str(agent_output)},
-                    reward=reward,
-                    next_state={'goal': goal, 'completed': True}
+            # Track auditor validation in state
+            if self.swarm_state_manager:
+                self.agent_tracker.record_validation(
+                    validation_type='auditor',
+                    passed=passed,
+                    confidence=auditor_confidence,
+                    feedback=auditor_reasoning
                 )
+                # Record agent output
+                output_type = type(agent_output).__name__
+                self.agent_tracker.record_output(agent_output, output_type)
+                # Record swarm-level step
+                self.swarm_state_manager.record_swarm_step({
+                    'agent': self.agent_name,
+                    'step': 'auditor',
+                    'success': success,
+                    'validation_passed': passed,
+                    'auditor_result': auditor_reasoning[:100],
+                    'auditor_confidence': auditor_confidence
+                })
             
-            # 5. Memory storage (if enabled)
+            # Update trajectory with validation result
+            if trajectory:
+                trajectory[0]['success'] = success
+                trajectory[0]['validation'] = {
+                    'passed': passed,
+                    'confidence': auditor_confidence,
+                    'tag': auditor_results[0].output_tag.value if auditor_results and auditor_results[0].output_tag else None
+                }
+            
+            # 4. Memory storage (if enabled) - store before learning so we can use it
+            episode_memory_entry = None
             if self.agent_memory:
                 from ...foundation.data_structures import MemoryLevel
-                self.agent_memory.store(
+                episode_memory_entry = self.agent_memory.store(
                     content=f"Goal: {goal}\nOutput: {str(agent_output)[:500]}",
                     level=MemoryLevel.EPISODIC,
                     context={'agent': self.agent_name, 'goal': goal},
                     goal=goal
                 )
+            
+            # 5. Learning update using proper episodic interface (if enabled)
+            if self.agent_learner:
+                # Record memory access if we stored one (for TD(λ) traces)
+                if episode_memory_entry:
+                    self.agent_learner.record_access(episode_memory_entry, step_reward=0.0)
+                
+                # Calculate final reward: +1.0 if passed, -0.5 if failed
+                final_reward = 1.0 if success else -0.5
+                
+                # Build memories dict from accessed memories (for end_episode)
+                memories_dict = {}
+                if episode_memory_entry:
+                    memories_dict[episode_memory_entry.key] = episode_memory_entry
+                
+                # Perform TD(λ) updates at episode end
+                updates = self.agent_learner.end_episode(
+                    final_reward=final_reward,
+                    memories=memories_dict
+                )
+                
+                if updates:
+                    logger.debug(f"📚 Learning: Updated {len(updates)} memory values")
             
             duration = time.time() - start_time
             
@@ -215,23 +315,6 @@ class AgentRunner:
                             why_useful=result.why_useful or result.reasoning,
                             content=agent_output
                         ))
-            
-            # Build trajectory (execution steps)
-            trajectory = []
-            if hasattr(agent_output, '__dict__'):
-                trajectory.append({
-                    'step': 1,
-                    'action': 'execute',
-                    'output': str(agent_output)[:500],
-                    'success': success
-                })
-            else:
-                trajectory.append({
-                    'step': 1,
-                    'action': 'execute',
-                    'output': str(agent_output)[:500] if agent_output else None,
-                    'success': success
-                })
             
             # Build agent contributions
             agent_contributions = {}
@@ -267,6 +350,23 @@ class AgentRunner:
             logger.error(f"❌ Agent execution failed: {e}", exc_info=True)
             import traceback
             logger.debug(traceback.format_exc())
+            
+            # Track error in state
+            if self.swarm_state_manager:
+                error_type = type(e).__name__
+                self.agent_tracker.record_error(
+                    error=str(e),
+                    error_type=error_type,
+                    context={'goal': goal, 'kwargs': kwargs}
+                )
+                # Record swarm-level error step
+                self.swarm_state_manager.record_swarm_step({
+                    'agent': self.agent_name,
+                    'step': 'error',
+                    'error': str(e),
+                    'error_type': error_type,
+                    'success': False
+                })
             
             # Return failed EpisodeResult with correct structure
             duration = time.time() - start_time

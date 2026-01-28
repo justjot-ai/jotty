@@ -49,23 +49,61 @@ class SwarmProviderGateway:
         self._configure_fn = configure_dspy_lm
         
         # Auto-configure DSPy with best available provider
-        self._auto_configure()
+        # Check if we're in async context first
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            # In async context - don't auto-configure yet, will configure on-demand
+            logger.debug("SwarmProviderGateway: Detected async context, deferring auto-configuration")
+        except RuntimeError:
+            # Not in async context - safe to auto-configure
+            self._auto_configure()
     
     def _auto_configure(self):
         """Auto-configure DSPy with best available provider (DRY: reuse configure_dspy_lm)."""
         try:
+            import asyncio
+            # Check if we're in async context
+            try:
+                loop = asyncio.get_running_loop()
+                in_async_context = True
+            except RuntimeError:
+                in_async_context = False
+            
             # DRY: Reuse existing configuration function
-            self._configured_lm = self._configure_fn(provider=self.provider)
-            provider_name = getattr(self._configured_lm, 'provider', 'unknown')
-            model_name = getattr(self._configured_lm, 'model', 'unknown')
-            logger.info(f"🌐 SwarmProviderGateway configured: {provider_name}/{model_name}")
+            # In async contexts, don't call dspy.configure() - just create LM
+            if in_async_context:
+                # In async context, create LM but don't configure DSPy globally
+                # We'll use dspy.context() when needed
+                from ...foundation.unified_lm_provider import UnifiedLMProvider
+                self._configured_lm = UnifiedLMProvider.create_lm(provider=self.provider or 'anthropic')
+                provider_name = getattr(self._configured_lm, 'provider', 'unknown')
+                model_name = getattr(self._configured_lm, 'model', 'unknown')
+                logger.info(f"🌐 SwarmProviderGateway configured (async-safe): {provider_name}/{model_name}")
+            else:
+                # In sync context, configure DSPy normally
+                self._configured_lm = self._configure_fn(provider=self.provider)
+                provider_name = getattr(self._configured_lm, 'provider', 'unknown')
+                model_name = getattr(self._configured_lm, 'model', 'unknown')
+                logger.info(f"🌐 SwarmProviderGateway configured: {provider_name}/{model_name}")
         except Exception as e:
             logger.warning(f"⚠️  Provider auto-configuration failed: {e}, will use DSPy defaults")
             # Try to get current DSPy LM if configured
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
-                self._configured_lm = dspy.settings.lm
-                logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration")
-            else:
+            try:
+                import asyncio
+                try:
+                    asyncio.get_running_loop()
+                    # In async context, use context manager
+                    with dspy.context():
+                        if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                            self._configured_lm = dspy.settings.lm
+                            logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration (async)")
+                except RuntimeError:
+                    # Not in async context
+                    if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                        self._configured_lm = dspy.settings.lm
+                        logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration")
+            except:
                 logger.warning("⚠️  No LM provider configured")
     
     def get_lm(self) -> Optional[BaseLM]:
@@ -75,12 +113,39 @@ class SwarmProviderGateway:
         Returns:
             Configured BaseLM instance or None
         """
+        # If already configured, return it
         if self._configured_lm:
             return self._configured_lm
         
-        # Fallback to DSPy settings
-        if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
-            return dspy.settings.lm
+        # If not configured yet, configure now (on-demand)
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            # In async context - configure without calling dspy.configure()
+            logger.debug("SwarmProviderGateway.get_lm(): Configuring in async context")
+            self._auto_configure()
+        except RuntimeError:
+            # Not in async context - safe to auto-configure normally
+            self._auto_configure()
+        
+        if self._configured_lm:
+            return self._configured_lm
+        
+        # Fallback to DSPy settings (with async context handling)
+        try:
+            import asyncio
+            try:
+                asyncio.get_running_loop()
+                # In async context, use context manager
+                with dspy.context():
+                    if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                        return dspy.settings.lm
+            except RuntimeError:
+                # Not in async context
+                if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                    return dspy.settings.lm
+        except:
+            pass
         
         return None
     
@@ -98,9 +163,21 @@ class SwarmProviderGateway:
         Returns:
             Configured BaseLM instance
         """
+        import asyncio
+        # Check if we're in async context
+        try:
+            loop = asyncio.get_running_loop()
+            in_async_context = True
+        except RuntimeError:
+            in_async_context = False
+        
         # DRY: Reuse existing create_lm method
         lm = self._unified_provider.create_lm(provider=provider, model=model, **kwargs)
-        dspy.configure(lm=lm)
+        
+        # Only configure DSPy globally if not in async context
+        if not in_async_context:
+            dspy.configure(lm=lm)
+        
         self._configured_lm = lm
         self.provider = provider
         logger.info(f"🌐 SwarmProviderGateway configured: {provider}/{model or 'default'}")

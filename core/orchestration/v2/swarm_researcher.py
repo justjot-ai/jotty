@@ -40,6 +40,7 @@ class SwarmResearcher:
         """
         self.config = config
         self._skills_registry = None
+        self._tools_registry = None
         self._planner = None
     
     def _init_dependencies(self):
@@ -48,6 +49,10 @@ class SwarmResearcher:
             from ...registry.skills_registry import get_skills_registry
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
+        
+        if self._tools_registry is None:
+            from ...registry.tools_registry import get_tools_registry
+            self._tools_registry = get_tools_registry()
         
         if self._planner is None:
             from ...agents.agentic_planner import AgenticPlanner
@@ -89,29 +94,54 @@ class SwarmResearcher:
         
         logger.info(f"🔍 SwarmResearcher: Researching '{query}' (type: {research_type})")
         
-        # Try to use web-search skill if available (DRY: reuse existing skills)
         findings = []
         tools_found = []
         apis_found = []
         documentation_urls = []
         
-        # Check if web-search skill exists
-        web_search_skill = self._skills_registry.get_skill("web-search")
+        # STEP 1: Check skills registry first (DRY: reuse existing skills)
+        registry_tools = self._search_registries(query, research_type)
+        if registry_tools:
+            logger.info(f"✅ Found {len(registry_tools)} tools in registries")
+            tools_found.extend(registry_tools)
+            # Create findings from registry results
+            for tool in registry_tools:
+                findings.append({
+                    'type': 'tool',
+                    'name': tool,
+                    'text': f"Found in registry: {tool}",
+                    'source': 'registry'
+                })
         
+        # STEP 2: Check web-search skill if available
+        web_search_skill = self._skills_registry.get_skill("web-search")
         if web_search_skill:
             try:
-                # Use existing web-search skill (DRY)
                 search_result = await self._search_with_skill(web_search_skill, query)
-                findings.extend(search_result.get("results", []))
+                search_findings = search_result.get("results", [])
+                if search_findings:
+                    findings.extend(search_findings)
+                    logger.info(f"✅ Found {len(search_findings)} results from web-search skill")
             except Exception as e:
-                logger.warning(f"⚠️  Web-search skill failed: {e}, falling back to LLM research")
+                logger.debug(f"Web-search skill failed: {e}")
         
-        # Fallback to LLM-based research if skill unavailable
-        if not findings:
-            findings = await self._research_with_llm(query, research_type)
+        # STEP 3: Only use LLM research if registries didn't find anything
+        if not tools_found and not findings:
+            logger.info("ℹ️  No tools found in registries, using LLM research as fallback")
+            llm_findings = await self._research_with_llm(query, research_type)
+            if llm_findings:
+                findings.extend(llm_findings)
+                # Validate LLM suggestions against registries
+                llm_tools = self._extract_tools(llm_findings)
+                validated_tools = self._validate_tools_against_registry(llm_tools)
+                tools_found.extend(validated_tools)
+        else:
+            # Extract additional tools from findings if any
+            additional_tools = self._extract_tools(findings)
+            validated_additional = self._validate_tools_against_registry(additional_tools)
+            tools_found.extend([t for t in validated_additional if t not in tools_found])
         
-        # Extract tools and APIs from findings
-        tools_found = self._extract_tools(findings)
+        # Extract APIs and documentation from findings
         apis_found = self._extract_apis(findings)
         documentation_urls = self._extract_documentation(findings)
         
@@ -275,7 +305,6 @@ Format your response clearly with sections for tools, APIs, and documentation.
                 # Extract tool/library names
                 if current_section == 'tools' or 'tool' in line_lower or 'library' in line_lower:
                     # Extract package name (often in format "package-name" or "package_name")
-                    import re
                     package_match = re.search(r'([a-zA-Z0-9_-]+)', content)
                     if package_match:
                         findings.append({
@@ -349,7 +378,6 @@ Format your response clearly with sections for tools, APIs, and documentation.
     def _extract_findings_from_keywords(self, response: str, query: str, research_type: str) -> List[Dict[str, Any]]:
         """Extract findings using keyword matching as fallback."""
         findings = []
-        import re
         
         # Common tool/library patterns
         tool_patterns = [
@@ -390,21 +418,64 @@ Format your response clearly with sections for tools, APIs, and documentation.
         
         return findings
     
+    def _is_valid_tool_name(self, name: str) -> bool:
+        """Check if tool name is valid (not a generic word or built-in module)."""
+        if not name or len(name) < 2:
+            return False
+        
+        # Filter out generic words
+        invalid_names = {
+            'multiple', 'various', 'several', 'many', 'some', 'few', 'all',
+            'each', 'every', 'both', 'either', 'neither', 'other', 'another',
+            'this', 'that', 'these', 'those', 'such', 'same', 'different',
+            'new', 'old', 'first', 'last', 'next', 'previous', 'current',
+            'common', 'standard', 'basic', 'advanced', 'simple', 'complex',
+            'good', 'best', 'better', 'great', 'excellent', 'perfect',
+            'important', 'useful', 'helpful', 'effective', 'efficient',
+            'popular', 'famous', 'well-known', 'widely', 'commonly',
+            'available', 'possible', 'suitable', 'appropriate', 'relevant',
+            'example', 'instance', 'case', 'situation', 'scenario',
+            'method', 'way', 'approach', 'technique', 'strategy',
+            'tool', 'library', 'package', 'module', 'framework',
+            'solution', 'option', 'alternative', 'choice', 'selection'
+        }
+        
+        if name.lower() in invalid_names:
+            return False
+        
+        # Check if it's a built-in Python module
+        import sys
+        builtin_modules = {
+            'multiprocessing', 'threading', 'asyncio', 'json', 'os', 'sys',
+            'datetime', 'time', 'random', 'math', 'collections', 'itertools'
+        }
+        if name.lower() in builtin_modules:
+            return False
+        
+        # Must contain at least one letter
+        if not re.search(r'[a-zA-Z]', name):
+            return False
+        
+        return True
+    
     def _extract_tools(self, findings: List[Dict[str, Any]]) -> List[str]:
         """Extract tool names from findings."""
         tools = []
         for finding in findings:
             if finding.get('type') == 'tool' and 'name' in finding:
-                tools.append(finding['name'])
+                tool_name = finding['name']
+                if self._is_valid_tool_name(tool_name):
+                    tools.append(tool_name)
             elif 'tool' in finding.get('text', '').lower():
                 # Try to extract tool name from text
                 text = finding.get('text', '')
                 # Simple extraction (can be enhanced)
                 if 'python' in text.lower() or 'pip install' in text.lower():
                     # Extract package name
-                    import re
                     matches = re.findall(r'pip install (\w+)', text)
-                    tools.extend(matches)
+                    for match in matches:
+                        if self._is_valid_tool_name(match):
+                            tools.append(match)
         
         return list(set(tools))  # Remove duplicates
     
@@ -417,7 +488,6 @@ Format your response clearly with sections for tools, APIs, and documentation.
             elif 'api' in finding.get('text', '').lower():
                 text = finding.get('text', '')
                 # Extract API names (simple pattern matching)
-                import re
                 matches = re.findall(r'(\w+)\s+API', text, re.IGNORECASE)
                 apis.extend(matches)
         
@@ -430,11 +500,127 @@ Format your response clearly with sections for tools, APIs, and documentation.
             if 'url' in finding:
                 urls.append(finding['url'])
             elif 'http' in finding.get('text', ''):
-                import re
                 url_matches = re.findall(r'https?://[^\s]+', finding.get('text', ''))
                 urls.extend(url_matches)
         
         return list(set(urls))
+    
+    def _search_registries(self, query: str, research_type: str) -> List[str]:
+        """
+        Search skills and tools registries for matching tools.
+        
+        This is the PRIMARY method - checks actual registries before guessing.
+        """
+        tools_found = []
+        query_lower = query.lower()
+        query_words = set(query_lower.split())
+        
+        # Search skills registry
+        try:
+            # Get all skills (returns List[Dict[str, Any]])
+            if hasattr(self._skills_registry, 'list_skills'):
+                all_skills_data = self._skills_registry.list_skills()
+                # Extract skill names from dicts
+                skill_names = [s.get('name', s) if isinstance(s, dict) else s for s in all_skills_data]
+            else:
+                # Fallback: try to get all registered skills
+                skill_names = []
+                if hasattr(self._skills_registry, '_skills'):
+                    skill_names = list(self._skills_registry._skills.keys())
+            
+            # Search by name and description
+            for skill_name in skill_names:
+                if isinstance(skill_name, dict):
+                    skill_name = skill_name.get('name', '')
+                
+                skill = self._skills_registry.get_skill(skill_name)
+                if skill:
+                    # Check if query matches skill name
+                    skill_name_lower = skill_name.lower()
+                    if query_lower in skill_name_lower or skill_name_lower in query_lower:
+                        tools_found.append(skill_name)
+                        continue
+                    
+                    # Check skill description if available
+                    if hasattr(skill, 'description'):
+                        desc = str(skill.description).lower()
+                        if query_lower in desc or any(word in desc for word in query_words):
+                            tools_found.append(skill_name)
+                            continue
+                    
+                    # Check skill tags/keywords if available
+                    if hasattr(skill, 'tags') and skill.tags:
+                        tags = [str(t).lower() for t in skill.tags]
+                        if any(query_lower in tag or tag in query_lower or any(w in tag for w in query_words) for tag in tags):
+                            tools_found.append(skill_name)
+        except Exception as e:
+            logger.debug(f"Skills registry search failed: {e}")
+        
+        # Search tools registry
+        try:
+            # Get all tools (returns List[ToolSchema])
+            all_tools = self._tools_registry.get_all() if hasattr(self._tools_registry, 'get_all') else []
+            for tool in all_tools:
+                tool_name = tool.name if hasattr(tool, 'name') else str(tool)
+                tool_name_lower = tool_name.lower()
+                
+                # Check name match
+                if query_lower in tool_name_lower or tool_name_lower in query_lower:
+                    tools_found.append(tool_name)
+                    continue
+                
+                # Check description match
+                if hasattr(tool, 'description'):
+                    desc = str(tool.description).lower()
+                    if query_lower in desc or any(word in desc for word in query_words):
+                        tools_found.append(tool_name)
+                        continue
+                
+                # Check category match
+                if hasattr(tool, 'category'):
+                    category = str(tool.category).lower()
+                    if query_lower in category or category in query_lower:
+                        tools_found.append(tool_name)
+        except Exception as e:
+            logger.debug(f"Tools registry search failed: {e}")
+        
+        return list(set(tools_found))  # Remove duplicates
+    
+    def _validate_tools_against_registry(self, tools: List[str]) -> List[str]:
+        """
+        Validate LLM-suggested tools against actual registries.
+        
+        Only returns tools that exist in registries or are valid installable packages.
+        """
+        validated = []
+        
+        for tool in tools:
+            if not self._is_valid_tool_name(tool):
+                continue
+            
+            # Check if tool exists in registries
+            try:
+                # Check skills registry
+                skill = self._skills_registry.get_skill(tool)
+                if skill:
+                    validated.append(tool)
+                    continue
+                
+                # Check tools registry (uses get() method)
+                if hasattr(self._tools_registry, 'get'):
+                    tool_obj = self._tools_registry.get(tool)
+                    if tool_obj:
+                        validated.append(tool)
+                        continue
+            except Exception:
+                pass
+            
+            # If not in registry, it might still be a valid installable package
+            # (e.g., pip/npm packages), so we keep it but log
+            logger.debug(f"Tool '{tool}' not found in registries, but may be installable")
+            validated.append(tool)
+        
+        return validated
     
     async def find_solutions(self, requirement: str) -> ResearchResult:
         """

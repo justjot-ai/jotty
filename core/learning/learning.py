@@ -12,10 +12,13 @@ Correct TD(λ) with all fixes applied.
 
 import math
 import hashlib
+import logging
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
     JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
@@ -232,6 +235,43 @@ class TDLambdaLearner:
         self.access_sequence.clear()
         self.current_goal = goal
         self.intermediate_calc.reset()
+    
+    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any]):
+        """
+        Simple update method for compatibility with agent runners.
+        
+        This is a simplified interface for single-step updates.
+        For proper TD(λ) learning, use start_episode/record_access/end_episode.
+        
+        Args:
+            state: Current state dict (e.g., {'goal': '...'})
+            action: Action taken (e.g., {'output': '...'})
+            reward: Reward received (typically 0.0 or 1.0)
+            next_state: Next state dict (e.g., {'goal': '...', 'completed': True})
+        
+        Note: This method does a simple update without full TD(λ) traces.
+        For episode-based learning, use the proper episode methods.
+        """
+        # Extract goal from state
+        goal = state.get('goal', 'general')
+        
+        # If this is a new episode (goal changed), start it
+        if goal != self.current_goal:
+            self.start_episode(goal)
+        
+        # For simple updates, we'll just record that learning happened
+        # Full TD(λ) updates should use end_episode() with memories
+        # This is a compatibility method - actual learning happens in end_episode()
+        
+        # Store reward for potential use in end_episode
+        if reward > 0:
+            self.intermediate_calc.step_rewards.append(reward)
+        
+        # Log that update was called (for debugging)
+        logger.debug(f"TDLambdaLearner.update called: goal={goal}, reward={reward}")
+        
+        # Note: Actual value updates require memories and should use end_episode()
+        # This method exists for compatibility but doesn't perform full TD(λ) updates
     
     def record_access(self, memory: MemoryEntry, step_reward: float = 0.0) -> float:
         """

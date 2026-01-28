@@ -397,6 +397,18 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'openai': ['openai-image-gen', 'openai-whisper-api'],
             'gpt': ['openai-image-gen'],
 
+            # Code Generation & Development
+            'generate code': ['file-operations', 'skill-creator', 'dev-workflow'],
+            'write code': ['file-operations', 'skill-creator'],
+            'create code': ['file-operations', 'skill-creator'],
+            'code generation': ['file-operations', 'skill-creator'],
+            'implement': ['file-operations', 'skill-creator', 'dev-workflow'],
+            'develop': ['file-operations', 'skill-creator', 'dev-workflow'],
+            'programming': ['file-operations', 'skill-creator'],
+            'write file': ['file-operations'],
+            'create file': ['file-operations'],
+            'code': ['file-operations', 'skill-creator'],
+            
             # Other
             'weather': ['weather-checker'],
             'music': ['spotify'],
@@ -435,9 +447,18 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Find matching skills
         matched_skills = set()
 
-        for keyword, skills in keyword_map.items():
+        # Check multi-word keywords first (longer matches take priority)
+        # This ensures "generate code" matches before just "code"
+        sorted_keywords = sorted(keyword_map.keys(), key=len, reverse=True)
+        matched_keywords = set()
+        for keyword in sorted_keywords:
             if keyword in task:
-                matched_skills.update(skills)
+                # Skip if this keyword is a substring of an already matched keyword
+                # (e.g., if "generate code" matched, don't also match "code")
+                is_substring = any(kw != keyword and keyword in kw for kw in matched_keywords)
+                if not is_substring:
+                    matched_skills.update(keyword_map[keyword])
+                    matched_keywords.add(keyword)
 
         # Also search in manifest (by name, category, tags)
         search_results = manifest.search_skills(task)

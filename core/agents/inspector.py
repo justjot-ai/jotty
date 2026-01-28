@@ -81,6 +81,11 @@ class ReviewerSignature(dspy.Signature):
 
     You are a ReAct agent with tools. DO NOT just generate text.
     CALL your tools to check the extraction, then validate based on tool results.
+    
+    CRITICAL: Validate TASK SUCCESS, not just extraction quality.
+    - If task failed (success=False, steps_executed=0, errors present), mark as INVALID
+    - If task succeeded (success=True, outputs produced), mark as VALID
+    - Consider both extraction quality AND task completion status
     """
     
     # Simple inputs - agent uses TOOLS for details
@@ -89,7 +94,9 @@ class ReviewerSignature(dspy.Signature):
     
     # FULL outputs for memory, RL, and reflection
     reasoning: str = dspy.OutputField(desc="Step-by-step analysis WITH tool calls and validation results")
-    is_valid: bool = dspy.OutputField(desc="True if extraction is valid, False if issues found")
+    is_valid: bool = dspy.OutputField(desc="True if task SUCCEEDED and extraction is valid, False if task failed or issues found. "
+                                         "CRITICAL: Check if task actually completed successfully (success=True, outputs produced). "
+                                         "A failed task (success=False, no outputs) should be marked INVALID even if the failure is well-documented.")
     confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0 based on tool observations")
     output_tag: str = dspy.OutputField(desc="One of: useful (valid), fail (invalid), enquiry (uncertain)")
     output_name: str = dspy.OutputField(desc="Name for this validated output")
@@ -642,7 +649,7 @@ Auditor Required Outputs:
                     # On last attempt, use defaults for missing fields
                 
                 # Parse result
-                validation_result = self._parse_result(result, round, start_time)
+                validation_result = self._parse_result(result, round, start_time, inputs)
                 
                 # Share insight if any
                 if hasattr(result, 'insight_to_share') and result.insight_to_share:
@@ -919,8 +926,10 @@ Auditor Required Outputs:
         
         return missing
     
-    def _parse_result(self, result: Any, round: ValidationRound, start_time: float) -> ValidationResult:
+    def _parse_result(self, result: Any, round: ValidationRound, start_time: float, inputs: Dict = None) -> ValidationResult:
         """Parse DSPy result into ValidationResult with all fields for memory/RL/reflection."""
+        if inputs is None:
+            inputs = {}
         # Extract common fields with defaults
         reasoning = getattr(result, 'reasoning', '') or ''
         confidence = float(getattr(result, 'confidence', 0.5) or 0.5)
@@ -944,11 +953,31 @@ Auditor Required Outputs:
             # 🎨 AGENT COMPLETION STATUS
             elapsed = time.time() - start_time
             decision_icon = "✅" if should_proceed else "🛑"
+            
+            # Confidence level indicator
+            if confidence >= 0.7:
+                confidence_level = "HIGH"
+                confidence_icon = "🟢"
+            elif confidence >= 0.5:
+                confidence_level = "MEDIUM"
+                confidence_icon = "🟡"
+            elif confidence >= 0.3:
+                confidence_level = "LOW"
+                confidence_icon = "🟠"
+            else:
+                confidence_level = "VERY LOW"
+                confidence_icon = "🔴"
+            
+            # Warning if low confidence but proceeding
+            confidence_warning = ""
+            if should_proceed and confidence < 0.5:
+                confidence_warning = f"\n⚠️  WARNING: Low confidence ({confidence:.2f}) but proceeding. Consider gathering more information."
+            
             logger.info(f"")
             logger.info(f"{'='*80}")
             logger.info(f"🔍 Architect Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'PROCEED' if should_proceed else 'BLOCKED'}")
-            logger.info(f"💪 Confidence: {confidence:.2f}")
+            logger.info(f"{confidence_icon} Confidence: {confidence:.2f} ({confidence_level}){confidence_warning}")
             logger.info(f"⏱️  Duration: {elapsed:.2f}s")
             logger.info(f"{'='*80}")
             logger.info(f"")
@@ -971,6 +1000,34 @@ Auditor Required Outputs:
             if isinstance(is_valid, str):
                 is_valid = is_valid.lower() in ('true', 'yes', '1', 'valid')
             
+            # 🎯 CRITICAL FIX: Check if output indicates task failure
+            # If ExecutionResult shows success=False or steps_executed=0, override to INVALID
+            output_str = str(inputs.get('output', inputs.get('action_result', '')))
+            if output_str:
+                # Check for ExecutionResult failure indicators
+                failure_indicators = [
+                    'success=False',
+                    'success= False',
+                    'steps_executed=0',
+                    'steps_executed= 0',
+                    'No valid steps',
+                    'cannot proceed',
+                    'errors=',
+                    'error:',
+                ]
+                
+                # Check if output contains failure indicators
+                output_lower = output_str.lower()
+                has_failure = any(indicator.lower() in output_lower for indicator in failure_indicators)
+                
+                if has_failure and is_valid:
+                    # Override: Task failed but LLM marked as valid
+                    logger.warning(
+                        f"⚠️  [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
+                        f"Overriding to INVALID. Failure indicators found in output."
+                    )
+                    is_valid = False
+            
             # Parse output tag
             tag_str = getattr(result, 'output_tag', 'useful') or 'useful'
             tag_str = tag_str.lower().strip()
@@ -978,6 +1035,10 @@ Auditor Required Outputs:
                 output_tag = OutputTag(tag_str)
             except ValueError:
                 output_tag = OutputTag.USEFUL if is_valid else OutputTag.FAIL
+            
+            # Override tag if we overrode validity
+            if not is_valid:
+                output_tag = OutputTag.FAIL
             
             # Get all Auditor fields
             why_useful = getattr(result, 'why_useful', '') or ''
@@ -987,13 +1048,61 @@ Auditor Required Outputs:
             # 🎨 AGENT COMPLETION STATUS
             elapsed = time.time() - start_time
             decision_icon = "✅" if is_valid else "❌"
+            
+            # Extract what was validated
+            validated_output = str(inputs.get('output', inputs.get('action_result', 'N/A')))
+            output_preview = validated_output[:200] + "..." if len(validated_output) > 200 else validated_output
+            
+            # Extract key reasoning points
+            reasoning_lines = reasoning.split('\n') if reasoning else []
+            key_points = [line.strip() for line in reasoning_lines[:5] if line.strip() and len(line.strip()) > 20]
+            
+            # Confidence level indicator
+            if confidence >= 0.7:
+                confidence_level = "HIGH"
+                confidence_icon = "🟢"
+            elif confidence >= 0.5:
+                confidence_level = "MEDIUM"
+                confidence_icon = "🟡"
+            elif confidence >= 0.3:
+                confidence_level = "LOW"
+                confidence_icon = "🟠"
+            else:
+                confidence_level = "VERY LOW"
+                confidence_icon = "🔴"
+            
             logger.info(f"")
             logger.info(f"{'='*80}")
             logger.info(f"✅ Auditor Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'VALID' if is_valid else 'INVALID'}")
-            logger.info(f"💪 Confidence: {confidence:.2f}")
+            logger.info(f"{confidence_icon} Confidence: {confidence:.2f} ({confidence_level})")
             logger.info(f"🏷️  Tag: {output_tag.value}")
             logger.info(f"⏱️  Duration: {elapsed:.2f}s")
+            logger.info(f"")
+            logger.info(f"📋 What was validated:")
+            logger.info(f"   Output: {output_preview}")
+            if output_name:
+                logger.info(f"   Output Name: {output_name}")
+            logger.info(f"")
+            if is_valid and why_useful:
+                logger.info(f"✅ Why VALID:")
+                why_lines = why_useful.split('\n')[:3]  # First 3 lines
+                for line in why_lines:
+                    if line.strip():
+                        logger.info(f"   • {line.strip()}")
+            elif not is_valid and fix_instructions:
+                logger.info(f"❌ Why INVALID:")
+                fix_lines = fix_instructions.split('\n')[:3]  # First 3 lines
+                for line in fix_lines:
+                    if line.strip():
+                        logger.info(f"   • {line.strip()}")
+            logger.info(f"")
+            if key_points:
+                logger.info(f"🔍 Key validation points:")
+                for point in key_points[:3]:  # Top 3 key points
+                    logger.info(f"   • {point}")
+                logger.info(f"")
+            logger.info(f"💭 Full reasoning available in ValidationResult.reasoning")
             logger.info(f"{'='*80}")
             logger.info(f"")
             

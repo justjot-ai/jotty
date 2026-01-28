@@ -41,6 +41,8 @@ from .swarm_workflow_learner import SwarmWorkflowLearner
 from .swarm_integrator import SwarmIntegrator
 # Unified Provider Gateway (DRY: reuse existing provider system)
 from .swarm_provider_gateway import SwarmProviderGateway
+# State Management (V1 capabilities integrated)
+from .swarm_state_manager import SwarmStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +171,39 @@ class SwarmManager:
         self.swarm_integrator = SwarmIntegrator(config=self.config)
         logger.info("🤖 Autonomous components initialized")
         
+        # Initialize shared context and supporting components for state management
+        from ...persistence.shared_context import SharedContext
+        self.shared_context = SharedContext()
+        
+        # Initialize IOManager for output tracking (if not already present)
+        from ...data.io_manager import IOManager
+        self.io_manager = IOManager()
+        
+        # Initialize DataRegistry for artifact registration (if not already present)
+        from ...data.data_registry import DataRegistry
+        self.data_registry = DataRegistry()
+        
+        # Initialize ContextGuard for context management (if not already present)
+        from ...context.context_guard import SmartContextGuard
+        self.context_guard = SmartContextGuard()
+        
+        # Convert agents list to dict for state manager
+        agents_dict = {agent.name: agent for agent in self.agents}
+        
+        # Initialize SwarmStateManager (V1 state management integrated)
+        self.swarm_state_manager = SwarmStateManager(
+            swarm_task_board=self.swarm_task_board,
+            swarm_memory=self.swarm_memory,
+            io_manager=self.io_manager,
+            data_registry=self.data_registry,
+            shared_context=self.shared_context,
+            context_guard=self.context_guard,
+            config=self.config,
+            agents=agents_dict,
+            agent_signatures={}  # Will be populated during execution
+        )
+        logger.info("📊 SwarmStateManager initialized (swarm + agent-level tracking)")
+        
         # Create AgentRunners for each agent
         self.runners: Dict[str, AgentRunner] = {}
         for agent_config in self.agents:
@@ -186,7 +221,8 @@ class SwarmManager:
                 config=runner_config,
                 task_planner=self.swarm_planner,
                 task_board=self.swarm_task_board,
-                swarm_memory=self.swarm_memory
+                swarm_memory=self.swarm_memory,
+                swarm_state_manager=self.swarm_state_manager  # Pass state manager for agent-level tracking
             )
             
             self.runners[agent_config.name] = runner
@@ -198,6 +234,7 @@ class SwarmManager:
         logger.info("   🎨 SwarmUIRegistry initialized")
         logger.info("   🌐 SwarmProviderGateway configured (unified provider system)")
         logger.info("   🤖 Autonomous components ready (zero-config enabled)")
+        logger.info("   📊 SwarmStateManager initialized (swarm + agent-level tracking)")
     
     def list_capabilities(self) -> Dict[str, List[str]]:
         """
@@ -497,11 +534,26 @@ For component-specific help:
             profile_context = None
         
         try:
+            # Store goal in shared context for state management
+            if self.shared_context:
+                self.shared_context.set('goal', goal)
+                self.shared_context.set('query', goal)
+                logger.info(f"✅ Stored 'goal' and 'query' in SharedContext: {goal[:100]}...")
+            
             # Autonomous planning: Research, install, configure if needed
             await self.autonomous_setup(goal)
             
             # Set root task in SwarmTaskBoard
             self.swarm_task_board.root_task = goal
+            
+            # Record swarm-level step: goal received
+            if self.swarm_state_manager:
+                self.swarm_state_manager.record_swarm_step({
+                    'step': 'goal_received',
+                    'goal': goal,
+                    'mode': self.mode,
+                    'agent_count': len(self.agents)
+                })
         
             # Single-agent mode: Simple execution
             if self.mode == "single":
@@ -643,7 +695,16 @@ For component-specific help:
         # Research solutions if needed
         if task_graph.requirements or task_graph.integrations:
             logger.info("🔍 Researching solutions...")
-            for requirement in task_graph.requirements:
+            # Filter out stop words and meaningless single-word requirements
+            stop_words = {'existing', 'use', 'check', 'find', 'get', 'the', 'a', 'an', 'and', 'or', 'for', 'with'}
+            meaningful_requirements = [
+                req for req in task_graph.requirements 
+                if req.lower() not in stop_words and len(req.split()) > 1  # Multi-word or meaningful
+            ]
+            
+            for requirement in meaningful_requirements:
+                if not requirement.strip():
+                    continue
                 research_result = await self.swarm_researcher.research(requirement)
                 if research_result.tools_found:
                     logger.info(f"✅ Found tools: {research_result.tools_found}")
@@ -656,6 +717,104 @@ For component-specific help:
             logger.info(f"⚙️  Configuring integrations: {task_graph.integrations}")
             for integration in task_graph.integrations:
                 await self.swarm_configurator.configure(integration)
+    
+    # =====================================================================
+    # State Management Methods (V1 capabilities integrated)
+    # =====================================================================
+    
+    def get_current_state(self) -> Dict[str, Any]:
+        """
+        Get current swarm-level state for Q-prediction and introspection.
+        
+        Returns rich state including:
+        - Task progress (completed, pending, failed)
+        - Query/Goal context
+        - Metadata context (tables, columns, filters)
+        - Error patterns
+        - Tool usage patterns
+        - Actor outputs
+        - Validation context
+        - Agent states
+        
+        Returns:
+            Dictionary with comprehensive state information
+        """
+        if not self.swarm_state_manager:
+            return {}
+        return self.swarm_state_manager.get_current_state()
+    
+    def get_agent_state(self, agent_name: str) -> Dict[str, Any]:
+        """
+        Get state for a specific agent.
+        
+        Args:
+            agent_name: Name of the agent
+            
+        Returns:
+            Dictionary with agent-specific state (outputs, errors, tool usage, etc.)
+        """
+        if not self.swarm_state_manager:
+            return {}
+        return self.swarm_state_manager.get_agent_state(agent_name)
+    
+    def get_state_summary(self) -> str:
+        """
+        Get human-readable state summary.
+        
+        Returns:
+            String summary of swarm and agent states
+        """
+        if not self.swarm_state_manager:
+            return "State management not initialized"
+        return self.swarm_state_manager.get_state_summary()
+    
+    def get_available_actions(self) -> List[Dict[str, Any]]:
+        """
+        Get available actions for exploration.
+        
+        Returns:
+            List of available actions (agents that can be executed)
+        """
+        if not self.swarm_state_manager:
+            return []
+        return self.swarm_state_manager.get_available_actions()
+    
+    def save_state(self, file_path: Optional[Union[str, Path]] = None):
+        """
+        Save swarm and agent state to file.
+        
+        Args:
+            file_path: Optional path to save state (defaults to config base_path)
+        """
+        if not self.swarm_state_manager:
+            logger.warning("⚠️  SwarmStateManager not initialized, cannot save state")
+            return
+        
+        if file_path is None:
+            base_path = getattr(self.config, 'base_path', Path('/tmp/jotty_state'))
+            file_path = Path(base_path) / 'swarm_state.json'
+        
+        file_path = Path(file_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        self.swarm_state_manager.save_state(file_path)
+    
+    def load_state(self, file_path: Union[str, Path]):
+        """
+        Load swarm and agent state from file.
+        
+        Args:
+            file_path: Path to state file
+        """
+        if not self.swarm_state_manager:
+            logger.warning("⚠️  SwarmStateManager not initialized, cannot load state")
+            return
+        
+        file_path = Path(file_path)
+        if not file_path.exists():
+            logger.warning(f"⚠️  State file not found: {file_path}")
+            return
+        
+        self.swarm_state_manager.load_state(file_path)
         
         # Check for similar workflows (DRY: reuse learned patterns)
         similar_pattern = self.swarm_workflow_learner.find_similar_pattern(

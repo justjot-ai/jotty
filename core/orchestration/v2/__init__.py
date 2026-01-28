@@ -110,6 +110,8 @@ from .swarm_workflow_learner import SwarmWorkflowLearner
 from .swarm_integrator import SwarmIntegrator
 # Unified Provider Gateway (DRY: reuse existing provider system)
 from .swarm_provider_gateway import SwarmProviderGateway
+# State Management (V1 capabilities integrated)
+from .swarm_state_manager import SwarmStateManager, AgentStateTracker
 
 # Export components
 __all__ = [
@@ -136,4 +138,7 @@ __all__ = [
     'SwarmIntegrator',
     # Unified Provider Gateway
     'SwarmProviderGateway',
+    # State Management
+    'SwarmStateManager',
+    'AgentStateTracker',
 ]

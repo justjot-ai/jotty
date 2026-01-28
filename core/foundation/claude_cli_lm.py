@@ -177,16 +177,23 @@ class ClaudeCLILM(BaseLM):
         json_schema = kwargs.get('json_schema')
         signature = kwargs.get('signature')
         
-        # Also check if signature is in the prompt context (DSPy sometimes passes it differently)
+        # DSPy ChainOfThought passes signature via kwargs['signature'] when using ChainOfThoughtWithSchema
+        # Also check if signature is in the messages
         if not signature:
-            # Try to extract from messages
             for msg in messages:
                 if isinstance(msg, dict) and 'signature' in msg:
                     signature = msg['signature']
                     break
 
+        # Extract JSON schema from signature if we have it
         if not json_schema and signature:
             json_schema = self._extract_json_schema(signature)
+            
+        # If still no schema, try to infer from prompt structure (DSPy format)
+        if not json_schema and isinstance(user_message, str):
+            # DSPy prompts often contain field descriptions that hint at structure
+            # But we can't reliably extract schema from free text, so we rely on explicit signature passing
+            pass
 
         # Build command
         cmd = [
@@ -196,9 +203,12 @@ class ClaudeCLILM(BaseLM):
             "--output-format", "json",  # JSON output
         ]
 
-        # Add JSON schema if available (enforces structured output)
+        # NOTE: Claude CLI does NOT support --json-schema option
+        # Instead, we enforce JSON schema in the prompt itself
+        # Add JSON schema requirements to the prompt if available
         if json_schema:
-            cmd.extend(["--json-schema", json.dumps(json_schema)])
+            schema_instruction = f"\n\nIMPORTANT: You MUST respond with ONLY valid JSON matching this exact schema:\n{json.dumps(json_schema, indent=2)}\n\nDo NOT include any text before or after the JSON. Do NOT use markdown code blocks. Output ONLY the JSON object."
+            user_message = user_message + schema_instruction
         
         # Note: Claude CLI automatically discovers skills in ~/.claude/skills/
         # Skills are available via /skillname syntax (e.g., /last30days)
@@ -216,8 +226,9 @@ class ClaudeCLILM(BaseLM):
             # Remove OAuth token - let Claude use credentials file
             env.pop('ANTHROPIC_API_KEY', None)
 
-        # Get timeout from kwargs or use default (30s for code gen, 60s for planning, 120s for others)
-        timeout = kwargs.get('timeout', 120)
+        # Get timeout from kwargs or use default (30s for code gen, 45s for planning/task inference, 60s for others)
+        # Task type inference should be fast - 45s is more than enough
+        timeout = kwargs.get('timeout', 60)
         
         result = subprocess.run(
             cmd,
@@ -228,20 +239,51 @@ class ClaudeCLILM(BaseLM):
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Claude CLI error: {result.stderr}")
+            error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+            # Check if it's a timeout (subprocess doesn't raise TimeoutError, it returns non-zero)
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                raise TimeoutError(f"Claude CLI timed out: {error_msg}")
+            raise RuntimeError(f"Claude CLI error: {error_msg}")
 
         # Parse JSON response
         try:
             response_data = json.loads(result.stdout.strip())
 
-            # If we used JSON schema, extract from structured_output field
-            if json_schema and 'structured_output' in response_data:
-                structured_output = response_data['structured_output']
-                # Return as JSON string for DSPy to parse
-                response_text = json.dumps(structured_output)
-            else:
-                # Standard flow: extract from result field
-                response_text = response_data.get('result', result.stdout.strip())
+            # Claude CLI returns JSON with 'result' field containing the actual response
+            response_text = response_data.get('result', result.stdout.strip())
+            
+            # If response_text is a string, it might be JSON-encoded (double encoding)
+            # Or it might contain markdown code blocks that need extraction
+            if isinstance(response_text, str):
+                # Remove markdown code blocks if present
+                import re
+                if '```json' in response_text or '```' in response_text:
+                    # Extract JSON from markdown code block
+                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+                    if json_match:
+                        response_text = json_match.group(1)
+                
+                # Try to parse as JSON if it looks like JSON
+                if response_text.strip().startswith('{') or response_text.strip().startswith('['):
+                    try:
+                        parsed = json.loads(response_text)
+                        if isinstance(parsed, (dict, list)):
+                            # Return as JSON string for DSPy to parse
+                            response_text = json.dumps(parsed)
+                    except json.JSONDecodeError:
+                        # Not valid JSON, use as-is (might be plain text)
+                        pass
+                
+                # If response_text is still conversational (contains "I need permission", etc.)
+                # and we have a signature, try to extract structured fields
+                if signature and isinstance(response_text, str):
+                    # Check if it's conversational text that needs parsing
+                    if any(phrase in response_text.lower() for phrase in [
+                        'i need permission', 'i need approval', 'once granted', 'once approved'
+                    ]):
+                        # This is conversational, not structured - return as-is and let DSPy handle it
+                        # DSPy will try to extract fields or fall back to error handling
+                        pass
 
         except json.JSONDecodeError:
             # Fallback to raw text

@@ -51,53 +51,39 @@ class UnifiedLMProvider:
         """
         provider = provider.lower()
         
-        # All providers go through AISDKProviderLM for consistency
-        # This includes: opencode, openrouter, anthropic, openai, google, groq, claude-cli, cursor-cli
+        # Priority: Use direct DSPy LM for API providers (faster, more reliable)
+        # CLI providers still use AISDKProviderLM or direct CLI LM
+        if provider in ('anthropic', 'openai', 'google', 'groq', 'openrouter'):
+            # Use DSPy's native API support (faster than CLI, more reliable)
+            return UnifiedLMProvider._create_direct_lm(provider, model, **kwargs)
+        
+        # CLI providers and OpenCode use AISDKProviderLM
         try:
             from ..integration.ai_sdk_provider_adapter import AISDKProviderLM
-            
-            # Map provider names (all go through AISDKProviderLM → JustJot.ai /api/ai/execute)
-            ai_sdk_provider = provider
             
             # Default models per provider
             default_models = {
                 'opencode': 'default',  # OpenCode free model (default)
                 'claude-cli': 'sonnet',
                 'cursor-cli': 'sonnet',
-                'anthropic': 'claude-3-5-sonnet-20241022',
-                'openai': 'gpt-4o',
-                'google': 'gemini-2.0-flash-exp',
-                'groq': 'llama-3.1-8b-instant',
-                'openrouter': 'meta-llama/llama-3.3-70b-instruct:free',
             }
             
-            model = model or default_models.get(ai_sdk_provider, 'sonnet')
-            
-            # Extract API key from kwargs or env
-            api_key = kwargs.pop('api_key', None)
-            if not api_key:
-                env_keys = {
-                    'anthropic': 'ANTHROPIC_API_KEY',
-                    'openai': 'OPENAI_API_KEY',
-                    'google': 'GOOGLE_API_KEY',
-                    'groq': 'GROQ_API_KEY',
-                    'openrouter': 'OPENROUTER_API_KEY',
-                }
-                env_key = env_keys.get(ai_sdk_provider)
-                if env_key:
-                    api_key = os.getenv(env_key)
+            model = model or default_models.get(provider, 'sonnet')
             
             return AISDKProviderLM(
-                provider=ai_sdk_provider,
+                provider=provider,
                 model=model,
-                api_key=api_key,
                 **kwargs
             )
         except ImportError:
-            # Fallback to direct DSPy LM for API providers
-            if provider in ('anthropic', 'openai', 'google', 'groq', 'openrouter'):
-                return UnifiedLMProvider._create_direct_lm(provider, model, **kwargs)
-            raise ValueError(f"Provider '{provider}' not available (AISDKProviderLM not found)")
+            # Fallback: Try direct CLI LM for CLI providers
+            if provider == 'claude-cli':
+                from .claude_cli_lm import ClaudeCLILM
+                return ClaudeCLILM(model=model or 'sonnet', **kwargs)
+            elif provider == 'cursor-cli':
+                from .cursor_cli_lm import CursorCLILM
+                return CursorCLILM(model=model or 'composer-1', **kwargs)
+            raise ValueError(f"Provider '{provider}' not available")
     
     @staticmethod
     def _create_direct_lm(
@@ -107,16 +93,45 @@ class UnifiedLMProvider:
     ) -> BaseLM:
         """
         Create direct DSPy LM (fallback when AISDKProviderLM unavailable).
+        Uses DSPy's native provider support for faster, more reliable API access.
         """
         api_key = kwargs.pop('api_key', None)
         
         # Map provider to DSPy model format
+        # Handle model aliases (e.g., "sonnet" -> full model name)
+        model_aliases = {
+            'anthropic': {
+                'sonnet': 'claude-sonnet-4-20250514',  # Latest Sonnet 4
+                'opus': 'claude-opus-4-20250514',
+                'haiku': 'claude-3-5-haiku-20241022',
+            },
+            'openai': {
+                'gpt4': 'gpt-4-turbo',
+                'gpt4o': 'gpt-4o',
+            },
+        }
+        
+        # Resolve model alias if needed
+        resolved_model = model
+        if provider in model_aliases and model in model_aliases[provider]:
+            resolved_model = model_aliases[provider][model]
+        elif not resolved_model:
+            # Default models
+            defaults = {
+                'anthropic': 'claude-sonnet-4-20250514',  # Latest Sonnet 4
+                'openai': 'gpt-4o',
+                'google': 'gemini-2.0-flash-exp',
+                'groq': 'llama-3.1-8b-instant',
+                'openrouter': 'meta-llama/llama-3.3-70b-instruct:free',
+            }
+            resolved_model = defaults.get(provider, model)
+        
         model_map = {
-            'anthropic': f'anthropic/{model or "claude-3-5-sonnet-20241022"}',
-            'openai': f'openai/{model or "gpt-4o"}',
-            'google': f'google/{model or "gemini-2.0-flash-exp"}',
-            'groq': f'groq/{model or "llama-3.1-8b-instant"}',
-            'openrouter': f'openrouter/{model or "meta-llama/llama-3.3-70b-instruct:free"}',
+            'anthropic': f'anthropic/{resolved_model}',
+            'openai': f'openai/{resolved_model}',
+            'google': f'google/{resolved_model}',
+            'groq': f'groq/{resolved_model}',
+            'openrouter': f'openrouter/{resolved_model}',
         }
         
         if provider not in model_map:
@@ -136,6 +151,13 @@ class UnifiedLMProvider:
         
         if not api_key:
             raise ValueError(f"API key required for provider '{provider}'")
+        
+        # Use DSPy's native LM (faster than CLI, more reliable)
+        # For Anthropic, enable structured output mode to enforce JSON
+        if provider == 'anthropic':
+            # Anthropic API supports response_format for structured output
+            # This forces JSON output, preventing conversational responses
+            kwargs.setdefault('response_format', {'type': 'json_object'})
         
         return dspy.LM(model_map[provider], api_key=api_key, **kwargs)
     
@@ -161,7 +183,29 @@ class UnifiedLMProvider:
             return lm
         
         # Auto-detect provider priority:
-        # 1. Claude CLI (most reliable, local credentials)
+        # 1. API providers first (faster, more reliable than CLI)
+        # Check for API keys and use native DSPy support
+        api_providers = [
+            ('anthropic', 'ANTHROPIC_API_KEY', 'sonnet'),
+            ('openai', 'OPENAI_API_KEY', 'gpt-4o'),
+            ('google', 'GOOGLE_API_KEY', 'gemini-2.0-flash-exp'),
+            ('groq', 'GROQ_API_KEY', 'llama-3.1-8b-instant'),
+            ('openrouter', 'OPENROUTER_API_KEY', 'meta-llama/llama-3.3-70b-instruct:free'),
+        ]
+        
+        for provider_name, env_key, default_model in api_providers:
+            if os.getenv(env_key):
+                try:
+                    lm = UnifiedLMProvider.create_lm(provider_name, model=default_model)
+                    dspy.configure(lm=lm)
+                    print(f"✅ DSPy configured with {provider_name} API (native)", file=__import__('sys').stderr)
+                    return lm
+                except Exception as e:
+                    print(f"⚠️  {provider_name} API failed: {e}", file=__import__('sys').stderr)
+                    continue
+        
+        # 2. CLI providers (fallback if no API keys)
+        # Claude CLI (most reliable, local credentials)
         if os.path.exists('/usr/local/bin/claude') or os.path.exists('/usr/bin/claude'):
             try:
                 from .claude_cli_lm import ClaudeCLILM
@@ -172,7 +216,7 @@ class UnifiedLMProvider:
             except Exception as e:
                 print(f"⚠️  Claude CLI failed: {e}", file=__import__('sys').stderr)
 
-        # 2. Cursor CLI (composer-1 model, no on-demand needed)
+        # Cursor CLI (composer-1 model, no on-demand needed)
         if os.path.exists('/usr/local/bin/cursor-agent'):
             try:
                 from .cursor_cli_lm import CursorCLILM
@@ -192,16 +236,6 @@ class UnifiedLMProvider:
             return lm
         except Exception as e:
             print(f"⚠️  OpenCode failed: {e}", file=__import__('sys').stderr)
-        
-        # 3. API providers (require API keys)
-        for provider_name in ['anthropic', 'openrouter', 'groq', 'openai', 'google']:
-            try:
-                lm = UnifiedLMProvider.create_lm(provider_name)
-                dspy.configure(lm=lm)
-                print(f"✅ DSPy configured with {provider_name}", file=__import__('sys').stderr)
-                return lm
-            except Exception:
-                continue
         
         raise RuntimeError("No available LM providers found")
 

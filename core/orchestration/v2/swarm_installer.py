@@ -49,6 +49,47 @@ class SwarmInstaller:
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
     
+    def _is_builtin_python_module(self, package: str) -> bool:
+        """Check if package is a built-in Python module."""
+        import sys
+        builtin_modules = {
+            'multiprocessing', 'threading', 'asyncio', 'json', 'os', 'sys',
+            'datetime', 'time', 'random', 'math', 'collections', 'itertools',
+            'functools', 'operator', 'copy', 'pickle', 'hashlib', 'base64',
+            'urllib', 'http', 'socket', 'ssl', 'email', 'csv', 'xml', 'html',
+            'sqlite3', 'dbm', 'zlib', 'gzip', 'bz2', 'lzma', 'tarfile', 'zipfile',
+            'shutil', 'glob', 'fnmatch', 'pathlib', 'tempfile', 'io', 'codecs',
+            'unicodedata', 'string', 're', 'difflib', 'textwrap', 'readline',
+            'rlcompleter', 'struct', 'codecs', 'types', 'copyreg', 'pprint',
+            'reprlib', 'enum', 'numbers', 'cmath', 'decimal', 'fractions', 'statistics',
+            'array', 'weakref', 'gc', 'inspect', 'site', 'fpectl', 'atexit',
+            'traceback', 'future_builtins', 'builtins', '__builtin__', 'warnings',
+            'contextlib', 'abc', 'atexit', 'traceback', 'gc', 'inspect', 'site',
+            'fpectl', 'pydoc', 'doctest', 'unittest', 'test', 'lib2to3', 'distutils',
+            'ensurepip', 'venv', 'zipapp', 'faulthandler', 'pdb', 'profile',
+            'pstats', 'timeit', 'trace', 'tracemalloc', 'curses', 'platform',
+            'errno', 'ctypes', 'msilib', 'winreg', 'winsound', 'posix', 'pwd',
+            'spwd', 'grp', 'crypt', 'termios', 'tty', 'pty', 'fcntl', 'pipes',
+            'nis', 'syslog', 'sysv_ipc', 'mmap', 'select', 'selectors', 'asyncio',
+            'signal', 'subprocess', 'sched', 'queue', 'threading', 'multiprocessing',
+            'concurrent', 'multiprocessing', 'dummy_threading', '_thread', '_dummy_thread',
+            'queue', 'queue', 'queue', 'queue', 'queue', 'queue', 'queue', 'queue'
+        }
+        return package.lower() in builtin_modules
+    
+    def _normalize_npm_package_name(self, package: str) -> str:
+        """Normalize npm package name (lowercase, fix common issues)."""
+        # npm package names must be lowercase
+        normalized = package.lower()
+        
+        # Common fixes
+        fixes = {
+            'mongoose': 'mongoose',  # Mongoose -> mongoose
+            'sequelize': 'sequelize',  # Already correct
+        }
+        
+        return fixes.get(normalized, normalized)
+    
     async def install(
         self,
         package: str,
@@ -58,6 +99,7 @@ class SwarmInstaller:
         Install a package or tool automatically.
         
         Tries multiple methods: skill registry → pip → npm.
+        Skips built-in Python modules automatically.
         
         Args:
             package: Package name (e.g., "praw", "notion-client", "web-search")
@@ -71,22 +113,22 @@ class SwarmInstaller:
             if result.success:
                 print(f"Installed {result.package} via {result.method}")
         """
-        """
-        Install a package or tool.
-        
-        Args:
-            package: Package name (e.g., "praw", "notion-client", "web-search")
-            package_type: Optional type hint ("pip", "npm", "skill")
-            
-        Returns:
-            InstallationResult
-        """
         self._init_dependencies()
         
         # Check if already installed
         if package in self._installed_packages:
             logger.info(f"✅ {package} already installed")
             return self._installed_packages[package]
+        
+        # Skip built-in Python modules
+        if self._is_builtin_python_module(package):
+            logger.info(f"ℹ️  Skipping built-in Python module: {package}")
+            return InstallationResult(
+                package=package,
+                success=True,
+                method="builtin",
+                version="built-in"
+            )
         
         logger.info(f"📦 SwarmInstaller: Installing '{package}'")
         
@@ -205,6 +247,12 @@ class SwarmInstaller:
     async def _install_with_npm(self, package: str) -> InstallationResult:
         """Install Node.js package with npm."""
         try:
+            # Normalize npm package name (must be lowercase)
+            normalized_package = self._normalize_npm_package_name(package)
+            if normalized_package != package:
+                logger.info(f"📦 Normalizing npm package name: {package} -> {normalized_package}")
+                package = normalized_package
+            
             logger.info(f"📦 Installing {package} with npm...")
             result = subprocess.run(
                 ["npm", "install", package],
