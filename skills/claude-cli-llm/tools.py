@@ -40,7 +40,13 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         full_prompt = f"{custom_prompt}\n\n{content}"
 
         model = params.get('model', 'sonnet')
-        provider = params.get('provider', 'claude-cli')
+        # Auto-detect provider: prefer API if key available, otherwise CLI
+        import os
+        if os.getenv('ANTHROPIC_API_KEY'):
+            default_provider = 'anthropic'  # Use API when key is available
+        else:
+            default_provider = 'claude-cli'  # Fallback to CLI
+        provider = params.get('provider', default_provider)
         fallback = params.get('fallback', False)
         timeout = params.get('timeout', 120)
 
@@ -95,7 +101,13 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return {'success': False, 'error': 'prompt parameter is required'}
 
         model = params.get('model', 'sonnet')
-        provider = params.get('provider', 'claude-cli')
+        # Auto-detect provider: prefer API if key available, otherwise CLI
+        import os
+        if os.getenv('ANTHROPIC_API_KEY'):
+            default_provider = 'anthropic'  # Use API when key is available
+        else:
+            default_provider = 'claude-cli'  # Fallback to CLI
+        provider = params.get('provider', default_provider)
         timeout = params.get('timeout', 120)
         max_tokens = params.get('max_tokens', 4096)
         fallback = params.get('fallback', False)

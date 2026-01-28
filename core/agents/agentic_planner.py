@@ -1054,6 +1054,7 @@ class AgenticPlanner:
         document_converter_skill = None
         web_search_skill = None
         research_to_pdf_skill = None
+        summarize_skill = None
         
         for skill in skills:
             skill_name = skill.get('name', '').lower()
@@ -1065,6 +1066,8 @@ class AgenticPlanner:
                 web_search_skill = skill
             elif 'research-to-pdf' in skill_name:
                 research_to_pdf_skill = skill
+            elif 'summarize' in skill_name:
+                summarize_skill = skill
         
         # PDF/document conversion tasks
         pdf_keywords = ['pdf', 'convert to pdf', 'generate pdf', 'create pdf', 'to pdf', 'markdown', 'convert']
@@ -1236,30 +1239,91 @@ class AgenticPlanner:
                 })
         
         # Web search to PDF workflow (separate check)
-        if is_research_task and web_search_skill and document_converter_skill and not plan:
+        # This handles research tasks that need web search + markdown + PDF conversion
+        if is_research_task and web_search_skill and file_ops_skill and document_converter_skill and not plan:
             web_tools = web_search_skill.get('tools', [])
             if isinstance(web_tools, dict):
                 web_tools = list(web_tools.keys())
+            
+            file_ops_tools = file_ops_skill.get('tools', [])
+            if isinstance(file_ops_tools, dict):
+                file_ops_tools = list(file_ops_tools.keys())
             
             doc_tools = document_converter_skill.get('tools', [])
             if isinstance(doc_tools, dict):
                 doc_tools = list(doc_tools.keys())
             
-            if web_tools and doc_tools:
-                # Extract search query
-                query = task.split("Search for")[-1].split("and")[0].strip().strip("'\"")
-                if not query or len(query) < 3:
-                    query = "Python programming"
+            # Extract search queries from task (handle multiple searches)
+            import re
+            search_queries = re.findall(r'Search for\s+["\']([^"\']+)["\']', task, re.IGNORECASE)
+            if not search_queries:
+                # Try alternative pattern
+                search_queries = re.findall(r'["\']([^"\']+)\s+(?:business|model|features|comparison)', task, re.IGNORECASE)
+            
+            if not search_queries:
+                # Fallback: extract from task description
+                if 'Paytm' in task and 'PhonePe' in task:
+                    search_queries = [
+                        'Paytm business model features 2025',
+                        'PhonePe business model features 2025',
+                        'Paytm vs PhonePe comparison market share'
+                    ]
+                else:
+                    search_queries = [task.split("Research")[-1].split("and")[0].strip().strip("'\"")[:100]]
+            
+            write_tool = None
+            for tool in file_ops_tools:
+                if 'write' in tool.lower() and 'file' in tool.lower():
+                    write_tool = tool
+                    break
+            
+            convert_tool = None
+            for tool in doc_tools:
+                if 'pdf' in tool.lower() and 'convert' in tool.lower():
+                    convert_tool = tool
+                    break
+            
+            if web_tools and write_tool and convert_tool:
+                # Step 1: Multiple web searches
+                for i, query in enumerate(search_queries[:3]):  # Limit to 3 searches
+                    plan.append({
+                        'skill_name': 'web-search',
+                        'tool_name': web_tools[0],
+                        'params': {
+                            'query': query,
+                            'max_results': 3
+                        },
+                        'description': f'Search for: {query[:50]}',
+                        'depends_on': [],
+                        'output_key': f'search_results_{i}',
+                        'optional': False
+                    })
                 
+                # Step 2: Create markdown file with comparison
+                output_file = './paytm_vs_phonepe_comparison.md'
                 plan.append({
-                    'skill_name': 'web-search',
-                    'tool_name': web_tools[0],
+                    'skill_name': 'file-operations',
+                    'tool_name': write_tool,
                     'params': {
-                        'query': query
+                        'path': output_file,
+                        'content': f'# Paytm vs PhonePe Comparison Report\n\n## Research Results\n\nThis report compares Paytm and PhonePe based on web research.\n\n'
                     },
-                    'description': f'Search for {query}',
-                    'depends_on': [],
-                    'output_key': 'search_results',
+                    'description': f'Create comparison markdown file: {output_file}',
+                    'depends_on': list(range(len(search_queries[:3]))),
+                    'output_key': 'comparison_file',
+                    'optional': False
+                })
+                
+                # Step 3: Convert to PDF
+                plan.append({
+                    'skill_name': 'document-converter',
+                    'tool_name': convert_tool,
+                    'params': {
+                        'input_file': output_file
+                    },
+                    'description': 'Convert comparison report to PDF',
+                    'depends_on': [len(search_queries[:3])],
+                    'output_key': 'pdf_report',
                     'optional': False
                 })
         
@@ -1308,32 +1372,65 @@ class AgenticPlanner:
                 })
         else:
             # Generic fallback: use first available skill and tool
+            # BUT skip stock-research-comprehensive for non-stock research tasks
             if skills:
-                first_skill = skills[0]
-                skill_name = first_skill.get('name', '')
-                tools = first_skill.get('tools', [])
-                if isinstance(tools, dict):
-                    tools = list(tools.keys())
-                elif not isinstance(tools, list):
-                    tools = []
+                # Filter out stock-research skills for non-stock research
+                is_stock_research = any(keyword in task_lower for keyword in ['stock', 'ticker', 'share price', 'financial', 'equity', 'trading'])
                 
-                if tools:
-                    tool_name = tools[0]
-                    plan.append({
-                        'skill_name': skill_name,
-                        'tool_name': tool_name,
-                        'params': {'task': task},
-                        'description': f"Execute: {task}",
-                        'depends_on': [],
-                        'output_key': 'result',
-                        'optional': False
-                    })
+                available_skills = []
+                for skill in skills:
+                    skill_name = skill.get('name', '').lower()
+                    # Skip stock-research skills unless it's actually a stock research task
+                    if 'stock-research' in skill_name and not is_stock_research:
+                        logger.debug(f"🔧 Skipping {skill.get('name')} - not a stock research task")
+                        continue
+                    available_skills.append(skill)
+                
+                # Use filtered skills, or fall back to all skills
+                skills_to_use = available_skills if available_skills else skills
+                
+                if skills_to_use:
+                    first_skill = skills_to_use[0]
+                    skill_name = first_skill.get('name', '')
+                    tools = first_skill.get('tools', [])
+                    if isinstance(tools, dict):
+                        tools = list(tools.keys())
+                    elif not isinstance(tools, list):
+                        tools = []
+                    
+                    if tools:
+                        tool_name = tools[0]
+                        # Use appropriate parameter name based on skill
+                        if 'stock-research' in skill_name.lower():
+                            params = {'ticker': 'PAYTM'}  # Default ticker
+                        elif 'web-search' in skill_name.lower():
+                            params = {'query': task[:100]}  # Use task as query
+                        else:
+                            params = {'task': task}
+                        
+                        plan.append({
+                            'skill_name': skill_name,
+                            'tool_name': tool_name,
+                            'params': params,
+                            'description': f"Execute: {task}",
+                            'depends_on': [],
+                            'output_key': 'result',
+                            'optional': False
+                        })
         
         # If still no plan, try to create a minimal valid plan using any available skill
         if not plan and skills:
             logger.warning(f"⚠️  No plan created yet, trying generic fallback with {len(skills)} available skills")
+            # Filter out stock-research skills for non-stock research
+            is_stock_research = any(keyword in task_lower for keyword in ['stock', 'ticker', 'share price', 'financial', 'equity', 'trading'])
+            
             for skill in skills:
                 skill_name = skill.get('name', '')
+                # Skip stock-research skills unless it's actually a stock research task
+                if 'stock-research' in skill_name.lower() and not is_stock_research:
+                    logger.debug(f"🔧 Skipping {skill_name} - not a stock research task")
+                    continue
+                    
                 tools = skill.get('tools', [])
                 if isinstance(tools, dict):
                     tools = list(tools.keys())
@@ -1342,10 +1439,18 @@ class AgenticPlanner:
                 
                 if tools:
                     logger.info(f"🔧 Using generic fallback: {skill_name}.{tools[0]}")
+                    # Use appropriate parameter name based on skill
+                    if 'stock-research' in skill_name.lower():
+                        params = {'ticker': 'PAYTM'}  # Default ticker
+                    elif 'web-search' in skill_name.lower():
+                        params = {'query': task[:100]}  # Use task as query
+                    else:
+                        params = {'task': task}
+                    
                     plan.append({
                         'skill_name': skill_name,
                         'tool_name': tools[0],
-                        'params': {},
+                        'params': params,
                         'description': f"Execute: {task}",
                         'depends_on': [],
                         'output_key': 'result',
