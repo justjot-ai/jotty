@@ -3,7 +3,9 @@ Cursor CLI DSPy LM Provider
 ============================
 
 Part of Jotty multi-agent framework.
-Uses Cursor Agent CLI with JSON output support.
+Uses Cursor Agent CLI as a DSPy-compatible LM backend.
+Properly forwards DSPy adapter-formatted messages (system, demos, input)
+to Cursor CLI and returns raw LLM text for DSPy's adapter to parse.
 """
 
 import subprocess
@@ -11,57 +13,94 @@ import json
 import os
 import dspy
 from dspy import BaseLM
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 
 class CursorCLILM(BaseLM):
-    """DSPy-compatible LM using Cursor CLI."""
+    """DSPy-compatible LM using Cursor CLI.
+
+    Properly handles DSPy's adapter-formatted messages by:
+    - Extracting system messages and passing via --system-prompt
+    - Flattening conversation history (few-shot demos) into the prompt
+    - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
+    """
 
     def __init__(self, model="sonnet-4", **kwargs):
         super().__init__(model=f"cursor-cli/{model}", **kwargs)
         self.cli_model = model
         self.history = []
 
-    def _extract_json_schema(self, signature):
+    def _extract_messages(self, messages: List) -> tuple:
         """
-        Extract JSON schema from DSPy signature.
-        Cursor doesn't have native JSON schema support, so we'll enforce it in the prompt.
+        Extract system prompt and user prompt from DSPy adapter-formatted messages.
+
+        DSPy's ChatAdapter creates messages with system (format instructions),
+        user/assistant pairs (few-shot demos), and the current user input.
+        Cursor CLI takes a single prompt + optional --system-prompt, so we
+        flatten demos into the user prompt to preserve few-shot context.
+
+        Returns:
+            (system_prompt, user_prompt) tuple
         """
-        if not hasattr(signature, 'output_fields'):
-            return None
+        system_parts = []
+        conversation_parts = []
 
-        output_fields = {}
-        required_fields = []
+        for msg in messages:
+            if isinstance(msg, str):
+                conversation_parts.append(msg)
+                continue
 
-        for name, field in signature.output_fields.items():
-            field_type = "string"  # Default to string
-            if hasattr(field, 'annotation'):
-                if field.annotation == int:
-                    field_type = "integer"
-                elif field.annotation == float:
-                    field_type = "number"
-                elif field.annotation == bool:
-                    field_type = "boolean"
+            if not isinstance(msg, dict):
+                continue
 
-            output_fields[name] = {"type": field_type}
-            required_fields.append(name)
+            role = msg.get('role', '')
+            content = msg.get('content', '')
 
-        if not output_fields:
-            return None
+            if not content:
+                continue
 
-        schema = {
-            "type": "object",
-            "properties": output_fields,
-            "required": required_fields
-        }
+            if role == 'system':
+                system_parts.append(content)
+            elif role == 'assistant':
+                conversation_parts.append(f"[Example Response]\n{content}")
+            elif role == 'user':
+                conversation_parts.append(content)
 
-        return schema
+        system_prompt = "\n\n".join(system_parts) if system_parts else None
+        user_prompt = "\n\n".join(conversation_parts) if conversation_parts else None
+
+        return system_prompt, user_prompt
+
+    def _extract_response(self, raw_output: str) -> str:
+        """
+        Extract raw LLM response text from Cursor CLI output.
+
+        With --output-format json, CLI wraps the response in an envelope.
+        Returns the raw LLM text for DSPy's adapter to parse.
+        """
+        raw_output = raw_output.strip()
+
+        try:
+            response_data = json.loads(raw_output)
+            if isinstance(response_data, dict):
+                # Try common envelope fields
+                for key in ('result', 'response', 'message', 'content'):
+                    if key in response_data and response_data[key]:
+                        return response_data[key]
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        return raw_output
 
     def __call__(self, prompt=None, messages=None, **kwargs):
         """
         DSPy-compatible call interface.
+
+        Properly handles DSPy adapter-formatted messages by:
+        1. Extracting system message -> passed via --system-prompt flag
+        2. Flattening demos + current input -> positional prompt arg
+        3. Returning raw LLM text for DSPy's adapter to parse [[ ## ]] markers
         """
-        # Build messages list
         if messages is None:
             messages = []
             if prompt:
@@ -70,86 +109,44 @@ class CursorCLILM(BaseLM):
         if not messages:
             raise ValueError("Either prompt or messages must be provided")
 
-        # Extract the user message
-        user_message = None
-        for msg in reversed(messages):
-            if isinstance(msg, dict) and msg.get('role') == 'user':
-                user_message = msg.get('content', '')
-                break
-            elif isinstance(msg, str):
-                user_message = msg
-                break
+        system_prompt, user_prompt = self._extract_messages(messages)
 
-        if not user_message:
-            raise ValueError("No user message found")
+        if not user_prompt:
+            raise ValueError("No user message found in messages")
 
-        # Try to get JSON schema from kwargs if signature is passed
-        json_schema = kwargs.get('json_schema')
-        signature = kwargs.get('signature')
-
-        if not json_schema and signature:
-            json_schema = self._extract_json_schema(signature)
-
-        # If we have a JSON schema, add it to the prompt
-        if json_schema:
-            schema_prompt = f"\n\nIMPORTANT: Respond with ONLY valid JSON matching this schema:\n{json.dumps(json_schema, indent=2)}\n\nDo not include any text before or after the JSON."
-            user_message = user_message + schema_prompt
-
-        # Build command
         cmd = [
             "cursor-agent",
             "--model", self.cli_model,
-            "--print",  # Non-interactive mode
-            "--output-format", "json",  # JSON output
+            "--print",
+            "--output-format", "json",  # CLI envelope for reliable result extraction
         ]
 
-        cmd.append(user_message)
+        if system_prompt:
+            cmd.extend(["--system-prompt", system_prompt])
 
-        # Execute command
-        # Note: Cursor CLI doesn't have the same OAuth token issue as Claude
-        # It uses credentials from auth.json automatically
+        cmd.append(user_prompt)
+
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=kwargs.get('timeout', 120)  # Increased timeout
+            timeout=kwargs.get('timeout', 120)
         )
 
         if result.returncode != 0:
-            # Extract error message
             error_msg = result.stderr.strip() or result.stdout.strip() or "Unknown error"
             raise RuntimeError(f"Cursor CLI error: {error_msg}")
 
-        # Parse JSON response
-        try:
-            response_data = json.loads(result.stdout.strip())
+        # Extract raw LLM response from CLI envelope
+        response_text = self._extract_response(result.stdout)
 
-            # Cursor CLI returns different JSON format than Claude
-            # Extract the actual response text
-            if isinstance(response_data, dict):
-                # Try common response fields
-                response_text = (
-                    response_data.get('response') or
-                    response_data.get('message') or
-                    response_data.get('content') or
-                    response_data.get('result') or
-                    json.dumps(response_data)  # Fallback to full JSON
-                )
-            else:
-                response_text = str(response_data)
-
-        except json.JSONDecodeError:
-            # Fallback to raw text
-            response_text = result.stdout.strip()
-
-        # Store in history
         self.history.append({
-            "prompt": user_message,
+            "prompt": user_prompt,
+            "system": system_prompt,
             "response": response_text,
             "kwargs": kwargs
         })
 
-        # Return in DSPy format
         return [response_text]
 
     def inspect_history(self, n=1):

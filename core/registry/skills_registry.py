@@ -44,19 +44,40 @@ logger = logging.getLogger(__name__)
 
 
 class SkillDefinition:
-    """Definition of a skill with its tools."""
-    
+    """Definition of a skill with its tools (supports lazy loading)."""
+
     def __init__(
         self,
         name: str,
         description: str,
-        tools: Dict[str, Callable],
-        metadata: Optional[Dict[str, Any]] = None
+        tools: Optional[Dict[str, Callable]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        _tool_loader: Optional[Callable] = None
     ):
         self.name = name
         self.description = description
-        self.tools = tools  # {tool_name: execute_function}
+        self._tools = tools  # None until loaded (lazy) or pre-populated (eager)
+        self._tool_loader = _tool_loader  # Callable that returns Dict[str, Callable]
         self.metadata = metadata or {}
+
+    @property
+    def tools(self) -> Dict[str, Callable]:
+        """Lazy-load tools on first access."""
+        if self._tools is None:
+            if self._tool_loader:
+                try:
+                    self._tools = self._tool_loader()
+                    logger.debug(f"Lazy-loaded {len(self._tools)} tools for skill '{self.name}'")
+                except Exception as e:
+                    logger.error(f"Failed to lazy-load tools for skill '{self.name}': {e}")
+                    self._tools = {}
+            else:
+                self._tools = {}
+        return self._tools
+
+    @tools.setter
+    def tools(self, value: Dict[str, Callable]):
+        self._tools = value
 
 
 class SkillsRegistry:
@@ -119,122 +140,157 @@ class SkillsRegistry:
         self.loaded_collections: Dict[str, Any] = {}  # Store loaded collections
     
     def init(self) -> None:
-        """Initialize and load all skills."""
+        """Initialize registry by scanning skill directories for metadata only.
+
+        Tools are NOT imported here - they are lazy-loaded on first access
+        via SkillDefinition.tools property. This makes init() fast (no imports,
+        no subprocess calls, no dependency checks).
+        """
         if self.initialized:
             return
-        
-        self.load_all_skills()
+
+        self._scan_skills_metadata()
         self.initialized = True
-        logger.info(f"SkillsRegistry initialized with {len(self.loaded_skills)} skills")
-    
-    def load_all_skills(self) -> Dict[str, Callable]:
-        """
-        Load all skills and return tools.
-        
-        Checks both ~/jotty/skills and ~/.claude/skills for compatibility.
-        
-        Returns:
-            Dict mapping tool names to execute functions
-            (can be merged into Jotty's tool registry)
-        """
-        all_tools: Dict[str, Callable] = {}
-        
-        # Load from Jotty skills directory
+        logger.info(f"SkillsRegistry initialized with {len(self.loaded_skills)} skills (lazy)")
+
+    def _scan_skills_metadata(self) -> None:
+        """Scan skill directories and register lazy SkillDefinitions (metadata only)."""
+        excluded_dirs = {'composite-templates', '__pycache__', '.git', '.DS_Store'}
+
+        # Scan Jotty skills directory
         if self.skills_dir.exists():
             for skill_dir in self.skills_dir.iterdir():
-                if skill_dir.is_dir():
+                if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
                     try:
-                        skill = self._load_skill(skill_dir.name, self.skills_dir)
-                        
-                        # Auto-install dependencies if needed
-                        dep_result = self.dependency_manager.ensure_skill_dependencies(
-                            skill_dir.name, skill_dir
-                        )
-                        if dep_result["success"] and dep_result.get("installed"):
-                            logger.info(f"✅ Installed dependencies for {skill_dir.name}: {dep_result['installed']}")
-                        elif not dep_result["success"]:
-                            logger.warning(f"⚠️  Dependency installation failed for {skill_dir.name}: {dep_result.get('error')}")
-                        
-                        all_tools.update(skill.tools)
-                        self.loaded_skills[skill.name] = skill
-                        logger.info(f"Loaded skill: {skill.name} ({len(skill.tools)} tools)")
+                        skill = self._register_lazy_skill(skill_dir.name, self.skills_dir)
+                        if skill:
+                            self.loaded_skills[skill.name] = skill
                     except Exception as e:
-                        logger.error(f"Failed to load skill {skill_dir.name}: {e}")
+                        logger.error(f"Failed to register skill {skill_dir.name}: {e}")
         else:
             logger.warning(f"Skills directory not found: {self.skills_dir}")
-        
-        # Load from Claude Code skills directory (~/.claude/skills)
+
+        # Scan Claude Code skills directory
         if self.claude_skills_dir.exists():
             for skill_dir in self.claude_skills_dir.iterdir():
-                if skill_dir.is_dir():
+                if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
+                    if skill_dir.name in self.loaded_skills:
+                        logger.debug(f"Skipping {skill_dir.name} from Claude directory (already registered)")
+                        continue
                     try:
-                        skill = self._load_skill(skill_dir.name, self.claude_skills_dir)
-                        
-                        # Skip if already loaded from Jotty directory
-                        if skill.name in self.loaded_skills:
-                            logger.debug(f"Skipping {skill.name} from Claude directory (already loaded from Jotty)")
-                            continue
-                        
-                        all_tools.update(skill.tools)
-                        self.loaded_skills[skill.name] = skill
-                        logger.info(f"Loaded Claude Code skill: {skill.name} ({len(skill.tools)} tools)")
+                        skill = self._register_lazy_skill(skill_dir.name, self.claude_skills_dir)
+                        if skill:
+                            self.loaded_skills[skill.name] = skill
                     except Exception as e:
-                        logger.error(f"Failed to load Claude Code skill {skill_dir.name}: {e}")
-        
-        return all_tools
-    
-    def _load_skill(self, skill_name: str, base_dir: Optional[Path] = None) -> SkillDefinition:
-        """
-        Load a single skill from disk.
-        
-        Args:
-            skill_name: Name of skill directory
-            base_dir: Base directory to load from (default: self.skills_dir)
-            
-        Returns:
-            SkillDefinition with tools
-        """
-        if base_dir is None:
-            base_dir = self.skills_dir
-        
+                        logger.error(f"Failed to register Claude Code skill {skill_dir.name}: {e}")
+
+    def _register_lazy_skill(self, skill_name: str, base_dir: Path) -> Optional[SkillDefinition]:
+        """Register a skill with metadata only - tools loaded lazily on first access."""
         skill_dir = base_dir / skill_name
         skill_md = skill_dir / "SKILL.md"
         tools_py = skill_dir / "tools.py"
         scripts_dir = skill_dir / "scripts"
-        
-        # Check if it's a Python-based Claude Code skill (has scripts/ directory)
+
         is_claude_code_skill = scripts_dir.exists() and scripts_dir.is_dir()
-        
+
         if not tools_py.exists() and not is_claude_code_skill:
-            raise FileNotFoundError(f"Skill {skill_name} missing tools.py and no scripts/ directory found")
-        
-        # Read SKILL.md for metadata
+            logger.debug(f"Skipping {skill_name}: no tools.py or scripts/")
+            return None
+
+        # Read SKILL.md for metadata (lightweight - just text parsing)
+        description = self._read_skill_description(skill_md)
+
+        # Create a loader closure that captures the skill directory info
+        registry = self  # capture reference for closure
+        def make_tool_loader(s_dir, s_name, is_cc_skill, s_md):
+            def loader() -> Dict[str, Callable]:
+                # Dependency check deferred to first tool load
+                dep_result = registry.dependency_manager.ensure_skill_dependencies(s_name, s_dir)
+                if dep_result["success"] and dep_result.get("installed"):
+                    logger.info(f"Installed dependencies for {s_name}: {dep_result['installed']}")
+                elif not dep_result["success"]:
+                    logger.warning(f"Dependency install failed for {s_name}: {dep_result.get('error')}")
+
+                if is_cc_skill:
+                    md_content = s_md.read_text() if s_md.exists() else ""
+                    return registry._load_claude_code_skill(s_dir, s_name, md_content)
+                else:
+                    tools_file = s_dir / "tools.py"
+                    if tools_file.exists():
+                        return registry._load_tools_from_file(tools_file)
+                    return {}
+            return loader
+
+        return SkillDefinition(
+            name=skill_name,
+            description=description or f"Skill: {skill_name}",
+            _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
+            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
+        )
+
+    def _read_skill_description(self, skill_md: Path) -> str:
+        """Read description from SKILL.md (lightweight metadata parsing)."""
         description = ""
         if skill_md.exists():
-            content = skill_md.read_text()
-            # Extract description (simple parsing)
-            for line in content.split("\n"):
-                if "description" in line.lower() or "**Description**" in line:
-                    desc_match = line.split(":", 1)
-                    if len(desc_match) > 1:
-                        description = desc_match[1].strip()
-                    break
-                # Also check for description in markdown format
-                if line.startswith("# "):
-                    # First heading is usually the title/description
-                    if not description:
-                        description = line[2:].strip()
-        
-        # Load tools
+            try:
+                content = skill_md.read_text()
+                for line in content.split("\n"):
+                    if "description" in line.lower() or "**Description**" in line:
+                        desc_match = line.split(":", 1)
+                        if len(desc_match) > 1:
+                            description = desc_match[1].strip()
+                        break
+                    if line.startswith("# "):
+                        if not description:
+                            description = line[2:].strip()
+            except Exception as e:
+                logger.debug(f"Could not read {skill_md}: {e}")
+        return description
+
+    def load_all_skills(self) -> Dict[str, Callable]:
+        """
+        Eagerly load all skills and return tools.
+
+        This forces all lazy skills to load their tools immediately.
+        Prefer using init() + lazy access for better startup performance.
+        """
+        self.init()  # Ensure metadata is scanned
+        all_tools: Dict[str, Callable] = {}
+        for skill in self.loaded_skills.values():
+            all_tools.update(skill.tools)  # Triggers lazy load
+        return all_tools
+    
+    def _load_skill(self, skill_name: str, base_dir: Optional[Path] = None) -> SkillDefinition:
+        """
+        Eagerly load a single skill from disk (tools imported immediately).
+
+        Used by load_collection and other callers that need tools right away.
+        For lazy loading, use _register_lazy_skill() instead.
+        """
+        if base_dir is None:
+            base_dir = self.skills_dir
+
+        skill_dir = base_dir / skill_name
+        skill_md = skill_dir / "SKILL.md"
+        tools_py = skill_dir / "tools.py"
+        scripts_dir = skill_dir / "scripts"
+
+        is_claude_code_skill = scripts_dir.exists() and scripts_dir.is_dir()
+
+        if not tools_py.exists() and not is_claude_code_skill:
+            raise FileNotFoundError(f"Skill {skill_name} missing tools.py and no scripts/ directory found")
+
+        description = self._read_skill_description(skill_md)
+
+        # Load tools eagerly
         if is_claude_code_skill:
-            # Load Python-based Claude Code skill
-            tools = self._load_claude_code_skill(skill_dir, skill_name, content if skill_md.exists() else "")
+            content = skill_md.read_text() if skill_md.exists() else ""
+            tools = self._load_claude_code_skill(skill_dir, skill_name, content)
         elif tools_py.exists():
-            # Load standard Python tools.py
             tools = self._load_tools_from_file(tools_py)
         else:
             tools = {}
-        
+
         return SkillDefinition(
             name=skill_name,
             description=description or f"Skill: {skill_name}",
@@ -516,7 +572,11 @@ class SkillsRegistry:
         return metadata
     
     def list_skills(self) -> List[Dict[str, Any]]:
-        """List all loaded skills."""
+        """List all registered skills.
+
+        Returns tool names if tools are already loaded, otherwise
+        triggers lazy load to provide accurate tool lists.
+        """
         return [
             {
                 "name": skill.name,

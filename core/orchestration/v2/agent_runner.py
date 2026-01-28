@@ -16,6 +16,7 @@ from ...learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate, IntermediateRewardCalculator,
     ReasoningCreditAssigner, AdaptiveExploration
 )
+from ...learning.shaped_rewards import ShapedRewardManager
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +130,13 @@ class AgentRunner:
                 config=config.config,
                 adaptive_lr=adaptive_lr
             )
-        
-        logger.info(f"✅ AgentRunner initialized: {self.agent_name}")
+
+        # Shaped rewards for dense learning signal
+        self.shaped_reward_manager: Optional[ShapedRewardManager] = None
+        if config.enable_learning:
+            self.shaped_reward_manager = ShapedRewardManager()
+
+        logger.info(f"AgentRunner initialized: {self.agent_name}")
     
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
@@ -146,12 +152,34 @@ class AgentRunner:
         import time
         start_time = time.time()
         
-        logger.info(f"🚀 AgentRunner.run: {self.agent_name} - {goal[:50]}...")
-        
+        logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}...")
+
         # Start episode for TD(λ) learning (if enabled)
         if self.agent_learner:
             self.agent_learner.start_episode(goal)
-        
+
+        # Reset shaped rewards for new episode
+        if self.shaped_reward_manager:
+            self.shaped_reward_manager.reset()
+
+        # Retrieve relevant memories and enrich goal context
+        enriched_goal = goal
+        if self.agent_memory:
+            try:
+                from ...foundation.data_structures import MemoryLevel
+                relevant_memories = self.agent_memory.retrieve(
+                    query=goal,
+                    goal=goal,
+                    budget_tokens=3000,
+                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META]
+                )
+                if relevant_memories:
+                    context = "\n".join([m.content for m in relevant_memories[:5]])
+                    enriched_goal = f"{goal}\n\nRelevant past experience:\n{context}"
+                    logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
+            except Exception as e:
+                logger.debug(f"Memory retrieval skipped: {e}")
+
         # 1. Architect (pre-execution planning)
         architect_results, proceed = await self.architect_validator.validate(
             goal=goal,
@@ -193,12 +221,21 @@ class AgentRunner:
                     f"Execution will proceed but results may be uncertain."
                 )
         
-        # 2. Agent execution
+        # Shaped reward: architect validation
+        architect_shaped_reward = 0.0
+        if self.shaped_reward_manager and architect_results:
+            architect_shaped_reward = self.shaped_reward_manager.check_rewards(
+                event_type="actor_start",
+                state={'architect_results': architect_results, 'proceed': proceed, 'goal': goal},
+                trajectory=[]
+            )
+
+        # 2. Agent execution (use enriched goal with memory context)
         try:
             # Execute agent
             if hasattr(self.agent, 'execute'):
                 # AutoAgent
-                agent_output = await self.agent.execute(goal, **kwargs)
+                agent_output = await self.agent.execute(enriched_goal, **kwargs)
             elif hasattr(self.agent, 'forward'):
                 # DSPy module
                 agent_output = self.agent(goal=goal, **kwargs)
@@ -277,28 +314,63 @@ class AgentRunner:
                     goal=goal
                 )
             
-            # 5. Learning update using proper episodic interface (if enabled)
+            # 5. Shaped rewards after auditor validation
+            auditor_shaped_reward = 0.0
+            if self.shaped_reward_manager:
+                auditor_shaped_reward = self.shaped_reward_manager.check_rewards(
+                    event_type="validation",
+                    state={
+                        'auditor_results': auditor_results,
+                        'passed': passed,
+                        'goal': goal,
+                        'output': str(agent_output)[:500]
+                    },
+                    trajectory=trajectory
+                )
+                # Also check actor_complete rewards
+                self.shaped_reward_manager.check_rewards(
+                    event_type="actor_complete",
+                    state={
+                        'output': str(agent_output)[:500],
+                        'success': success,
+                        'goal': goal
+                    },
+                    trajectory=trajectory
+                )
+
+            # 6. Learning update with dense shaped rewards (if enabled)
             if self.agent_learner:
-                # Record memory access if we stored one (for TD(λ) traces)
+                # Record memory access with intermediate shaped reward
+                step_reward = architect_shaped_reward + auditor_shaped_reward
                 if episode_memory_entry:
-                    self.agent_learner.record_access(episode_memory_entry, step_reward=0.0)
-                
-                # Calculate final reward: +1.0 if passed, -0.5 if failed
-                final_reward = 1.0 if success else -0.5
-                
+                    self.agent_learner.record_access(episode_memory_entry, step_reward=step_reward)
+
+                # Final reward combines sparse terminal + accumulated shaped rewards
+                terminal_reward = 1.0 if success else -0.5
+                shaped_total = self.shaped_reward_manager.get_total_reward() if self.shaped_reward_manager else 0.0
+                final_reward = terminal_reward + shaped_total
+
                 # Build memories dict from accessed memories (for end_episode)
                 memories_dict = {}
                 if episode_memory_entry:
                     memories_dict[episode_memory_entry.key] = episode_memory_entry
-                
+
                 # Perform TD(λ) updates at episode end
                 updates = self.agent_learner.end_episode(
                     final_reward=final_reward,
                     memories=memories_dict
                 )
-                
+
                 if updates:
-                    logger.debug(f"📚 Learning: Updated {len(updates)} memory values")
+                    logger.debug(f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})")
+
+            # 7. Memory consolidation: promote episodic -> semantic/procedural
+            if self.agent_memory:
+                try:
+                    await self.agent_memory.consolidate()
+                    logger.debug("Memory consolidation completed")
+                except Exception as e:
+                    logger.debug(f"Memory consolidation skipped: {e}")
             
             duration = time.time() - start_time
             

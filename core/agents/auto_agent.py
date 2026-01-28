@@ -354,70 +354,33 @@ class AutoAgent:
             
             # Check if tool exists in skill
             available_tools = skill_tools.get(skill_name, [])
-            
-            # Auto-fix: If tool_name matches skill_name, try to use first available tool
+
             if tool_name not in available_tools:
-                # Try to auto-fix common mistakes
                 fixed_tool = None
-                
-                # Case 1: Tool name matches skill name (common mistake)
+
+                # Case 1: Tool name matches skill name (LLM used skill name as tool)
                 if tool_name == skill_name and available_tools:
-                    # Use first available tool (usually the main one)
                     fixed_tool = available_tools[0]
-                    logger.info(
-                        f"  🔧 Auto-fixed: '{tool_name}' → '{fixed_tool}' "
-                        f"(skill name used instead of tool name)"
-                    )
-                # Case 2: Common tool name mappings (LLM invents intuitive names)
-                elif available_tools:
-                    # Map common LLM-invented names to actual tool names
-                    tool_mappings = {
-                        # File operations
-                        'create_file': 'write_file_tool',
-                        'write_file': 'write_file_tool',
-                        'create_file_tool': 'write_file_tool',
-                        'write_file_tool': 'write_file_tool',  # Already correct
-                        'read_file': 'read_file_tool',
-                        'read_file_tool': 'read_file_tool',  # Already correct
-                        # Document conversion
-                        'convert_document': 'convert_to_pdf_tool',
-                        'convert_to_pdf': 'convert_to_pdf_tool',
-                        'convert': 'convert_to_pdf_tool',
-                        # PDF tools
-                        'validate_pdf': 'get_metadata_tool',  # Closest match
-                        'check_pdf': 'get_metadata_tool',
-                    }
-                    
-                    # Check mapping first
-                    if tool_name in tool_mappings:
-                        mapped_name = tool_mappings[tool_name]
-                        if mapped_name in available_tools:
-                            fixed_tool = mapped_name
-                            logger.info(
-                                f"  🔧 Auto-fixed: '{tool_name}' → '{fixed_tool}' "
-                                f"(tool name mapping)"
-                            )
-                    
-                    # Case 3: Try fuzzy matching if mapping didn't work
-                    if not fixed_tool:
-                        for avail_tool in available_tools:
-                            # Check if any tool name contains the requested tool name
-                            if tool_name.lower() in avail_tool.lower() or avail_tool.lower() in tool_name.lower():
-                                fixed_tool = avail_tool
-                                logger.info(
-                                    f"  🔧 Auto-fixed: '{tool_name}' → '{fixed_tool}' "
-                                    f"(fuzzy match)"
-                                )
-                                break
-                
+
+                # Case 2: Fuzzy substring matching
+                if not fixed_tool and available_tools:
+                    for avail_tool in available_tools:
+                        if tool_name.lower() in avail_tool.lower() or avail_tool.lower() in tool_name.lower():
+                            fixed_tool = avail_tool
+                            break
+
+                # Case 3: Use first available tool as last resort
+                if not fixed_tool and available_tools:
+                    fixed_tool = available_tools[0]
+
                 if fixed_tool:
-                    # Update step with fixed tool name
+                    logger.info(f"  Auto-fixed: '{tool_name}' -> '{fixed_tool}' in skill '{skill_name}'")
                     step.tool_name = fixed_tool
                     valid_steps.append(step)
                 else:
                     logger.warning(
-                        f"  ⚠️  Step '{step.description}' uses invalid tool '{tool_name}' "
-                        f"in skill '{skill_name}'. Available tools: {available_tools[:5]}"
+                        f"  Step '{step.description}' uses invalid tool '{tool_name}' "
+                        f"in skill '{skill_name}'. Available: {available_tools[:5]}"
                     )
                     invalid_count += 1
                     continue
@@ -626,41 +589,6 @@ class AutoAgent:
         # Step 2: Discover skills
         all_skills = self._discover_skills(task)
         logger.info(f"Discovered {len(all_skills)} potential skills")
-        
-        # Step 2.3: Ensure code generation skills are available for code tasks
-        task_lower = task.lower()
-        is_code_task = any(keyword in task_lower for keyword in [
-            'generate code', 'write code', 'create code', 'code generation',
-            'implement', 'develop', 'programming', 'write file', 'create file'
-        ])
-        
-        if is_code_task:
-            self._init_dependencies()
-            if self._registry:
-                # Ensure file-operations is in the candidate list
-                file_ops = self._registry.get_skill('file-operations')
-                if file_ops:
-                    file_ops_dict = {
-                        'name': 'file-operations',
-                        'description': 'File system operations: read, write, create directories, search files',
-                        'tools': list(file_ops.tools.keys()) if hasattr(file_ops, 'tools') else []
-                    }
-                    # Add if not already present
-                    if not any(s.get('name') == 'file-operations' for s in all_skills):
-                        all_skills.append(file_ops_dict)
-                        logger.info("➕ Added file-operations skill for code generation task")
-                
-                # Also ensure skill-creator is available
-                skill_creator = self._registry.get_skill('skill-creator')
-                if skill_creator:
-                    skill_creator_dict = {
-                        'name': 'skill-creator',
-                        'description': 'Create new Jotty skills and code templates',
-                        'tools': list(skill_creator.tools.keys()) if hasattr(skill_creator, 'tools') else []
-                    }
-                    if not any(s.get('name') == 'skill-creator' for s in all_skills):
-                        all_skills.append(skill_creator_dict)
-                        logger.info("➕ Added skill-creator skill for code generation task")
 
         # Step 2.5: Select best skills using agentic planner
         if all_skills:
@@ -695,30 +623,7 @@ class AutoAgent:
 
         # Step 3.5: Validate tools exist before execution
         steps = self._validate_and_filter_steps(steps, skills)
-        
-        # Step 3.6: If no valid steps and task requires code generation, try adding file-operations
-        if not steps and is_code_task:
-            logger.info("🔧 No valid steps for code generation task, attempting to add file-operations")
-            
-            # Try to get file-operations from registry
-            self._init_dependencies()
-            if self._registry:
-                file_ops = self._registry.get_skill('file-operations')
-                if file_ops:
-                    file_ops_dict = {
-                        'name': 'file-operations',
-                        'description': 'File system operations: read, write, create directories, search files',
-                        'tools': list(file_ops.tools.keys()) if hasattr(file_ops, 'tools') else []
-                    }
-                    
-                    # Add file-operations to skills if not already there
-                    if not any(s.get('name') == 'file-operations' for s in skills):
-                        logger.info("➕ Adding file-operations skill for code generation")
-                        skills.append(file_ops_dict)
-                        # Re-plan with file-operations included
-                        steps = self._plan_execution(task, task_type, skills)
-                        steps = self._validate_and_filter_steps(steps, skills)
-        
+
         if not steps:
             logger.warning("⚠️  No valid steps after tool validation, cannot proceed")
             return ExecutionResult(
@@ -729,109 +634,180 @@ class AutoAgent:
                 steps_executed=0,
                 outputs={},
                 final_output=None,
-                errors=["No valid tools found for planned steps. For code generation tasks, ensure file-operations or skill-creator skills are available."],
+                errors=["No valid tools found for planned steps"],
                 execution_time=(datetime.now() - start_time).total_seconds()
             )
 
-        # Step 4: Execute steps
+        # Step 4: Execute steps with parallel execution for independent steps
         outputs = {}
         errors = []
         skills_used = []
         steps_executed = 0
         replan_count = 0
         max_replans = 3  # Prevent infinite replanning loops
-
-        for i, step in enumerate(steps):
-            logger.info(f"Step {i+1}/{len(steps)}: {step.description}")
-
-            # Resolve params with previous outputs
-            resolved_params = self._resolve_params(step.params, outputs)
-
-            # Execute
-            result = await self._execute_tool(
-                step.skill_name,
-                step.tool_name,
-                resolved_params
-            )
-
-            if result.get('success'):
-                outputs[step.output_key or f'step_{i}'] = result
-                skills_used.append(step.skill_name)
-                steps_executed += 1
-                logger.info(f"  ✅ Success")
+        
+        # Group steps by dependency level for parallel execution
+        executed_indices = set()
+        
+        async def execute_step_with_error_handling(step_idx: int, step: ExecutionStep):
+            """Execute a single step with error handling."""
+            try:
+                logger.info(f"Step {step_idx+1}/{len(steps)}: {step.description}")
                 
-            else:
-                error_msg = result.get('error', 'Unknown error')
-                errors.append(f"Step {i+1} ({step.skill_name}): {error_msg}")
-                logger.warning(f"  ❌ Failed: {error_msg}")
-
-                # Try alternative web tools for network errors
-                if ('Network error' in error_msg or 'timeout' in error_msg.lower() or 
-                    'Request' in error_msg) and step.skill_name == 'web-search':
-                    logger.info(f"  🔄 Trying alternative web tools for network error...")
-                    alternative_result = await self._try_alternative_web_tools(step, resolved_params)
-                    if alternative_result and alternative_result.get('success'):
-                        outputs[step.output_key or f'step_{i}'] = alternative_result
-                        skills_used.append(step.skill_name)
-                        steps_executed += 1
-                        logger.info(f"  ✅ Success with alternative tool")
-                        continue
-
-                # For optional steps, continue; for required steps, consider replanning
-                if not step.optional and i < len(steps) - 1 and replan_count < max_replans:
-                    # Check if tool exists - if not, don't replan (will generate same error)
-                    if 'Tool not found' in error_msg or 'Skill not found' in error_msg:
-                        logger.warning(f"  ⚠️  Tool/skill not found, skipping replan (would generate same error)")
-                        # Mark step as optional and continue
-                        step.optional = True
-                        continue
-                    
-                    # Try to replan remaining steps with current context
-                    logger.info(f"  🔄 Attempting to replan remaining steps with current context")
-                    replan_count += 1
-                    try:
-                        remaining_steps, _ = self.planner.plan_execution(
-                            task=task,
-                            task_type=task_type,
-                            skills=skills,
-                            previous_outputs=outputs,
-                            max_steps=self.max_steps - i - 1
+                # Resolve params with current outputs
+                resolved_params = self._resolve_params(step.params, outputs)
+                
+                # Execute
+                result = await self._execute_tool(
+                    step.skill_name,
+                    step.tool_name,
+                    resolved_params
+                )
+                
+                return step_idx, step, result, None
+            except Exception as e:
+                return step_idx, step, {'success': False, 'error': str(e)}, str(e)
+        
+        # Execute steps in dependency order with parallelization
+        while len(executed_indices) < len(steps):
+            # Find steps that can be executed now (dependencies satisfied or no dependencies)
+            ready_steps = []
+            for i, step in enumerate(steps):
+                if i in executed_indices:
+                    continue
+                
+                # Check if all dependencies are satisfied
+                dependencies_satisfied = all(
+                    dep_idx in executed_indices for dep_idx in step.depends_on
+                )
+                
+                if dependencies_satisfied:
+                    ready_steps.append((i, step))
+            
+            if not ready_steps:
+                # No ready steps - check if we're stuck
+                remaining = [i for i in range(len(steps)) if i not in executed_indices]
+                if remaining:
+                    logger.warning(f"⚠️  No ready steps found. Remaining: {remaining}")
+                    # Execute remaining steps sequentially as fallback
+                    for i in remaining:
+                        step = steps[i]
+                        logger.info(f"Step {i+1}/{len(steps)}: {step.description} (fallback sequential)")
+                        resolved_params = self._resolve_params(step.params, outputs)
+                        result = await self._execute_tool(
+                            step.skill_name,
+                            step.tool_name,
+                            resolved_params
                         )
-                        # Validate replanned steps before using them
-                        remaining_steps = self._validate_and_filter_steps(remaining_steps, skills)
-                        if remaining_steps:
-                            # Replace remaining steps with replanned ones
-                            steps = steps[:i+1] + remaining_steps
-                            logger.info(f"  ✅ Replanned {len(remaining_steps)} remaining steps")
+                        if result.get('success'):
+                            outputs[step.output_key or f'step_{i}'] = result
+                            skills_used.append(step.skill_name)
+                            steps_executed += 1
+                            executed_indices.add(i)
+                            logger.info(f"  ✅ Success")
                         else:
-                            logger.warning(f"  ⚠️  Replanning produced no valid steps, continuing with original plan")
-                    except Exception as e:
-                        logger.warning(f"  ⚠️  Replanning failed: {e}, continuing with original plan")
-                elif replan_count >= max_replans:
-                    logger.warning(f"  ⚠️  Max replans ({max_replans}) reached, stopping replanning")
+                            errors.append(f"Step {i+1} ({step.skill_name}): {result.get('error', 'Unknown error')}")
+                            logger.warning(f"  ❌ Failed: {result.get('error', 'Unknown error')}")
+                break
+            
+            # Execute ready steps in parallel
+            if len(ready_steps) == 1:
+                # Single step - execute directly
+                i, step = ready_steps[0]
+                logger.info(f"Step {i+1}/{len(steps)}: {step.description}")
+                resolved_params = self._resolve_params(step.params, outputs)
+                result = await self._execute_tool(
+                    step.skill_name,
+                    step.tool_name,
+                    resolved_params
+                )
+                results = [(i, step, result, None)]
+            else:
+                # Multiple steps - execute in parallel
+                logger.info(f"🚀 Executing {len(ready_steps)} steps in parallel...")
+                tasks = [
+                    execute_step_with_error_handling(i, step)
+                    for i, step in ready_steps
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results
+            for result_item in results:
+                if isinstance(result_item, Exception):
+                    logger.error(f"Step execution exception: {result_item}")
+                    continue
+                
+                step_idx, step, result, exception = result_item
+                
+                if result.get('success'):
+                    outputs[step.output_key or f'step_{step_idx}'] = result
+                    skills_used.append(step.skill_name)
+                    steps_executed += 1
+                    executed_indices.add(step_idx)
+                    logger.info(f"  ✅ Step {step_idx+1} succeeded")
+                else:
+                    error_msg = result.get('error', 'Unknown error') or str(exception) if exception else 'Unknown error'
+                    errors.append(f"Step {step_idx+1} ({step.skill_name}): {error_msg}")
+                    logger.warning(f"  ❌ Step {step_idx+1} failed: {error_msg}")
+                    
+                    # CRITICAL: Always mark step as executed to prevent infinite loops
+                    # Even if it failed, we don't want to retry it forever
+                    executed_indices.add(step_idx)
+                    
+                    # Try alternative web tools for network errors
+                    if ('Network error' in error_msg or 'timeout' in error_msg.lower() or 
+                        'Request' in error_msg) and step.skill_name == 'web-search':
+                        logger.info(f"  🔄 Trying alternative web tools for network error...")
+                        resolved_params = self._resolve_params(step.params, outputs)
+                        alternative_result = await self._try_alternative_web_tools(step, resolved_params)
+                        if alternative_result and alternative_result.get('success'):
+                            outputs[step.output_key or f'step_{step_idx}'] = alternative_result
+                            skills_used.append(step.skill_name)
+                            steps_executed += 1
+                            executed_indices.add(step_idx)
+                            logger.info(f"  ✅ Step {step_idx+1} succeeded with alternative tool")
+                            continue
+                    
+                    # Note: step_idx is already marked as executed above
+                    # For optional steps, just continue; for required steps, consider replanning
+                    if step.optional:
+                        continue  # Skip optional failed steps (already marked as executed)
+                    elif step_idx < len(steps) - 1 and replan_count < max_replans:
+                        # Check if tool exists - if not, don't replan
+                        if 'Tool not found' in error_msg or 'Skill not found' in error_msg:
+                            logger.warning(f"  ⚠️  Tool/skill not found, skipping replan")
+                            continue  # Already marked as executed above
+                        
+                        # Try to replan remaining steps
+                        logger.info(f"  🔄 Attempting to replan remaining steps")
+                        replan_count += 1
+                        try:
+                            remaining_steps, _ = self.planner.plan_execution(
+                                task=task,
+                                task_type=task_type,
+                                skills=skills,
+                                previous_outputs=outputs,
+                                max_steps=self.max_steps - len(executed_indices)
+                            )
+                            remaining_steps = self._validate_and_filter_steps(remaining_steps, skills)
+                            if remaining_steps:
+                                # Replace remaining steps
+                                steps = steps[:step_idx+1] + remaining_steps
+                                logger.info(f"  ✅ Replanned {len(remaining_steps)} remaining steps")
+                                break  # Restart execution loop with new steps
+                            else:
+                                logger.warning(f"  ⚠️  Replanning produced no valid steps")
+                                # Already marked as executed above
+                        except Exception as e:
+                            logger.warning(f"  ⚠️  Replanning failed: {e}")
+                            # Already marked as executed above
+                    elif replan_count >= max_replans:
+                        logger.warning(f"  ⚠️  Max replans ({max_replans}) reached")
+                        # Already marked as executed above
 
-        # Determine final output
+        # Determine final output: use last step's output
         final_output = None
-        if 'comparison_text' in outputs:
-            final_output = outputs['comparison_text'].get('text', '')
-        elif 'research_text' in outputs:
-            final_output = outputs['research_text'].get('text', '')
-        elif 'content' in outputs:
-            final_output = outputs['content'].get('text', '')
-        elif 'slides' in outputs:
-            final_output = outputs['slides']
-        elif 'search_results' in outputs:
-            # Format search results as fallback when LLM fails
-            search_data = outputs['search_results']
-            if search_data.get('results'):
-                formatted = f"# Search Results for: {task}\n\n"
-                for i, r in enumerate(search_data['results'][:10], 1):
-                    formatted += f"## {i}. {r.get('title', 'No title')}\n"
-                    formatted += f"{r.get('snippet', '')}\n"
-                    formatted += f"Source: {r.get('url', '')}\n\n"
-                final_output = formatted
-        elif outputs:
-            # Get last output
+        if outputs:
             final_output = list(outputs.values())[-1]
 
         execution_time = (datetime.now() - start_time).total_seconds()
