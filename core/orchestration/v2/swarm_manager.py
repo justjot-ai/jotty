@@ -57,6 +57,9 @@ from ...memory.consolidation_engine import (
 from ...agents.axon import SmartAgentSlack
 from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
 from ..conductor import SwarmLearner
+from ...learning.transfer_learning import TransferableLearningStore
+from .swarm_intelligence import SwarmIntelligence
+from ...foundation.robust_parsing import AdaptiveWeightGroup
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +224,9 @@ class SwarmManager:
         # Initialize V1 learning pipeline
         self._init_learning_pipeline()
 
+        # Auto-load previous learnings (makes it truly self-learning across sessions)
+        self._auto_load_learnings()
+
         # Create AgentRunners for each agent
         self.runners: Dict[str, AgentRunner] = {}
         for agent_config in self.agents:
@@ -240,7 +246,8 @@ class SwarmManager:
                 task_board=self.swarm_task_board,
                 swarm_memory=self.swarm_memory,
                 swarm_state_manager=self.swarm_state_manager,
-                learning_manager=self.learning_manager
+                learning_manager=self.learning_manager,
+                transfer_learning=self.transfer_learning
             )
 
             self.runners[agent_config.name] = runner
@@ -289,6 +296,19 @@ class SwarmManager:
         # Swarm learner for prompt evolution
         self.swarm_learner = SwarmLearner(self.config)
 
+        # Transferable learning (cross-swarm, cross-goal)
+        self.transfer_learning = TransferableLearningStore(self.config)
+
+        # Swarm intelligence (emergent specialization, consensus, routing)
+        self.swarm_intelligence = SwarmIntelligence(self.config)
+
+        # A-Team v8.0: Adaptive credit assignment weights (replaces hardcoded 0.3/0.4/0.3)
+        self.credit_weights = AdaptiveWeightGroup({
+            'base_reward': 0.3,
+            'cooperation_bonus': 0.4,
+            'predictability_bonus': 0.3
+        })
+
         # Caching for autonomous_setup
         self._setup_cache = {}
 
@@ -296,6 +316,164 @@ class SwarmManager:
         self.episode_count = 0
 
         logger.info("V1 learning pipeline initialized")
+
+    def _get_learning_path(self) -> Path:
+        """Get default path for learning persistence."""
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'swarm_learnings.json'
+        return Path.home() / '.jotty' / 'swarm_learnings.json'
+
+    def _get_transfer_learning_path(self) -> Path:
+        """Get path for transferable learning persistence."""
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'transfer_learnings.json'
+        return Path.home() / '.jotty' / 'transfer_learnings.json'
+
+    def _get_swarm_intelligence_path(self) -> Path:
+        """Get path for swarm intelligence persistence."""
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'swarm_intelligence.json'
+        return Path.home() / '.jotty' / 'swarm_intelligence.json'
+
+    def _get_credit_weights_path(self) -> Path:
+        """Get path for adaptive credit weights persistence."""
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'credit_weights.json'
+        return Path.home() / '.jotty' / 'credit_weights.json'
+
+    def _auto_load_learnings(self):
+        """Auto-load previous learnings at startup (makes swarm truly self-learning)."""
+        # Load Q-learner state
+        learning_path = self._get_learning_path()
+        if learning_path.exists():
+            try:
+                self.learning_manager.q_learner.load_state(str(learning_path))
+                q_summary = self.learning_manager.get_q_table_summary()
+                logger.info(f"Auto-loaded {q_summary['size']} Q-entries from {learning_path}")
+            except Exception as e:
+                logger.debug(f"Could not auto-load Q-learnings: {e}")
+
+        # Load transferable learnings (cross-swarm, cross-goal)
+        transfer_path = self._get_transfer_learning_path()
+        if self.transfer_learning.load(str(transfer_path)):
+            logger.info(f"Auto-loaded transferable learnings from {transfer_path}")
+
+        # Load swarm intelligence (specializations, routing)
+        si_path = self._get_swarm_intelligence_path()
+        if self.swarm_intelligence.load(str(si_path)):
+            specs = self.swarm_intelligence.get_specialization_summary()
+            logger.info(f"Auto-loaded swarm intelligence: {len(specs)} agent profiles")
+
+        # Load adaptive credit weights (A-Team v8.0: real learned weights)
+        credit_path = self._get_credit_weights_path()
+        if credit_path.exists():
+            try:
+                import json
+                with open(credit_path, 'r') as f:
+                    credit_data = json.load(f)
+                self.credit_weights = AdaptiveWeightGroup.from_dict(credit_data)
+                logger.info(f"Auto-loaded credit weights: {self.credit_weights}")
+            except Exception as e:
+                logger.debug(f"Could not auto-load credit weights: {e}")
+
+    def _auto_save_learnings(self):
+        """Auto-save learnings after execution (persists across sessions)."""
+        # Save Q-learner state
+        learning_path = self._get_learning_path()
+        try:
+            learning_path.parent.mkdir(parents=True, exist_ok=True)
+            self.learning_manager.q_learner.save_state(str(learning_path))
+        except Exception as e:
+            logger.debug(f"Could not auto-save Q-learnings: {e}")
+
+        # Save transferable learnings
+        transfer_path = self._get_transfer_learning_path()
+        try:
+            self.transfer_learning.save(str(transfer_path))
+        except Exception as e:
+            logger.debug(f"Could not auto-save transfer learnings: {e}")
+
+        # Save swarm intelligence
+        si_path = self._get_swarm_intelligence_path()
+        try:
+            self.swarm_intelligence.save(str(si_path))
+        except Exception as e:
+            logger.debug(f"Could not auto-save swarm intelligence: {e}")
+
+        # Save adaptive credit weights (A-Team v8.0: real learned weights)
+        credit_path = self._get_credit_weights_path()
+        try:
+            import json
+            credit_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(credit_path, 'w') as f:
+                json.dump(self.credit_weights.to_dict(), f, indent=2)
+        except Exception as e:
+            logger.debug(f"Could not auto-save credit weights: {e}")
+
+    def get_transferable_context(self, query: str, agent: str = None) -> str:
+        """
+        Get transferable learnings as context for an agent.
+
+        This provides learnings that transfer across:
+        - Different agent combinations
+        - Different goals/queries (via semantic similarity)
+        - Different domains (via abstract patterns)
+        """
+        return self.transfer_learning.format_context_for_agent(query, agent)
+
+    def get_swarm_wisdom(self, query: str) -> str:
+        """
+        Get collective swarm wisdom for a task.
+
+        Combines:
+        - Transferable learnings (patterns, role advice)
+        - Swarm intelligence (specializations, routing)
+        """
+        task_type = self.transfer_learning.extractor.extract_task_type(query)
+
+        # Get transferable context
+        transfer_ctx = self.transfer_learning.format_context_for_agent(query)
+
+        # Get swarm intelligence context
+        swarm_ctx = self.swarm_intelligence.format_swarm_context(query, task_type)
+
+        return f"{transfer_ctx}\n\n{swarm_ctx}"
+
+    def get_agent_specializations(self) -> Dict[str, str]:
+        """Get current specializations of all agents."""
+        return self.swarm_intelligence.get_specialization_summary()
+
+    def get_best_agent_for_task(self, query: str) -> Optional[str]:
+        """
+        Recommend the best agent for a task using swarm intelligence.
+
+        Uses:
+        - Emergent specialization tracking
+        - Historical success rates
+        - Trust scores
+        - Transfer learning role profiles
+        """
+        task_type = self.transfer_learning.extractor.extract_task_type(query)
+        available = [a.name for a in self.agents]
+
+        # Primary: Use swarm intelligence routing
+        best = self.swarm_intelligence.get_best_agent_for_task(task_type, available)
+        if best:
+            return best
+
+        # Fallback: Use transfer learning role profiles
+        best_role = self.transfer_learning.get_best_role_for_task(task_type)
+        if best_role:
+            for agent_config in self.agents:
+                agent_role = self.transfer_learning.extractor.extract_role(agent_config.name)
+                if agent_role == best_role:
+                    return agent_config.name
+
+        return available[0] if available else None
 
     def _register_agents_with_axon(self):
         """Register all agents with SmartAgentSlack for inter-agent messaging."""
@@ -700,8 +878,11 @@ For component-specific help:
         # Post-episode learning
         self._post_episode_learning(result, goal)
 
+        # Auto-save learnings (persist across sessions)
+        self._auto_save_learnings()
+
         return result
-    
+
     async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Execute multi-agent mode with concurrent execution and retry.
@@ -836,6 +1017,10 @@ For component-specific help:
         # Post-episode learning
         combined_result = self._aggregate_results(all_results, goal)
         self._post_episode_learning(combined_result, goal)
+
+        # Auto-save learnings (persist across sessions)
+        self._auto_save_learnings()
+
         return combined_result
 
     def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
@@ -882,9 +1067,17 @@ For component-specific help:
         )
 
     def _assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str):
-        """Compute cooperative reward decomposition across agents."""
+        """
+        Compute cooperative reward decomposition across agents.
+
+        A-Team v8.0: Uses adaptive learned weights instead of hardcoded 0.3/0.4/0.3.
+        Weights are updated based on episode success and persisted across sessions.
+        """
         if not results or len(results) < 2:
             return
+
+        # Track episode success for weight updates
+        episode_success = all(r.success for r in results.values())
 
         for agent_name, result in results.items():
             base_reward = 1.0 if result.success else 0.0
@@ -897,11 +1090,11 @@ For component-specific help:
             # Predictability bonus: was trajectory prediction accurate?
             predictability_bonus = 0.5  # Default neutral
 
-            # Weighted combination: 30% base, 40% cooperation, 30% predictability
+            # A-Team v8.0: Use adaptive learned weights instead of hardcoded values
             cooperative_reward = (
-                0.3 * base_reward +
-                0.4 * cooperation_bonus +
-                0.3 * predictability_bonus
+                self.credit_weights.get('base_reward') * base_reward +
+                self.credit_weights.get('cooperation_bonus') * cooperation_bonus +
+                self.credit_weights.get('predictability_bonus') * predictability_bonus
             )
 
             try:
@@ -910,6 +1103,14 @@ For component-specific help:
                 self.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
             except Exception as e:
                 logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
+
+        # A-Team v8.0: Update weights based on episode outcome
+        if episode_success:
+            # Success - cooperation bonus was valuable, strengthen it
+            self.credit_weights.update_from_feedback('cooperation_bonus', 0.1, reward=1.0)
+        else:
+            # Failure - maybe base reward should matter more
+            self.credit_weights.update_from_feedback('base_reward', 0.05, reward=0.0)
     
     def _post_episode_learning(self, result: EpisodeResult, goal: str):
         """
@@ -977,6 +1178,37 @@ For component-specific help:
                 self.agent_abstractor.update_agent(agent_name, result.success)
         except Exception as e:
             logger.debug(f"Agent abstractor update skipped: {e}")
+
+        # 5. Record into transferable learning store
+        try:
+            query = goal[:200] if goal else ''
+            agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
+            self.transfer_learning.record_experience(
+                query=query,
+                agent=agent_name,
+                action=goal[:100],
+                reward=episode_reward,
+                success=result.success,
+                error=str(getattr(result, 'error', None) or ''),
+                context={'episode': self.episode_count}
+            )
+        except Exception as e:
+            logger.debug(f"Transfer learning record skipped: {e}")
+
+        # 6. Record into swarm intelligence (emergent specialization)
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+            execution_time = getattr(result, 'execution_time', 0.0)
+            agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
+            self.swarm_intelligence.record_task_result(
+                agent_name=agent_name,
+                task_type=task_type,
+                success=result.success,
+                execution_time=execution_time,
+                context={'goal': goal[:100], 'episode': self.episode_count}
+            )
+        except Exception as e:
+            logger.debug(f"Swarm intelligence record skipped: {e}")
 
         logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
 

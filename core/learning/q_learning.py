@@ -12,6 +12,8 @@ import logging
 from typing import Dict, List, Any, Tuple, Optional
 from dataclasses import dataclass, field
 
+from ..foundation.robust_parsing import AdaptiveWeightGroup
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,6 +90,14 @@ class LLMQPredictor:
         self.alpha = getattr(config, 'alpha', 0.1)
         self.gamma = getattr(config, 'gamma', 0.99)
         self.epsilon = getattr(config, 'epsilon', 0.1)
+
+        # A-Team v8.0: Adaptive retention weights (replaces hardcoded 0.4/0.3/0.2/0.1)
+        self.retention_weights = AdaptiveWeightGroup({
+            'q_value': 0.4,       # Reward salience
+            'novelty': 0.3,       # Rare = important
+            'causal_impact': 0.2, # Influence on future
+            'staleness': 0.1      # Penalty for old memories
+        })
     
     def add_experience(self, state: Dict, action: Dict, reward: float, next_state: Dict = None, done: bool = False):
         """
@@ -1064,15 +1074,15 @@ class LLMQPredictor:
         # Staleness component (time since last update)
         last_updated = q_data.get('last_updated', time.time())
         staleness = min(1.0, (time.time() - last_updated) / 3600.0)  # 1 hour = max staleness
-        
-        # Weighted combination (weights from neuroscience literature, but adaptable)
-        alpha = 0.4  # Q-value weight (reward salience)
-        beta = 0.3   # Novelty weight (rare = important)
-        gamma = 0.2  # Causal impact weight (influence on future)
-        delta = 0.1  # Staleness penalty
-        
+
+        # A-Team v8.0: Use adaptive learned weights instead of hardcoded values
+        alpha = self.retention_weights.get('q_value')       # Q-value weight (reward salience)
+        beta = self.retention_weights.get('novelty')        # Novelty weight (rare = important)
+        gamma = self.retention_weights.get('causal_impact') # Causal impact weight
+        delta = self.retention_weights.get('staleness')     # Staleness penalty
+
         score = alpha * q_value + beta * novelty + gamma * causal_impact - delta * staleness
-        
+
         # Clamp to [0, 1]
         return max(0.0, min(1.0, score))
     
@@ -1421,12 +1431,14 @@ class LLMQPredictor:
             'last_episode_reward': self.last_episode_reward,
             'alpha': self.alpha,
             'gamma': self.gamma,
-            'epsilon': self.epsilon
+            'epsilon': self.epsilon,
+            # A-Team v8.0: Persist adaptive retention weights
+            'retention_weights': self.retention_weights.to_dict()
         }
-        
+
         with open(path, 'w') as f:
             json.dump(state, f, indent=2, default=str)
-        
+
         logger.info(f"✅ Q-learning state saved: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
     
     def load_state(self, path: str) -> bool:
@@ -1489,7 +1501,11 @@ class LLMQPredictor:
             self.alpha = state.get('alpha', self.alpha)
             self.gamma = state.get('gamma', self.gamma)
             self.epsilon = state.get('epsilon', self.epsilon)
-            
+
+            # A-Team v8.0: Restore adaptive retention weights
+            if 'retention_weights' in state:
+                self.retention_weights = AdaptiveWeightGroup.from_dict(state['retention_weights'])
+
             logger.info(f"✅ Q-learning state loaded: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
             return True
             

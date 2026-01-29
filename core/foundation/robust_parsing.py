@@ -15,6 +15,7 @@ Generic enough for any agentic system.
 
 import json
 import logging
+from dataclasses import dataclass
 from typing import Optional, Any, Dict, Tuple, Union
 
 logger = logging.getLogger(__name__)
@@ -335,6 +336,156 @@ def content_similarity(content1: Any, content2: Any, threshold: float = 0.8) -> 
 
 
 # =============================================================================
+# ADAPTIVE WEIGHT CLASSES (Real Learning, Not Text Logging)
+# =============================================================================
+
+@dataclass
+class AdaptiveWeight:
+    """
+    Persistent adaptive weight that learns from feedback.
+
+    A-Team v8.0: Real numeric weight updates, not text logging.
+    Uses momentum-based gradient descent for stable learning.
+    """
+    name: str
+    value: float = 0.3
+    momentum: float = 0.0
+    learning_rate: float = 0.01
+    updates: int = 0
+
+    def update(self, gradient: float, reward: float = 0.0):
+        """
+        Update weight using momentum-based gradient descent.
+
+        Args:
+            gradient: Direction and magnitude of update (-1 to 1)
+            reward: Optional reward signal for adaptive learning rate
+        """
+        # Momentum update (smooths noisy gradients)
+        self.momentum = 0.9 * self.momentum + 0.1 * gradient
+
+        # Adaptive learning rate based on reward (higher reward = more confident update)
+        effective_lr = self.learning_rate * (0.5 + 0.5 * max(0, reward))
+
+        # Update value with clipping to [0.05, 0.95]
+        self.value = max(0.05, min(0.95, self.value + effective_lr * self.momentum))
+        self.updates += 1
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize for persistence."""
+        return {
+            'name': self.name,
+            'value': self.value,
+            'momentum': self.momentum,
+            'learning_rate': self.learning_rate,
+            'updates': self.updates
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdaptiveWeight':
+        """Deserialize from persistence."""
+        return cls(
+            name=data['name'],
+            value=data.get('value', 0.3),
+            momentum=data.get('momentum', 0.0),
+            learning_rate=data.get('learning_rate', 0.01),
+            updates=data.get('updates', 0)
+        )
+
+
+class AdaptiveWeightGroup:
+    """
+    Group of weights that sum to 1.0 (for credit assignment).
+
+    A-Team v8.0: Replaces hardcoded weights like 0.3/0.4/0.3 with
+    learned weights that adapt based on feedback.
+    """
+
+    def __init__(self, weights: Dict[str, float], learning_rate: float = 0.01):
+        """
+        Initialize with initial weights (will be normalized to sum=1.0).
+
+        Args:
+            weights: Dict of weight names to initial values
+            learning_rate: Learning rate for all weights
+        """
+        self.learning_rate = learning_rate
+
+        # Normalize and create adaptive weights
+        total = sum(weights.values())
+        if total <= 0:
+            total = len(weights)
+            weights = {k: 1.0 for k in weights}
+
+        self._weights: Dict[str, AdaptiveWeight] = {}
+        for name, value in weights.items():
+            normalized = value / total
+            self._weights[name] = AdaptiveWeight(
+                name=name,
+                value=normalized,
+                learning_rate=learning_rate
+            )
+
+    def get(self, name: str) -> float:
+        """Get current weight value."""
+        if name in self._weights:
+            return self._weights[name].value
+        return 0.0
+
+    def get_all(self) -> Dict[str, float]:
+        """Get all weight values."""
+        return {name: w.value for name, w in self._weights.items()}
+
+    def update_from_feedback(self, name: str, gradient: float, reward: float = 0.0):
+        """
+        Update one weight and renormalize all to sum to 1.0.
+
+        Args:
+            name: Weight to update
+            gradient: Positive = increase this weight's importance
+            reward: Episode reward for adaptive learning rate
+        """
+        if name not in self._weights:
+            return
+
+        # Update the target weight
+        self._weights[name].update(gradient, reward)
+
+        # Renormalize all weights to sum to 1.0
+        self._renormalize()
+
+    def _renormalize(self):
+        """Ensure all weights sum to 1.0."""
+        total = sum(w.value for w in self._weights.values())
+        if total > 0:
+            for w in self._weights.values():
+                w.value = w.value / total
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize for persistence."""
+        return {
+            'weights': {name: w.to_dict() for name, w in self._weights.items()},
+            'learning_rate': self.learning_rate
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AdaptiveWeightGroup':
+        """Deserialize from persistence."""
+        instance = cls.__new__(cls)
+        instance.learning_rate = data.get('learning_rate', 0.01)
+        instance._weights = {}
+
+        for name, w_data in data.get('weights', {}).items():
+            instance._weights[name] = AdaptiveWeight.from_dict(w_data)
+
+        return instance
+
+    def __repr__(self) -> str:
+        weights_str = ', '.join(f'{n}={w.value:.3f}' for n, w in self._weights.items())
+        return f'AdaptiveWeightGroup({weights_str})'
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
@@ -345,6 +496,8 @@ __all__ = [
     'AdaptiveThreshold',
     'EpsilonGreedy',
     'safe_hash',
-    'content_similarity'
+    'content_similarity',
+    'AdaptiveWeight',
+    'AdaptiveWeightGroup'
 ]
 

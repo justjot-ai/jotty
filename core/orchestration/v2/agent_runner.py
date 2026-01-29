@@ -52,6 +52,7 @@ class AgentRunner:
         swarm_memory=None,  # Shared SwarmMemory (V2)
         swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
         learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
+        transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
     ):
         """
         Initialize AgentRunner.
@@ -74,6 +75,7 @@ class AgentRunner:
         self.swarm_memory = swarm_memory
         self.swarm_state_manager = swarm_state_manager
         self.learning_manager = learning_manager
+        self.transfer_learning = transfer_learning
         
         # Get agent state tracker (creates if doesn't exist)
         if self.swarm_state_manager:
@@ -191,6 +193,15 @@ class AgentRunner:
                     enriched_goal = f"{enriched_goal}\n\nLearned Insights:\n{q_context}"
             except Exception as e:
                 logger.debug(f"Q-learning context injection skipped: {e}")
+
+        # Inject transferable learning context (cross-swarm, cross-goal)
+        if self.transfer_learning:
+            try:
+                transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
+                if transfer_context and 'Transferable Learnings' in transfer_context:
+                    enriched_goal = f"{enriched_goal}\n\n{transfer_context}"
+            except Exception as e:
+                logger.debug(f"Transfer learning context injection skipped: {e}")
 
         # 1. Architect (pre-execution planning)
         architect_results, proceed = await self.architect_validator.validate(

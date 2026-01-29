@@ -642,7 +642,7 @@ class CooperativeCreditAssigner:
         """Bonus for being predictable (helps others plan)."""
         if not prediction or not prediction.steps:
             return 0.0
-        
+
         # Find predicted step for this agent
         for pred_step in prediction.steps:
             if pred_step.get('agent') == agent:
@@ -651,6 +651,70 @@ class CooperativeCreditAssigner:
                 else:
                     return 0.0
         return 0.0
+
+    def save_state(self, path: str):
+        """
+        Save adaptive weights for persistence across runs.
+
+        A-Team v8.0: Real weight persistence, not just text logging.
+        """
+        data = {
+            'coop_weight': {
+                'mean': self.coop_weight_tracker.mean,
+                'std': self.coop_weight_tracker.std,
+                'count': self.coop_weight_tracker.count,
+                'm2': self.coop_weight_tracker.m2
+            },
+            'pred_weight': {
+                'mean': self.pred_weight_tracker.mean,
+                'std': self.pred_weight_tracker.std,
+                'count': self.pred_weight_tracker.count,
+                'm2': self.pred_weight_tracker.m2
+            }
+        }
+
+        from pathlib import Path
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        logger.info(f"Saved CooperativeCreditAssigner state: coop={self.coop_weight_tracker.mean:.3f}, pred={self.pred_weight_tracker.mean:.3f}")
+
+    def load_state(self, path: str) -> bool:
+        """
+        Load adaptive weights from previous run.
+
+        Returns: True if loaded successfully, False otherwise.
+        """
+        from pathlib import Path
+
+        if not Path(path).exists():
+            return False
+
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+
+            # Restore coop weight tracker
+            coop_data = data.get('coop_weight', {})
+            self.coop_weight_tracker.mean = coop_data.get('mean', 0.3)
+            self.coop_weight_tracker.std = coop_data.get('std', 0.1)
+            self.coop_weight_tracker.count = coop_data.get('count', 0)
+            self.coop_weight_tracker.m2 = coop_data.get('m2', 0)
+
+            # Restore pred weight tracker
+            pred_data = data.get('pred_weight', {})
+            self.pred_weight_tracker.mean = pred_data.get('mean', 0.2)
+            self.pred_weight_tracker.std = pred_data.get('std', 0.1)
+            self.pred_weight_tracker.count = pred_data.get('count', 0)
+            self.pred_weight_tracker.m2 = pred_data.get('m2', 0)
+
+            logger.info(f"Loaded CooperativeCreditAssigner state: coop={self.coop_weight_tracker.mean:.3f}, pred={self.pred_weight_tracker.mean:.3f}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Could not load CooperativeCreditAssigner state: {e}")
+            return False
 
 
 # =============================================================================
