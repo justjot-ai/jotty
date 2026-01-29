@@ -312,8 +312,8 @@ class LLMTrajectoryPredictor:
         
         # Keep patterns bounded (forget old ones)
         if len(self.learned_patterns) > 50:
-            self.learned_patterns = self.learned_patterns
-        
+            self.learned_patterns = self.learned_patterns[-50:]
+
         # Update agent models
         self._update_agent_models(divergence)
         
@@ -439,8 +439,8 @@ class LLMTrajectoryPredictor:
                 })
                 # Keep bounded
                 if len(model.deviation_patterns) > 20:
-                    model.deviation_patterns = model.deviation_patterns
-    
+                    model.deviation_patterns = model.deviation_patterns[-20:]
+
     def _format_agent_models(self, agents: List[str]) -> str:
         """Format agent models for prompt injection."""
         models_str = []
@@ -452,7 +452,7 @@ class LLMTrajectoryPredictor:
                     f"predictability={model.predictability_score:.2f}"
                 )
                 if model.deviation_patterns:
-                    recent = model.deviation_patterns
+                    recent = model.deviation_patterns[-5:]
                     for dev in recent:
                         models_str.append(
                             f"  └ Recently: predicted {dev['predicted']} but did {dev['actual']}"
@@ -465,7 +465,7 @@ class LLMTrajectoryPredictor:
             return "No patterns learned yet"
         
         # Recent patterns
-        recent = self.learned_patterns
+        recent = self.learned_patterns[-10:]
         return "\n".join(f"- {p}" for p in recent)
     
     def _fallback_prediction(self) -> PredictedTrajectory:

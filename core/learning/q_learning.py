@@ -183,40 +183,29 @@ class LLMQPredictor:
             if intents:
                 parts.append(f"INTENT: {'+'.join(intents)}")
         
-        # ====== 2. TEMPORAL CONTEXT ======
-        temporal_markers = []
-        query_text = state.get('query', '') + str(state.get('filters', ''))
-        query_lower = query_text.lower()
-        
-        if 'yesterday' in query_lower:
-            temporal_markers.append('YESTERDAY')
-        if 'today' in query_lower:
-            temporal_markers.append('TODAY')
-        if any(x in query_lower for x in ['mtd', 'month to date']):
-            temporal_markers.append('MTD')
-        if any(x in query_lower for x in ['lm', 'last month']):
-            temporal_markers.append('LAST_MONTH')
-        if any(x in query_lower for x in ['ytd', 'year to date']):
-            temporal_markers.append('YTD')
-        
-        if temporal_markers:
-            parts.append(f"TEMPORAL: {'+'.join(temporal_markers)}")
-        
-        # ====== 3. ENTITY/DOMAIN CONTEXT ======
-        domain_markers = []
-        if any(x in query_lower for x in ['p2p', 'peer to peer']):
-            domain_markers.append('P2P')
-        if any(x in query_lower for x in ['upi', 'transaction']):
-            domain_markers.append('UPI')
-        if any(x in query_lower for x in ['gmv', 'revenue', 'amount']):
-            domain_markers.append('REVENUE')
-        if any(x in query_lower for x in ['user', 'customer', 'dau', 'mau']):
-            domain_markers.append('USER_METRICS')
-        if any(x in query_lower for x in ['scan', 'qr', 'snp']):
-            domain_markers.append('SCAN_PAY')
-        
-        if domain_markers:
-            parts.append(f"DOMAIN: {'+'.join(domain_markers)}")
+        # ====== 2. GENERIC KEY-VALUE CONTEXT ======
+        # Extract all non-complex key-value pairs from state dict
+        # (replaces hardcoded temporal/domain sections)
+        skip_keys = {'query', 'tables', 'relevant_tables', 'partition_column',
+                      'date_column', 'columns', 'filters', 'aggregation', 'errors',
+                      'columns_tried', 'working_column', 'error_resolution',
+                      'tool_calls', 'successful_tools', 'failed_tools',
+                      'tool_io_schemas', 'df_schema', 'attempts', 'success',
+                      'execution_time_ms', 'todo', 'current_actor', 'actor_output',
+                      'actor_role', 'actor_strengths', 'cooperation_score',
+                      'help_received', 'help_given', 'architect_confidence',
+                      'auditor_result', 'validation_passed', 'trajectory_length',
+                      'recent_outcomes'}
+        generic_kvs = []
+        for k, v in state.items():
+            if k in skip_keys:
+                continue
+            if isinstance(v, (str, int, float, bool)):
+                generic_kvs.append(f"{k.upper()}={v}")
+            elif isinstance(v, list) and len(v) <= 5 and all(isinstance(i, str) for i in v):
+                generic_kvs.append(f"{k.upper()}={','.join(v)}")
+        if generic_kvs:
+            parts.append(f"CONTEXT: {' | '.join(generic_kvs[:10])}")
         
         # ====== 4. METADATA CONTEXT (Tables, Columns, Partitions) ======
         if 'tables' in state or 'relevant_tables' in state:
@@ -620,25 +609,76 @@ class LLMQPredictor:
     def _are_similar(self, desc1: str, desc2: str) -> bool:
         """
         Check if two natural language descriptions are similar.
-        
-        Simple heuristic: shared keywords. 
-        Advanced: use embeddings.
+
+        Uses structured-field-aware similarity when descriptions contain
+        KEY: value | KEY: value segments (from _state_to_natural_language).
+        Falls back to Jaccard word-overlap for unstructured strings.
         """
         if desc1 == desc2:
             return True
-        
-        # Keyword overlap
+
+        # Try structured comparison first
+        fields1 = self._parse_structured_fields(desc1)
+        fields2 = self._parse_structured_fields(desc2)
+
+        if fields1 and fields2:
+            # Structured comparison: compare by field-key overlap
+            keys1 = set(fields1.keys())
+            keys2 = set(fields2.keys())
+            shared_keys = keys1 & keys2
+            all_keys = keys1 | keys2
+
+            if not all_keys:
+                return False
+
+            # Must share at least 50% of keys
+            key_overlap = len(shared_keys) / len(all_keys)
+            if key_overlap < 0.5:
+                return False
+
+            # For shared keys, compute word-overlap on values
+            value_scores = []
+            for key in shared_keys:
+                v1_words = set(fields1[key].lower().split())
+                v2_words = set(fields2[key].lower().split())
+                if v1_words and v2_words:
+                    v_overlap = len(v1_words & v2_words) / len(v1_words | v2_words)
+                    value_scores.append(v_overlap)
+                else:
+                    value_scores.append(0.0)
+
+            avg_value_sim = sum(value_scores) / len(value_scores) if value_scores else 0.0
+
+            # Combined: 40% key overlap + 60% value similarity
+            combined = 0.4 * key_overlap + 0.6 * avg_value_sim
+            return combined > 0.4
+
+        # Fallback: Jaccard word-overlap for unstructured strings
         words1 = set(desc1.lower().split())
         words2 = set(desc2.lower().split())
-        
+
         if not words1 or not words2:
             return False
-        
+
         overlap = len(words1 & words2)
         union = len(words1 | words2)
-        
+
         similarity = overlap / union if union > 0 else 0
-        return similarity > 0.5  # >50% word overlap
+        return similarity > 0.5
+
+    def _parse_structured_fields(self, desc: str) -> Dict[str, str]:
+        """Parse KEY: value segments from structured descriptions."""
+        fields = {}
+        segments = desc.split(' | ')
+        for segment in segments:
+            segment = segment.strip()
+            if ':' in segment:
+                key, _, value = segment.partition(':')
+                key = key.strip().upper()
+                value = value.strip()
+                if key and value:
+                    fields[key] = value
+        return fields
     
     def _extract_lesson(self, state_desc: str, action_desc: str, reward: float, td_error: float) -> Optional[str]:
         """

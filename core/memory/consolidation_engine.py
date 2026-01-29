@@ -231,15 +231,6 @@ class HippocampalExtractor:
         self._relevance_threshold.update(combined)
         
         return combined
-        
-        relevance = overlap / max_possible
-        
-        # Boost for action-related content
-        action_words = {'do', 'did', 'complete', 'finish', 'transform', 'extract', 'map'}
-        if content_words & action_words:
-            relevance = min(1.0, relevance + 0.2)
-        
-        return relevance
     
     def _get_content_signature(self, content: str) -> str:
         """Get a signature for content similarity checking."""
@@ -604,12 +595,43 @@ class BrainStateMachine:
                 duration_seconds=self.config.consolidation_timeout
             )
         
+        # Wire consolidation results back to memory store
+        if result.new_semantic_memories and self.consolidator.memory_store:
+            store = self.consolidator.memory_store
+            for pattern in result.new_semantic_memories:
+                try:
+                    if hasattr(store, 'store'):
+                        from ..foundation.data_structures import MemoryLevel
+                        store.store(
+                            content=pattern,
+                            level=MemoryLevel.SEMANTIC,
+                            context={'source': 'consolidation', 'cycle': self.total_consolidations},
+                            goal=''
+                        )
+                except Exception as e:
+                    logger.debug(f"Failed to store consolidated pattern: {e}")
+
+        # Prune memories marked for deletion during consolidation
+        if episodic_memories:
+            pruned_count = 0
+            for mem in list(episodic_memories):
+                if getattr(mem, 'marked_for_deletion', False):
+                    try:
+                        if hasattr(self.consolidator.memory_store, 'delete'):
+                            self.consolidator.memory_store.delete(mem)
+                        episodic_memories.remove(mem)
+                        pruned_count += 1
+                    except Exception as e:
+                        logger.debug(f"Failed to delete pruned memory: {e}")
+            if pruned_count:
+                logger.info(f"Pruned {pruned_count} memories marked for deletion")
+
         # Wake up
         self.mode = BrainMode.ONLINE
         self.episodes_since_sleep = 0
-        
-        logger.info("☀️ Waking up from consolidation")
-        
+
+        logger.info("Waking up from consolidation")
+
         return result
     
     def force_sleep(self):

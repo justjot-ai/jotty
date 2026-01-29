@@ -395,19 +395,24 @@ class AutoAgent:
     def _resolve_params(
         self,
         params: Dict[str, Any],
-        outputs: Dict[str, Any]
+        outputs: Dict[str, Any],
+        step=None
     ) -> Dict[str, Any]:
         """
-        Resolve template variables in params.
-        
+        Resolve template variables in params and auto-inject dependent outputs.
+
         Supports formats:
         - ${step_name.field} - get field from output
         - ${step_name.output.field} - get field from output dict
         - ${step_name[0].field} - array indexing
         - {step_name.field} - without $ prefix
+
+        Auto-injection: If a step has depends_on but params contain no template
+        references, the dependent outputs are formatted and injected into the
+        first text/content/input param.
         """
         import re
-        
+
         resolved = {}
 
         def resolve_path(path: str, outputs: Dict[str, Any]) -> Any:
@@ -522,12 +527,17 @@ class AutoAgent:
                 def replacer(match):
                     path = match.group(1)
                     resolved_value = resolve_path(path, outputs)
-                    return str(resolved_value) if resolved_value is not None else match.group(0)
-                
+                    if resolved_value is None:
+                        return match.group(0)
+                    # Format complex objects (dicts/lists) into readable text
+                    if isinstance(resolved_value, (dict, list)):
+                        return self._format_output_as_text(resolved_value)
+                    return str(resolved_value)
+
                 value = re.sub(pattern, replacer, value)
-                
-                # Handle {...} format (without $)
-                pattern2 = r'\{([^}]+)\}'
+
+                # Handle {...} format (without $) - only if it looks like a template var
+                pattern2 = r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}'
                 value = re.sub(pattern2, replacer, value)
                 
                 # Handle {{...}} format (double braces)
@@ -554,14 +564,137 @@ class AutoAgent:
                 
                 resolved[key] = value
             elif isinstance(value, dict):
-                resolved[key] = self._resolve_params(value, outputs)
+                resolved[key] = self._resolve_params(value, outputs, step=step)
             elif isinstance(value, list):
                 resolved[key] = [
-                    self._resolve_params(item, outputs) if isinstance(item, dict) else item
+                    self._resolve_params(item, outputs, step=step) if isinstance(item, dict) else item
                     for item in value
                 ]
             else:
                 resolved[key] = value
+
+        # Auto-inject dependent outputs when no template vars were resolved
+        if step and hasattr(step, 'depends_on') and step.depends_on and outputs:
+            resolved = self._auto_inject_dependent_outputs(resolved, outputs, step)
+
+        return resolved
+
+    def _format_output_as_text(self, output: Any) -> str:
+        """Format a step output (dict/list/str) into readable text for downstream tools."""
+        if isinstance(output, str):
+            return output
+        if isinstance(output, dict):
+            # Search results format
+            if 'results' in output and isinstance(output['results'], list):
+                parts = []
+                for r in output['results']:
+                    if isinstance(r, dict):
+                        title = r.get('title', '')
+                        snippet = r.get('snippet', '')
+                        url = r.get('url', '')
+                        parts.append(f"- {title}: {snippet}" + (f" ({url})" if url else ""))
+                    else:
+                        parts.append(f"- {r}")
+                return '\n'.join(parts)
+            # Text output
+            if 'text' in output:
+                return str(output['text'])
+            if 'output' in output:
+                return str(output['output'])
+            if 'summary' in output:
+                return str(output['summary'])
+            if 'content' in output:
+                return str(output['content'])
+            # Generic dict - pick the most content-rich value
+            best_key = None
+            best_len = 0
+            for k, v in output.items():
+                if k in ('success', 'error', 'count', 'query', 'format', 'model', 'length', 'style'):
+                    continue
+                v_str = str(v)
+                if len(v_str) > best_len:
+                    best_key = k
+                    best_len = len(v_str)
+            if best_key:
+                return self._format_output_as_text(output[best_key])
+            return str(output)
+        if isinstance(output, list):
+            return '\n'.join([self._format_output_as_text(item) for item in output[:20]])
+        return str(output)
+
+    def _auto_inject_dependent_outputs(
+        self,
+        resolved: Dict[str, Any],
+        outputs: Dict[str, Any],
+        step
+    ) -> Dict[str, Any]:
+        """Inject dependent step outputs into params when template resolution missed them.
+
+        If a step depends on previous steps but its resolved params don't contain
+        any of the dependent output data, format the outputs and inject them into
+        the first text-like parameter.
+        """
+        # Collect output keys from dependent steps
+        dep_output_keys = []
+        for dep_idx in step.depends_on:
+            # Find the output_key for this dependency index
+            # outputs dict uses output_key as key, so check which keys came from deps
+            for key in outputs:
+                dep_output_keys.append(key)
+
+        if not dep_output_keys:
+            return resolved
+
+        # Check if any resolved param already contains dependent data
+        resolved_str = str(resolved)
+        has_dep_data = False
+        for dep_key in dep_output_keys:
+            dep_output = outputs.get(dep_key)
+            if dep_output is None:
+                continue
+            # Check if the output data appears in resolved params (not just the key name)
+            dep_text = self._format_output_as_text(dep_output)
+            if len(dep_text) > 50 and dep_text[:50] in resolved_str:
+                has_dep_data = True
+                break
+
+        if has_dep_data:
+            return resolved  # Template resolution already injected the data
+
+        # Format all dependent outputs into text
+        dep_texts = []
+        for dep_key in dep_output_keys:
+            dep_output = outputs.get(dep_key)
+            if dep_output is not None:
+                formatted = self._format_output_as_text(dep_output)
+                if formatted and len(formatted.strip()) > 10:
+                    dep_texts.append(formatted)
+
+        if not dep_texts:
+            return resolved
+
+        combined_text = '\n\n'.join(dep_texts)
+
+        # Find the best param to inject into (text > content > input > query > first string param)
+        inject_keys = ['text', 'content', 'input', 'query', 'prompt', 'data', 'source']
+        injected = False
+        for ik in inject_keys:
+            if ik in resolved:
+                current = resolved[ik]
+                if isinstance(current, str) and len(current.strip()) < 100:
+                    # Current value is a short placeholder - replace with actual data
+                    resolved[ik] = combined_text
+                    injected = True
+                    logger.info(f"Auto-injected {len(combined_text)} chars from dependent steps into param '{ik}'")
+                    break
+
+        # If no known key found, try first string param
+        if not injected:
+            for k, v in resolved.items():
+                if isinstance(v, str) and len(v.strip()) < 100 and k not in ('skill_name', 'tool_name', 'output_key'):
+                    resolved[k] = combined_text
+                    logger.info(f"Auto-injected {len(combined_text)} chars from dependent steps into param '{k}'")
+                    break
 
         return resolved
 
@@ -655,7 +788,7 @@ class AutoAgent:
                 logger.info(f"Step {step_idx+1}/{len(steps)}: {step.description}")
                 
                 # Resolve params with current outputs
-                resolved_params = self._resolve_params(step.params, outputs)
+                resolved_params = self._resolve_params(step.params, outputs, step=step)
                 
                 # Execute
                 result = await self._execute_tool(
@@ -693,7 +826,7 @@ class AutoAgent:
                     for i in remaining:
                         step = steps[i]
                         logger.info(f"Step {i+1}/{len(steps)}: {step.description} (fallback sequential)")
-                        resolved_params = self._resolve_params(step.params, outputs)
+                        resolved_params = self._resolve_params(step.params, outputs, step=step)
                         result = await self._execute_tool(
                             step.skill_name,
                             step.tool_name,
@@ -715,7 +848,7 @@ class AutoAgent:
                 # Single step - execute directly
                 i, step = ready_steps[0]
                 logger.info(f"Step {i+1}/{len(steps)}: {step.description}")
-                resolved_params = self._resolve_params(step.params, outputs)
+                resolved_params = self._resolve_params(step.params, outputs, step=step)
                 result = await self._execute_tool(
                     step.skill_name,
                     step.tool_name,
@@ -758,7 +891,7 @@ class AutoAgent:
                     if ('Network error' in error_msg or 'timeout' in error_msg.lower() or 
                         'Request' in error_msg) and step.skill_name == 'web-search':
                         logger.info(f"  🔄 Trying alternative web tools for network error...")
-                        resolved_params = self._resolve_params(step.params, outputs)
+                        resolved_params = self._resolve_params(step.params, outputs, step=step)
                         alternative_result = await self._try_alternative_web_tools(step, resolved_params)
                         if alternative_result and alternative_result.get('success'):
                             outputs[step.output_key or f'step_{step_idx}'] = alternative_result

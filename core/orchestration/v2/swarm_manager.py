@@ -14,7 +14,9 @@ Skills Integration:
 - Skills are integrated via AutoAgent's skill discovery and execution
 """
 
+import asyncio
 import logging
+import time
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 
@@ -43,6 +45,18 @@ from .swarm_integrator import SwarmIntegrator
 from .swarm_provider_gateway import SwarmProviderGateway
 # State Management (V1 capabilities integrated)
 from .swarm_state_manager import SwarmStateManager
+# V1 Learning Pipeline (restored in V2)
+from ..managers.learning_manager import LearningManager
+from ...learning.predictive_marl import (
+    LLMTrajectoryPredictor, DivergenceMemory,
+    CooperativeCreditAssigner, ActualTrajectory
+)
+from ...memory.consolidation_engine import (
+    BrainStateMachine, BrainModeConfig, AgentAbstractor
+)
+from ...agents.axon import SmartAgentSlack
+from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
+from ..conductor import SwarmLearner
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +217,10 @@ class SwarmManager:
             agent_signatures={}  # Will be populated during execution
         )
         logger.info("📊 SwarmStateManager initialized (swarm + agent-level tracking)")
-        
+
+        # Initialize V1 learning pipeline
+        self._init_learning_pipeline()
+
         # Create AgentRunners for each agent
         self.runners: Dict[str, AgentRunner] = {}
         for agent_config in self.agents:
@@ -222,12 +239,16 @@ class SwarmManager:
                 task_planner=self.swarm_planner,
                 task_board=self.swarm_task_board,
                 swarm_memory=self.swarm_memory,
-                swarm_state_manager=self.swarm_state_manager  # Pass state manager for agent-level tracking
+                swarm_state_manager=self.swarm_state_manager,
+                learning_manager=self.learning_manager
             )
-            
+
             self.runners[agent_config.name] = runner
-        
-        logger.info(f"✅ SwarmManager initialized: {self.mode} mode, {len(self.agents)} agents")
+
+        # Register agents with Axon (SmartAgentSlack) for inter-agent communication
+        self._register_agents_with_axon()
+
+        logger.info(f"SwarmManager initialized: {self.mode} mode, {len(self.agents)} agents")
         if self.swarm_profiler:
             logger.info("   ⏱️  SwarmProfiler enabled")
         logger.info("   ✅ SwarmToolValidator initialized")
@@ -236,6 +257,83 @@ class SwarmManager:
         logger.info("   🤖 Autonomous components ready (zero-config enabled)")
         logger.info("   📊 SwarmStateManager initialized (swarm + agent-level tracking)")
     
+    def _init_learning_pipeline(self):
+        """Initialize V1 learning pipeline components for swarm-level learning."""
+        # Core learning manager (wraps Q-learner)
+        self.learning_manager = LearningManager(self.config)
+
+        # Trajectory prediction (MARL)
+        self.trajectory_predictor = None
+        try:
+            self.trajectory_predictor = LLMTrajectoryPredictor(self.config, horizon=5)
+        except Exception as e:
+            logger.warning(f"Trajectory predictor unavailable: {e}")
+
+        # Divergence memory for storing prediction errors
+        self.divergence_memory = DivergenceMemory(self.config)
+
+        # Cooperative credit assignment
+        self.cooperative_credit = CooperativeCreditAssigner(self.config)
+
+        # Brain state machine for consolidation
+        brain_config = BrainModeConfig()
+        self.brain_state = BrainStateMachine(brain_config)
+
+        # Agent abstractor for scalable role tracking
+        self.agent_abstractor = AgentAbstractor(brain_config)
+
+        # Inter-agent communication
+        self.agent_slack = SmartAgentSlack(enable_cooperation=True)
+        self.feedback_channel = FeedbackChannel()
+
+        # Swarm learner for prompt evolution
+        self.swarm_learner = SwarmLearner(self.config)
+
+        # Caching for autonomous_setup
+        self._setup_cache = {}
+
+        # Episode counter
+        self.episode_count = 0
+
+        logger.info("V1 learning pipeline initialized")
+
+    def _register_agents_with_axon(self):
+        """Register all agents with SmartAgentSlack for inter-agent messaging."""
+        def _make_slack_callback(target_actor_name: str):
+            def _callback(message):
+                try:
+                    fb = FeedbackMessage(
+                        source_actor=message.from_agent,
+                        target_actor=target_actor_name,
+                        feedback_type=FeedbackType.RESPONSE,
+                        content=str(message.data),
+                        context={
+                            'format': getattr(message, 'format', 'unknown'),
+                            'size_bytes': getattr(message, 'size_bytes', None),
+                            'metadata': getattr(message, 'metadata', {}) or {},
+                            'timestamp': getattr(message, 'timestamp', None),
+                        },
+                        requires_response=False,
+                        priority=2,
+                    )
+                    self.feedback_channel.send(fb)
+                except Exception as e:
+                    logger.warning(f"Slack callback failed for {target_actor_name}: {e}")
+            return _callback
+
+        for agent_config in self.agents:
+            try:
+                agent_obj = agent_config.agent
+                signature_obj = getattr(agent_obj, 'signature', None)
+                self.agent_slack.register_agent(
+                    agent_name=agent_config.name,
+                    signature=signature_obj if hasattr(signature_obj, 'input_fields') else None,
+                    callback=_make_slack_callback(agent_config.name),
+                    max_context=getattr(self.config, 'max_context_tokens', 16000),
+                )
+            except Exception as e:
+                logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")
+
     def list_capabilities(self) -> Dict[str, List[str]]:
         """
         List all available capabilities for easy discovery.
@@ -594,24 +692,26 @@ For component-specific help:
         agent_config = self.agents[0]
         runner = self.runners[agent_config.name]
         result = await runner.run(goal=goal, **kwargs)
-        
+
         # Learn from execution (DRY: reuse workflow learner)
         if result.success:
             self._learn_from_result(result, agent_config)
-        
+
+        # Post-episode learning
+        self._post_episode_learning(result, goal)
+
         return result
     
     async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
-        Execute multi-agent mode.
-        
-        Args:
-            goal: Task goal
-            **kwargs: Additional arguments
-            
-        Returns:
-            EpisodeResult
+        Execute multi-agent mode with concurrent execution and retry.
+
+        Groups tasks by dependency level (independent tasks run together),
+        uses asyncio.gather for parallel execution, and retries failures
+        with enriched context.
         """
+        max_attempts = getattr(self.config, 'max_task_attempts', 2)
+
         # Add tasks to SwarmTaskBoard
         for i, agent_config in enumerate(self.agents):
             task_id = f"task_{i+1}"
@@ -620,41 +720,266 @@ For component-specific help:
                 description=f"{goal} (agent: {agent_config.name})",
                 actor=agent_config.name
             )
-        
-        # Execute tasks in order
-        results = []
+
+        all_results = {}  # agent_name -> EpisodeResult
+        attempt_counts = {}  # task_id -> attempts
+
         while True:
-            next_task = self.swarm_task_board.get_next_task()
-            if next_task is None:
+            # Collect all ready tasks (no unresolved dependencies)
+            batch = []
+            while True:
+                next_task = self.swarm_task_board.get_next_task()
+                if next_task is None:
+                    break
+                batch.append(next_task)
+
+            if not batch:
                 break
-            
-            runner = self.runners[next_task.actor]
-            result = await runner.run(goal=next_task.description, **kwargs)
-            
-            if result.success:
-                self.swarm_task_board.complete_task(next_task.task_id, result={'output': result.output})
-                
-                # Learn from successful execution (DRY: reuse workflow learner)
-                agent_config = next((a for a in self.agents if a.name == next_task.actor), None)
-                if agent_config:
-                    self._learn_from_result(result, agent_config)
-            else:
-                self.swarm_task_board.fail_task(next_task.task_id, error=str(result.error or "Execution failed"))
-            
-            results.append(result)
-        
-        # Return first result (or combine if needed)
-        if results:
-            return results[0]
-        else:
-            from ...foundation.data_structures import EpisodeResult
+
+            # Pre-execution: trajectory prediction for each task
+            predictions = {}
+            for task in batch:
+                if self.trajectory_predictor:
+                    try:
+                        prediction = self.trajectory_predictor.predict(
+                            current_state=self.get_current_state(),
+                            acting_agent=task.actor,
+                            proposed_action={'task': task.description},
+                            other_agents=[a.name for a in self.agents if a.name != task.actor],
+                            goal=goal
+                        )
+                        predictions[task.actor] = prediction
+                    except Exception as e:
+                        logger.debug(f"Trajectory prediction skipped for {task.actor}: {e}")
+
+            # Execute batch concurrently
+            async def _run_task(task):
+                runner = self.runners[task.actor]
+                return task, await runner.run(goal=task.description, **kwargs)
+
+            coro_results = await asyncio.gather(
+                *[_run_task(t) for t in batch],
+                return_exceptions=True
+            )
+
+            # Process results
+            for coro_result in coro_results:
+                if isinstance(coro_result, Exception):
+                    logger.error(f"Task execution exception: {coro_result}")
+                    continue
+
+                task, result = coro_result
+                attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
+                reward = 1.0 if result.success else -0.5
+
+                # Post-execution: divergence learning
+                if self.trajectory_predictor and task.actor in predictions:
+                    try:
+                        prediction = predictions[task.actor]
+                        actual = ActualTrajectory(
+                            steps=result.trajectory or [],
+                            actual_reward=reward
+                        )
+                        divergence = self.trajectory_predictor.compute_divergence(prediction, actual)
+                        self.divergence_memory.store(divergence)
+                        self.trajectory_predictor.update_from_divergence(divergence)
+
+                        # Use divergence as TD error weight for Q-update
+                        divergence_penalty = 1.0 - min(1.0, divergence.total_divergence())
+                        adjusted_reward = reward * divergence_penalty
+                        state = {'query': goal, 'agent': task.actor}
+                        action = {'actor': task.actor, 'task': task.description[:100]}
+                        self.learning_manager.record_outcome(state, action, adjusted_reward)
+                    except Exception as e:
+                        logger.debug(f"Divergence learning skipped for {task.actor}: {e}")
+
+                if result.success:
+                    self.swarm_task_board.complete_task(task.task_id, result={'output': result.output})
+                    all_results[task.actor] = result
+
+                    agent_config = next((a for a in self.agents if a.name == task.actor), None)
+                    if agent_config:
+                        self._learn_from_result(result, agent_config)
+                else:
+                    # Retry with enriched context if attempts remain
+                    if attempt_counts.get(task.task_id, 1) < max_attempts:
+                        error_msg = str(getattr(result, 'error', None) or 'Execution failed')
+                        fb = FeedbackMessage(
+                            source_actor='swarm_manager',
+                            target_actor=task.actor,
+                            feedback_type=FeedbackType.ERROR,
+                            content=f"Previous attempt failed: {error_msg}. Please try a different approach.",
+                            context={'attempt': attempt_counts[task.task_id], 'error': error_msg},
+                            requires_response=False,
+                            priority=1,
+                        )
+                        self.feedback_channel.send(fb)
+                        # Reset task to PENDING for retry
+                        try:
+                            self.swarm_task_board.add_task(
+                                task_id=f"{task.task_id}_retry{attempt_counts[task.task_id]}",
+                                description=task.description,
+                                actor=task.actor
+                            )
+                        except Exception:
+                            self.swarm_task_board.fail_task(task.task_id, error=error_msg)
+                    else:
+                        self.swarm_task_board.fail_task(
+                            task.task_id,
+                            error=str(getattr(result, 'error', None) or 'Execution failed')
+                        )
+                    all_results[task.actor] = result
+
+        # Cooperative credit assignment
+        self._assign_cooperative_credit(all_results, goal)
+
+        # Post-episode learning
+        combined_result = self._aggregate_results(all_results, goal)
+        self._post_episode_learning(combined_result, goal)
+        return combined_result
+
+    def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
+        """Combine all agent outputs into a single EpisodeResult."""
+        if not results:
             return EpisodeResult(
                 output=None,
                 success=False,
                 agent_name="swarm_manager",
                 error="No tasks executed"
             )
+
+        if len(results) == 1:
+            return list(results.values())[0]
+
+        # Combine outputs
+        combined_output = {name: r.output for name, r in results.items()}
+        all_success = all(r.success for r in results.values())
+
+        # Merge trajectories
+        merged_trajectory = []
+        for name, r in results.items():
+            for step in (r.trajectory or []):
+                step_copy = dict(step)
+                step_copy['agent'] = name
+                merged_trajectory.append(step_copy)
+
+        # Merge agent contributions
+        merged_contributions = {}
+        for r in results.values():
+            if hasattr(r, 'agent_contributions') and r.agent_contributions:
+                merged_contributions.update(r.agent_contributions)
+
+        return EpisodeResult(
+            output=combined_output,
+            success=all_success,
+            trajectory=merged_trajectory,
+            tagged_outputs=[],
+            episode=self.episode_count,
+            execution_time=sum(getattr(r, 'execution_time', 0) for r in results.values()),
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions=merged_contributions
+        )
+
+    def _assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str):
+        """Compute cooperative reward decomposition across agents."""
+        if not results or len(results) < 2:
+            return
+
+        for agent_name, result in results.items():
+            base_reward = 1.0 if result.success else 0.0
+
+            # Cooperation bonus: did this agent unblock downstream tasks?
+            other_successes = sum(1 for n, r in results.items() if n != agent_name and r.success)
+            total_others = len(results) - 1
+            cooperation_bonus = other_successes / total_others if total_others > 0 else 0.0
+
+            # Predictability bonus: was trajectory prediction accurate?
+            predictability_bonus = 0.5  # Default neutral
+
+            # Weighted combination: 30% base, 40% cooperation, 30% predictability
+            cooperative_reward = (
+                0.3 * base_reward +
+                0.4 * cooperation_bonus +
+                0.3 * predictability_bonus
+            )
+
+            try:
+                state = {'query': goal, 'agent': agent_name, 'cooperative': True}
+                action = {'actor': agent_name, 'task': goal[:100]}
+                self.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
+            except Exception as e:
+                logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
     
+    def _post_episode_learning(self, result: EpisodeResult, goal: str):
+        """
+        Post-episode learning: swarm learner, brain consolidation, NeuroChunk tiering.
+
+        Called at end of both single-agent and multi-agent execution.
+        """
+        self.episode_count += 1
+
+        # 1. SwarmLearner: record episode, conditionally update prompts
+        try:
+            trajectory = result.trajectory or []
+            insights = []
+            if hasattr(result, 'tagged_outputs') and result.tagged_outputs:
+                insights = [str(t) for t in result.tagged_outputs[:5]]
+            self.swarm_learner.record_episode(trajectory, result.success, insights)
+
+            if self.swarm_learner.should_update_prompts():
+                for prompt_path in self.architect_prompts:
+                    try:
+                        with open(prompt_path, 'r') as f:
+                            current = f.read()
+                        updated, changes = self.swarm_learner.update_prompt(prompt_path, current)
+                        if changes:
+                            logger.info(f"Prompt '{prompt_path}' evolved with {len(changes)} changes")
+                    except Exception as e:
+                        logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
+        except Exception as e:
+            logger.debug(f"SwarmLearner recording skipped: {e}")
+
+        # 2. Brain consolidation: process experience
+        try:
+            experience = {
+                'content': str(result.output)[:500] if result.output else '',
+                'context': {'goal': goal, 'episode': self.episode_count},
+                'reward': 1.0 if result.success else 0.0,
+                'agent': 'swarm',
+            }
+            # Use asyncio to run the async consolidation in a fire-and-forget manner
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(self.brain_state.process_experience(experience))
+            else:
+                loop.run_until_complete(self.brain_state.process_experience(experience))
+        except Exception as e:
+            logger.debug(f"Brain consolidation skipped: {e}")
+
+        # 3. NeuroChunk tiering: promote/demote memories
+        try:
+            episode_reward = 1.0 if result.success else 0.0
+            self.learning_manager.promote_demote_memories(episode_reward)
+            self.learning_manager.prune_tier3()
+        except Exception as e:
+            logger.debug(f"NeuroChunk tiering skipped: {e}")
+
+        # 4. Agent abstractor: update per-agent stats
+        try:
+            if hasattr(result, 'agent_contributions') and result.agent_contributions:
+                for agent_name, contrib in result.agent_contributions.items():
+                    success = getattr(contrib, 'decision_correct', result.success)
+                    self.agent_abstractor.update_agent(agent_name, success)
+            else:
+                # Single agent case
+                agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
+                self.agent_abstractor.update_agent(agent_name, result.success)
+        except Exception as e:
+            logger.debug(f"Agent abstractor update skipped: {e}")
+
+        logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
+
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
         """
         Learn from execution result (DRY: reuse workflow learner).
@@ -689,6 +1014,11 @@ For component-specific help:
         Example:
             await swarm.autonomous_setup("Set up Reddit scraping")
         """
+        # Cache check: skip if already set up for this goal
+        cache_key = hash(goal)
+        if cache_key in self._setup_cache:
+            return
+
         # Parse intent to understand requirements
         task_graph = self.swarm_intent_parser.parse(goal)
         
@@ -714,10 +1044,13 @@ For component-specific help:
         
         # Configure integrations
         if task_graph.integrations:
-            logger.info(f"⚙️  Configuring integrations: {task_graph.integrations}")
+            logger.info(f"Configuring integrations: {task_graph.integrations}")
             for integration in task_graph.integrations:
                 await self.swarm_configurator.configure(integration)
-    
+
+        # Mark as cached
+        self._setup_cache[cache_key] = True
+
     # =====================================================================
     # State Management Methods (V1 capabilities integrated)
     # =====================================================================
@@ -815,13 +1148,4 @@ For component-specific help:
             return
         
         self.swarm_state_manager.load_state(file_path)
-        
-        # Check for similar workflows (DRY: reuse learned patterns)
-        similar_pattern = self.swarm_workflow_learner.find_similar_pattern(
-            task_type=task_graph.task_type.value,
-            operations=task_graph.operations,
-            tools_available=[]  # Will be populated from skills registry
-        )
-        
-        if similar_pattern:
-            logger.info(f"📚 Found similar workflow pattern: {similar_pattern.pattern_id}")
+        logger.info(f"State loaded from {file_path}")

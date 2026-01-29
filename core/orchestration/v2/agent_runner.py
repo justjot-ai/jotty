@@ -51,6 +51,7 @@ class AgentRunner:
         task_board=None,  # Shared TaskBoard (V2)
         swarm_memory=None,  # Shared SwarmMemory (V2)
         swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
+        learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
     ):
         """
         Initialize AgentRunner.
@@ -72,6 +73,7 @@ class AgentRunner:
         self.task_board = task_board
         self.swarm_memory = swarm_memory
         self.swarm_state_manager = swarm_state_manager
+        self.learning_manager = learning_manager
         
         # Get agent state tracker (creates if doesn't exist)
         if self.swarm_state_manager:
@@ -179,6 +181,16 @@ class AgentRunner:
                     logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
             except Exception as e:
                 logger.debug(f"Memory retrieval skipped: {e}")
+
+        # Inject Q-learning context from swarm-level learner
+        if self.learning_manager:
+            try:
+                state = {'query': goal, 'agent': self.agent_name}
+                q_context = self.learning_manager.get_learned_context(state)
+                if q_context:
+                    enriched_goal = f"{enriched_goal}\n\nLearned Insights:\n{q_context}"
+            except Exception as e:
+                logger.debug(f"Q-learning context injection skipped: {e}")
 
         # 1. Architect (pre-execution planning)
         architect_results, proceed = await self.architect_validator.validate(
@@ -364,7 +376,17 @@ class AgentRunner:
                 if updates:
                     logger.debug(f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})")
 
-            # 7. Memory consolidation: promote episodic -> semantic/procedural
+            # 7. Record experience into swarm-level Q-learner
+            if self.learning_manager:
+                try:
+                    q_state = {'query': goal, 'agent': self.agent_name, 'success': success}
+                    q_action = {'actor': self.agent_name, 'task': goal[:100]}
+                    q_reward = final_reward if 'final_reward' in locals() else (1.0 if success else -0.5)
+                    self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
+                except Exception as e:
+                    logger.debug(f"Swarm Q-learning record skipped: {e}")
+
+            # 8. Memory consolidation: promote episodic -> semantic/procedural
             if self.agent_memory:
                 try:
                     await self.agent_memory.consolidate()
