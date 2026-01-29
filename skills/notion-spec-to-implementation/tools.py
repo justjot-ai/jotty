@@ -43,7 +43,10 @@ async def create_implementation_plan_tool(params: Dict[str, Any]) -> Dict[str, A
         }
     
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()
@@ -162,7 +165,10 @@ async def _create_plan_from_spec(
     """Create implementation plan from specification."""
     
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

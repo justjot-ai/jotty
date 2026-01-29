@@ -8,10 +8,13 @@ from typing import List, Dict, Any, Optional
 import sys
 from pathlib import Path
 
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from core.integration.mcp_tool_executor import MCPToolExecutor
+# Import MCP Tool Executor with fallback
+try:
+    from ..integration.mcp_tool_executor import MCPToolExecutor
+except ImportError:
+    # Fallback for direct execution
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from core.integration.mcp_tool_executor import MCPToolExecutor
 
 
 class ToolUseSignature(dspy.Signature):

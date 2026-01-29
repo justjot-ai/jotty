@@ -47,7 +47,10 @@ async def prepare_meeting_materials_tool(params: Dict[str, Any]) -> Dict[str, An
         }
     
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

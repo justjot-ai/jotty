@@ -339,7 +339,10 @@ async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, A
     export_as = params.get('export_as', 'pptx').lower()  # 'pptx', 'pdf', or 'both'
 
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
 
         registry = get_skills_registry()
         registry.init()

@@ -63,23 +63,77 @@ class SwarmProviderGateway:
         """Auto-configure DSPy with best available provider (DRY: reuse configure_dspy_lm)."""
         try:
             import asyncio
+            import os
+            import shutil
             # Check if we're in async context
             try:
                 loop = asyncio.get_running_loop()
                 in_async_context = True
             except RuntimeError:
                 in_async_context = False
-            
+
             # DRY: Reuse existing configuration function
             # In async contexts, don't call dspy.configure() - just create LM
             if in_async_context:
                 # In async context, create LM but don't configure DSPy globally
-                # We'll use dspy.context() when needed
+                # Auto-detect best available provider (same logic as configure_dspy_lm)
                 from ...foundation.unified_lm_provider import UnifiedLMProvider
-                self._configured_lm = UnifiedLMProvider.create_lm(provider=self.provider or 'anthropic')
-                provider_name = getattr(self._configured_lm, 'provider', 'unknown')
-                model_name = getattr(self._configured_lm, 'model', 'unknown')
-                logger.info(f"🌐 SwarmProviderGateway configured (async-safe): {provider_name}/{model_name}")
+
+                if self.provider:
+                    # User specified a provider
+                    self._configured_lm = UnifiedLMProvider.create_lm(provider=self.provider)
+                else:
+                    # Auto-detect: Try API providers first, then CLI
+                    api_providers = [
+                        ('anthropic', 'ANTHROPIC_API_KEY'),
+                        ('openai', 'OPENAI_API_KEY'),
+                        ('google', 'GOOGLE_API_KEY'),
+                        ('groq', 'GROQ_API_KEY'),
+                        ('openrouter', 'OPENROUTER_API_KEY'),
+                    ]
+
+                    for provider_name, env_key in api_providers:
+                        if os.getenv(env_key):
+                            try:
+                                self._configured_lm = UnifiedLMProvider.create_lm(provider=provider_name)
+                                logger.info(f"🌐 SwarmProviderGateway (async): Using {provider_name} API")
+                                break
+                            except Exception:
+                                continue
+
+                    # If no API key, use JottyClaudeProvider (auto-manages wrapper)
+                    if not self._configured_lm:
+                        try:
+                            from ...foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
+                            if is_claude_available():
+                                provider = JottyClaudeProvider(auto_start=True)
+                                self._configured_lm = provider.get_lm()
+                                logger.info("🌐 SwarmProviderGateway (async): Using JottyClaudeProvider")
+                        except Exception as e:
+                            logger.debug(f"JottyClaudeProvider failed: {e}")
+
+                    # Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
+                    if not self._configured_lm and shutil.which('claude'):
+                        try:
+                            from ...integration.direct_claude_cli_lm import DirectClaudeCLI
+                            self._configured_lm = DirectClaudeCLI(model="sonnet")
+                            logger.info("🌐 SwarmProviderGateway (async): Using DirectClaudeCLI")
+                        except Exception as e:
+                            logger.debug(f"DirectClaudeCLI failed: {e}")
+
+                    # If still nothing, try OpenCode
+                    if not self._configured_lm:
+                        try:
+                            from ...foundation.opencode_lm import OpenCodeLM
+                            self._configured_lm = OpenCodeLM(model="glm-4")
+                            logger.info("🌐 SwarmProviderGateway (async): Using OpenCode GLM")
+                        except Exception as e:
+                            logger.debug(f"OpenCode failed: {e}")
+
+                if self._configured_lm:
+                    provider_name = getattr(self._configured_lm, 'provider', 'unknown')
+                    model_name = getattr(self._configured_lm, 'model', 'unknown')
+                    logger.info(f"🌐 SwarmProviderGateway configured (async-safe): {provider_name}/{model_name}")
             else:
                 # In sync context, configure DSPy normally
                 self._configured_lm = self._configure_fn(provider=self.provider)

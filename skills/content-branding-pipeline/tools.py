@@ -39,7 +39,10 @@ async def content_branding_pipeline_tool(params: Dict[str, Any]) -> Dict[str, An
         Dictionary with domains, artifact path, brand applied, theme applied
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

@@ -38,7 +38,10 @@ async def dev_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with changelog, skill info, and test results
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

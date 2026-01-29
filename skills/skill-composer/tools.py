@@ -34,7 +34,10 @@ async def compose_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with execution results
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         workflow = params.get('workflow', [])
         if not workflow:

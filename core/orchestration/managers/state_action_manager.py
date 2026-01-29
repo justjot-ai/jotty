@@ -63,7 +63,7 @@ class StateActionManager:
         Returns:
             Dict with rich state representation
         """
-        from core.foundation.data_structures import TaskStatus
+        from ...foundation.data_structures import TaskStatus
 
         state = {
             # === 1. TASK PROGRESS ===

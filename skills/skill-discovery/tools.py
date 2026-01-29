@@ -121,7 +121,10 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     try:
         from core.registry.skills_manifest import get_skills_manifest
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
 
         skill_name = params.get('skill_name')
         if not skill_name:

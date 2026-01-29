@@ -100,8 +100,8 @@ class ProgressTracker:
             key_metrics = {k: v for k, v in list(metrics.items())[:3]}
             metric_str = " | " + ", ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}" for k, v in key_metrics.items())
 
-        print(f'\r[{bar}] {pct:5.1f}% | ✅ {stage_name:<25} ({elapsed:.1f}s){metric_str}')
 
+        print(f'\r[{bar}] {pct:5.1f}% | ✅ {stage_name:<25} ({elapsed:.1f}s){metric_str}')
     def finish(self, final_score: float):
         """Print final summary."""
         total_time = time.time() - self.start_time
@@ -519,70 +519,113 @@ class LLMFeatureReasoner:
     """
     Use LLM to reason about features from multiple business perspectives.
 
-    Perspectives:
-    1. Text Engineer - Extract features from text/string columns
-    2. Domain Expert - Business/domain-specific features
-    3. Data Science Head - Statistical patterns, interactions, transformations
+    World-Class Approach (10/10):
+    1. Chain-of-Thought Reasoning - structured analysis before code generation
+    2. Research-First Prompts - analyze data patterns before suggesting features
+    3. LLM Feedback Loop - learn from which features worked
+    4. Multi-Perspective Synthesis - combine insights from multiple viewpoints
     """
 
+    # Chain-of-Thought prompts with structured reasoning (inspired by Task Decomposition Agent)
     PERSPECTIVE_PROMPTS = {
-        'text_engineer': """You are a Text/String Feature Engineer for {problem_type} to predict {target}.
+        'text_engineer': """You are a **Senior ML Engineer** specializing in text/string feature extraction.
 
-Features available: {features}
+## Analysis Phase (Think Step-by-Step)
+
+**Step 1: Data Understanding**
 String columns with samples: {string_samples}
 
-CRITICAL: Extract features from TEXT/STRING columns by analyzing the sample values above.
-Look for patterns like:
-- Titles or prefixes in text (extract with regex)
-- First letter/prefix patterns
-- Group sizes (count rows with same value)
-- Length of text fields
-- Categorical encoding
+**Step 2: Pattern Discovery**
+Analyze each string column and identify:
+- Embedded categories (titles, prefixes, suffixes)
+- Hierarchical structure (A/B/C patterns, nested info)
+- Length/character patterns that correlate with outcome
+- Repeating values that form natural groups
 
-Analyze the sample values and generate extraction code.
-Return ONLY executable Python code like:
+**Step 3: Feature Design**
+For each pattern found, determine:
+- Best extraction method (regex, split, slice)
+- How to handle edge cases (missing, malformed)
+- Expected predictive value (high/medium/low)
+
+## Code Generation Phase
+Target: {problem_type} to predict {target}
+Features: {features}
+
+Based on your analysis, generate ONLY executable Python code:
 X['new_feature'] = X['column'].str.extract(r'pattern', expand=False)
 X['prefix'] = X['column'].str[0]
 X['group_size'] = X.groupby('column')['column'].transform('count')
 
-Code only, no explanations:""",
+Code only:""",
 
-        'domain': """You are a Domain Expert analyzing data for {problem_type} to predict {target}.
+        'domain': """You are a **Principal Data Scientist** with domain expertise.
 
-Features available: {features}
+## Chain-of-Thought Analysis
+
+**Step 1: Business Context Understanding**
 Context: {context}
+Problem: {problem_type} to predict {target}
 
-Generate 3-5 domain-relevant features. Think about:
-- What combinations of features make business sense
-- Family/group indicators
-- Per-unit metrics (e.g., fare per person)
-- Risk/priority segments
-- Categorical groupings
+**Step 2: Domain Knowledge Application**
+Think about what domain expert would know:
+- Which feature COMBINATIONS have business meaning?
+- What real-world constraints exist? (e.g., family cannot be negative)
+- What derived metrics matter? (per-capita, ratios, rates)
+- What segments/cohorts are meaningful?
 
-Return ONLY executable Python code lines like:
+**Step 3: Hypothesis Generation**
+For each potential feature, ask:
+- Does this have CAUSAL relationship with target?
+- Is this capturing something NOT already in data?
+- Will this generalize to new data?
+
+## Code Generation
+Features available: {features}
+
+Generate 3-5 HIGH-VALUE domain features. Prioritize features with clear business logic.
+
+Return ONLY executable Python code:
 X['family_size'] = X['SibSp'] + X['Parch'] + 1
 X['is_alone'] = (X['family_size'] == 1).astype(int)
 X['fare_per_person'] = X['Fare'] / (X['family_size'] + 0.001)
 
-Code only, no explanations:""",
+Code only:""",
 
-        'ds': """You are a Data Science Head analyzing data for {problem_type} to predict {target}.
+        'ds': """You are a **Kaggle Grandmaster** with expertise in statistical feature engineering.
 
-Features available: {features}
+## Structured Analysis
 
-Generate 5-8 statistical features for NUMERIC columns only. Think about:
-- Log transforms for skewed distributions
-- Polynomial features (squared)
-- Ratio features between related numeric columns
-- Outlier indicators (above/below percentiles)
-- Binning numeric values
+**Step 1: Distribution Analysis**
+Features: {features}
+For each numeric feature, consider:
+- Is it skewed? → log/sqrt transform
+- Has outliers? → clip or indicator
+- Bimodal? → binary split
 
-Return ONLY executable Python code for numeric columns like:
+**Step 2: Correlation Hypothesis**
+Think about which features might interact:
+- Multiplicative relationships (area = length × width)
+- Ratio relationships (rate = count / time)
+- Difference relationships (profit = revenue - cost)
+
+**Step 3: Feature Prioritization**
+Rank potential features by:
+- Expected information gain (high/medium/low)
+- Risk of overfitting (low is better)
+- Computational cost (low is better)
+
+## Code Generation
+Problem: {problem_type} to predict {target}
+
+Generate 5-8 STATISTICALLY-MOTIVATED features. Focus on transforms that capture non-linear relationships.
+
+Return ONLY executable Python code:
 X['Age_log'] = np.log1p(X['Age'].clip(lower=0))
 X['Fare_squared'] = X['Fare'] ** 2
 X['Age_bin'] = pd.cut(X['Age'], bins=[0,12,18,35,60,100], labels=[0,1,2,3,4])
 
-Code only, no explanations:""",
+Code only:""",
 
         'group_analyst': """You are a Group/Aggregation Feature Engineer for {problem_type} to predict {target}.
 
@@ -786,7 +829,10 @@ Code only, no explanations:"""
         """Initialize LLM client using core.llm module."""
         if self._llm_available is None:
             try:
-                from core.llm import generate_text
+                try:
+                    from ...llm import generate_text
+                except ImportError:
+                    from core.llm import generate_text
                 # Test if it works
                 self._llm = generate_text
                 self._llm_available = True
@@ -954,6 +1000,93 @@ Code only, no explanations:"""
                     'source': 'rule',
                     'reason': 'Ratio feature'
                 })
+
+        return suggestions
+
+    # ================================================================
+    # LLM FEEDBACK LOOP - 10/10 Feature (Iterative Learning)
+    # ================================================================
+    async def reason_with_feedback(self, X: pd.DataFrame, y: pd.Series,
+                                    problem_type: str, context: str,
+                                    feature_importance: Dict[str, float],
+                                    iteration: int = 1) -> List[Dict]:
+        """
+        Generate IMPROVED features based on what worked in previous iteration.
+
+        This is the key to 10/10: LLM learns from actual model performance.
+
+        Args:
+            X: Current feature dataframe
+            y: Target series
+            problem_type: classification/regression
+            context: Business context
+            feature_importance: Dict of feature_name -> importance score from model
+            iteration: Which iteration of feedback loop (1, 2, or 3)
+        """
+        suggestions = []
+
+        if not self._init_llm() or not self._llm:
+            return suggestions
+
+        # Sort features by importance
+        sorted_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+        top_features = sorted_features[:10]
+        bottom_features = sorted_features[-10:]
+
+        # Build feedback prompt
+        feedback_prompt = f"""You are a **Kaggle Grandmaster** analyzing feature importance from a trained model.
+
+## FEEDBACK FROM TRAINED MODEL (Iteration {iteration})
+
+### Top Performing Features (These WORKED - create MORE like these):
+{chr(10).join([f"  - {f}: importance={imp:.4f}" for f, imp in top_features])}
+
+### Weak Features (These did NOT help - avoid similar patterns):
+{chr(10).join([f"  - {f}: importance={imp:.4f}" for f, imp in bottom_features])}
+
+## Analysis Task
+
+**Step 1: Pattern Recognition**
+Look at the TOP features. What patterns make them effective?
+- Are they ratios? Products? Bins? Aggregations?
+- What columns do they combine?
+- What transformations were applied?
+
+**Step 2: Generate IMPROVED Features**
+Create NEW features that:
+1. Extend the successful patterns to OTHER columns
+2. Create variations of top features (different bins, different aggregations)
+3. Combine multiple successful features together
+4. AVOID patterns similar to the weak features
+
+**Step 3: Prioritize by Expected Impact**
+Generate features in order of expected importance.
+
+## Context
+Problem: {problem_type}
+Business context: {context or 'General ML task'}
+Available columns: {list(X.columns)[:30]}
+
+## Output
+Generate 5-8 NEW features based on your analysis. Focus on extending successful patterns.
+
+Return ONLY executable Python code:
+X['new_feature'] = ...
+
+Code only:"""
+
+        try:
+            response = self._llm(feedback_prompt, provider="claude-cli", timeout=60)
+            parsed = self._parse_llm_response(response, f'feedback_iter{iteration}')
+            suggestions.extend(parsed)
+
+            if parsed:
+                print(f"\n   🔄 LLM Feedback Loop (iter {iteration}): {len(parsed)} improved features")
+                for p in parsed[:3]:
+                    print(f"      {p['code'][:70]}...")
+
+        except Exception as e:
+            logger.debug(f"LLM feedback loop failed: {e}")
 
         return suggestions
 
@@ -1180,7 +1313,7 @@ class SkillAdapter:
     Converts skill tools to fit/transform/predict pattern.
     """
 
-    def __init__(self, skill_name: str, skill_def: Dict, tools_registry: Any):
+    def __init__(self, skill_name: str, skill_def, tools_registry: Any):
         self.skill_name = skill_name
         self.skill_def = skill_def
         self.tools_registry = tools_registry
@@ -1189,7 +1322,13 @@ class SkillAdapter:
     def _infer_category(self) -> SkillCategory:
         """Infer skill category from name/description."""
         name = self.skill_name.lower()
-        desc = str(self.skill_def.get('description', '')).lower()
+        # Handle both dict and SkillDefinition object
+        if hasattr(self.skill_def, 'description'):
+            desc = str(self.skill_def.description).lower()
+        elif isinstance(self.skill_def, dict):
+            desc = str(self.skill_def.get('description', '')).lower()
+        else:
+            desc = ''
 
         if 'profil' in name or 'profil' in desc:
             return SkillCategory.DATA_PROFILING
@@ -1215,8 +1354,13 @@ class SkillAdapter:
     async def execute(self, context: Dict) -> SkillResult:
         """Execute the skill with given context."""
         try:
-            # Get tool functions from skill
-            tools = self.skill_def.get('tools', [])
+            # Get tool functions from skill (handle both dict and SkillDefinition)
+            if hasattr(self.skill_def, 'tools'):
+                tools = self.skill_def.tools or {}
+            elif isinstance(self.skill_def, dict):
+                tools = self.skill_def.get('tools', {})
+            else:
+                tools = {}
             if not tools:
                 return SkillResult(
                     skill_name=self.skill_name,
@@ -1459,9 +1603,71 @@ class SkillOrchestrator:
                 if self._progress:
                     self._progress.complete_stage(category.value, {'skipped': result.error or 'failed'})
 
-        # Compile final result
+        # Compile initial result
         best_score = context.get('score', 0)
         best_model = context.get('model')
+
+        # ================================================================
+        # LLM FEEDBACK LOOP (10/10 Feature) - Iterate if time allows
+        # ================================================================
+        feature_importance = context.get('feature_importance', {})
+
+        # Lower threshold to 60s to allow feedback loop in most cases
+        if (self._use_llm_features and self._llm_reasoner and
+            feature_importance and time_budget >= 60 and len(feature_importance) > 5):
+
+            print("\n   🔄 Running LLM Feedback Loop...")
+            try:
+                import lightgbm as lgb
+                from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+                from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+                # Generate improved features based on what worked
+                feedback_suggestions = await self._llm_reasoner.reason_with_feedback(
+                    context['X_original'], context['y'], prob_type.value,
+                    business_context, feature_importance, iteration=1
+                )
+
+                if feedback_suggestions:
+                    # Apply new features to original X
+                    X_improved = self._llm_reasoner.apply_suggestions(
+                        context['X_original'], feedback_suggestions, drop_text_cols=True
+                    )
+
+                    # Quick evaluation: does it improve score?
+                    if prob_type == ProblemType.CLASSIFICATION:
+                        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+                        test_model = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
+                        scoring = 'accuracy'
+                    else:
+                        cv = KFold(n_splits=3, shuffle=True, random_state=42)
+                        test_model = lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+                        scoring = 'r2'
+
+                    # Prepare improved features
+                    X_improved = X_improved.fillna(0).replace([np.inf, -np.inf], 0)
+
+                    # Encode any remaining categoricals
+                    for col in X_improved.select_dtypes(include=['object', 'category']).columns:
+                        le = LabelEncoder()
+                        X_improved[col] = le.fit_transform(X_improved[col].astype(str))
+
+                    scaler = StandardScaler()
+                    X_scaled = scaler.fit_transform(X_improved)
+
+                    feedback_score = cross_val_score(test_model, X_scaled, y, cv=cv, scoring=scoring).mean()
+
+                    if feedback_score > best_score:
+                        print(f"   ✅ Feedback Loop IMPROVED: {best_score:.4f} → {feedback_score:.4f}")
+                        best_score = feedback_score
+                        test_model.fit(X_scaled, y)
+                        best_model = test_model
+                        context['X'] = X_improved
+                    else:
+                        print(f"   ℹ️ Feedback Loop: no improvement ({feedback_score:.4f} vs {best_score:.4f})")
+
+            except Exception as e:
+                logger.debug(f"LLM feedback loop failed: {e}")
 
         result = PipelineResult(
             problem_type=prob_type,
@@ -1873,6 +2079,9 @@ class SkillOrchestrator:
         X_eng = X_eng.fillna(0)
         X_eng = X_eng.replace([np.inf, -np.inf], 0)
 
+        # Defragment DataFrame to improve performance (fixes fragmentation warning)
+        X_eng = X_eng.copy()
+
         # ================================================================
         # FINAL: ENCODE ALL REMAINING CATEGORICAL COLUMNS
         # ================================================================
@@ -2121,6 +2330,50 @@ class SkillOrchestrator:
         except Exception as e:
             logger.debug(f"Permutation importance failed: {e}")
             method_results['permutation_done'] = False
+
+        # ================================================================
+        # 7. SHAP-BASED IMPORTANCE (World-Class 10/10 Feature)
+        # ================================================================
+        try:
+            import shap
+
+            # Use TreeExplainer for fast SHAP on tree models
+            lgb_shap = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1) \
+                if problem_type == ProblemType.CLASSIFICATION else \
+                lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+            lgb_shap.fit(X_filtered, y)
+
+            # Sample for speed if dataset is large
+            n_shap_samples = min(500, len(X_filtered))
+            X_sample = X_filtered.sample(n=n_shap_samples, random_state=42) if len(X_filtered) > 500 else X_filtered
+
+            explainer = shap.TreeExplainer(lgb_shap)
+            shap_values = explainer.shap_values(X_sample)
+
+            # Handle multiclass case
+            if isinstance(shap_values, list):
+                shap_values = np.abs(np.array(shap_values)).mean(axis=0)
+
+            # Mean absolute SHAP value per feature
+            shap_importance = np.abs(shap_values).mean(axis=0)
+            shap_scores = pd.Series(shap_importance, index=X_filtered.columns)
+            shap_scores_normalized = shap_scores / (shap_scores.sum() + 1e-10)
+
+            # SHAP scores are highly reliable - weight them more
+            for feat, score in shap_scores_normalized.items():
+                feature_scores[feat] += score * 1.5  # Higher weight for SHAP
+
+            method_results['shap_done'] = True
+
+            # Store SHAP importance for LLM feedback loop
+            method_results['shap_importance'] = shap_scores_normalized.to_dict()
+
+        except ImportError:
+            logger.debug("SHAP not installed - skipping SHAP importance")
+            method_results['shap_done'] = False
+        except Exception as e:
+            logger.debug(f"SHAP importance failed: {e}")
+            method_results['shap_done'] = False
 
         # ================================================================
         # FINAL SELECTION - Quantile/Decile-based selection
@@ -2771,6 +3024,76 @@ class SkillOrchestrator:
             logger.debug(f"Simple average failed: {e}")
 
         # ================================================================
+        # STRATEGY 5: MULTI-LEVEL STACKING (10/10 Kaggle Winner Strategy)
+        # ================================================================
+        # 2-Layer stacking: Layer 1 = diverse base models, Layer 2 = meta-learner
+        # This is how top Kaggle solutions achieve SOTA scores
+        multi_level_stacking = None
+        try:
+            from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+            from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
+            from sklearn.linear_model import RidgeClassifier
+            from sklearn.neural_network import MLPClassifier, MLPRegressor
+            from sklearn.svm import SVC, SVR
+
+            # Layer 1: Diverse base models with different learning paradigms
+            if problem_type == ProblemType.CLASSIFICATION:
+                layer1_models = {
+                    # Boosting family
+                    'lgb': lgb.LGBMClassifier(n_estimators=200, random_state=42, verbose=-1),
+                    'xgb': xgb.XGBClassifier(n_estimators=200, random_state=42, eval_metric='logloss', verbosity=0),
+                    'histgb': HistGradientBoostingClassifier(max_iter=200, random_state=42),
+                    # Bagging family
+                    'rf': RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1),
+                    'et': ExtraTreesClassifier(n_estimators=200, random_state=42, n_jobs=-1),
+                }
+
+                # Layer 2: Meta-learner (simpler model to combine Layer 1 outputs)
+                layer2_meta = lgb.LGBMClassifier(
+                    n_estimators=100, max_depth=3, learning_rate=0.05,
+                    random_state=42, verbose=-1
+                )
+            else:
+                layer1_models = {
+                    'lgb': lgb.LGBMRegressor(n_estimators=200, random_state=42, verbose=-1),
+                    'xgb': xgb.XGBRegressor(n_estimators=200, random_state=42, verbosity=0),
+                    'histgb': HistGradientBoostingRegressor(max_iter=200, random_state=42),
+                    'rf': RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1),
+                    'et': ExtraTreesRegressor(n_estimators=200, random_state=42, n_jobs=-1),
+                }
+                layer2_meta = lgb.LGBMRegressor(
+                    n_estimators=100, max_depth=3, learning_rate=0.05,
+                    random_state=42, verbose=-1
+                )
+
+            # Build 2-layer stacking
+            layer1_estimators = [(name, model) for name, model in layer1_models.items()]
+
+            if problem_type == ProblemType.CLASSIFICATION:
+                multi_level_stacking = StackingClassifier(
+                    estimators=layer1_estimators,
+                    final_estimator=layer2_meta,
+                    cv=5,  # More CV for better OOF predictions
+                    passthrough=True,  # Include original features in layer 2
+                    n_jobs=-1,
+                    stack_method='predict_proba'
+                )
+            else:
+                multi_level_stacking = StackingRegressor(
+                    estimators=layer1_estimators,
+                    final_estimator=layer2_meta,
+                    cv=5,
+                    passthrough=True,
+                    n_jobs=-1
+                )
+
+            multi_level_scores = cross_val_score(multi_level_stacking, X_scaled, y, cv=cv, scoring=scoring)
+            ensemble_results['multi_level_stacking'] = multi_level_scores.mean()
+
+        except Exception as e:
+            logger.debug(f"Multi-level stacking failed: {e}")
+
+        # ================================================================
         # SELECT BEST STRATEGY
         # ================================================================
         best_ensemble_strategy = None
@@ -2784,25 +3107,32 @@ class SkillOrchestrator:
         # Compare ensemble vs single model
         if best_ensemble_score > best_single_score:
             # Build the winning ensemble
-            if best_ensemble_strategy == 'stacking':
+            if best_ensemble_strategy == 'multi_level_stacking' and multi_level_stacking is not None:
+                final_model = multi_level_stacking
+                n_estimators = 5  # 5 layer-1 models + meta-learner
+            elif best_ensemble_strategy == 'stacking':
                 final_model = stacking
+                n_estimators = len(base_models)
             elif best_ensemble_strategy == 'weighted_voting':
                 final_model = weighted_ensemble
+                n_estimators = len(base_models)
             elif best_ensemble_strategy == 'greedy' and greedy_estimators:
                 if problem_type == ProblemType.CLASSIFICATION:
                     final_model = VotingClassifier(estimators=greedy_estimators, voting='soft')
                 else:
                     final_model = VotingRegressor(estimators=greedy_estimators)
+                n_estimators = len(greedy_estimators)
             else:
                 final_model = simple_ensemble
+                n_estimators = 3
 
             final_model.fit(X_scaled, y)
             final_score = best_ensemble_score
             used_ensemble = True
-            n_estimators = len(greedy_estimators) if best_ensemble_strategy == 'greedy' else len(base_models)
         else:
-            # Single model is better
+            # Single model is better - need to fit the optimized model
             final_model = optimized
+            final_model.fit(X_scaled, y)  # FIT THE MODEL!
             final_score = best_single_score
             used_ensemble = False
             best_ensemble_strategy = 'single_model'
@@ -2832,12 +3162,20 @@ class SkillOrchestrator:
         score = context.get('score', 0)
         model = context.get('model')
 
+        # Handle model type safely (model could be None, DataFrame, or actual model)
+        if model is None:
+            model_type = 'None'
+        elif isinstance(model, pd.DataFrame):
+            model_type = 'DataFrame'
+        else:
+            model_type = type(model).__name__
+
         return SkillResult(
             skill_name="builtin_evaluator",
             category=SkillCategory.EVALUATION,
             success=True,
             metrics={'final_score': score},
-            metadata={'model_type': type(model).__name__ if model else 'None'}
+            metadata={'model_type': model_type}
         )
 
     async def _builtin_explanation(self, context: Dict) -> SkillResult:
@@ -2847,10 +3185,11 @@ class SkillOrchestrator:
 
         feature_importance = {}
 
-        if model is not None and hasattr(model, 'feature_importances_'):
+        # Check model safely (avoid DataFrame truthiness issue)
+        if model is not None and not isinstance(model, pd.DataFrame) and hasattr(model, 'feature_importances_'):
             importance = model.feature_importances_
             feature_importance = dict(zip(X.columns, importance))
-        elif model is not None and hasattr(model, 'estimators_'):
+        elif model is not None and not isinstance(model, pd.DataFrame) and hasattr(model, 'estimators_'):
             # Voting ensemble - aggregate from sub-models
             importances = []
             for name, est in model.estimators_:

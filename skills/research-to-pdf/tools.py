@@ -38,7 +38,10 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         topic = params.get('topic', '')
         if not topic:

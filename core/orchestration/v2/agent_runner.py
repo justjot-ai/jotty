@@ -145,18 +145,33 @@ class AgentRunner:
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Run agent execution with validation and learning.
-        
+
         Args:
             goal: Task goal/description
+            skip_validation: If True, skip architect validation (fast mode)
+            status_callback: Optional callback(stage, detail) for progress updates
             **kwargs: Additional arguments for agent
-            
+
         Returns:
             EpisodeResult with output and metadata
         """
         import time
         start_time = time.time()
-        
-        logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}...")
+
+        # Extract flags
+        skip_validation = kwargs.pop('skip_validation', False)
+        status_callback = kwargs.pop('status_callback', None)
+
+        def _status(stage: str, detail: str = ""):
+            """Report progress if callback provided."""
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"  📍 {stage}" + (f": {detail}" if detail else ""))
+
+        logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}..." + (" [FAST]" if skip_validation else ""))
 
         # Start episode for TD(λ) learning (if enabled)
         if self.agent_learner:
@@ -165,6 +180,8 @@ class AgentRunner:
         # Reset shaped rewards for new episode
         if self.shaped_reward_manager:
             self.shaped_reward_manager.reset()
+
+        _status("Preparing", "retrieving context")
 
         # Retrieve relevant memories and enrich goal context
         enriched_goal = goal
@@ -203,61 +220,113 @@ class AgentRunner:
             except Exception as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
 
-        # 1. Architect (pre-execution planning)
-        architect_results, proceed = await self.architect_validator.validate(
-            goal=goal,
-            inputs={'goal': goal, **kwargs},
-            trajectory=[],
-            is_architect=True
-        )
-        
-        # Track architect validation in state
-        if self.swarm_state_manager:
-            avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results) if architect_results else 0.0
-            self.agent_tracker.record_validation(
-                validation_type='architect',
-                passed=proceed,
-                confidence=avg_confidence,
-                feedback=architect_results[0].reasoning if architect_results else None
-            )
-            # Record swarm-level step
-            self.swarm_state_manager.record_swarm_step({
-                'agent': self.agent_name,
-                'step': 'architect',
-                'proceed': proceed,
-                'confidence': avg_confidence,
-                'architect_confidence': avg_confidence
-            })
-        
-        # Architect doesn't block (exploration only) but log confidence concerns
-        if architect_results:
-            avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results)
-            if avg_confidence < 0.3:
-                logger.warning(
-                    f"⚠️  Architect VERY LOW confidence: {avg_confidence:.2f} "
-                    f"(Decision: {'PROCEED' if proceed else 'BLOCKED'}). "
-                    f"Consider gathering more information before execution."
-                )
-            elif avg_confidence < 0.5 and proceed:
-                logger.info(
-                    f"ℹ️  Architect LOW confidence: {avg_confidence:.2f} but proceeding. "
-                    f"Execution will proceed but results may be uncertain."
-                )
-        
-        # Shaped reward: architect validation
+        # 1. Architect (pre-execution planning) - skip in fast mode
+        architect_results = []
+        proceed = True
         architect_shaped_reward = 0.0
-        if self.shaped_reward_manager and architect_results:
-            architect_shaped_reward = self.shaped_reward_manager.check_rewards(
-                event_type="actor_start",
-                state={'architect_results': architect_results, 'proceed': proceed, 'goal': goal},
-                trajectory=[]
+
+        if not skip_validation:
+            _status("Architect", "validating approach")
+            architect_results, proceed = await self.architect_validator.validate(
+                goal=goal,
+                inputs={'goal': goal, **kwargs},
+                trajectory=[],
+                is_architect=True
             )
 
+            # Track architect validation in state
+            if self.swarm_state_manager:
+                avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results) if architect_results else 0.0
+                self.agent_tracker.record_validation(
+                    validation_type='architect',
+                    passed=proceed,
+                    confidence=avg_confidence,
+                    feedback=architect_results[0].reasoning if architect_results else None
+                )
+                # Record swarm-level step
+                self.swarm_state_manager.record_swarm_step({
+                    'agent': self.agent_name,
+                    'step': 'architect',
+                    'proceed': proceed,
+                    'confidence': avg_confidence,
+                    'architect_confidence': avg_confidence
+                })
+
+            # Architect doesn't block (exploration only) but log confidence concerns
+            if architect_results:
+                avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results)
+                if avg_confidence < 0.3:
+                    logger.warning(
+                        f"⚠️  Architect VERY LOW confidence: {avg_confidence:.2f} "
+                        f"(Decision: {'PROCEED' if proceed else 'BLOCKED'}). "
+                        f"Consider gathering more information before execution."
+                    )
+                elif avg_confidence < 0.5 and proceed:
+                    logger.info(
+                        f"ℹ️  Architect LOW confidence: {avg_confidence:.2f} but proceeding. "
+                        f"Execution will proceed but results may be uncertain."
+                    )
+
+            # Shaped reward: architect validation
+            if self.shaped_reward_manager and architect_results:
+                architect_shaped_reward = self.shaped_reward_manager.check_rewards(
+                    event_type="actor_start",
+                    state={'architect_results': architect_results, 'proceed': proceed, 'goal': goal},
+                    trajectory=[]
+                )
+        else:
+            logger.info("⚡ Fast mode: skipping architect validation")
+
         # 2. Agent execution (use enriched goal with memory context)
+        _status("Agent", "executing task (this may take a while)")
         try:
-            # Execute agent
-            if hasattr(self.agent, 'execute'):
-                # AutoAgent
+            # Fast mode: Direct LLM call, bypass complex agent pipeline
+            if skip_validation:
+                logger.info("⚡ Fast mode: direct LLM execution")
+                import dspy
+                import time as _time
+                try:
+                    # Simple direct LLM call
+                    lm = dspy.settings.lm
+                    logger.info(f"⚡ LM type: {type(lm).__name__ if lm else 'None'}")
+                    if lm:
+                        _llm_start = _time.time()
+                        response = lm(prompt=goal)
+                        logger.info(f"⚡ Direct LLM call took: {_time.time()-_llm_start:.2f}s")
+                        agent_output = response[0] if isinstance(response, list) else str(response)
+                        logger.info(f"⚡ Direct LLM output: {str(agent_output)[:100]}")
+
+                        # ULTRA-FAST: Return immediately, skip ALL learning/memory/rewards
+                        duration = _time.time() - start_time
+                        return EpisodeResult(
+                            output=agent_output,  # Just the string output
+                            success=True,
+                            trajectory=[{'step': 1, 'action': 'direct_llm', 'output': agent_output, 'success': True}],
+                            tagged_outputs=[],
+                            episode=0,
+                            execution_time=duration,
+                            architect_results=[],
+                            auditor_results=[],
+                            agent_contributions={},
+                            memories_updated=0,
+                            alerts=[],
+                            causal_insights=[],
+                            validation_rounds=0,
+                            refinement_improvements=[],
+                            override_metadata=None
+                        )
+                    else:
+                        # Fallback to AutoAgent if no LM
+                        logger.warning("⚠️ No LM configured, falling back to AutoAgent")
+                        agent_output = await self.agent.execute(goal, **kwargs) if hasattr(self.agent, 'execute') else goal
+                except Exception as e:
+                    logger.warning(f"Direct LLM failed: {e}, falling back to agent")
+                    agent_output = await self.agent.execute(enriched_goal, **kwargs) if hasattr(self.agent, 'execute') else str(e)
+            # Normal mode: Full agent execution
+            elif hasattr(self.agent, 'execute'):
+                # AutoAgent - pass status_callback if agent supports it
+                if status_callback:
+                    kwargs['status_callback'] = status_callback
                 agent_output = await self.agent.execute(enriched_goal, **kwargs)
             elif hasattr(self.agent, 'forward'):
                 # DSPy module
@@ -283,39 +352,48 @@ class AgentRunner:
                     'success': True  # Will be updated after validation
                 })
             
-            # 3. Auditor (post-execution validation) - now with trajectory
-            auditor_results, passed = await self.auditor_validator.validate(
-                goal=goal,
-                inputs={'goal': goal, 'output': str(agent_output)},
-                trajectory=trajectory,  # Pass trajectory so auditor can see execution history
-                is_architect=False
-            )
-            
-            success = passed
-            # ValidationResult has 'reasoning', not 'feedback'
-            auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
-            auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
-            
-            # Track auditor validation in state
-            if self.swarm_state_manager:
-                self.agent_tracker.record_validation(
-                    validation_type='auditor',
-                    passed=passed,
-                    confidence=auditor_confidence,
-                    feedback=auditor_reasoning
+            # 3. Auditor (post-execution validation) - skip in fast mode
+            if not skip_validation:
+                auditor_results, passed = await self.auditor_validator.validate(
+                    goal=goal,
+                    inputs={'goal': goal, 'output': str(agent_output)},
+                    trajectory=trajectory,  # Pass trajectory so auditor can see execution history
+                    is_architect=False
                 )
-                # Record agent output
-                output_type = type(agent_output).__name__
-                self.agent_tracker.record_output(agent_output, output_type)
-                # Record swarm-level step
-                self.swarm_state_manager.record_swarm_step({
-                    'agent': self.agent_name,
-                    'step': 'auditor',
-                    'success': success,
-                    'validation_passed': passed,
-                    'auditor_result': auditor_reasoning[:100],
-                    'auditor_confidence': auditor_confidence
-                })
+
+                success = passed
+                # ValidationResult has 'reasoning', not 'feedback'
+                auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
+                auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
+
+                # Track auditor validation in state
+                if self.swarm_state_manager:
+                    self.agent_tracker.record_validation(
+                        validation_type='auditor',
+                        passed=passed,
+                        confidence=auditor_confidence,
+                        feedback=auditor_reasoning
+                    )
+                    # Record agent output
+                    output_type = type(agent_output).__name__
+                    self.agent_tracker.record_output(agent_output, output_type)
+                    # Record swarm-level step
+                    self.swarm_state_manager.record_swarm_step({
+                        'agent': self.agent_name,
+                        'step': 'auditor',
+                        'success': success,
+                        'validation_passed': passed,
+                        'auditor_result': auditor_reasoning[:100],
+                        'auditor_confidence': auditor_confidence
+                    })
+            else:
+                # Fast mode: skip auditor, assume success
+                logger.info("⚡ Fast mode: skipping auditor validation")
+                success = True
+                auditor_reasoning = "Fast mode: validation skipped"
+                auditor_confidence = 1.0
+                auditor_results = []
+                passed = True
             
             # Update trajectory with validation result
             if trajectory:

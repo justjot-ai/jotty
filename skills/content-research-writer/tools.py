@@ -52,7 +52,10 @@ async def write_content_with_research_tool(params: Dict[str, Any]) -> Dict[str, 
         }
     
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()
@@ -174,7 +177,10 @@ async def _conduct_research(
     
     # Use web search if available
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

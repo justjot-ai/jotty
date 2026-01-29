@@ -159,6 +159,7 @@ class SwarmConfigurator:
             'slack': ['SLACK_BOT_TOKEN', 'SLACK_CHANNEL'],
             'openai': ['OPENAI_API_KEY'],
             'anthropic': ['ANTHROPIC_API_KEY'],
+            'morph': ['MORPH_API_KEY', 'MORPH_WORKSPACE_ID'],
         }
         
         patterns = env_patterns.get(service.lower(), [])
@@ -187,6 +188,7 @@ class SwarmConfigurator:
             'anthropic': ['api_key'],
             'github': ['token'],
             'twitter': ['api_key', 'api_secret', 'access_token', 'access_token_secret'],
+            'morph': ['api_key', 'workspace_id'],  # Optional for cloud deployment
         }
         
         return templates.get(service.lower(), ['api_key'])

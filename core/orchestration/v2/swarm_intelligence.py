@@ -11,20 +11,589 @@ Implements advanced swarm intelligence patterns:
 5. DYNAMIC ROUTING: Route tasks to best-fit agents automatically
 6. SESSION ISOLATION: Per-context isolated agent sessions (moltbot pattern)
 7. AGENT-TO-AGENT MESSAGING: Direct inter-agent communication tools
+8. SELF-CURRICULUM: DrZero-inspired self-generated training tasks
+9. MORPHAGENT SCORES: RCS/RDS/TRAS for profile optimization (NEW)
 
-Inspired by: biological swarms, moltbot architecture, multi-agent RL research
+Inspired by: biological swarms, moltbot architecture, multi-agent RL, DrZero, MorphAgent
 """
 
 import asyncio
 import time
 import logging
 import hashlib
+import math
 from typing import Dict, List, Any, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from collections import defaultdict
 from enum import Enum
 
+try:
+    import dspy
+    DSPY_AVAILABLE = True
+except ImportError:
+    DSPY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# MORPHAGENT-INSPIRED SCORING (LLM-Based, No Embeddings)
+# =============================================================================
+
+if DSPY_AVAILABLE:
+    class TaskAgentAlignmentSignature(dspy.Signature):
+        """
+        LLM-based task-agent alignment scoring (replaces embedding similarity).
+        MorphAgent TRAS semantic component adapted for Jotty.
+        """
+        task_description: str = dspy.InputField(desc="The task to be executed")
+        agent_profile: str = dspy.InputField(desc="Agent's capabilities and specialization")
+        agent_history: str = dspy.InputField(desc="Agent's task success history summary")
+
+        reasoning: str = dspy.OutputField(desc="Why this agent is/isn't suited for this task")
+        alignment_score: float = dspy.OutputField(desc="Alignment score 0.0-1.0")
+        confidence: float = dspy.OutputField(desc="Confidence in assessment 0.0-1.0")
+
+
+@dataclass
+class MorphScores:
+    """MorphAgent-inspired scores for an agent or swarm."""
+    rcs: float = 0.5  # Role Clarity Score
+    rds: float = 0.5  # Role Differentiation Score (swarm-level)
+    tras: float = 0.5  # Task-Role Alignment Score
+
+    # Component breakdowns
+    rcs_components: Dict[str, float] = field(default_factory=dict)
+    tras_components: Dict[str, float] = field(default_factory=dict)
+
+    # Metadata
+    computed_at: float = field(default_factory=time.time)
+    task_context: str = ""
+
+
+class MorphScorer:
+    """
+    MorphAgent-inspired scoring system adapted for Jotty v2.
+
+    Key adaptations from MorphAgent paper (arXiv:2410.15048):
+    - NO EMBEDDINGS: Uses LLM-based semantic matching (Jotty philosophy)
+    - Uses task_success distributions instead of profile text embeddings
+    - Integrates with existing AgentProfile structure
+
+    Three metrics optimized:
+    1. RCS (Role Clarity Score): How clear/specific is agent's role
+    2. RDS (Role Differentiation Score): How diverse is the swarm
+    3. TRAS (Task-Role Alignment): How well does agent match task
+
+    Formula adaptations:
+    - RCS: β₁·FOCUS + β₂·CONSISTENCY + β₃·SPECIALIZATION
+    - RDS: h(mean pairwise task-distribution dissimilarity)
+    - TRAS: α·LLM_ALIGNMENT + (1-α)·CAPABILITY_MATCH
+    """
+
+    def __init__(self, config=None):
+        self.config = config
+
+        # Weights for RCS (Role Clarity Score)
+        self.rcs_weights = {
+            'focus': 0.4,        # How concentrated on specific task types
+            'consistency': 0.3,  # How consistent success rate is
+            'specialization': 0.3  # Has clear specialization emerged
+        }
+
+        # Weight for TRAS (Task-Role Alignment)
+        self.tras_alpha = 0.6  # Weight for LLM alignment vs capability match
+
+        # Cache for expensive computations
+        self._rds_cache: Dict[str, Tuple[float, float]] = {}  # hash -> (score, timestamp)
+        self._cache_ttl = 300  # 5 minutes
+
+        # LLM scorer (lazy init)
+        self._llm_scorer = None
+
+        logger.info("MorphScorer initialized (MorphAgent-inspired, LLM-based)")
+
+    # =========================================================================
+    # RCS: ROLE CLARITY SCORE (Per-Agent)
+    # =========================================================================
+
+    def compute_rcs(self, profile: 'AgentProfile') -> Tuple[float, Dict[str, float]]:
+        """
+        Compute Role Clarity Score for an agent.
+
+        MorphAgent RCS measures how clear/specific an agent's role is.
+        Adapted formula: RCS = β₁·FOCUS + β₂·CONSISTENCY + β₃·SPECIALIZATION
+
+        Components:
+        - FOCUS: Entropy-based measure of task type concentration (low entropy = focused)
+        - CONSISTENCY: Variance of success rates (low variance = consistent)
+        - SPECIALIZATION: Whether agent has emerged dominant specialization
+
+        Args:
+            profile: AgentProfile to evaluate
+
+        Returns:
+            (rcs_score, component_dict)
+        """
+        components = {}
+
+        # 1. FOCUS: Task concentration (inverse entropy)
+        focus = self._compute_focus(profile)
+        components['focus'] = focus
+
+        # 2. CONSISTENCY: Success rate stability
+        consistency = self._compute_consistency(profile)
+        components['consistency'] = consistency
+
+        # 3. SPECIALIZATION: Has clear role emerged
+        specialization = self._compute_specialization_clarity(profile)
+        components['specialization'] = specialization
+
+        # Weighted combination
+        rcs = (
+            self.rcs_weights['focus'] * focus +
+            self.rcs_weights['consistency'] * consistency +
+            self.rcs_weights['specialization'] * specialization
+        )
+
+        return rcs, components
+
+    def _compute_focus(self, profile: 'AgentProfile') -> float:
+        """
+        Compute task focus using inverse normalized entropy.
+
+        Low entropy = agent focuses on few task types = high focus score
+        High entropy = agent spreads across many types = low focus score
+        """
+        if not profile.task_success or profile.total_tasks == 0:
+            return 0.5  # Neutral for new agents
+
+        # Get task counts
+        task_counts = [total for _, total in profile.task_success.values()]
+        total = sum(task_counts)
+
+        if total == 0:
+            return 0.5
+
+        # Compute normalized entropy
+        probabilities = [count / total for count in task_counts if count > 0]
+        entropy = -sum(p * math.log2(p) for p in probabilities if p > 0)
+
+        # Max entropy for uniform distribution
+        max_entropy = math.log2(len(probabilities)) if len(probabilities) > 1 else 1.0
+
+        # Normalize and invert (high entropy = low focus)
+        if max_entropy > 0:
+            normalized_entropy = entropy / max_entropy
+            focus = 1.0 - normalized_entropy
+        else:
+            focus = 1.0
+
+        return max(0.0, min(1.0, focus))
+
+    def _compute_consistency(self, profile: 'AgentProfile') -> float:
+        """
+        Compute success rate consistency (low variance = high consistency).
+        """
+        if not profile.task_success:
+            return 0.5
+
+        success_rates = []
+        for succ, total in profile.task_success.values():
+            if total >= 2:  # Need enough data
+                success_rates.append(succ / total)
+
+        if len(success_rates) < 2:
+            return 0.5
+
+        # Compute variance
+        mean_rate = sum(success_rates) / len(success_rates)
+        variance = sum((r - mean_rate) ** 2 for r in success_rates) / len(success_rates)
+
+        # Convert to consistency score (low variance = high consistency)
+        # Max variance for [0,1] values is 0.25
+        consistency = 1.0 - min(1.0, variance / 0.25)
+
+        return max(0.0, min(1.0, consistency))
+
+    def _compute_specialization_clarity(self, profile: 'AgentProfile') -> float:
+        """
+        Compute how clearly an agent has specialized.
+        """
+        if profile.specialization == AgentSpecialization.GENERALIST:
+            # Check if close to specializing
+            if not profile.task_success:
+                return 0.3
+
+            best_rate = 0.0
+            for succ, total in profile.task_success.values():
+                if total >= 3:
+                    rate = succ / total
+                    best_rate = max(best_rate, rate)
+
+            # Approaching specialization threshold (0.7)
+            if best_rate >= 0.6:
+                return 0.6
+            elif best_rate >= 0.5:
+                return 0.4
+            return 0.3
+
+        # Has emerged specialization
+        return 0.9
+
+    # =========================================================================
+    # RDS: ROLE DIFFERENTIATION SCORE (Swarm-Level)
+    # =========================================================================
+
+    def compute_rds(self, profiles: Dict[str, 'AgentProfile']) -> float:
+        """
+        Compute Role Differentiation Score for the swarm.
+
+        MorphAgent RDS measures how diverse/differentiated agents are.
+        Formula: RDS = h₃(mean pairwise dissimilarity)
+
+        Higher RDS = agents have complementary, non-overlapping capabilities
+        Lower RDS = agents are too similar (redundant)
+
+        Args:
+            profiles: Dict of agent_name -> AgentProfile
+
+        Returns:
+            rds_score (0.0 to 1.0)
+        """
+        if len(profiles) < 2:
+            return 1.0  # Single agent is maximally differentiated
+
+        # Check cache
+        cache_key = self._get_profiles_hash(profiles)
+        if cache_key in self._rds_cache:
+            score, timestamp = self._rds_cache[cache_key]
+            if time.time() - timestamp < self._cache_ttl:
+                return score
+
+        # Compute pairwise dissimilarities
+        profile_list = list(profiles.values())
+        n = len(profile_list)
+        total_dissimilarity = 0.0
+        pair_count = 0
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                dissim = self._compute_pairwise_dissimilarity(profile_list[i], profile_list[j])
+                total_dissimilarity += dissim
+                pair_count += 1
+
+        # Average dissimilarity
+        avg_dissimilarity = total_dissimilarity / pair_count if pair_count > 0 else 0.5
+
+        # Apply sigmoid normalization (h₃ in MorphAgent)
+        rds = self._sigmoid_normalize(avg_dissimilarity)
+
+        # Cache result
+        self._rds_cache[cache_key] = (rds, time.time())
+
+        return rds
+
+    def _compute_pairwise_dissimilarity(self, p1: 'AgentProfile', p2: 'AgentProfile') -> float:
+        """
+        Compute dissimilarity between two agent profiles.
+
+        Uses task success distribution comparison (no embeddings).
+        d(a_i, a_j) = 1 - cosine_similarity(task_vectors)
+        """
+        # Build task success vectors
+        all_task_types = set(p1.task_success.keys()) | set(p2.task_success.keys())
+
+        if not all_task_types:
+            return 0.5  # Unknown
+
+        # Create success rate vectors
+        v1 = []
+        v2 = []
+
+        for task_type in sorted(all_task_types):
+            # Agent 1 success rate
+            if task_type in p1.task_success:
+                s, t = p1.task_success[task_type]
+                v1.append(s / t if t > 0 else 0.5)
+            else:
+                v1.append(0.0)
+
+            # Agent 2 success rate
+            if task_type in p2.task_success:
+                s, t = p2.task_success[task_type]
+                v2.append(s / t if t > 0 else 0.5)
+            else:
+                v2.append(0.0)
+
+        # Compute cosine similarity
+        dot_product = sum(a * b for a, b in zip(v1, v2))
+        norm1 = math.sqrt(sum(a ** 2 for a in v1)) or 1.0
+        norm2 = math.sqrt(sum(b ** 2 for b in v2)) or 1.0
+
+        cosine_sim = dot_product / (norm1 * norm2)
+
+        # Dissimilarity = 1 - similarity
+        dissimilarity = 1.0 - cosine_sim
+
+        # Also factor in specialization difference
+        spec_diff = 0.0 if p1.specialization == p2.specialization else 0.3
+
+        return min(1.0, dissimilarity + spec_diff)
+
+    def _get_profiles_hash(self, profiles: Dict[str, 'AgentProfile']) -> str:
+        """Create hash for cache key."""
+        key_parts = []
+        for name in sorted(profiles.keys()):
+            p = profiles[name]
+            key_parts.append(f"{name}:{p.total_tasks}:{p.specialization.value}")
+        return hashlib.md5('|'.join(key_parts).encode()).hexdigest()
+
+    def _sigmoid_normalize(self, x: float, k: float = 5.0) -> float:
+        """Sigmoid normalization h₃(x) = 1 / (1 + exp(-k*(x - 0.5)))"""
+        return 1.0 / (1.0 + math.exp(-k * (x - 0.5)))
+
+    # =========================================================================
+    # TRAS: TASK-ROLE ALIGNMENT SCORE
+    # =========================================================================
+
+    def compute_tras(
+        self,
+        task: str,
+        task_type: str,
+        profile: 'AgentProfile',
+        use_llm: bool = True
+    ) -> Tuple[float, Dict[str, float]]:
+        """
+        Compute Task-Role Alignment Score.
+
+        MorphAgent TRAS measures how well an agent matches a task.
+        Formula: TRAS = α·S_sim + (1-α)·S_cap
+
+        Components:
+        - S_sim: Semantic similarity (LLM-based in Jotty)
+        - S_cap: Capability matching (task complexity vs agent capability)
+
+        Args:
+            task: Task description
+            task_type: Inferred task type
+            profile: Agent profile to evaluate
+            use_llm: Whether to use LLM for semantic alignment
+
+        Returns:
+            (tras_score, component_dict)
+        """
+        components = {}
+
+        # 1. Capability matching (always computed)
+        capability_match = self._compute_capability_match(task_type, profile)
+        components['capability_match'] = capability_match
+
+        # 2. Semantic alignment (LLM-based if available)
+        if use_llm and DSPY_AVAILABLE:
+            try:
+                semantic_align = self._compute_llm_alignment(task, profile)
+                components['semantic_alignment'] = semantic_align
+            except Exception as e:
+                logger.debug(f"LLM alignment failed, using fallback: {e}")
+                semantic_align = capability_match  # Fallback
+                components['semantic_alignment'] = semantic_align
+        else:
+            # Fallback: use keyword matching
+            semantic_align = self._compute_keyword_alignment(task, task_type, profile)
+            components['semantic_alignment'] = semantic_align
+
+        # Weighted combination
+        tras = (
+            self.tras_alpha * semantic_align +
+            (1 - self.tras_alpha) * capability_match
+        )
+
+        return tras, components
+
+    def _compute_capability_match(self, task_type: str, profile: 'AgentProfile') -> float:
+        """
+        Compute capability match: does agent's capability match task requirements?
+
+        Enhanced MorphAgent formula that rewards high capability:
+        S_cap = α * success_rate + (1-α) * (1 - |complexity - capability|)
+
+        This ensures:
+        - High success rate agents are preferred
+        - But also considers complexity matching
+        """
+        # Estimate task complexity by type
+        task_complexity = {
+            'aggregation': 0.3,
+            'filtering': 0.3,
+            'analysis': 0.6,
+            'transformation': 0.5,
+            'validation': 0.4,
+            'planning': 0.7,
+        }.get(task_type, 0.5)
+
+        # Agent capability = success rate for this type (or overall)
+        if task_type in profile.task_success:
+            s, t = profile.task_success[task_type]
+            agent_capability = s / t if t > 0 else 0.5
+            has_experience = t >= 3
+        else:
+            # Use overall success rate
+            total_s = sum(s for s, t in profile.task_success.values())
+            total_t = sum(t for s, t in profile.task_success.values())
+            agent_capability = total_s / total_t if total_t > 0 else 0.5
+            has_experience = False
+
+        # Complexity match component
+        complexity_match = 1.0 - abs(task_complexity - agent_capability)
+
+        # Combined score: weight actual success rate heavily
+        # Agents with high success rate should always score higher
+        if has_experience:
+            # 70% success rate, 30% complexity match
+            capability_match = 0.7 * agent_capability + 0.3 * complexity_match
+        else:
+            # No experience: use trust score as proxy
+            capability_match = 0.5 * profile.trust_score + 0.5 * complexity_match
+
+        return max(0.0, min(1.0, capability_match))
+
+    def _compute_llm_alignment(self, task: str, profile: 'AgentProfile') -> float:
+        """Compute semantic alignment using LLM."""
+        if self._llm_scorer is None:
+            self._llm_scorer = dspy.ChainOfThought(TaskAgentAlignmentSignature)
+
+        # Format profile for LLM
+        profile_desc = self._format_profile_for_llm(profile)
+        history_summary = self._format_history_for_llm(profile)
+
+        try:
+            result = self._llm_scorer(
+                task_description=task[:500],
+                agent_profile=profile_desc,
+                agent_history=history_summary
+            )
+            return float(result.alignment_score)
+        except Exception:
+            return 0.5
+
+    def _compute_keyword_alignment(self, task: str, task_type: str, profile: 'AgentProfile') -> float:
+        """Fallback keyword-based alignment when LLM unavailable."""
+        # Check if agent has success with this task type
+        if task_type in profile.task_success:
+            s, t = profile.task_success[task_type]
+            if t >= 3 and s / t >= 0.6:
+                return 0.8  # Good match
+            elif t >= 3:
+                return 0.4  # Poor match
+        return 0.5  # Unknown
+
+    def _format_profile_for_llm(self, profile: 'AgentProfile') -> str:
+        """Format agent profile for LLM input."""
+        parts = [
+            f"Agent: {profile.agent_name}",
+            f"Specialization: {profile.specialization.value}",
+            f"Trust Score: {profile.trust_score:.2f}",
+            f"Total Tasks: {profile.total_tasks}",
+        ]
+        return "; ".join(parts)
+
+    def _format_history_for_llm(self, profile: 'AgentProfile') -> str:
+        """Format task history for LLM input."""
+        if not profile.task_success:
+            return "No task history yet"
+
+        parts = []
+        for task_type, (s, t) in profile.task_success.items():
+            rate = s / t * 100 if t > 0 else 0
+            parts.append(f"{task_type}: {rate:.0f}% ({s}/{t})")
+        return "; ".join(parts)
+
+    # =========================================================================
+    # COMBINED SCORING
+    # =========================================================================
+
+    def compute_all_scores(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        task: str = None,
+        task_type: str = None
+    ) -> Dict[str, MorphScores]:
+        """
+        Compute all MorphAgent scores for the swarm.
+
+        Args:
+            profiles: All agent profiles
+            task: Optional task for TRAS computation
+            task_type: Optional task type for TRAS
+
+        Returns:
+            Dict of agent_name -> MorphScores
+        """
+        # Swarm-level RDS (same for all agents)
+        rds = self.compute_rds(profiles)
+
+        results = {}
+        for name, profile in profiles.items():
+            # Per-agent RCS
+            rcs, rcs_components = self.compute_rcs(profile)
+
+            # Per-agent TRAS (if task provided)
+            if task and task_type:
+                tras, tras_components = self.compute_tras(task, task_type, profile)
+            else:
+                tras = 0.5
+                tras_components = {}
+
+            results[name] = MorphScores(
+                rcs=rcs,
+                rds=rds,
+                tras=tras,
+                rcs_components=rcs_components,
+                tras_components=tras_components,
+                task_context=task[:100] if task else ""
+            )
+
+        return results
+
+    def get_best_agent_by_tras(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        task: str,
+        task_type: str,
+        min_rcs: float = 0.3
+    ) -> Optional[str]:
+        """
+        Get best agent for task using TRAS scoring.
+
+        Filters by minimum RCS (role clarity) then ranks by TRAS.
+
+        Args:
+            profiles: Agent profiles
+            task: Task description
+            task_type: Task type
+            min_rcs: Minimum role clarity threshold
+
+        Returns:
+            Best agent name or None
+        """
+        candidates = []
+
+        for name, profile in profiles.items():
+            rcs, _ = self.compute_rcs(profile)
+            if rcs < min_rcs:
+                continue
+
+            tras, _ = self.compute_tras(task, task_type, profile)
+            candidates.append((name, tras, rcs))
+
+        if not candidates:
+            # Fallback: return agent with highest trust
+            return max(profiles.keys(), key=lambda n: profiles[n].trust_score, default=None)
+
+        # Sort by TRAS (primary), RCS (secondary)
+        candidates.sort(key=lambda x: (x[1], x[2]), reverse=True)
+        return candidates[0][0]
 
 
 # =============================================================================
@@ -781,6 +1350,301 @@ class ByzantineVerifier:
 
 
 # =============================================================================
+# CURRICULUM GENERATOR (DrZero-Inspired)
+# =============================================================================
+
+@dataclass
+class SyntheticTask:
+    """A self-generated task for agent training."""
+    task_id: str
+    task_type: str
+    description: str
+    difficulty: float  # 0.0 (easy) to 1.0 (hard)
+    target_agent: Optional[str] = None
+    metadata: Dict = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+
+
+class CurriculumGenerator:
+    """
+    DrZero-inspired self-curriculum generator.
+
+    Generates progressively harder tasks to train agents without external data.
+
+    Key concepts from DrZero:
+    1. PROPOSER ROLE: Generate tasks slightly harder than current ability
+    2. DIFFICULTY SCALING: Tasks adapt to agent performance
+    3. WEAKNESS TARGETING: Focus on low-success task types
+    4. DIVERSITY: Ensure coverage of all task types
+
+    This enables AUTONOMOUS SKILL IMPROVEMENT without user intervention.
+    """
+
+    def __init__(self, config=None):
+        self.config = config
+
+        # Task type templates (domain-agnostic)
+        self.task_templates: Dict[str, List[str]] = {
+            'aggregation': [
+                "Count items matching criteria: {criteria}",
+                "Sum values where: {condition}",
+                "Calculate average of: {field}",
+            ],
+            'analysis': [
+                "Analyze patterns in: {domain}",
+                "Find correlations between: {field_a} and {field_b}",
+                "Identify anomalies in: {dataset}",
+            ],
+            'transformation': [
+                "Transform data from {format_a} to {format_b}",
+                "Normalize values in: {field}",
+                "Merge datasets: {dataset_a} and {dataset_b}",
+            ],
+            'validation': [
+                "Validate data quality for: {field}",
+                "Check constraints: {constraints}",
+                "Verify consistency between: {source_a} and {source_b}",
+            ],
+            'filtering': [
+                "Filter records where: {condition}",
+                "Select top {n} by: {criteria}",
+                "Remove duplicates from: {dataset}",
+            ],
+            'planning': [
+                "Plan execution steps for: {goal}",
+                "Decompose task: {complex_task}",
+                "Prioritize items: {items}",
+            ],
+        }
+
+        # Difficulty progression tracking
+        self.difficulty_by_type: Dict[str, float] = defaultdict(lambda: 0.3)  # Start at 30%
+
+        # Task history for diversity
+        self.generated_tasks: List[SyntheticTask] = []
+        self.max_history = 100
+
+        # Curriculum statistics
+        self.total_generated = 0
+        self.tasks_by_difficulty: Dict[str, int] = defaultdict(int)
+
+        logger.info("CurriculumGenerator initialized (DrZero-inspired self-curriculum)")
+
+    def generate_training_task(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        target_agent: Optional[str] = None
+    ) -> SyntheticTask:
+        """
+        Generate a training task targeting current agent weaknesses.
+
+        DrZero insight: Tasks should be slightly harder than current ability
+        to maximize learning signal (zone of proximal development).
+
+        Args:
+            profiles: Current agent performance profiles
+            target_agent: Optionally target specific agent
+
+        Returns:
+            SyntheticTask for training
+        """
+        # 1. Identify weakest task type across agents
+        task_type, difficulty = self._select_task_type_by_weakness(profiles, target_agent)
+
+        # 2. Generate task description from template
+        description = self._generate_description(task_type, difficulty)
+
+        # 3. Create synthetic task
+        task = SyntheticTask(
+            task_id=f"curriculum_{self.total_generated}_{int(time.time())}",
+            task_type=task_type,
+            description=description,
+            difficulty=difficulty,
+            target_agent=target_agent,
+            metadata={
+                'curriculum_round': self.total_generated,
+                'weakness_targeted': task_type,
+            }
+        )
+
+        # 4. Track for diversity
+        self.generated_tasks.append(task)
+        if len(self.generated_tasks) > self.max_history:
+            self.generated_tasks = self.generated_tasks[-self.max_history:]
+
+        self.total_generated += 1
+        self.tasks_by_difficulty[f"{int(difficulty * 10) / 10:.1f}"] += 1
+
+        logger.debug(f"Generated curriculum task: type={task_type}, difficulty={difficulty:.2f}")
+        return task
+
+    def _select_task_type_by_weakness(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        target_agent: Optional[str] = None
+    ) -> Tuple[str, float]:
+        """
+        Select task type based on agent weaknesses.
+
+        DrZero insight: Focus on areas where agents struggle most.
+        """
+        # Aggregate success rates by task type
+        type_success_rates: Dict[str, List[float]] = defaultdict(list)
+
+        for agent_name, profile in profiles.items():
+            if target_agent and agent_name != target_agent:
+                continue
+
+            for task_type, (success, total) in profile.task_success.items():
+                if total > 0:
+                    rate = success / total
+                    type_success_rates[task_type].append(rate)
+
+        # Find weakest task type (lowest average success rate)
+        weakest_type = None
+        lowest_rate = 1.0
+
+        for task_type, rates in type_success_rates.items():
+            avg_rate = sum(rates) / len(rates) if rates else 0.5
+            if avg_rate < lowest_rate:
+                lowest_rate = avg_rate
+                weakest_type = task_type
+
+        # If no data, pick random type for exploration
+        if weakest_type is None:
+            import random
+            weakest_type = random.choice(list(self.task_templates.keys()))
+            lowest_rate = 0.5
+
+        # Ensure diversity: occasionally pick other types
+        import random
+        if random.random() < 0.2:  # 20% exploration
+            weakest_type = random.choice(list(self.task_templates.keys()))
+
+        # Calculate difficulty: slightly above current ability
+        # DrZero insight: optimal learning at current_ability + epsilon
+        current_ability = lowest_rate
+        difficulty = min(1.0, current_ability + 0.15)  # 15% harder than current
+
+        # Update tracked difficulty for progressive curriculum
+        self.difficulty_by_type[weakest_type] = difficulty
+
+        return weakest_type, difficulty
+
+    def _generate_description(self, task_type: str, difficulty: float) -> str:
+        """
+        Generate task description from template with difficulty scaling.
+        """
+        import random
+
+        templates = self.task_templates.get(task_type, ["Perform {task_type} task"])
+        template = random.choice(templates)
+
+        # Generate placeholder values based on difficulty
+        placeholders = self._generate_placeholders(difficulty)
+
+        try:
+            description = template.format(**placeholders)
+        except KeyError:
+            description = f"Perform {task_type} task (difficulty: {difficulty:.1%})"
+
+        return description
+
+    def _generate_placeholders(self, difficulty: float) -> Dict[str, str]:
+        """
+        Generate placeholder values scaled by difficulty.
+
+        Higher difficulty = more complex constraints.
+        """
+        import random
+
+        # Sample domains/fields
+        domains = ['users', 'transactions', 'events', 'logs', 'metrics', 'records']
+        fields = ['timestamp', 'value', 'count', 'status', 'category', 'score']
+        formats = ['json', 'csv', 'parquet', 'sql', 'xml']
+
+        # Complexity scales with difficulty
+        num_conditions = max(1, int(difficulty * 3))
+
+        conditions = []
+        for _ in range(num_conditions):
+            field = random.choice(fields)
+            op = random.choice(['>', '<', '=', '!=', 'contains', 'between'])
+            conditions.append(f"{field} {op} value")
+
+        return {
+            'criteria': ' AND '.join(conditions[:2]),
+            'condition': conditions[0] if conditions else 'value > 0',
+            'field': random.choice(fields),
+            'field_a': random.choice(fields),
+            'field_b': random.choice(fields),
+            'domain': random.choice(domains),
+            'dataset': random.choice(domains),
+            'dataset_a': random.choice(domains),
+            'dataset_b': random.choice(domains),
+            'format_a': random.choice(formats),
+            'format_b': random.choice(formats),
+            'constraints': ', '.join(conditions[:num_conditions]),
+            'source_a': random.choice(domains),
+            'source_b': random.choice(domains),
+            'n': str(random.randint(5, 20) * int(difficulty * 2 + 1)),
+            'goal': f"Complete {random.choice(domains)} processing",
+            'complex_task': f"Analyze and transform {random.choice(domains)}",
+            'items': ', '.join(random.sample(fields, min(3, len(fields)))),
+            'task_type': random.choice(list(self.task_templates.keys())),
+        }
+
+    def update_from_result(self, task: SyntheticTask, success: bool, execution_time: float):
+        """
+        Update curriculum based on task result.
+
+        DrZero insight: Adjust difficulty based on success rate.
+        - Too easy (always succeeds) → increase difficulty
+        - Too hard (always fails) → decrease difficulty
+        """
+        task_type = task.task_type
+        current_difficulty = self.difficulty_by_type[task_type]
+
+        if success:
+            # Task was achievable, increase difficulty slightly
+            self.difficulty_by_type[task_type] = min(1.0, current_difficulty + 0.05)
+        else:
+            # Task was too hard, decrease difficulty
+            self.difficulty_by_type[task_type] = max(0.1, current_difficulty - 0.1)
+
+        logger.debug(
+            f"Curriculum updated: {task_type} difficulty "
+            f"{current_difficulty:.2f} → {self.difficulty_by_type[task_type]:.2f}"
+        )
+
+    def get_curriculum_stats(self) -> Dict[str, Any]:
+        """Get statistics about the curriculum."""
+        return {
+            'total_generated': self.total_generated,
+            'difficulty_by_type': dict(self.difficulty_by_type),
+            'tasks_by_difficulty': dict(self.tasks_by_difficulty),
+            'recent_task_types': [t.task_type for t in self.generated_tasks[-10:]],
+        }
+
+    def to_dict(self) -> Dict:
+        """Serialize for persistence."""
+        return {
+            'difficulty_by_type': dict(self.difficulty_by_type),
+            'total_generated': self.total_generated,
+            'tasks_by_difficulty': dict(self.tasks_by_difficulty),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict, config=None) -> 'CurriculumGenerator':
+        """Deserialize from persistence."""
+        instance = cls(config)
+        instance.difficulty_by_type = defaultdict(lambda: 0.3, data.get('difficulty_by_type', {}))
+        instance.total_generated = data.get('total_generated', 0)
+        instance.tasks_by_difficulty = defaultdict(int, data.get('tasks_by_difficulty', {}))
+        return instance
+
+
+# =============================================================================
 # SWARM INTELLIGENCE ENGINE
 # =============================================================================
 
@@ -829,7 +1693,16 @@ class SwarmIntelligence:
         # Byzantine fault tolerance (verify agent claims)
         self.byzantine = ByzantineVerifier(self)
 
-        logger.info("SwarmIntelligence initialized")
+        # DrZero-inspired curriculum generator (self-generated training tasks)
+        self.curriculum_generator = CurriculumGenerator(config)
+
+        # MorphAgent-inspired scorer (RCS/RDS/TRAS)
+        self.morph_scorer = MorphScorer(config)
+
+        # Track swarm-level MorphAgent scores over time
+        self.morph_score_history: List[Dict[str, Any]] = []
+
+        logger.info("SwarmIntelligence initialized (DrZero curriculum + MorphAgent scoring)")
 
     # =========================================================================
     # EMERGENT SPECIALIZATION
@@ -906,24 +1779,64 @@ class SwarmIntelligence:
     # DYNAMIC TASK ROUTING
     # =========================================================================
 
-    def get_best_agent_for_task(self, task_type: str, available_agents: List[str]) -> Optional[str]:
+    def get_best_agent_for_task(
+        self,
+        task_type: str,
+        available_agents: List[str],
+        task_description: str = None,
+        use_morph_scoring: bool = True
+    ) -> Optional[str]:
         """
         Route task to best-fit agent based on learned performance.
 
+        Enhanced with MorphAgent TRAS scoring for better task-agent alignment.
+
         Uses:
+        - MorphAgent TRAS (Task-Role Alignment Score) - NEW
+        - MorphAgent RCS (Role Clarity Score) as filter - NEW
         - Historical success rate
         - Specialization match
         - Trust score
-        - Current load (if available)
+        - Stigmergy routing signals
         """
         if not available_agents:
             return None
 
+        # Ensure all agents are registered
+        for agent_name in available_agents:
+            self.register_agent(agent_name)
+
+        # Build profile dict for available agents
+        profiles = {name: self.agent_profiles[name] for name in available_agents}
+
+        # Strategy 1: Use MorphAgent TRAS scoring if enabled and task description available
+        if use_morph_scoring and task_description and self.morph_scorer:
+            best = self.morph_scorer.get_best_agent_by_tras(
+                profiles=profiles,
+                task=task_description,
+                task_type=task_type,
+                min_rcs=0.3  # Require minimum role clarity
+            )
+            if best:
+                logger.debug(f"MorphAgent TRAS routing: {task_type} -> {best}")
+                return best
+
+        # Strategy 2: Check stigmergy routing signals
+        route_signals = self.stigmergy.get_route_signals(task_type)
+        if route_signals:
+            # Filter to available agents
+            available_signals = {a: s for a, s in route_signals.items() if a in available_agents}
+            if available_signals:
+                best_from_stigmergy = max(available_signals.keys(), key=lambda a: available_signals[a])
+                if available_signals[best_from_stigmergy] > 0.5:  # Strong signal
+                    logger.debug(f"Stigmergy routing: {task_type} -> {best_from_stigmergy}")
+                    return best_from_stigmergy
+
+        # Strategy 3: Fallback to traditional scoring
         best_agent = None
         best_score = -1.0
 
         for agent_name in available_agents:
-            self.register_agent(agent_name)
             profile = self.agent_profiles[agent_name]
 
             # Base: success rate for this task type
@@ -938,8 +1851,19 @@ class SwarmIntelligence:
             # Trust score weight
             trust_weight = profile.trust_score
 
+            # MorphAgent RCS bonus (clear roles get preference)
+            rcs_bonus = 0.0
+            if self.morph_scorer:
+                rcs, _ = self.morph_scorer.compute_rcs(profile)
+                rcs_bonus = rcs * 0.1  # Up to 0.1 bonus for clear roles
+
             # Combined score
-            score = (success_rate * 0.5 + trust_weight * 0.3 + spec_bonus * 0.2)
+            score = (
+                success_rate * 0.4 +
+                trust_weight * 0.25 +
+                spec_bonus * 0.15 +
+                rcs_bonus * 0.2
+            )
 
             if score > best_score:
                 best_score = score
@@ -1281,6 +2205,246 @@ class SwarmIntelligence:
         return "\n".join(lines)
 
     # =========================================================================
+    # MORPHAGENT SCORING INTEGRATION
+    # =========================================================================
+
+    def compute_morph_scores(self, task: str = None, task_type: str = None) -> Dict[str, MorphScores]:
+        """
+        Compute MorphAgent scores (RCS/RDS/TRAS) for all agents.
+
+        Args:
+            task: Optional task description for TRAS computation
+            task_type: Optional task type for TRAS computation
+
+        Returns:
+            Dict of agent_name -> MorphScores
+        """
+        if not self.morph_scorer:
+            return {}
+
+        scores = self.morph_scorer.compute_all_scores(
+            profiles=self.agent_profiles,
+            task=task,
+            task_type=task_type
+        )
+
+        # Record in history
+        self.morph_score_history.append({
+            'timestamp': time.time(),
+            'scores': {name: {'rcs': s.rcs, 'rds': s.rds, 'tras': s.tras} for name, s in scores.items()},
+            'task_context': task[:50] if task else ''
+        })
+
+        # Keep bounded
+        if len(self.morph_score_history) > 100:
+            self.morph_score_history = self.morph_score_history[-100:]
+
+        return scores
+
+    def get_swarm_health(self) -> Dict[str, Any]:
+        """
+        Get overall swarm health using MorphAgent metrics.
+
+        Returns comprehensive health assessment:
+        - avg_rcs: Average Role Clarity (are roles well-defined?)
+        - rds: Role Differentiation (is swarm diverse?)
+        - avg_trust: Average trust score
+        - specialization_coverage: How many specializations are covered
+        - recommendations: Improvement suggestions
+        """
+        health = {
+            'avg_rcs': 0.5,
+            'rds': 0.5,
+            'avg_trust': 0.5,
+            'specialization_coverage': 0.0,
+            'agent_count': len(self.agent_profiles),
+            'total_tasks': sum(p.total_tasks for p in self.agent_profiles.values()),
+            'recommendations': []
+        }
+
+        if not self.agent_profiles:
+            health['recommendations'].append("No agents registered - add agents to swarm")
+            return health
+
+        # Compute MorphAgent scores
+        if self.morph_scorer:
+            # RCS for each agent
+            rcs_scores = []
+            for profile in self.agent_profiles.values():
+                rcs, _ = self.morph_scorer.compute_rcs(profile)
+                rcs_scores.append(rcs)
+            health['avg_rcs'] = sum(rcs_scores) / len(rcs_scores) if rcs_scores else 0.5
+
+            # RDS (swarm-level)
+            health['rds'] = self.morph_scorer.compute_rds(self.agent_profiles)
+
+        # Average trust
+        trust_scores = [p.trust_score for p in self.agent_profiles.values()]
+        health['avg_trust'] = sum(trust_scores) / len(trust_scores) if trust_scores else 0.5
+
+        # Specialization coverage
+        unique_specs = set(p.specialization for p in self.agent_profiles.values())
+        health['specialization_coverage'] = len(unique_specs) / len(AgentSpecialization)
+
+        # Generate recommendations
+        if health['avg_rcs'] < 0.4:
+            health['recommendations'].append(
+                "Low role clarity - consider warmup training to specialize agents"
+            )
+
+        if health['rds'] < 0.4:
+            health['recommendations'].append(
+                "Low role differentiation - agents are too similar, consider diversifying"
+            )
+
+        if health['avg_trust'] < 0.5:
+            health['recommendations'].append(
+                "Low average trust - some agents have inconsistent performance"
+            )
+
+        if health['total_tasks'] < 10:
+            health['recommendations'].append(
+                "Limited task history - consider warmup() for self-training"
+            )
+
+        if not health['recommendations']:
+            health['recommendations'].append("Swarm health is good - no issues detected")
+
+        return health
+
+    def optimize_profiles_morph(self, num_iterations: int = 5, threshold: float = 0.1) -> Dict[str, Any]:
+        """
+        MorphAgent-inspired profile optimization.
+
+        Iteratively improves agent profiles by:
+        1. Computing RCS/RDS scores
+        2. Identifying low-scoring agents
+        3. Generating curriculum tasks targeting weaknesses
+        4. Simulating improvement through task type rebalancing
+
+        This is used during warmup phase to optimize agent differentiation.
+
+        Args:
+            num_iterations: Max optimization iterations
+            threshold: Convergence threshold for score improvement
+
+        Returns:
+            Optimization results with before/after scores
+        """
+        if not self.agent_profiles:
+            return {'success': False, 'reason': 'No agents to optimize'}
+
+        results = {
+            'iterations': 0,
+            'initial_rds': 0.0,
+            'final_rds': 0.0,
+            'initial_avg_rcs': 0.0,
+            'final_avg_rcs': 0.0,
+            'improvements': []
+        }
+
+        # Initial scores
+        if self.morph_scorer:
+            results['initial_rds'] = self.morph_scorer.compute_rds(self.agent_profiles)
+            rcs_scores = [self.morph_scorer.compute_rcs(p)[0] for p in self.agent_profiles.values()]
+            results['initial_avg_rcs'] = sum(rcs_scores) / len(rcs_scores) if rcs_scores else 0.5
+
+        prev_score = results['initial_rds'] + results['initial_avg_rcs']
+
+        for iteration in range(num_iterations):
+            results['iterations'] = iteration + 1
+
+            # Find agents with low RCS (unclear roles)
+            low_rcs_agents = []
+            for name, profile in self.agent_profiles.items():
+                if self.morph_scorer:
+                    rcs, components = self.morph_scorer.compute_rcs(profile)
+                    if rcs < 0.5:
+                        low_rcs_agents.append((name, rcs, components))
+
+            # Generate curriculum tasks targeting low-RCS agents
+            for agent_name, rcs, components in low_rcs_agents[:3]:  # Top 3 worst
+                # Identify which component is lowest
+                if components.get('focus', 1.0) < 0.5:
+                    # Agent needs to focus - generate tasks in their best type
+                    profile = self.agent_profiles[agent_name]
+                    if profile.task_success:
+                        best_type = max(
+                            profile.task_success.keys(),
+                            key=lambda t: profile.task_success[t][0] / max(1, profile.task_success[t][1])
+                        )
+                        results['improvements'].append(
+                            f"{agent_name}: Focus training on {best_type} (RCS: {rcs:.2f})"
+                        )
+
+            # Compute new scores
+            if self.morph_scorer:
+                new_rds = self.morph_scorer.compute_rds(self.agent_profiles)
+                new_rcs_scores = [self.morph_scorer.compute_rcs(p)[0] for p in self.agent_profiles.values()]
+                new_avg_rcs = sum(new_rcs_scores) / len(new_rcs_scores) if new_rcs_scores else 0.5
+
+                new_score = new_rds + new_avg_rcs
+
+                # Check convergence
+                if abs(new_score - prev_score) < threshold:
+                    break
+
+                prev_score = new_score
+                results['final_rds'] = new_rds
+                results['final_avg_rcs'] = new_avg_rcs
+
+        return results
+
+    def format_morph_report(self) -> str:
+        """Generate human-readable MorphAgent scores report."""
+        lines = [
+            "# MorphAgent Scores Report",
+            "=" * 50,
+            ""
+        ]
+
+        if not self.agent_profiles:
+            lines.append("No agents registered.")
+            return "\n".join(lines)
+
+        # Swarm-level RDS
+        if self.morph_scorer:
+            rds = self.morph_scorer.compute_rds(self.agent_profiles)
+            lines.append(f"## Swarm Role Differentiation (RDS): {rds:.2f}")
+            lines.append(f"   {'✓ Good diversity' if rds >= 0.5 else '⚠️ Agents too similar'}")
+            lines.append("")
+
+        # Per-agent RCS
+        lines.append("## Per-Agent Role Clarity (RCS)")
+        lines.append("-" * 40)
+
+        for name, profile in self.agent_profiles.items():
+            if self.morph_scorer:
+                rcs, components = self.morph_scorer.compute_rcs(profile)
+                status = "✓" if rcs >= 0.5 else "⚠️"
+                lines.append(f"  {status} {name}: RCS={rcs:.2f}")
+                lines.append(f"      Focus: {components.get('focus', 0):.2f}, "
+                           f"Consistency: {components.get('consistency', 0):.2f}, "
+                           f"Specialization: {components.get('specialization', 0):.2f}")
+
+        # Health summary
+        lines.append("")
+        health = self.get_swarm_health()
+        lines.append("## Health Summary")
+        lines.append(f"  - Average RCS: {health['avg_rcs']:.2f}")
+        lines.append(f"  - RDS: {health['rds']:.2f}")
+        lines.append(f"  - Average Trust: {health['avg_trust']:.2f}")
+        lines.append(f"  - Specialization Coverage: {health['specialization_coverage']:.1%}")
+
+        if health['recommendations']:
+            lines.append("")
+            lines.append("## Recommendations")
+            for rec in health['recommendations']:
+                lines.append(f"  - {rec}")
+
+        return "\n".join(lines)
+
+    # =========================================================================
     # PERSISTENCE
     # =========================================================================
 
@@ -1308,6 +2472,8 @@ class SwarmIntelligence:
             'routing_success': dict(self.routing_success),
             'stigmergy': self.stigmergy.to_dict(),  # Persist stigmergy state
             'benchmarks': self.benchmarks.to_dict(),  # Persist benchmark data
+            'curriculum': self.curriculum_generator.to_dict(),  # DrZero curriculum state
+            'morph_score_history': self.morph_score_history[-50:],  # MorphAgent score history
         }
 
         from pathlib import Path
@@ -1315,7 +2481,7 @@ class SwarmIntelligence:
         with open(path, 'w') as f:
             json.dump(data, f, indent=2, default=str)
 
-        logger.info(f"Saved swarm intelligence: {len(self.agent_profiles)} profiles, {len(self.stigmergy.signals)} stigmergy signals")
+        logger.info(f"Saved swarm intelligence: {len(self.agent_profiles)} profiles, {len(self.stigmergy.signals)} stigmergy signals, curriculum tasks={self.curriculum_generator.total_generated}")
 
     def load(self, path: str) -> bool:
         """Load swarm intelligence state."""
@@ -1355,7 +2521,15 @@ class SwarmIntelligence:
             if 'benchmarks' in data:
                 self.benchmarks = SwarmBenchmarks.from_dict(data['benchmarks'])
 
-            logger.info(f"Loaded swarm intelligence: {len(self.agent_profiles)} profiles, {len(self.stigmergy.signals)} stigmergy signals")
+            # Load DrZero curriculum state
+            if 'curriculum' in data:
+                self.curriculum_generator = CurriculumGenerator.from_dict(data['curriculum'], self.config)
+
+            # Load MorphAgent score history
+            if 'morph_score_history' in data:
+                self.morph_score_history = data['morph_score_history']
+
+            logger.info(f"Loaded swarm intelligence: {len(self.agent_profiles)} profiles, {len(self.stigmergy.signals)} stigmergy signals, curriculum tasks={self.curriculum_generator.total_generated}")
             return True
 
         except Exception as e:
@@ -1379,4 +2553,10 @@ __all__ = [
     'SwarmMetrics',
     'SwarmBenchmarks',
     'ByzantineVerifier',
+    # DrZero-inspired curriculum
+    'CurriculumGenerator',
+    'SyntheticTask',
+    # MorphAgent-inspired scoring
+    'MorphScorer',
+    'MorphScores',
 ]

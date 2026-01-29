@@ -497,6 +497,10 @@ class AgenticPlanner:
             
             # Use dspy.context() if we're in an async context and need to set LM
             # Otherwise, just call the module directly (it already has the signature)
+            logger.info(f"📤 Calling LLM for execution plan...")
+            logger.debug(f"   Task: {planning_task}")
+            logger.debug(f"   Skills count: {len(skills)}")
+
             result = self.execution_planner(
                 task_description=planning_task,
                 task_type=task_type.value,
@@ -504,11 +508,21 @@ class AgenticPlanner:
                 previous_outputs=outputs_json,
                 max_steps=max_steps
             )
-            
+
+            # Debug: Log raw LLM response
+            logger.info(f"📥 LLM response received")
+            raw_plan = getattr(result, 'execution_plan', None)
+            logger.debug(f"   Raw execution_plan type: {type(raw_plan)}")
+            logger.debug(f"   Raw execution_plan (first 500 chars): {str(raw_plan)[:500] if raw_plan else 'NONE'}")
+
             # Parse execution plan
             try:
                 # Try to parse as JSON
-                plan_str = str(result.execution_plan).strip()
+                plan_str = str(result.execution_plan).strip() if result.execution_plan else ""
+
+                if not plan_str:
+                    logger.warning("LLM returned empty execution_plan field")
+                    plan_data = self._create_fallback_plan(task, task_type, skills)
                 
                 # Remove markdown code blocks if present
                 if plan_str.startswith('```'):

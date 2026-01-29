@@ -36,7 +36,10 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
         Dictionary with workflow results
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         symbols = params.get('symbols')
         if not symbols:

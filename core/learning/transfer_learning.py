@@ -26,9 +26,33 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 # Try to import sentence-transformers for embeddings
+import os
+EMBEDDINGS_DISABLED = os.environ.get('JOTTY_DISABLE_EMBEDDINGS', '').lower() in ('1', 'true', 'yes')
+
 try:
-    from sentence_transformers import SentenceTransformer
-    EMBEDDINGS_AVAILABLE = True
+    if not EMBEDDINGS_DISABLED:
+        # Suppress HuggingFace and safetensors warnings
+        os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '1'
+        os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+        os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+        os.environ['SAFETENSORS_FAST_GPU'] = '0'
+        os.environ['TQDM_DISABLE'] = '1'
+        import warnings
+        warnings.filterwarnings('ignore', message='.*huggingface.*')
+        warnings.filterwarnings('ignore', message='.*unauthenticated.*')
+        warnings.filterwarnings('ignore', message='.*token.*')
+        warnings.filterwarnings('ignore', category=FutureWarning)
+        warnings.filterwarnings('ignore', category=UserWarning)
+        # Suppress safetensors/BERT loading messages
+        import logging as _logging
+        for _name in ['safetensors', 'sentence_transformers', 'transformers', 'huggingface_hub', 'tqdm']:
+            _logging.getLogger(_name).setLevel(_logging.ERROR)
+
+        from sentence_transformers import SentenceTransformer
+        EMBEDDINGS_AVAILABLE = True
+    else:
+        EMBEDDINGS_AVAILABLE = False
+        logger.info("Embeddings disabled via JOTTY_DISABLE_EMBEDDINGS")
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
     logger.info("sentence-transformers not available, using fallback similarity")
@@ -102,17 +126,43 @@ class SemanticEmbedder:
     Falls back to enhanced keyword matching if sentence-transformers unavailable.
     """
 
-    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2', use_embeddings: bool = True):
         self.model = None
         self.cache: Dict[str, Any] = {}  # text -> embedding
         self.cache_max_size = 10000
 
-        if EMBEDDINGS_AVAILABLE:
+        if EMBEDDINGS_AVAILABLE and use_embeddings:
             try:
-                self.model = SentenceTransformer(model_name)
+                # Suppress model loading output (progress bars, BERT load report)
+                import sys
+                import io
+                import os
+
+                # Set env vars again just before loading
+                os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '1'
+                os.environ['TQDM_DISABLE'] = '1'
+
+                # Monkey-patch stdout/stderr to capture all output
+                _real_stdout = sys.stdout
+                _real_stderr = sys.stderr
+                sys.stdout = io.StringIO()
+                sys.stderr = io.StringIO()
+
+                try:
+                    self.model = SentenceTransformer(
+                        model_name,
+                        trust_remote_code=False,
+                    )
+                finally:
+                    # Restore stdout/stderr
+                    sys.stdout = _real_stdout
+                    sys.stderr = _real_stderr
+
                 logger.info(f"SemanticEmbedder initialized with {model_name}")
             except Exception as e:
-                logger.warning(f"Could not load embedding model: {e}")
+                logger.debug(f"Could not load embedding model: {e}, using fallback")
+        elif not use_embeddings:
+            logger.debug("Embeddings disabled, using fallback similarity")
 
     def embed(self, text: str) -> Any:
         """Get embedding for text (cached)."""
@@ -556,7 +606,7 @@ class TransferableLearningStore:
                 'task_type': task_type,
                 'success_rate': pattern.success_rate,
                 'avg_reward': pattern.avg_reward,
-                'advice': f"{task_type.upper()} queries have {pattern.success_rate*100:.0f}% success rate"
+                'advice': f"{(task_type or 'UNKNOWN').upper()} queries have {pattern.success_rate*100:.0f}% success rate"
             }
 
         # 3. Get role advice

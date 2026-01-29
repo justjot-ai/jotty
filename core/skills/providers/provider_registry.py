@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from collections import defaultdict
 
-from .base import SkillProvider, SkillCategory, ProviderResult, JottyDefaultProvider
+from .base import SkillProvider, SkillCategory, ProviderResult, JottyDefaultProvider, CATEGORY_KEYWORDS
 
 # Lazy import to avoid circular dependency
 if TYPE_CHECKING:
@@ -374,6 +374,7 @@ class ProviderRegistry:
     TRUSTED_PACKAGES = {
         'jotty', 'browser-use', 'openhands', 'agent-s', 'open-interpreter',
         'skyvern', 'playwright', 'selenium', 'requests', 'httpx', 'aiohttp',
+        'morph', 'morph-data', 'streamlit', 'gradio',
     }
 
     def __init__(self, swarm_intelligence: SwarmIntelligence = None):
@@ -403,7 +404,26 @@ class ProviderRegistry:
         # Register default Jotty provider
         self.register(JottyDefaultProvider(), trust_level='trusted')
 
+        # Register app building providers (Streamlit first as default)
+        self._register_app_building_providers()
+
         logger.info("📦 ProviderRegistry initialized")
+
+    def _register_app_building_providers(self):
+        """Register app building providers. Streamlit first (default, open source)."""
+        # StreamlitProvider - fully open source, no cloud needed (DEFAULT)
+        try:
+            from .streamlit_provider import StreamlitProvider
+            self.register(StreamlitProvider(), trust_level='trusted')
+        except Exception as e:
+            logger.debug(f"Could not register StreamlitProvider: {e}")
+
+        # MorphProvider - requires cloud credentials (secondary option)
+        try:
+            from .morph_provider import MorphProvider
+            self.register(MorphProvider(), trust_level='trusted')
+        except Exception as e:
+            logger.debug(f"Could not register MorphProvider: {e}")
 
     def _get_sandbox_manager(self) -> 'SandboxManager':
         """Lazy load sandbox manager."""
@@ -508,6 +528,89 @@ class ProviderRegistry:
         """Get all providers that support a category."""
         names = self._category_index.get(category, [])
         return [self._providers[n] for n in names if n in self._providers]
+
+    def detect_category(self, task: str) -> Optional[SkillCategory]:
+        """
+        Auto-detect skill category from task description using CATEGORY_KEYWORDS.
+
+        Args:
+            task: Natural language task description
+
+        Returns:
+            Detected SkillCategory or None if no match
+
+        Example:
+            >>> registry.detect_category("build me a dashboard app")
+            SkillCategory.APP_BUILDING
+        """
+        task_lower = task.lower()
+
+        # Score each category by keyword matches
+        scores: Dict[SkillCategory, int] = {}
+
+        for category, keywords in CATEGORY_KEYWORDS.items():
+            score = sum(1 for kw in keywords if kw.lower() in task_lower)
+            if score > 0:
+                scores[category] = score
+
+        if not scores:
+            return None
+
+        # Return category with highest score
+        return max(scores, key=scores.get)
+
+    def get_provider_for_task(self, task: str, context: Dict[str, Any] = None) -> Optional[SkillProvider]:
+        """
+        Auto-detect category and get best provider for a task.
+
+        This is the main entry point for autonomous task routing.
+
+        Args:
+            task: Natural language task description
+            context: Additional context
+
+        Returns:
+            Best provider for the task or None
+
+        Example:
+            >>> provider = registry.get_provider_for_task("build a stock dashboard")
+            >>> await provider.execute("build a stock dashboard")
+        """
+        category = self.detect_category(task)
+
+        if category:
+            logger.info(f"🎯 Detected category: {category.value} for task: {task[:50]}...")
+            return self.get_best_provider(category, task, context)
+
+        logger.warning(f"Could not detect category for task: {task[:50]}...")
+        return self._providers.get('jotty')  # Fallback
+
+    async def auto_execute(self, task: str, context: Dict[str, Any] = None) -> 'ProviderResult':
+        """
+        Autonomously detect category, select provider, and execute task.
+
+        This is the fully autonomous entry point.
+
+        Args:
+            task: Natural language task description
+            context: Additional context
+
+        Returns:
+            ProviderResult from execution
+
+        Example:
+            >>> result = await registry.auto_execute("build me a chat app")
+            # Automatically detects APP_BUILDING, selects StreamlitProvider, executes
+        """
+        category = self.detect_category(task)
+
+        if not category:
+            logger.warning(f"Could not detect category, using default")
+            category = SkillCategory.CODE_EXECUTION  # Fallback
+
+        logger.info(f"🤖 Auto-executing: {task[:50]}... (category: {category.value})")
+
+        return await self.execute(category, task, context)
 
     def get_best_provider(
         self,

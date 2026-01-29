@@ -164,6 +164,9 @@ async def extract_financial_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Use LLM for more complex extraction if requested
     if use_llm and ('financial_statements' in data_types or 'valuation_metrics' in data_types):
         try:
+            try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
             from core.registry.skills_registry import get_skills_registry
             
             registry = get_skills_registry()
@@ -530,7 +533,10 @@ async def _generate_chart_insights(
 ) -> str:
     """Generate AI-powered insights for a chart."""
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

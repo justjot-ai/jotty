@@ -34,6 +34,7 @@ class SkillCategory(Enum):
     DATABASE = "database"         # Database operations
     SCHEDULING = "scheduling"     # Cron, scheduling tasks
     ANALYTICS = "analytics"       # Data analysis, reporting
+    APP_BUILDING = "app_building" # App creation frameworks (Morph, Streamlit, Gradio)
 
 
 # =============================================================================
@@ -201,6 +202,15 @@ SKILL_CATEGORY_MAP: Dict[str, 'SkillCategory'] = {
     'plotly': SkillCategory.ANALYTICS,
     'pandas': SkillCategory.ANALYTICS,
     'numpy': SkillCategory.ANALYTICS,
+
+    # App Building Frameworks
+    'morph': SkillCategory.APP_BUILDING,
+    'morph-data': SkillCategory.APP_BUILDING,
+    'streamlit': SkillCategory.APP_BUILDING,
+    'gradio': SkillCategory.APP_BUILDING,
+    'dash': SkillCategory.APP_BUILDING,
+    'reflex': SkillCategory.APP_BUILDING,
+    'nicegui': SkillCategory.APP_BUILDING,
 }
 
 
@@ -250,6 +260,12 @@ CATEGORY_KEYWORDS: Dict['SkillCategory', List[str]] = {
     ],
     SkillCategory.ANALYTICS: [
         'analyze', 'chart', 'graph', 'plot', 'visualize', 'statistics', 'report', 'dashboard'
+    ],
+    SkillCategory.APP_BUILDING: [
+        'app', 'dashboard', 'build', 'create', 'deploy', 'ui', 'interface',
+        'frontend', 'fullstack', 'streamlit', 'gradio', 'morph', 'web app',
+        'add feature', 'modify app', 'update app', 'edit app', 'arxiv_searcher',
+        'stock_dashboard', 'to the app', 'to app'
     ],
 }
 
@@ -433,6 +449,7 @@ class JottyDefaultProvider(SkillProvider):
         self._skill_score_cache: Dict[str, float] = {}
 
         # Initialize capabilities for all supported categories
+        # Exclude APP_BUILDING - defer to specialized providers (Streamlit, Morph)
         self.capabilities = [
             ProviderCapability(
                 category=cat,
@@ -440,6 +457,7 @@ class JottyDefaultProvider(SkillProvider):
                 estimated_latency_ms=self._get_category_latency(cat),
             )
             for cat in SkillCategory
+            if cat != SkillCategory.APP_BUILDING  # Use StreamlitProvider instead
         ]
 
     def _get_category_actions(self, category: SkillCategory) -> List[str]:
@@ -460,6 +478,7 @@ class JottyDefaultProvider(SkillProvider):
             SkillCategory.DATABASE: ["query", "insert", "update", "delete"],
             SkillCategory.SCHEDULING: ["schedule", "cron", "delay", "recurring"],
             SkillCategory.ANALYTICS: ["analyze", "chart", "visualize", "report"],
+            SkillCategory.APP_BUILDING: ["create_app", "generate_workflow", "generate_page", "serve", "deploy"],
         }
         return action_map.get(category, ["execute"])
 
@@ -481,6 +500,7 @@ class JottyDefaultProvider(SkillProvider):
             SkillCategory.DATABASE: 200,
             SkillCategory.SCHEDULING: 100,
             SkillCategory.ANALYTICS: 2000,
+            SkillCategory.APP_BUILDING: 5000,
         }
         return latency_map.get(category, 1000)
 
@@ -554,8 +574,8 @@ class JottyDefaultProvider(SkillProvider):
             return True
 
     def get_categories(self) -> List[SkillCategory]:
-        """Get all supported categories."""
-        return list(SkillCategory)
+        """Get all supported categories (excluding APP_BUILDING - use specialized providers)."""
+        return [cat for cat in SkillCategory if cat != SkillCategory.APP_BUILDING]
 
     async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
         """

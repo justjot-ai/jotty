@@ -150,14 +150,15 @@ class MemoryLevelClassifier:
                 context=json.dumps(context)
             )
             
-            level_str = result.level.upper().strip()
+            level_str = (result.level or 'EPISODIC').upper().strip()
             level = self.level_map.get(level_str, MemoryLevel.EPISODIC)
             confidence = float(result.confidence) if result.confidence else 0.5
             should_store = result.should_store if hasattr(result, 'should_store') else True
-            
+
             return level, confidence, should_store
-            
+
         except Exception as e:
+            logger.debug(f"Classification failed: {e}, using heuristic")
             # Fallback to heuristic classification
             return self._heuristic_classify(experience), 0.5, True
     
@@ -183,9 +184,9 @@ class MemoryLevelClassifier:
                 context=json.dumps(ctx)
             )
             
-            level_str = result.level.upper().strip()
+            level_str = (result.level or 'EPISODIC').upper().strip()
             return self.level_map.get(level_str, MemoryLevel.EPISODIC)
-        
+
         # Fallback agent (specialized for difficult cases)
         async def fallback_classifier(**kwargs):
             """
@@ -228,9 +229,9 @@ class MemoryLevelClassifier:
                 experience=kwargs.get('original_input', {}).get('experience', '')
             )
             
-            level_str = result.level.upper().strip()
+            level_str = (result.level or 'EPISODIC').upper().strip()
             return self.level_map.get(level_str, MemoryLevel.EPISODIC)
-        
+
         result = await retry_handler.execute_with_retry(
             agent_func=classify_attempt,
             task_description=f"Classify memory level for: {experience}...",

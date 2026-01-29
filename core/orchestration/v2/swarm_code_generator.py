@@ -729,6 +729,318 @@ registry = ProviderRegistry()
 registry.register(provider, trust_level="sandboxed")
 '''
 
+    # =========================================================================
+    # Morph App Code Generation
+    # =========================================================================
+
+    def generate_morph_workflow(
+        self,
+        workflow_name: str,
+        workflow_spec: Dict[str, Any],
+        streaming: bool = True
+    ) -> GeneratedCode:
+        """
+        Generate a Python workflow file for Morph.
+
+        Creates a workflow with @morph.func decorator that can be called
+        from MDX pages.
+
+        Args:
+            workflow_name: Name of the workflow function
+            workflow_spec: Workflow specification
+                - description: What the workflow does
+                - inputs: List of input parameter names
+                - outputs: List of output field names
+                - body: Optional custom body code
+            streaming: Whether to use streaming response
+
+        Returns:
+            GeneratedCode with Morph workflow
+
+        Example:
+            code = gen.generate_morph_workflow(
+                "analyze_stock",
+                {
+                    "description": "Analyze stock data",
+                    "inputs": ["ticker", "period"],
+                    "outputs": ["chart", "summary"],
+                },
+                streaming=True
+            )
+        """
+        description = workflow_spec.get('description', f'{workflow_name} workflow')
+        inputs = workflow_spec.get('inputs', [])
+        outputs = workflow_spec.get('outputs', ['result'])
+        custom_body = workflow_spec.get('body')
+
+        # Build imports
+        imports = ['import morph', 'from morph import MorphGlobalContext']
+        if streaming:
+            imports.append('from morph_lib.stream import stream_chat')
+        imports.append('from typing import Dict, Any')
+
+        # Build parameter annotations
+        params_str = ''
+        param_docs = []
+        if inputs:
+            params = [f'{inp}: str = None' for inp in inputs]
+            params_str = ', ' + ', '.join(params)
+            param_docs = [f'        {inp}: Input parameter' for inp in inputs]
+
+        # Build body
+        if custom_body:
+            body = custom_body
+        elif streaming:
+            body = self._generate_streaming_workflow_body(workflow_name, inputs, outputs)
+        else:
+            body = self._generate_sync_workflow_body(workflow_name, inputs, outputs)
+
+        # Build decorators
+        decorators = '@morph.func'
+        if streaming:
+            decorators = '@morph.func\n@morph.streaming'
+
+        # Assemble code
+        code = f'''"""
+{description}
+
+Auto-generated Morph workflow by Jotty V2 SwarmCodeGenerator.
+"""
+{chr(10).join(imports)}
+
+
+{decorators}
+def {workflow_name}(context: MorphGlobalContext{params_str}):
+    """
+    {description}
+
+    Args:
+        context: Morph global context with request data
+{chr(10).join(param_docs) if param_docs else "        None"}
+
+    {'Yields' if streaming else 'Returns'}:
+        {'Streamed response chunks' if streaming else 'Result dictionary'}
+    """
+{body}
+'''
+
+        return GeneratedCode(
+            code=code.strip(),
+            language="python",
+            dependencies=['morph-data'],
+            description=f"Morph workflow: {workflow_name}",
+            file_path=f"python/{workflow_name}.py",
+            usage_example=self._generate_morph_workflow_usage(workflow_name, inputs),
+            metadata={
+                'workflow_name': workflow_name,
+                'streaming': streaming,
+                'inputs': inputs,
+                'outputs': outputs,
+            }
+        )
+
+    def _generate_streaming_workflow_body(
+        self,
+        workflow_name: str,
+        inputs: List[str],
+        outputs: List[str]
+    ) -> str:
+        """Generate streaming workflow body."""
+        indent = '    '
+
+        # Input extraction
+        input_lines = []
+        for inp in inputs:
+            input_lines.append(f'{indent}{inp} = context.vars.get("{inp}")')
+
+        # Build body
+        body_lines = input_lines or [f'{indent}# Get input from context', f'{indent}user_input = context.vars.get("message", "")']
+
+        body_lines.extend([
+            '',
+            f'{indent}# Stream response using Morph stream_chat',
+            f'{indent}# TODO: Integrate with your LLM (OpenAI, Anthropic, etc.)',
+            f'{indent}response = f"Processing: {{str(context.vars)}}"',
+            f'{indent}for word in response.split():',
+            f'{indent}    yield stream_chat(word + " ")',
+        ])
+
+        return '\n'.join(body_lines)
+
+    def _generate_sync_workflow_body(
+        self,
+        workflow_name: str,
+        inputs: List[str],
+        outputs: List[str]
+    ) -> str:
+        """Generate synchronous workflow body."""
+        indent = '    '
+
+        # Input extraction
+        input_lines = []
+        for inp in inputs:
+            input_lines.append(f'{indent}{inp} = context.vars.get("{inp}")')
+
+        # Output construction
+        output_fields = ', '.join([f'"{o}": None' for o in outputs])
+
+        body_lines = input_lines or [f'{indent}# Get input from context']
+
+        body_lines.extend([
+            '',
+            f'{indent}# Process and return result',
+            f'{indent}result = {{{output_fields}}}',
+            '',
+            f'{indent}# TODO: Implement {workflow_name} logic',
+            '',
+            f'{indent}return result',
+        ])
+
+        return '\n'.join(body_lines)
+
+    def _generate_morph_workflow_usage(self, workflow_name: str, inputs: List[str]) -> str:
+        """Generate usage example for Morph workflow."""
+        inputs_example = ', '.join([f'{inp}="value"' for inp in inputs]) if inputs else ''
+
+        return f'''
+# Usage in MDX page:
+# <Chat postData="{workflow_name}" />
+
+# Or programmatically:
+from python.{workflow_name} import {workflow_name}
+from morph import MorphGlobalContext
+
+context = MorphGlobalContext()
+context.vars = {{{', '.join([f'"{inp}": "value"' for inp in inputs]) if inputs else '"message": "Hello"'}}}
+
+# For streaming workflows:
+for chunk in {workflow_name}(context{', ' + inputs_example if inputs_example else ''}):
+    print(chunk, end="")
+
+# For sync workflows:
+result = {workflow_name}(context{', ' + inputs_example if inputs_example else ''})
+print(result)
+'''
+
+    def generate_morph_page(
+        self,
+        page_name: str,
+        workflows: List[str],
+        components: List[Dict[str, Any]],
+        title: str = None,
+        description: str = None
+    ) -> GeneratedCode:
+        """
+        Generate an MDX page for Morph.
+
+        Creates a page that connects to Python workflows using
+        Morph's pre-built components.
+
+        Args:
+            page_name: Name of the page file (without extension)
+            workflows: List of workflow names this page uses
+            components: List of component specifications
+                - type: Component type (chat, form, table, chart, input, button)
+                - workflow: Workflow to connect (optional)
+                - Additional component-specific props
+            title: Page title (default: page_name)
+            description: Page description
+
+        Returns:
+            GeneratedCode with MDX page
+
+        Example:
+            code = gen.generate_morph_page(
+                "dashboard",
+                workflows=["get_metrics", "analyze_data"],
+                components=[
+                    {"type": "chart", "workflow": "get_metrics", "chart_type": "line"},
+                    {"type": "table", "workflow": "analyze_data"},
+                ],
+                title="Analytics Dashboard"
+            )
+        """
+        title = title or page_name.replace('_', ' ').title()
+        description = description or f"{title} - Auto-generated by Jotty V2"
+
+        # Build component MDX
+        component_mdx = []
+        for comp in components:
+            mdx = self._generate_component_mdx(comp, workflows)
+            if mdx:
+                component_mdx.append(mdx)
+
+        # Build content section
+        content = self._generate_page_content(title, components)
+
+        # Assemble MDX
+        mdx = f'''---
+title: {title}
+description: {description}
+---
+
+# {title}
+
+{content}
+
+{chr(10).join(component_mdx)}
+'''
+
+        return GeneratedCode(
+            code=mdx.strip(),
+            language="mdx",
+            dependencies=['morph-data'],
+            description=f"Morph page: {page_name}",
+            file_path=f"pages/{page_name}.mdx",
+            usage_example=f'# This page is served at: http://localhost:8080/{page_name}',
+            metadata={
+                'page_name': page_name,
+                'workflows': workflows,
+                'components': [c.get('type') for c in components],
+            }
+        )
+
+    def _generate_component_mdx(
+        self,
+        component: Dict[str, Any],
+        workflows: List[str]
+    ) -> str:
+        """Generate MDX for a single component."""
+        comp_type = component.get('type', 'chat')
+        workflow = component.get('workflow', workflows[0] if workflows else 'main')
+
+        templates = {
+            'chat': f'<Chat postData="{workflow}" height={{{{300}}}} />',
+            'form': f'<Form postData="{workflow}" />',
+            'table': f'<DataTable postData="{workflow}" />',
+            'chart': f'<Chart postData="{workflow}" type="{component.get("chart_type", "line")}" />',
+            'input': f'<Input name="{component.get("name", "input")}" label="{component.get("label", "Input")}" />',
+            'button': f'<Button onClick={{{{() => run("{workflow}")}}}}>{component.get("children", "Submit")}</Button>',
+            'markdown': f'<Markdown>{component.get("content", "")}</Markdown>',
+        }
+
+        template = templates.get(comp_type)
+        if template:
+            return template
+
+        # Unknown component type - return as custom
+        props = ' '.join([f'{k}="{v}"' for k, v in component.items() if k != 'type'])
+        return f'<{comp_type.title()} {props} />'
+
+    def _generate_page_content(self, title: str, components: List[Dict[str, Any]]) -> str:
+        """Generate descriptive content for the page."""
+        comp_types = [c.get('type') for c in components]
+
+        sections = []
+        if 'chat' in comp_types:
+            sections.append("Start a conversation with the AI assistant below.")
+        if 'form' in comp_types:
+            sections.append("Fill out the form to submit your data.")
+        if 'chart' in comp_types or 'table' in comp_types:
+            sections.append("View your data visualizations and insights.")
+
+        return '\n\n'.join(sections) if sections else f"Welcome to {title}!"
+
     def generate_provider_from_candidate(
         self,
         candidate: 'ProviderCandidate'

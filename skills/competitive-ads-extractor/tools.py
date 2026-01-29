@@ -44,7 +44,10 @@ async def extract_competitive_ads_tool(params: Dict[str, Any]) -> Dict[str, Any]
     
     # Search for ads
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()
@@ -118,7 +121,10 @@ async def _analyze_ads(ads: List[Dict], competitor_name: str, depth: str) -> Dic
     """Analyze ads for messaging, creative, and targeting insights."""
     
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

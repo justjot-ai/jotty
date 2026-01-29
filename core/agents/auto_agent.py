@@ -97,12 +97,12 @@ class AutoAgent:
     def _init_dependencies(self):
         """Lazy load dependencies."""
         if self._registry is None:
-            from core.registry.skills_registry import get_skills_registry
+            from ..registry.skills_registry import get_skills_registry
             self._registry = get_skills_registry()
             self._registry.init()
 
         if self._manifest is None:
-            from core.registry.skills_manifest import get_skills_manifest
+            from ..registry.skills_manifest import get_skills_manifest
             self._manifest = get_skills_manifest()
 
     def _infer_task_type(self, task: str) -> TaskType:
@@ -112,24 +112,90 @@ class AutoAgent:
         return task_type
 
     def _discover_skills(self, task: str) -> List[Dict[str, Any]]:
-        """Discover relevant skills for task."""
-        import sys
-        sys.path.insert(0, 'skills/skill-discovery')
-
+        """Discover relevant skills for task using Jotty's SkillsRegistry."""
         try:
-            from skills.skill_discovery import tools as discovery
-        except ImportError:
-            # Direct import
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(
-                "discovery_tools",
-                "skills/skill-discovery/tools.py"
-            )
-            discovery = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(discovery)
+            from ..registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
 
-        result = discovery.find_skills_for_task_tool({'task': task, 'max_results': 8})
-        return result.get('recommended_skills', [])
+            if not registry.initialized:
+                registry.init()
+
+            task_lower = task.lower()
+            task_words = [w for w in task_lower.split() if len(w) > 2]
+
+            # Detect task intent for better skill matching
+            is_research_task = any(w in task_lower for w in ['research', 'search', 'find', 'look', 'information', 'about', 'what'])
+            is_image_task = any(w in task_lower for w in ['image', 'picture', 'photo', 'generate image', 'draw', 'illustration'])
+            is_code_task = any(w in task_lower for w in ['code', 'program', 'script', 'function', 'implement'])
+
+            # Skills to exclude for non-matching tasks
+            image_skills = {'image-generator', 'stable-diffusion', 'dall-e', 'midjourney'}
+            code_skills = {'code-generator', 'code-reviewer'}
+
+            skills = []
+
+            for skill_name, skill_def in registry.loaded_skills.items():
+                skill_name_lower = skill_name.lower()
+
+                # Exclude irrelevant skills based on task type
+                if not is_image_task and skill_name_lower in image_skills:
+                    continue
+                if not is_code_task and 'diffuser' in skill_name_lower:
+                    continue
+
+                # Calculate relevance score
+                score = 0
+                desc = getattr(skill_def, 'description', '') or ''
+                desc_lower = desc.lower()
+
+                # Exact word match in skill name
+                for word in task_words:
+                    if word in skill_name_lower:
+                        score += 3
+                    if word in desc_lower:
+                        score += 1
+
+                # Boost for research-related skills on research tasks
+                if is_research_task:
+                    if any(w in skill_name_lower for w in ['search', 'web', 'research', 'scrape', 'fetch', 'news', 'api']):
+                        score += 5
+                    if any(w in desc_lower for w in ['search', 'web', 'research', 'information']):
+                        score += 2
+
+                # Boost for generic utility skills
+                if any(w in skill_name_lower for w in ['claude', 'llm', 'chat', 'assistant']):
+                    score += 2
+
+                # Only include skills with positive relevance
+                if score > 0:
+                    skills.append({
+                        'name': skill_name,
+                        'description': desc or skill_name,
+                        'category': getattr(skill_def, 'category', 'general'),
+                        'relevance_score': score
+                    })
+
+            # Sort by relevance
+            skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+
+            # If no skills found, add default web-search and claude-cli
+            if not skills:
+                default_skills = ['web-search', 'claude-cli-llm', 'last30days-claude-cli']
+                for skill_name in default_skills:
+                    skill_def = registry.get_skill(skill_name)
+                    if skill_def:
+                        skills.append({
+                            'name': skill_name,
+                            'description': getattr(skill_def, 'description', skill_name),
+                            'category': getattr(skill_def, 'category', 'general'),
+                            'relevance_score': 1
+                        })
+
+            return skills[:8]
+
+        except Exception as e:
+            logger.warning(f"Skill discovery failed: {e}, returning empty list")
+            return []
 
     def _plan_execution(
         self,
@@ -698,39 +764,56 @@ class AutoAgent:
 
         return resolved
 
-    async def execute(self, task: str) -> ExecutionResult:
+    async def execute(self, task: str, **kwargs) -> ExecutionResult:
         """
         Execute a task automatically.
 
         Args:
             task: Task description (can be minimal like "RNN vs CNN")
+            status_callback: Optional callback(stage, detail) for progress updates
 
         Returns:
             ExecutionResult with outputs and status
         """
         start_time = datetime.now()
 
+        # Extract status callback for streaming progress
+        status_callback = kwargs.pop('status_callback', None)
+
+        def _status(stage: str, detail: str = ""):
+            """Report progress if callback provided."""
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"  🔧 {stage}" + (f": {detail}" if detail else ""))
+
         # Initialize
         self._init_dependencies()
 
-        logger.info(f"AutoAgent executing: {task}")
+        _status("AutoAgent", f"starting task execution")
 
         # Step 1: Infer task type
+        _status("Analyzing", "inferring task type")
         task_type = self._infer_task_type(task)
-        logger.info(f"Task type: {task_type.value}")
+        _status("Task type", task_type.value)
 
         # Step 2: Discover skills
+        _status("Discovering", "finding relevant skills")
         all_skills = self._discover_skills(task)
-        logger.info(f"Discovered {len(all_skills)} potential skills")
+        _status("Skills found", f"{len(all_skills)} potential skills")
 
         # Step 2.5: Select best skills using agentic planner
         if all_skills:
+            _status("Selecting", "choosing best skills for task")
             skills, selection_reasoning = self.planner.select_skills(
                 task=task,
                 available_skills=all_skills,
                 max_skills=8
             )
-            logger.info(f"Selected {len(skills)} skills: {[s.get('name') for s in skills]}")
+            skill_names = [s.get('name') for s in skills]
+            _status("Skills selected", ", ".join(skill_names[:5]) + ("..." if len(skill_names) > 5 else ""))
             logger.debug(f"Selection reasoning: {selection_reasoning}")
         else:
             # Fallback: try to get skills from registry
@@ -751,8 +834,9 @@ class AutoAgent:
                 skills = []
 
         # Step 3: Plan execution using agentic planner
+        _status("Planning", "creating execution plan")
         steps = self._plan_execution(task, task_type, skills)
-        logger.info(f"Planned {len(steps)} steps")
+        _status("Plan ready", f"{len(steps)} steps to execute")
 
         # Step 3.5: Validate tools exist before execution
         steps = self._validate_and_filter_steps(steps, skills)
@@ -847,7 +931,8 @@ class AutoAgent:
             if len(ready_steps) == 1:
                 # Single step - execute directly
                 i, step = ready_steps[0]
-                logger.info(f"Step {i+1}/{len(steps)}: {step.description}")
+                _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description}")
+                _status(f"  Executing", f"{step.tool_name} with {len(step.params)} params")
                 resolved_params = self._resolve_params(step.params, outputs, step=step)
                 result = await self._execute_tool(
                     step.skill_name,
@@ -857,7 +942,8 @@ class AutoAgent:
                 results = [(i, step, result, None)]
             else:
                 # Multiple steps - execute in parallel
-                logger.info(f"🚀 Executing {len(ready_steps)} steps in parallel...")
+                step_names = [s.skill_name for _, s in ready_steps[:3]]
+                _status(f"Parallel execution", f"{len(ready_steps)} steps: {', '.join(step_names)}")
                 tasks = [
                     execute_step_with_error_handling(i, step)
                     for i, step in ready_steps
@@ -877,11 +963,20 @@ class AutoAgent:
                     skills_used.append(step.skill_name)
                     steps_executed += 1
                     executed_indices.add(step_idx)
-                    logger.info(f"  ✅ Step {step_idx+1} succeeded")
+                    # Show success with output summary
+                    output_summary = ""
+                    if isinstance(result, dict):
+                        for key in ['pdf_path', 'md_path', 'output_path', 'file_path']:
+                            if key in result and result[key]:
+                                output_summary = f" → {result[key]}"
+                                break
+                        if not output_summary and 'word_count' in result:
+                            output_summary = f" → {result['word_count']} words"
+                    _status(f"✓ Step {step_idx+1}", f"{step.skill_name} succeeded{output_summary}")
                 else:
                     error_msg = result.get('error', 'Unknown error') or str(exception) if exception else 'Unknown error'
                     errors.append(f"Step {step_idx+1} ({step.skill_name}): {error_msg}")
-                    logger.warning(f"  ❌ Step {step_idx+1} failed: {error_msg}")
+                    _status(f"✗ Step {step_idx+1}", f"{step.skill_name} failed: {error_msg}")
                     
                     # CRITICAL: Always mark step as executed to prevent infinite loops
                     # Even if it failed, we don't want to retry it forever

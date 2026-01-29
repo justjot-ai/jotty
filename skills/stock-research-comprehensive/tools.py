@@ -38,7 +38,10 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         Dictionary with research results and file paths
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         ticker = params.get('ticker', '').upper().strip()
         if not ticker:

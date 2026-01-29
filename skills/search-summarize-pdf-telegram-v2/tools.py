@@ -137,7 +137,10 @@ async def search_summarize_pdf_telegram_v2_tool(params: dict) -> dict:
     
     Uses generic pipeline framework with declarative configuration.
     """
-    from core.registry.skills_registry import get_skills_registry
+    try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
     
     registry = get_skills_registry()
     registry.init()

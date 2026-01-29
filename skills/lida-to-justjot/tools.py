@@ -42,6 +42,9 @@ class LidaToJustJotSkill:
     def registry(self):
         """Lazy load skills registry."""
         if self._registry is None:
+            try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
             from core.registry.skills_registry import get_skills_registry
             self._registry = get_skills_registry()
             self._registry.init()

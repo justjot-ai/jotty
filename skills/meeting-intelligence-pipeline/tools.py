@@ -37,7 +37,10 @@ async def meeting_intelligence_pipeline_tool(params: Dict[str, Any]) -> Dict[str
         Dictionary with analysis, meeting materials, and communication
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

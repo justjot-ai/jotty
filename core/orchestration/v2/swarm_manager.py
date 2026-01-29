@@ -17,8 +17,9 @@ Skills Integration:
 import asyncio
 import logging
 import time
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 from pathlib import Path
+from collections import defaultdict
 
 from ...foundation.data_structures import JottyConfig, EpisodeResult
 from ...foundation.agent_config import AgentConfig
@@ -58,7 +59,7 @@ from ...agents.axon import SmartAgentSlack
 from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
 from ..conductor import SwarmLearner
 from ...learning.transfer_learning import TransferableLearningStore
-from .swarm_intelligence import SwarmIntelligence
+from .swarm_intelligence import SwarmIntelligence, SyntheticTask, CurriculumGenerator
 from ...foundation.robust_parsing import AdaptiveWeightGroup
 
 # Skill Provider System (V2 World-Class) - Lazy imported to avoid circular deps
@@ -735,7 +736,9 @@ class SwarmManager:
             "learning": [
                 "swarm_workflow_learner.learn_from_execution() - Learn from workflow execution",
                 "swarm_workflow_learner.find_similar_pattern() - Find similar workflow patterns",
-                "swarm_workflow_learner.get_best_patterns() - Get best patterns by success rate"
+                "swarm_workflow_learner.get_best_patterns() - Get best patterns by success rate",
+                "warmup(num_episodes) - DrZero-inspired zero-data bootstrapping",
+                "get_warmup_recommendation() - Check if warmup would be beneficial"
             ],
             "integration": [
                 "swarm_integrator.setup_scheduling() - Set up scheduled execution (cron, systemd)",
@@ -980,38 +983,65 @@ For component-specific help:
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Run task execution with full autonomy.
-        
+
         Supports zero-config: natural language goal → autonomous execution.
-        
+
         Args:
             goal: Task goal/description (natural language supported)
+            skip_autonomous_setup: If True, skip research/install/configure (fast mode)
+            status_callback: Optional callback(stage, detail) for progress updates
             **kwargs: Additional arguments
-            
+
         Returns:
             EpisodeResult with output and metadata
         """
-        logger.info(f"🚀 SwarmManager.run: {self.mode} mode - {goal[:50]}...")
-        
+        # Extract special kwargs
+        skip_autonomous_setup = kwargs.pop('skip_autonomous_setup', False)
+        status_callback = kwargs.pop('status_callback', None)
+
+        # Ensure DSPy LM is configured (critical for all agent operations)
+        import dspy
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            lm = self.swarm_provider_gateway.get_lm()
+            if lm:
+                dspy.configure(lm=lm)
+                logger.info(f"✅ DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
+
+        def _status(stage: str, detail: str = ""):
+            """Report status if callback provided."""
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+
+        agent_info = f"{len(self.agents)} agent(s)" if len(self.agents) > 1 else "AutoAgent (zero-config)"
+        _status("Starting", agent_info)
+
         # Profile execution if enabled
         if self.swarm_profiler:
             profile_context = self.swarm_profiler.profile("SwarmManager.run", metadata={"goal": goal, "mode": self.mode})
             profile_context.__enter__()
         else:
             profile_context = None
-        
+
         try:
             # Store goal in shared context for state management
             if self.shared_context:
                 self.shared_context.set('goal', goal)
                 self.shared_context.set('query', goal)
-                logger.info(f"✅ Stored 'goal' and 'query' in SharedContext: {goal[:100]}...")
-            
+
             # Autonomous planning: Research, install, configure if needed
-            await self.autonomous_setup(goal)
-            
+            if not skip_autonomous_setup:
+                _status("Autonomous setup", "analyzing requirements")
+                await self.autonomous_setup(goal, status_callback=status_callback)
+            else:
+                _status("Fast mode", "skipping autonomous setup")
+
             # Set root task in SwarmTaskBoard
             self.swarm_task_board.root_task = goal
-            
+
             # Record swarm-level step: goal received
             if self.swarm_state_manager:
                 self.swarm_state_manager.record_swarm_step({
@@ -1020,27 +1050,41 @@ For component-specific help:
                     'mode': self.mode,
                     'agent_count': len(self.agents)
                 })
-        
+
             # Single-agent mode: Simple execution
             if self.mode == "single":
-                result = await self._execute_single_agent(goal, **kwargs)
-                
+                agent_name = self.agents[0].name if self.agents else "auto"
+                _status("Executing", f"agent '{agent_name}' with skill orchestration")
+                # Pass skip_validation for fast mode and status_callback for streaming
+                result = await self._execute_single_agent(
+                    goal,
+                    skip_validation=skip_autonomous_setup,
+                    status_callback=status_callback,
+                    **kwargs
+                )
+
+                _status("Complete", "success" if result.success else "failed")
+
                 # Exit profiling context
                 if profile_context:
                     profile_context.__exit__(None, None, None)
-                
+
                 return result
-        
+
             # Multi-agent mode: Use SwarmTaskBoard for coordination
             else:
+                _status("Executing", f"{len(self.agents)} agents")
                 result = await self._execute_multi_agent(goal, **kwargs)
-                
+
+                _status("Complete", "success" if result.success else "failed")
+
                 # Exit profiling context
                 if profile_context:
                     profile_context.__exit__(None, None, None)
-                
+
                 return result
         except Exception as e:
+            _status("Error", str(e)[:50])
             # Exit profiling context on error
             if profile_context:
                 profile_context.__exit__(type(e), e, None)
@@ -1423,55 +1467,71 @@ For component-specific help:
             metadata={'agent': agent_config.name}
         )
     
-    async def autonomous_setup(self, goal: str):
+    async def autonomous_setup(self, goal: str, status_callback=None):
         """
         Autonomous setup: Research, install, configure.
-        
+
         Public method for manual autonomous setup.
         DRY: Reuses all autonomous components.
-        
+
         Args:
             goal: Task goal
-            
+            status_callback: Optional callback(stage, detail) for progress
+
         Example:
             await swarm.autonomous_setup("Set up Reddit scraping")
         """
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+
         # Cache check: skip if already set up for this goal
         cache_key = hash(goal)
         if cache_key in self._setup_cache:
+            _status("Setup", "using cached")
             return
 
         # Parse intent to understand requirements
+        _status("Parsing intent", goal)
         task_graph = self.swarm_intent_parser.parse(goal)
-        
+
         # Research solutions if needed
         if task_graph.requirements or task_graph.integrations:
-            logger.info("🔍 Researching solutions...")
             # Filter out stop words and meaningless single-word requirements
             stop_words = {'existing', 'use', 'check', 'find', 'get', 'the', 'a', 'an', 'and', 'or', 'for', 'with'}
             meaningful_requirements = [
-                req for req in task_graph.requirements 
-                if req.lower() not in stop_words and len(req.split()) > 1  # Multi-word or meaningful
+                req for req in task_graph.requirements
+                if req.lower() not in stop_words and len(req.split()) > 1
             ]
-            
-            for requirement in meaningful_requirements:
+
+            if meaningful_requirements:
+                _status("Researching", f"{len(meaningful_requirements)} requirements")
+
+            for i, requirement in enumerate(meaningful_requirements):
                 if not requirement.strip():
                     continue
+                _status("Research", f"[{i+1}/{len(meaningful_requirements)}] {requirement[:30]}")
                 research_result = await self.swarm_researcher.research(requirement)
                 if research_result.tools_found:
-                    logger.info(f"✅ Found tools: {research_result.tools_found}")
-                    # Install tools
+                    _status("Found tools", ", ".join(research_result.tools_found[:3]))
                     for tool in research_result.tools_found:
+                        _status("Installing", tool)
                         await self.swarm_installer.install(tool)
-        
+
         # Configure integrations
         if task_graph.integrations:
-            logger.info(f"Configuring integrations: {task_graph.integrations}")
+            _status("Configuring", f"{len(task_graph.integrations)} integrations")
             for integration in task_graph.integrations:
+                _status("Configure", integration)
                 await self.swarm_configurator.configure(integration)
 
         # Mark as cached
         self._setup_cache[cache_key] = True
+        _status("Setup complete", "")
 
     # =====================================================================
     # State Management Methods (V1 capabilities integrated)
@@ -1556,18 +1616,332 @@ For component-specific help:
     def load_state(self, file_path: Union[str, Path]):
         """
         Load swarm and agent state from file.
-        
+
         Args:
             file_path: Path to state file
         """
         if not self.swarm_state_manager:
             logger.warning("⚠️  SwarmStateManager not initialized, cannot load state")
             return
-        
+
         file_path = Path(file_path)
         if not file_path.exists():
             logger.warning(f"⚠️  State file not found: {file_path}")
             return
-        
+
         self.swarm_state_manager.load_state(file_path)
         logger.info(f"State loaded from {file_path}")
+
+    # =====================================================================
+    # DrZero-Inspired Zero-Data Bootstrapping
+    # =====================================================================
+
+    async def warmup(
+        self,
+        num_episodes: int = 10,
+        target_agent: Optional[str] = None,
+        difficulty_range: Tuple[float, float] = (0.2, 0.6),
+        verbose: bool = True
+    ) -> Dict[str, Any]:
+        """
+        DrZero-inspired zero-data bootstrapping.
+
+        Runs synthetic training episodes to bootstrap agent learning
+        BEFORE real user tasks. This enables:
+        1. COLD START MITIGATION: Agents have learned patterns before first real task
+        2. SKILL DISCOVERY: Identify agent strengths/weaknesses
+        3. BASELINE CALIBRATION: Establish HRPO group baselines
+        4. MEMORY SEEDING: Populate memory with useful patterns
+
+        DrZero insight: Self-generated curriculum allows agents to improve
+        without external training data.
+
+        Args:
+            num_episodes: Number of synthetic training episodes
+            target_agent: Optional specific agent to train (None = all)
+            difficulty_range: (min, max) difficulty for curriculum
+            verbose: Log progress
+
+        Returns:
+            Dict with warmup statistics:
+            - episodes_run: Total episodes completed
+            - success_rate: Fraction of successful episodes
+            - agent_improvements: Per-agent performance changes
+            - curriculum_stats: Curriculum generator statistics
+
+        Example:
+            # Warmup before real tasks
+            swarm = SwarmManager(agents=[...])
+            stats = await swarm.warmup(num_episodes=10)
+            print(f"Warmup complete: {stats['success_rate']:.1%} success rate")
+
+            # Now run real tasks with warmed-up agents
+            result = await swarm.run("Real user task")
+        """
+        if verbose:
+            logger.info(f"🔥 Starting DrZero warmup: {num_episodes} synthetic episodes")
+
+        # Track warmup statistics
+        stats = {
+            'episodes_run': 0,
+            'successes': 0,
+            'failures': 0,
+            'agent_results': defaultdict(lambda: {'success': 0, 'total': 0}),
+            'task_type_results': defaultdict(lambda: {'success': 0, 'total': 0}),
+            'initial_baselines': dict(self.swarm_intelligence.curriculum_generator.difficulty_by_type),
+        }
+
+        # Get curriculum generator
+        curriculum = self.swarm_intelligence.curriculum_generator
+
+        for episode in range(num_episodes):
+            # 1. Generate synthetic task from curriculum
+            task = curriculum.generate_training_task(
+                profiles=self.swarm_intelligence.agent_profiles,
+                target_agent=target_agent
+            )
+
+            # Ensure difficulty is within range
+            if task.difficulty < difficulty_range[0]:
+                task.difficulty = difficulty_range[0]
+            elif task.difficulty > difficulty_range[1]:
+                task.difficulty = difficulty_range[1]
+
+            if verbose:
+                logger.info(
+                    f"  [{episode + 1}/{num_episodes}] "
+                    f"Task: {task.task_type} (difficulty: {task.difficulty:.1%})"
+                )
+
+            # 2. Run synthetic episode
+            try:
+                result = await self._run_synthetic_episode(task, target_agent)
+                success = result.get('success', False)
+                execution_time = result.get('execution_time', 0.0)
+            except Exception as e:
+                logger.warning(f"  Warmup episode {episode + 1} failed: {e}")
+                success = False
+                execution_time = 0.0
+
+            # 3. Update curriculum based on result
+            curriculum.update_from_result(task, success, execution_time)
+
+            # 4. Track statistics
+            stats['episodes_run'] += 1
+            if success:
+                stats['successes'] += 1
+            else:
+                stats['failures'] += 1
+
+            agent_name = task.target_agent or 'swarm'
+            stats['agent_results'][agent_name]['total'] += 1
+            if success:
+                stats['agent_results'][agent_name]['success'] += 1
+
+            stats['task_type_results'][task.task_type]['total'] += 1
+            if success:
+                stats['task_type_results'][task.task_type]['success'] += 1
+
+        # Compute final statistics
+        stats['success_rate'] = stats['successes'] / max(1, stats['episodes_run'])
+        stats['final_baselines'] = dict(curriculum.difficulty_by_type)
+        stats['curriculum_stats'] = curriculum.get_curriculum_stats()
+
+        # Compute per-agent improvements
+        stats['agent_improvements'] = {}
+        for agent_name, results in stats['agent_results'].items():
+            rate = results['success'] / max(1, results['total'])
+            stats['agent_improvements'][agent_name] = rate
+
+        # Convert defaultdicts to regular dicts for serialization
+        stats['agent_results'] = dict(stats['agent_results'])
+        stats['task_type_results'] = dict(stats['task_type_results'])
+
+        if verbose:
+            logger.info(f"🔥 Warmup complete: {stats['success_rate']:.1%} success rate")
+            logger.info(f"   Episodes: {stats['episodes_run']}, Successes: {stats['successes']}")
+            for task_type, results in stats['task_type_results'].items():
+                rate = results['success'] / max(1, results['total'])
+                logger.info(f"   {task_type}: {rate:.1%} ({results['total']} episodes)")
+
+        # Auto-save learnings from warmup
+        self._auto_save_learnings()
+
+        return stats
+
+    async def _run_synthetic_episode(
+        self,
+        task: 'SyntheticTask',
+        target_agent: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Run a single synthetic training episode.
+
+        This is an INTERNAL execution that:
+        - Does NOT affect external systems
+        - Updates agent learning/memory
+        - Records in swarm intelligence
+
+        Args:
+            task: Synthetic task from curriculum
+            target_agent: Specific agent to train
+
+        Returns:
+            Dict with episode results
+        """
+        import time as time_module
+        start_time = time_module.time()
+
+        # Determine which agent to use
+        if target_agent:
+            agent_name = target_agent
+        elif self.mode == "single":
+            agent_name = self.agents[0].name
+        else:
+            # Use swarm intelligence to route to best agent
+            best = self.swarm_intelligence.get_best_agent_for_task(
+                task.task_type,
+                [a.name for a in self.agents]
+            )
+            agent_name = best or self.agents[0].name
+
+        runner = self.runners.get(agent_name)
+        if not runner:
+            logger.warning(f"No runner for agent {agent_name}")
+            return {'success': False, 'error': 'No runner', 'execution_time': 0.0}
+
+        try:
+            # Run with synthetic goal
+            # Note: This is a simplified execution for warmup
+            # Real execution would use full run() but warmup should be lightweight
+            result = await runner.run(goal=task.description)
+
+            success = getattr(result, 'success', False)
+            execution_time = time_module.time() - start_time
+
+            # Record in swarm intelligence
+            self.swarm_intelligence.record_task_result(
+                agent_name=agent_name,
+                task_type=task.task_type,
+                success=success,
+                execution_time=execution_time,
+                context={
+                    'synthetic': True,
+                    'warmup': True,
+                    'difficulty': task.difficulty,
+                    'curriculum_round': task.metadata.get('curriculum_round', 0)
+                }
+            )
+
+            # Update transfer learning with synthetic experience
+            try:
+                self.transfer_learning.record_experience(
+                    query=task.description[:200],
+                    agent=agent_name,
+                    action=task.task_type,
+                    reward=1.0 if success else 0.0,
+                    success=success,
+                    error='',
+                    context={'synthetic': True, 'warmup': True}
+                )
+            except Exception:
+                pass  # Transfer learning is optional
+
+            return {
+                'success': success,
+                'agent': agent_name,
+                'task_type': task.task_type,
+                'difficulty': task.difficulty,
+                'execution_time': execution_time
+            }
+
+        except Exception as e:
+            execution_time = time_module.time() - start_time
+            logger.debug(f"Synthetic episode failed: {e}")
+
+            # Still record the failure for learning
+            self.swarm_intelligence.record_task_result(
+                agent_name=agent_name,
+                task_type=task.task_type,
+                success=False,
+                execution_time=execution_time,
+                context={'synthetic': True, 'warmup': True, 'error': str(e)}
+            )
+
+            return {
+                'success': False,
+                'agent': agent_name,
+                'task_type': task.task_type,
+                'difficulty': task.difficulty,
+                'execution_time': execution_time,
+                'error': str(e)
+            }
+
+    def get_warmup_recommendation(self) -> Dict[str, Any]:
+        """
+        Get recommendation on whether warmup would be beneficial.
+
+        Returns:
+            Dict with:
+            - should_warmup: bool
+            - reason: str
+            - recommended_episodes: int
+            - weak_areas: List of task types needing attention
+        """
+        profiles = self.swarm_intelligence.agent_profiles
+        curriculum = self.swarm_intelligence.curriculum_generator
+
+        # Check if we have enough learning history
+        total_tasks = sum(p.total_tasks for p in profiles.values())
+
+        if total_tasks < 5:
+            return {
+                'should_warmup': True,
+                'reason': 'Cold start - no learning history',
+                'recommended_episodes': 15,
+                'weak_areas': list(curriculum.task_templates.keys())
+            }
+
+        # Find weak task types
+        weak_areas = []
+        for agent_name, profile in profiles.items():
+            for task_type, (success, total) in profile.task_success.items():
+                if total >= 3 and success / total < 0.5:
+                    weak_areas.append(task_type)
+
+        weak_areas = list(set(weak_areas))
+
+        if weak_areas:
+            return {
+                'should_warmup': True,
+                'reason': f'Weak performance in: {", ".join(weak_areas)}',
+                'recommended_episodes': len(weak_areas) * 5,
+                'weak_areas': weak_areas
+            }
+
+        # Check average success rate
+        total_success = sum(
+            sum(s for s, t in p.task_success.values())
+            for p in profiles.values()
+        )
+        total_attempts = sum(
+            sum(t for s, t in p.task_success.values())
+            for p in profiles.values()
+        )
+
+        if total_attempts > 0:
+            avg_success = total_success / total_attempts
+            if avg_success < 0.7:
+                return {
+                    'should_warmup': True,
+                    'reason': f'Overall success rate low: {avg_success:.1%}',
+                    'recommended_episodes': 10,
+                    'weak_areas': weak_areas
+                }
+
+        return {
+            'should_warmup': False,
+            'reason': 'Learning state is healthy',
+            'recommended_episodes': 0,
+            'weak_areas': []
+        }

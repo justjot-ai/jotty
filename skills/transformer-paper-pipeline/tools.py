@@ -16,7 +16,10 @@ current_dir = Path(__file__).parent
 jotty_root = current_dir.parent.parent
 sys.path.insert(0, str(jotty_root))
 
-from core.registry.skills_registry import get_skills_registry
+try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
 
 logger = logging.getLogger(__name__)
 

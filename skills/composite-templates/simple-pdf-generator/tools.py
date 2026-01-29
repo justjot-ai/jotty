@@ -40,7 +40,10 @@ async def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with PDF file path and metadata
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         content = params.get('content', '')
         if not content:

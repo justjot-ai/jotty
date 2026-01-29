@@ -29,7 +29,10 @@ async def search_v2v_trending_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from core.registry.skills_registry import get_skills_registry
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
         
         query = params.get('query', 'trending topics')
         output_format = params.get('format', 'markdown')

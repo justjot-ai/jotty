@@ -205,16 +205,29 @@ class UnifiedLMProvider:
                     continue
         
         # 2. CLI providers (fallback if no API keys)
-        # Claude CLI (most reliable, local credentials)
-        if os.path.exists('/usr/local/bin/claude') or os.path.exists('/usr/bin/claude'):
+        # Use JottyClaudeProvider (auto-manages wrapper server)
+        try:
+            from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
+            if is_claude_available():
+                provider = JottyClaudeProvider(auto_start=True)
+                lm = provider.configure_dspy()
+                print("✅ DSPy configured with JottyClaudeProvider", file=__import__('sys').stderr)
+                return lm
+        except Exception as e:
+            print(f"⚠️  JottyClaudeProvider failed: {e}", file=__import__('sys').stderr)
+
+        # Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
+        import shutil
+        claude_path = shutil.which('claude')
+        if claude_path:
             try:
-                from .claude_cli_lm import ClaudeCLILM
-                lm = ClaudeCLILM(model="sonnet")
+                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                lm = DirectClaudeCLI(model="sonnet")
                 dspy.configure(lm=lm)
-                print("✅ DSPy configured with Claude CLI (direct)", file=__import__('sys').stderr)
+                print("✅ DSPy configured with DirectClaudeCLI", file=__import__('sys').stderr)
                 return lm
             except Exception as e:
-                print(f"⚠️  Claude CLI failed: {e}", file=__import__('sys').stderr)
+                print(f"⚠️  DirectClaudeCLI failed: {e}", file=__import__('sys').stderr)
 
         # Cursor CLI (composer-1 model, no on-demand needed)
         if os.path.exists('/usr/local/bin/cursor-agent'):

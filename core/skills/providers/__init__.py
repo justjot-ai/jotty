@@ -45,6 +45,8 @@ from .composite_provider import (
     AutomateWorkflowProvider,
     FullStackAgentProvider,
 )
+from .streamlit_provider import StreamlitProvider
+from .morph_provider import MorphProvider
 
 __all__ = [
     # Base
@@ -69,4 +71,7 @@ __all__ = [
     'ResearchAndAnalyzeProvider',
     'AutomateWorkflowProvider',
     'FullStackAgentProvider',
+    # App Building (Streamlit is default - fully open source)
+    'StreamlitProvider',
+    'MorphProvider',  # Requires cloud credentials
 ]
