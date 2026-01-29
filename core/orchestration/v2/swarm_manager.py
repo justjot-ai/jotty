@@ -61,6 +61,56 @@ from ...learning.transfer_learning import TransferableLearningStore
 from .swarm_intelligence import SwarmIntelligence
 from ...foundation.robust_parsing import AdaptiveWeightGroup
 
+# Skill Provider System (V2 World-Class) - Lazy imported to avoid circular deps
+PROVIDERS_AVAILABLE = False
+ProviderRegistry = None
+SkillCategory = None
+BrowserUseProvider = None
+OpenHandsProvider = None
+AgentSProvider = None
+OpenInterpreterProvider = None
+ResearchAndAnalyzeProvider = None
+AutomateWorkflowProvider = None
+FullStackAgentProvider = None
+
+def _load_providers():
+    """Lazy load providers to avoid circular imports."""
+    global PROVIDERS_AVAILABLE, ProviderRegistry, SkillCategory
+    global BrowserUseProvider, OpenHandsProvider, AgentSProvider
+    global OpenInterpreterProvider, ResearchAndAnalyzeProvider
+    global AutomateWorkflowProvider, FullStackAgentProvider
+
+    if PROVIDERS_AVAILABLE:
+        return True
+
+    try:
+        from ...skills.providers import ProviderRegistry as PR, SkillCategory as SC
+        from ...skills.providers.browser_use_provider import BrowserUseProvider as BUP
+        from ...skills.providers.openhands_provider import OpenHandsProvider as OHP
+        from ...skills.providers.agent_s_provider import AgentSProvider as ASP
+        from ...skills.providers.open_interpreter_provider import OpenInterpreterProvider as OIP
+        from ...skills.providers.composite_provider import (
+            ResearchAndAnalyzeProvider as RAP,
+            AutomateWorkflowProvider as AWP,
+            FullStackAgentProvider as FSP,
+        )
+
+        ProviderRegistry = PR
+        SkillCategory = SC
+        BrowserUseProvider = BUP
+        OpenHandsProvider = OHP
+        AgentSProvider = ASP
+        OpenInterpreterProvider = OIP
+        ResearchAndAnalyzeProvider = RAP
+        AutomateWorkflowProvider = AWP
+        FullStackAgentProvider = FSP
+        PROVIDERS_AVAILABLE = True
+        return True
+
+    except ImportError as e:
+        logger.debug(f"Skill providers not available: {e}")
+        return False
+
 logger = logging.getLogger(__name__)
 
 
@@ -309,6 +359,11 @@ class SwarmManager:
             'predictability_bonus': 0.3
         })
 
+        # A-Team v8.0: Skill Provider Registry (browser-use, openhands, agent-s, etc.)
+        self.provider_registry = None
+        if _load_providers():
+            self._init_provider_registry()
+
         # Caching for autonomous_setup
         self._setup_cache = {}
 
@@ -316,6 +371,133 @@ class SwarmManager:
         self.episode_count = 0
 
         logger.info("V1 learning pipeline initialized")
+
+    def _init_provider_registry(self):
+        """Initialize the skill provider registry with all available providers."""
+        global ProviderRegistry, BrowserUseProvider, OpenHandsProvider
+        global AgentSProvider, OpenInterpreterProvider
+        global ResearchAndAnalyzeProvider, AutomateWorkflowProvider, FullStackAgentProvider
+
+        if not ProviderRegistry:
+            logger.warning("Skill providers not available")
+            return
+
+        try:
+            # Create registry with swarm intelligence for learning
+            self.provider_registry = ProviderRegistry(
+                swarm_intelligence=self.swarm_intelligence
+            )
+
+            # Register external providers
+            providers_to_register = [
+                BrowserUseProvider({'headless': True}),
+                OpenHandsProvider({'sandbox': True}),
+                AgentSProvider({'safe_mode': True}),
+                OpenInterpreterProvider({'auto_run': True}),
+            ]
+
+            for provider in providers_to_register:
+                try:
+                    self.provider_registry.register(provider)
+                except Exception as e:
+                    logger.debug(f"Could not register {provider.name}: {e}")
+
+            # Register composite providers
+            composite_providers = [
+                ResearchAndAnalyzeProvider(),
+                AutomateWorkflowProvider(),
+                FullStackAgentProvider(),
+            ]
+
+            for provider in composite_providers:
+                try:
+                    provider.set_registry(self.provider_registry)
+                    if hasattr(provider, 'set_swarm_intelligence'):
+                        provider.set_swarm_intelligence(self.swarm_intelligence)
+                    self.provider_registry.register(provider)
+                except Exception as e:
+                    logger.debug(f"Could not register composite {provider.name}: {e}")
+
+            # Load learned provider preferences
+            provider_path = self._get_provider_registry_path()
+            if provider_path.exists():
+                self.provider_registry.load_state(str(provider_path))
+                logger.info(f"Loaded provider learnings from {provider_path}")
+
+            logger.info(f"✅ Provider registry initialized: {list(self.provider_registry.get_all_providers().keys())}")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize provider registry: {e}")
+            self.provider_registry = None
+
+    def _get_provider_registry_path(self) -> Path:
+        """Get path for provider registry persistence."""
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'provider_learnings.json'
+        return Path.home() / '.jotty' / 'provider_learnings.json'
+
+    async def execute_with_provider(
+        self,
+        category: str,
+        task: str,
+        context: Dict[str, Any] = None,
+        provider_name: str = None
+    ):
+        """
+        Execute a task using the skill provider system.
+
+        Args:
+            category: Skill category (browser, terminal, computer_use, etc.)
+            task: Task description in natural language
+            context: Additional context
+            provider_name: Optional specific provider to use
+
+        Returns:
+            ProviderResult with execution output
+        """
+        global SkillCategory
+
+        if not self.provider_registry:
+            logger.warning("Provider registry not available")
+            return None
+
+        try:
+            # Convert string category to enum
+            cat_enum = SkillCategory(category) if isinstance(category, str) and SkillCategory else category
+
+            # Execute via registry (uses learned selection)
+            result = await self.provider_registry.execute(
+                category=cat_enum,
+                task=task,
+                context=context,
+                provider_name=provider_name,
+            )
+
+            # Record in swarm intelligence
+            if result.success:
+                self.swarm_intelligence.record_task_result(
+                    agent_name=result.provider_name,
+                    task_type=category,
+                    success=result.success,
+                    execution_time=result.execution_time,
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Provider execution error: {e}")
+            return None
+
+    def get_provider_summary(self) -> Dict[str, Any]:
+        """Get summary of provider registry state."""
+        if not self.provider_registry:
+            return {'available': False}
+
+        return {
+            'available': True,
+            **self.provider_registry.get_registry_summary(),
+        }
 
     def _get_learning_path(self) -> Path:
         """Get default path for learning persistence."""
@@ -413,6 +595,14 @@ class SwarmManager:
                 json.dump(self.credit_weights.to_dict(), f, indent=2)
         except Exception as e:
             logger.debug(f"Could not auto-save credit weights: {e}")
+
+        # Save provider registry learnings (A-Team v8.0: which provider works best)
+        if self.provider_registry:
+            provider_path = self._get_provider_registry_path()
+            try:
+                self.provider_registry.save_state(str(provider_path))
+            except Exception as e:
+                logger.debug(f"Could not auto-save provider learnings: {e}")
 
     def get_transferable_context(self, query: str, agent: str = None) -> str:
         """

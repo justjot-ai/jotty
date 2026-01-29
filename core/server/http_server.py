@@ -16,6 +16,7 @@ Minimal client integration - just configure and run!
 import asyncio
 import json
 import logging
+import sys
 from typing import List, Dict, Any, Optional, Callable, AsyncIterator
 from pathlib import Path
 from dataclasses import dataclass, field

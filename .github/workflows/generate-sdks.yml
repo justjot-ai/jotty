@@ -1,0 +1,138 @@
+name: Generate Multi-Language SDKs
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'core/server/**'
+      - 'core/api/**'
+      - 'sdk/openapi_generator.py'
+      - 'sdk/generate_sdks.py'
+  pull_request:
+    paths:
+      - 'core/server/**'
+      - 'core/api/**'
+      - 'sdk/**'
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Comma-separated list of languages to generate (leave empty for all)'
+        required: false
+        type: string
+
+jobs:
+  generate-sdks:
+    name: Generate SDKs
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install pyyaml
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install OpenAPI Generator CLI
+        run: |
+          npm install -g @openapitools/openapi-generator-cli
+          openapi-generator-cli version
+      
+      - name: Generate OpenAPI Specification
+        run: |
+          python sdk/openapi_generator.py sdk/openapi.json
+      
+      - name: Validate OpenAPI Spec
+        run: |
+          npm install -g @apidevtools/swagger-cli
+          swagger-cli validate sdk/openapi.json
+      
+      - name: Generate SDKs
+        id: generate
+        run: |
+          # Parse languages input if provided
+          LANGUAGES=""
+          if [ -n "${{ github.event.inputs.languages }}" ]; then
+            LANGUAGES="--languages ${{ github.event.inputs.languages }}"
+          fi
+          
+          python sdk/generate_sdks.py $LANGUAGES
+      
+      - name: Upload OpenAPI Spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: sdk/openapi.json
+          retention-days: 30
+      
+      - name: Upload Generated SDKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-sdks
+          path: sdk/generated/
+          retention-days: 7
+      
+      - name: Create Summary
+        run: |
+          echo "## 📦 SDK Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ OpenAPI specification generated" >> $GITHUB_STEP_SUMMARY
+          echo "✅ SDKs generated for all languages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Generated SDKs:" >> $GITHUB_STEP_SUMMARY
+          ls -1 sdk/generated/ | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Commit Generated SDKs (if on main)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add sdk/openapi.json sdk/generated/
+          git diff --staged --quiet || git commit -m "chore: auto-generate SDKs from OpenAPI spec [skip ci]"
+          git push || echo "No changes to commit"
+
+  publish-sdks:
+    name: Publish SDKs to Registries
+    needs: generate-sdks
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    strategy:
+      matrix:
+        language: [typescript-node, typescript-fetch, python]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download Generated SDKs
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-sdks
+          path: sdk/generated/
+      
+      - name: Publish TypeScript SDK (npm)
+        if: matrix.language == 'typescript-node'
+        run: |
+          cd sdk/generated/typescript-node
+          npm publish --access public || echo "Publish failed (may need manual setup)"
+      
+      - name: Publish Python SDK (PyPI)
+        if: matrix.language == 'python'
+        run: |
+          cd sdk/generated/python
+          pip install build twine
+          python -m build
+          twine upload dist/* || echo "Publish failed (may need manual setup)"

@@ -2,11 +2,16 @@
 SwarmCodeGenerator - Glue Code and Integration Code Generation
 
 Generates code to connect tools and handle integrations.
+Includes provider adapter generation for auto-discovered packages.
 Follows DRY: Reuses existing code templates and patterns.
 """
 import logging
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
+import re
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from dataclasses import dataclass, field
+
+if TYPE_CHECKING:
+    from .swarm_researcher import ProviderCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +24,8 @@ class GeneratedCode:
     dependencies: List[str]
     description: str
     usage_example: Optional[str] = None
+    file_path: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class SwarmCodeGenerator:
@@ -360,26 +367,26 @@ logger = logging.getLogger(__name__)
 
 class {service.title()}Client:
     """Client for {service} API."""
-    
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize {service} client.
-        
+
         Args:
             config: Configuration dict or None to use environment variables
         """
         self.config = config or {{}}
         # Load from environment if not provided
         # TODO: Implement actual {service} API client
-        
+
     def {operation}(self, *args, **kwargs) -> Any:
         """
         {operation.title()} operation.
-        
+
         Args:
             *args: Positional arguments
             **kwargs: Keyword arguments
-            
+
         Returns:
             Operation result
         """
@@ -391,11 +398,363 @@ class {service.title()}Client:
             logger.error(f"❌ {{operation}} failed: {{e}}")
             raise
 '''
-        
+
         return GeneratedCode(
             code=code.strip(),
             language="python",
             dependencies=[],
             description=f"{operation} integration for {service}",
             usage_example=None
+        )
+
+    # =========================================================================
+    # Provider Adapter Generation
+    # =========================================================================
+
+    def generate_provider_adapter(
+        self,
+        package_name: str,
+        package_info: Dict[str, Any],
+        categories: List[str]
+    ) -> GeneratedCode:
+        """
+        Generate a SkillProvider adapter for an external package.
+
+        Creates a wrapper that integrates the package into Jotty's provider system.
+
+        Args:
+            package_name: Name of the package (e.g., "pytesseract")
+            package_info: Package metadata (from PyPI, GitHub, etc.)
+            categories: List of SkillCategory values this provider supports
+
+        Returns:
+            GeneratedCode with the provider adapter
+
+        Example:
+            code = generator.generate_provider_adapter(
+                "pytesseract",
+                {"description": "OCR tool", "version": "0.3.10"},
+                ["document"]
+            )
+        """
+        self._init_dependencies()
+
+        logger.info(f"🔧 Generating provider adapter for: {package_name}")
+
+        # Try LLM-based generation first
+        try:
+            return self._generate_provider_with_llm(package_name, package_info, categories)
+        except Exception as e:
+            logger.debug(f"LLM generation failed: {e}, using template")
+
+        # Fallback to template
+        return self._generate_provider_template(package_name, package_info, categories)
+
+    def _generate_provider_with_llm(
+        self,
+        package_name: str,
+        package_info: Dict[str, Any],
+        categories: List[str]
+    ) -> GeneratedCode:
+        """Generate provider adapter using LLM."""
+        import dspy
+
+        if not (hasattr(dspy, 'settings') and dspy.settings.lm):
+            raise Exception("No LM available")
+
+        # Build prompt
+        categories_str = ', '.join(categories)
+        prompt = f"""
+Generate a Python SkillProvider class that wraps the '{package_name}' package.
+
+Package info:
+- Name: {package_name}
+- Description: {package_info.get('description', 'N/A')}
+- Version: {package_info.get('version', 'N/A')}
+
+Requirements:
+1. Create a class that inherits from SkillProvider
+2. Set name = "{package_name.replace('-', '_')}_provider"
+3. Set categories to: [{categories_str}]
+4. Implement initialize() - check package availability
+5. Implement execute(task, context) - route to package functions
+6. Add proper error handling and logging
+7. Include example usage in docstring
+
+The class should:
+- Import the package
+- Provide wrapper methods for common operations
+- Handle package-specific errors gracefully
+
+Generate complete, runnable Python code.
+"""
+
+        lm = dspy.settings.lm
+        response = lm(prompt, timeout=45)
+
+        if isinstance(response, list):
+            response = ' '.join(str(r) for r in response)
+        elif not isinstance(response, str):
+            response = str(response)
+
+        code = self._extract_code_from_response(response)
+        dependencies = self._extract_dependencies(code)
+        dependencies.append(package_name)
+
+        return GeneratedCode(
+            code=code,
+            language="python",
+            dependencies=list(set(dependencies)),
+            description=f"SkillProvider adapter for {package_name}",
+            file_path=f"providers/{package_name.replace('-', '_')}_provider.py",
+            usage_example=self._generate_provider_usage(package_name, categories),
+            metadata={
+                'package_name': package_name,
+                'categories': categories,
+                'generated_by': 'llm',
+            }
+        )
+
+    def _generate_provider_template(
+        self,
+        package_name: str,
+        package_info: Dict[str, Any],
+        categories: List[str]
+    ) -> GeneratedCode:
+        """Generate provider adapter using template (fallback)."""
+        # Normalize names
+        class_name = ''.join(word.title() for word in package_name.replace('-', '_').split('_'))
+        provider_name = package_name.replace('-', '_')
+        categories_enum = ', '.join(f"SkillCategory.{c.upper()}" for c in categories)
+
+        code = f'''"""
+SkillProvider adapter for {package_name}
+========================================
+
+Auto-generated adapter to integrate {package_name} into Jotty's provider system.
+
+Package: {package_name}
+Description: {package_info.get('description', 'N/A')}
+Categories: {', '.join(categories)}
+"""
+
+import time
+import logging
+from typing import Any, Dict, List, Optional
+
+from core.skills.providers.base import (
+    SkillProvider,
+    SkillCategory,
+    ProviderCapability,
+    ProviderResult,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class {class_name}Provider(SkillProvider):
+    """
+    SkillProvider adapter for {package_name}.
+
+    This adapter wraps the {package_name} package and exposes its
+    functionality through the standard SkillProvider interface.
+
+    Usage:
+        from providers.{provider_name}_provider import {class_name}Provider
+
+        provider = {class_name}Provider()
+        await provider.initialize()
+        result = await provider.execute("your task here")
+    """
+
+    name = "{provider_name}"
+    version = "{package_info.get('version', '1.0.0')}"
+    description = "{package_info.get('description', f'{package_name} integration')}"
+
+    def __init__(self, config: Dict[str, Any] = None):
+        """
+        Initialize {class_name}Provider.
+
+        Args:
+            config: Provider-specific configuration
+        """
+        super().__init__(config)
+
+        # Package reference (lazy loaded)
+        self._package = None
+
+        # Define capabilities
+        self.capabilities = [
+            ProviderCapability(
+                category=cat,
+                actions=["execute", "process"],
+                estimated_latency_ms=1000,
+            )
+            for cat in [{categories_enum}]
+        ]
+
+    async def initialize(self) -> bool:
+        """
+        Initialize the provider by importing the package.
+
+        Returns:
+            True if package is available and initialized
+        """
+        try:
+            import {package_name.replace('-', '_')} as pkg
+            self._package = pkg
+            self.is_initialized = True
+            self.is_available = True
+            logger.info(f"✅ {{self.name}} provider initialized")
+            return True
+        except ImportError as e:
+            logger.warning(f"⚠️  {{self.name}} not available: {{e}}")
+            self.is_initialized = True
+            self.is_available = False
+            return False
+        except Exception as e:
+            logger.error(f"❌ {{self.name}} initialization failed: {{e}}")
+            self.is_initialized = True
+            self.is_available = False
+            return False
+
+    def get_categories(self) -> List[SkillCategory]:
+        """Get supported categories."""
+        return [{categories_enum}]
+
+    async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
+        """
+        Execute a task using {package_name}.
+
+        Args:
+            task: Natural language task description
+            context: Additional context (files, URLs, etc.)
+
+        Returns:
+            ProviderResult with execution output
+        """
+        start_time = time.time()
+        context = context or {{}}
+
+        if not self.is_available or not self._package:
+            return ProviderResult(
+                success=False,
+                output=None,
+                error=f"{{self.name}} is not available",
+                provider_name=self.name,
+            )
+
+        try:
+            # TODO: Implement task routing to package functions
+            # This is a placeholder - customize based on package API
+            result = self._route_task(task, context)
+
+            return ProviderResult(
+                success=True,
+                output=result,
+                execution_time=time.time() - start_time,
+                provider_name=self.name,
+            )
+
+        except Exception as e:
+            logger.error(f"{{self.name}} execution error: {{e}}")
+            return ProviderResult(
+                success=False,
+                output=None,
+                error=str(e),
+                execution_time=time.time() - start_time,
+                provider_name=self.name,
+                retryable=True,
+            )
+
+    def _route_task(self, task: str, context: Dict[str, Any]) -> Any:
+        """
+        Route task to appropriate package function.
+
+        Override this method to implement package-specific routing.
+        """
+        # Placeholder implementation
+        # TODO: Add package-specific logic
+        return {{
+            "message": f"Executed via {{self.name}}",
+            "task": task,
+            "package": "{package_name}",
+        }}
+
+
+# Factory function for registration
+def create_provider(config: Dict[str, Any] = None) -> {class_name}Provider:
+    """Create and return a {class_name}Provider instance."""
+    return {class_name}Provider(config)
+'''
+
+        return GeneratedCode(
+            code=code.strip(),
+            language="python",
+            dependencies=[package_name],
+            description=f"SkillProvider adapter for {package_name}",
+            file_path=f"providers/{provider_name}_provider.py",
+            usage_example=self._generate_provider_usage(package_name, categories),
+            metadata={
+                'package_name': package_name,
+                'categories': categories,
+                'class_name': f"{class_name}Provider",
+                'generated_by': 'template',
+            }
+        )
+
+    def _generate_provider_usage(self, package_name: str, categories: List[str]) -> str:
+        """Generate usage example for provider."""
+        class_name = ''.join(word.title() for word in package_name.replace('-', '_').split('_'))
+        provider_name = package_name.replace('-', '_')
+
+        return f'''
+# Usage example:
+from providers.{provider_name}_provider import {class_name}Provider
+
+# Create and initialize provider
+provider = {class_name}Provider()
+await provider.initialize()
+
+# Execute task
+result = await provider.execute("process document.pdf")
+if result.success:
+    print(result.output)
+else:
+    print(f"Error: {{result.error}}")
+
+# Register with ProviderRegistry
+from core.skills.providers import ProviderRegistry
+registry = ProviderRegistry()
+registry.register(provider, trust_level="sandboxed")
+'''
+
+    def generate_provider_from_candidate(
+        self,
+        candidate: 'ProviderCandidate'
+    ) -> GeneratedCode:
+        """
+        Generate provider adapter from a ProviderCandidate.
+
+        Convenience method that extracts info from candidate.
+
+        Args:
+            candidate: ProviderCandidate from SwarmResearcher
+
+        Returns:
+            GeneratedCode with the provider adapter
+        """
+        package_info = {
+            'description': candidate.description,
+            'version': candidate.metadata.get('version', '1.0.0'),
+            'url': candidate.url,
+            'source': candidate.source,
+        }
+
+        categories = candidate.categories or ['api_calls']
+
+        return self.generate_provider_adapter(
+            candidate.package_name,
+            package_info,
+            categories
         )

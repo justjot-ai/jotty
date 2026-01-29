@@ -1001,32 +1001,36 @@ Auditor Required Outputs:
                 is_valid = is_valid.lower() in ('true', 'yes', '1', 'valid')
             
             # 🎯 CRITICAL FIX: Check if output indicates task failure
-            # If ExecutionResult shows success=False or steps_executed=0, override to INVALID
+            # Only override if ExecutionResult explicitly shows success=False
             output_str = str(inputs.get('output', inputs.get('action_result', '')))
-            if output_str:
-                # Check for ExecutionResult failure indicators
-                failure_indicators = [
-                    'success=False',
-                    'success= False',
-                    'steps_executed=0',
-                    'steps_executed= 0',
-                    'No valid steps',
-                    'cannot proceed',
-                    'errors=',
-                    'error:',
-                ]
-                
-                # Check if output contains failure indicators
-                output_lower = output_str.lower()
-                has_failure = any(indicator.lower() in output_lower for indicator in failure_indicators)
-                
-                if has_failure and is_valid:
-                    # Override: Task failed but LLM marked as valid
-                    logger.warning(
-                        f"⚠️  [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
-                        f"Overriding to INVALID. Failure indicators found in output."
-                    )
-                    is_valid = False
+            if output_str and is_valid:
+                # Check for explicit success=True - if present, trust it
+                has_explicit_success = 'success=True' in output_str or 'success= True' in output_str
+
+                if not has_explicit_success:
+                    # Check for definitive failure indicators (not ambiguous ones)
+                    failure_indicators = [
+                        'success=False',
+                        'success= False',
+                        'steps_executed=0,',  # With comma to avoid matching 0-prefix numbers
+                        'steps_executed= 0,',
+                        'No valid steps',
+                        'cannot proceed',
+                    ]
+
+                    has_failure = any(indicator in output_str for indicator in failure_indicators)
+
+                    # Also check for non-empty errors list (not just 'errors=' which matches 'errors=[]')
+                    import re
+                    errors_match = re.search(r"errors=\[([^\]]+)\]", output_str)
+                    has_real_errors = errors_match is not None and errors_match.group(1).strip()
+
+                    if has_failure or has_real_errors:
+                        logger.warning(
+                            f"⚠️  [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
+                            f"Overriding to INVALID. Failure indicators found in output."
+                        )
+                        is_valid = False
             
             # Parse output tag
             tag_str = getattr(result, 'output_tag', 'useful') or 'useful'

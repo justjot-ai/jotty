@@ -2,12 +2,14 @@
 SwarmResearcher - Autonomous Research Capability
 
 Researches solutions, APIs, tools, and best practices.
+Includes provider discovery for auto-integration.
 Follows DRY: Reuses existing skills and tools where possible.
 """
 import logging
 import re
+import asyncio
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,23 @@ class ResearchResult:
     apis_found: List[str]
     documentation_urls: List[str]
     confidence: float
+
+
+@dataclass
+class ProviderCandidate:
+    """A candidate provider discovered from search."""
+    name: str
+    package_name: str
+    source: str  # "github", "pypi", "npm", "awesome-list"
+    url: str
+    description: str
+    stars: int = 0
+    downloads: int = 0
+    last_updated: str = ""
+    categories: List[str] = field(default_factory=list)
+    install_command: str = ""
+    relevance_score: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class SwarmResearcher:
@@ -625,17 +644,409 @@ Format your response clearly with sections for tools, APIs, and documentation.
     async def find_solutions(self, requirement: str) -> ResearchResult:
         """
         Find solutions for a requirement (alias for research with "tool" type).
-        
+
         Convenience method for tool discovery.
-        
+
         Args:
             requirement: Requirement description (e.g., "web scraping", "API integration")
-            
+
         Returns:
             ResearchResult with tools and solutions
-            
+
         Example:
             result = await researcher.find_solutions("web scraping")
             print(result.tools_found)  # ['scrapy', 'beautifulsoup4', 'selenium']
         """
         return await self.research(requirement, research_type="tool")
+
+    # =========================================================================
+    # Provider Discovery Methods
+    # =========================================================================
+
+    async def discover_providers(
+        self,
+        capability: str,
+        max_results: int = 10
+    ) -> List[ProviderCandidate]:
+        """
+        Discover providers for a capability by searching GitHub, PyPI, and awesome-lists.
+
+        Args:
+            capability: Capability description (e.g., "PDF OCR", "web scraping")
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of ProviderCandidate sorted by relevance
+
+        Example:
+            providers = await researcher.discover_providers("PDF OCR")
+            for p in providers:
+                print(f"{p.name}: {p.description} (stars: {p.stars})")
+        """
+        logger.info(f"🔍 Discovering providers for: {capability}")
+
+        # Search multiple sources in parallel
+        tasks = [
+            self._search_github_providers(capability),
+            self._search_pypi_providers(capability),
+            self._search_awesome_lists(capability),
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Collect all candidates
+        all_candidates: List[ProviderCandidate] = []
+
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(f"Provider search failed: {result}")
+                continue
+            if isinstance(result, list):
+                all_candidates.extend(result)
+
+        # Rank and deduplicate
+        ranked = self._rank_providers(all_candidates, capability)
+
+        # Return top results
+        return ranked[:max_results]
+
+    async def _search_github_providers(self, capability: str) -> List[ProviderCandidate]:
+        """
+        Search GitHub for relevant repositories.
+
+        Uses GitHub search API to find Python packages related to the capability.
+        """
+        candidates = []
+
+        try:
+            import aiohttp
+
+            # Build search query
+            query = f"{capability} python library language:python"
+            url = f"https://api.github.com/search/repositories"
+            params = {
+                'q': query,
+                'sort': 'stars',
+                'order': 'desc',
+                'per_page': 20,
+            }
+
+            headers = {
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'Jotty-SwarmResearcher/2.0',
+            }
+
+            # Add GitHub token if available
+            import os
+            github_token = os.getenv('GITHUB_TOKEN')
+            if github_token:
+                headers['Authorization'] = f'token {github_token}'
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, headers=headers, timeout=30) as response:
+                    if response.status != 200:
+                        logger.warning(f"GitHub search failed: {response.status}")
+                        return candidates
+
+                    data = await response.json()
+
+                    for item in data.get('items', []):
+                        # Extract package name (often repo name)
+                        package_name = item.get('name', '').lower().replace('-', '_')
+
+                        candidate = ProviderCandidate(
+                            name=item.get('name', ''),
+                            package_name=package_name,
+                            source='github',
+                            url=item.get('html_url', ''),
+                            description=item.get('description', '') or '',
+                            stars=item.get('stargazers_count', 0),
+                            last_updated=item.get('updated_at', ''),
+                            install_command=f"pip install {package_name}",
+                            metadata={
+                                'full_name': item.get('full_name', ''),
+                                'language': item.get('language', ''),
+                                'topics': item.get('topics', []),
+                                'forks': item.get('forks_count', 0),
+                                'open_issues': item.get('open_issues_count', 0),
+                            }
+                        )
+                        candidates.append(candidate)
+
+            logger.debug(f"GitHub search found {len(candidates)} candidates")
+
+        except ImportError:
+            logger.debug("aiohttp not available for GitHub search")
+        except Exception as e:
+            logger.warning(f"GitHub search error: {e}")
+
+        return candidates
+
+    async def _search_pypi_providers(self, capability: str) -> List[ProviderCandidate]:
+        """
+        Search PyPI for relevant packages.
+
+        Uses PyPI JSON API to find Python packages.
+        """
+        candidates = []
+
+        try:
+            import aiohttp
+
+            # PyPI doesn't have a search API, use the warehouse API
+            # We'll search for common package names based on capability
+            search_terms = capability.lower().replace(' ', '-').split('-')
+
+            # Try direct package lookup for common patterns
+            package_patterns = [
+                capability.lower().replace(' ', '-'),
+                capability.lower().replace(' ', '_'),
+                f"python-{capability.lower().replace(' ', '-')}",
+                f"py{capability.lower().replace(' ', '')}",
+            ]
+
+            async with aiohttp.ClientSession() as session:
+                for package_name in package_patterns:
+                    try:
+                        url = f"https://pypi.org/pypi/{package_name}/json"
+                        async with session.get(url, timeout=10) as response:
+                            if response.status != 200:
+                                continue
+
+                            data = await response.json()
+                            info = data.get('info', {})
+
+                            # Calculate downloads (approximate from releases)
+                            downloads = 0
+                            releases = data.get('releases', {})
+                            if releases:
+                                latest = list(releases.values())[-1]
+                                if latest:
+                                    downloads = sum(r.get('downloads', 0) for r in latest)
+
+                            candidate = ProviderCandidate(
+                                name=info.get('name', package_name),
+                                package_name=info.get('name', package_name),
+                                source='pypi',
+                                url=info.get('project_url', f"https://pypi.org/project/{package_name}/"),
+                                description=info.get('summary', '') or '',
+                                downloads=downloads,
+                                last_updated=info.get('version', ''),
+                                install_command=f"pip install {info.get('name', package_name)}",
+                                metadata={
+                                    'version': info.get('version', ''),
+                                    'author': info.get('author', ''),
+                                    'license': info.get('license', ''),
+                                    'requires_python': info.get('requires_python', ''),
+                                    'keywords': info.get('keywords', ''),
+                                }
+                            )
+                            candidates.append(candidate)
+
+                    except Exception as e:
+                        logger.debug(f"PyPI lookup for {package_name} failed: {e}")
+                        continue
+
+            logger.debug(f"PyPI search found {len(candidates)} candidates")
+
+        except ImportError:
+            logger.debug("aiohttp not available for PyPI search")
+        except Exception as e:
+            logger.warning(f"PyPI search error: {e}")
+
+        return candidates
+
+    async def _search_awesome_lists(self, capability: str) -> List[ProviderCandidate]:
+        """
+        Search awesome-lists for curated tools.
+
+        Parses awesome-python and similar lists for relevant packages.
+        """
+        candidates = []
+
+        # Map capabilities to awesome-list sections
+        capability_lower = capability.lower()
+        awesome_mappings = {
+            'pdf': 'awesome-python/README.md#pdf',
+            'ocr': 'awesome-python/README.md#ocr',
+            'web scraping': 'awesome-python/README.md#web-crawling',
+            'scraping': 'awesome-python/README.md#web-crawling',
+            'browser': 'awesome-python/README.md#browser-automation',
+            'automation': 'awesome-python/README.md#browser-automation',
+            'api': 'awesome-python/README.md#restful-api',
+            'database': 'awesome-python/README.md#database',
+            'image': 'awesome-python/README.md#image-processing',
+            'video': 'awesome-python/README.md#video',
+            'audio': 'awesome-python/README.md#audio',
+            'machine learning': 'awesome-python/README.md#machine-learning',
+            'ml': 'awesome-python/README.md#machine-learning',
+            'nlp': 'awesome-python/README.md#natural-language-processing',
+            'text': 'awesome-python/README.md#text-processing',
+        }
+
+        # Find matching awesome-list section
+        matched_section = None
+        for key, section in awesome_mappings.items():
+            if key in capability_lower:
+                matched_section = section
+                break
+
+        if not matched_section:
+            logger.debug(f"No awesome-list mapping for: {capability}")
+            return candidates
+
+        try:
+            import aiohttp
+
+            # Fetch the awesome-list
+            url = f"https://raw.githubusercontent.com/vinta/awesome-python/master/README.md"
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=30) as response:
+                    if response.status != 200:
+                        logger.warning(f"Awesome-list fetch failed: {response.status}")
+                        return candidates
+
+                    content = await response.text()
+
+                    # Parse markdown to find packages in relevant section
+                    section_name = matched_section.split('#')[-1].replace('-', ' ')
+                    candidates = self._parse_awesome_list_section(content, section_name)
+
+            logger.debug(f"Awesome-list search found {len(candidates)} candidates")
+
+        except ImportError:
+            logger.debug("aiohttp not available for awesome-list search")
+        except Exception as e:
+            logger.warning(f"Awesome-list search error: {e}")
+
+        return candidates
+
+    def _parse_awesome_list_section(
+        self,
+        content: str,
+        section_name: str
+    ) -> List[ProviderCandidate]:
+        """Parse awesome-list markdown to extract packages from a section."""
+        candidates = []
+
+        # Find section
+        section_pattern = rf'## {re.escape(section_name)}.*?\n(.*?)(?=\n## |\Z)'
+        section_match = re.search(section_pattern, content, re.IGNORECASE | re.DOTALL)
+
+        if not section_match:
+            return candidates
+
+        section_content = section_match.group(1)
+
+        # Extract package entries (format: * [name](url) - description)
+        entry_pattern = r'\*\s*\[([^\]]+)\]\(([^)]+)\)\s*-?\s*(.*)'
+
+        for match in re.finditer(entry_pattern, section_content):
+            name = match.group(1)
+            url = match.group(2)
+            description = match.group(3).strip()
+
+            # Infer package name from URL
+            package_name = name.lower().replace('-', '_').replace(' ', '_')
+            if 'github.com' in url:
+                # Extract from GitHub URL
+                parts = url.rstrip('/').split('/')
+                if len(parts) >= 2:
+                    package_name = parts[-1].lower().replace('-', '_')
+
+            candidate = ProviderCandidate(
+                name=name,
+                package_name=package_name,
+                source='awesome-list',
+                url=url,
+                description=description,
+                install_command=f"pip install {package_name}",
+                metadata={'section': section_name}
+            )
+            candidates.append(candidate)
+
+        return candidates
+
+    def _rank_providers(
+        self,
+        candidates: List[ProviderCandidate],
+        capability: str
+    ) -> List[ProviderCandidate]:
+        """
+        Rank provider candidates by relevance to capability.
+
+        Scoring factors:
+        - Keyword match with capability
+        - GitHub stars / PyPI downloads
+        - Recency of updates
+        - Source credibility (awesome-list > github > pypi)
+        """
+        capability_lower = capability.lower()
+        capability_words = set(capability_lower.split())
+
+        # Deduplicate by package name
+        seen = set()
+        unique_candidates = []
+        for c in candidates:
+            if c.package_name not in seen:
+                seen.add(c.package_name)
+                unique_candidates.append(c)
+
+        for candidate in unique_candidates:
+            score = 0.0
+
+            # Keyword match in name
+            name_lower = candidate.name.lower()
+            name_words = set(name_lower.replace('-', ' ').replace('_', ' ').split())
+            name_overlap = len(capability_words & name_words)
+            score += name_overlap * 10
+
+            # Keyword match in description
+            if candidate.description:
+                desc_lower = candidate.description.lower()
+                if capability_lower in desc_lower:
+                    score += 15
+                else:
+                    desc_words = set(desc_lower.split())
+                    desc_overlap = len(capability_words & desc_words)
+                    score += desc_overlap * 3
+
+            # Source credibility
+            source_scores = {
+                'awesome-list': 20,  # Curated = trustworthy
+                'github': 10,
+                'pypi': 5,
+            }
+            score += source_scores.get(candidate.source, 0)
+
+            # Popularity (normalized)
+            if candidate.stars > 0:
+                import math
+                score += math.log10(candidate.stars + 1) * 2
+
+            if candidate.downloads > 0:
+                import math
+                score += math.log10(candidate.downloads + 1)
+
+            candidate.relevance_score = score
+
+        # Sort by relevance score descending
+        unique_candidates.sort(key=lambda c: c.relevance_score, reverse=True)
+
+        return unique_candidates
+
+    async def get_best_provider(self, capability: str) -> Optional[ProviderCandidate]:
+        """
+        Get the best provider for a capability.
+
+        Convenience method that returns top-ranked provider.
+
+        Args:
+            capability: Capability description
+
+        Returns:
+            Best ProviderCandidate or None
+        """
+        providers = await self.discover_providers(capability, max_results=1)
+        return providers[0] if providers else None

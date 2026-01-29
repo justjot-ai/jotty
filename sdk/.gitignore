@@ -1,0 +1,15 @@
+# Generated SDKs (committed to repo but ignore local changes)
+generated/
+
+# OpenAPI spec (committed but ignore local changes)
+openapi.json
+
+# Temporary files
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo

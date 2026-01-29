@@ -112,11 +112,15 @@ from .swarm_integrator import SwarmIntegrator
 from .swarm_provider_gateway import SwarmProviderGateway
 # State Management (V1 capabilities integrated)
 from .swarm_state_manager import SwarmStateManager, AgentStateTracker
+# Sandbox Manager (secure execution)
+from .sandbox_manager import SandboxManager, TrustLevel, SandboxType, SandboxResult
+# Auto Provider Discovery
+from .auto_provider_discovery import AutoProviderDiscovery, DiscoveryResult
 
 # Export components
 __all__ = [
     'SwarmTaskBoard',
-    'SwarmPlanner', 
+    'SwarmPlanner',
     'SwarmMemory',
     'SubtaskState',
     'TaskStatus',
@@ -141,4 +145,12 @@ __all__ = [
     # State Management
     'SwarmStateManager',
     'AgentStateTracker',
+    # Sandbox Manager (secure execution)
+    'SandboxManager',
+    'TrustLevel',
+    'SandboxType',
+    'SandboxResult',
+    # Auto Provider Discovery
+    'AutoProviderDiscovery',
+    'DiscoveryResult',
 ]
