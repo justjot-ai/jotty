@@ -119,30 +119,25 @@ async def content_branding_pipeline_tool(params: Dict[str, Any]) -> Dict[str, An
             if brand_skill:
                 brand_tool = brand_skill.tools.get('apply_brand_styling_tool')
                 if brand_tool:
-                    # Determine file type from artifact path
-                    artifact_type = params.get('artifact_type', 'html')
-                    file_type_map = {
-                        'html': 'html',
-                        'presentation': 'pptx',
-                        'document': 'docx'
-                    }
-                    file_type = file_type_map.get(artifact_type, 'html')
-                    
-                    # Find the actual file
+                    # Find the actual file and let brand-guidelines auto-detect type
                     artifact_dir = Path(artifact_path) if artifact_path else None
+                    brand_file = None
+
                     if artifact_dir and artifact_dir.exists():
-                        # Look for HTML file
-                        html_files = list(artifact_dir.glob('*.html'))
-                        if html_files:
-                            brand_file = str(html_files[0])
-                        else:
+                        # Look for actual files by extension (prefer actual file over param)
+                        for ext in ['*.html', '*.htm', '*.docx', '*.pptx']:
+                            files = list(artifact_dir.glob(ext))
+                            if files:
+                                brand_file = str(files[0])
+                                break
+                        if not brand_file:
                             brand_file = str(artifact_dir / 'index.html')
                     else:
                         brand_file = artifact_path
-                    
+
+                    # Don't pass file_type - let brand-guidelines auto-detect from extension
                     brand_params = {
                         'input_file': brand_file,
-                        'file_type': file_type,
                         'brand_style': params.get('brand_style', 'anthropic')
                     }
                     
@@ -164,29 +159,26 @@ async def content_branding_pipeline_tool(params: Dict[str, Any]) -> Dict[str, An
             if theme_skill:
                 theme_tool = theme_skill.tools.get('apply_theme_tool')
                 if theme_tool:
-                    artifact_type = params.get('artifact_type', 'html')
-                    file_type_map = {
-                        'html': 'html',
-                        'presentation': 'pptx',
-                        'document': 'docx'
-                    }
-                    artifact_file_type = file_type_map.get(artifact_type, 'html')
-                    
-                    # Find the actual file
+                    # Find the actual file and let theme-factory auto-detect type
                     artifact_dir = Path(artifact_path) if artifact_path else None
+                    theme_file = None
+
                     if artifact_dir and artifact_dir.exists():
-                        html_files = list(artifact_dir.glob('*.html'))
-                        if html_files:
-                            theme_file = str(html_files[0])
-                        else:
+                        # Look for actual files by extension
+                        for ext in ['*.html', '*.htm', '*.docx', '*.pptx', '*.css']:
+                            files = list(artifact_dir.glob(ext))
+                            if files:
+                                theme_file = str(files[0])
+                                break
+                        if not theme_file:
                             theme_file = str(artifact_dir / 'index.html')
                     else:
                         theme_file = artifact_path
-                    
+
+                    # Don't pass artifact_type - let theme-factory auto-detect from extension
                     theme_params = {
                         'theme_name': params.get('theme_name', 'ocean_depths'),
-                        'artifact_path': theme_file,
-                        'artifact_type': artifact_file_type
+                        'artifact_path': theme_file
                     }
                     
                     if inspect.iscoroutinefunction(theme_tool):

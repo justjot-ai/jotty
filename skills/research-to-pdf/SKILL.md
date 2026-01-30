@@ -1,13 +1,21 @@
 # research-to-pdf
 
-Research any topic and automatically generate a PDF report using Jotty skills.
+Research any topic and generate a **comprehensive PDF report** with AI-synthesized analysis.
 
 ## Description
 
-This skill combines research and PDF generation capabilities:
-- Uses `last30days-claude-cli` to research topics from the last 30 days
-- Uses `document-converter` to convert the research report to PDF
-- No API keys required - uses Jotty's built-in web search
+**USE THIS SKILL when user asks to:**
+- Research something AND generate/create PDF
+- Compare topics AND send as PDF
+- Analyze something AND create PDF report
+- Any task with "pdf" + research/compare/analyze
+
+**Key Features:**
+- **AI Synthesis**: Converts raw search results into comprehensive 8-15 page analysis
+- **Structured Reports**: Executive summary, detailed analysis, insights, recommendations
+- **Deep Research**: Uses `last30days-claude-cli` for comprehensive web research
+- **PDF Generation**: Professional PDF with proper formatting
+- **No API keys required**: Uses Jotty's built-in web search and Claude CLI
 
 ## Usage
 

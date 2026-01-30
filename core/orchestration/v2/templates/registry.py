@@ -163,6 +163,13 @@ class TemplateRegistry:
         except ImportError as e:
             logger.warning(f"Could not load SwarmML: {e}")
 
+        # SwarmLean - Claude Code-like simple execution
+        try:
+            from .swarm_lean import SwarmLean
+            cls.register(SwarmLean, "lean")
+        except ImportError as e:
+            logger.warning(f"Could not load SwarmLean: {e}")
+
         # Future templates
         # from .swarm_nlp import SwarmNLP
         # cls.register(SwarmNLP, "nlp")

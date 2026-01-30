@@ -176,6 +176,14 @@ except ImportError:
     PPTX_AVAILABLE = False
     logger.warning("python-pptx not available, PPTX styling disabled")
 
+try:
+    from docx import Document
+    from docx.shared import RGBColor as DocxRGBColor, Pt as DocxPt
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+    logger.warning("python-docx not available, DOCX theming disabled")
+
 
 async def apply_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -242,10 +250,12 @@ async def apply_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             artifact_type = 'html'
         elif suffix == '.css':
             artifact_type = 'css'
+        elif suffix == '.docx':
+            artifact_type = 'docx'
         else:
             return {
                 'success': False,
-                'error': f'Unsupported artifact type: {suffix}. Supported: .pptx, .html, .css'
+                'error': f'Unsupported artifact type: {suffix}. Supported: .pptx, .html, .css, .docx'
             }
     
     # Determine output path
@@ -260,6 +270,13 @@ async def apply_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             result = await _apply_theme_to_html(artifact_file, output_path, theme)
         elif artifact_type == 'css':
             result = await _apply_theme_to_css(artifact_file, output_path, theme)
+        elif artifact_type == 'docx':
+            if not DOCX_AVAILABLE:
+                return {
+                    'success': False,
+                    'error': 'python-docx not available. Install with: pip install python-docx'
+                }
+            result = await _apply_theme_to_docx(artifact_file, output_path, theme)
         else:
             return {
                 'success': False,
@@ -388,4 +405,38 @@ async def _apply_theme_to_css(input_path: Path, output_path: Path, theme: Dict) 
     """
     
     output_path.write_text(theme_css, encoding='utf-8')
+    return {}
+
+
+async def _apply_theme_to_docx(input_path: Path, output_path: Path, theme: Dict) -> Dict:
+    """Apply theme to Word document."""
+
+    doc = Document(str(input_path))
+
+    for paragraph in doc.paragraphs:
+        for run in paragraph.runs:
+            # Determine if heading or body based on style
+            is_heading = (
+                paragraph.style.name.startswith('Heading') or
+                (run.font.size and run.font.size.pt >= 14)
+            )
+
+            # Apply theme fonts
+            if is_heading:
+                run.font.name = theme['fonts']['heading']
+                run.font.color.rgb = DocxRGBColor(*_hex_to_rgb(theme['colors']['primary']))
+            else:
+                run.font.name = theme['fonts']['body']
+                run.font.color.rgb = DocxRGBColor(*_hex_to_rgb(theme['colors']['text']))
+
+    # Style tables if present
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.name = theme['fonts']['body']
+                        run.font.color.rgb = DocxRGBColor(*_hex_to_rgb(theme['colors']['text']))
+
+    doc.save(str(output_path))
     return {}

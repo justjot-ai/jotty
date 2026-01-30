@@ -304,7 +304,7 @@ class SwarmInstaller:
         """Check if package is already installed."""
         if package in self._installed_packages:
             return self._installed_packages[package].success
-        
+
         # Check pip
         try:
             result = subprocess.run(
@@ -316,7 +316,7 @@ class SwarmInstaller:
                 return True
         except Exception:
             pass
-        
+
         # Check skill registry
         try:
             self._init_dependencies()
@@ -325,5 +325,83 @@ class SwarmInstaller:
                 return True
         except Exception:
             pass
-        
+
         return False
+
+    async def install_skill_dependencies(self, skill_name: str) -> List[InstallationResult]:
+        """
+        Install dependencies for a skill from its requirements.txt.
+
+        Args:
+            skill_name: Name of the skill (e.g., 'brand-guidelines')
+
+        Returns:
+            List of InstallationResult for each dependency
+        """
+        self._init_dependencies()
+        results = []
+
+        # Find skill directory
+        skill = self._skills_registry.get_skill(skill_name)
+        if not skill:
+            logger.warning(f"Skill {skill_name} not found in registry")
+            return results
+
+        # Get skill path from registry
+        skill_path = getattr(skill, 'skill_path', None)
+        if not skill_path:
+            # Try to find in skills directory
+            from pathlib import Path
+            skills_dir = Path(__file__).parent.parent.parent.parent / 'skills'
+            skill_path = skills_dir / skill_name
+
+        if isinstance(skill_path, str):
+            skill_path = Path(skill_path)
+
+        requirements_file = skill_path / 'requirements.txt'
+        if not requirements_file.exists():
+            logger.debug(f"No requirements.txt for skill {skill_name}")
+            return results
+
+        # Read and install dependencies
+        try:
+            requirements = requirements_file.read_text().strip().split('\n')
+            for req in requirements:
+                req = req.strip()
+                if not req or req.startswith('#'):
+                    continue
+
+                # Extract package name (remove version specifiers)
+                package_name = req.split('>=')[0].split('==')[0].split('<')[0].strip()
+
+                if not self.is_installed(package_name):
+                    logger.info(f"📦 Installing skill dependency: {package_name}")
+                    result = await self.install(package_name, package_type="pip")
+                    results.append(result)
+                else:
+                    logger.debug(f"✅ Dependency already installed: {package_name}")
+
+        except Exception as e:
+            logger.error(f"Error installing skill dependencies: {e}")
+
+        return results
+
+    async def ensure_skill_ready(self, skill_name: str) -> bool:
+        """
+        Ensure a skill is ready to use by installing its dependencies.
+
+        Args:
+            skill_name: Name of the skill
+
+        Returns:
+            True if skill is ready, False if dependencies failed to install
+        """
+        results = await self.install_skill_dependencies(skill_name)
+
+        # Check if all installations succeeded
+        failed = [r for r in results if not r.success]
+        if failed:
+            logger.warning(f"⚠️ Some dependencies failed for {skill_name}: {[r.package for r in failed]}")
+            return False
+
+        return True

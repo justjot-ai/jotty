@@ -115,6 +115,31 @@ class RichRenderer:
         else:
             print(f"[ERROR] {message}")
 
+    def header(self, text: str):
+        """Print section header."""
+        if self._console and not self.no_color:
+            self._console.print(f"\n[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]")
+            self._console.print(f"[bold {self.theme.primary}]  {text}[/bold {self.theme.primary}]")
+            self._console.print(f"[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]")
+        else:
+            print(f"\n{'=' * 50}")
+            print(f"  {text}")
+            print(f"{'=' * 50}")
+
+    def subheader(self, text: str):
+        """Print subsection header."""
+        if self._console and not self.no_color:
+            self._console.print(f"\n[bold {self.theme.secondary}]── {text} ──[/bold {self.theme.secondary}]")
+        else:
+            print(f"\n── {text} ──")
+
+    def status(self, text: str):
+        """Print progress/status message with spinner character."""
+        if self._console and not self.no_color:
+            self._console.print(f"[{self.theme.muted}]⏳[/{self.theme.muted}] {text}")
+        else:
+            print(f"⏳ {text}")
+
     def panel(
         self,
         content: str,
@@ -188,17 +213,145 @@ class RichRenderer:
 
     def markdown(self, text: str):
         """
-        Print markdown-formatted text.
+        Print markdown-formatted text with LaTeX support.
 
         Args:
-            text: Markdown content
+            text: Markdown content (may include LaTeX math)
         """
+        # Convert LaTeX to Unicode for terminal display
+        text = self._latex_to_unicode(text)
+
         if not RICH_AVAILABLE:
             print(text)
             return
 
         md = Markdown(text)
         self._console.print(md)
+
+    def _latex_to_unicode(self, text: str) -> str:
+        """
+        Convert LaTeX math to Unicode for terminal display.
+
+        Examples:
+            $x^2$ → x²
+            $\\alpha$ → α
+            $\\sqrt{x}$ → √x
+            $\\frac{a}{b}$ → a/b
+        """
+        import re
+
+        # Greek letters
+        greek = {
+            r'\\alpha': 'α', r'\\beta': 'β', r'\\gamma': 'γ', r'\\delta': 'δ',
+            r'\\epsilon': 'ε', r'\\zeta': 'ζ', r'\\eta': 'η', r'\\theta': 'θ',
+            r'\\iota': 'ι', r'\\kappa': 'κ', r'\\lambda': 'λ', r'\\mu': 'μ',
+            r'\\nu': 'ν', r'\\xi': 'ξ', r'\\pi': 'π', r'\\rho': 'ρ',
+            r'\\sigma': 'σ', r'\\tau': 'τ', r'\\upsilon': 'υ', r'\\phi': 'φ',
+            r'\\chi': 'χ', r'\\psi': 'ψ', r'\\omega': 'ω',
+            r'\\Alpha': 'Α', r'\\Beta': 'Β', r'\\Gamma': 'Γ', r'\\Delta': 'Δ',
+            r'\\Theta': 'Θ', r'\\Lambda': 'Λ', r'\\Xi': 'Ξ', r'\\Pi': 'Π',
+            r'\\Sigma': 'Σ', r'\\Phi': 'Φ', r'\\Psi': 'Ψ', r'\\Omega': 'Ω',
+        }
+
+        # Math symbols
+        symbols = {
+            r'\\times': '×', r'\\div': '÷', r'\\pm': '±', r'\\mp': '∓',
+            r'\\cdot': '·', r'\\ast': '∗', r'\\star': '⋆',
+            r'\\leq': '≤', r'\\geq': '≥', r'\\neq': '≠', r'\\approx': '≈',
+            r'\\equiv': '≡', r'\\sim': '∼', r'\\propto': '∝',
+            r'\\infty': '∞', r'\\partial': '∂', r'\\nabla': '∇',
+            r'\\sum': 'Σ', r'\\prod': 'Π', r'\\int': '∫',
+            r'\\forall': '∀', r'\\exists': '∃', r'\\in': '∈', r'\\notin': '∉',
+            r'\\subset': '⊂', r'\\supset': '⊃', r'\\cup': '∪', r'\\cap': '∩',
+            r'\\emptyset': '∅', r'\\therefore': '∴', r'\\because': '∵',
+            r'\\rightarrow': '→', r'\\leftarrow': '←', r'\\Rightarrow': '⇒',
+            r'\\Leftarrow': '⇐', r'\\leftrightarrow': '↔', r'\\Leftrightarrow': '⇔',
+            r'\\to': '→', r'\\gets': '←', r'\\implies': '⇒', r'\\iff': '⇔',
+            r'\\land': '∧', r'\\lor': '∨', r'\\neg': '¬', r'\\not': '¬',
+            r'\\ldots': '…', r'\\cdots': '⋯', r'\\vdots': '⋮', r'\\ddots': '⋱',
+            r'\\prime': '′', r'\\degree': '°',
+        }
+
+        # Superscripts
+        superscripts = {
+            '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+            '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+            '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
+            'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ',
+        }
+
+        # Subscripts
+        subscripts = {
+            '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+            '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+            '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
+            'a': 'ₐ', 'e': 'ₑ', 'i': 'ᵢ', 'o': 'ₒ', 'u': 'ᵤ',
+            'x': 'ₓ', 'n': 'ₙ', 'm': 'ₘ',
+        }
+
+        def process_math(match):
+            """Process a LaTeX math expression."""
+            math = match.group(1)
+
+            # Apply Greek letters
+            for latex, unicode_char in greek.items():
+                math = math.replace(latex, unicode_char)
+
+            # Apply symbols
+            for latex, unicode_char in symbols.items():
+                math = math.replace(latex, unicode_char)
+
+            # Handle sqrt
+            math = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', math)
+            math = re.sub(r'\\sqrt\s*(\w)', r'√\1', math)
+
+            # Handle fractions: \frac{a}{b} → a/b
+            math = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1)/(\2)', math)
+
+            # Handle superscripts: x^2 or x^{2n}
+            def convert_super(m):
+                base = m.group(1) if m.group(1) else ''
+                exp = m.group(2)
+                result = base
+                for char in exp:
+                    result += superscripts.get(char, f'^{char}')
+                return result
+            math = re.sub(r'(\w?)\^{([^}]+)}', convert_super, math)
+            math = re.sub(r'(\w)\^(\w)', convert_super, math)
+
+            # Handle subscripts: x_2 or x_{2n}
+            def convert_sub(m):
+                base = m.group(1) if m.group(1) else ''
+                sub = m.group(2)
+                result = base
+                for char in sub:
+                    result += subscripts.get(char, f'_{char}')
+                return result
+            math = re.sub(r'(\w?)_{([^}]+)}', convert_sub, math)
+            math = re.sub(r'(\w)_(\w)', convert_sub, math)
+
+            # Clean up remaining backslashes for common commands
+            math = re.sub(r'\\text\{([^}]+)\}', r'\1', math)
+            math = re.sub(r'\\mathrm\{([^}]+)\}', r'\1', math)
+            math = re.sub(r'\\mathbf\{([^}]+)\}', r'\1', math)
+            math = math.replace(r'\ ', ' ')
+            math = math.replace(r'\,', ' ')
+            math = math.replace(r'\;', ' ')
+            math = math.replace(r'\!', '')
+
+            return math
+
+        # Process block math: $$...$$
+        text = re.sub(r'\$\$(.+?)\$\$', lambda m: f'\n  {process_math(m)}\n', text, flags=re.DOTALL)
+
+        # Process inline math: $...$
+        text = re.sub(r'\$(.+?)\$', process_math, text)
+
+        # Process \[...\] and \(...\)
+        text = re.sub(r'\\\[(.+?)\\\]', lambda m: f'\n  {process_math(m)}\n', text, flags=re.DOTALL)
+        text = re.sub(r'\\\((.+?)\\\)', process_math, text)
+
+        return text
 
     def tree(self, data: Dict[str, Any], title: str = "Tree") -> Any:
         """
@@ -330,7 +483,12 @@ Multi-Agent AI Assistant v{version}
             print("Type /help for commands, or just start typing!")
 
     def prompt(self) -> str:
-        """Get prompt string."""
+        """Get prompt string (plain text for prompt_toolkit compatibility)."""
+        # Return plain text - prompt_toolkit handles styling separately
+        return "jotty> "
+
+    def prompt_styled(self) -> str:
+        """Get Rich-styled prompt for display."""
         if RICH_AVAILABLE:
             return f"[{self.theme.prompt}]jotty>[/{self.theme.prompt}] "
         return "jotty> "
@@ -361,3 +519,172 @@ Multi-Agent AI Assistant v{version}
             self._console.clear()
         else:
             print("\033[2J\033[H", end="")
+
+    # =========================================================================
+    # Claude Code-style Output Methods
+    # =========================================================================
+
+    def task_start(self, task: str, explanation: str = None):
+        """
+        Show task start message like Claude Code.
+
+        Example:
+            I'll search for information about BaFin KGAB framework...
+        """
+        if explanation:
+            if RICH_AVAILABLE:
+                self._console.print(f"\n[{self.theme.muted}]{explanation}[/{self.theme.muted}]")
+            else:
+                print(f"\n{explanation}")
+
+    def steps_indicator(self, count: int):
+        """
+        Show step count badge like Claude Code.
+
+        Example:
+            4 steps
+        """
+        if RICH_AVAILABLE:
+            self._console.print(f"\n[bold cyan]{count} steps[/bold cyan]")
+        else:
+            print(f"\n{count} steps")
+
+    def search_query(self, query: str, result_count: int = None):
+        """
+        Show search query with result count like Claude Code.
+
+        Example:
+            BaFin KGAB framework requirements
+            10 results
+        """
+        if RICH_AVAILABLE:
+            self._console.print(f"\n[bold]{query}[/bold]")
+            if result_count is not None:
+                self._console.print(f"[{self.theme.muted}]{result_count} results[/{self.theme.muted}]")
+        else:
+            print(f"\n{query}")
+            if result_count is not None:
+                print(f"{result_count} results")
+
+    def search_results(self, results: List[Dict[str, str]]):
+        """
+        Show search results with favicons like Claude Code.
+
+        Args:
+            results: List of dicts with 'title', 'url', optional 'favicon'
+
+        Example:
+            🔗 BaFin Interpretation Guidance
+               bafin.de
+            🔗 SEC Outsourcing Rules
+               sec.gov
+        """
+        if not results:
+            return
+
+        for result in results[:10]:  # Max 10 results
+            title = result.get('title', 'Untitled')
+            url = result.get('url', '')
+
+            # Extract domain from URL
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(url).netloc.replace('www.', '')
+            except Exception:
+                domain = url[:30] if url else ''
+
+            if RICH_AVAILABLE:
+                self._console.print(f"\n[bold]🔗[/bold] [link={url}]{title}[/link]")
+                self._console.print(f"   [{self.theme.muted}]{domain}[/{self.theme.muted}]")
+            else:
+                print(f"\n🔗 {title}")
+                print(f"   {domain}")
+
+    def reading_file(self, filepath: str, description: str = None):
+        """
+        Show file reading operation like Claude Code.
+
+        Example:
+            Reading the docx skill file for creating Word documents
+        """
+        desc = description or f"Reading {filepath}"
+        if RICH_AVAILABLE:
+            self._console.print(f"\n[{self.theme.muted}]📄 {desc}[/{self.theme.muted}]")
+        else:
+            print(f"\n📄 {desc}")
+
+    def writing_file(self, filepath: str, description: str = None):
+        """
+        Show file writing operation like Claude Code.
+
+        Example:
+            Creating comprehensive checklist document
+            checklist.docx
+        """
+        desc = description or "Creating file"
+        if RICH_AVAILABLE:
+            self._console.print(f"\n[{self.theme.muted}]📝 {desc}[/{self.theme.muted}]")
+            self._console.print(f"[bold cyan]{filepath}[/bold cyan]")
+        else:
+            print(f"\n📝 {desc}")
+            print(filepath)
+
+    def installing(self, package: str):
+        """
+        Show package installation like Claude Code.
+
+        Example:
+            Installing docx library for document creation
+        """
+        if RICH_AVAILABLE:
+            self._console.print(f"\n[{self.theme.muted}]📦 Installing {package}[/{self.theme.muted}]")
+        else:
+            print(f"\n📦 Installing {package}")
+
+    def step_progress(self, step_num: int, total: int, description: str, status: str = "running"):
+        """
+        Show step progress like Claude Code.
+
+        Args:
+            step_num: Current step number
+            total: Total steps
+            description: Step description
+            status: 'running', 'done', 'failed'
+        """
+        icons = {
+            'running': '⏳',
+            'done': '✓',
+            'failed': '✗',
+        }
+        icon = icons.get(status, '→')
+
+        if RICH_AVAILABLE:
+            if status == 'done':
+                self._console.print(f"[{self.theme.success}]{icon}[/{self.theme.success}] Step {step_num}/{total}: {description}")
+            elif status == 'failed':
+                self._console.print(f"[{self.theme.error}]{icon}[/{self.theme.error}] Step {step_num}/{total}: {description}")
+            else:
+                self._console.print(f"[{self.theme.muted}]{icon}[/{self.theme.muted}] Step {step_num}/{total}: {description}")
+        else:
+            print(f"{icon} Step {step_num}/{total}: {description}")
+
+    def tool_output(self, tool_name: str, output_path: str = None, summary: str = None):
+        """
+        Show tool output like Claude Code.
+
+        Example:
+            ✓ Created checklist document
+              /path/to/checklist.docx
+        """
+        if RICH_AVAILABLE:
+            self._console.print(f"[{self.theme.success}]✓[/{self.theme.success}] {tool_name}")
+            if output_path:
+                self._console.print(f"  [bold cyan]{output_path}[/bold cyan]")
+            if summary:
+                self._console.print(f"  [{self.theme.muted}]{summary}[/{self.theme.muted}]")
+        else:
+            print(f"✓ {tool_name}")
+            if output_path:
+                print(f"  {output_path}")
+            if summary:
+                print(f"  {summary}")

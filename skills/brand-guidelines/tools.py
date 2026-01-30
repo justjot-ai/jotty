@@ -41,10 +41,12 @@ except ImportError:
 
 try:
     from docx import Document
-    from docx.shared import RGBColor as DocxRGBColor
-    DOCX_AVAILABLE = False  # Will enable when needed
+    from docx.shared import RGBColor as DocxRGBColor, Pt as DocxPt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
+    logger.warning("python-docx not available, DOCX styling disabled")
 
 
 async def apply_brand_styling_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -116,10 +118,13 @@ async def apply_brand_styling_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             styles_applied = result.get('styles_applied', {})
         
         elif file_type == 'docx':
-            return {
-                'success': False,
-                'error': 'DOCX styling not yet implemented'
-            }
+            if not DOCX_AVAILABLE:
+                return {
+                    'success': False,
+                    'error': 'python-docx not available. Install with: pip install python-docx'
+                }
+            result = await _style_docx(input_path, output_file)
+            styles_applied = result.get('styles_applied', {})
         
         elif file_type == 'html':
             result = await _style_html(input_path, output_file)
@@ -233,10 +238,62 @@ async def _style_html(input_path: Path, output_path: Path) -> Dict:
         html_content = css + html_content
     
     output_path.write_text(html_content, encoding='utf-8')
-    
+
     return {
         'styles_applied': {
             'colors_applied': list(BRAND_COLORS.values()),
             'fonts_applied': list(BRAND_FONTS.values())
         }
+    }
+
+
+async def _style_docx(input_path: Path, output_path: Path) -> Dict:
+    """Apply brand styling to Word document."""
+
+    doc = Document(str(input_path))
+    styles_applied = {
+        'paragraphs_styled': 0,
+        'colors_applied': [],
+        'fonts_applied': []
+    }
+
+    # Style paragraphs
+    for paragraph in doc.paragraphs:
+        styles_applied['paragraphs_styled'] += 1
+
+        for run in paragraph.runs:
+            # Determine if heading or body based on style or font size
+            is_heading = (
+                paragraph.style.name.startswith('Heading') or
+                (run.font.size and run.font.size.pt >= 14)
+            )
+
+            # Apply font
+            if is_heading:
+                run.font.name = BRAND_FONTS['heading']
+                if 'Poppins (headings)' not in styles_applied['fonts_applied']:
+                    styles_applied['fonts_applied'].append('Poppins (headings)')
+            else:
+                run.font.name = BRAND_FONTS['body']
+                if 'Lora (body)' not in styles_applied['fonts_applied']:
+                    styles_applied['fonts_applied'].append('Lora (body)')
+
+            # Apply text color
+            run.font.color.rgb = DocxRGBColor(*_hex_to_rgb(BRAND_COLORS['dark']))
+
+    # Style tables if present
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.name = BRAND_FONTS['body']
+                        run.font.color.rgb = DocxRGBColor(*_hex_to_rgb(BRAND_COLORS['dark']))
+
+    styles_applied['colors_applied'] = [BRAND_COLORS['dark']]
+
+    doc.save(str(output_path))
+
+    return {
+        'styles_applied': styles_applied
     }

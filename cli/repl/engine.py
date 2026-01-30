@@ -81,10 +81,14 @@ class REPLEngine:
         if not PROMPT_TOOLKIT_AVAILABLE:
             return None
 
-        # Style
+        # Style - colors for different UI elements
         style = Style.from_dict({
-            "prompt": "ansicyan bold",
-            "": "ansiwhite",
+            "": "ansiwhite",           # Default text
+            "completion-menu": "bg:ansiblack ansiwhite",
+            "completion-menu.completion": "bg:ansiblack ansiwhite",
+            "completion-menu.completion.current": "bg:ansicyan ansiblack",
+            "completion-menu.meta.completion": "bg:ansiblack ansigray",
+            "completion-menu.meta.completion.current": "bg:ansicyan ansiblack",
         })
 
         # Create session
@@ -170,9 +174,8 @@ class REPLEngine:
             try:
                 # prompt_toolkit's prompt_async
                 if hasattr(self._session, "prompt_async"):
-                    return await self._session.prompt_async(
-                        HTML(f"<prompt>{self.prompt_text}</prompt>")
-                    )
+                    # Use plain prompt - styling done via session style
+                    return await self._session.prompt_async(self.prompt_text)
                 else:
                     # Fallback to sync prompt in thread
                     import asyncio

@@ -35,6 +35,8 @@ from .feature_selection import FeatureSelectionSkill
 from .model_selection import ModelSelectionSkill
 from .hyperopt import HyperoptSkill
 from .ensemble import EnsembleSkill
+from .mlflow_tracker import MLflowTrackerSkill
+from .automl_skill import AutoMLSkill
 
 __all__ = [
     # Base classes
@@ -51,4 +53,6 @@ __all__ = [
     'ModelSelectionSkill',
     'HyperoptSkill',
     'EnsembleSkill',
+    'MLflowTrackerSkill',
+    'AutoMLSkill',
 ]

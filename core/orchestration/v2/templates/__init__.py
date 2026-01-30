@@ -14,6 +14,7 @@ Templates provide:
 
 Available Templates:
 - SwarmML: Machine Learning (classification, regression, clustering)
+- SwarmLean: Claude Code-like lean execution (research, documents, checklists)
 - SwarmNLP: Natural Language Processing (coming soon)
 - SwarmCV: Computer Vision (coming soon)
 - SwarmTimeSeries: Time Series Analysis (coming soon)
@@ -24,6 +25,9 @@ Usage:
     # Explicit template
     result = await Swarm.solve(template="ml", X=X, y=y)
 
+    # Lean mode for simple tasks (Claude Code-like)
+    result = await Swarm.solve(template="lean", task="Create a compliance checklist")
+
     # Auto-detect
     result = await Swarm.auto_solve(X, y)
 """
@@ -31,6 +35,7 @@ Usage:
 from .base import SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig
 from .registry import TemplateRegistry
 from .swarm_ml import SwarmML
+from .swarm_lean import SwarmLean
 
 __all__ = [
     'SwarmTemplate',
@@ -39,4 +44,5 @@ __all__ = [
     'FeedbackConfig',
     'TemplateRegistry',
     'SwarmML',
+    'SwarmLean',
 ]

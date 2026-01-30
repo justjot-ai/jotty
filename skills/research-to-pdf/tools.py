@@ -79,14 +79,18 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'quick': quick,
             'emit': 'md'  # Get markdown format
         })
-        
+
         if not research_result.get('success'):
             return {
                 'success': False,
                 'error': f'Research failed: {research_result.get("error")}'
             }
-        
-        research_content = research_result.get('output', '')
+
+        raw_research = research_result.get('output', '')
+
+        # Step 1.5: AI Synthesis - Convert raw search results into comprehensive analysis
+        logger.info("Synthesizing research into comprehensive report...")
+        research_content = await _synthesize_research(topic, raw_research, deep)
         
         # Step 2: Create markdown file
         # Default to stock_market/outputs directory
@@ -195,6 +199,90 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'success': False,
             'error': str(e)
         }
+
+async def _synthesize_research(topic: str, raw_research: str, deep: bool = False) -> str:
+    """
+    Use AI to synthesize raw search results into comprehensive analysis.
+
+    Instead of just dumping links, this creates a proper research report
+    with analysis, insights, and structured sections.
+    """
+    try:
+        # Try to use claude-cli-llm skill for synthesis
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+        except ImportError:
+            from core.registry.skills_registry import get_skills_registry
+
+        registry = get_skills_registry()
+        claude_skill = registry.get_skill('claude-cli-llm')
+
+        if claude_skill:
+            llm_tool = claude_skill.tools.get('claude_cli_llm_tool')
+            if llm_tool:
+                # Determine target length based on depth
+                target_pages = 15 if deep else 8
+                target_words = target_pages * 500  # ~500 words per page
+
+                synthesis_prompt = f"""You are a senior research analyst. Based on the following research data about "{topic}", write a comprehensive, well-structured research report.
+
+## Requirements:
+- Write approximately {target_words} words ({target_pages} pages)
+- Use proper markdown formatting with headers, subheaders, bullet points
+- Include executive summary, key findings, detailed analysis, and conclusions
+- Cite specific facts, statistics, and data points from the research
+- Provide balanced analysis covering multiple perspectives
+- Include actionable insights and recommendations
+- DO NOT just list links - synthesize and analyze the information
+
+## Report Structure:
+1. **Executive Summary** (1 page) - Key highlights and main findings
+2. **Background & Context** (1-2 pages) - Industry context, history, relevance
+3. **Detailed Analysis** (3-5 pages) - In-depth analysis of key aspects
+4. **Comparative Analysis** (1-2 pages) - If comparing entities, detailed comparison
+5. **Key Insights & Trends** (1 page) - Important patterns and observations
+6. **Risks & Challenges** (0.5-1 page) - Potential issues and concerns
+7. **Future Outlook** (0.5-1 page) - Predictions and expectations
+8. **Conclusion & Recommendations** (0.5 page) - Summary and actionable advice
+
+## Raw Research Data:
+{raw_research[:15000]}
+
+Write the comprehensive research report now:"""
+
+                import inspect
+                if inspect.iscoroutinefunction(llm_tool):
+                    result = await llm_tool({'prompt': synthesis_prompt, 'max_tokens': 8000})
+                else:
+                    result = llm_tool({'prompt': synthesis_prompt, 'max_tokens': 8000})
+
+                if result.get('success') and result.get('response'):
+                    logger.info(f"AI synthesis complete: {len(result['response'])} chars")
+                    return result['response']
+
+        # Fallback: Try DSPy
+        import dspy
+        if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+            class ResearchSynthesis(dspy.Signature):
+                """Synthesize raw research into comprehensive analysis report."""
+                topic: str = dspy.InputField()
+                raw_research: str = dspy.InputField()
+                target_pages: int = dspy.InputField()
+                report: str = dspy.OutputField(desc="Comprehensive markdown research report with sections, analysis, insights")
+
+            predictor = dspy.Predict(ResearchSynthesis)
+            target_pages = 15 if deep else 8
+            result = predictor(topic=topic, raw_research=raw_research[:10000], target_pages=target_pages)
+            if result.report:
+                logger.info(f"DSPy synthesis complete: {len(result.report)} chars")
+                return result.report
+
+    except Exception as e:
+        logger.warning(f"AI synthesis failed, using raw research: {e}")
+
+    # Fallback: Return formatted raw research
+    return raw_research
+
 
 def _format_markdown_for_pdf(content: str) -> str:
     """

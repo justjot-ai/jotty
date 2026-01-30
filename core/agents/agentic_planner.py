@@ -76,23 +76,28 @@ class TaskTypeInferenceSignature(dspy.Signature):
 
 class ExecutionPlanningSignature(dspy.Signature):
     """Plan execution steps - output JSON ONLY, NO TEXT.
-    
+
     You are a PLANNER. Your ONLY job is to PLAN steps, not execute them.
-    
+
     CRITICAL INSTRUCTIONS:
     1. Output ONLY a JSON array - NO text, NO explanations, NO markdown
     2. Start your response with '[' and end with ']'
     3. Do NOT include any text before or after the JSON array
-    4. Do NOT write explanations, comments, or descriptions outside the JSON
-    
+    4. Create SEPARATE steps for EACH action in the task
+
+    MULTI-STEP PLANNING:
+    - "research X AND send telegram" = 2 steps: (1) research, (2) send telegram
+    - "search AND generate pdf AND notify" = 3 steps: (1) search, (2) generate pdf, (3) send notification
+    - Each selected skill should typically become its OWN step
+    - Use depends_on to chain steps: step 2 depends on step 1's output
+
     The task_description describes WHAT needs to be done. Your job is to PLAN HOW to do it.
-    You are NOT executing anything. You are NOT asking for permission. You are ONLY creating a plan.
-    
-    Return ONLY a JSON array of steps. Each step must have: skill_name, tool_name, params (object), 
+    You are NOT executing anything. You are ONLY creating a plan.
+
+    Return ONLY a JSON array of steps. Each step must have: skill_name, tool_name, params (object),
     description, depends_on (array), output_key, optional (boolean).
-    Use only tools from available_skills.
-    
-    REMEMBER: JSON ONLY. NO TEXT. NO EXPLANATIONS.
+
+    REMEMBER: JSON ONLY. NO TEXT. Create MULTIPLE steps for multi-part tasks.
     """
     task_description: str = dspy.InputField(desc="Task to plan - you are PLANNING, not executing. Return JSON plan only.")
     task_type: str = dspy.InputField(
@@ -144,27 +149,59 @@ class ExecutionPlanningSignature(dspy.Signature):
 
 
 class SkillSelectionSignature(dspy.Signature):
-    """Select the best skills for the task.
-    
-    You are a SKILL SELECTOR. Analyze the task and select relevant skills from available_skills. Return JSON with selected_skills array, reasoning, and skill_priorities dict.
+    """Select the BEST skills needed to complete the task.
+
+    You are a SKILL SELECTOR. Analyze the task description to identify required capabilities.
+
+    CRITICAL: GENERATION vs RESEARCH distinction:
+    - GENERATION tasks: User wants LLM to CREATE content from its knowledge
+    - RESEARCH tasks: User wants to FIND/SEARCH for external information
+
+    CRITICAL MATCHING RULES (in priority order):
+    1. "checklist" / "todo" / "list of steps" / "compliance list" → GENERATION task
+       → Use claude-cli-llm (LLM generates the checklist from knowledge)
+       → Do NOT use research-to-pdf (that searches web, creates research reports)
+
+    2. "create" / "generate" / "write" / "draft" content → GENERATION task
+       → Use claude-cli-llm for content generation
+       → Use docx-tools or file-operations for saving to file
+
+    3. "research" / "search" / "find" / "look up" / "what's new" → RESEARCH task
+       → Use web-search, research-to-pdf, last30days-claude-cli
+
+    4. "convert" / "transform" format → use document-converter
+
+    COMMON MISTAKES TO AVOID:
+    - "Create checklist for X framework" = GENERATION (LLM knows frameworks)
+      → Use claude-cli-llm, NOT research-to-pdf
+    - "Research latest news about X" = RESEARCH (needs web search)
+      → Use research-to-pdf or web-search
+    - "Create report about X" = Usually GENERATION unless "research" is mentioned
+      → Use claude-cli-llm
+
+    Guidelines:
+    1. Default to GENERATION (claude-cli-llm) unless task explicitly mentions search/research/find
+    2. Match task verbs to skill capabilities
+    3. Prefer simpler skills over complex multi-step skills
+
     You are NOT executing anything. You are ONLY selecting which skills are needed.
     """
-    task_description: str = dspy.InputField(desc="What needs to be accomplished - you are selecting skills for planning, not executing")
+    task_description: str = dspy.InputField(desc="The task to analyze - identify ALL required capabilities")
     available_skills: str = dspy.InputField(
         desc="JSON list of all available skills with their descriptions and tools"
     )
     max_skills: int = dspy.InputField(
         desc="Maximum number of skills to select"
     )
-    
+
     selected_skills: str = dspy.OutputField(
-        desc="ONLY output a valid JSON array of skill names. Example: [\"file-operations\", \"document-converter\"]. No other text."
+        desc="JSON array of skill names needed for the task. Select ALL skills required."
     )
     reasoning: str = dspy.OutputField(
-        desc="Why these skills were selected"
+        desc="Explain what capabilities the task needs and which skill provides each"
     )
     skill_priorities: str = dspy.OutputField(
-        desc="JSON dict mapping skill names to priority scores (0.0-1.0)"
+        desc="JSON dict mapping skill names to priority (0.0-1.0). Higher = execute earlier. Order by logical workflow."
     )
 
 
@@ -288,6 +325,19 @@ class AgenticPlanner:
                 return TaskType.ANALYSIS, "Keyword fallback: analysis task", 0.6
             return TaskType.UNKNOWN, f"Inference failed: {str(e)[:100]}", 0.3
     
+    # Skills that depend on external services that may be unreliable
+    # These are deprioritized in skill selection to prefer more reliable alternatives
+    DEPRIORITIZED_SKILLS = {
+        'search-to-justjot-idea',      # JustJot API issues
+        'mcp-justjot-mcp-client',      # MCP timeout issues
+        'mcp-justjot',                 # MCP timeout issues
+        'justjot-mcp-http',            # JustJot API issues
+        'notion-research-documentation',  # Requires Notion API setup
+        'reddit-trending-to-justjot',  # JustJot API issues
+        'notebooklm-pdf',              # Requires browser sign-in
+        'oauth-automation',            # Requires browser interaction
+    }
+
     def select_skills(
         self,
         task: str,
@@ -298,6 +348,7 @@ class AgenticPlanner:
         Select best skills for task using LLM semantic matching.
 
         Falls back to using first available skills if LLM fails.
+        Deprioritizes skills that depend on unreliable external services.
 
         Args:
             task: Task description
@@ -309,6 +360,14 @@ class AgenticPlanner:
         """
         if not available_skills:
             return [], "No skills available"
+
+        # Filter out deprioritized skills (move to end of list)
+        reliable_skills = [s for s in available_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
+        deprioritized = [s for s in available_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
+        available_skills = reliable_skills + deprioritized  # Reliable first
+
+        if deprioritized:
+            logger.debug(f"Deprioritized {len(deprioritized)} unreliable skills: {[s.get('name') for s in deprioritized]}")
 
         llm_selected_names = []
         llm_reasoning = ""
@@ -348,10 +407,24 @@ class AgenticPlanner:
                 llm_selected_names = self._extract_skill_names_from_text(result.selected_skills)
 
             llm_reasoning = result.reasoning or "LLM semantic matching"
+
+            # Parse skill priorities for ordering
+            try:
+                priorities_str = str(result.skill_priorities).strip()
+                if priorities_str.startswith('{'):
+                    skill_priorities = json.loads(priorities_str)
+                else:
+                    skill_priorities = {}
+            except (json.JSONDecodeError, ValueError):
+                skill_priorities = {}
+
             logger.info(f"LLM selected {len(llm_selected_names)} skills: {llm_selected_names}")
+            if skill_priorities:
+                logger.info(f"Skill priorities: {skill_priorities}")
 
         except Exception as e:
             logger.warning(f"LLM selection failed: {e}")
+            skill_priorities = {}
 
         # Build final selection
         if llm_selected_names:
@@ -367,6 +440,15 @@ class AgenticPlanner:
 
         if not selected_skills and available_skills:
             selected_skills = available_skills[:max_skills]
+
+        # Order skills by LLM-assigned priorities (no hardcoded flow order)
+        def get_skill_order(skill):
+            # Use LLM priority (higher priority = earlier execution)
+            priority = skill_priorities.get(skill.get('name'), 0.5)
+            return -priority  # Negate so higher priority comes first
+
+        selected_skills = sorted(selected_skills, key=get_skill_order)
+        logger.info(f"Ordered skills: {[s.get('name') for s in selected_skills]}")
 
         # Enrich skills with tools from registry
         selected_skills = self._enrich_skills_with_tools(selected_skills)
@@ -562,10 +644,23 @@ class AgenticPlanner:
             steps = []
             for i, step_data in enumerate(plan_data[:max_steps]):
                 try:
+                    # Get params from LLM plan, or build them if empty
+                    step_params = step_data.get('params', {})
+                    if not step_params:
+                        # LLM returned empty params - build them from skill schema
+                        prev_output = f'step_{i-1}' if i > 0 else None
+                        step_params = self._build_skill_params(
+                            step_data.get('skill_name', ''),
+                            task,
+                            prev_output,
+                            step_data.get('tool_name')
+                        )
+                        logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
+
                     step = ExecutionStep(
                         skill_name=step_data.get('skill_name', ''),
                         tool_name=step_data.get('tool_name', ''),
-                        params=step_data.get('params', {}),
+                        params=step_params,
                         description=step_data.get('description', f'Step {i+1}'),
                         depends_on=step_data.get('depends_on', []),
                         output_key=step_data.get('output_key', f'step_{i}'),
@@ -600,7 +695,39 @@ class AgenticPlanner:
                 reasoning = f"Fallback plan created: {len(steps)} steps"
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
-            
+
+            # Check if plan uses all selected skills - expand if needed
+            # This handles cases where LLM returns a single combined step
+            used_skills = {step.skill_name for step in steps}
+            available_skill_names = {s.get('name') for s in skills}
+            missing_skills = available_skill_names - used_skills
+
+            if missing_skills and len(steps) < len(skills):
+                logger.info(f"📋 Plan uses {len(used_skills)} of {len(skills)} selected skills, adding missing: {missing_skills}")
+                ExecutionStep = _get_execution_step()
+                # Add steps for missing skills (with dependency on last step)
+                for skill in skills:
+                    if skill.get('name') in missing_skills:
+                        skill_name = skill.get('name', '')
+                        tools = skill.get('tools', [])
+                        if isinstance(tools, dict):
+                            tools = list(tools.keys())
+                        if tools:
+                            # Build params for this skill
+                            params = self._build_skill_params(skill_name, task, steps[-1].output_key if steps else None)
+                            new_step = ExecutionStep(
+                                skill_name=skill_name,
+                                tool_name=tools[0] if isinstance(tools[0], str) else tools[0].get('name', ''),
+                                params=params,
+                                description=f'{skill_name}: {task}',
+                                depends_on=[len(steps) - 1] if steps else [],
+                                output_key=f'result_{len(steps)}',
+                                optional=True
+                            )
+                            steps.append(new_step)
+                            logger.info(f"   Added step for {skill_name}")
+                reasoning += f" (expanded to include {len(missing_skills)} additional skills)"
+
             logger.info(f"📝 Planned {len(steps)} execution steps")
             logger.debug(f"   Reasoning: {reasoning}")
             if hasattr(result, 'estimated_complexity'):
@@ -719,13 +846,190 @@ class AgenticPlanner:
         """
         Prepare task description for LLM planning calls.
 
-        Preserves the actual task context so the LLM can plan specific steps.
-        The DSPy signatures already contain instructions like "You are a PLANNER"
-        and "You are NOT executing anything", so no context stripping is needed.
+        CRITICAL: Strips out context pollution markers that can corrupt:
+        - Search queries (causing massive URLs)
+        - PDF topic parameters
+        - Skill tool inputs
+
+        Context pollution markers include:
+        - Q-Learning lessons
+        - Transfer learning context
+        - Multi-perspective analysis
+        - Previous run metadata
+
         Truncates to 500 chars to stay within reasonable prompt limits.
         """
-        return task[:500].strip()
-    
+        # Clean the task first, then truncate
+        cleaned = self._clean_task_for_query(task)
+        return cleaned[:500].strip()
+
+    def _clean_task_for_query(self, task: str) -> str:
+        """
+        Clean task description for use in search queries and skill inputs.
+
+        CRITICAL: This prevents query pollution where enrichment context
+        (Q-learning, transfer learning, etc.) gets passed to web search
+        causing massive URLs and timeouts.
+
+        Args:
+            task: Task description (may contain enrichment context)
+
+        Returns:
+            Clean task description (original request only)
+        """
+        # Markers that indicate enrichment context (to be stripped)
+        context_markers = [
+            '\n[Multi-Perspective Analysis',
+            '\n[Multi-Perspective',
+            '\nLearned Insights:',
+            '\n# Transferable Learnings',
+            '\n# Q-Learning Lessons',
+            '\n## Task Type Pattern',
+            '\n## Role Advice',
+            '\n## Meta-Learning Advice',
+            '\n\n---\n',  # Common separator before context
+            '\nBased on previous learnings:',
+            '\nRecommended approach:',
+            '\nPrevious success patterns:',
+            '\n[Analysis]:',
+            '\n[Consensus]:',
+            '\n[Tensions]:',
+            '\n[Blind Spots]:',
+        ]
+
+        cleaned = task
+        for marker in context_markers:
+            if marker in cleaned:
+                # Keep only the part before the marker
+                cleaned = cleaned.split(marker)[0]
+
+        return cleaned.strip()
+
+    def _build_skill_params(self, skill_name: str, task: str, prev_output_key: Optional[str] = None, tool_name: str = None) -> Dict[str, Any]:
+        """Build params for a skill by looking up its tool schema from registry."""
+        params = {}
+        prev_ref = f"${{{prev_output_key}}}" if prev_output_key else task
+
+        try:
+            from ..registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            skill = registry.get_skill(skill_name)
+
+            if skill and hasattr(skill, 'tools') and skill.tools:
+                # Get the specific tool or first available
+                tool_func = skill.tools.get(tool_name) if tool_name else list(skill.tools.values())[0]
+
+                if tool_func:
+                    # Extract parameter schema from docstring
+                    schema = self._extract_tool_schema(tool_func, tool_name or list(skill.tools.keys())[0])
+                    tool_params = schema.get('parameters', [])
+
+                    # CRITICAL: Clean task for query params (strip enrichment context)
+                    # The task may contain appended context like:
+                    # - "[Multi-Perspective Analysis..."
+                    # - "Learned Insights:..."
+                    # - "# Transferable Learnings..."
+                    # This context pollutes search queries causing timeouts
+                    clean_task = self._clean_task_for_query(task)
+
+                    # Build params based on actual schema
+                    for param in tool_params:
+                        param_name = param.get('name', '')
+                        param_required = param.get('required', False)
+                        param_desc = param.get('description', '').lower()
+
+                        # Intelligently fill params based on description and name
+                        # Use CLEAN task for search queries to avoid polluting URLs
+                        if param_name in ['query', 'topic', 'search_query', 'q']:
+                            params[param_name] = clean_task
+                        elif param_name in ['message', 'text', 'content', 'body']:
+                            params[param_name] = prev_ref
+                        elif param_name in ['file_path', 'pdf_path', 'path', 'input_path']:
+                            params[param_name] = prev_ref  # Reference to previous output
+                        elif param_name in ['max_results', 'limit', 'count']:
+                            params[param_name] = 10
+                        elif param_name in ['title', 'name']:
+                            params[param_name] = clean_task[:50]
+                        elif param_required:
+                            # For other required params, use task or prev_ref based on description
+                            if any(word in param_desc for word in ['input', 'content', 'data', 'result']):
+                                params[param_name] = prev_ref
+                            else:
+                                params[param_name] = clean_task
+
+                    if params:
+                        logger.debug(f"Built params from schema for {skill_name}: {list(params.keys())}")
+                        return params
+
+        except Exception as e:
+            logger.debug(f"Could not build params from registry for {skill_name}: {e}")
+
+        # Fallback: generic params covering common required fields
+        # Use CLEAN task for query/topic to avoid polluting search URLs
+        clean_task = self._clean_task_for_query(task)
+        return {
+            'task': clean_task,
+            'query': clean_task,
+            'topic': clean_task,  # For research skills
+            'input': prev_ref,
+            'content': prev_ref,
+            'text': prev_ref,
+            'message': prev_ref,  # For notification skills
+        }
+
+    def _clean_task_for_query(self, task: str) -> str:
+        """
+        Clean task description for use in search queries.
+
+        Removes enrichment context that would pollute search queries:
+        - [Multi-Perspective Analysis...]
+        - Learned Insights:...
+        - # Transferable Learnings...
+        - # Q-Learning Lessons...
+
+        This prevents massive URL-encoded queries that timeout.
+        """
+        if not task:
+            return task
+
+        # Context markers that indicate appended enrichment
+        context_markers = [
+            '\n[Multi-Perspective Analysis',
+            '\nLearned Insights:',
+            '\n# Transferable Learnings',
+            '\n# Q-Learning Lessons',
+            '\n## Task Type Pattern',
+            '\n## Role Advice',
+            '\n## Meta-Learning Advice',
+        ]
+
+        # Find the earliest context marker and truncate
+        clean_task = task
+        earliest_pos = len(task)
+
+        for marker in context_markers:
+            pos = task.find(marker)
+            if pos != -1 and pos < earliest_pos:
+                earliest_pos = pos
+
+        if earliest_pos < len(task):
+            clean_task = task[:earliest_pos].strip()
+            logger.debug(f"Cleaned task for query: {len(task)} → {len(clean_task)} chars")
+
+        # Also limit length for search queries (max 200 chars)
+        if len(clean_task) > 200:
+            # Find a natural break point
+            break_points = ['. ', '? ', '! ', '\n']
+            best_break = 200
+            for bp in break_points:
+                pos = clean_task[:200].rfind(bp)
+                if pos > 100:  # At least 100 chars
+                    best_break = pos + len(bp)
+                    break
+            clean_task = clean_task[:best_break].strip()
+
+        return clean_task
+
     def _create_fallback_plan(
         self,
         task: str,
@@ -762,12 +1066,17 @@ class AgenticPlanner:
             if not tools:
                 continue
 
+            # Build params from skill registry schema
+            tool_name = tools[0] if isinstance(tools[0], str) else tools[0].get('name', '')
+            prev_output_key = f'result_{len(plan) - 1}' if plan else None
+            params = self._build_skill_params(skill_name, task, prev_output_key, tool_name)
+
             plan.append({
                 'skill_name': skill_name,
-                'tool_name': tools[0],
-                'params': {'task': task[:200]},
-                'description': f'Execute {skill_name}: {task[:80]}',
-                'depends_on': [],
+                'tool_name': tool_name,
+                'params': params,
+                'description': f'Execute {skill_name}: {task}',
+                'depends_on': [len(plan) - 1] if plan else [],  # Chain steps
                 'output_key': f'result_{len(plan)}',
                 'optional': len(plan) > 0  # First step required, rest optional
             })
@@ -801,31 +1110,38 @@ class AgenticPlanner:
         return list(dict.fromkeys(skill_names))[:10]
     
     def _extract_plan_from_text(self, text: str) -> List[Dict[str, Any]]:
-        """Extract execution plan from LLM text output when JSON parsing fails."""
+        """Extract execution plan from LLM text output when JSON parsing fails.
+
+        Returns empty list if extraction fails - fallback plan will be used.
+        """
         import re
         steps = []
-        
-        # Try to find step-like structures
-        step_pattern = r'step\s+\d+[:\-]?\s*(.+?)(?=step\s+\d+|$)'
-        matches = re.findall(step_pattern, text, re.IGNORECASE | re.DOTALL)
-        
-        for i, match in enumerate(matches):
-            # Try to extract skill and tool names
-            skill_match = re.search(r'skill[:\s]+([\w\-]+)', match, re.IGNORECASE)
-            tool_match = re.search(r'tool[:\s]+([\w\-_]+)', match, re.IGNORECASE)
-            
-            if skill_match:
-                steps.append({
-                    'skill_name': skill_match.group(1),
-                    'tool_name': tool_match.group(1) if tool_match else 'execute_tool',
-                    'params': {},
-                    'description': match.strip()[:100],
-                    'depends_on': [],
-                    'output_key': f'step_{i}',
-                    'optional': False
-                })
-        
-        return steps
+
+        # Try to find quoted skill names like "web-search" or 'web-search'
+        skill_pattern = r'["\']([a-z][a-z0-9\-]+)["\']'
+        skill_mentions = re.findall(skill_pattern, text.lower())
+
+        # Filter to valid-looking skill names (must have hyphen or underscore, typical of skill names)
+        valid_skills = [s for s in skill_mentions if '-' in s and len(s) > 4]
+
+        if not valid_skills:
+            # No valid skills found - return empty so fallback plan is used
+            logger.debug("Could not extract valid skill names from text, using fallback plan")
+            return []
+
+        # Create a simple step for each mentioned skill
+        for i, skill_name in enumerate(dict.fromkeys(valid_skills)):  # Deduplicate
+            steps.append({
+                'skill_name': skill_name,
+                'tool_name': '',  # Will be resolved by validation
+                'params': {},
+                'description': f'Execute {skill_name}',
+                'depends_on': [i-1] if i > 0 else [],
+                'output_key': f'step_{i}',
+                'optional': i > 0  # First step required, rest optional
+            })
+
+        return steps[:5]  # Limit to 5 steps
     
     # =============================================================================
     # Enhanced Planning with TaskGraph and Metadata
@@ -975,11 +1291,11 @@ class AgenticPlanner:
         return list(tools)
     
     def _extract_required_credentials(self, integrations: List[str]) -> List[str]:
-        """Extract required credentials from integrations."""
+        """Extract required credentials from integrations (any integration may need credentials)."""
         credentials = []
         for integration in integrations:
-            if integration.lower() in ['reddit', 'notion', 'slack', 'twitter', 'github', 'telegram', 'discord']:
-                credentials.append(f"{integration}_api_key")
+            # Assume any integration might need an API key
+            credentials.append(f"{integration.lower()}_api_key")
         return credentials
     
     def _estimate_time(self, steps: List[Any]) -> str:

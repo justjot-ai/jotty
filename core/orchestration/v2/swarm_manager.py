@@ -25,7 +25,7 @@ from ...foundation.data_structures import JottyConfig, EpisodeResult
 from ...foundation.agent_config import AgentConfig
 from .agent_runner import AgentRunner, AgentRunnerConfig
 # Import directly from source to avoid circular import
-from ..roadmap import MarkovianTODO as SwarmTaskBoard
+from ..roadmap import MarkovianTODO as SwarmTaskBoard, TaskStatus
 from ...agents.agentic_planner import AgenticPlanner as SwarmPlanner
 from ...memory.cortex import HierarchicalMemory as SwarmMemory
 # Feature components (using Swarm prefix for consistency)
@@ -193,22 +193,21 @@ class SwarmManager:
             provider=provider_preference
         )
         
-        # Zero-config: Convert natural language to AgentConfig
+        # Zero-config: Intelligently decide single vs multi-agent
         if isinstance(agents, str) and enable_zero_config:
-            logger.info(f"🔮 Zero-config mode: Converting '{agents[:50]}...' to AgentConfig")
-            agents = self.parse_intent_to_agent_config(agents)
-        
+            logger.info(f"🔮 Zero-config mode: Analyzing task for agent configuration")
+            agents = self._create_zero_config_agents(agents)
+
         # Normalize agents to list
         if agents is None:
-            # Default: AutoAgent for zero-config
-            agents = AgentConfig(name="auto", agent=AutoAgent())
-        
-        if isinstance(agents, AgentConfig):
-            self.agents = [agents]
-            self.mode = "single"
-        else:
-            self.agents = agents
-            self.mode = "multi" if len(agents) > 1 else "single"
+            # Default: Single AutoAgent
+            agents = [AgentConfig(name="auto", agent=AutoAgent())]
+        elif isinstance(agents, AgentConfig):
+            agents = [agents]
+
+        self.agents = agents
+        self.mode = "multi" if len(agents) > 1 else "single"
+        logger.info(f"🤖 Agent mode: {self.mode} ({len(self.agents)} agents)")
         
         # Default prompts if not provided
         self.architect_prompts = architect_prompts or ["prompts/architect.md"]
@@ -990,6 +989,12 @@ For component-specific help:
             goal: Task goal/description (natural language supported)
             skip_autonomous_setup: If True, skip research/install/configure (fast mode)
             status_callback: Optional callback(stage, detail) for progress updates
+            ensemble: Enable prompt ensembling for multi-perspective analysis
+            ensemble_strategy: Strategy for ensembling:
+                - 'self_consistency': Same prompt, N samples, synthesis
+                - 'multi_perspective': Different expert personas (default)
+                - 'gsa': Generative Self-Aggregation
+                - 'debate': Multi-round argumentation
             **kwargs: Additional arguments
 
         Returns:
@@ -998,6 +1003,14 @@ For component-specific help:
         # Extract special kwargs
         skip_autonomous_setup = kwargs.pop('skip_autonomous_setup', False)
         status_callback = kwargs.pop('status_callback', None)
+        ensemble = kwargs.pop('ensemble', None)  # None = auto-detect, True/False = explicit
+        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+
+        # Auto-detect ensemble for certain task types (if not explicitly set)
+        if ensemble is None:
+            ensemble = self._should_auto_ensemble(goal)
+            if ensemble:
+                logger.info(f"🔮 Auto-enabled ensemble for task type (use ensemble=False to override)")
 
         # Ensure DSPy LM is configured (critical for all agent operations)
         import dspy
@@ -1016,7 +1029,40 @@ For component-specific help:
                     pass
             logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
 
-        agent_info = f"{len(self.agents)} agent(s)" if len(self.agents) > 1 else "AutoAgent (zero-config)"
+        # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
+        if self.enable_zero_config and self.mode == "single":
+            _status("Analyzing task", "deciding single vs multi-agent")
+            new_agents = self._create_zero_config_agents(goal, status_callback)
+            if len(new_agents) > 1:
+                # LLM detected parallel sub-goals - upgrade to multi-agent
+                self.agents = new_agents
+                self.mode = "multi"
+                logger.info(f"🔄 Zero-config: Upgraded to {len(self.agents)} agents for parallel execution")
+
+                # Create runners for new agents
+                for agent_config in self.agents:
+                    if agent_config.name not in self.runners:
+                        runner_config = AgentRunnerConfig(
+                            architect_prompts=self.architect_prompts,
+                            auditor_prompts=self.auditor_prompts,
+                            config=self.config,
+                            agent_name=agent_config.name,
+                            enable_learning=True,
+                            enable_memory=True
+                        )
+                        runner = AgentRunner(
+                            agent=agent_config.agent,
+                            config=runner_config,
+                            task_planner=self.swarm_planner,
+                            task_board=self.swarm_task_board,
+                            swarm_memory=self.swarm_memory,
+                            swarm_state_manager=self.swarm_state_manager,
+                            learning_manager=self.learning_manager,
+                            transfer_learning=self.transfer_learning
+                        )
+                        self.runners[agent_config.name] = runner
+
+        agent_info = f"{len(self.agents)} AutoAgent(s)" if len(self.agents) > 1 else "AutoAgent (zero-config)"
         _status("Starting", agent_info)
 
         # Profile execution if enabled
@@ -1033,9 +1079,13 @@ For component-specific help:
                 self.shared_context.set('query', goal)
 
             # Autonomous planning: Research, install, configure if needed
-            if not skip_autonomous_setup:
+            # For multi-agent mode with zero-config: skip full setup (agents have specific sub-goals)
+            # This reduces latency significantly for parallel agent execution
+            if not skip_autonomous_setup and self.mode == "single":
                 _status("Autonomous setup", "analyzing requirements")
                 await self.autonomous_setup(goal, status_callback=status_callback)
+            elif not skip_autonomous_setup and self.mode == "multi":
+                _status("Fast mode", "multi-agent (agents configured with sub-goals)")
             else:
                 _status("Fast mode", "skipping autonomous setup")
 
@@ -1051,15 +1101,50 @@ For component-specific help:
                     'agent_count': len(self.agents)
                 })
 
+            # Ensemble mode: Multi-perspective analysis
+            # For multi-agent: ensemble happens per-agent (each agent has different sub-goal)
+            # For single-agent: ensemble happens at swarm level
+            ensemble_result = None
+            if ensemble and self.mode == "single":
+                _status("Ensembling", f"strategy={ensemble_strategy} (swarm-level)")
+                ensemble_result = await self._execute_ensemble(
+                    goal,
+                    strategy=ensemble_strategy,
+                    status_callback=status_callback
+                )
+                if ensemble_result.get('success'):
+                    # Use synthesized perspective to guide execution
+                    enriched_goal = f"{goal}\n\n[Multi-Perspective Analysis]:\n{ensemble_result.get('response', '')[:2000]}"
+
+                    # Show quality scores if available
+                    quality_scores = ensemble_result.get('quality_scores', {})
+                    if quality_scores:
+                        avg_quality = sum(quality_scores.values()) / len(quality_scores)
+                        scores_str = ", ".join(f"{k}:{v:.0%}" for k, v in quality_scores.items())
+                        _status("Ensemble quality", f"avg={avg_quality:.0%} ({scores_str})")
+                    else:
+                        _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
+
+                    goal = enriched_goal  # Use enriched goal for execution
+            elif ensemble and self.mode == "multi":
+                # Multi-agent mode: SKIP per-agent ensemble (too expensive)
+                # With N agents × 4 perspectives = 4N LLM calls - massive overkill
+                # Each agent already has a specific sub-goal, no need for multi-perspective
+                _status("Ensemble mode", "DISABLED for multi-agent (agents have specific sub-goals)")
+                ensemble = False  # Disable for agents
+
             # Single-agent mode: Simple execution
             if self.mode == "single":
                 agent_name = self.agents[0].name if self.agents else "auto"
                 _status("Executing", f"agent '{agent_name}' with skill orchestration")
-                # Pass skip_validation for fast mode and status_callback for streaming
+                # Skip validation for zero-config mode since AutoAgent has its own planning
+                # Architect/Auditor validation is redundant and slow (10 ReAct iterations)
+                skip_val = skip_autonomous_setup or self.enable_zero_config
                 result = await self._execute_single_agent(
                     goal,
-                    skip_validation=skip_autonomous_setup,
+                    skip_validation=skip_val,
                     status_callback=status_callback,
+                    ensemble_context=ensemble_result if ensemble else None,
                     **kwargs
                 )
 
@@ -1073,8 +1158,15 @@ For component-specific help:
 
             # Multi-agent mode: Use SwarmTaskBoard for coordination
             else:
-                _status("Executing", f"{len(self.agents)} agents")
-                result = await self._execute_multi_agent(goal, **kwargs)
+                _status("Executing", f"{len(self.agents)} agents in parallel")
+                result = await self._execute_multi_agent(
+                    goal,
+                    ensemble_context=ensemble_result if ensemble else None,
+                    status_callback=status_callback,
+                    ensemble=ensemble,  # Pass to agents for per-agent ensemble
+                    ensemble_strategy=ensemble_strategy,
+                    **kwargs
+                )
 
                 _status("Complete", "success" if result.success else "failed")
 
@@ -1090,17 +1182,137 @@ For component-specific help:
                 profile_context.__exit__(type(e), e, None)
             raise
     
+    async def _execute_ensemble(
+        self,
+        goal: str,
+        strategy: str = 'multi_perspective',
+        status_callback=None
+    ) -> Dict[str, Any]:
+        """
+        Execute prompt ensembling for multi-perspective analysis.
+
+        Uses the ensemble_prompt_tool from claude-cli-llm skill.
+
+        Strategies:
+        - self_consistency: Same prompt, N samples, synthesis
+        - multi_perspective: Different expert personas (default)
+        - gsa: Generative Self-Aggregation
+        - debate: Multi-round argumentation
+
+        Args:
+            goal: The task/question to analyze
+            strategy: Ensembling strategy
+            status_callback: Optional progress callback
+
+        Returns:
+            Dict with ensemble results including synthesized response
+        """
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+
+        try:
+            # Try to use the skill
+            try:
+                from ...registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                registry.init()
+                skill = registry.get_skill('claude-cli-llm')
+
+                if skill:
+                    ensemble_tool = skill.tools.get('ensemble_prompt_tool')
+                    if ensemble_tool:
+                        _status("Ensemble", f"using {strategy} strategy (domain-aware)")
+                        result = ensemble_tool({
+                            'prompt': goal,
+                            'strategy': strategy,
+                            'synthesis_style': 'structured',
+                            'verbose': True  # Get quality scores and summaries
+                        })
+                        # Show individual perspective status
+                        if result.get('success') and result.get('quality_scores'):
+                            for name, score in result['quality_scores'].items():
+                                _status(f"  {name}", f"quality={score:.0%}")
+                        return result
+            except ImportError:
+                pass
+
+            # Fallback: Use DSPy directly for multi-perspective
+            import dspy
+            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+                return {'success': False, 'error': 'No LLM configured'}
+
+            lm = dspy.settings.lm
+
+            # Simple multi-perspective implementation
+            perspectives = [
+                ("analytical", "Analyze this from a data-driven, logical perspective:"),
+                ("creative", "Consider unconventional angles and innovative solutions:"),
+                ("critical", "Play devil's advocate - identify risks and problems:"),
+                ("practical", "Focus on feasibility and actionable steps:"),
+            ]
+
+            responses = {}
+            for name, prefix in perspectives:
+                _status(f"  {name}", "analyzing...")
+                try:
+                    prompt = f"{prefix}\n\n{goal}"
+                    response = lm(prompt=prompt)
+                    text = response[0] if isinstance(response, list) else str(response)
+                    responses[name] = text
+                except Exception as e:
+                    logger.warning(f"Perspective '{name}' failed: {e}")
+
+            if not responses:
+                return {'success': False, 'error': 'All perspectives failed'}
+
+            # Synthesize
+            _status("Synthesizing", f"{len(responses)} perspectives")
+            synthesis_prompt = f"""Synthesize these {len(responses)} expert perspectives into a comprehensive analysis:
+
+Question: {goal}
+
+{chr(10).join(f'**{k.upper()}:** {v[:600]}' for k, v in responses.items())}
+
+Provide a structured synthesis with:
+1. **Consensus**: Where perspectives agree
+2. **Tensions**: Where they diverge
+3. **Blind Spots**: Unique insights from each
+4. **Recommendation**: Balanced conclusion"""
+
+            synthesis = lm(prompt=synthesis_prompt)
+            final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
+
+            return {
+                'success': True,
+                'response': final_response,
+                'perspectives_used': list(responses.keys()),
+                'individual_responses': responses,
+                'strategy': strategy,
+                'confidence': len(responses) / len(perspectives)
+            }
+
+        except Exception as e:
+            logger.error(f"Ensemble execution failed: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+
     async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Execute single-agent mode.
-        
+
         Args:
             goal: Task goal
             **kwargs: Additional arguments
-            
+
         Returns:
             EpisodeResult
         """
+        # Remove ensemble_context from kwargs before passing to runner
+        kwargs.pop('ensemble_context', None)
+
         agent_config = self.agents[0]
         runner = self.runners[agent_config.name]
         result = await runner.run(goal=goal, **kwargs)
@@ -1119,22 +1331,49 @@ For component-specific help:
 
     async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
-        Execute multi-agent mode with concurrent execution and retry.
+        Execute multi-agent mode with sequential execution based on agent order.
 
-        Groups tasks by dependency level (independent tasks run together),
-        uses asyncio.gather for parallel execution, and retries failures
-        with enriched context.
+        Agents are executed in order (research → generate → notify) with each
+        agent's output passed to the next. Uses retry on failure.
         """
+        # Extract callbacks and ensemble params before passing to runners
+        kwargs.pop('ensemble_context', None)
+        status_callback = kwargs.pop('status_callback', None)
+        ensemble = kwargs.pop('ensemble', False)
+        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+
+        # Status update at method start
+        if status_callback:
+            try:
+                status_callback("Multi-agent exec", f"starting {len(self.agents)} parallel agents")
+            except Exception as e:
+                logger.error(f"Status callback failed: {e}")
+
         max_attempts = getattr(self.config, 'max_task_attempts', 2)
 
+        # Clear task board for fresh run (avoid stale tasks from previous runs)
+        self.swarm_task_board.subtasks.clear()
+        self.swarm_task_board.completed_tasks.clear()
+        self.swarm_task_board.execution_order.clear()
+
         # Add tasks to SwarmTaskBoard
+        # Zero-config agents from LLM are PARALLEL (independent sub-goals)
+        # Only add dependencies if explicitly specified in agent config
         for i, agent_config in enumerate(self.agents):
             task_id = f"task_{i+1}"
+            # Check if agent has explicit dependencies
+            deps = getattr(agent_config, 'depends_on', []) or []
+
+            # Use agent's sub-goal (from capabilities) as task description
+            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else f"{goal} (agent: {agent_config.name})"
+
             self.swarm_task_board.add_task(
                 task_id=task_id,
-                description=f"{goal} (agent: {agent_config.name})",
-                actor=agent_config.name
+                description=sub_goal,
+                actor=agent_config.name,
+                depends_on=deps  # Empty for parallel execution
             )
+            logger.info(f"📋 Added task {task_id} for {agent_config.name}: {sub_goal[:50]}... (parallel: {len(deps)==0})")
 
         all_results = {}  # agent_name -> EpisodeResult
         attempt_counts = {}  # task_id -> attempts
@@ -1142,19 +1381,37 @@ For component-specific help:
         while True:
             # Collect all ready tasks (no unresolved dependencies)
             batch = []
+
             while True:
                 next_task = self.swarm_task_board.get_next_task()
                 if next_task is None:
                     break
+                # Mark as IN_PROGRESS so it's not returned again
+                next_task.status = TaskStatus.IN_PROGRESS
                 batch.append(next_task)
 
             if not batch:
                 break
 
-            # Pre-execution: trajectory prediction for each task
+            # Show batch info immediately with agent names for better UX
+            if status_callback and len(batch) > 0:
+                try:
+                    agent_names = [t.actor for t in batch]
+                    status_callback("Running batch", f"{len(batch)} agents: {', '.join(agent_names[:5])}")
+                    # Show each agent's task for clarity
+                    for task in batch:
+                        agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
+                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:50]
+                        status_callback(f"  {task.actor}", sub_goal[:60])
+                except Exception:
+                    pass
+
+            # Pre-execution: trajectory prediction (non-blocking, run in background)
             predictions = {}
-            for task in batch:
-                if self.trajectory_predictor:
+            # Skip trajectory prediction to reduce latency - agents start immediately
+            # Prediction can happen asynchronously after execution starts
+            if self.trajectory_predictor and len(batch) <= 2:  # Only for small batches
+                for task in batch:
                     try:
                         prediction = self.trajectory_predictor.predict(
                             current_state=self.get_current_state(),
@@ -1167,10 +1424,36 @@ For component-specific help:
                     except Exception as e:
                         logger.debug(f"Trajectory prediction skipped for {task.actor}: {e}")
 
-            # Execute batch concurrently
+            # Execute batch concurrently (status_callback already extracted at method start)
             async def _run_task(task):
+                # Show which agent is executing
+                agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
+                sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
+
+                if status_callback:
+                    try:
+                        status_callback(f"Agent {task.actor}", f"starting: {sub_goal}")
+                    except Exception:
+                        pass
+
+                # Create agent-specific status callback that prefixes with agent name
+                def agent_status_callback(stage: str, detail: str = ""):
+                    if status_callback:
+                        try:
+                            # Prefix with agent name so user knows which agent is doing what
+                            status_callback(f"  [{task.actor}] {stage}", detail)
+                        except Exception:
+                            pass
+
                 runner = self.runners[task.actor]
-                return task, await runner.run(goal=task.description, **kwargs)
+                # Pass the agent-specific callback and ensemble params
+                task_kwargs = dict(kwargs)
+                task_kwargs['status_callback'] = agent_status_callback
+                # Each agent gets its own ensemble for its specific sub-goal
+                if ensemble:
+                    task_kwargs['ensemble'] = True
+                    task_kwargs['ensemble_strategy'] = ensemble_strategy
+                return task, await runner.run(goal=task.description, **task_kwargs)
 
             coro_results = await asyncio.gather(
                 *[_run_task(t) for t in batch],
@@ -1181,10 +1464,23 @@ For component-specific help:
             for coro_result in coro_results:
                 if isinstance(coro_result, Exception):
                     logger.error(f"Task execution exception: {coro_result}")
+                    if status_callback:
+                        try:
+                            status_callback("Agent error", str(coro_result)[:60])
+                        except Exception:
+                            pass
                     continue
 
                 task, result = coro_result
                 attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
+
+                # Show agent completion status
+                if status_callback:
+                    status_icon = "✓" if result.success else "✗"
+                    try:
+                        status_callback(f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
+                    except Exception:
+                        pass
                 reward = 1.0 if result.success else -0.5
 
                 # Post-execution: divergence learning
@@ -1345,7 +1641,332 @@ For component-specific help:
         else:
             # Failure - maybe base reward should matter more
             self.credit_weights.update_from_feedback('base_reward', 0.05, reward=0.0)
-    
+
+    def _create_zero_config_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
+        """
+        Zero-config: LLM decides if task needs multiple agents.
+
+        Uses LLM to analyze task:
+        - Sequential workflow (A → B → C) → Single AutoAgent
+        - Parallel/independent sub-goals → Multiple AutoAgents
+
+        No hardcoded categories - purely LLM-driven decision.
+        """
+        from ...agents.auto_agent import AutoAgent
+        import dspy
+
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+
+        # Try LLM-based decision
+        try:
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                _status("LLM analyzing", "checking for parallel sub-goals")
+                decision = self._llm_decide_agents(task)
+                if decision and len(decision) > 1:
+                    # Multiple independent sub-goals detected
+                    agents = []
+                    for i, sub_goal in enumerate(decision):
+                        agent = AutoAgent()
+                        # Derive logical name from sub-goal
+                        agent_name = self._derive_agent_name(sub_goal, i)
+                        agent_config = AgentConfig(
+                            name=agent_name,
+                            agent=agent,
+                            capabilities=[sub_goal[:50]],
+                            is_executor=True
+                        )
+                        agents.append(agent_config)
+                        _status(f"  {agent_name}", sub_goal[:60])
+                    _status("Multi-agent mode", f"{len(agents)} parallel agents")
+                    return agents
+                else:
+                    _status("Single-agent mode", "sequential workflow detected")
+        except Exception as e:
+            logger.debug(f"LLM agent decision failed, using single agent: {e}")
+            _status("Single-agent mode", "fallback (LLM decision failed)")
+
+        # Default: Single AutoAgent handles sequential workflows well
+        return [AgentConfig(name="auto", agent=AutoAgent())]
+
+    def _llm_decide_agents(self, task: str) -> List[str]:
+        """
+        Use LLM to decide if task has parallel sub-goals.
+
+        Returns:
+            List of sub-goals if parallel work detected, else empty list
+        """
+        import dspy
+
+        class AgentDecisionSignature(dspy.Signature):
+            """Analyze if task has INDEPENDENT sub-goals that can run in PARALLEL.
+
+            BE CONSERVATIVE - prefer single agent for most tasks.
+            Only split into parallel agents when there are TRULY INDEPENDENT work streams.
+
+            PARALLEL (rare): Sub-goals that produce SEPARATE outputs with NO dependencies.
+            SEQUENTIAL (common): Steps that build on each other (research → synthesize → format).
+
+            Examples:
+            - "Create checklist for X" → SEQUENTIAL (single agent: research + create + format)
+            - "Research X and generate PDF" → SEQUENTIAL (PDF needs research output)
+            - "Compare A vs B AND compare C vs D" → PARALLEL ONLY if comparing different domains
+            - "Analyze company X for multiple aspects" → SEQUENTIAL (one comprehensive analysis)
+
+            AVOID creating multiple agents for:
+            - Tasks that share the same domain/topic (even if phrased differently)
+            - Tasks where one naturally leads to another
+            - Tasks that will produce overlapping research
+            """
+            task: str = dspy.InputField(desc="The task to analyze")
+            is_parallel: bool = dspy.OutputField(desc="True ONLY if task has truly independent sub-goals. Default to False.")
+            sub_goals: str = dspy.OutputField(desc="If parallel, JSON list of 2-4 DISTINCT sub-goals (no duplicates). If sequential, empty list []")
+
+        try:
+            predictor = dspy.Predict(AgentDecisionSignature)
+            result = predictor(task=task)
+
+            logger.info(f"🤖 LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}")
+
+            if result.is_parallel:
+                import json
+                sub_goals = json.loads(result.sub_goals)
+                if isinstance(sub_goals, list) and len(sub_goals) > 1:
+                    # Deduplicate similar sub-goals
+                    sub_goals = self._deduplicate_sub_goals(sub_goals)
+                    # Limit to max 4 parallel agents
+                    sub_goals = sub_goals[:4]
+                    if len(sub_goals) > 1:
+                        logger.info(f"🔀 LLM detected {len(sub_goals)} parallel sub-goals: {sub_goals}")
+                        return sub_goals
+                    else:
+                        logger.info(f"📝 After deduplication: single agent optimal")
+            else:
+                logger.info(f"📝 LLM detected sequential workflow - single agent optimal")
+        except Exception as e:
+            logger.debug(f"Agent decision parsing failed: {e}")
+
+        return []  # Default: sequential/single agent
+
+    def _deduplicate_sub_goals(self, sub_goals: List[str]) -> List[str]:
+        """
+        Remove duplicate or highly similar sub-goals.
+
+        Uses word overlap to detect duplicates like:
+        - "Identify oversight requirements for SPVs"
+        - "Identify oversight requirements for Fund admins"
+        These share too much overlap and should be merged.
+        """
+        if len(sub_goals) <= 1:
+            return sub_goals
+
+        def get_key_words(text: str) -> set:
+            """Extract meaningful words from text."""
+            stop_words = {'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'is', 'are', 'be', 'that', 'this'}
+            words = set(w.lower() for w in text.split() if len(w) > 2 and w.lower() not in stop_words)
+            return words
+
+        def similarity(a: str, b: str) -> float:
+            """Calculate Jaccard similarity between two texts."""
+            words_a = get_key_words(a)
+            words_b = get_key_words(b)
+            if not words_a or not words_b:
+                return 0.0
+            intersection = len(words_a & words_b)
+            union = len(words_a | words_b)
+            return intersection / union if union > 0 else 0.0
+
+        # Keep track of which goals to keep
+        unique_goals = []
+        for goal in sub_goals:
+            is_duplicate = False
+            for existing in unique_goals:
+                sim = similarity(goal, existing)
+                if sim > 0.6:  # 60% overlap = too similar
+                    logger.debug(f"Merging duplicate sub-goal (sim={sim:.0%}): '{goal[:40]}...' with '{existing[:40]}...'")
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                unique_goals.append(goal)
+
+        if len(unique_goals) < len(sub_goals):
+            logger.info(f"📝 Deduplicated: {len(sub_goals)} → {len(unique_goals)} sub-goals")
+
+        return unique_goals
+
+    def _derive_agent_name(self, sub_goal: str, index: int) -> str:
+        """
+        Derive a logical, descriptive agent name from sub-goal.
+
+        Uses LLM to extract the most meaningful identifier from the sub-goal.
+
+        Examples:
+        - "Research BaFin KGAB framework requirements" → "bafin_kgab"
+        - "Analyze technical indicators for TSLA" → "tsla_technicals"
+        - "Compare regulatory approaches EU vs US" → "eu_us_comparison"
+        """
+        import dspy
+        import re
+
+        goal_lower = sub_goal.lower()
+
+        # Try LLM-based name extraction first (more accurate)
+        try:
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                class AgentNameSignature(dspy.Signature):
+                    """Extract a short, descriptive agent name from task description.
+
+                    The name should:
+                    - Be 2-3 words max, joined by underscore
+                    - Capture the MAIN TOPIC or ENTITY being worked on
+                    - Be specific (not generic like "researcher" or "analyst")
+
+                    Examples:
+                    - "Research BaFin KGAB framework" → "bafin_kgab"
+                    - "Analyze Tesla stock technicals" → "tesla_technicals"
+                    - "Compare EU vs US regulations" → "eu_us_regs"
+                    - "Generate summary of AI news" → "ai_news"
+                    """
+                    task: str = dspy.InputField(desc="Task description")
+                    name: str = dspy.OutputField(desc="Short agent name (2-3 words, underscore separated, no generic words)")
+
+                predictor = dspy.Predict(AgentNameSignature)
+                result = predictor(task=sub_goal)
+                name = result.name.strip().lower()
+                # Clean: remove quotes, limit length, replace spaces
+                name = re.sub(r'["\']', '', name)
+                name = re.sub(r'\s+', '_', name)
+                name = name[:20]  # Max 20 chars
+                if name and len(name) >= 3:
+                    logger.debug(f"LLM-derived agent name: {name}")
+                    return name
+        except Exception as e:
+            logger.debug(f"LLM agent naming failed, using heuristics: {e}")
+
+        # Fallback: Heuristic-based extraction
+        # 1. Look for specific entity names (tickers, companies, frameworks)
+        entities = re.findall(r'\b([A-Z]{2,6})\b', sub_goal)  # Stock tickers, acronyms
+        proper_nouns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', sub_goal)
+
+        # 2. Common domain-specific patterns
+        domain_patterns = [
+            (r'fundamental', 'fundamentals'),
+            (r'technical', 'technicals'),
+            (r'sentiment', 'sentiment'),
+            (r'regulatory|regulation|compliance', 'regulatory'),
+            (r'risk\s*management', 'risk_mgmt'),
+            (r'market\s*analysis', 'market'),
+            (r'competitor', 'competitors'),
+            (r'valuation', 'valuation'),
+            (r'earnings', 'earnings'),
+            (r'news|headline', 'news'),
+        ]
+
+        for pattern, name in domain_patterns:
+            if re.search(pattern, goal_lower):
+                # Try to prepend entity
+                if entities:
+                    return f"{entities[0].lower()}_{name}"
+                return name
+
+        # 3. Extract key topic from goal
+        # Remove common verbs and articles
+        cleaned = re.sub(
+            r'^(research|analyze|generate|create|get|find|compare|evaluate|assess|review|summarize|identify)\s+',
+            '', goal_lower
+        )
+        cleaned = re.sub(r'\s+(analysis|report|data|information|research|requirements|framework)$', '', cleaned)
+        cleaned = re.sub(r'\b(the|a|an|and|or|for|with|from|to|of|on|in)\b', '', cleaned)
+
+        # Get meaningful words
+        words = [w.strip() for w in cleaned.split() if len(w.strip()) > 2]
+
+        if words:
+            # Use first 2 meaningful words
+            name_parts = words[:2]
+            name = '_'.join(name_parts)[:18]
+            return name
+
+        # 4. Use entity if found
+        if entities:
+            return entities[0].lower()
+        if proper_nouns:
+            return proper_nouns[0].lower().replace(' ', '_')[:15]
+
+        # Final fallback with index
+        return f'task_{index+1}'
+
+    def _should_auto_ensemble(self, goal: str) -> bool:
+        """
+        Determine if ensemble should be auto-enabled based on task type.
+
+        BE CONSERVATIVE - ensemble adds significant latency (4x LLM calls).
+        Only enable for tasks that genuinely benefit from multiple perspectives.
+
+        Auto-enables ensemble for:
+        - Comparison tasks (A vs B, compare X and Y)
+        - Decision tasks (should I, which is better)
+
+        DOES NOT auto-enable for:
+        - Creation tasks (create, generate, write, build)
+        - Simple research (research, find, search)
+        - Document generation (checklist, report, summary)
+
+        Args:
+            goal: The task description
+
+        Returns:
+            True if ensemble should be auto-enabled
+        """
+        goal_lower = goal.lower()
+
+        # EXCLUSION: Don't auto-ensemble for creation/generation tasks
+        # These don't benefit from multi-perspective - they need execution
+        creation_keywords = [
+            'create ', 'generate ', 'write ', 'build ', 'make ',
+            'checklist', 'template', 'document', 'report',
+            'draft ', 'prepare ', 'compile ',
+        ]
+        for keyword in creation_keywords:
+            if keyword in goal_lower:
+                logger.debug(f"Auto-ensemble SKIPPED for creation task: {keyword}")
+                return False
+
+        # Comparison indicators (STRONG signal)
+        comparison_keywords = [
+            ' vs ', ' versus ', 'compare ',
+            'difference between', 'differences between',
+            'pros and cons', 'advantages and disadvantages',
+        ]
+
+        # Decision indicators (STRONG signal)
+        decision_keywords = [
+            'should i ', 'should we ',
+            'which is better', 'what is best',
+            'choose between', 'decide between',
+        ]
+
+        # Check for strong signals only
+        for keyword in comparison_keywords:
+            if keyword in goal_lower:
+                logger.debug(f"Auto-ensemble triggered by comparison: {keyword}")
+                return True
+
+        for keyword in decision_keywords:
+            if keyword in goal_lower:
+                logger.debug(f"Auto-ensemble triggered by decision: {keyword}")
+                return True
+
+        # Analysis keywords - only if paired with comparison context
+        # "fundamental analysis" alone is NOT enough, "compare fundamental analysis" is
+        # This prevents false triggers
+        return False
+
     def _post_episode_learning(self, result: EpisodeResult, goal: str):
         """
         Post-episode learning: swarm learner, brain consolidation, NeuroChunk tiering.

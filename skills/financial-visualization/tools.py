@@ -165,10 +165,10 @@ async def extract_financial_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if use_llm and ('financial_statements' in data_types or 'valuation_metrics' in data_types):
         try:
             try:
-            from Jotty.core.registry.skills_registry import get_skills_registry
-        except ImportError:
-            from core.registry.skills_registry import get_skills_registry
-            
+                from Jotty.core.registry.skills_registry import get_skills_registry
+            except ImportError:
+                from core.registry.skills_registry import get_skills_registry
+
             registry = get_skills_registry()
             registry.init()
             claude_skill = registry.get_skill('claude-cli-llm')

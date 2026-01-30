@@ -106,9 +106,16 @@ async def write_content_with_research_tool(params: Dict[str, Any]) -> Dict[str, 
         else:
             return {
                 'success': False,
-                'error': f'Unknown action: {action}'
+                'error': f'Unknown action: {action}. Valid actions: outline, research, improve_hook, review_section, full_review'
             }
-        
+
+        # Check if helper returned an error
+        if result.get('error'):
+            return {
+                'success': False,
+                'error': result.get('error')
+            }
+
         return {
             'success': True,
             **result
@@ -164,8 +171,8 @@ Format as markdown with clear structure."""
         return {
             'outline': result.get('text', '')
         }
-    
-    return {}
+
+    return {'error': result.get('error', 'Outline generation failed')}
 
 
 async def _conduct_research(
@@ -310,8 +317,8 @@ Provide:
                 'analysis': result.get('text', '')
             }
         }
-    
-    return {}
+
+    return {'error': result.get('error', 'Hook improvement failed')}
 
 
 async def _review_section(
@@ -355,8 +362,8 @@ Provide detailed feedback:
                 'analysis': result.get('text', '')
             }
         }
-    
-    return {}
+
+    return {'error': result.get('error', 'Section review failed')}
 
 
 async def _full_review(
@@ -403,5 +410,5 @@ Provide:
                 'analysis': result.get('text', '')
             }
         }
-    
-    return {}
+
+    return {'error': result.get('error', 'Full review failed')}

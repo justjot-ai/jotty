@@ -29,6 +29,39 @@ class TaskType(Enum):
     UNKNOWN = "unknown"
 
 
+def _clean_for_display(text: str) -> str:
+    """
+    Remove internal context from text for user-facing display.
+
+    Strips:
+    - Transferable Learnings sections
+    - Meta-Learning Advice
+    - Multi-Perspective Analysis (keep short summary only)
+    - Learned Insights
+    - Relevant past experience
+    """
+    if not text:
+        return text
+
+    # Markers that indicate start of internal context
+    internal_markers = [
+        '# Transferable Learnings',
+        '## Task Type Pattern',
+        '## Role Advice',
+        '## Meta-Learning Advice',
+        '\n\nRelevant past experience:',
+        '\n\nLearned Insights:',
+        '\n\n[Multi-Perspective Analysis',
+    ]
+
+    result = text
+    for marker in internal_markers:
+        if marker in result:
+            result = result.split(marker)[0]
+
+    return result.strip()
+
+
 @dataclass
 class ExecutionStep:
     """A step in the execution plan."""
@@ -66,26 +99,29 @@ class AutoAgent:
 
     def __init__(
         self,
-        default_output_skill: str = "telegram-sender",
-        enable_output: bool = True,
+        default_output_skill: Optional[str] = None,
+        enable_output: bool = False,
         max_steps: int = 10,
         timeout: int = 300,
-        planner: Optional[AgenticPlanner] = None
+        planner: Optional[AgenticPlanner] = None,
+        skill_filter: Optional[str] = None
     ):
         """
         Initialize AutoAgent.
 
         Args:
-            default_output_skill: Skill to use for final output (telegram, slack, etc.)
-            enable_output: Whether to send output to messaging
+            default_output_skill: Optional skill for final output (e.g., messaging skill)
+            enable_output: Whether to send output via messaging (requires default_output_skill)
+            skill_filter: Optional category filter for skill discovery
             max_steps: Maximum execution steps
             timeout: Default timeout for operations
             planner: Optional AgenticPlanner instance (creates new if None)
         """
         self.default_output_skill = default_output_skill
-        self.enable_output = enable_output
+        self.enable_output = enable_output and default_output_skill is not None
         self.max_steps = max_steps
         self.timeout = timeout
+        self.skill_filter = skill_filter  # Category filter for multi-agent mode
 
         # Use agentic planner for all planning decisions
         self.planner = planner or AgenticPlanner()
@@ -93,6 +129,9 @@ class AutoAgent:
         self._registry = None
         self._manifest = None
         self._discovery = None
+
+        if skill_filter:
+            logger.info(f"AutoAgent initialized with skill filter: {skill_filter}")
 
     def _init_dependencies(self):
         """Lazy load dependencies."""
@@ -105,6 +144,157 @@ class AutoAgent:
             from ..registry.skills_manifest import get_skills_manifest
             self._manifest = get_skills_manifest()
 
+    async def _execute_ensemble(
+        self,
+        task: str,
+        strategy: str = 'multi_perspective',
+        status_fn: Optional[Callable] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute prompt ensembling for multi-perspective analysis.
+
+        Strategies:
+        - self_consistency: Same prompt, N samples, synthesis
+        - multi_perspective: Different expert personas (default)
+        - gsa: Generative Self-Aggregation
+        - debate: Multi-round argumentation
+
+        Args:
+            task: The task/question to analyze
+            strategy: Ensembling strategy
+            status_fn: Optional status callback function
+
+        Returns:
+            Dict with ensemble results including synthesized response
+        """
+        def _status(stage: str, detail: str = ""):
+            if status_fn:
+                status_fn(stage, detail)
+
+        try:
+            # Try to use the ensemble skill
+            self._init_dependencies()
+            if self._registry:
+                skill = self._registry.get_skill('claude-cli-llm')
+                if skill:
+                    ensemble_tool = skill.tools.get('ensemble_prompt_tool')
+                    if ensemble_tool:
+                        _status("Ensemble", f"using {strategy} strategy")
+                        result = ensemble_tool({
+                            'prompt': task,
+                            'strategy': strategy,
+                            'synthesis_style': 'structured'
+                        })
+                        return result
+
+            # Fallback: Use DSPy directly
+            import dspy
+            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+                return {'success': False, 'error': 'No LLM configured'}
+
+            lm = dspy.settings.lm
+
+            # Simple multi-perspective implementation
+            perspectives = [
+                ("analytical", "Analyze this from a data-driven, logical perspective:"),
+                ("creative", "Consider unconventional angles and innovative solutions:"),
+                ("critical", "Play devil's advocate - identify risks and problems:"),
+                ("practical", "Focus on feasibility and actionable steps:"),
+            ]
+
+            responses = {}
+            for name, prefix in perspectives:
+                _status(f"  {name}", "analyzing...")
+                try:
+                    prompt = f"{prefix}\n\n{task}"
+                    response = lm(prompt=prompt)
+                    text = response[0] if isinstance(response, list) else str(response)
+                    responses[name] = text
+                except Exception as e:
+                    logger.warning(f"Perspective '{name}' failed: {e}")
+
+            if not responses:
+                return {'success': False, 'error': 'All perspectives failed'}
+
+            # Synthesize
+            _status("Synthesizing", f"{len(responses)} perspectives")
+            synthesis_prompt = f"""Synthesize these {len(responses)} expert perspectives:
+
+Question: {task}
+
+{chr(10).join(f'**{k.upper()}:** {v[:500]}' for k, v in responses.items())}
+
+Provide:
+1. **Consensus**: Where perspectives agree
+2. **Tensions**: Where they diverge
+3. **Recommendation**: Balanced conclusion"""
+
+            synthesis = lm(prompt=synthesis_prompt)
+            final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
+
+            return {
+                'success': True,
+                'response': final_response,
+                'perspectives_used': list(responses.keys()),
+                'individual_responses': responses,
+                'strategy': strategy,
+                'confidence': len(responses) / len(perspectives)
+            }
+
+        except Exception as e:
+            logger.error(f"Ensemble execution failed: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+
+    def _should_auto_ensemble(self, task: str) -> bool:
+        """
+        Determine if ensemble should be auto-enabled based on task type.
+
+        BE CONSERVATIVE - ensemble adds significant latency (4x LLM calls).
+        Only enable for tasks that genuinely benefit from multiple perspectives.
+
+        Auto-enables for: comparisons, decisions (NOT general analysis/creation).
+        Override with ensemble=False if not desired.
+
+        Args:
+            task: The task description
+
+        Returns:
+            True if ensemble should be auto-enabled
+        """
+        task_lower = task.lower()
+
+        # EXCLUSION: Don't auto-ensemble for creation/generation tasks
+        creation_keywords = [
+            'create ', 'generate ', 'write ', 'build ', 'make ',
+            'checklist', 'template', 'document', 'report',
+            'draft ', 'prepare ', 'compile ',
+        ]
+        for keyword in creation_keywords:
+            if keyword in task_lower:
+                logger.debug(f"Auto-ensemble SKIPPED for creation task: {keyword}")
+                return False
+
+        # Comparison indicators (STRONG signal)
+        comparison_keywords = [
+            ' vs ', ' versus ', 'compare ',
+            'difference between', 'differences between',
+            'pros and cons', 'advantages and disadvantages',
+        ]
+
+        # Decision indicators (STRONG signal)
+        decision_keywords = [
+            'should i ', 'should we ',
+            'which is better', 'what is best',
+            'choose between', 'decide between',
+        ]
+
+        for keyword in comparison_keywords + decision_keywords:
+            if keyword in task_lower:
+                logger.debug(f"Auto-ensemble triggered by keyword: {keyword}")
+                return True
+
+        return False
+
     def _infer_task_type(self, task: str) -> TaskType:
         """Infer task type using agentic planner (semantic understanding)."""
         task_type, reasoning, confidence = self.planner.infer_task_type(task)
@@ -112,7 +302,12 @@ class AutoAgent:
         return task_type
 
     def _discover_skills(self, task: str) -> List[Dict[str, Any]]:
-        """Discover relevant skills for task using Jotty's SkillsRegistry."""
+        """
+        Discover relevant skills for task using Jotty's SkillsRegistry.
+
+        Uses semantic matching (task words vs skill name/description).
+        No hardcoded categories or skill lists - purely data-driven.
+        """
         try:
             from ..registry.skills_registry import get_skills_registry
             registry = get_skills_registry()
@@ -121,52 +316,28 @@ class AutoAgent:
                 registry.init()
 
             task_lower = task.lower()
-            task_words = [w for w in task_lower.split() if len(w) > 2]
-
-            # Detect task intent for better skill matching
-            is_research_task = any(w in task_lower for w in ['research', 'search', 'find', 'look', 'information', 'about', 'what'])
-            is_image_task = any(w in task_lower for w in ['image', 'picture', 'photo', 'generate image', 'draw', 'illustration'])
-            is_code_task = any(w in task_lower for w in ['code', 'program', 'script', 'function', 'implement'])
-
-            # Skills to exclude for non-matching tasks
-            image_skills = {'image-generator', 'stable-diffusion', 'dall-e', 'midjourney'}
-            code_skills = {'code-generator', 'code-reviewer'}
+            # Filter out stop words for better matching
+            stop_words = {'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is', 'to', 'of', 'in', 'on', 'a', 'an'}
+            task_words = [w for w in task_lower.split() if len(w) > 2 and w not in stop_words]
 
             skills = []
 
             for skill_name, skill_def in registry.loaded_skills.items():
                 skill_name_lower = skill_name.lower()
-
-                # Exclude irrelevant skills based on task type
-                if not is_image_task and skill_name_lower in image_skills:
-                    continue
-                if not is_code_task and 'diffuser' in skill_name_lower:
-                    continue
-
-                # Calculate relevance score
-                score = 0
                 desc = getattr(skill_def, 'description', '') or ''
                 desc_lower = desc.lower()
 
-                # Exact word match in skill name
+                # Calculate relevance score based on semantic matching
+                score = 0
+
+                # Match task words against skill name and description
                 for word in task_words:
                     if word in skill_name_lower:
-                        score += 3
+                        score += 3  # Strong match: word in skill name
                     if word in desc_lower:
-                        score += 1
+                        score += 1  # Weak match: word in description
 
-                # Boost for research-related skills on research tasks
-                if is_research_task:
-                    if any(w in skill_name_lower for w in ['search', 'web', 'research', 'scrape', 'fetch', 'news', 'api']):
-                        score += 5
-                    if any(w in desc_lower for w in ['search', 'web', 'research', 'information']):
-                        score += 2
-
-                # Boost for generic utility skills
-                if any(w in skill_name_lower for w in ['claude', 'llm', 'chat', 'assistant']):
-                    score += 2
-
-                # Only include skills with positive relevance
+                # Include skills with positive relevance
                 if score > 0:
                     skills.append({
                         'name': skill_name,
@@ -175,27 +346,58 @@ class AutoAgent:
                         'relevance_score': score
                     })
 
-            # Sort by relevance
+            # Sort by relevance score
             skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
 
-            # If no skills found, add default web-search and claude-cli
+            # If no matching skills, return all available (let LLM select)
             if not skills:
-                default_skills = ['web-search', 'claude-cli-llm', 'last30days-claude-cli']
-                for skill_name in default_skills:
-                    skill_def = registry.get_skill(skill_name)
-                    if skill_def:
-                        skills.append({
-                            'name': skill_name,
-                            'description': getattr(skill_def, 'description', skill_name),
-                            'category': getattr(skill_def, 'category', 'general'),
-                            'relevance_score': 1
-                        })
+                for skill_name, skill_def in list(registry.loaded_skills.items())[:20]:
+                    desc = getattr(skill_def, 'description', '') or ''
+                    skills.append({
+                        'name': skill_name,
+                        'description': desc or skill_name,
+                        'category': getattr(skill_def, 'category', 'general'),
+                        'relevance_score': 0
+                    })
 
-            return skills[:8]
+            return skills[:15]  # Return top 15 for LLM to select from
 
         except Exception as e:
             logger.warning(f"Skill discovery failed: {e}, returning empty list")
             return []
+
+    async def _ensure_skill_dependencies(
+        self,
+        skill_names: List[str],
+        status_callback: Optional[Callable] = None
+    ):
+        """
+        Ensure all selected skills have their dependencies installed.
+
+        Args:
+            skill_names: List of skill names to check
+            status_callback: Optional callback for status updates
+        """
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+
+        try:
+            from ..orchestration.v2.swarm_installer import SwarmInstaller
+            installer = SwarmInstaller()
+
+            for skill_name in skill_names:
+                results = await installer.install_skill_dependencies(skill_name)
+                if results:
+                    installed = [r.package for r in results if r.success]
+                    if installed:
+                        _status("Dependencies installed", ", ".join(installed))
+
+        except Exception as e:
+            logger.debug(f"Dependency installation skipped: {e}")
 
     def _plan_execution(
         self,
@@ -226,15 +428,23 @@ class AutoAgent:
         skill_name: str,
         tool_name: str,
         params: Dict[str, Any],
-        max_retries: int = 2
+        max_retries: int = 2,
+        status_callback: Optional[Callable] = None
     ) -> Dict[str, Any]:
         """
         Execute a single tool with retry logic for network errors.
-        
+
         For web-related tools, will also try alternative tools if primary fails.
         """
         import time
-        
+
+        def _tool_status(msg: str):
+            if status_callback:
+                try:
+                    status_callback("    Tool", msg)
+                except Exception:
+                    pass
+
         self._init_dependencies()
         skill = self._registry.get_skill(skill_name) if self._registry else None
         if not skill:
@@ -259,22 +469,39 @@ class AutoAgent:
         last_error = None
         for attempt in range(max_retries):
             try:
+                if attempt > 0:
+                    _tool_status(f"retry attempt {attempt + 1}/{max_retries}")
                 if inspect.iscoroutinefunction(tool):
                     result = await tool(params)
                 else:
                     result = tool(params)
-                
+
+                # Handle None or non-dict results
+                if result is None:
+                    result = {'success': False, 'error': f'Tool {tool_name} returned None'}
+                elif not isinstance(result, dict):
+                    result = {'success': True, 'output': result}
+
+                # Ensure error message exists for failed results
+                if not result.get('success', False) and not result.get('error'):
+                    # Try to extract error info from result
+                    error_info = result.get('message') or result.get('reason') or result.get('details')
+                    if error_info:
+                        result['error'] = str(error_info)
+                    else:
+                        result['error'] = f'Tool {skill_name}.{tool_name} failed without error details'
+
                 # If success, return immediately
                 if result.get('success', False):
                     return result
-                
+
                 # If failure but not a network error, return immediately (no retry)
                 error_msg = result.get('error', '')
                 if error_msg and 'Network error' not in error_msg and 'timeout' not in error_msg.lower() and 'Request' not in error_msg:
                     return result
-                
+
                 # Network error - retry
-                last_error = error_msg
+                last_error = error_msg or f'Tool {tool_name} failed'
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s
                     logger.debug(f"  Retrying {skill_name}.{tool_name} after {wait_time}s (attempt {attempt + 2}/{max_retries})")
@@ -771,6 +998,12 @@ class AutoAgent:
         Args:
             task: Task description (can be minimal like "RNN vs CNN")
             status_callback: Optional callback(stage, detail) for progress updates
+            ensemble: Enable prompt ensembling for multi-perspective analysis
+            ensemble_strategy: Strategy for ensembling:
+                - 'self_consistency': Same prompt, N samples, synthesis
+                - 'multi_perspective': Different expert personas (default)
+                - 'gsa': Generative Self-Aggregation
+                - 'debate': Multi-round argumentation
 
         Returns:
             ExecutionResult with outputs and status
@@ -779,6 +1012,8 @@ class AutoAgent:
 
         # Extract status callback for streaming progress
         status_callback = kwargs.pop('status_callback', None)
+        ensemble = kwargs.pop('ensemble', None)  # None = auto-detect
+        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
 
         def _status(stage: str, detail: str = ""):
             """Report progress if callback provided."""
@@ -792,29 +1027,61 @@ class AutoAgent:
         # Initialize
         self._init_dependencies()
 
+        # Auto-detect ensemble for certain task types (if not explicitly set)
+        if ensemble is None:
+            ensemble = self._should_auto_ensemble(task)
+            if ensemble:
+                _status("Auto-ensemble", "enabled for analysis/comparison task")
+
+        # Optional: Ensemble pre-analysis for enriched context
+        ensemble_context = None
+        enriched_task = task  # Start with original task
+        if ensemble:
+            _status("Ensembling", f"strategy={ensemble_strategy}")
+            ensemble_result = await self._execute_ensemble(task, ensemble_strategy, _status)
+            if ensemble_result.get('success'):
+                ensemble_context = ensemble_result
+                _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
+
+                # ENRICH the task with ensemble synthesis as instructions
+                synthesis = ensemble_result.get('response', '')
+                if synthesis:
+                    enriched_task = f"""{task}
+
+[Multi-Perspective Analysis - Use these insights to guide your work]:
+{synthesis[:3000]}"""
+                    _status("Task enriched", "with multi-perspective synthesis")
+
+                # Also pass context for skills that want raw perspectives
+                kwargs['ensemble_context'] = ensemble_context
+
         _status("AutoAgent", f"starting task execution")
 
-        # Step 1: Infer task type
+        # Step 1: Infer task type (use original task for classification)
         _status("Analyzing", "inferring task type")
         task_type = self._infer_task_type(task)
         _status("Task type", task_type.value)
 
-        # Step 2: Discover skills
+        # Step 2: Discover skills (use original task for discovery)
         _status("Discovering", "finding relevant skills")
         all_skills = self._discover_skills(task)
         _status("Skills found", f"{len(all_skills)} potential skills")
 
         # Step 2.5: Select best skills using agentic planner
+        # Use enriched_task so LLM has ensemble context for better selection
         if all_skills:
             _status("Selecting", "choosing best skills for task")
             skills, selection_reasoning = self.planner.select_skills(
-                task=task,
+                task=enriched_task,  # Use enriched task with ensemble insights
                 available_skills=all_skills,
                 max_skills=8
             )
             skill_names = [s.get('name') for s in skills]
             _status("Skills selected", ", ".join(skill_names[:5]) + ("..." if len(skill_names) > 5 else ""))
             logger.debug(f"Selection reasoning: {selection_reasoning}")
+
+            # Step 2.6: Ensure skill dependencies are installed
+            await self._ensure_skill_dependencies(skill_names, status_callback)
         else:
             # Fallback: try to get skills from registry
             self._init_dependencies()
@@ -834,8 +1101,9 @@ class AutoAgent:
                 skills = []
 
         # Step 3: Plan execution using agentic planner
+        # Use enriched_task so planner has ensemble insights for better execution plan
         _status("Planning", "creating execution plan")
-        steps = self._plan_execution(task, task_type, skills)
+        steps = self._plan_execution(enriched_task, task_type, skills)
         _status("Plan ready", f"{len(steps)} steps to execute")
 
         # Step 3.5: Validate tools exist before execution
@@ -869,18 +1137,22 @@ class AutoAgent:
         async def execute_step_with_error_handling(step_idx: int, step: ExecutionStep):
             """Execute a single step with error handling."""
             try:
-                logger.info(f"Step {step_idx+1}/{len(steps)}: {step.description}")
-                
+                # Clean description for display (remove internal context)
+                display_desc = _clean_for_display(step.description)[:80]
+                _status(f"Step {step_idx+1}/{len(steps)}", f"{step.skill_name}: {display_desc}")
+                _status(f"  Executing", f"{step.tool_name}")
+
                 # Resolve params with current outputs
                 resolved_params = self._resolve_params(step.params, outputs, step=step)
-                
+
                 # Execute
                 result = await self._execute_tool(
                     step.skill_name,
                     step.tool_name,
-                    resolved_params
+                    resolved_params,
+                    status_callback=status_callback
                 )
-                
+
                 return step_idx, step, result, None
             except Exception as e:
                 return step_idx, step, {'success': False, 'error': str(e)}, str(e)
@@ -905,26 +1177,28 @@ class AutoAgent:
                 # No ready steps - check if we're stuck
                 remaining = [i for i in range(len(steps)) if i not in executed_indices]
                 if remaining:
-                    logger.warning(f"⚠️  No ready steps found. Remaining: {remaining}")
+                    _status("Fallback", f"executing {len(remaining)} remaining steps sequentially")
                     # Execute remaining steps sequentially as fallback
                     for i in remaining:
                         step = steps[i]
-                        logger.info(f"Step {i+1}/{len(steps)}: {step.description} (fallback sequential)")
+                        _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description}")
+                        _status(f"  Executing", f"{step.tool_name}")
                         resolved_params = self._resolve_params(step.params, outputs, step=step)
                         result = await self._execute_tool(
                             step.skill_name,
                             step.tool_name,
-                            resolved_params
+                            resolved_params,
+                            status_callback=status_callback
                         )
                         if result.get('success'):
                             outputs[step.output_key or f'step_{i}'] = result
                             skills_used.append(step.skill_name)
                             steps_executed += 1
                             executed_indices.add(i)
-                            logger.info(f"  ✅ Success")
+                            _status(f"✓ Step {i+1}", f"{step.skill_name} succeeded")
                         else:
                             errors.append(f"Step {i+1} ({step.skill_name}): {result.get('error', 'Unknown error')}")
-                            logger.warning(f"  ❌ Failed: {result.get('error', 'Unknown error')}")
+                            _status(f"✗ Step {i+1}", f"{step.skill_name} failed: {result.get('error', 'Unknown error')}")
                 break
             
             # Execute ready steps in parallel
@@ -937,7 +1211,8 @@ class AutoAgent:
                 result = await self._execute_tool(
                     step.skill_name,
                     step.tool_name,
-                    resolved_params
+                    resolved_params,
+                    status_callback=status_callback
                 )
                 results = [(i, step, result, None)]
             else:
@@ -963,15 +1238,28 @@ class AutoAgent:
                     skills_used.append(step.skill_name)
                     steps_executed += 1
                     executed_indices.add(step_idx)
-                    # Show success with output summary
+
+                    # Show success with output summary - Claude Code style
                     output_summary = ""
                     if isinstance(result, dict):
+                        # Search results - show count
+                        if 'results' in result and isinstance(result['results'], list):
+                            count = len(result['results'])
+                            query = result.get('query', step.description[:50])
+                            _status(f"Search results", f"{query[:60]} → {count} results")
+                            # Don't show generic success message for search
+                            continue
+
+                        # File outputs - show path
                         for key in ['pdf_path', 'md_path', 'output_path', 'file_path']:
                             if key in result and result[key]:
                                 output_summary = f" → {result[key]}"
                                 break
+
+                        # Word count
                         if not output_summary and 'word_count' in result:
                             output_summary = f" → {result['word_count']} words"
+
                     _status(f"✓ Step {step_idx+1}", f"{step.skill_name} succeeded{output_summary}")
                 else:
                     error_msg = result.get('error', 'Unknown error') or str(exception) if exception else 'Unknown error'
@@ -982,10 +1270,11 @@ class AutoAgent:
                     # Even if it failed, we don't want to retry it forever
                     executed_indices.add(step_idx)
                     
-                    # Try alternative web tools for network errors
-                    if ('Network error' in error_msg or 'timeout' in error_msg.lower() or 
-                        'Request' in error_msg) and step.skill_name == 'web-search':
-                        logger.info(f"  🔄 Trying alternative web tools for network error...")
+                    # Try alternative tools for network/timeout errors (any skill with web capability)
+                    is_network_error = any(kw in error_msg.lower() for kw in ['network', 'timeout', 'request', 'connection'])
+                    skill_has_web = any(kw in step.skill_name.lower() for kw in ['web', 'search', 'http', 'api', 'fetch'])
+                    if is_network_error and skill_has_web:
+                        logger.info(f"  🔄 Trying alternative tools for network error...")
                         resolved_params = self._resolve_params(step.params, outputs, step=step)
                         alternative_result = await self._try_alternative_web_tools(step, resolved_params)
                         if alternative_result and alternative_result.get('success'):
@@ -1040,9 +1329,13 @@ class AutoAgent:
 
         execution_time = (datetime.now() - start_time).total_seconds()
 
+        # Use original task (not enriched) for result display
+        # The enriched_task contains internal context not meant for user display
+        display_task = _clean_for_display(task)
+
         return ExecutionResult(
             success=steps_executed > 0,
-            task=task,
+            task=display_task,
             task_type=task_type,
             skills_used=list(set(skills_used)),
             steps_executed=steps_executed,
@@ -1072,14 +1365,23 @@ class AutoAgent:
         if not result.success:
             return result
 
-        # Send output
+        # Send output (if output skill configured)
         output_skill = output_skill or self.default_output_skill
+        if not output_skill:
+            return result
+
         skill = self._registry.get_skill(output_skill)
+        if not skill or not skill.tools:
+            return result
 
-        if skill:
-            send_tool = skill.tools.get('send_message_tool') or skill.tools.get('send_telegram_message_tool')
+        # Find a send/message tool (look for common patterns in tool names)
+        send_tool = None
+        for tool_name, tool_func in skill.tools.items():
+            if any(kw in tool_name.lower() for kw in ['send', 'message', 'post', 'notify']):
+                send_tool = tool_func
+                break
 
-            if send_tool and result.final_output:
+        if send_tool and result.final_output:
                 # Format message
                 if isinstance(result.final_output, str):
                     message = f"📋 Task: {task}\n\n{result.final_output[:3500]}"

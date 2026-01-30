@@ -27,6 +27,11 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 import logging
+import warnings
+
+# Suppress sklearn feature name warnings
+warnings.filterwarnings('ignore', message='.*feature names.*')
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
 
 from .base import MLSkill, SkillResult, SkillCategory
 

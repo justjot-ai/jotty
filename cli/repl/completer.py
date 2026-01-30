@@ -27,9 +27,36 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
 
     Provides completions for:
     - Slash commands (/run, /skills, etc.)
-    - Command arguments
+    - Command arguments and flags
+    - Tool/skill names
     - File paths
     """
+
+    # Command-specific flags and parameters
+    COMMAND_FLAGS = {
+        'run': ['--verbose', '--debug', '--timeout'],
+        'ml': ['--target', '--context', '--iterations',
+               # Seaborn datasets
+               'titanic', 'iris', 'tips', 'penguins', 'diamonds', 'mpg',
+               # Sklearn datasets
+               'breast_cancer', 'wine', 'digits', 'california', 'diabetes'],
+        'research': ['--quick', '--deep', '--sources', '--emit'],
+        'skills': ['--category', '--search', 'list', 'info', 'run'],
+        'tools': ['web-search', 'file-read', 'file-write', 'telegram-sender', 'docx-tools', 'document-converter'],
+        'preview': ['--lines', '--raw', 'last', 'tools'],
+        'browse': ['--type', '--preview', '.', '~', '/'],
+        'export': ['last', 'history', 'code', 'c', 'd', 'p', 'm', 'cdpm'],
+        'resume': ['list'],
+        'config': ['show', 'set', 'reset', 'edit'],
+        'learn': ['warmup', 'train', 'status'],
+        'stats': ['--detailed', '--export'],
+        'agents': ['list', 'status', 'add', 'remove'],
+        'swarm': ['status', 'reset', 'config'],
+        'memory': ['show', 'clear', 'export'],
+        'plan': ['--steps', '--output'],
+        'git': ['status', 'commit', 'push', 'pull', 'diff'],
+        'J': ['--tags', '--status'],
+    }
 
     def __init__(self, command_registry: "CommandRegistry"):
         """
@@ -40,10 +67,13 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         """
         self.command_registry = command_registry
         self._skill_names: List[str] = []
+        self._tool_names: List[str] = []
 
     def set_skill_names(self, names: List[str]):
         """Set available skill names for completion."""
         self._skill_names = names
+        # Also set as tool names
+        self._tool_names = names
 
     def get_completions(
         self,
@@ -66,11 +96,17 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         text = document.text_before_cursor
         word = document.get_word_before_cursor()
 
-        # Slash command completion
+        # Determine completion type
         if text.startswith("/"):
-            yield from self._complete_command(text, word)
-        elif " " in text and text.split()[0].startswith("/"):
-            # Command argument completion
+            # Check if we're still typing the command or already at arguments
+            if " " in text:
+                # Has space - we're in arguments territory
+                yield from self._complete_args(text, word)
+            else:
+                # No space yet - completing the command name
+                yield from self._complete_command(text, word)
+        elif text.split() and text.split()[0].startswith("/"):
+            # Command argument completion (alternate check)
             yield from self._complete_args(text, word)
         else:
             # General text completion (skills, etc.)
@@ -81,7 +117,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         text: str,
         word: str
     ) -> Iterable["Completion"]:
-        """Complete slash commands."""
+        """Complete slash commands with descriptions and usage hints."""
         # Get the part after /
         cmd_text = text[1:].split()[0] if text[1:] else ""
 
@@ -91,18 +127,39 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         for match in matches:
             # Calculate replacement start position
             start_position = -len(cmd_text) if cmd_text else 0
-            yield Completion(
-                match,
-                start_position=start_position,
-                display_meta=self._get_command_meta(match)
-            )
+
+            # Get command info
+            cmd = self.command_registry.get(match)
+            if cmd:
+                # Build display with usage hint
+                display = f"/{match}"
+                meta = f"{cmd.description}"
+
+                # Add usage hint
+                if cmd.usage and cmd.usage != f"/{match}":
+                    usage_hint = cmd.usage.replace(f"/{match}", "").strip()
+                    if usage_hint:
+                        display = f"{match} {usage_hint[:30]}"
+
+                yield Completion(
+                    match,
+                    start_position=start_position,
+                    display=display,
+                    display_meta=meta[:50]
+                )
+            else:
+                yield Completion(
+                    match,
+                    start_position=start_position,
+                    display_meta=self._get_command_meta(match)
+                )
 
     def _complete_args(
         self,
         text: str,
         word: str
     ) -> Iterable["Completion"]:
-        """Complete command arguments."""
+        """Complete command arguments with flags and parameters."""
         parts = text.split()
         if not parts:
             return
@@ -113,22 +170,52 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         if not cmd:
             return
 
-        # Get command-specific completions
-        partial = parts[-1] if len(parts) > 1 else ""
-        completions = cmd.get_completions(partial)
+        # Get the partial word being typed
+        partial = word if word else ""
 
-        for comp in completions:
-            yield Completion(
-                comp,
-                start_position=-len(partial) if partial else 0,
-            )
+        # Get command-specific completions from the command itself
+        cmd_completions = cmd.get_completions(partial)
+        for comp in cmd_completions:
+            if comp.startswith(partial) or not partial:
+                yield Completion(
+                    comp,
+                    start_position=-len(partial) if partial else 0,
+                    display_meta="argument"
+                )
 
-        # Common flags
-        if word.startswith("-"):
-            common_flags = ["--help", "--verbose", "-v", "--debug"]
-            for flag in common_flags:
-                if flag.startswith(word):
-                    yield Completion(flag, start_position=-len(word))
+        # Get predefined flags and params for this command
+        cmd_key = cmd.name
+        if cmd_key in self.COMMAND_FLAGS:
+            for flag in self.COMMAND_FLAGS[cmd_key]:
+                if flag.startswith(partial) or not partial:
+                    # Don't suggest already-used flags
+                    if flag not in parts:
+                        meta = "flag" if flag.startswith("-") else "option"
+                        yield Completion(
+                            flag,
+                            start_position=-len(partial) if partial else 0,
+                            display_meta=meta
+                        )
+
+        # Special case: /tools - show skill names
+        if cmd_name == "tools" and len(parts) == 1:
+            for skill in self._tool_names[:20]:
+                if skill.startswith(partial) or not partial:
+                    yield Completion(
+                        skill,
+                        start_position=-len(partial) if partial else 0,
+                        display_meta="skill/tool"
+                    )
+
+        # Common flags for all commands
+        common_flags = ["--help", "-h"]
+        for flag in common_flags:
+            if flag.startswith(partial) and flag not in parts:
+                yield Completion(
+                    flag,
+                    start_position=-len(partial) if partial else 0,
+                    display_meta="help"
+                )
 
     def _complete_general(
         self,

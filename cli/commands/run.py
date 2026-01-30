@@ -19,7 +19,7 @@ class RunCommand(BaseCommand):
     name = "run"
     aliases = ["r", "do"]
     description = "Execute a task using SwarmManager with zero-config intelligence"
-    usage = "/run <goal> [--agent <name>] [--verbose] [--fast]"
+    usage = "/run <goal> [--agent <name>] [--verbose]"
     category = "execution"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -35,7 +35,7 @@ class RunCommand(BaseCommand):
             goal = goal[2:].strip()
 
         # Remove flags from goal
-        for flag in ["--agent", "-a", "--verbose", "-v", "--fast", "-f"]:
+        for flag in ["--agent", "-a", "--verbose", "-v"]:
             if flag in goal:
                 parts = goal.split(flag)
                 goal = parts[0].strip()
@@ -45,12 +45,10 @@ class RunCommand(BaseCommand):
 
         # Get options
         verbose = args.flags.get("verbose", False) or args.flags.get("v", False)
-        fast_mode = args.flags.get("fast", False) or args.flags.get("f", False)
         agent_name = args.flags.get("agent") or args.flags.get("a")
 
-        # Determine execution mode
-        mode_label = "Fast mode" if fast_mode else "Full mode: research → plan → execute"
-        cli.renderer.info(mode_label)
+        # Zero-config swarm mode - system decides single vs multi-agent
+        cli.renderer.info("Swarm mode: zero-config (system decides single/multi-agent)")
 
         start_time = time.time()
 
@@ -69,10 +67,9 @@ class RunCommand(BaseCommand):
             # Add to conversation history
             cli.session.add_message("user", goal)
 
-            # Execute with status callback (no spinner - use streaming output instead)
+            # Execute with full swarm intelligence
             result = await swarm.run(
                 goal,
-                skip_autonomous_setup=fast_mode,
                 status_callback=status_callback
             )
 

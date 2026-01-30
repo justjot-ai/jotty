@@ -238,6 +238,10 @@ class JottyCLI:
 
     async def run_interactive(self):
         """Run interactive REPL mode."""
+        # Auto-resume last session if enabled
+        if self.config.session.auto_resume:
+            await self._try_auto_resume()
+
         # Load plugins if enabled
         if self.config.features.plugin_system:
             try:
@@ -320,6 +324,11 @@ class JottyCLI:
         cmd_name = parts[0] if parts else ""
         cmd_args = parts[1] if len(parts) > 1 else ""
 
+        # Built-in /export command for last output
+        if cmd_name == "export":
+            await self._handle_export_command(cmd_args)
+            return True
+
         # Find command
         command = self.command_registry.get(cmd_name)
 
@@ -352,20 +361,19 @@ class JottyCLI:
             return True
 
     def _is_simple_query(self, text: str) -> bool:
-        """Check if query is simple (should use fast mode)."""
-        simple_patterns = [
-            'hello', 'hi', 'hey', 'help', 'what', 'who', 'how',
-            'explain', 'define', 'list', 'show', 'tell me'
-        ]
+        """Check if query is simple greeting (not a task)."""
+        # Only greetings and very basic queries - NOT task requests
+        simple_greetings = ['hello', 'hi', 'hey', 'help', 'thanks', 'bye']
         text_lower = text.lower().strip()
 
-        # Short queries are simple
-        if len(text.split()) <= 5:
+        # Only exact greetings or very short non-task queries
+        if text_lower in simple_greetings:
             return True
 
-        # Queries starting with simple patterns
-        for pattern in simple_patterns:
-            if text_lower.startswith(pattern):
+        # Very short AND no action words = simple
+        if len(text.split()) <= 3:
+            action_words = ['search', 'find', 'create', 'generate', 'send', 'compare', 'analyze', 'research', 'pdf', 'telegram']
+            if not any(w in text_lower for w in action_words):
                 return True
 
         return False
@@ -390,31 +398,94 @@ class JottyCLI:
         try:
             swarm = await self.get_swarm_manager()
 
-            # Detect if fast mode should be used
-            fast_mode = self._is_simple_query(text)
+            # Agent Activity Panel - World-class CLI experience
+            # Shows real-time agent activity with beautiful icons
+            agent_icons = {
+                'analyze': '🧠', 'analyzing': '🧠',
+                'search': '🔍', 'searching': '🔍',
+                'generate': '📝', 'generating': '📝',
+                'write': '✍️', 'writing': '✍️',
+                'read': '📖', 'reading': '📖',
+                'save': '💾', 'saving': '💾',
+                'send': '📤', 'sending': '📤',
+                'decision': '🎯', 'deciding': '🎯',
+                'output': '📦', 'created': '✅',
+            }
 
-            # Status callback for streaming updates
+            def get_agent_icon(stage: str) -> str:
+                """Get icon for agent activity."""
+                stage_lower = stage.lower()
+                for key, icon in agent_icons.items():
+                    if key in stage_lower:
+                        return icon
+                return '→'
+
             def status_callback(stage: str, detail: str = ""):
-                # Print status update on new line
-                if detail:
-                    self.renderer.print(f"  [cyan]→[/cyan] {stage}: {detail}")
+                import sys
+                stage_lower = stage.lower()
+                icon = get_agent_icon(stage)
+
+                # Search results - show with icons
+                if 'search' in stage_lower and 'result' in stage_lower:
+                    count = 0
+                    if detail:
+                        import re
+                        match = re.search(r'(\d+)\s*results?', detail)
+                        if match:
+                            count = int(match.group(1))
+                    self.renderer.search_query(detail or stage, count if count else None)
+
+                # Step progress
+                elif stage_lower.startswith('step '):
+                    import re
+                    match = re.match(r'step\s+(\d+)/(\d+)', stage_lower)
+                    if match:
+                        step_num = int(match.group(1))
+                        total = int(match.group(2))
+                        status = 'done' if '✓' in detail or 'succeeded' in detail.lower() else 'running'
+                        if '✗' in detail or 'failed' in detail.lower():
+                            status = 'failed'
+                        self.renderer.step_progress(step_num, total, detail, status)
+                    else:
+                        self.renderer.print(f"  [{self.renderer.theme.muted}]{icon}[/{self.renderer.theme.muted}] {stage}: {detail}" if detail else f"  {icon} {stage}")
+
+                # File operations - beautiful cards
+                elif any(x in stage_lower for x in ['writing', 'creating file', 'saving']):
+                    self.renderer.print(f"  [bold green]{icon}[/bold green] [dim]{stage}[/dim]")
+                    if detail:
+                        self.renderer.print(f"     [cyan]{detail}[/cyan]")
+
+                elif any(x in stage_lower for x in ['reading', 'loading']):
+                    self.renderer.print(f"  [bold blue]{icon}[/bold blue] [dim]{stage}[/dim]")
+                    if detail:
+                        self.renderer.print(f"     [cyan]{detail}[/cyan]")
+
+                # Agent activity cards - the beautiful part
+                elif any(x in stage_lower for x in ['analyz', 'decision', 'generat', 'search']):
+                    self.renderer.print(f"  [bold yellow]{icon}[/bold yellow] [white]{stage}[/white]")
+                    if detail:
+                        # Truncate long details
+                        display_detail = detail[:80] + "..." if len(detail) > 80 else detail
+                        self.renderer.print(f"     [dim]{display_detail}[/dim]")
+
+                # Tool success with output path
+                elif '✓' in stage and detail:
+                    self.renderer.tool_output(stage.replace('✓', '').strip(), detail if '/' in detail else None)
+
+                # Default format with icon
                 else:
-                    self.renderer.print(f"  [cyan]→[/cyan] {stage}")
+                    if detail:
+                        self.renderer.print(f"  [cyan]{icon}[/cyan] {stage}: {detail}")
+                    else:
+                        self.renderer.print(f"  [cyan]{icon}[/cyan] {stage}")
 
-            # Show what mode we're using
-            if fast_mode:
-                self.renderer.info("Fast mode: direct execution")
-            else:
-                self.renderer.info("Full mode: research → plan → execute")
+                sys.stdout.flush()  # Force flush for real-time output
 
-            if fast_mode:
-                # Fast mode: skip autonomous setup, direct to agent
-                status_callback("Executing agent")
-                result = await swarm.run(text, skip_autonomous_setup=True)
-            else:
-                # Full mode with status updates
-                status_callback("Parsing intent")
-                result = await swarm.run(text, status_callback=status_callback)
+            # LEAN MODE: All queries go through LeanExecutor
+            # LLM intelligently decides: needs_external_data, output_format, etc.
+            # Single agent, no ensemble, no multi-agent decomposition
+            # This is what actually works well!
+            result = await self._execute_lean_mode(text, status_callback)
 
             elapsed = time.time() - start_time
 
@@ -426,37 +497,43 @@ class JottyCLI:
             self.renderer.newline()
 
             if result.success:
-                self.renderer.success(f"Completed in {elapsed:.1f}s")
+                # Show steps taken if available (LeanExecutor)
+                steps = getattr(result, 'steps_taken', None)
+                if steps:
+                    self.renderer.success(f"Completed in {elapsed:.1f}s ({len(steps)} steps: {' → '.join(steps)})")
+                else:
+                    self.renderer.success(f"Completed in {elapsed:.1f}s")
 
-                # Extract output - handle EpisodeResult, ExecutionResult, dict, or string
+                # Extract output - handle LeanResult, EpisodeResult, ExecutionResult, dict, or string
                 output = result.output if hasattr(result, 'output') else result
 
-                # For ExecutionResult (from AutoAgent), extract outputs dict
                 file_paths = []
                 summary = {}
 
-                # Check if output is an ExecutionResult object
-                if hasattr(output, 'outputs') and hasattr(output, 'final_output'):
+                # Check for direct output_path attribute (LeanResult)
+                if hasattr(result, 'output_path') and result.output_path:
+                    fmt = getattr(result, 'output_format', 'file')
+                    file_paths.append((fmt.upper(), result.output_path))
+
+                # For ExecutionResult (from AutoAgent), extract outputs dict
+                elif hasattr(output, 'outputs') and hasattr(output, 'final_output'):
                     # ExecutionResult from AutoAgent
                     outputs_dict = output.outputs or {}
-                    final_output = output.final_output
 
-                    # Extract file paths from all step outputs
+                    # Extract file paths from all step outputs (deduplicated)
+                    seen_paths = set()
                     for step_key, step_result in outputs_dict.items():
                         if isinstance(step_result, dict):
                             for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
                                 if key in step_result and step_result[key]:
-                                    file_paths.append((key.replace('_', ' ').title(), step_result[key]))
+                                    path = step_result[key]
+                                    if path not in seen_paths:
+                                        file_paths.append((key.replace('_', ' ').title(), path))
+                                        seen_paths.add(path)
                             # Also extract summary info
                             for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
                                 if key in step_result and step_result[key]:
                                     summary[key] = step_result[key]
-
-                    # Also check final_output for paths
-                    if isinstance(final_output, dict):
-                        for key in ['pdf_path', 'md_path', 'output_path', 'file_path']:
-                            if key in final_output and final_output[key]:
-                                file_paths.append((key.replace('_', ' ').title(), final_output[key]))
 
                 elif isinstance(output, dict):
                     for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
@@ -466,18 +543,24 @@ class JottyCLI:
                         if key in output and output[key]:
                             summary[key] = output[key]
 
-                elif isinstance(output, str):
+                elif isinstance(output, str) and not file_paths:
                     # Look for paths in string output
-                    path_matches = re.findall(r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg))', output)
+                    path_matches = re.findall(r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg|docx))', output)
                     for match in path_matches:
                         file_paths.append(('Output', match[0]))
 
-                # Display file paths prominently
+                # Display file paths prominently with inline preview
                 if file_paths:
                     self.renderer.newline()
                     self.renderer.print("[bold green]📁 Generated Files:[/bold green]")
                     for label, path in file_paths:
                         self.renderer.print(f"   {label}: [cyan]{path}[/cyan]")
+
+                    # Store last output path for /preview last
+                    self._last_output_path = file_paths[0][1]
+
+                    # Auto-preview first file (inline, truncated)
+                    await self._auto_preview_file(file_paths[0][1])
 
                 # Show summary
                 if summary:
@@ -488,15 +571,28 @@ class JottyCLI:
                         style="green"
                     )
                 elif not file_paths:
-                    # No summary and no files, show brief output
+                    # No summary and no files
+                    full_content = str(output)
+
+                    # Check if content was already streamed (don't re-render)
+                    was_streamed = getattr(result, 'was_streamed', False)
+
+                    if not was_streamed:
+                        # Not streamed, render markdown content beautifully
+                        self.renderer.newline()
+                        self.renderer.markdown(full_content)
+
+                    # Store content in history for export (always)
+                    if not hasattr(self, '_output_history'):
+                        self._output_history = []
+                    self._output_history.append(full_content)
+                    # Keep last 20 outputs
+                    if len(self._output_history) > 20:
+                        self._output_history = self._output_history[-20:]
+
+                    # Show interactive export options
                     self.renderer.newline()
-                    if hasattr(output, 'final_output') and output.final_output:
-                        out_str = str(output.final_output)[:300]
-                    else:
-                        out_str = str(output)[:300]
-                    if len(out_str) >= 300:
-                        out_str += "..."
-                    self.renderer.panel(out_str, title="Output", style="green")
+                    await self._show_export_options(full_content)
             else:
                 self.renderer.error(f"Failed after {elapsed:.1f}s")
 
@@ -516,6 +612,729 @@ class JottyCLI:
                 traceback.print_exc()
 
         return True
+
+    async def _execute_lean_mode(self, task: str, status_callback=None) -> Any:
+        """
+        Execute task in lean mode - Clean LLM-first architecture.
+
+        Philosophy:
+        - LLM is the BRAIN, not a skill
+        - Skills are I/O TOOLS that work ON LLM content
+        - No hardcoded rules, intelligent decisions
+
+        Flow:
+        1. ANALYZE: LLM decides what's needed (external data? output format?)
+        2. INPUT: If needed, use input skills (web-search, file-read)
+        3. GENERATE: LLM creates content (always happens) - WITH STREAMING
+        4. OUTPUT: If needed, use output skills (docx, pdf, telegram)
+
+        Args:
+            task: Task description
+            status_callback: Optional progress callback
+
+        Returns:
+            ExecutionResult with content and output path
+        """
+        # Import LeanExecutor
+        try:
+            from ..core.orchestration.v2.lean_executor import LeanExecutor, ExecutionResult
+        except ImportError:
+            from Jotty.core.orchestration.v2.lean_executor import LeanExecutor, ExecutionResult
+
+        # Ensure DSPy LM is configured
+        import dspy
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            # Configure from swarm manager's provider
+            swarm = await self.get_swarm_manager()
+            lm = swarm.swarm_provider_gateway.get_lm()
+            if lm:
+                dspy.configure(lm=lm)
+
+        # Clean task: Remove any accumulated context pollution
+        clean_task = self._clean_task_for_lean_execution(task)
+
+        # Streaming callback - shows content as it's generated
+        streaming_content = []
+        stream_started = False
+
+        def stream_callback(chunk: str):
+            nonlocal stream_started
+            import sys
+
+            if not stream_started:
+                # Start streaming output section
+                stream_started = True
+                self.renderer.newline()
+                self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+
+            # Print chunk without newline, flush immediately
+            sys.stdout.write(chunk)
+            sys.stdout.flush()
+            streaming_content.append(chunk)
+
+        # Execute with LeanExecutor + streaming
+        executor = LeanExecutor(
+            status_callback=status_callback,
+            stream_callback=stream_callback
+        )
+        result = await executor.execute(clean_task)
+
+        # End streaming section if started
+        if stream_started:
+            import sys
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+            self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+
+        # Convert to EpisodeResult-like object for compatibility
+        class LeanResult:
+            def __init__(self, exec_result, streamed=False):
+                self.success = exec_result.success
+                self.output = exec_result.content
+                self.error = exec_result.error
+                self.alerts = [exec_result.error] if exec_result.error else []
+                self.output_path = exec_result.output_path
+                self.output_format = exec_result.output_format
+                self.steps_taken = exec_result.steps_taken
+                self.was_streamed = streamed  # Flag to skip re-rendering
+
+        return LeanResult(result, streamed=stream_started)
+
+    def _clean_task_for_lean_execution(self, task: str) -> str:
+        """
+        Clean task string for lean execution.
+
+        Removes any polluting context like:
+        - Q-learning lessons
+        - Transfer learning suggestions
+        - Multi-perspective analysis context
+        - Previous enrichment artifacts
+
+        This is CRITICAL to prevent query pollution.
+
+        Args:
+            task: Original task string
+
+        Returns:
+            Clean task string
+        """
+        # Markers that indicate enrichment context (to be stripped)
+        context_markers = [
+            '\n[Multi-Perspective Analysis',
+            '\nLearned Insights:',
+            '\n# Transferable Learnings',
+            '\n# Q-Learning Lessons',
+            '\n## Task Type Pattern',
+            '\n## Role Advice',
+            '\n## Meta-Learning Advice',
+            '\n\n---\n',  # Common separator before context
+            '\nBased on previous learnings:',
+            '\nRecommended approach:',
+        ]
+
+        cleaned = task
+        for marker in context_markers:
+            if marker in cleaned:
+                cleaned = cleaned.split(marker)[0]
+
+        return cleaned.strip()
+
+    async def _handle_export_command(self, args: str):
+        """
+        Handle /export command to export outputs.
+
+        Usage:
+            /export             - Export last output (interactive)
+            /export c/d/p/m     - Export last with format(s)
+            /export list        - Show recent outputs to choose
+            /export 2 cdp       - Export 2nd-to-last output as copy+docx+pdf
+            /export all m       - Export all outputs to markdown
+        """
+        # Initialize output history if needed
+        if not hasattr(self, '_output_history'):
+            self._output_history = []
+
+        args_parts = args.strip().lower().split()
+
+        # /export list - show recent outputs
+        if args_parts and args_parts[0] == 'list':
+            await self._show_output_list()
+            return
+
+        # /export all [formats] - export entire conversation
+        if args_parts and args_parts[0] == 'all':
+            formats = args_parts[1] if len(args_parts) > 1 else ''
+            await self._export_all_outputs(formats)
+            return
+
+        # Parse message index and format flags
+        msg_index = 1  # Default: last message
+        format_flags = ''
+
+        for part in args_parts:
+            if part.isdigit():
+                msg_index = int(part)
+            elif part.replace('-', '').isdigit():
+                msg_index = abs(int(part))
+            else:
+                format_flags += part
+
+        # Get the selected output
+        if not self._output_history:
+            self.renderer.warning("No outputs to export. Run a query first.")
+            return
+
+        if msg_index > len(self._output_history):
+            self.renderer.warning(f"Only {len(self._output_history)} outputs available. Use /export list")
+            return
+
+        # Get content (1 = last, 2 = second-to-last, etc.)
+        content = self._output_history[-msg_index]
+
+        if not format_flags:
+            # Show interactive options
+            self.renderer.info(f"Exporting output #{msg_index} (of {len(self._output_history)})")
+            await self._show_export_options(content)
+            return
+
+        # Process export flags
+        if 'c' in format_flags:
+            await self._copy_to_clipboard(content)
+        if 'd' in format_flags:
+            await self._export_to_docx(content)
+        if 'p' in format_flags:
+            await self._export_to_pdf(content)
+        if 'm' in format_flags:
+            await self._export_to_markdown(content)
+
+        if not any(c in format_flags for c in 'cdpm'):
+            self.renderer.info("Usage: /export [N] [c]opy [d]ocx [p]df [m]arkdown")
+            self.renderer.info("  /export         - last output, interactive")
+            self.renderer.info("  /export cdp     - last output as copy+docx+pdf")
+            self.renderer.info("  /export 2 m     - 2nd-to-last as markdown")
+            self.renderer.info("  /export list    - show all outputs")
+            self.renderer.info("  /export all m   - entire conversation")
+
+    async def _show_output_list(self):
+        """Show list of recent outputs for selection."""
+        if not hasattr(self, '_output_history') or not self._output_history:
+            self.renderer.warning("No outputs yet.")
+            return
+
+        self.renderer.print("\n[bold]Recent Outputs:[/bold]")
+        for i, content in enumerate(reversed(self._output_history), 1):
+            preview = content[:80].replace('\n', ' ')
+            if len(content) > 80:
+                preview += "..."
+            self.renderer.print(f"  [cyan]{i}[/cyan]: {preview}")
+
+        self.renderer.print("\n[dim]Use: /export N cdpm (e.g., /export 2 dp)[/dim]")
+
+    async def _export_all_outputs(self, formats: str):
+        """Export all outputs as single document."""
+        if not hasattr(self, '_output_history') or not self._output_history:
+            self.renderer.warning("No outputs to export.")
+            return
+
+        # Combine all outputs
+        combined = "\n\n---\n\n".join([
+            f"## Output {i+1}\n\n{content}"
+            for i, content in enumerate(self._output_history)
+        ])
+
+        formats = formats or 'm'  # Default to markdown
+
+        if 'c' in formats:
+            await self._copy_to_clipboard(combined)
+        if 'd' in formats:
+            await self._export_to_docx(combined)
+        if 'p' in formats:
+            await self._export_to_pdf(combined)
+        if 'm' in formats:
+            await self._export_to_markdown(combined)
+
+    async def _show_export_options(self, content: str):
+        """
+        Show interactive export options after output.
+
+        Options:
+        - [c] Copy to clipboard
+        - [d] Download as DOCX
+        - [p] Download as PDF
+        - [m] Save as Markdown
+        - [Enter] Continue
+        """
+        self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+        self.renderer.print(
+            "[dim]Export:[/dim] "
+            "[bold cyan]\\[c][/bold cyan]opy  "
+            "[bold cyan]\\[d][/bold cyan]ocx  "
+            "[bold cyan]\\[p][/bold cyan]df  "
+            "[bold cyan]\\[m][/bold cyan]arkdown  "
+            "[dim]\\[Enter] done[/dim]  "
+            "[dim](combine: cdpm)[/dim]"
+        )
+
+        try:
+            # Get user choice - supports multiple actions like "cdp" = copy + docx + pdf
+            choice = input("  → ").strip().lower()
+
+            if not choice:
+                return  # Done
+
+            # Process each character as an action
+            actions_taken = []
+
+            if 'c' in choice:
+                await self._copy_to_clipboard(content)
+                actions_taken.append('copy')
+
+            if 'd' in choice:
+                await self._export_to_docx(content)
+                actions_taken.append('docx')
+
+            if 'p' in choice:
+                await self._export_to_pdf(content)
+                actions_taken.append('pdf')
+
+            if 'm' in choice:
+                await self._export_to_markdown(content)
+                actions_taken.append('markdown')
+
+        except (EOFError, KeyboardInterrupt):
+            pass  # User cancelled
+
+    async def _copy_to_clipboard(self, content: str):
+        """Copy content to system clipboard."""
+        try:
+            import subprocess
+
+            # Try different clipboard methods
+            # 1. xclip (Linux)
+            try:
+                process = subprocess.Popen(
+                    ['xclip', '-selection', 'clipboard'],
+                    stdin=subprocess.PIPE
+                )
+                process.communicate(content.encode('utf-8'))
+                self.renderer.success("Copied to clipboard!")
+                return
+            except FileNotFoundError:
+                pass
+
+            # 2. xsel (Linux)
+            try:
+                process = subprocess.Popen(
+                    ['xsel', '--clipboard', '--input'],
+                    stdin=subprocess.PIPE
+                )
+                process.communicate(content.encode('utf-8'))
+                self.renderer.success("Copied to clipboard!")
+                return
+            except FileNotFoundError:
+                pass
+
+            # 3. pbcopy (macOS)
+            try:
+                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+                process.communicate(content.encode('utf-8'))
+                self.renderer.success("Copied to clipboard!")
+                return
+            except FileNotFoundError:
+                pass
+
+            # 4. pyperclip fallback
+            try:
+                import pyperclip
+                pyperclip.copy(content)
+                self.renderer.success("Copied to clipboard!")
+                return
+            except ImportError:
+                pass
+
+            self.renderer.warning("Clipboard not available. Install xclip or pyperclip.")
+
+        except Exception as e:
+            self.renderer.error(f"Copy failed: {e}")
+
+    async def _export_to_docx(self, content: str):
+        """Export content to DOCX file with LaTeX math support."""
+        from pathlib import Path
+        from datetime import datetime
+        import subprocess
+
+        output_dir = Path.home() / "jotty" / "outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = output_dir / f"export_{timestamp}.docx"
+
+        # Prepare content with proper LaTeX formatting
+        prepared_content = self._prepare_content_with_latex(content)
+
+        # Check if content has LaTeX
+        has_latex = '$' in content or '\\[' in content or '\\(' in content
+
+        try:
+            # Method 1: Use pandoc for LaTeX → DOCX (converts to OMML equations)
+            if has_latex:
+                try:
+                    md_path = output_dir / f"export_{timestamp}.md"
+                    md_path.write_text(prepared_content)
+                    subprocess.run(
+                        ['pandoc', str(md_path), '-o', str(output_path)],
+                        check=True, capture_output=True
+                    )
+                    self.renderer.success(f"Saved: {output_path}")
+                    return
+                except (subprocess.CalledProcessError, FileNotFoundError):
+                    pass  # Fall through to other methods
+
+            registry = self.get_skills_registry()
+            skill = registry.get_skill('docx-tools')
+
+            if skill:
+                # Try professional checklist first if content looks like a checklist
+                if '- [ ]' in content or '- [x]' in content:
+                    tool = skill.tools.get('create_professional_checklist_tool')
+                    if tool:
+                        result = tool({
+                            'content': content,
+                            'output_path': str(output_path),
+                            'title': 'Export'
+                        })
+                        if result.get('success'):
+                            self.renderer.success(f"Saved: {result.get('file_path')}")
+                            return
+
+                # Fall back to regular docx
+                tool = skill.tools.get('create_docx_tool')
+                if tool:
+                    result = tool({
+                        'content': content,
+                        'output_path': str(output_path)
+                    })
+                    if result.get('success'):
+                        self.renderer.success(f"Saved: {result.get('file_path')}")
+                        return
+
+            # Ultimate fallback: save as markdown
+            await self._export_to_markdown(content)
+
+        except Exception as e:
+            self.renderer.error(f"DOCX export failed: {e}")
+
+    async def _export_to_pdf(self, content: str):
+        """Export content to PDF file with LaTeX math support."""
+        from pathlib import Path
+        from datetime import datetime
+        import subprocess
+
+        output_dir = Path.home() / "jotty" / "outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        md_path = output_dir / f"export_{timestamp}.md"
+        pdf_path = output_dir / f"export_{timestamp}.pdf"
+
+        # Prepare content with proper LaTeX formatting
+        prepared_content = self._prepare_content_with_latex(content)
+
+        try:
+            # Save markdown first
+            md_path.write_text(prepared_content)
+
+            # Check if content has LaTeX
+            has_latex = '$' in content or '\\[' in content or '\\(' in content
+
+            # Method 1: Pandoc with xelatex (best for LaTeX)
+            try:
+                cmd = ['pandoc', str(md_path), '-o', str(pdf_path),
+                       '--pdf-engine=xelatex', '-V', 'geometry:margin=1in']
+                if has_latex:
+                    cmd.extend(['--mathjax'])  # Enable math processing
+                subprocess.run(cmd, check=True, capture_output=True)
+                self.renderer.success(f"Saved: {pdf_path}")
+                return
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+
+            # Method 2: Pandoc with pdflatex
+            try:
+                subprocess.run(
+                    ['pandoc', str(md_path), '-o', str(pdf_path)],
+                    check=True, capture_output=True
+                )
+                self.renderer.success(f"Saved: {pdf_path}")
+                return
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+
+            # Method 3: WeasyPrint with MathJax (for LaTeX rendering)
+            try:
+                import weasyprint
+
+                # Include MathJax for LaTeX rendering
+                mathjax_script = ""
+                if has_latex:
+                    mathjax_script = """
+                    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+                    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+                    """
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html><head>
+                <meta charset="UTF-8">
+                {mathjax_script}
+                <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }}
+                h1 {{ color: #294172; border-bottom: 2px solid #294172; padding-bottom: 10px; }}
+                h2 {{ color: #294172; }}
+                h3 {{ color: #4a6fa5; }}
+                ul, ol {{ margin-left: 20px; }}
+                li {{ margin: 5px 0; }}
+                code {{ background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', monospace; }}
+                pre {{ background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }}
+                .math-block {{ text-align: center; margin: 20px 0; font-size: 1.1em; }}
+                .math-inline {{ }}
+                blockquote {{ border-left: 4px solid #294172; margin: 10px 0; padding-left: 15px; color: #555; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+                th {{ background: #294172; color: white; }}
+                tr:nth-child(even) {{ background: #f9f9f9; }}
+                </style>
+                </head><body>
+                {self._markdown_to_html(content)}
+                </body></html>
+                """
+                weasyprint.HTML(string=html_content).write_pdf(str(pdf_path))
+                self.renderer.success(f"Saved: {pdf_path}")
+                return
+            except ImportError:
+                pass
+            except Exception as e:
+                logger.debug(f"WeasyPrint failed: {e}")
+
+            # Method 4: Document-converter skill
+            registry = self.get_skills_registry()
+            skill = registry.get_skill('document-converter')
+            if skill:
+                tool = skill.tools.get('convert_to_pdf_tool')
+                if tool:
+                    result = tool({
+                        'input_path': str(md_path),
+                        'output_path': str(pdf_path)
+                    })
+                    if result.get('success'):
+                        self.renderer.success(f"Saved: {pdf_path}")
+                        return
+
+            # Fallback
+            self.renderer.success(f"Saved markdown: {md_path}")
+            self.renderer.warning("PDF: Install pandoc (`apt install pandoc texlive-xetex`) or weasyprint (`pip install weasyprint`)")
+
+        except Exception as e:
+            self.renderer.error(f"PDF export failed: {e}")
+
+    def _markdown_to_html(self, md_content: str) -> str:
+        """Convert markdown to HTML with LaTeX support."""
+        import re
+        html = md_content
+
+        # Protect LaTeX blocks from other processing
+        latex_blocks = []
+
+        # Block LaTeX: $$...$$
+        def save_block_latex(match):
+            latex_blocks.append(('block', match.group(1)))
+            return f'__LATEX_BLOCK_{len(latex_blocks)-1}__'
+        html = re.sub(r'\$\$(.+?)\$\$', save_block_latex, html, flags=re.DOTALL)
+
+        # Inline LaTeX: $...$
+        def save_inline_latex(match):
+            latex_blocks.append(('inline', match.group(1)))
+            return f'__LATEX_INLINE_{len(latex_blocks)-1}__'
+        html = re.sub(r'\$(.+?)\$', save_inline_latex, html)
+
+        # Headers
+        html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+        html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+        html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+
+        # Bold and italic
+        html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+        html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html)
+
+        # Code
+        html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
+
+        # Lists
+        html = re.sub(r'^- \[ \] (.+)$', r'<li>☐ \1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- \[x\] (.+)$', r'<li>☑ \1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r'^• (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
+
+        # Paragraphs
+        html = re.sub(r'\n\n', r'</p><p>', html)
+        html = f'<p>{html}</p>'
+
+        # Restore LaTeX with MathJax/KaTeX compatible format
+        for i, (latex_type, latex_content) in enumerate(latex_blocks):
+            if latex_type == 'block':
+                html = html.replace(f'__LATEX_BLOCK_{i}__',
+                    f'<div class="math-block">\\[{latex_content}\\]</div>')
+            else:
+                html = html.replace(f'__LATEX_INLINE_{i}__',
+                    f'<span class="math-inline">\\({latex_content}\\)</span>')
+
+        return html
+
+    def _prepare_content_with_latex(self, content: str) -> str:
+        """Prepare content for export, ensuring LaTeX is properly formatted."""
+        import re
+
+        # Ensure LaTeX delimiters are consistent
+        # Convert \[ \] to $$ $$ for pandoc compatibility
+        content = re.sub(r'\\\[(.+?)\\\]', r'$$\1$$', content, flags=re.DOTALL)
+        content = re.sub(r'\\\((.+?)\\\)', r'$\1$', content)
+
+        return content
+
+    async def _export_to_markdown(self, content: str):
+        """Export content to Markdown file."""
+        from pathlib import Path
+        from datetime import datetime
+
+        output_dir = Path.home() / "jotty" / "outputs"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = output_dir / f"export_{timestamp}.md"
+
+        try:
+            output_path.write_text(content)
+            self.renderer.success(f"Saved: {output_path}")
+        except Exception as e:
+            self.renderer.error(f"Markdown export failed: {e}")
+
+    async def _auto_preview_file(self, file_path: str, max_lines: int = 15):
+        """Show inline preview of generated file."""
+        from pathlib import Path
+
+        path = Path(file_path)
+        if not path.exists():
+            return
+
+        suffix = path.suffix.lower()
+
+        self.renderer.newline()
+        self.renderer.print("[dim]─── Preview ───[/dim]")
+
+        try:
+            # Quick preview based on file type
+            if suffix in ['.md', '.txt']:
+                content = path.read_text()
+                lines = content.split('\n')[:max_lines]
+                for line in lines:
+                    print(line)
+                if len(content.split('\n')) > max_lines:
+                    self.renderer.print(f"[dim]... ({len(content.split(chr(10))) - max_lines} more lines)[/dim]")
+
+            elif suffix == '.pdf':
+                import subprocess
+                import shutil
+                pdftotext = shutil.which('pdftotext')
+                if pdftotext:
+                    result = subprocess.run(
+                        [pdftotext, '-layout', '-nopgbrk', str(path), '-'],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        lines = result.stdout.split('\n')[:max_lines]
+                        for line in lines:
+                            print(line)
+                        if len(result.stdout.split('\n')) > max_lines:
+                            self.renderer.print("[dim]...[/dim]")
+                else:
+                    self.renderer.print("[dim]Install pdftotext for preview: apt install poppler-utils[/dim]")
+
+            elif suffix in ['.docx', '.doc']:
+                import subprocess
+                import shutil
+                catdoc = shutil.which('catdoc')
+                if catdoc:
+                    result = subprocess.run(
+                        [catdoc, str(path)],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        lines = result.stdout.split('\n')[:max_lines]
+                        for line in lines:
+                            print(line)
+                        if len(result.stdout.split('\n')) > max_lines:
+                            self.renderer.print("[dim]...[/dim]")
+                else:
+                    self.renderer.print("[dim]Install catdoc for preview: apt install catdoc[/dim]")
+
+            elif suffix in ['.png', '.jpg', '.jpeg', '.gif']:
+                import subprocess
+                import shutil
+                chafa = shutil.which('chafa')
+                if chafa:
+                    result = subprocess.run(
+                        [chafa, '--size=60x20', str(path)],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    if result.returncode == 0:
+                        print(result.stdout)
+                else:
+                    self.renderer.print("[dim]Install chafa for image preview: apt install chafa[/dim]")
+
+            else:
+                # Generic file - show first few lines
+                try:
+                    with open(path, 'r', errors='replace') as f:
+                        for i, line in enumerate(f):
+                            if i >= max_lines:
+                                self.renderer.print("[dim]...[/dim]")
+                                break
+                            print(line.rstrip())
+                except:
+                    self.renderer.print("[dim]Binary file[/dim]")
+
+        except Exception as e:
+            logger.debug(f"Auto-preview failed: {e}")
+
+        self.renderer.print("[dim]─── /preview for more ───[/dim]")
+
+    async def _try_auto_resume(self):
+        """Try to auto-resume the last session."""
+        try:
+            sessions = self.session.list_sessions()
+            if not sessions:
+                return
+
+            # Find the most recent session that isn't current
+            for session_info in sessions:
+                if session_info['session_id'] != self.session.session_id:
+                    # Load this session
+                    self.session.load(session_info['session_id'])
+                    msg_count = len(self.session.conversation_history)
+                    self.renderer.info(
+                        f"Auto-resumed session: {session_info['session_id'][:8]}... "
+                        f"({msg_count} messages)"
+                    )
+
+                    # Restore output history
+                    self._output_history = []
+                    for msg in self.session.conversation_history:
+                        if msg.role == "assistant" and len(msg.content) > 100:
+                            self._output_history.append(msg.content)
+
+                    break
+        except Exception as e:
+            logger.debug(f"Auto-resume failed: {e}")
 
     def _show_welcome(self):
         """Show welcome banner."""

@@ -63,9 +63,29 @@ class FeaturesConfig:
 class SessionConfig:
     """Session configuration."""
     auto_save: bool = True
+    auto_resume: bool = False  # Auto-load last session on startup
     context_window: int = 20
     history_file: Optional[str] = None
     session_dir: Optional[str] = None
+
+
+@dataclass
+class TelegramConfig:
+    """Telegram bot configuration."""
+    enabled: bool = False
+    token: Optional[str] = None  # From TELEGRAM_TOKEN env
+    allowed_chat_ids: List[str] = field(default_factory=list)  # From TELEGRAM_CHAT_ID
+    auto_start: bool = False  # Start bot automatically on CLI launch
+
+
+@dataclass
+class WebConfig:
+    """Web server configuration."""
+    enabled: bool = False
+    host: str = "0.0.0.0"
+    port: int = 8080
+    auto_start: bool = False  # Start server automatically on CLI launch
+    cors_origins: List[str] = field(default_factory=lambda: ["*"])
 
 
 @dataclass
@@ -81,6 +101,8 @@ class CLIConfig:
     ui: UIConfig = field(default_factory=UIConfig)
     features: FeaturesConfig = field(default_factory=FeaturesConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
+    telegram: TelegramConfig = field(default_factory=TelegramConfig)
+    web: WebConfig = field(default_factory=WebConfig)
 
     # Runtime settings
     debug: bool = False
@@ -128,9 +150,23 @@ class CLIConfig:
             },
             "session": {
                 "auto_save": self.session.auto_save,
+                "auto_resume": self.session.auto_resume,
                 "context_window": self.session.context_window,
                 "history_file": self.session.history_file,
                 "session_dir": self.session.session_dir,
+            },
+            "telegram": {
+                "enabled": self.telegram.enabled,
+                "token": self.telegram.token,
+                "allowed_chat_ids": self.telegram.allowed_chat_ids,
+                "auto_start": self.telegram.auto_start,
+            },
+            "web": {
+                "enabled": self.web.enabled,
+                "host": self.web.host,
+                "port": self.web.port,
+                "auto_start": self.web.auto_start,
+                "cors_origins": self.web.cors_origins,
             },
             "debug": self.debug,
             "no_color": self.no_color,
@@ -192,9 +228,29 @@ class CLIConfig:
             ss = data["session"]
             config.session = SessionConfig(
                 auto_save=ss.get("auto_save", True),
+                auto_resume=ss.get("auto_resume", False),
                 context_window=ss.get("context_window", 20),
                 history_file=ss.get("history_file"),
                 session_dir=ss.get("session_dir"),
+            )
+
+        if "telegram" in data:
+            tg = data["telegram"]
+            config.telegram = TelegramConfig(
+                enabled=tg.get("enabled", False),
+                token=tg.get("token"),
+                allowed_chat_ids=tg.get("allowed_chat_ids", []),
+                auto_start=tg.get("auto_start", False),
+            )
+
+        if "web" in data:
+            w = data["web"]
+            config.web = WebConfig(
+                enabled=w.get("enabled", False),
+                host=w.get("host", "0.0.0.0"),
+                port=w.get("port", 8080),
+                auto_start=w.get("auto_start", False),
+                cors_origins=w.get("cors_origins", ["*"]),
             )
 
         config.debug = data.get("debug", False)

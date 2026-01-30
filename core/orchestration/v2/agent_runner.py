@@ -252,20 +252,14 @@ class AgentRunner:
                     'architect_confidence': avg_confidence
                 })
 
-            # Architect doesn't block (exploration only) but log confidence concerns
+            # Architect doesn't block (exploration only) - log confidence to debug (not user-facing)
             if architect_results:
                 avg_confidence = sum(r.confidence for r in architect_results) / len(architect_results)
-                if avg_confidence < 0.3:
-                    logger.warning(
-                        f"⚠️  Architect VERY LOW confidence: {avg_confidence:.2f} "
-                        f"(Decision: {'PROCEED' if proceed else 'BLOCKED'}). "
-                        f"Consider gathering more information before execution."
-                    )
-                elif avg_confidence < 0.5 and proceed:
-                    logger.info(
-                        f"ℹ️  Architect LOW confidence: {avg_confidence:.2f} but proceeding. "
-                        f"Execution will proceed but results may be uncertain."
-                    )
+                # Log to debug only - not user-facing
+                logger.debug(
+                    f"Architect confidence: {avg_confidence:.2f} "
+                    f"(Decision: {'PROCEED' if proceed else 'BLOCKED'})"
+                )
 
             # Shaped reward: architect validation
             if self.shaped_reward_manager and architect_results:
@@ -280,50 +274,8 @@ class AgentRunner:
         # 2. Agent execution (use enriched goal with memory context)
         _status("Agent", "executing task (this may take a while)")
         try:
-            # Fast mode: Direct LLM call, bypass complex agent pipeline
-            if skip_validation:
-                logger.info("⚡ Fast mode: direct LLM execution")
-                import dspy
-                import time as _time
-                try:
-                    # Simple direct LLM call
-                    lm = dspy.settings.lm
-                    logger.info(f"⚡ LM type: {type(lm).__name__ if lm else 'None'}")
-                    if lm:
-                        _llm_start = _time.time()
-                        response = lm(prompt=goal)
-                        logger.info(f"⚡ Direct LLM call took: {_time.time()-_llm_start:.2f}s")
-                        agent_output = response[0] if isinstance(response, list) else str(response)
-                        logger.info(f"⚡ Direct LLM output: {str(agent_output)[:100]}")
-
-                        # ULTRA-FAST: Return immediately, skip ALL learning/memory/rewards
-                        duration = _time.time() - start_time
-                        return EpisodeResult(
-                            output=agent_output,  # Just the string output
-                            success=True,
-                            trajectory=[{'step': 1, 'action': 'direct_llm', 'output': agent_output, 'success': True}],
-                            tagged_outputs=[],
-                            episode=0,
-                            execution_time=duration,
-                            architect_results=[],
-                            auditor_results=[],
-                            agent_contributions={},
-                            memories_updated=0,
-                            alerts=[],
-                            causal_insights=[],
-                            validation_rounds=0,
-                            refinement_improvements=[],
-                            override_metadata=None
-                        )
-                    else:
-                        # Fallback to AutoAgent if no LM
-                        logger.warning("⚠️ No LM configured, falling back to AutoAgent")
-                        agent_output = await self.agent.execute(goal, **kwargs) if hasattr(self.agent, 'execute') else goal
-                except Exception as e:
-                    logger.warning(f"Direct LLM failed: {e}, falling back to agent")
-                    agent_output = await self.agent.execute(enriched_goal, **kwargs) if hasattr(self.agent, 'execute') else str(e)
-            # Normal mode: Full agent execution
-            elif hasattr(self.agent, 'execute'):
+            # Always use AutoAgent for skill execution (skip_validation only affects architect/auditor)
+            if hasattr(self.agent, 'execute'):
                 # AutoAgent - pass status_callback if agent supports it
                 if status_callback:
                     kwargs['status_callback'] = status_callback

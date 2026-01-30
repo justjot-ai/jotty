@@ -231,21 +231,46 @@ class SkillsRegistry:
     def _read_skill_description(self, skill_md: Path) -> str:
         """Read description from SKILL.md (lightweight metadata parsing)."""
         description = ""
+        title = ""
         if skill_md.exists():
             try:
                 content = skill_md.read_text()
-                for line in content.split("\n"):
-                    if "description" in line.lower() or "**Description**" in line:
-                        desc_match = line.split(":", 1)
-                        if len(desc_match) > 1:
-                            description = desc_match[1].strip()
-                        break
-                    if line.startswith("# "):
-                        if not description:
-                            description = line[2:].strip()
+                lines = content.split("\n")
+                in_description = False
+
+                for i, line in enumerate(lines):
+                    # Get title from first heading
+                    if line.startswith("# ") and not title:
+                        title = line[2:].strip()
+                        # Also check if next line is a one-liner description
+                        if i + 1 < len(lines) and lines[i + 1].strip() and not lines[i + 1].startswith("#"):
+                            description = lines[i + 1].strip()
+                        continue
+
+                    # Look for ## Description section
+                    if line.strip().lower() in ["## description", "**description**", "description:"]:
+                        in_description = True
+                        continue
+
+                    # Collect description content (until next heading or empty lines)
+                    if in_description:
+                        if line.startswith("#") or line.startswith("##"):
+                            break  # Stop at next section
+                        if line.strip():
+                            if description:
+                                description += " " + line.strip()
+                            else:
+                                description = line.strip()
+                        elif description:
+                            break  # Stop at empty line after content
+
+                # Fallback to title if no description found
+                if not description:
+                    description = title
+
             except Exception as e:
                 logger.debug(f"Could not read {skill_md}: {e}")
-        return description
+        return description[:500] if description else ""  # Limit length
 
     def load_all_skills(self) -> Dict[str, Callable]:
         """
