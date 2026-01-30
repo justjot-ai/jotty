@@ -56,13 +56,17 @@ class SwarmCommand(BaseCommand):
 
                 # Aggregate stats
                 total_tasks = sum(p.total_tasks for p in profiles.values())
-                total_success = sum(p.successful_tasks for p in profiles.values())
+                # Calculate successes from task_success dict
+                total_success = sum(
+                    sum(s for s, t in p.task_success.values())
+                    for p in profiles.values()
+                )
 
                 status["Total Tasks"] = total_tasks
                 status["Success Rate"] = f"{total_success/max(1, total_tasks):.1%}"
 
                 # Specializations
-                specs = {p.name: p.specialization for p in profiles.values() if p.specialization}
+                specs = {p.agent_name: str(p.specialization) for p in profiles.values() if p.specialization}
                 if specs:
                     status["Specializations"] = specs
 

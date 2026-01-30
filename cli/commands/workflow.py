@@ -50,7 +50,7 @@ class WorkflowCommand(BaseCommand):
     name = "workflow"
     aliases = ["n8n", "schedule", "automate"]
     description = "Manage n8n workflows and schedules"
-    usage = "/workflow [list|create|run|export|server|server stop] [args]"
+    usage = "/workflow [list|create|run|start|stop|status] [args]"
     category = "automation"
 
     # Workflow templates for common tasks
@@ -84,6 +84,10 @@ class WorkflowCommand(BaseCommand):
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute workflow command."""
 
+        # Handle --help
+        if args.flags.get("help") or (args.positional and args.positional[0] == "--help"):
+            return await self._show_help(cli)
+
         subcommand = args.positional[0] if args.positional else "list"
 
         if subcommand == "list":
@@ -104,11 +108,13 @@ class WorkflowCommand(BaseCommand):
             return await self._add_alias(cli, nickname, workflow_id)
         elif subcommand == "export":
             return await self._export_workflow(cli, args.flags)
-        elif subcommand == "server":
+        elif subcommand in ("server", "start"):
             # Handle /workflow server stop
             if len(args.positional) > 1 and args.positional[1] == "stop":
                 return await self._stop_api_server(cli)
             return await self._start_api_server(cli, args.flags)
+        elif subcommand == "stop":
+            return await self._stop_api_server(cli)
         elif subcommand == "status":
             return await self._check_n8n_status(cli)
         else:
@@ -379,13 +385,21 @@ class WorkflowCommand(BaseCommand):
             cli.renderer.info("Usage: /workflow run <name>")
             cli.renderer.info("   or: /workflow <name>")
 
-            # Show registered workflows
+            # Show registered workflows and templates
+            cli.renderer.print("\n[bold]Available templates:[/bold]")
+            for name in self.WORKFLOW_TEMPLATES.keys():
+                cli.renderer.print(f"  • {name}")
+
             registry = _load_workflow_registry()
             if registry["workflows"]:
                 cli.renderer.print("\n[bold]Registered workflows:[/bold]")
                 for name, info in registry["workflows"].items():
                     cli.renderer.print(f"  • {name}")
             return CommandResult.fail("Workflow name required")
+
+        # Check if it's a template - run directly without n8n
+        if name_or_id in self.WORKFLOW_TEMPLATES:
+            return await self._run_template_directly(cli, name_or_id)
 
         # Resolve name to ID
         workflow_id = self._resolve_workflow_id(name_or_id)
@@ -414,8 +428,64 @@ class WorkflowCommand(BaseCommand):
                         return CommandResult.fail(error)
 
         except Exception as e:
-            cli.renderer.error(f"Error running workflow: {e}")
+            cli.renderer.warning(f"n8n not available: {e}")
+            cli.renderer.info("Running template directly instead...")
+            # Try to run as template
+            if name_or_id in self.WORKFLOW_TEMPLATES:
+                return await self._run_template_directly(cli, name_or_id)
+            cli.renderer.error("Workflow not found as template")
             return CommandResult.fail(str(e))
+
+    async def _run_template_directly(self, cli: "JottyCLI", template_name: str) -> CommandResult:
+        """Run a workflow template directly without n8n."""
+        if template_name not in self.WORKFLOW_TEMPLATES:
+            cli.renderer.error(f"Template not found: {template_name}")
+            return CommandResult.fail("Template not found")
+
+        template = self.WORKFLOW_TEMPLATES[template_name]
+        task = self._get_task_for_template(template_name)
+
+        cli.renderer.info(f"Running: {template['name']}")
+        cli.renderer.print(f"[dim]Task: {task}[/dim]")
+        cli.renderer.newline()
+
+        # Execute the task directly
+        result = await cli.run_once(task)
+        return result
+
+    async def _show_help(self, cli: "JottyCLI") -> CommandResult:
+        """Show workflow help."""
+        cli.renderer.header("Workflow Command")
+        cli.renderer.print("""
+[bold]Usage:[/bold]
+  /workflow [subcommand] [args]
+
+[bold]Subcommands:[/bold]
+  list          List workflows and templates
+  templates     Show available templates
+  run <name>    Run a workflow/template
+  create <tpl>  Create workflow from template
+  start         Start API server (background)
+  stop          Stop API server
+  status        Check n8n status
+  alias <n> <id> Create nickname for workflow
+
+[bold]Examples:[/bold]
+  /workflow                     List all workflows
+  /workflow run daily-research  Run the daily-research template
+  /workflow start               Start API server for n8n
+  /workflow stop                Stop API server
+
+[bold]Templates:[/bold]""")
+        for name, tpl in self.WORKFLOW_TEMPLATES.items():
+            cli.renderer.print(f"  {name}: {tpl['description']}")
+
+        cli.renderer.print("""
+[bold]Note:[/bold]
+  Templates can run directly without n8n.
+  For scheduling, install n8n: docker run -p 5678:5678 n8nio/n8n
+""")
+        return CommandResult.ok()
 
     async def _export_workflow(self, cli: "JottyCLI", flags: dict) -> CommandResult:
         """Export all workflow templates."""
@@ -637,7 +707,7 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
 
     def get_completions(self, partial: str) -> list:
         """Get completions."""
-        subcommands = ["list", "templates", "create", "run", "export", "server", "server stop", "status", "alias"]
+        subcommands = ["list", "templates", "create", "run", "export", "start", "server", "stop", "status", "alias"]
         templates = list(self.WORKFLOW_TEMPLATES.keys())
         flags = ["--host", "--port", "--name", "--as"]
 

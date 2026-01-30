@@ -68,7 +68,11 @@ class StatsCommand(BaseCommand):
                 profiles = si.agent_profiles
 
                 total_tasks = sum(p.total_tasks for p in profiles.values())
-                total_success = sum(p.successful_tasks for p in profiles.values())
+                # Calculate successes from task_success dict: sum of success counts
+                total_success = sum(
+                    sum(s for s, t in p.task_success.values())
+                    for p in profiles.values()
+                )
 
                 stats.update({
                     "Total Tasks": total_tasks,
@@ -173,14 +177,16 @@ class StatsCommand(BaseCommand):
 
             agent_stats = {}
             for name, profile in profiles.items():
-                success_rate = profile.successful_tasks / max(1, profile.total_tasks)
+                # Calculate successes from task_success dict
+                successes = sum(s for s, t in profile.task_success.values())
+                success_rate = successes / max(1, profile.total_tasks)
                 agent_stats[name] = {
                     "Total Tasks": profile.total_tasks,
-                    "Successes": profile.successful_tasks,
+                    "Successes": successes,
                     "Success Rate": f"{success_rate:.1%}",
                     "Trust Score": f"{profile.trust_score:.2f}",
-                    "Specialization": profile.specialization or "general",
-                    "Avg Response Time": f"{profile.avg_response_time:.2f}s",
+                    "Specialization": str(profile.specialization.value) if hasattr(profile.specialization, 'value') else str(profile.specialization),
+                    "Avg Execution Time": f"{profile.avg_execution_time:.2f}s",
                 }
 
             cli.renderer.tree(agent_stats, title="Agent Statistics")

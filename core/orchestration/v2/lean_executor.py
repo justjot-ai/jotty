@@ -107,7 +107,7 @@ class TaskAnalysisSignature(dspy.Signature):
         desc="If needs_external_data: 'web_search', 'file_read', or 'none'"
     )
     output_format: str = dspy.OutputField(
-        desc="How to deliver output: 'text' (DEFAULT - display inline), 'checklist' (DOCX), 'docx', 'pdf', 'file', 'telegram', 'justjot' (save as idea to JustJot.ai). Use 'justjot' when task mentions JustJot, idea creation, or product features for JustJot."
+        desc="How to deliver output: 'text' (DEFAULT - display inline), 'checklist' (DOCX), 'docx', 'pdf', 'slides' (PowerPoint PPTX), 'slides_pdf' (slides as PDF), 'file', 'telegram', 'justjot' (save as idea to JustJot.ai). Use 'slides' for presentations, 'justjot' for JustJot ideas."
     )
     output_path_hint: str = dspy.OutputField(
         desc="If output is file/docx/pdf/checklist, suggest filename. Otherwise 'none'"
@@ -120,10 +120,15 @@ class TaskAnalysisSignature(dspy.Signature):
 class ContentGenerationSignature(dspy.Signature):
     """Generate content for the user's request.
 
-    You are the brain. Generate high-quality content based on:
-    - Your knowledge (for most tasks)
-    - Provided context (from web search or file read, if any)
+    IMPORTANT: You have been provided with CURRENT information via the context field.
+    The context contains REAL-TIME data from web searches performed just now.
+    USE THIS CONTEXT as your primary source - it contains up-to-date information.
 
+    Generate high-quality content based on:
+    1. The provided context (PRIORITIZE THIS - it has current/recent data)
+    2. Your knowledge (supplement where context is incomplete)
+
+    DO NOT say you cannot access real-time data - the context already provides it.
     Be comprehensive, well-structured, and directly address the user's need.
 
     FOR CHECKLIST FORMAT - Use this structure:
@@ -149,8 +154,8 @@ class ContentGenerationSignature(dspy.Signature):
     """
 
     task: str = dspy.InputField(desc="User's original request")
-    context: str = dspy.InputField(desc="External context if any (from search/file), or 'none'")
-    output_format: str = dspy.InputField(desc="Desired format: checklist, text, markdown, docx content, etc.")
+    context: str = dspy.InputField(desc="CURRENT DATA from web search or file. USE THIS as primary source. Contains real-time information. Value is 'none' only if no external data was needed.")
+    output_format: str = dspy.InputField(desc="Desired format: checklist, text, markdown, slides, docx content, etc.")
 
     content: str = dspy.OutputField(
         desc="Generated content. For checklists: use ## PART headers, ### numbered sections, - [ ] items with | references. For other formats: use appropriate markdown."
@@ -204,12 +209,23 @@ class LeanExecutor:
         self._registry = None
 
     def _status(self, stage: str, detail: str = ""):
-        """Report status."""
+        """Report status (supports async callbacks)."""
         if self.status_callback:
             try:
-                self.status_callback(stage, detail)
-            except:
-                pass
+                import asyncio
+                import inspect
+                result = self.status_callback(stage, detail)
+                # Handle async callbacks
+                if inspect.iscoroutine(result):
+                    # Schedule the coroutine to run
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(result)
+                    except RuntimeError:
+                        # No running loop, run synchronously
+                        asyncio.run(result)
+            except Exception as e:
+                logger.debug(f"Status callback error: {e}")
         logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
 
     async def _stream(self, chunk: str):
@@ -297,6 +313,15 @@ Content:"""
                 logger.debug(f"Streaming failed, falling back: {e}")
                 # Fall through to non-streaming
 
+        # Try real Anthropic streaming if available
+        if self.stream_callback:
+            try:
+                content = await self._anthropic_stream(task, context, output_format)
+                if content:
+                    return content
+            except Exception as e:
+                logger.debug(f"Anthropic streaming failed: {e}")
+
         # Non-streaming fallback
         generation = self.generator(
             task=task,
@@ -314,6 +339,51 @@ Content:"""
                 await asyncio.sleep(0.005)
 
         return content
+
+    async def _anthropic_stream(self, task: str, context: str, output_format: str) -> str:
+        """
+        Real streaming using Anthropic API directly.
+        """
+        import os
+
+        # Try to get Anthropic client
+        try:
+            import anthropic
+        except ImportError:
+            return None
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return None
+
+        client = anthropic.Anthropic(api_key=api_key)
+
+        prompt = f"""Generate content for the user's request.
+
+Task: {task}
+Context: {context}
+Output Format: {output_format}
+
+Generate high-quality content based on your knowledge and the provided context.
+For checklists: use ## PART headers, ### numbered sections, - [ ] items with | references.
+For other formats: use appropriate markdown.
+
+Content:"""
+
+        full_content = ""
+
+        # Use streaming API
+        with client.messages.stream(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}]
+        ) as stream:
+            for text in stream.text_stream:
+                if text:
+                    await self._stream(text)
+                    full_content += text
+
+        return full_content
 
     def _get_registry(self):
         """Get skills registry (lazy load)."""
@@ -361,12 +431,16 @@ Content:"""
             # =================================================================
             context = "none"
 
-            if needs_external and input_type == "web_search":
+            # Flexible matching for web search (LLM may return variations)
+            web_search_types = ["web_search", "web-search", "search", "research", "research_query", "internet", "online"]
+            file_read_types = ["file_read", "file-read", "read_file", "file", "local_file"]
+
+            if needs_external and input_type in web_search_types:
                 self._status("Searching", "gathering external information")
                 steps.append("web_search")
                 context = await self._do_web_search(task)
 
-            elif needs_external and input_type == "file_read":
+            elif needs_external and input_type in file_read_types:
                 self._status("Reading", "loading file content")
                 steps.append("file_read")
                 # Extract file path from task
@@ -474,11 +548,24 @@ Content:"""
 
             if result.get('success'):
                 results = result.get('results', [])
-                # Format results as context
-                context_parts = []
-                for r in results[:5]:
-                    context_parts.append(f"**{r.get('title', '')}**\n{r.get('snippet', '')}\nURL: {r.get('url', '')}")
-                return "\n\n".join(context_parts) if context_parts else "No search results found"
+                if not results:
+                    return "No search results found"
+
+                # Format results as context with clear header
+                from datetime import datetime
+                now = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+                context_parts = [f"=== WEB SEARCH RESULTS (Retrieved: {now}) ===\n"]
+                for i, r in enumerate(results[:8], 1):
+                    title = r.get('title', 'Untitled')
+                    snippet = r.get('snippet', '')
+                    url = r.get('url', '')
+                    context_parts.append(f"[{i}] {title}\n{snippet}\nSource: {url}\n")
+
+                context_parts.append("=== END OF SEARCH RESULTS ===")
+                context_parts.append("\nUse the above current information to answer the user's request.")
+
+                return "\n".join(context_parts)
             else:
                 return f"Search failed: {result.get('error', 'unknown')}"
         except Exception as e:
@@ -522,6 +609,10 @@ Content:"""
             return await self._save_docx(content, output_dir, base_name, timestamp)
         elif format == "pdf":
             return await self._save_pdf(content, output_dir, base_name, timestamp)
+        elif format == "slides":
+            return await self._save_slides(content, output_dir, base_name, timestamp, task, export_pdf=False)
+        elif format == "slides_pdf":
+            return await self._save_slides(content, output_dir, base_name, timestamp, task, export_pdf=True)
         elif format in ["markdown", "file"]:
             return await self._save_markdown(content, output_dir, base_name, timestamp)
 
@@ -637,8 +728,8 @@ Content:"""
 
         try:
             result = convert_tool({
-                'input_path': md_path,
-                'output_path': str(pdf_path)
+                'input_file': md_path,
+                'output_file': str(pdf_path)
             })
 
             if result.get('success'):
@@ -658,6 +749,158 @@ Content:"""
         except Exception as e:
             logger.error(f"Failed to save markdown: {e}")
             return None
+
+    async def _save_slides(self, content: str, output_dir: Path, base_name: str, timestamp: str, task: str, export_pdf: bool = False) -> Optional[str]:
+        """Save as PowerPoint slides using slide-generator skill."""
+        registry = self._get_registry()
+        if not registry:
+            logger.warning("Cannot create slides: registry unavailable")
+            return await self._save_markdown(content, output_dir, base_name, timestamp)
+
+        skill = registry.get_skill('slide-generator')
+        if not skill:
+            logger.warning("slide-generator skill not found")
+            return await self._save_markdown(content, output_dir, base_name, timestamp)
+
+        # Try the AI-powered topic generator first
+        topic_tool = skill.tools.get('generate_slides_from_topic_tool')
+
+        if topic_tool:
+            try:
+                # Extract topic from task
+                topic = task.replace("Research", "").replace("research", "").strip()
+                topic = topic.split("-")[0].strip()  # Remove flags
+                topic = topic.replace("'", "").replace('"', "").strip()
+
+                import asyncio
+                import inspect
+
+                params = {
+                    'topic': topic,
+                    'n_slides': 8,
+                    'template': 'dark',
+                    'output_path': str(output_dir),
+                    'export_as': 'pdf' if export_pdf else 'pptx',
+                    'send_telegram': False  # We'll handle this separately
+                }
+
+                if inspect.iscoroutinefunction(topic_tool):
+                    result = await topic_tool(params)
+                else:
+                    result = topic_tool(params)
+
+                if result.get('success'):
+                    # Return PDF path if requested, otherwise PPTX
+                    if export_pdf and result.get('pdf_path'):
+                        return result.get('pdf_path')
+                    return result.get('file_path')
+                else:
+                    logger.warning(f"Slide generation failed: {result.get('error')}")
+
+            except Exception as e:
+                logger.warning(f"AI slide generation failed: {e}")
+
+        # Fallback: Try to parse content and create slides manually
+        slides_tool = skill.tools.get('generate_slides_tool')
+        pdf_slides_tool = skill.tools.get('generate_slides_pdf_tool')
+
+        if not slides_tool and not pdf_slides_tool:
+            logger.warning("No slide generation tools available")
+            return await self._save_markdown(content, output_dir, base_name, timestamp)
+
+        try:
+            # Parse content into slide structure
+            slides_data = self._parse_content_to_slides(content, task)
+
+            if export_pdf and pdf_slides_tool:
+                result = pdf_slides_tool({
+                    'title': slides_data['title'],
+                    'subtitle': slides_data.get('subtitle', ''),
+                    'slides': slides_data['slides'],
+                    'template': 'dark',
+                    'output_path': str(output_dir)
+                })
+            elif slides_tool:
+                result = slides_tool({
+                    'title': slides_data['title'],
+                    'subtitle': slides_data.get('subtitle', ''),
+                    'slides': slides_data['slides'],
+                    'template': 'dark',
+                    'output_path': str(output_dir)
+                })
+            else:
+                return await self._save_markdown(content, output_dir, base_name, timestamp)
+
+            if result.get('success'):
+                return result.get('file_path')
+
+        except Exception as e:
+            logger.warning(f"Manual slide creation failed: {e}")
+
+        return await self._save_markdown(content, output_dir, base_name, timestamp)
+
+    def _parse_content_to_slides(self, content: str, task: str) -> dict:
+        """Parse markdown content into slide structure."""
+        import re
+
+        lines = content.strip().split('\n')
+        slides = []
+        current_slide = None
+
+        # Extract title from task or first heading
+        title = "Research Findings"
+        task_words = task.split()[:5]
+        if task_words:
+            title = " ".join(w for w in task_words if not w.startswith('-'))[:50]
+
+        for line in lines:
+            line = line.strip()
+
+            # New slide on ## heading
+            if line.startswith('## '):
+                if current_slide and current_slide.get('bullets'):
+                    slides.append(current_slide)
+                current_slide = {
+                    'title': line[3:].strip(),
+                    'bullets': []
+                }
+            # Bullet point
+            elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
+                if current_slide is None:
+                    current_slide = {'title': 'Key Points', 'bullets': []}
+                bullet = line[2:].strip()
+                if bullet and len(current_slide['bullets']) < 6:
+                    current_slide['bullets'].append(bullet[:100])
+            # Numbered list
+            elif re.match(r'^\d+\.\s', line):
+                if current_slide is None:
+                    current_slide = {'title': 'Key Points', 'bullets': []}
+                bullet = re.sub(r'^\d+\.\s*', '', line).strip()
+                if bullet and len(current_slide['bullets']) < 6:
+                    current_slide['bullets'].append(bullet[:100])
+
+        # Add last slide
+        if current_slide and current_slide.get('bullets'):
+            slides.append(current_slide)
+
+        # If no slides parsed, create one from content
+        if not slides:
+            # Split content into chunks
+            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+            bullets = []
+            for p in paragraphs[:6]:
+                # Take first sentence or first 100 chars
+                sentence = p.split('.')[0][:100]
+                if sentence:
+                    bullets.append(sentence)
+            if bullets:
+                slides.append({'title': 'Key Findings', 'bullets': bullets})
+
+        return {
+            'title': title.title(),
+            'subtitle': 'Research Summary',
+            'slides': slides[:12]  # Max 12 slides
+        }
 
     async def _do_telegram(self, content: str) -> bool:
         """Send via Telegram."""

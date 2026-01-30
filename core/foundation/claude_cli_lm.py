@@ -12,11 +12,21 @@ import subprocess
 import json
 import os
 import logging
+from datetime import datetime
 import dspy
 from dspy import BaseLM
 from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
+
+
+def get_current_context() -> str:
+    """
+    Get current date/time context for LLM.
+    This ensures the LLM knows the actual current date.
+    """
+    now = datetime.now()
+    return f"Current date: {now.strftime('%Y-%m-%d')} ({now.strftime('%A, %B %d, %Y')}). Current time: {now.strftime('%H:%M:%S')}."
 
 
 class ClaudeCLILM(BaseLM):
@@ -163,6 +173,9 @@ class ClaudeCLILM(BaseLM):
             "--print",
             "--output-format", "json",  # CLI envelope for reliable result extraction
         ]
+
+        # Note: Date context is now injected centrally via ContextAwareLM wrapper
+        # in unified_lm_provider.py - no need to add it here
 
         # Pass DSPy's system message (field descriptions, format instructions)
         # via --system-prompt so the LLM knows about [[ ## ]] output format

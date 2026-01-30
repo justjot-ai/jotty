@@ -10,12 +10,93 @@ Consolidates ALL providers behind DSPy LM abstraction:
 - API providers (Anthropic, OpenAI, Google, Groq)
 
 All providers accessible through single DSPy LM interface.
+Automatically injects current date/time context to all LLM calls.
 """
 import os
+from datetime import datetime
 import dspy
 from dspy.clients.base_lm import BaseLM
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
+
+
+def get_current_context() -> str:
+    """Get current date/time context for LLM."""
+    now = datetime.now()
+    return (
+        f"Current date: {now.strftime('%Y-%m-%d')} ({now.strftime('%A, %B %d, %Y')}). "
+        f"Current time: {now.strftime('%H:%M:%S')}."
+    )
+
+
+class ContextAwareLM(BaseLM):
+    """
+    Wrapper LM that injects current date/time context to all calls.
+
+    This ensures ALL LLM providers know the actual current date,
+    preventing issues where the LLM thinks it's in its training cutoff year.
+    """
+
+    def __init__(self, wrapped_lm: BaseLM, **kwargs):
+        """
+        Wrap an existing LM with context injection.
+
+        Args:
+            wrapped_lm: The underlying LM to wrap
+        """
+        # Initialize with the wrapped LM's model name
+        model_name = getattr(wrapped_lm, 'model', 'unknown')
+        super().__init__(model=model_name, **kwargs)
+        self._wrapped = wrapped_lm
+        # Copy attributes from wrapped LM
+        self.provider = getattr(wrapped_lm, 'provider', 'unknown')
+        self.history = getattr(wrapped_lm, 'history', [])
+
+    def _inject_context(self, prompt: str = None, messages: List[Dict] = None):
+        """Inject current date context into prompt or messages."""
+        context = f"[System Context: {get_current_context()}]"
+
+        if prompt:
+            return f"{context}\n\n{prompt}", messages
+
+        if messages:
+            # Prepend context to first user message or add as system message
+            new_messages = list(messages)
+
+            # Check if there's already a system message
+            has_system = any(m.get('role') == 'system' for m in new_messages if isinstance(m, dict))
+
+            if has_system:
+                # Prepend context to existing system message
+                for i, msg in enumerate(new_messages):
+                    if isinstance(msg, dict) and msg.get('role') == 'system':
+                        new_messages[i] = {
+                            **msg,
+                            'content': f"{context}\n\n{msg.get('content', '')}"
+                        }
+                        break
+            else:
+                # Add system message with context at the beginning
+                new_messages.insert(0, {'role': 'system', 'content': context})
+
+            return prompt, new_messages
+
+        return prompt, messages
+
+    def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs):
+        """Call the wrapped LM with injected context."""
+        prompt, messages = self._inject_context(prompt, messages)
+        return self._wrapped(prompt=prompt, messages=messages, **kwargs)
+
+    def inspect_history(self, n: int = 1):
+        """Delegate to wrapped LM."""
+        if hasattr(self._wrapped, 'inspect_history'):
+            return self._wrapped.inspect_history(n)
+        return {'history': self.history[-n:] if self.history else []}
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to wrapped LM."""
+        return getattr(self._wrapped, name)
 
 
 class UnifiedLMProvider:
@@ -28,11 +109,12 @@ class UnifiedLMProvider:
     def create_lm(
         provider: str,
         model: Optional[str] = None,
+        inject_context: bool = True,
         **kwargs
     ) -> BaseLM:
         """
         Create DSPy LM instance for any provider.
-        
+
         Args:
             provider: Provider name:
                 - 'opencode': OpenCode (free GLM model)
@@ -44,45 +126,50 @@ class UnifiedLMProvider:
                 - 'claude-cli': Claude CLI
                 - 'cursor-cli': Cursor CLI
             model: Model name (optional, provider-specific defaults)
+            inject_context: Whether to inject current date/time context (default True)
             **kwargs: Additional provider-specific arguments
-        
+
         Returns:
-            DSPy LM instance
+            DSPy LM instance (wrapped with ContextAwareLM if inject_context=True)
         """
         provider = provider.lower()
-        
+
         # Priority: Use direct DSPy LM for API providers (faster, more reliable)
         # CLI providers still use AISDKProviderLM or direct CLI LM
         if provider in ('anthropic', 'openai', 'google', 'groq', 'openrouter'):
             # Use DSPy's native API support (faster than CLI, more reliable)
-            return UnifiedLMProvider._create_direct_lm(provider, model, **kwargs)
+            lm = UnifiedLMProvider._create_direct_lm(provider, model, **kwargs)
+            return ContextAwareLM(lm) if inject_context else lm
         
         # CLI providers and OpenCode use AISDKProviderLM
         try:
             from ..integration.ai_sdk_provider_adapter import AISDKProviderLM
-            
+
             # Default models per provider
             default_models = {
                 'opencode': 'default',  # OpenCode free model (default)
                 'claude-cli': 'sonnet',
                 'cursor-cli': 'sonnet',
             }
-            
+
             model = model or default_models.get(provider, 'sonnet')
-            
-            return AISDKProviderLM(
+
+            lm = AISDKProviderLM(
                 provider=provider,
                 model=model,
                 **kwargs
             )
+            return ContextAwareLM(lm) if inject_context else lm
         except ImportError:
             # Fallback: Try direct CLI LM for CLI providers
             if provider == 'claude-cli':
                 from .claude_cli_lm import ClaudeCLILM
-                return ClaudeCLILM(model=model or 'sonnet', **kwargs)
+                lm = ClaudeCLILM(model=model or 'sonnet', **kwargs)
+                return ContextAwareLM(lm) if inject_context else lm
             elif provider == 'cursor-cli':
                 from .cursor_cli_lm import CursorCLILM
-                return CursorCLILM(model=model or 'composer-1', **kwargs)
+                lm = CursorCLILM(model=model or 'composer-1', **kwargs)
+                return ContextAwareLM(lm) if inject_context else lm
             raise ValueError(f"Provider '{provider}' not available")
     
     @staticmethod
@@ -209,8 +296,11 @@ class UnifiedLMProvider:
         try:
             from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
             if is_claude_available():
-                provider = JottyClaudeProvider(auto_start=True)
-                lm = provider.configure_dspy()
+                jotty_provider = JottyClaudeProvider(auto_start=True)
+                raw_lm = jotty_provider.configure_dspy()
+                # Wrap with context injection
+                lm = ContextAwareLM(raw_lm)
+                dspy.configure(lm=lm)
                 print("✅ DSPy configured with JottyClaudeProvider", file=__import__('sys').stderr)
                 return lm
         except Exception as e:
@@ -222,7 +312,9 @@ class UnifiedLMProvider:
         if claude_path:
             try:
                 from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-                lm = DirectClaudeCLI(model="sonnet")
+                raw_lm = DirectClaudeCLI(model="sonnet")
+                # Wrap with context injection
+                lm = ContextAwareLM(raw_lm)
                 dspy.configure(lm=lm)
                 print("✅ DSPy configured with DirectClaudeCLI", file=__import__('sys').stderr)
                 return lm
@@ -233,7 +325,8 @@ class UnifiedLMProvider:
         if os.path.exists('/usr/local/bin/cursor-agent'):
             try:
                 from .cursor_cli_lm import CursorCLILM
-                lm = CursorCLILM(model="composer-1")
+                raw_lm = CursorCLILM(model="composer-1")
+                lm = ContextAwareLM(raw_lm)
                 dspy.configure(lm=lm)
                 print("✅ DSPy configured with Cursor CLI (direct, composer-1)", file=__import__('sys').stderr)
                 return lm
@@ -243,7 +336,8 @@ class UnifiedLMProvider:
         # 3. OpenCode (GLM via remote execution for ARM64)
         try:
             from .opencode_lm import OpenCodeLM
-            lm = OpenCodeLM(model="glm-4")  # Free GLM model
+            raw_lm = OpenCodeLM(model="glm-4")  # Free GLM model
+            lm = ContextAwareLM(raw_lm)
             dspy.configure(lm=lm)
             print("✅ DSPy configured with OpenCode GLM (remote)", file=__import__('sys').stderr)
             return lm

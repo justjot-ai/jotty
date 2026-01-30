@@ -9,10 +9,20 @@ via subprocess, bypassing the HTTP API (no authentication needed).
 import subprocess
 import json
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import dspy
 
 logger = logging.getLogger(__name__)
+
+
+def get_current_context() -> str:
+    """
+    Get current date/time context for LLM.
+    This ensures the LLM knows the actual current date.
+    """
+    now = datetime.now()
+    return f"Current date: {now.strftime('%Y-%m-%d')} ({now.strftime('%A, %B %d, %Y')}). Current time: {now.strftime('%H:%M:%S %Z')}."
 
 
 class DirectClaudeCLI(dspy.BaseLM):
@@ -54,6 +64,9 @@ class DirectClaudeCLI(dspy.BaseLM):
             ])
         else:
             raise ValueError("Either prompt or messages must be provided")
+
+        # Note: Date context is now injected centrally via ContextAwareLM wrapper
+        # in unified_lm_provider.py - no need to add it here
 
         logger.info(f"Calling Claude CLI with model: {self.model}")
         logger.debug(f"Input: {input_text[:200]}...")

@@ -2,14 +2,12 @@
 Research Command
 ================
 
-/research - Research topics from Reddit + X (last 30 days)
-Wrapper for the last30days Claude Code skill.
+/research - Intelligent research with LLM synthesis.
+Uses LeanExecutor for smart analysis and output formatting.
 """
 
 import logging
-import subprocess
 import asyncio
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .base import BaseCommand, CommandResult, ParsedArgs
@@ -19,194 +17,162 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Path to last30days skill
-LAST30DAYS_SCRIPT = Path.home() / ".claude" / "skills" / "last30days" / "scripts" / "last30days.py"
-
 
 class ResearchCommand(BaseCommand):
     """
-    /research - Research a topic from Reddit + X (last 30 days).
+    /research - Intelligent research with LLM synthesis.
 
-    Uses the last30days skill to gather recent discussions.
+    Uses LeanExecutor to:
+    1. Search for recent information
+    2. Synthesize findings with LLM
+    3. Output in requested format (text, pdf, docx, slides, telegram)
     """
 
     name = "research"
-    aliases = ["last30days", "l30d", "trending"]
-    description = "Research topic from Reddit + X (last 30 days)"
-    usage = "/research <topic> [--quick|--deep] [--sources reddit|x|both]"
+    aliases = ["r", "search"]
+    description = "Research topic with LLM synthesis (supports --pdf, --docx, --slides, --telegram output)"
+    usage = "/research <topic> [--pdf|--docx|--slides|--telegram|--deep]"
     category = "research"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
-        """Execute research command."""
+        """Execute research command using LeanExecutor."""
 
         if not args.positional:
             cli.renderer.error("Topic required")
-            cli.renderer.info("Usage: /research <topic> [--quick|--deep]")
+            cli.renderer.info("Usage: /research <topic> [options]")
+            cli.renderer.info("")
             cli.renderer.info("Examples:")
             cli.renderer.info("  /research paytm")
-            cli.renderer.info("  /research 'AI agents' --deep")
-            cli.renderer.info("  /research bitcoin --sources reddit")
+            cli.renderer.info("  /research paytm --pdf")
+            cli.renderer.info("  /research paytm --slides")
+            cli.renderer.info("  /research paytm --slides --pdf")
+            cli.renderer.info("  /research 'AI agents' --deep --docx")
+            cli.renderer.info("  /research bitcoin and send to telegram")
+            cli.renderer.info("")
+            cli.renderer.info("Options:")
+            cli.renderer.info("  --pdf        Save as PDF")
+            cli.renderer.info("  --docx       Save as Word document")
+            cli.renderer.info("  --slides     Generate PowerPoint presentation")
+            cli.renderer.info("  --slides --pdf  Generate slides as PDF")
+            cli.renderer.info("  --telegram   Send to Telegram")
+            cli.renderer.info("  --deep       More comprehensive research")
             return CommandResult.fail("Topic required")
 
+        # Build the natural language task
         topic = " ".join(args.positional)
 
-        # Check if skill exists
-        if not LAST30DAYS_SCRIPT.exists():
-            cli.renderer.error("last30days skill not found")
-            cli.renderer.info(f"Expected at: {LAST30DAYS_SCRIPT}")
-            cli.renderer.info("Install: git clone <last30days-repo> ~/.claude/skills/last30days")
-            return CommandResult.fail("Skill not found")
+        # Determine output format from flags
+        # Handle --slides --pdf combination
+        output_format = "text"
+        is_slides = args.flags.get("slides")
+        is_pdf = args.flags.get("pdf")
 
-        # Build command
-        cmd = ["python3", str(LAST30DAYS_SCRIPT), topic]
+        if is_slides and is_pdf:
+            output_format = "slides_pdf"  # Slides exported as PDF
+        elif is_slides:
+            output_format = "slides"  # PPTX format
+        elif is_pdf:
+            output_format = "pdf"
+        elif args.flags.get("docx"):
+            output_format = "docx"
+        elif args.flags.get("telegram"):
+            output_format = "telegram"
 
-        # Add flags
-        if args.flags.get("quick"):
-            cmd.append("--quick")
-        elif args.flags.get("deep"):
-            cmd.append("--deep")
+        # Build intelligent task description
+        depth = "comprehensive and detailed" if args.flags.get("deep") else "concise"
 
-        sources = args.flags.get("sources", "auto")
-        if sources != "auto":
-            cmd.append(f"--sources={sources}")
+        task = f"Research '{topic}' - find recent news, updates, and developments. "
+        task += f"Provide a {depth} synthesis with key findings, trends, and insights. "
 
-        # Output mode
-        emit = args.flags.get("emit", "compact")
-        cmd.append(f"--emit={emit}")
+        if output_format == "slides":
+            task += "Create a PowerPoint presentation (PPTX) with the research findings."
+        elif output_format == "slides_pdf":
+            task += "Create a presentation with the research findings and export as PDF slides."
+        elif output_format == "pdf":
+            task += "Save the research report as a PDF file."
+        elif output_format == "docx":
+            task += "Save the research report as a Word document."
+        elif output_format == "telegram":
+            task += "Send the research summary to Telegram."
 
         cli.renderer.header(f"Researching: {topic}")
-        cli.renderer.info("Gathering from Reddit + X (last 30 days)...")
+        cli.renderer.info(f"Output: {output_format}")
 
         try:
-            # Run the script
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=LAST30DAYS_SCRIPT.parent
-            )
+            # Use LeanExecutor for intelligent research
+            from core.orchestration.v2.lean_executor import LeanExecutor
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=300  # 5 minute timeout
-            )
+            # Ensure LLM is configured
+            import dspy
+            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+                from core.foundation.unified_lm_provider import configure_dspy_lm
+                configure_dspy_lm()
 
-            output = stdout.decode('utf-8', errors='replace')
-            errors = stderr.decode('utf-8', errors='replace')
+            # Check if renderer supports async status (Telegram)
+            has_async_status = hasattr(cli.renderer, 'send_status_async')
 
-            if process.returncode != 0:
-                cli.renderer.error(f"Research failed: {errors}")
-                return CommandResult.fail(errors)
-
-            # Check if web search is needed and clean up output
-            if "WEBSEARCH REQUIRED" in output:
-                cli.renderer.info("Performing web search...")
-                web_results = await self._do_web_search(topic, cli)
-
-                # Clean up the output - remove the "WEBSEARCH REQUIRED" section
-                # and any references to "Claude" or external AI
-                clean_output = self._clean_research_output(output)
-
-                if web_results:
-                    output = clean_output + "\n\n## Web Search Results\n\n" + web_results
+            async def async_status_callback(stage: str, detail: str = ""):
+                """Async callback for real-time status streaming."""
+                msg = f"{stage}: {detail}" if detail else stage
+                if has_async_status:
+                    await cli.renderer.send_status_async(msg)
                 else:
-                    output = clean_output
+                    cli.renderer.status(msg)
 
-            # Display output
-            cli.renderer.newline()
-            if emit == "md":
-                cli.renderer.markdown(output)
+            def sync_status_callback(stage: str, detail: str = ""):
+                """Sync callback (for CLI)."""
+                cli.renderer.status(f"{stage}: {detail}" if detail else stage)
+
+            # Use async callback if available (Telegram), else sync (CLI)
+            if has_async_status:
+                executor = LeanExecutor(status_callback=async_status_callback)
             else:
-                print(output)
+                executor = LeanExecutor(status_callback=sync_status_callback)
 
-            # Store in history for export
-            if not hasattr(cli, '_output_history'):
-                cli._output_history = []
-            cli._output_history.append(output)
+            result = await executor.execute(task)
 
-            cli.renderer.newline()
-            cli.renderer.success("Research complete")
+            # Clear status message after completion (Telegram)
+            if has_async_status and hasattr(cli.renderer, 'clear_status_message'):
+                await cli.renderer.clear_status_message()
 
-            return CommandResult.ok(output=output)
+            if result.success:
+                # Display the synthesized content
+                cli.renderer.newline()
 
-        except asyncio.TimeoutError:
-            cli.renderer.error("Research timed out (5 minutes)")
-            return CommandResult.fail("Timeout")
+                if result.content:
+                    cli.renderer.markdown(result.content)
+
+                # Store in history for export
+                if not hasattr(cli, '_output_history'):
+                    cli._output_history = []
+                cli._output_history.append(result.content or "")
+
+                cli.renderer.newline()
+                cli.renderer.success("Research complete")
+
+                if result.output_path:
+                    cli.renderer.info(f"Saved to: {result.output_path}")
+
+                return CommandResult.ok(
+                    output=result.content,
+                    data={
+                        "topic": topic,
+                        "output_format": output_format,
+                        "output_path": result.output_path,
+                    }
+                )
+            else:
+                cli.renderer.error(f"Research failed: {result.error}")
+                return CommandResult.fail(result.error or "Unknown error")
+
         except Exception as e:
+            logger.error(f"Research failed: {e}", exc_info=True)
             cli.renderer.error(f"Research failed: {e}")
             return CommandResult.fail(str(e))
 
-    def _clean_research_output(self, output: str) -> str:
-        """Clean research output - remove AI references and unnecessary sections."""
-        import re
-
-        # Remove the WEBSEARCH REQUIRED section entirely
-        output = re.sub(
-            r'={50,}.*?### WEBSEARCH REQUIRED ###.*?={50,}',
-            '',
-            output,
-            flags=re.DOTALL
-        )
-
-        # Remove references to Claude/GPT/AI assistants
-        replacements = [
-            (r'Claude:?\s*', ''),
-            (r'GPT:?\s*', ''),
-            (r'Use your WebSearch tool.*?\n', ''),
-            (r'After searching, synthesize.*?\n', ''),
-            (r'WebSearch items should rank.*?\n', ''),
-        ]
-        for pattern, replacement in replacements:
-            output = re.sub(pattern, replacement, output, flags=re.IGNORECASE)
-
-        # Clean up extra whitespace
-        output = re.sub(r'\n{3,}', '\n\n', output)
-
-        return output.strip()
-
-    async def _do_web_search(self, topic: str, cli: "JottyCLI") -> str:
-        """Perform web search using Jotty's web-search skill."""
-        try:
-            registry = cli.get_skills_registry()
-            skill = registry.get_skill('web-search')
-
-            if not skill:
-                cli.renderer.warning("web-search skill not available")
-                return ""
-
-            search_tool = skill.tools.get('search_web_tool')
-            if not search_tool:
-                return ""
-
-            # Search for recent news/articles
-            queries = [
-                f"{topic} news 2025",
-                f"{topic} latest updates",
-            ]
-
-            results_text = []
-            for query in queries:
-                cli.renderer.status(f"Searching: {query}")
-                result = search_tool({'query': query, 'max_results': 5})
-
-                if result.get('success'):
-                    for r in result.get('results', [])[:5]:
-                        title = r.get('title', '')
-                        snippet = r.get('snippet', '')
-                        url = r.get('url', '')
-                        results_text.append(f"**{title}**\n{snippet}\n[{url}]\n")
-
-            if results_text:
-                return "\n".join(results_text)
-            return ""
-
-        except Exception as e:
-            logger.warning(f"Web search failed: {e}")
-            return ""
-
     def get_completions(self, partial: str) -> list:
         """Get flag completions."""
-        flags = ["--quick", "--deep", "--sources", "--emit"]
+        flags = ["--pdf", "--docx", "--slides", "--telegram", "--deep"]
         if partial.startswith("-"):
             return [f for f in flags if f.startswith(partial)]
         return []

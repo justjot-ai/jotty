@@ -54,6 +54,12 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     }
     theme = themes.get(template, themes['dark'])
 
+    import textwrap
+
+    def wrap_pdf_text(text, max_width_chars):
+        """Wrap text for PDF slides."""
+        return textwrap.wrap(text, width=max_width_chars)
+
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         safe_title = "".join(c if c.isalnum() or c in ' -_' else '' for c in title)[:30]
@@ -70,13 +76,23 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Title slide
         draw_background()
         c.setFillColor(HexColor(theme['title']))
-        c.setFont("Helvetica-Bold", 48)
-        c.drawCentredString(page_width / 2, page_height / 2 + 30, title)
+
+        # Wrap title if too long
+        title_lines = wrap_pdf_text(title, 40)
+        title_font_size = 42 if len(title_lines) > 1 else 48
+        c.setFont("Helvetica-Bold", title_font_size)
+
+        y_start = page_height / 2 + (len(title_lines) - 1) * 30
+        for i, line in enumerate(title_lines[:3]):
+            c.drawCentredString(page_width / 2, y_start - i * 55, line)
 
         if subtitle:
             c.setFillColor(HexColor(theme['text']))
-            c.setFont("Helvetica", 24)
-            c.drawCentredString(page_width / 2, page_height / 2 - 30, subtitle)
+            c.setFont("Helvetica", 22)
+            subtitle_lines = wrap_pdf_text(subtitle, 60)
+            sub_y = page_height / 2 - 80
+            for i, line in enumerate(subtitle_lines[:2]):
+                c.drawCentredString(page_width / 2, sub_y - i * 30, line)
 
         c.showPage()
 
@@ -87,24 +103,55 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             slide_title = slide_data.get('title', 'Untitled')
             bullets = slide_data.get('bullets', [])
 
-            # Slide title
+            # Slide title - with wrapping
             c.setFillColor(HexColor(theme['accent']))
-            c.setFont("Helvetica-Bold", 36)
-            c.drawString(0.5 * inch, page_height - 0.8 * inch, slide_title)
+            title_lines = wrap_pdf_text(slide_title, 50)
+            title_font = 32 if len(title_lines) > 1 else 36
+            c.setFont("Helvetica-Bold", title_font)
+
+            title_y = page_height - 0.7 * inch
+            for i, line in enumerate(title_lines[:2]):
+                c.drawString(0.5 * inch, title_y - i * 40, line)
 
             # Accent line
+            line_y = title_y - len(title_lines[:2]) * 40 - 10
             c.setStrokeColor(HexColor(theme['accent']))
             c.setLineWidth(3)
-            c.line(0.5 * inch, page_height - 1.0 * inch, 3.5 * inch, page_height - 1.0 * inch)
+            c.line(0.5 * inch, line_y, 3.5 * inch, line_y)
 
-            # Bullets
+            # Bullets - with dynamic sizing and wrapping
+            num_bullets = len(bullets)
+            if num_bullets <= 4:
+                font_size = 22
+                line_spacing = 0.55 * inch
+                max_chars = 70
+            elif num_bullets <= 6:
+                font_size = 20
+                line_spacing = 0.48 * inch
+                max_chars = 75
+            else:
+                font_size = 18
+                line_spacing = 0.42 * inch
+                max_chars = 80
+
             c.setFillColor(HexColor(theme['text']))
-            c.setFont("Helvetica", 24)
-            y_pos = page_height - 1.6 * inch
+            c.setFont("Helvetica", font_size)
+            y_pos = line_y - 0.5 * inch
 
-            for bullet in bullets[:6]:  # Max 6 bullets per slide
-                c.drawString(0.7 * inch, y_pos, f"•  {bullet}")
-                y_pos -= 0.6 * inch
+            for bullet in bullets[:8]:  # Max 8 bullets
+                # Wrap long bullets
+                bullet_text = bullet if len(bullet) <= max_chars else bullet[:max_chars-3] + "..."
+                bullet_lines = wrap_pdf_text(bullet_text, max_chars)
+
+                for j, bline in enumerate(bullet_lines[:2]):  # Max 2 lines per bullet
+                    prefix = "•  " if j == 0 else "   "
+                    c.drawString(0.7 * inch, y_pos, f"{prefix}{bline}")
+                    y_pos -= font_size + 4
+
+                y_pos -= 8  # Extra space between bullets
+
+                if y_pos < 0.8 * inch:  # Stop if running out of space
+                    break
 
             c.showPage()
 
@@ -193,7 +240,30 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     theme = themes.get(template, themes['dark'])
 
+    def wrap_text(text, max_chars=80):
+        """Wrap long text to multiple lines."""
+        if len(text) <= max_chars:
+            return text
+        words = text.split()
+        lines = []
+        current_line = []
+        current_len = 0
+        for word in words:
+            if current_len + len(word) + 1 <= max_chars:
+                current_line.append(word)
+                current_len += len(word) + 1
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+                current_len = len(word)
+        if current_line:
+            lines.append(' '.join(current_line))
+        return '\n'.join(lines)
+
     try:
+        from pptx.enum.text import MSO_AUTO_SIZE
+
         # Create presentation
         prs = Presentation()
         prs.slide_width = Inches(13.333)  # 16:9 aspect ratio
@@ -211,23 +281,25 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         background.fill.fore_color.rgb = theme['bg']
         background.line.fill.background()
 
-        # Title text
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.5))
+        # Title text - with word wrap
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.2), Inches(12.333), Inches(2))
         title_frame = title_box.text_frame
+        title_frame.word_wrap = True
         title_para = title_frame.paragraphs[0]
-        title_para.text = title
-        title_para.font.size = Pt(54)
+        title_para.text = wrap_text(title, 50)
+        title_para.font.size = Pt(48)
         title_para.font.bold = True
         title_para.font.color.rgb = theme['title_color']
         title_para.alignment = PP_ALIGN.CENTER
 
         # Subtitle
         if subtitle:
-            sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(0.8))
+            sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(1))
             sub_frame = sub_box.text_frame
+            sub_frame.word_wrap = True
             sub_para = sub_frame.paragraphs[0]
-            sub_para.text = subtitle
-            sub_para.font.size = Pt(28)
+            sub_para.text = wrap_text(subtitle, 70)
+            sub_para.font.size = Pt(24)
             sub_para.font.color.rgb = theme['text_color']
             sub_para.alignment = PP_ALIGN.CENTER
 
@@ -246,39 +318,58 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             background.fill.fore_color.rgb = theme['bg']
             background.line.fill.background()
 
-            # Slide title
-            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(12.333), Inches(1))
+            # Slide title - with word wrap
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(1.2))
             title_frame = title_box.text_frame
+            title_frame.word_wrap = True
             title_para = title_frame.paragraphs[0]
-            title_para.text = slide_title
-            title_para.font.size = Pt(40)
+            title_para.text = wrap_text(slide_title, 60)
+            title_para.font.size = Pt(32)
             title_para.font.bold = True
             title_para.font.color.rgb = theme['accent']
 
             # Accent line under title
             line = slide.shapes.add_shape(
-                1, Inches(0.5), Inches(1.3), Inches(3), Inches(0.05)
+                1, Inches(0.5), Inches(1.4), Inches(3), Inches(0.04)
             )
             line.fill.solid()
             line.fill.fore_color.rgb = theme['accent']
             line.line.fill.background()
 
-            # Bullets
+            # Bullets - with proper sizing based on count
             if bullets:
-                content_box = slide.shapes.add_textbox(Inches(0.7), Inches(1.6), Inches(11.5), Inches(5.5))
+                # Adjust font size based on number of bullets and content length
+                max_bullet_len = max(len(b) for b in bullets) if bullets else 0
+                num_bullets = len(bullets)
+
+                # Dynamic font sizing
+                if num_bullets <= 3 and max_bullet_len < 80:
+                    font_size = 24
+                    spacing = 20
+                elif num_bullets <= 5 and max_bullet_len < 100:
+                    font_size = 20
+                    spacing = 16
+                else:
+                    font_size = 18
+                    spacing = 12
+
+                content_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.7), Inches(12), Inches(5.5))
                 text_frame = content_box.text_frame
                 text_frame.word_wrap = True
 
-                for i, bullet in enumerate(bullets):
+                for i, bullet in enumerate(bullets[:8]):  # Max 8 bullets per slide
                     if i == 0:
                         para = text_frame.paragraphs[0]
                     else:
                         para = text_frame.add_paragraph()
 
-                    para.text = f"•  {bullet}"
-                    para.font.size = Pt(28)
+                    # Truncate very long bullets
+                    bullet_text = bullet if len(bullet) <= 150 else bullet[:147] + "..."
+                    para.text = f"•  {bullet_text}"
+                    para.font.size = Pt(font_size)
                     para.font.color.rgb = theme['text_color']
-                    para.space_after = Pt(18)
+                    para.space_after = Pt(spacing)
+                    para.line_spacing = 1.2
 
         # Save
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -366,10 +457,13 @@ Return ONLY a JSON object (no markdown, no explanation) with this exact structur
     ]
 }}
 
-Requirements:
+STRICT Requirements:
 - Create exactly {n_slides} content slides
+- Slide titles: Maximum 6 words, clear and concise
 - Each slide: 3-5 bullet points
-- Each bullet: 8-15 words maximum
+- CRITICAL: Each bullet MUST be 8-12 words maximum (shorter is better)
+- Bullets should be punchy key points, not sentences
+- No bullet should exceed 80 characters
 - Make it informative and professional
 - Cover the topic comprehensively
 

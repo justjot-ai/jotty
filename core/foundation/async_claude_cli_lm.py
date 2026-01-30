@@ -17,10 +17,20 @@ import asyncio
 import json
 import logging
 import shutil
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import dspy
 
 logger = logging.getLogger(__name__)
+
+
+def get_current_context() -> str:
+    """
+    Get current date/time context for LLM.
+    This ensures the LLM knows the actual current date.
+    """
+    now = datetime.now()
+    return f"Current date: {now.strftime('%Y-%m-%d')} ({now.strftime('%A, %B %d, %Y')}). Current time: {now.strftime('%H:%M:%S')}."
 
 
 class AsyncClaudeCLILM(dspy.BaseLM):
@@ -106,6 +116,9 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             input_text = "\n\n".join(parts)
         else:
             raise ValueError("Either prompt or messages must be provided")
+
+        # Note: Date context is now injected centrally via ContextAwareLM wrapper
+        # in unified_lm_provider.py - no need to add it here
 
         logger.debug(f"AsyncClaudeCLI: Calling with model {self.cli_model}")
         logger.debug(f"AsyncClaudeCLI: Input length: {len(input_text)} chars")

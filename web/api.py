@@ -27,12 +27,22 @@ class JottyAPI:
     Jotty API handler.
 
     Manages request processing and session integration.
+    Uses shared JottyCLI instance for command execution to ensure
+    all interfaces (CLI, Telegram, Web) have identical behavior.
     """
 
     def __init__(self):
         self._executor = None
         self._registry = None
         self._lm_configured = False
+        self._cli = None  # Shared CLI instance for commands
+
+    def _get_cli(self):
+        """Get shared JottyCLI instance for command execution."""
+        if self._cli is None:
+            from ..cli.app import JottyCLI
+            self._cli = JottyCLI(no_color=True)  # No color for web output
+        return self._cli
 
     def _ensure_lm_configured(self):
         """Ensure DSPy LM is configured (same as CLI)."""
@@ -135,9 +145,28 @@ class JottyAPI:
             stream_callback=stream_callback
         )
 
+        # Build task with conversation context
+        history = session.get_history()
+        if len(history) > 1:
+            # Include recent conversation for context (last 5 exchanges max)
+            context_messages = history[-10:-1]  # Exclude current message
+            if context_messages:
+                context_str = "\n".join([
+                    f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content', '')[:500]}"
+                    for m in context_messages
+                ])
+                task_with_context = f"""Previous conversation:
+{context_str}
+
+Current request: {message}"""
+            else:
+                task_with_context = message
+        else:
+            task_with_context = message
+
         try:
-            # Execute
-            result = await executor.execute(message)
+            # Execute with context
+            result = await executor.execute(task_with_context)
 
             response_id = str(uuid.uuid4())[:12]
 
@@ -176,6 +205,123 @@ class JottyAPI:
                 "success": False,
                 "error": str(e),
             }
+
+    def get_commands(self) -> List[Dict[str, Any]]:
+        """Get available CLI commands."""
+        from ..cli.commands import CommandRegistry
+        from ..cli.commands import register_all_commands
+
+        registry = CommandRegistry()
+        register_all_commands(registry)
+
+        commands = []
+        for name, cmd in registry._commands.items():
+            commands.append({
+                "name": name,
+                "description": getattr(cmd, "description", ""),
+                "usage": getattr(cmd, "usage", f"/{name}"),
+                "aliases": getattr(cmd, "aliases", []),
+            })
+        return commands
+
+    async def execute_command(
+        self,
+        command: str,
+        args: str = "",
+        session_id: str = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a CLI command using the shared JottyCLI instance.
+
+        This ensures all interfaces (CLI, Telegram, Web) have identical
+        command behavior - they all use the same JottyCLI core.
+        """
+        import io
+        import sys
+        from contextlib import redirect_stdout, redirect_stderr
+
+        try:
+            # Get shared CLI instance
+            cli = self._get_cli()
+
+            # Capture stdout/stderr for web display
+            output_buffer = io.StringIO()
+
+            # Execute command through CLI's command handler
+            cmd_input = f"/{command} {args}".strip()
+
+            # Temporarily replace renderer output capture
+            original_print = cli.renderer.print
+            captured_output = []
+
+            def capture_print(text, *args, **kwargs):
+                # Strip rich markup for web
+                import re
+                clean_text = re.sub(r'\[/?[^\]]+\]', '', str(text))
+                captured_output.append(clean_text)
+
+            # Monkey-patch renderer methods to capture output
+            cli.renderer.print = capture_print
+            cli.renderer.info = lambda t: captured_output.append(f"ℹ️ {t}")
+            cli.renderer.success = lambda t: captured_output.append(f"✅ {t}")
+            cli.renderer.warning = lambda t: captured_output.append(f"⚠️ {t}")
+            cli.renderer.error = lambda t: captured_output.append(f"❌ {t}")
+
+            # Capture panel output
+            original_panel = getattr(cli.renderer, 'panel', None)
+            cli.renderer.panel = lambda content, **kwargs: captured_output.append(f"📋 {kwargs.get('title', 'Panel')}:\n{content}")
+
+            # Capture tree output
+            original_tree = getattr(cli.renderer, 'tree', None)
+            def capture_tree(data, **kwargs):
+                title = kwargs.get('title', 'Data')
+                if isinstance(data, dict):
+                    lines = [f"🌳 {title}:"]
+                    for k, v in data.items():
+                        lines.append(f"  • {k}: {v}")
+                    captured_output.append("\n".join(lines))
+                else:
+                    captured_output.append(f"🌳 {title}: {data}")
+            cli.renderer.tree = capture_tree
+
+            # Capture table output - patch the tables component
+            original_print_table = cli.renderer.tables.print_table
+            def capture_table(table):
+                # Use Rich Console to render to string, then strip ANSI
+                try:
+                    from rich.console import Console
+                    from io import StringIO
+                    string_io = StringIO()
+                    console = Console(file=string_io, force_terminal=False, no_color=True)
+                    console.print(table)
+                    table_text = string_io.getvalue()
+                    captured_output.append(table_text)
+                except Exception:
+                    # Fallback: just convert to string
+                    captured_output.append(str(table))
+            cli.renderer.tables.print_table = capture_table
+
+            try:
+                # Execute via CLI's command handler
+                result = await cli._handle_command(cmd_input)
+
+                return {
+                    "success": True,
+                    "output": "\n".join(captured_output) if captured_output else "Command executed",
+                    "data": None,
+                }
+            finally:
+                # Restore original methods
+                cli.renderer.print = original_print
+                cli.renderer.tables.print_table = original_print_table
+                if original_panel:
+                    cli.renderer.panel = original_panel
+                if original_tree:
+                    cli.renderer.tree = original_tree
+
+        except Exception as e:
+            logger.error(f"Command execution error: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
 
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions."""
@@ -291,6 +437,217 @@ def create_app() -> "FastAPI":
         """Health check."""
         return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
+    # CLI Commands endpoints
+    @app.get("/api/commands")
+    async def list_commands():
+        """List available CLI commands."""
+        commands = api.get_commands()
+        return {"commands": commands}
+
+    class CommandRequest(BaseModel):
+        command: str
+        args: str = ""
+        session_id: Optional[str] = None
+
+    @app.post("/api/commands/execute")
+    async def execute_command(request: CommandRequest):
+        """Execute a CLI command."""
+        result = await api.execute_command(
+            command=request.command,
+            args=request.args,
+            session_id=request.session_id
+        )
+        return result
+
+    @app.get("/api/commands/stream")
+    async def stream_command(command: str, args: str = "", session_id: Optional[str] = None):
+        """
+        SSE streaming command execution endpoint.
+
+        Streams command output in real-time for long-running commands like /ml.
+        """
+        from starlette.responses import StreamingResponse
+        import json
+        import queue
+        import threading
+        import sys
+        import io
+        import re
+
+        async def event_generator():
+            # Thread-safe queue for output
+            output_queue = queue.Queue()
+            result_holder = {"done": False, "success": True, "error": None}
+
+            # Padding to flush proxy buffers
+            padding = " " * 16384  # 16KB padding to flush proxy buffers
+
+            # Send initial event
+            yield f"data: {json.dumps({'type': 'started', 'command': command})}\n\n{padding}"
+
+            def clean_text(text):
+                """Remove ANSI codes and Rich markup."""
+                clean = re.sub(r'\x1b\[[0-9;]*m', '', str(text))
+                clean = re.sub(r'\[/?[^\]]*\]', '', clean)
+                return clean.strip()
+
+            def add_output(text):
+                """Add text to output queue."""
+                cleaned = clean_text(text)
+                if cleaned:
+                    output_queue.put(cleaned)
+
+            # Custom stdout wrapper
+            class QueueWriter:
+                def __init__(self, q, original):
+                    self.queue = q
+                    self.original = original
+                    self.buffer = ""
+
+                def write(self, text):
+                    if text:
+                        # Also write to original for logging
+                        self.original.write(text)
+                        # Process for queue
+                        if '\n' in text or '\r' in text:
+                            parts = re.split(r'[\n\r]+', self.buffer + text)
+                            self.buffer = ""
+                            for part in parts:
+                                cleaned = clean_text(part)
+                                if cleaned:
+                                    self.queue.put(cleaned)
+                        else:
+                            self.buffer += text
+                    return len(text) if text else 0
+
+                def flush(self):
+                    self.original.flush()
+                    if self.buffer:
+                        cleaned = clean_text(self.buffer)
+                        if cleaned:
+                            self.queue.put(cleaned)
+                        self.buffer = ""
+
+                def isatty(self):
+                    return False
+
+            try:
+                # Get CLI instance (create fresh one for thread safety)
+                from ..cli.app import JottyCLI
+                cli = JottyCLI(no_color=True)
+
+                def capture_print(text, *a, **kw):
+                    add_output(text)
+
+                # Monkey-patch renderer methods
+                original_print = cli.renderer.print
+                cli.renderer.print = capture_print
+                cli.renderer.info = lambda t: add_output(f"ℹ️ {t}")
+                cli.renderer.success = lambda t: add_output(f"✅ {t}")
+                cli.renderer.warning = lambda t: add_output(f"⚠️ {t}")
+                cli.renderer.error = lambda t: add_output(f"❌ {t}")
+
+                # Capture panel output
+                original_panel = getattr(cli.renderer, 'panel', None)
+                cli.renderer.panel = lambda content, **kwargs: add_output(f"📋 {kwargs.get('title', 'Panel')}:\n{content}")
+
+                # Capture tree output
+                original_tree = getattr(cli.renderer, 'tree', None)
+                def capture_tree(data, **kwargs):
+                    title = kwargs.get('title', 'Data')
+                    if isinstance(data, dict):
+                        lines = [f"🌳 {title}:"]
+                        for k, v in data.items():
+                            lines.append(f"  • {k}: {v}")
+                        add_output("\n".join(lines))
+                    else:
+                        add_output(f"🌳 {title}: {data}")
+                cli.renderer.tree = capture_tree
+
+                # Capture table output
+                original_print_table = cli.renderer.tables.print_table
+                def capture_table(table):
+                    try:
+                        from rich.console import Console
+                        string_io = io.StringIO()
+                        console = Console(file=string_io, force_terminal=False, no_color=True)
+                        console.print(table)
+                        add_output(string_io.getvalue())
+                    except Exception:
+                        add_output(str(table))
+                cli.renderer.tables.print_table = capture_table
+
+                # Wrap stdout to capture print statements
+                original_stdout = sys.stdout
+                queue_writer = QueueWriter(output_queue, original_stdout)
+
+                # Run command in thread
+                import concurrent.futures
+
+                def run_command_sync():
+                    """Run command synchronously in thread."""
+                    # Redirect stdout in this thread
+                    sys.stdout = queue_writer
+                    try:
+                        cmd_input = f"/{command} {args}".strip()
+                        # Create new event loop for thread
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(cli._handle_command(cmd_input))
+                        finally:
+                            loop.close()
+                    except Exception as e:
+                        result_holder["success"] = False
+                        result_holder["error"] = str(e)
+                        add_output(f"❌ Error: {e}")
+                    finally:
+                        sys.stdout = original_stdout
+                        queue_writer.flush()
+                        result_holder["done"] = True
+
+                # Start in thread pool
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                executor.submit(run_command_sync)
+
+                # Stream output while command runs
+                while not result_holder["done"]:
+                    # Drain queue and send events
+                    while True:
+                        try:
+                            line = output_queue.get_nowait()
+                            yield f"data: {json.dumps({'type': 'output', 'line': line})}\n\n{padding}"
+                        except queue.Empty:
+                            break
+
+                    await asyncio.sleep(0.15)
+                    yield f": keepalive\n\n{padding}"
+
+                # Drain remaining items from queue
+                while True:
+                    try:
+                        line = output_queue.get_nowait()
+                        yield f"data: {json.dumps({'type': 'output', 'line': line})}\n\n"
+                    except queue.Empty:
+                        break
+
+                # Send completion
+                yield f"data: {json.dumps({'type': 'complete', 'success': result_holder['success'], 'error': result_holder['error']})}\n\n"
+
+            except Exception as e:
+                logger.error(f"Stream command error: {e}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
     @app.post("/api/chat", response_model=ChatResponse)
     async def chat(request: ChatRequest):
         """
@@ -316,74 +673,86 @@ def create_app() -> "FastAPI":
         """
         from starlette.responses import StreamingResponse
         import json
+        import queue
+        import threading
+        import concurrent.futures
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
         async def event_generator():
-            # Shared state for streaming
-            chunks = []
-            statuses = []
+            # Thread-safe queue for chunks and statuses
+            event_queue = queue.Queue()
             result_holder = {"result": None, "done": False}
 
             def sync_stream_cb(chunk: str):
-                """Synchronous callback that collects chunks."""
-                chunks.append(chunk)
+                """Thread-safe callback that queues chunks."""
+                logger.info(f"STREAM_CB: '{chunk[:30]}...' queued")
+                event_queue.put({"type": "stream", "chunk": chunk})
 
             def sync_status_cb(stage: str, detail: str):
-                """Synchronous callback that collects statuses."""
-                statuses.append({"stage": stage, "detail": detail})
+                """Thread-safe callback that queues statuses."""
+                logger.info(f"STATUS_CB: {stage} - {detail}")
+                event_queue.put({"type": "status", "stage": stage, "detail": detail})
 
-            # Start processing in background task
-            async def process():
+            # Run processing in thread pool to allow event loop to yield
+            def process_sync():
                 try:
-                    result = await api.process_message(
-                        message=message,
-                        session_id=session_id,
-                        stream_callback=sync_stream_cb,
-                        status_callback=sync_status_cb
-                    )
-                    result_holder["result"] = result
+                    # Create event loop for this thread
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(
+                            api.process_message(
+                                message=message,
+                                session_id=session_id,
+                                stream_callback=sync_stream_cb,
+                                status_callback=sync_status_cb
+                            )
+                        )
+                        result_holder["result"] = result
+                    finally:
+                        loop.close()
                 except Exception as e:
+                    logger.error(f"Chat processing error: {e}", exc_info=True)
                     result_holder["result"] = {"success": False, "error": str(e)}
                 finally:
                     result_holder["done"] = True
 
-            process_task = asyncio.create_task(process())
+            # Start in thread pool
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            executor.submit(process_sync)
 
-            # Send initial event
-            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n"
+            # Padding to flush proxy buffers - need to exceed proxy buffer size
+            # nginx default is 4k/8k, but code-server proxy may have larger buffers
+            padding = " " * 16384  # 16KB padding
 
-            last_chunk_idx = 0
-            last_status_idx = 0
+            # Send initial event with padding
+            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n{padding}"
 
             # Poll for events until done
+            event_count = 0
             while not result_holder["done"]:
-                # Send any new status updates
-                while last_status_idx < len(statuses):
-                    status = statuses[last_status_idx]
-                    yield f"data: {json.dumps({'type': 'status', 'stage': status['stage'], 'detail': status['detail']})}\n\n"
-                    last_status_idx += 1
+                # Drain queue and send events
+                while True:
+                    try:
+                        event = event_queue.get_nowait()
+                        event_count += 1
+                        logger.info(f"SENDING event #{event_count}: {event.get('type')}")
+                        yield f"data: {json.dumps(event)}\n\n{padding}"
+                    except queue.Empty:
+                        break
 
-                # Send any new chunks
-                while last_chunk_idx < len(chunks):
-                    chunk = chunks[last_chunk_idx]
-                    yield f"data: {json.dumps({'type': 'stream', 'chunk': chunk})}\n\n"
-                    last_chunk_idx += 1
+                # Small sleep to prevent busy loop
+                await asyncio.sleep(0.05)  # Faster polling
+                yield f": keepalive\n\n{padding}"
 
-                # Small sleep to prevent busy loop, also sends keep-alive
-                await asyncio.sleep(0.1)
-                yield ": keepalive\n\n"
-
-            # Send any remaining events
-            while last_status_idx < len(statuses):
-                status = statuses[last_status_idx]
-                yield f"data: {json.dumps({'type': 'status', 'stage': status['stage'], 'detail': status['detail']})}\n\n"
-                last_status_idx += 1
-
-            while last_chunk_idx < len(chunks):
-                chunk = chunks[last_chunk_idx]
-                yield f"data: {json.dumps({'type': 'stream', 'chunk': chunk})}\n\n"
-                last_chunk_idx += 1
+            # Drain any remaining events
+            while True:
+                try:
+                    event = event_queue.get_nowait()
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    break
 
             # Send completion
             yield f"data: {json.dumps({'type': 'complete', 'result': result_holder['result']})}\n\n"
@@ -392,9 +761,13 @@ def create_app() -> "FastAPI":
             event_generator(),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache",
+                "Cache-Control": "no-cache, no-store, no-transform, must-revalidate",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",  # Disable nginx buffering
+                "X-Content-Type-Options": "nosniff",
+                "Transfer-Encoding": "chunked",
+                "Pragma": "no-cache",
+                "Expires": "0",
             }
         )
 
@@ -454,64 +827,92 @@ def create_app() -> "FastAPI":
                     if not content.strip():
                         continue
 
-                    # Create stream callback
-                    async def stream_cb(chunk: str):
-                        await ws_manager.stream_chunk(session_id, chunk)
+                    import queue
+                    import concurrent.futures
 
-                    # Create status callback that sends to WebSocket
-                    async def status_cb(stage: str, detail: str):
-                        await ws_manager.send_status(session_id, stage, detail)
+                    # Thread-safe queue for events
+                    event_queue = queue.Queue()
+                    result_holder = {"result": None, "done": False}
+
+                    # Sync callbacks that queue events
+                    def sync_stream_cb(chunk: str):
+                        event_queue.put({"type": "stream", "chunk": chunk})
+
+                    def sync_status_cb(stage: str, detail: str):
+                        event_queue.put({"type": "status", "stage": stage, "detail": detail})
 
                     # Send processing status
-                    await ws_manager.send_status(session_id, "processing", "Starting...")
+                    await websocket.send_json({"type": "status", "stage": "processing", "detail": "Starting..."})
 
-                    # Keep-alive task to prevent proxy timeout
-                    # Use a mutable container for the flag (closure issue)
-                    keep_alive_state = {"running": True}
-
-                    async def keep_alive():
-                        count = 0
-                        while keep_alive_state["running"]:
-                            await asyncio.sleep(2)  # Send ping every 2 seconds
-                            if keep_alive_state["running"]:
-                                count += 1
-                                try:
-                                    await ws_manager.send_status(session_id, "thinking", f"Working... ({count * 2}s)")
-                                    logger.debug(f"Keep-alive sent: {count * 2}s")
-                                except Exception as e:
-                                    logger.debug(f"Keep-alive failed: {e}")
-                                    break
-
-                    keep_alive_task = asyncio.create_task(keep_alive())
-
-                    try:
-                        # Process message with status callback
-                        result = await api.process_message(
-                            message=content,
-                            session_id=session_id,
-                            stream_callback=stream_cb,
-                            status_callback=status_cb
-                        )
-                    finally:
-                        keep_alive_state["running"] = False
-                        keep_alive_task.cancel()
+                    # Run processing in thread
+                    def process_sync():
                         try:
-                            await keep_alive_task
-                        except asyncio.CancelledError:
-                            pass
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                result = loop.run_until_complete(
+                                    api.process_message(
+                                        message=content,
+                                        session_id=session_id,
+                                        stream_callback=sync_stream_cb,
+                                        status_callback=sync_status_cb
+                                    )
+                                )
+                                result_holder["result"] = result
+                                logger.info(f"WS result: success={result.get('success')}, path={result.get('output_path')}")
+                            finally:
+                                loop.close()
+                        except Exception as e:
+                            logger.error(f"WS processing error: {e}", exc_info=True)
+                            result_holder["result"] = {"success": False, "error": str(e)}
+                        # Set done AFTER result is set (avoid race condition)
+                        result_holder["done"] = True
 
-                    if result.get("success"):
-                        await ws_manager.send_complete(
-                            session_id,
-                            result.get("message_id", ""),
-                            result.get("content", ""),
-                            result.get("output_path")
-                        )
+                    # Start processing in thread
+                    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    executor.submit(process_sync)
+
+                    # Stream events while processing
+                    while not result_holder["done"]:
+                        # Drain queue and send events
+                        while True:
+                            try:
+                                event = event_queue.get_nowait()
+                                await websocket.send_json(event)
+                            except queue.Empty:
+                                break
+
+                        await asyncio.sleep(0.05)
+
+                    # Drain remaining events
+                    while True:
+                        try:
+                            event = event_queue.get_nowait()
+                            await websocket.send_json(event)
+                        except queue.Empty:
+                            break
+
+                    # Small delay to ensure result is fully written by thread
+                    await asyncio.sleep(0.1)
+
+                    # Send result (match SSE format with nested 'result')
+                    result = result_holder["result"]
+                    logger.info(f"WS final result check: {result}")
+                    if result and result.get("success"):
+                        await websocket.send_json({
+                            "type": "complete",
+                            "result": {
+                                "success": True,
+                                "message_id": result.get("message_id", ""),
+                                "content": result.get("content", ""),
+                                "output_path": result.get("output_path")
+                            }
+                        })
                     else:
-                        await ws_manager.send_error(
-                            session_id,
-                            result.get("error", "Unknown error")
-                        )
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": result.get("error", "Unknown error") if result else "Processing failed"
+                        })
 
                 elif data.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
