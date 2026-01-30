@@ -75,9 +75,14 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .message-text h1 { font-size: 20px; }
 .message-text h2 { font-size: 18px; }
 .message-text h3 { font-size: 16px; }
-.message-meta { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 12px; }
+.message-meta { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .message-interface { padding: 2px 6px; background: var(--bg-tertiary); border-radius: 4px; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
 .output-path { color: var(--accent); font-family: monospace; }
+.download-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.download-btn { padding: 4px 10px; font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+.download-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+.download-btn svg { width: 12px; height: 12px; }
+.download-btn.loading { opacity: 0.6; cursor: wait; }
 .status-indicator { display: flex; align-items: center; gap: 8px; padding: 12px 16px; margin: 16px 0; background: var(--bg-tertiary); border-radius: 8px; font-size: 14px; color: var(--text-secondary); }
 .status-spinner { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -707,7 +712,36 @@ class JottyApp {
     }
     renderMessages() {
         if (!this.messagesContainer) return;
-        this.messagesContainer.innerHTML = this.messages.map(msg => `<div class="message ${msg.role}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}</div><div class="message-text">${this.renderMarkdown(msg.content)}</div><div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span>${msg.output_path ? `<span class="output-path">Saved: ${msg.output_path}</span>` : ''}</div></div></div>`).join('');
+        this.messagesContainer.innerHTML = this.messages.map((msg, idx) => {
+            const downloadBtns = msg.role === 'assistant' && msg.content ? `
+                <div class="download-buttons">
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'md')" title="Download as Markdown">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        MD
+                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'pdf')" title="Download as PDF">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        PDF
+                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'docx')" title="Download as Word">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        DOCX
+                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'html')" title="Download as HTML">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        HTML
+                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'epub')" title="Download as EPUB">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        EPUB
+                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'slides')" title="Download as Slides">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        Slides
+                    </button>
+                </div>` : '';
+            return `<div class="message ${msg.role}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}</div><div class="message-text">${this.renderMarkdown(msg.content)}</div><div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span>${msg.output_path ? `<span class="output-path">Saved: ${msg.output_path}</span>` : ''}</div>${downloadBtns}</div></div>`;
+        }).join('');
         this.scrollToBottom();
     }
     renderMarkdown(text) {
@@ -728,6 +762,67 @@ class JottyApp {
         html = html.replace(/^(?!<[huplo]|$)(.+)$/gm, '<p>$1</p>');
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
         return html;
+    }
+    async exportContent(msgIndex, format) {
+        const msg = this.messages[msgIndex];
+        if (!msg || !msg.content) return;
+
+        // Find and disable the button
+        const buttons = document.querySelectorAll('.download-btn');
+        const btn = Array.from(buttons).find(b => b.textContent.trim().toUpperCase() === format.toUpperCase());
+        if (btn) {
+            btn.classList.add('loading');
+            btn.disabled = true;
+        }
+
+        try {
+            // Generate filename from first line or timestamp
+            const firstLine = msg.content.split('\n')[0].replace(/^#+ /, '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+            const filename = firstLine.substring(0, 50) || `export_${Date.now()}`;
+
+            const response = await fetch(`${this.apiBase}/api/export`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: msg.content,
+                    format: format,
+                    filename: filename
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Export failed');
+            }
+
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let downloadFilename = `${filename}.${format}`;
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (match) downloadFilename = match[1].replace(/['"]/g, '');
+            }
+
+            // Download the file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = downloadFilename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert(`Export failed: ${error.message}`);
+        } finally {
+            if (btn) {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
     }
     setProcessing(processing) { this.isProcessing = processing; this.sendBtn.disabled = processing; this.messageInput.disabled = processing; if (!processing) this.messageInput.focus(); }
     handleKeydown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendMessage(); } }

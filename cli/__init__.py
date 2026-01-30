@@ -23,7 +23,7 @@ Key Features:
 
 # Suppress HuggingFace/BERT warnings early
 import os as _os
-_os.environ.setdefault('HF_TOKEN', '')
+# HF_TOKEN should be set via environment variable, not hardcoded
 _os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
 _os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
 _os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')

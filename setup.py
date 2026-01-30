@@ -34,6 +34,35 @@ for pkg in core_packages:
     pkg_path = pkg.replace(".", "/")
     package_dir_map[f"Jotty.core.{pkg}"] = f"core/{pkg_path}"
 
+# Map CLI packages
+package_dir_map["Jotty.cli"] = "cli"
+package_dir_map["Jotty.cli.repl"] = "cli/repl"
+package_dir_map["Jotty.cli.commands"] = "cli/commands"
+package_dir_map["Jotty.cli.ui"] = "cli/ui"
+package_dir_map["Jotty.cli.config"] = "cli/config"
+package_dir_map["Jotty.cli.plugins"] = "cli/plugins"
+
+# CLI packages
+cli_packages = [
+    "cli",
+    "cli.repl",
+    "cli.commands",
+    "cli.ui",
+    "cli.config",
+    "cli.plugins",
+]
+
+# Additional packages (telegram, web, core interfaces)
+package_dir_map["Jotty.telegram_bot"] = "telegram_bot"
+package_dir_map["Jotty.web"] = "web"
+package_dir_map["Jotty.core.interfaces"] = "core/interfaces"
+
+extra_packages = [
+    "telegram_bot",
+    "web",
+    "core.interfaces",
+]
+
 setup(
     name="jotty-ai",
     version=version,
@@ -44,12 +73,17 @@ setup(
     author_email="",  # Add if available
     url="https://github.com/yourusername/jotty",
     package_dir=package_dir_map,
-    packages=["Jotty", "Jotty.core"] + [f"Jotty.core.{pkg}" for pkg in core_packages],
+    packages=["Jotty", "Jotty.core"] + [f"Jotty.core.{pkg}" for pkg in core_packages] + [f"Jotty.{pkg}" for pkg in cli_packages] + [f"Jotty.{pkg}" for pkg in extra_packages],
     package_data={
         "Jotty.core.swarm_prompts": ["*.md"],
         "Jotty.core.validation_prompts": ["*.md"],
     },
     include_package_data=True,
+    entry_points={
+        "console_scripts": [
+            "jotty=Jotty.cli.__main__:main",
+        ],
+    },
     install_requires=[
         "dspy-ai>=2.0.0",
         "pyyaml>=6.0",
@@ -59,6 +93,28 @@ setup(
             "pymongo>=4.0.0",
             "redis>=4.0.0",
             "sqlalchemy>=2.0.0",
+            "rich>=13.0.0",
+            "prompt-toolkit>=3.0.0",
+            "fastapi>=0.104.0",
+            "uvicorn>=0.24.0",
+            "websockets>=12.0",
+            "python-multipart>=0.0.6",
+            "python-telegram-bot>=20.0",
+            "python-dotenv>=1.0.0",
+        ],
+        "cli": [
+            "rich>=13.0.0",
+            "prompt-toolkit>=3.0.0",
+        ],
+        "web": [
+            "fastapi>=0.104.0",
+            "uvicorn>=0.24.0",
+            "websockets>=12.0",
+            "python-multipart>=0.0.6",
+        ],
+        "telegram": [
+            "python-telegram-bot>=20.0",
+            "python-dotenv>=1.0.0",
         ],
         "mongodb": ["pymongo>=4.0.0"],
         "redis": ["redis>=4.0.0"],

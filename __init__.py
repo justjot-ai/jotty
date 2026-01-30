@@ -40,6 +40,43 @@ JOTTY Naming Convention:
 See README.md for complete documentation.
 """
 
+# =============================================================================
+# PYDANTIC WARNING SUPPRESSION (Must be before any imports)
+# =============================================================================
+import os
+import warnings
+
+# Suppress Pydantic serialization warnings from LiteLLM
+# These occur due to LiteLLM's response format not matching Pydantic's expected structure
+# Versions are synced (Pydantic 2.12.5, LiteLLM 1.80.16) but warnings may still occur
+os.environ.setdefault('PYDANTIC_WARNINGS', 'none')
+
+# Filter specific Pydantic serialization warnings
+warnings.filterwarnings(
+    'ignore',
+    category=UserWarning,
+    module='pydantic.main',
+    message='.*PydanticSerializationUnexpectedValue.*'
+)
+warnings.filterwarnings(
+    'ignore',
+    category=UserWarning,
+    module='pydantic.*',
+    message='.*serialized value may not be as expected.*'
+)
+warnings.filterwarnings(
+    'ignore',
+    category=UserWarning,
+    module='pydantic.*',
+    message='.*Expected.*fields but got.*'
+)
+# Catch all Pydantic serializer warnings
+warnings.filterwarnings(
+    'ignore',
+    category=UserWarning,
+    message='.*Pydantic serializer warnings.*'
+)
+
 __version__ = "10.0.0"
 __author__ = "Soham Acharya & Anshul Chauhan"
 
@@ -301,4 +338,18 @@ __all__ = [
     "parse_float_robust",
     "parse_json_robust",
     "AdaptiveThreshold",
+
+    # CLI
+    "JottyCLI",
 ]
+
+# =============================================================================
+# CLI EXPORTS (Lazy import for faster startup)
+# =============================================================================
+
+def __getattr__(name):
+    """Lazy import for CLI components."""
+    if name == "JottyCLI":
+        from .cli.app import JottyCLI
+        return JottyCLI
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

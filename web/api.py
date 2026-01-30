@@ -797,6 +797,105 @@ def create_app() -> "FastAPI":
         success = api.clear_session(session_id)
         return {"success": success}
 
+    # Export endpoints
+    @app.post("/api/export")
+    async def export_content(request: dict):
+        """
+        Export content to various formats.
+
+        Args:
+            content: Markdown content to export
+            format: Target format (md, pdf, docx, epub, html, slides)
+            filename: Optional filename (without extension)
+        """
+        from starlette.responses import FileResponse
+        import tempfile
+        import subprocess
+        from pathlib import Path
+
+        content = request.get("content", "")
+        export_format = request.get("format", "md").lower()
+        filename = request.get("filename", "export")
+
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+
+        # Create temp directory for conversion
+        temp_dir = Path(tempfile.mkdtemp())
+        md_file = temp_dir / f"{filename}.md"
+
+        # Write markdown content
+        md_file.write_text(content, encoding="utf-8")
+
+        try:
+            if export_format == "md":
+                output_file = md_file
+                media_type = "text/markdown"
+
+            elif export_format == "html":
+                output_file = temp_dir / f"{filename}.html"
+                # Convert with pandoc
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file),
+                    "--standalone", "--metadata", f"title={filename}"
+                ], check=True)
+                media_type = "text/html"
+
+            elif export_format == "pdf":
+                output_file = temp_dir / f"{filename}.pdf"
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file),
+                    "--pdf-engine=xelatex",
+                    "-V", "geometry:margin=1in",
+                    "-V", "fontsize=11pt"
+                ], check=True, capture_output=True)
+                media_type = "application/pdf"
+
+            elif export_format == "docx":
+                output_file = temp_dir / f"{filename}.docx"
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file)
+                ], check=True)
+                media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+            elif export_format == "epub":
+                output_file = temp_dir / f"{filename}.epub"
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file),
+                    "--metadata", f"title={filename}"
+                ], check=True)
+                media_type = "application/epub+zip"
+
+            elif export_format == "slides":
+                output_file = temp_dir / f"{filename}_slides.pdf"
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file),
+                    "-t", "beamer",
+                    "--pdf-engine=xelatex",
+                    "-V", "theme:Madrid"
+                ], check=True, capture_output=True)
+                media_type = "application/pdf"
+
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported format: {export_format}")
+
+            if not output_file.exists():
+                raise HTTPException(status_code=500, detail="Conversion failed - output file not created")
+
+            return FileResponse(
+                path=str(output_file),
+                filename=output_file.name,
+                media_type=media_type,
+                background=None  # Don't delete file immediately
+            )
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Export conversion failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {e.stderr.decode() if e.stderr else str(e)}")
+        except Exception as e:
+            logger.error(f"Export error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     # WebSocket endpoint
     @app.websocket("/ws/chat/{session_id}")
     async def websocket_chat(websocket: WebSocket, session_id: str):

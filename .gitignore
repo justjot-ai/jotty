@@ -57,3 +57,4 @@ temp/
 .env
 output/
 node_modules/
+mlruns/
