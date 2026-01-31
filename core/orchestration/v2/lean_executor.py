@@ -342,21 +342,10 @@ Content:"""
 
     async def _anthropic_stream(self, task: str, context: str, output_format: str) -> str:
         """
-        Real streaming using Anthropic API directly.
+        Real streaming using OpenRouter or Anthropic API.
+        Prefers OpenRouter (which uses OpenAI SDK format) if available.
         """
         import os
-
-        # Try to get Anthropic client
-        try:
-            import anthropic
-        except ImportError:
-            return None
-
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            return None
-
-        client = anthropic.Anthropic(api_key=api_key)
 
         prompt = f"""Generate content for the user's request.
 
@@ -370,20 +359,84 @@ For other formats: use appropriate markdown.
 
 Content:"""
 
-        full_content = ""
+        # Try OpenRouter first (primary provider)
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+        if openrouter_key:
+            try:
+                import httpx
 
-        # Use streaming API
-        with client.messages.stream(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}]
-        ) as stream:
-            for text in stream.text_stream:
-                if text:
-                    await self._stream(text)
-                    full_content += text
+                full_content = ""
+                model = os.environ.get("CLAUDE_MODEL", "anthropic/claude-3.5-sonnet")
+                # Ensure model has provider prefix for OpenRouter
+                if "/" not in model:
+                    model = f"anthropic/{model}"
 
-        return full_content
+                async with httpx.AsyncClient(timeout=300.0) as client:
+                    async with client.stream(
+                        "POST",
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {openrouter_key}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": 4096,
+                            "stream": True,
+                        },
+                    ) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
+                            if line.startswith("data: "):
+                                data = line[6:]
+                                if data.strip() == "[DONE]":
+                                    break
+                                try:
+                                    import json
+                                    chunk = json.loads(data)
+                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        await self._stream(content)
+                                        full_content += content
+                                except (json.JSONDecodeError, IndexError, KeyError):
+                                    continue
+
+                if full_content:
+                    return full_content
+
+            except Exception as e:
+                logger.debug(f"OpenRouter streaming failed: {e}")
+
+        # Fallback to direct Anthropic API
+        try:
+            import anthropic
+        except ImportError:
+            return None
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return None
+
+        try:
+            client = anthropic.Anthropic(api_key=api_key)
+            full_content = ""
+
+            with client.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}]
+            ) as stream:
+                for text in stream.text_stream:
+                    if text:
+                        await self._stream(text)
+                        full_content += text
+
+            return full_content
+        except Exception as e:
+            logger.debug(f"Anthropic streaming failed: {e}")
+            return None
 
     def _get_registry(self):
         """Get skills registry (lazy load)."""
