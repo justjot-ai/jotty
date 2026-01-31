@@ -113,14 +113,23 @@ class TelegramBotHandler:
         """Get CLI command registry for slash command support."""
         if self._command_registry is None:
             try:
-                from cli.commands.base import CommandRegistry
-                from cli.commands import register_all_commands
-
-                self._command_registry = CommandRegistry()
-                register_all_commands(self._command_registry)
-                logger.info(f"Command registry initialized with {len(self._command_registry._commands)} commands")
+                # Use unified CommandService (same as CLI, Web, Supervisor)
+                from core.services.command_service import get_command_service
+                service = get_command_service()
+                service._ensure_initialized()
+                self._command_registry = service._registry
+                logger.info(f"Command registry initialized via unified CommandService with {len(self._command_registry._commands)} commands")
             except Exception as e:
                 logger.error(f"Failed to initialize command registry: {e}")
+                # Fallback to direct import
+                try:
+                    from cli.commands.base import CommandRegistry
+                    from cli.commands import register_all_commands
+                    self._command_registry = CommandRegistry()
+                    register_all_commands(self._command_registry)
+                    logger.info(f"Command registry initialized directly with {len(self._command_registry._commands)} commands")
+                except Exception as e2:
+                    logger.error(f"Fallback command registry also failed: {e2}")
         return self._command_registry
 
     def _get_skills_registry(self):
