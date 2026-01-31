@@ -30,6 +30,10 @@ from .research import ResearchCommand
 from .workflow import WorkflowCommand
 from .telegram_bot import TelegramCommand
 from .web_server import WebServerCommand
+from .model_chat import ModelChatCommand
+from .gateway import GatewayCommand
+from .whatsapp_cmd import WhatsAppCommand
+from .heartbeat_cmd import HeartbeatCommand, RemindCommand
 
 __all__ = [
     "BaseCommand",
@@ -59,6 +63,11 @@ __all__ = [
     "WorkflowCommand",
     "TelegramCommand",
     "WebServerCommand",
+    "ModelChatCommand",
+    "GatewayCommand",
+    "WhatsAppCommand",
+    "HeartbeatCommand",
+    "RemindCommand",
 ]
 
 
@@ -89,6 +98,11 @@ def register_all_commands(registry: CommandRegistry):
         WorkflowCommand(),
         TelegramCommand(),
         WebServerCommand(),
+        ModelChatCommand(),
+        GatewayCommand(),
+        WhatsAppCommand(),
+        HeartbeatCommand(),
+        RemindCommand(),
     ]
 
     for cmd in commands:

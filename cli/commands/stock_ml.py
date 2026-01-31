@@ -208,8 +208,11 @@ class StockMLCommand(BaseCommand):
         target_type = args.flags.get("target", args.flags.get("t", "next_1d_up"))
         years = int(args.flags.get("years", args.flags.get("y", "5")))
         iterations = int(args.flags.get("iterations", args.flags.get("i", "2")))
-        use_mlflow = "mlflow" in args.flags
-        experiment_name = args.flags.get("experiment", f"stock_{symbol}")
+        # MLflow is now ON by default, use --no-mlflow to disable
+        use_mlflow = "no-mlflow" not in args.flags and "no_mlflow" not in args.flags
+        experiment_name = args.flags.get("experiment", f"stock_ml_{symbol}")
+        # Fundamental features from Yahoo Finance
+        use_fundamentals = "fundamentals" in args.flags or "fund" in args.flags or "yf" in args.flags
 
         # Custom target parsing (e.g., next_30d_up, return_15d)
         target_config = self._parse_target(target_type)
@@ -251,7 +254,54 @@ class StockMLCommand(BaseCommand):
             cli.renderer.error("Insufficient data after feature engineering")
             return CommandResult.fail("Insufficient data")
 
-        cli.renderer.info(f"Features: {len(feature_names)}, Samples: {len(X)}")
+        cli.renderer.info(f"Technical Features: {len(feature_names)}")
+
+        # Add fundamental features from Yahoo Finance if enabled
+        if use_fundamentals:
+            try:
+                import pandas as pd
+                from core.skills.ml import FundamentalFeaturesSkill
+                cli.renderer.status(f"Downloading fundamental data for {symbol}...")
+
+                fund_skill = FundamentalFeaturesSkill()
+                fund_features = await fund_skill.get_fundamental_features(symbol, df_prices=df)
+
+                if fund_features is not None and not fund_features.empty:
+                    # Remove duplicate dates, keep last value
+                    fund_features = fund_features[~fund_features.index.duplicated(keep='last')]
+
+                    # Get dates corresponding to X's index from original df
+                    dates_series = pd.to_datetime(df.loc[X.index, 'date'])
+
+                    # Map fundamental features to X's rows by date
+                    fund_aligned = pd.DataFrame(index=X.index)
+                    for col in fund_features.columns:
+                        # Create a mapping from date to value
+                        date_to_val = fund_features[col].to_dict()
+                        fund_aligned[col] = dates_series.map(date_to_val)
+
+                    # Forward/backward fill any missing values
+                    fund_aligned = fund_aligned.ffill().bfill()
+
+                    # Only add features with variance (time-varying)
+                    added_features = []
+                    for col in fund_aligned.columns:
+                        n_unique = fund_aligned[col].dropna().nunique()
+                        if n_unique > 10:  # Has meaningful variance
+                            X[col] = fund_aligned[col].values
+                            added_features.append(col)
+
+                    if added_features:
+                        feature_names = list(feature_names) + added_features
+                        cli.renderer.info(f"Fundamental Features: {len(added_features)} (time-varying)")
+                    else:
+                        cli.renderer.info("Note: No time-varying fundamental features")
+                else:
+                    cli.renderer.info("Note: No fundamental data available")
+            except Exception as e:
+                cli.renderer.info(f"Note: Fundamental features skipped: {e}")
+
+        cli.renderer.info(f"Total Features: {len(feature_names)}, Samples: {len(X)}")
 
         # Check if backtesting is enabled
         run_backtest = "backtest" in args.flags or "bt" in args.flags
@@ -269,7 +319,8 @@ class StockMLCommand(BaseCommand):
                 use_mlflow=use_mlflow,
                 experiment_name=experiment_name,
                 df_ohlcv=df,
-                run_backtest=run_backtest
+                run_backtest=run_backtest,
+                timeframe=timeframe
             )
             return CommandResult.ok(data=result)
         except Exception as e:
@@ -729,9 +780,9 @@ class StockMLCommand(BaseCommand):
         }
 
     async def _run_stock_ml(self, X, y, feature_names, target_config, symbol,
-                            max_iterations, cli, use_mlflow=False, experiment_name="stock",
-                            df_ohlcv=None, run_backtest=False):
-        """Run ML pipeline for stock prediction with optional backtesting."""
+                            max_iterations, cli, use_mlflow=True, experiment_name="stock",
+                            df_ohlcv=None, run_backtest=False, timeframe="day"):
+        """Run ML pipeline for stock prediction with auto-MLflow logging and optional backtesting."""
         import pandas as pd
         import numpy as np
         from sklearn.model_selection import TimeSeriesSplit
@@ -747,24 +798,47 @@ class StockMLCommand(BaseCommand):
 
         cli.renderer.info(f"Train: {len(X_train)}, Test: {len(X_test)}")
 
-        # Initialize MLflow if enabled
+        # Auto-initialize MLflow (default ON for all runs)
         mlflow_tracker = None
         if use_mlflow:
-            from core.skills.ml import MLflowTrackerSkill
-            from .ml import MLCommand
+            try:
+                from core.skills.ml import MLflowTrackerSkill
+                from .ml import MLCommand
 
-            mlflow_tracker = MLflowTrackerSkill()
-            await mlflow_tracker.init(experiment_name=experiment_name)
-            run_name = f"{symbol}_{target_config['days']}d_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}"
-            await mlflow_tracker.start_run(run_name=run_name)
+                mlflow_tracker = MLflowTrackerSkill()
+                # Use stock_ml_{symbol} as experiment name for easy querying
+                auto_experiment_name = f"stock_ml_{symbol}"
+                await mlflow_tracker.init(experiment_name=auto_experiment_name)
 
-            await mlflow_tracker.log_params({
-                'symbol': symbol,
-                'target_type': f"{target_config['days']}d_{problem_type}",
-                'n_features': len(feature_names),
-                'train_samples': len(X_train),
-                'test_samples': len(X_test),
-            })
+                # Create descriptive run name
+                run_name = f"{symbol}_{target_config['days']}d_{timeframe}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}"
+                await mlflow_tracker.start_run(
+                    run_name=run_name,
+                    tags={
+                        'symbol': symbol,
+                        'target': target_config.get('desc', ''),
+                        'timeframe': timeframe,
+                        'problem_type': problem_type,
+                    }
+                )
+
+                # Log comprehensive parameters
+                await mlflow_tracker.log_params({
+                    'symbol': symbol,
+                    'target_type': target_config['type'],
+                    'target_days': str(target_config['days']),
+                    'target_desc': target_config.get('desc', ''),
+                    'timeframe': timeframe,
+                    'n_features': str(len(feature_names)),
+                    'train_samples': str(len(X_train)),
+                    'test_samples': str(len(X_test)),
+                    'data_points': str(len(X)),
+                    'feature_list': ','.join(feature_names[:20]),  # Top 20 features
+                })
+                cli.renderer.info(f"MLflow: Logging to experiment '{auto_experiment_name}'")
+            except Exception as e:
+                cli.renderer.info(f"Note: MLflow initialization skipped: {e}")
+                mlflow_tracker = None
 
         # Import models
         import lightgbm as lgb
@@ -879,28 +953,50 @@ class StockMLCommand(BaseCommand):
                 cli.renderer.info(f"│ {feat_display:<30} │ {imp:>8.2f} % │")
             cli.renderer.info("└────────────────────────────────┴────────────┘")
 
-        # Log to MLflow
+        # Log comprehensive metrics to MLflow
         if mlflow_tracker:
-            metrics = {'best_score': best_score}
+            # Log best model metrics
+            metrics = {
+                'best_score': best_score,
+                'best_model_name': best_name,
+            }
+
+            # Log metrics for ALL models (prefixed by model name)
+            for r in results:
+                model_prefix = r['model'].lower().replace(' ', '_')
+                if is_classification:
+                    metrics[f'{model_prefix}_auc'] = r.get('auc', 0)
+                    metrics[f'{model_prefix}_accuracy'] = r.get('accuracy', 0)
+                    metrics[f'{model_prefix}_f1'] = r.get('f1', 0)
+                else:
+                    metrics[f'{model_prefix}_r2'] = r.get('r2', 0)
+                    metrics[f'{model_prefix}_rmse'] = r.get('rmse', 0)
+
+            # Add best model's metrics at top level for easy querying
             if is_classification:
-                metrics.update({'accuracy': results[0]['accuracy'], 'f1': results[0]['f1'], 'auc': results[0]['auc']})
+                best_result = next((r for r in results if r['model'] == best_name), results[0])
+                metrics['test_auc'] = best_result.get('auc', 0)
+                metrics['test_accuracy'] = best_result.get('accuracy', 0)
+                metrics['test_f1'] = best_result.get('f1', 0)
             else:
-                metrics.update({'r2': results[0]['r2'], 'rmse': results[0]['rmse']})
+                best_result = next((r for r in results if r['model'] == best_name), results[0])
+                metrics['test_r2'] = best_result.get('r2', 0)
+                metrics['test_rmse'] = best_result.get('rmse', 0)
 
             await mlflow_tracker.log_metrics(metrics)
 
+            # Log feature importance
             if hasattr(best_model, 'feature_importances_'):
-                await mlflow_tracker.log_feature_importance(importance)
+                await mlflow_tracker.log_feature_importance(importance, top_n=20)
 
-            model_uri = await mlflow_tracker.log_model(best_model, f"{symbol}_model")
+            # Log best model artifact
+            model_uri = await mlflow_tracker.log_model(
+                best_model,
+                model_name=f"{symbol}_best",
+                registered_name=f"stock_ml/{symbol}/{target_config['days']}d"
+            )
             if model_uri:
                 cli.renderer.info(f"Model logged to MLflow: {model_uri}")
-
-            run_info = await mlflow_tracker.end_run()
-            if run_info:
-                from .ml import MLCommand
-                MLCommand.save_mlflow_state(experiment_name, run_info['run_id'])
-                cli.renderer.info(f"MLflow run: {run_info['run_id']}")
 
         # Run backtesting if enabled
         backtest_results = None
@@ -908,6 +1004,33 @@ class StockMLCommand(BaseCommand):
             backtest_results = self._run_backtest(
                 df_ohlcv, X, y, best_model, target_config, symbol, cli
             )
+
+            # Log backtest results to MLflow
+            if mlflow_tracker and backtest_results:
+                backtest_metrics = {
+                    'backtest_total_return': backtest_results['strategy']['total_return'],
+                    'backtest_annual_return': backtest_results['strategy']['annual_return'],
+                    'backtest_sharpe': backtest_results['strategy']['sharpe'],
+                    'backtest_sortino': backtest_results['strategy']['sortino'],
+                    'backtest_max_drawdown': backtest_results['strategy']['max_drawdown'],
+                    'backtest_romad': backtest_results['strategy']['romad'],
+                    'backtest_win_rate': backtest_results['strategy']['win_rate'],
+                    'backtest_profit_factor': backtest_results['strategy']['profit_factor'],
+                    'bnh_total_return': backtest_results['bnh']['total_return'],
+                    'bnh_sharpe': backtest_results['bnh']['sharpe'],
+                    'beats_buy_hold': 1 if backtest_results.get('outperformance', 0) > 0 else 0,
+                    'outperformance': backtest_results.get('outperformance', 0),
+                }
+                await mlflow_tracker.log_metrics(backtest_metrics)
+
+        # End MLflow run
+        if mlflow_tracker:
+            run_info = await mlflow_tracker.end_run()
+            if run_info:
+                from .ml import MLCommand
+                auto_experiment_name = f"stock_ml_{symbol}"
+                MLCommand.save_mlflow_state(auto_experiment_name, run_info['run_id'])
+                cli.renderer.info(f"MLflow run: {run_info['run_id']}")
 
         return {
             'symbol': symbol,

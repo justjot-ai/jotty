@@ -324,12 +324,27 @@ Current request: {message}"""
             return {"success": False, "error": str(e)}
 
     def get_sessions(self) -> List[Dict[str, Any]]:
-        """Get all sessions."""
-        registry = self._get_session_registry()
-        # Use a temporary session manager to list sessions
+        """Get all sessions with metadata."""
         from ..cli.repl.session import SessionManager
+        import json
+
         manager = SessionManager()
-        return manager.list_sessions()
+        sessions = manager.list_sessions()
+
+        # Enhance sessions with metadata fields
+        for session in sessions:
+            session_file = manager.session_dir / f"{session.get('session_id')}.json"
+            if session_file.exists():
+                try:
+                    with open(session_file, 'r') as f:
+                        data = json.load(f)
+                    # Add metadata fields if they exist
+                    for key in ['title', 'isPinned', 'isArchived', 'folderId']:
+                        if key in data:
+                            session[key] = data[key]
+                except Exception:
+                    pass
+        return sessions
 
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session details."""
@@ -377,6 +392,80 @@ Current request: {message}"""
         manager.delete_session(session_id)
         return True
 
+    def update_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
+        """Update session metadata (title, isPinned, isArchived, folderId)."""
+        from ..cli.repl.session import SessionManager, InterfaceType
+
+        manager = SessionManager()
+        session_file = manager.session_dir / f"{session_id}.json"
+
+        if not session_file.exists():
+            return False
+
+        try:
+            import json
+            with open(session_file, 'r') as f:
+                data = json.load(f)
+
+            # Update allowed fields
+            for key in ['title', 'isPinned', 'isArchived', 'folderId']:
+                if key in updates:
+                    data[key] = updates[key]
+
+            with open(session_file, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update session {session_id}: {e}")
+            return False
+
+    def get_folders(self) -> List[Dict[str, Any]]:
+        """Get all folders."""
+        folder_file = Path.home() / ".jotty" / "folders.json"
+        if folder_file.exists():
+            try:
+                import json
+                with open(folder_file, 'r') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return []
+
+    def create_folder(self, folder: Dict[str, Any]) -> bool:
+        """Create a new folder."""
+        import json
+        folder_file = Path.home() / ".jotty" / "folders.json"
+        folder_file.parent.mkdir(parents=True, exist_ok=True)
+
+        folders = self.get_folders()
+        folders.append(folder)
+
+        with open(folder_file, 'w') as f:
+            json.dump(folders, f, indent=2)
+        return True
+
+    def delete_folder(self, folder_id: str) -> bool:
+        """Delete a folder."""
+        import json
+        folder_file = Path.home() / ".jotty" / "folders.json"
+
+        folders = self.get_folders()
+        folders = [f for f in folders if f.get('id') != folder_id]
+
+        with open(folder_file, 'w') as f:
+            json.dump(folders, f, indent=2)
+        return True
+
+    def save_folders(self, folders: List[Dict[str, Any]]) -> bool:
+        """Save all folders (bulk update for reordering, renaming, color changes)."""
+        import json
+        folder_file = Path.home() / ".jotty" / "folders.json"
+        folder_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(folder_file, 'w') as f:
+            json.dump(folders, f, indent=2)
+        return True
+
 
 def create_app() -> "FastAPI":
     """
@@ -385,7 +474,7 @@ def create_app() -> "FastAPI":
     Returns:
         Configured FastAPI app
     """
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Form
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse, JSONResponse
     from fastapi.middleware.cors import CORSMiddleware
@@ -797,6 +886,481 @@ def create_app() -> "FastAPI":
         success = api.clear_session(session_id)
         return {"success": success}
 
+    class SessionUpdateRequest(BaseModel):
+        title: Optional[str] = None
+        isPinned: Optional[bool] = None
+        isArchived: Optional[bool] = None
+        folderId: Optional[str] = None
+
+    @app.patch("/api/sessions/{session_id}")
+    async def update_session(session_id: str, request: SessionUpdateRequest):
+        """Update session metadata (title, pin, archive, folder)."""
+        updates = request.dict(exclude_none=True)
+        success = api.update_session(session_id, updates)
+        return {"success": success}
+
+    # Folder management endpoints
+    @app.get("/api/folders")
+    async def list_folders():
+        """List all folders."""
+        folders = api.get_folders()
+        return {"folders": folders}
+
+    class FolderRequest(BaseModel):
+        id: str
+        name: str
+        color: str = "#3b82f6"
+        order: int = 0
+
+    @app.post("/api/folders")
+    async def create_folder(request: FolderRequest):
+        """Create a new folder."""
+        folder = request.dict()
+        success = api.create_folder(folder)
+        return {"success": success, "folder": folder}
+
+    @app.delete("/api/folders/{folder_id}")
+    async def delete_folder(folder_id: str):
+        """Delete a folder."""
+        success = api.delete_folder(folder_id)
+        return {"success": success}
+
+    class BulkFoldersRequest(BaseModel):
+        folders: List[dict]
+
+    @app.put("/api/folders/bulk")
+    async def bulk_update_folders(request: BulkFoldersRequest):
+        """Bulk update all folders (for reordering, renaming, etc.)."""
+        success = api.save_folders(request.folders)
+        return {"success": success}
+
+    # ===== DOCUMENT UPLOAD & RAG ENDPOINTS =====
+
+    @app.post("/api/documents/upload")
+    async def upload_document(
+        file: UploadFile = File(...),
+        folder_id: Optional[str] = Form(None)
+    ):
+        """
+        Upload a document for RAG processing.
+
+        Supported formats: PDF, DOCX, PPTX, TXT, MD, CSV, JSON, HTML
+        """
+        from .documents import get_document_processor
+
+        try:
+            processor = get_document_processor()
+            content = await file.read()
+
+            doc_info = await processor.upload_document(
+                file_content=content,
+                filename=file.filename,
+                folder_id=folder_id
+            )
+
+            return {
+                "success": True,
+                "document": doc_info
+            }
+        except ImportError as e:
+            raise HTTPException(
+                status_code=501,
+                detail=f"Document processing not available. Install dependencies: pip install chromadb sentence-transformers unstructured[all-docs]. Error: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Upload failed: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/documents")
+    async def list_documents(folder_id: Optional[str] = None):
+        """List all documents, optionally filtered by folder."""
+        from .documents import get_document_processor
+
+        try:
+            processor = get_document_processor()
+
+            if folder_id:
+                docs = processor.get_folder_documents(folder_id)
+            else:
+                docs = list(processor._docs_index.get("documents", {}).values())
+
+            return {"documents": docs}
+        except Exception as e:
+            logger.error(f"Failed to list documents: {e}")
+            return {"documents": []}
+
+    @app.get("/api/documents/{doc_id}")
+    async def get_document(doc_id: str, include_text: bool = False):
+        """Get document info and optionally its text content."""
+        from .documents import get_document_processor
+
+        processor = get_document_processor()
+        doc = processor.get_document(doc_id)
+
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        result = {"document": doc}
+        if include_text:
+            result["text"] = processor.get_document_text(doc_id)
+
+        return result
+
+    @app.delete("/api/documents/{doc_id}")
+    async def delete_document(doc_id: str):
+        """Delete a document and its embeddings."""
+        from .documents import get_document_processor
+
+        processor = get_document_processor()
+        success = processor.delete_document(doc_id)
+
+        return {"success": success}
+
+    @app.post("/api/documents/search")
+    async def search_documents(request: dict):
+        """
+        Search documents using vector similarity.
+
+        Args:
+            query: Search text
+            folder_id: Optional folder filter
+            doc_ids: Optional list of document IDs to search
+            n_results: Number of results (default 5)
+        """
+        from .documents import get_document_processor
+
+        try:
+            processor = get_document_processor()
+
+            results = processor.search_documents(
+                query=request.get("query", ""),
+                folder_id=request.get("folder_id"),
+                doc_ids=request.get("doc_ids"),
+                n_results=request.get("n_results", 5)
+            )
+
+            return {"results": results}
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    class ChatWithContextRequest(BaseModel):
+        message: str
+        context_type: str  # 'folder', 'document', 'chat'
+        context_id: str
+        session_id: Optional[str] = None
+
+    @app.post("/api/chat/context")
+    async def chat_with_context(request: ChatWithContextRequest):
+        """
+        Chat with document/folder context using RAG.
+
+        The relevant context is retrieved and prepended to the message
+        for the LLM to use in generating a response.
+        """
+        from .documents import get_document_processor
+
+        try:
+            processor = get_document_processor()
+
+            # Get relevant context
+            context = processor.get_context_for_chat(
+                query=request.message,
+                context_type=request.context_type,
+                context_id=request.context_id
+            )
+
+            # Build enhanced message with context
+            if context:
+                enhanced_message = f"""Use the following context to answer the question. If the context doesn't contain relevant information, say so.
+
+CONTEXT:
+{context}
+
+QUESTION: {request.message}"""
+            else:
+                enhanced_message = request.message
+
+            # Process through normal chat flow
+            session_id = request.session_id or str(uuid.uuid4())[:8]
+            result = await api.process_message(
+                message=enhanced_message,
+                session_id=session_id
+            )
+
+            # Add context info to result
+            result["context_used"] = bool(context)
+            result["context_type"] = request.context_type
+            result["context_id"] = request.context_id
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Context chat failed: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/chat/context/stream")
+    async def chat_with_context_stream(
+        message: str,
+        context_type: str,
+        context_id: str,
+        session_id: Optional[str] = None
+    ):
+        """SSE streaming chat with document/folder context."""
+        from starlette.responses import StreamingResponse
+        from .documents import get_document_processor
+        import queue
+        import concurrent.futures
+        import json
+
+        session_id = session_id or str(uuid.uuid4())[:8]
+
+        async def event_generator():
+            # Get context
+            try:
+                processor = get_document_processor()
+                context = processor.get_context_for_chat(
+                    query=message,
+                    context_type=context_type,
+                    context_id=context_id
+                )
+            except Exception as e:
+                logger.error(f"Failed to get context: {e}")
+                context = ""
+
+            # Build enhanced message
+            if context:
+                enhanced_message = f"""Use the following context to answer the question. If the context doesn't contain relevant information, say so.
+
+CONTEXT:
+{context}
+
+QUESTION: {message}"""
+                yield f"data: {json.dumps({'type': 'context', 'has_context': True, 'context_length': len(context)})}\n\n"
+            else:
+                enhanced_message = message
+                yield f"data: {json.dumps({'type': 'context', 'has_context': False})}\n\n"
+
+            # Thread-safe queue for events
+            event_queue = queue.Queue()
+            result_holder = {"result": None, "done": False}
+            padding = " " * 16384
+
+            def sync_stream_cb(chunk: str):
+                event_queue.put({"type": "stream", "chunk": chunk})
+
+            def sync_status_cb(stage: str, detail: str):
+                event_queue.put({"type": "status", "stage": stage, "detail": detail})
+
+            def process_sync():
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(
+                            api.process_message(
+                                message=enhanced_message,
+                                session_id=session_id,
+                                stream_callback=sync_stream_cb,
+                                status_callback=sync_status_cb
+                            )
+                        )
+                        result_holder["result"] = result
+                    finally:
+                        loop.close()
+                except Exception as e:
+                    result_holder["result"] = {"success": False, "error": str(e)}
+                finally:
+                    result_holder["done"] = True
+
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            executor.submit(process_sync)
+
+            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n{padding}"
+
+            while not result_holder["done"]:
+                while True:
+                    try:
+                        event = event_queue.get_nowait()
+                        yield f"data: {json.dumps(event)}\n\n{padding}"
+                    except queue.Empty:
+                        break
+                await asyncio.sleep(0.05)
+                yield f": keepalive\n\n{padding}"
+
+            while True:
+                try:
+                    event = event_queue.get_nowait()
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    break
+
+            yield f"data: {json.dumps({'type': 'complete', 'result': result_holder['result']})}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-store, no-transform, must-revalidate",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
+    # ===== AG-UI PROTOCOL ENDPOINT =====
+    # Implements the AG-UI (Agent-User Interaction) protocol
+    # Compatible with CopilotKit and other AG-UI clients
+    # Protocol spec: https://docs.ag-ui.com/
+
+    class AGUIRunRequest(BaseModel):
+        threadId: str
+        runId: str
+        messages: List[dict]
+        state: Optional[dict] = None
+        context: Optional[dict] = None
+
+    @app.post("/api/agui/run")
+    async def agui_run(request: AGUIRunRequest):
+        """
+        AG-UI Protocol streaming endpoint.
+
+        Emits events following the AG-UI specification:
+        - Lifecycle: RunStarted, RunFinished, RunError
+        - Text: TextMessageStart, TextMessageContent, TextMessageEnd
+        - Tool: ToolCallStart, ToolCallArgs, ToolCallEnd, ToolCallResult
+        - State: StateSnapshot, StateDelta
+        - Activity: ActivitySnapshot, ActivityDelta
+        """
+        from starlette.responses import StreamingResponse
+        import queue
+        import concurrent.futures
+        import json
+
+        thread_id = request.threadId
+        run_id = request.runId
+
+        async def agui_event_generator():
+            # Emit RunStarted
+            yield f"data: {json.dumps({'type': 'RunStarted', 'threadId': thread_id, 'runId': run_id, 'timestamp': datetime.now().isoformat()})}\n\n"
+
+            # Get the latest user message
+            user_messages = [m for m in request.messages if m.get('role') == 'user']
+            if not user_messages:
+                yield f"data: {json.dumps({'type': 'RunError', 'message': 'No user message found', 'code': 'NO_MESSAGE'})}\n\n"
+                return
+
+            user_message = user_messages[-1].get('content', '')
+            message_id = f"msg_{uuid.uuid4().hex[:12]}"
+
+            # Thread-safe queue for events
+            event_queue = queue.Queue()
+            result_holder = {"result": None, "done": False}
+            padding = " " * 8192
+
+            # Emit TextMessageStart
+            yield f"data: {json.dumps({'type': 'TextMessageStart', 'messageId': message_id, 'role': 'assistant', 'timestamp': datetime.now().isoformat()})}\n\n{padding}"
+
+            def sync_stream_cb(chunk: str):
+                """Emit TextMessageContent for each chunk."""
+                event_queue.put({
+                    'type': 'TextMessageContent',
+                    'messageId': message_id,
+                    'delta': chunk
+                })
+
+            def sync_status_cb(stage: str, detail: str):
+                """Emit ActivitySnapshot for status updates."""
+                event_queue.put({
+                    'type': 'ActivitySnapshot',
+                    'messageId': f"activity_{run_id}",
+                    'activityType': 'PROGRESS',
+                    'content': {'stage': stage, 'detail': detail, 'label': f"{stage}: {detail}"}
+                })
+
+            def process_sync():
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(
+                            api.process_message(
+                                message=user_message,
+                                session_id=thread_id,
+                                stream_callback=sync_stream_cb,
+                                status_callback=sync_status_cb
+                            )
+                        )
+                        result_holder["result"] = result
+                    finally:
+                        loop.close()
+                except Exception as e:
+                    logger.error(f"AG-UI processing error: {e}", exc_info=True)
+                    result_holder["result"] = {"success": False, "error": str(e)}
+                finally:
+                    result_holder["done"] = True
+
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            executor.submit(process_sync)
+
+            # Stream events
+            while not result_holder["done"]:
+                while True:
+                    try:
+                        event = event_queue.get_nowait()
+                        yield f"data: {json.dumps(event)}\n\n{padding}"
+                    except queue.Empty:
+                        break
+                await asyncio.sleep(0.05)
+                yield f": keepalive\n\n"
+
+            # Drain remaining events
+            while True:
+                try:
+                    event = event_queue.get_nowait()
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    break
+
+            # Emit TextMessageEnd
+            yield f"data: {json.dumps({'type': 'TextMessageEnd', 'messageId': message_id, 'timestamp': datetime.now().isoformat()})}\n\n"
+
+            # Emit StateSnapshot with result
+            result = result_holder["result"]
+            if result:
+                yield f"data: {json.dumps({'type': 'StateSnapshot', 'snapshot': {'lastResult': result}})}\n\n"
+
+            # Emit RunFinished or RunError
+            if result and result.get("success"):
+                yield f"data: {json.dumps({'type': 'RunFinished', 'threadId': thread_id, 'runId': run_id, 'result': {'content': result.get('content', '')}, 'timestamp': datetime.now().isoformat()})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'RunError', 'message': result.get('error', 'Unknown error') if result else 'Processing failed', 'code': 'PROCESSING_ERROR'})}\n\n"
+
+        return StreamingResponse(
+            agui_event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-store, no-transform, must-revalidate",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
+
+    @app.get("/api/agui/info")
+    async def agui_info():
+        """AG-UI endpoint info."""
+        return {
+            "protocol": "AG-UI",
+            "version": "1.0",
+            "capabilities": [
+                "text_streaming",
+                "tool_calls",
+                "state_management",
+                "activity_tracking"
+            ],
+            "documentation": "https://docs.ag-ui.com/"
+        }
+
     # Export endpoints
     @app.post("/api/export")
     async def export_content(request: dict):
@@ -882,10 +1446,17 @@ def create_app() -> "FastAPI":
             if not output_file.exists():
                 raise HTTPException(status_code=500, detail="Conversion failed - output file not created")
 
+            # Add headers for inline viewing (especially for PDF)
+            headers = {}
+            if media_type == "application/pdf":
+                # Content-Disposition: inline allows browser PDF viewer
+                headers["Content-Disposition"] = f'inline; filename="{output_file.name}"'
+
             return FileResponse(
                 path=str(output_file),
                 filename=output_file.name,
                 media_type=media_type,
+                headers=headers,
                 background=None  # Don't delete file immediately
             )
 
@@ -894,6 +1465,76 @@ def create_app() -> "FastAPI":
             raise HTTPException(status_code=500, detail=f"Conversion failed: {e.stderr.decode() if e.stderr else str(e)}")
         except Exception as e:
             logger.error(f"Export error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/api/preview")
+    async def preview_content(request: dict):
+        """
+        Preview content in various formats (returns HTML/text for inline display).
+
+        Args:
+            content: Markdown content to preview
+            format: Target format (html, docx-preview)
+        """
+        from starlette.responses import HTMLResponse, PlainTextResponse
+        import tempfile
+        import subprocess
+        from pathlib import Path
+
+        content = request.get("content", "")
+        preview_format = request.get("format", "html").lower()
+
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+
+        temp_dir = Path(tempfile.mkdtemp())
+        md_file = temp_dir / "preview.md"
+        md_file.write_text(content, encoding="utf-8")
+
+        try:
+            if preview_format == "html":
+                # Convert to standalone HTML
+                output_file = temp_dir / "preview.html"
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(output_file),
+                    "--standalone",
+                    "--metadata", "title=Preview",
+                    "--css", "data:text/css,body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}pre{background:%23f5f5f5;padding:16px;border-radius:8px;overflow-x:auto}code{background:%23f0f0f0;padding:2px 6px;border-radius:4px}h1,h2,h3{margin-top:24px}"
+                ], check=True)
+                html_content = output_file.read_text(encoding="utf-8")
+                return HTMLResponse(content=html_content)
+
+            elif preview_format == "docx-preview":
+                # Convert DOCX to HTML for preview
+                # First create DOCX, then convert to HTML
+                docx_file = temp_dir / "preview.docx"
+                html_file = temp_dir / "preview.html"
+
+                subprocess.run([
+                    "pandoc", str(md_file), "-o", str(docx_file)
+                ], check=True)
+
+                subprocess.run([
+                    "pandoc", str(docx_file), "-o", str(html_file),
+                    "--standalone"
+                ], check=True)
+
+                html_content = html_file.read_text(encoding="utf-8")
+                # Extract just the body content
+                import re
+                body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.DOTALL)
+                if body_match:
+                    return HTMLResponse(content=body_match.group(1))
+                return HTMLResponse(content=html_content)
+
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported preview format: {preview_format}")
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Preview conversion failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Preview failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Preview error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     # WebSocket endpoint
@@ -1022,6 +1663,100 @@ def create_app() -> "FastAPI":
             logger.error(f"WebSocket error: {e}")
         finally:
             await ws_manager.disconnect(conn)
+
+    # ===== URL PROXY ENDPOINT =====
+    # Server-side proxy to load websites that block iframe embedding
+    # Strips X-Frame-Options and Content-Security-Policy headers
+
+    @app.get("/api/proxy")
+    async def proxy_url(url: str):
+        """
+        Proxy a URL and strip headers that prevent iframe embedding.
+
+        This allows loading external websites in the inline browser
+        even if they set X-Frame-Options or CSP headers.
+        """
+        import httpx
+        from starlette.responses import Response
+
+        if not url:
+            raise HTTPException(status_code=400, detail="URL is required")
+
+        # Validate URL
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                timeout=30.0,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                }
+            ) as client:
+                response = await client.get(url)
+
+                # Get content type
+                content_type = response.headers.get('content-type', 'text/html')
+
+                # Build response headers - copy safe headers, skip restrictive ones
+                safe_headers = {}
+                skip_headers = {
+                    'x-frame-options',
+                    'content-security-policy',
+                    'content-security-policy-report-only',
+                    'x-content-type-options',
+                    'strict-transport-security',
+                    'transfer-encoding',
+                    'content-encoding',
+                    'content-length',  # Will be recalculated
+                }
+
+                for key, value in response.headers.items():
+                    if key.lower() not in skip_headers:
+                        safe_headers[key] = value
+
+                # For HTML content, inject base tag to fix relative URLs
+                content = response.content
+                if 'text/html' in content_type:
+                    try:
+                        html = content.decode('utf-8', errors='replace')
+                        # Parse the base URL
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url)
+                        base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+                        # Inject base tag if not present
+                        if '<base' not in html.lower():
+                            # Insert base tag after <head>
+                            if '<head>' in html:
+                                html = html.replace('<head>', f'<head><base href="{base_url}/">', 1)
+                            elif '<head ' in html:
+                                html = html.replace('<head ', f'<base href="{base_url}/"><head ', 1)
+                            elif '<HEAD>' in html:
+                                html = html.replace('<HEAD>', f'<HEAD><base href="{base_url}/">', 1)
+
+                        content = html.encode('utf-8')
+                    except Exception as e:
+                        logger.debug(f"Failed to inject base tag: {e}")
+
+                return Response(
+                    content=content,
+                    status_code=response.status_code,
+                    headers=safe_headers,
+                    media_type=content_type.split(';')[0]  # Just the mime type, not charset
+                )
+
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="Request timed out")
+        except httpx.RequestError as e:
+            logger.error(f"Proxy request error: {e}")
+            raise HTTPException(status_code=502, detail=f"Failed to fetch URL: {str(e)}")
+        except Exception as e:
+            logger.error(f"Proxy error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     # Explicit routes for static files (ensure they work)
     static_dir = Path(__file__).parent / "static"

@@ -1,0 +1,105 @@
+{
+  "name": "browser-automation",
+  "version": "1.0.0",
+  "description": "Full browser automation using Playwright for JS rendering, form filling, screenshots, and data extraction",
+  "category": "automation",
+  "tools": [
+    {
+      "name": "browser_navigate",
+      "function": "browser_navigate_tool",
+      "description": "Navigate to a URL with full JS rendering",
+      "parameters": {
+        "url": {"type": "string", "required": true, "description": "URL to navigate to"},
+        "wait_for": {"type": "string", "description": "CSS selector to wait for"},
+        "wait_timeout": {"type": "integer", "default": 30000, "description": "Timeout in ms"},
+        "screenshot": {"type": "boolean", "default": false, "description": "Take screenshot after load"},
+        "extract_text": {"type": "boolean", "default": true, "description": "Extract page text"}
+      }
+    },
+    {
+      "name": "browser_screenshot",
+      "function": "browser_screenshot_tool",
+      "description": "Take a screenshot of the current page or specific element",
+      "parameters": {
+        "url": {"type": "string", "description": "URL to screenshot"},
+        "full_page": {"type": "boolean", "default": false, "description": "Capture full scrollable page"},
+        "selector": {"type": "string", "description": "Screenshot specific element"},
+        "save_path": {"type": "string", "description": "Save to file path"},
+        "format": {"type": "string", "default": "png", "description": "png or jpeg"}
+      }
+    },
+    {
+      "name": "browser_fill_form",
+      "function": "browser_fill_form_tool",
+      "description": "Fill form fields and optionally submit",
+      "parameters": {
+        "url": {"type": "string", "description": "Navigate to URL first"},
+        "fields": {"type": "object", "required": true, "description": "Map of selector -> value"},
+        "submit_selector": {"type": "string", "description": "Selector for submit button"},
+        "wait_after_submit": {"type": "string", "description": "Selector to wait for after submit"}
+      }
+    },
+    {
+      "name": "browser_click",
+      "function": "browser_click_tool",
+      "description": "Click an element on the page",
+      "parameters": {
+        "selector": {"type": "string", "required": true, "description": "CSS selector to click"},
+        "url": {"type": "string", "description": "Navigate to URL first"},
+        "wait_for": {"type": "string", "description": "Selector to wait for after click"},
+        "double_click": {"type": "boolean", "default": false},
+        "right_click": {"type": "boolean", "default": false}
+      }
+    },
+    {
+      "name": "browser_extract",
+      "function": "browser_extract_tool",
+      "description": "Extract data from page using CSS selectors",
+      "parameters": {
+        "url": {"type": "string", "description": "Navigate to URL first"},
+        "selectors": {"type": "object", "required": true, "description": "Map of name -> selector"},
+        "extract_all": {"type": "boolean", "default": false, "description": "Extract all matches"},
+        "attributes": {"type": "object", "description": "Map of name -> attribute to extract"}
+      }
+    },
+    {
+      "name": "browser_execute_js",
+      "function": "browser_execute_js_tool",
+      "description": "Execute JavaScript on the page",
+      "parameters": {
+        "script": {"type": "string", "required": true, "description": "JavaScript code"},
+        "url": {"type": "string", "description": "Navigate to URL first"},
+        "args": {"type": "array", "description": "Arguments to pass to script"}
+      }
+    },
+    {
+      "name": "browser_wait",
+      "function": "browser_wait_tool",
+      "description": "Wait for an element or condition",
+      "parameters": {
+        "selector": {"type": "string", "required": true, "description": "CSS selector to wait for"},
+        "state": {"type": "string", "default": "visible", "description": "visible, hidden, attached, detached"},
+        "timeout": {"type": "integer", "default": 30000}
+      }
+    },
+    {
+      "name": "browser_pdf",
+      "function": "browser_pdf_tool",
+      "description": "Generate PDF from page",
+      "parameters": {
+        "url": {"type": "string", "description": "Navigate to URL first"},
+        "save_path": {"type": "string", "required": true, "description": "Path to save PDF"},
+        "format": {"type": "string", "default": "A4", "description": "Paper format"},
+        "landscape": {"type": "boolean", "default": false}
+      }
+    },
+    {
+      "name": "browser_close",
+      "function": "browser_close_tool",
+      "description": "Close the browser session",
+      "parameters": {}
+    }
+  ],
+  "dependencies": ["playwright"],
+  "setup": "pip install playwright && playwright install chromium"
+}

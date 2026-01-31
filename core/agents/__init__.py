@@ -2,6 +2,7 @@
 
 from .chat_assistant import ChatAssistant, create_chat_assistant
 from .auto_agent import AutoAgent, run_task, TaskType, ExecutionResult
+from .model_chat_agent import ModelChatAgent
 
 __all__ = [
     'ChatAssistant',
@@ -10,4 +11,5 @@ __all__ = [
     'run_task',
     'TaskType',
     'ExecutionResult',
+    'ModelChatAgent',
 ]

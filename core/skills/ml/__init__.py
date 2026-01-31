@@ -37,6 +37,7 @@ from .hyperopt import HyperoptSkill
 from .ensemble import EnsembleSkill
 from .mlflow_tracker import MLflowTrackerSkill
 from .automl_skill import AutoMLSkill
+from .fundamental_features import FundamentalFeaturesSkill
 
 __all__ = [
     # Base classes
@@ -55,4 +56,5 @@ __all__ = [
     'EnsembleSkill',
     'MLflowTrackerSkill',
     'AutoMLSkill',
+    'FundamentalFeaturesSkill',
 ]

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Jotty CLI - World-class multi-agent AI assistant
+# Usage: jotty [command] [args]
+
+JOTTY_DIR="/var/www/sites/personal/stock_market/Jotty"
+
+# Set PYTHONPATH to include parent directory for Jotty package
+export PYTHONPATH="/var/www/sites/personal/stock_market:$PYTHONPATH"
+
+cd "$JOTTY_DIR"
+
+# Activate venv
+source "/var/www/sites/personal/stock_market/venv/bin/activate"
+
+# Run Jotty CLI (as Jotty.cli module)
+exec python -m Jotty.cli "$@"

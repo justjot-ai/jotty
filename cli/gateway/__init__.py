@@ -1,0 +1,83 @@
+"""
+Jotty Unified Gateway
+=====================
+
+WebSocket gateway for receiving messages from multiple channels
+(Telegram, Slack, Discord, WhatsApp) and routing to Jotty agents.
+
+Inspired by OpenClaw's unified inbox architecture.
+
+Usage (jotty.justjot.ai):
+    python -m Jotty.cli.gateway              # Run gateway on port 8766
+    python -m Jotty.cli.gateway --port 8080  # Custom port
+"""
+
+from .server import UnifiedGateway, start_gateway
+from .channels import ChannelRouter, MessageEvent, ChannelType
+
+__all__ = ["UnifiedGateway", "start_gateway", "ChannelRouter", "MessageEvent", "ChannelType"]
+
+
+def main():
+    """Main entry point for running the gateway server."""
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(
+        prog="jotty-gateway",
+        description="Jotty Unified Gateway - WebSocket + HTTP API server"
+    )
+    parser.add_argument(
+        "--host", "-H",
+        default=os.getenv("JOTTY_HOST", "0.0.0.0"),
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=int(os.getenv("JOTTY_PORT", "8766")),
+        help="Port to bind to (default: 8766)"
+    )
+    parser.add_argument(
+        "--no-cli",
+        action="store_true",
+        help="Run without JottyCLI (echo mode)"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging"
+    )
+
+    args = parser.parse_args()
+
+    # Configure logging
+    import logging
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    logger = logging.getLogger(__name__)
+
+    # Initialize CLI if requested
+    cli = None
+    if not args.no_cli:
+        try:
+            from ..app import JottyCLI
+            cli = JottyCLI(no_color=True)
+            logger.info("JottyCLI initialized for message processing")
+        except Exception as e:
+            logger.warning(f"Could not initialize JottyCLI: {e}. Running in echo mode.")
+
+    # Start gateway
+    logger.info(f"Starting Jotty Gateway on {args.host}:{args.port}")
+    logger.info(f"PWA: http://{args.host}:{args.port}/")
+    logger.info(f"WebSocket: ws://{args.host}:{args.port}/ws")
+    logger.info(f"Health: http://{args.host}:{args.port}/health")
+
+    start_gateway(host=args.host, port=args.port, cli=cli)
+
+
+if __name__ == "__main__":
+    main()

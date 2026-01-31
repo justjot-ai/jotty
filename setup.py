@@ -50,7 +50,11 @@ cli_packages = [
     "cli.ui",
     "cli.config",
     "cli.plugins",
+    "cli.gateway",
 ]
+
+# Map gateway package
+package_dir_map["Jotty.cli.gateway"] = "cli/gateway"
 
 # Additional packages (telegram, web, core interfaces)
 package_dir_map["Jotty.telegram_bot"] = "telegram_bot"
@@ -82,6 +86,7 @@ setup(
     entry_points={
         "console_scripts": [
             "jotty=Jotty.cli.__main__:main",
+            "jotty-gateway=Jotty.cli.gateway:main",
         ],
     },
     install_requires=[

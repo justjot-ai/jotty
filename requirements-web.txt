@@ -1,0 +1,27 @@
+# Jotty Web Gateway Requirements
+# For jotty.justjot.ai on cmd.dev
+# 
+# Install: pip install -r requirements-web.txt
+
+# Core
+dspy-ai>=2.0.0
+pyyaml>=6.0
+aiohttp>=3.9.0
+
+# Web Server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+python-multipart>=0.0.6
+
+# CLI Interface
+rich>=13.0.0
+prompt-toolkit>=3.0.0
+
+# Optional: Channel Integrations
+# python-telegram-bot>=20.0
+# slack-sdk>=3.0.0
+
+# Optional: Database
+# pymongo>=4.0.0
+# redis>=4.0.0

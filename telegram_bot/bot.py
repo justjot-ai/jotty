@@ -183,6 +183,44 @@ class TelegramBotHandler:
             self.status_callback(stage, detail)
         logger.info(f"Status: {stage} - {detail}")
 
+    def _markdown_to_html(self, text: str) -> str:
+        """Convert markdown to Telegram HTML format."""
+        import re
+        import html
+
+        lines = text.split('\n')
+        result = []
+
+        for line in lines:
+            # Skip escaping for decoration lines
+            if line.strip() in ['═'*30, '─'*30, '━━━', '---', '***']:
+                result.append(line)
+                continue
+
+            # Escape HTML entities first
+            escaped = html.escape(line)
+
+            # Convert markdown to HTML
+            # Bold: **text** or __text__ -> <b>text</b>
+            escaped = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', escaped)
+            escaped = re.sub(r'__(.+?)__', r'<b>\1</b>', escaped)
+
+            # Italic: *text* -> <i>text</i> (but not if part of **)
+            escaped = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', escaped)
+
+            # Code: `text` -> <code>text</code>
+            escaped = re.sub(r'`(.+?)`', r'<code>\1</code>', escaped)
+
+            # Headers: ## text -> <b>text</b>
+            escaped = re.sub(r'^#{1,6}\s+(.+)$', r'<b>\1</b>', escaped)
+
+            # Bullet points: - text or * text -> • text
+            escaped = re.sub(r'^[\-\*]\s+', '• ', escaped)
+
+            result.append(escaped)
+
+        return '\n'.join(result)
+
     def _check_allowed(self, chat_id: int) -> bool:
         """Check if chat ID is allowed."""
         if self.allowed_chat_ids is None:
@@ -463,18 +501,25 @@ class TelegramBotHandler:
                 # Get final content
                 final_content = result.content
 
-                # Edit message with final content
+                # Edit message with final content (convert markdown to HTML)
                 try:
                     # Truncate for Telegram (4096 char limit)
                     display_content = final_content[:4000] if len(final_content) > 4000 else final_content
-                    await stream_msg.edit_text(display_content)
+                    # Convert markdown to HTML for proper rendering
+                    html_content = self._markdown_to_html(display_content)
+                    await stream_msg.edit_text(html_content, parse_mode="HTML")
                 except Exception as e:
-                    logger.warning(f"Final edit failed: {e}")
-                    # Send as new message if edit fails
-                    await stream_msg.delete()
-                    messages = TelegramRenderer.render(final_content, result.output_format)
-                    for msg in messages:
-                        await update.message.reply_text(msg)
+                    logger.warning(f"HTML edit failed: {e}, trying plain text")
+                    # Fallback to plain text if HTML fails
+                    try:
+                        await stream_msg.edit_text(display_content)
+                    except Exception as e2:
+                        logger.warning(f"Plain text edit also failed: {e2}")
+                        # Send as new message if edit fails
+                        await stream_msg.delete()
+                        messages = TelegramRenderer.render(final_content, result.output_format)
+                        for msg in messages:
+                            await update.message.reply_text(msg)
 
                 # Add assistant response to session
                 session.add_message(

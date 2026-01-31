@@ -29,10 +29,13 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .app-container { display: flex; height: 100vh; }
 .sidebar { width: 260px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transition: transform 0.3s ease; }
 .sidebar.hidden { transform: translateX(-100%); position: absolute; }
-.sidebar-header { padding: 16px; border-bottom: 1px solid var(--border-color); }
-.new-chat-btn { width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
+.sidebar-header { padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; }
+.new-chat-btn { flex: 1; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
 .new-chat-btn:hover { background: var(--bg-hover); }
 .new-chat-btn svg { width: 16px; height: 16px; }
+.sidebar-close-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.sidebar-close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar-close-btn svg { width: 16px; height: 16px; }
 .sessions-list { flex: 1; overflow-y: auto; padding: 8px; }
 .sessions-list::-webkit-scrollbar { width: 6px; }
 .sessions-list::-webkit-scrollbar-track { background: transparent; }
@@ -75,14 +78,133 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .message-text h1 { font-size: 20px; }
 .message-text h2 { font-size: 18px; }
 .message-text h3 { font-size: 16px; }
+.message-text a { color: var(--accent); text-decoration: none; cursor: pointer; border-bottom: 1px dashed var(--accent); transition: all 0.2s; }
+.message-text a:hover { color: var(--accent-hover); border-bottom-style: solid; }
 .message-meta { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .message-interface { padding: 2px 6px; background: var(--bg-tertiary); border-radius: 4px; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
 .output-path { color: var(--accent); font-family: monospace; }
 .download-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.download-btn { padding: 4px 10px; font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
-.download-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
-.download-btn svg { width: 12px; height: 12px; }
-.download-btn.loading { opacity: 0.6; cursor: wait; }
+.download-btn, .preview-btn { padding: 4px 10px; font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px; }
+.download-btn:hover, .preview-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+.preview-btn { background: var(--accent); color: white; border-color: var(--accent); }
+.preview-btn:hover { background: var(--accent-hover); }
+.download-btn svg, .preview-btn svg { width: 12px; height: 12px; }
+.download-btn.loading, .preview-btn.loading { opacity: 0.6; cursor: wait; }
+/* Preview Modal */
+.preview-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: flex; flex-direction: column; animation: fadeIn 0.2s ease; }
+.preview-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+.preview-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.preview-actions { display: flex; gap: 8px; align-items: center; }
+.preview-format-btn { padding: 6px 12px; font-size: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; }
+.preview-format-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.preview-format-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.preview-close { padding: 8px 16px; font-size: 13px; background: var(--error); border: none; border-radius: 4px; color: white; cursor: pointer; }
+.preview-close:hover { opacity: 0.9; }
+.preview-content { flex: 1; overflow: auto; padding: 0; background: var(--bg-primary); }
+.preview-content iframe { width: 100%; height: 100%; border: none; min-height: 80vh; background: white; }
+.preview-content .markdown-preview { padding: 40px; max-width: 800px; margin: 0 auto; color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; }
+.preview-content .markdown-preview h1, .preview-content .markdown-preview h2, .preview-content .markdown-preview h3 { margin-top: 24px; margin-bottom: 16px; color: var(--text-primary); }
+.preview-content .markdown-preview pre { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; color: var(--text-primary); }
+.preview-content .markdown-preview code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--text-primary); }
+.preview-content .markdown-preview ul, .preview-content .markdown-preview ol { padding-left: 24px; }
+.preview-loading { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 300px; color: var(--text-secondary); font-size: 16px; background: var(--bg-primary); }
+/* PDF Viewer */
+.pdf-viewer-container { display: flex; flex-direction: column; height: 100%; min-height: 80vh; background: var(--bg-primary); }
+.pdf-viewer-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); }
+.pdf-info { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.pdf-icon { width: 20px; height: 20px; color: #dc2626; }
+.pdf-actions { display: flex; gap: 8px; }
+.pdf-action-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; }
+.pdf-action-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+.pdf-action-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.pdf-action-btn.primary:hover { background: var(--accent-hover); }
+.pdf-action-btn svg { width: 16px; height: 16px; }
+.pdf-embed-container { flex: 1; position: relative; min-height: 70vh; background: #525659; }
+.pdf-iframe { width: 100%; height: 100%; min-height: 70vh; border: none; position: absolute; top: 0; left: 0; }
+.pdf-fallback { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-primary); align-items: center; justify-content: center; }
+.pdf-fallback-content { text-align: center; padding: 40px; }
+.pdf-fallback-content svg { width: 64px; height: 64px; color: var(--text-muted); margin-bottom: 16px; }
+.pdf-fallback-content p { color: var(--text-secondary); margin: 0 0 20px; font-size: 14px; }
+.pdf-fallback-btn { padding: 12px 24px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.pdf-fallback-btn:hover { background: var(--accent-hover); }
+.preview-error { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 300px; text-align: center; color: var(--text-secondary); padding: 40px; }
+.preview-error h3 { margin: 0 0 8px; color: var(--text-primary); }
+.preview-error p { margin: 0; }
+/* Extracted Links */
+.extracted-links { margin-top: 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 12px; border: 1px solid var(--border-color); }
+.links-header { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+.links-list { display: flex; flex-direction: column; gap: 8px; }
+.link-item { display: flex; flex-direction: column; padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; text-decoration: none; transition: all 0.2s; cursor: pointer; }
+.link-item:hover { border-color: var(--accent); background: var(--bg-hover); }
+.link-text { font-size: 14px; font-weight: 500; color: var(--accent); margin-bottom: 2px; }
+.link-url { font-size: 11px; color: var(--text-muted); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Message Links Section */
+.message-links { margin-top: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+.message-links-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: background 0.2s; }
+.message-links-header:hover { background: var(--bg-hover); }
+.message-links-header .expand-icon { width: 16px; height: 16px; transition: transform 0.2s; }
+.message-links.expanded .expand-icon { transform: rotate(180deg); }
+.message-links-list { display: none; padding: 8px; border-top: 1px solid var(--border-color); max-height: 200px; overflow-y: auto; }
+.message-links.expanded .message-links-list { display: flex; flex-direction: column; gap: 4px; }
+.message-link-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-primary); border-radius: 6px; text-decoration: none; transition: all 0.2s; cursor: pointer; }
+.message-link-item:hover { background: var(--bg-hover); }
+.message-link-item .link-favicon { font-size: 14px; }
+.message-link-item .link-text { flex: 1; font-size: 13px; color: var(--accent); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message-link-item .link-domain { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+/* Smart Preview Section Renderers */
+.smart-preview { padding: 20px; max-width: 900px; margin: 0 auto; color: var(--text-primary); }
+.section-mermaid, .section-plantuml, .section-latex, .section-json, .section-chart, .section-code { margin-bottom: 24px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; }
+.section-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.section-icon { font-size: 16px; }
+.section-content { padding: 16px; overflow-x: auto; background: var(--bg-primary); color: var(--text-primary); }
+.section-source { margin: 0; border-top: 1px solid var(--border-color); }
+.section-source summary { padding: 8px 16px; font-size: 12px; color: var(--text-muted); cursor: pointer; background: var(--bg-tertiary); }
+.section-source summary:hover { color: var(--text-primary); }
+.section-source pre { margin: 0; padding: 12px 16px; background: var(--code-bg); font-size: 12px; overflow-x: auto; color: var(--text-primary); }
+.section-source code { color: var(--text-primary); }
+/* Mermaid & PlantUML */
+.mermaid-img, .plantuml-img { max-width: 100%; height: auto; display: block; margin: 0 auto; background: white; padding: 16px; border-radius: 8px; }
+.render-error { padding: 12px; background: rgba(239,68,68,0.15); color: #f87171; border-radius: 6px; margin-bottom: 12px; font-size: 13px; border: 1px solid rgba(239,68,68,0.3); }
+/* LaTeX */
+.math-content { display: flex; justify-content: center; padding: 24px; background: white; border-radius: 8px; }
+.latex-img { max-width: 100%; height: auto; }
+/* JSON - theme aware colors */
+.json-pretty { margin: 0; padding: 0; font-size: 13px; line-height: 1.5; background: transparent; color: var(--text-primary); }
+.json-key { color: #c792ea; }
+.json-string { color: #c3e88d; }
+.json-number { color: #f78c6c; }
+.json-boolean { color: #82aaff; }
+.json-null { color: #676e95; }
+/* Data Table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text-primary); }
+.data-table th, .data-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+.data-table th { background: var(--bg-tertiary); font-weight: 600; position: sticky; top: 0; color: var(--text-primary); }
+.data-table tr:hover { background: var(--bg-hover); }
+.table-footer { padding: 8px 12px; font-size: 12px; color: var(--text-muted); background: var(--bg-tertiary); border-top: 1px solid var(--border-color); }
+/* Code */
+.code-block { margin: 0; padding: 0; font-size: 13px; line-height: 1.5; background: transparent; color: var(--text-primary); }
+.code-block code { color: #abb2bf; }
+/* Section Markdown */
+.section-markdown { border: none; background: transparent; padding: 0 16px; margin-bottom: 16px; }
+.section-markdown h1, .section-markdown h2, .section-markdown h3 { margin-top: 20px; margin-bottom: 12px; color: var(--text-primary); }
+.section-markdown p { margin-bottom: 12px; line-height: 1.6; color: var(--text-primary); }
+.section-markdown ul, .section-markdown ol { padding-left: 24px; margin-bottom: 12px; color: var(--text-primary); }
+.section-markdown li { margin-bottom: 6px; color: var(--text-primary); }
+.section-markdown code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 13px; color: var(--text-primary); }
+.section-markdown pre { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+.section-markdown a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent); cursor: pointer; }
+.section-markdown a:hover { border-bottom-style: solid; }
+/* PDF object fallback */
+.preview-content object { width: 100%; height: 100%; min-height: 80vh; }
+/* Inline Browser Modal */
+.inline-browser-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1001; display: flex; flex-direction: column; animation: fadeIn 0.2s ease; }
+.inline-browser-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+.inline-browser-url { flex: 1; padding: 8px 12px; margin: 0 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inline-browser-actions { display: flex; gap: 8px; align-items: center; }
+.inline-browser-btn { padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.inline-browser-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.inline-browser-btn.close { background: var(--error); color: white; border-color: var(--error); }
+.inline-browser-content { flex: 1; background: white; }
 .status-indicator { display: flex; align-items: center; gap: 8px; padding: 12px 16px; margin: 16px 0; background: var(--bg-tertiary); border-radius: 8px; font-size: 14px; color: var(--text-secondary); }
 .status-spinner { width: 16px; height: 16px; border: 2px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -158,6 +280,297 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
     opacity: 0.7;
 }
 .input-wrapper { position: relative; }
+/* Enhanced Sidebar Styles */
+.sidebar-actions { display: flex; gap: 6px; padding: 0 12px 12px; }
+.sidebar-action-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 8px; font-size: 11px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+.sidebar-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar-action-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.sidebar-action-btn svg { width: 12px; height: 12px; }
+/* Session sections */
+.sessions-section { margin-bottom: 8px; }
+.sessions-section-header { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; }
+.sessions-section-header:hover { color: var(--text-secondary); }
+.sessions-section-header svg { width: 12px; height: 12px; transition: transform 0.2s; }
+.sessions-section-header.collapsed svg { transform: rotate(-90deg); }
+.sessions-section-header .count { margin-left: auto; font-size: 10px; padding: 1px 5px; background: var(--bg-tertiary); border-radius: 8px; }
+/* Session items */
+.session-item { position: relative; display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: 2px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.session-item:hover { background: var(--bg-hover); }
+.session-item.active { background: var(--accent); color: white; }
+.session-item .session-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+.session-item.active .session-icon { opacity: 1; }
+.session-item .session-icon.pinned { color: #f59e0b; }
+.session-item .session-title { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-item .session-title-input { flex: 1; padding: 2px 6px; font-size: 13px; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 4px; color: var(--text-primary); outline: none; }
+.session-item .session-menu-btn { opacity: 0; padding: 4px; border-radius: 4px; background: transparent; border: none; color: inherit; cursor: pointer; transition: opacity 0.2s; }
+.session-item:hover .session-menu-btn { opacity: 0.7; }
+.session-item .session-menu-btn:hover { opacity: 1; background: rgba(0,0,0,0.1); }
+.session-item.active .session-menu-btn { opacity: 0.8; }
+.session-item .session-menu-btn svg { width: 14px; height: 14px; }
+/* Context menu */
+.session-context-menu { position: fixed; width: 180px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 1000; overflow: visible; animation: fadeIn 0.15s ease; }
+.session-context-menu .menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-primary); cursor: pointer; transition: background 0.15s; }
+.session-context-menu .menu-item:hover { background: var(--bg-hover); }
+.session-context-menu .menu-item.danger { color: var(--error); }
+.session-context-menu .menu-item svg { width: 14px; height: 14px; }
+.session-context-menu .menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
+.session-context-menu .menu-submenu { padding: 4px 0; border-top: 1px solid var(--border-color); }
+.session-context-menu .menu-submenu-title { padding: 4px 12px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+/* Folder item */
+.folder-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; margin: 2px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; position: relative; }
+.folder-item:hover { background: var(--bg-hover); }
+.folder-item .folder-color { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; cursor: pointer; transition: transform 0.2s; }
+.folder-item .folder-color:hover { transform: scale(1.2); }
+.folder-item .folder-name { flex: 1; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-item .folder-name-input { flex: 1; padding: 2px 6px; font-size: 12px; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 4px; color: var(--text-primary); outline: none; font-weight: 500; }
+.folder-item .folder-count { font-size: 10px; color: var(--text-muted); margin-right: 4px; }
+.folder-item .folder-chevron { width: 14px; height: 14px; transition: transform 0.2s; flex-shrink: 0; }
+.folder-item.collapsed .folder-chevron { transform: rotate(-90deg); }
+.folder-item .folder-menu-btn { opacity: 0; padding: 4px; border-radius: 4px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: opacity 0.2s; flex-shrink: 0; }
+.folder-item:hover .folder-menu-btn { opacity: 0.7; }
+.folder-item .folder-menu-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+.folder-item .folder-menu-btn svg { width: 14px; height: 14px; }
+.folder-sessions { margin-left: 12px; }
+/* Folder context menu */
+.folder-context-menu { position: fixed; width: 180px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 1000; overflow: visible; animation: fadeIn 0.15s ease; }
+.folder-context-menu .menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-primary); cursor: pointer; transition: background 0.15s; }
+.folder-context-menu .menu-item:hover { background: var(--bg-hover); }
+.folder-context-menu .menu-item.danger { color: var(--error); }
+.folder-context-menu .menu-item svg { width: 14px; height: 14px; }
+.folder-context-menu .menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
+.folder-context-menu .color-row { display: flex; gap: 6px; padding: 8px 12px; }
+.folder-context-menu .color-dot { width: 18px; height: 18px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+.folder-context-menu .color-dot:hover { transform: scale(1.15); }
+.folder-context-menu .color-dot.active { border-color: var(--text-primary); }
+/* Create folder modal */
+.folder-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+.folder-modal { background: var(--bg-secondary); border-radius: 12px; padding: 20px; width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.folder-modal h3 { margin: 0 0 16px; font-size: 16px; color: var(--text-primary); }
+.folder-modal input { width: 100%; padding: 10px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; outline: none; }
+.folder-modal input:focus { border-color: var(--accent); }
+.folder-modal .color-picker { display: flex; gap: 8px; margin: 12px 0; }
+.folder-modal .color-option { width: 24px; height: 24px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+.folder-modal .color-option:hover, .folder-modal .color-option.selected { transform: scale(1.1); border-color: var(--text-primary); }
+.folder-modal .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.folder-modal .modal-actions button { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.folder-modal .cancel-btn { background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); }
+.folder-modal .cancel-btn:hover { background: var(--bg-hover); }
+.folder-modal .create-btn { background: var(--accent); border: none; color: white; }
+.folder-modal .create-btn:hover { background: var(--accent-hover); }
+
+/* ===== AGUI/A2UI COMPONENTS ===== */
+/* AI-Generated UI - Smart Response Cards */
+
+/* Thinking Indicator */
+.thinking-indicator { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 16px; animation: pulseGlow 2s ease-in-out infinite; }
+@keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(16, 163, 127, 0); } 50% { box-shadow: 0 0 20px 2px rgba(16, 163, 127, 0.15); } }
+.thinking-dots { display: flex; gap: 4px; }
+.thinking-dots span { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: bounce 1.4s ease-in-out infinite; }
+.thinking-dots span:nth-child(1) { animation-delay: 0s; }
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+.thinking-text { font-size: 13px; color: var(--text-secondary); }
+.thinking-step { font-size: 11px; color: var(--accent); margin-top: 4px; font-family: monospace; }
+
+/* Suggested Actions / Quick Replies */
+.suggested-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.action-chip { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 20px; font-size: 13px; color: var(--text-primary); cursor: pointer; transition: all 0.2s; }
+.action-chip:hover { background: var(--accent); border-color: var(--accent); color: white; transform: translateY(-1px); }
+.action-chip svg { width: 14px; height: 14px; }
+.action-chip.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.action-chip.primary:hover { background: var(--accent-hover); }
+
+/* Smart Cards - Entity Cards */
+.smart-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin: 12px 0; transition: all 0.2s; }
+.smart-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.smart-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.smart-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: var(--bg-primary); }
+.smart-card-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.smart-card-subtitle { font-size: 12px; color: var(--text-muted); }
+.smart-card-body { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+.smart-card-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.smart-card-btn { padding: 6px 12px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+.smart-card-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.smart-card-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Data Cards - Stats/Metrics */
+.data-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 12px 0; }
+.data-card-item { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; text-align: center; }
+.data-card-value { font-size: 24px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+.data-card-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.data-card-change { font-size: 12px; margin-top: 6px; }
+.data-card-change.positive { color: #22c55e; }
+.data-card-change.negative { color: #ef4444; }
+
+/* Citation Cards */
+.citation-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--bg-tertiary); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; margin: 8px 0; cursor: pointer; transition: all 0.2s; }
+.citation-card:hover { background: var(--bg-hover); }
+.citation-number { width: 24px; height: 24px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: white; flex-shrink: 0; }
+.citation-content { flex: 1; min-width: 0; }
+.citation-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.citation-source { font-size: 11px; color: var(--text-muted); }
+
+/* Timeline View */
+.timeline { position: relative; padding-left: 24px; margin: 16px 0; }
+.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border-color); }
+.timeline-item { position: relative; padding: 12px 0 12px 20px; }
+.timeline-item::before { content: ''; position: absolute; left: -20px; top: 16px; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; border: 2px solid var(--bg-primary); }
+.timeline-date { font-size: 11px; color: var(--accent); font-weight: 500; margin-bottom: 4px; }
+.timeline-content { font-size: 14px; color: var(--text-primary); }
+.timeline-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* Expandable Sections */
+.expandable-section { border: 1px solid var(--border-color); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+.expandable-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-tertiary); cursor: pointer; transition: background 0.2s; }
+.expandable-header:hover { background: var(--bg-hover); }
+.expandable-title { font-size: 14px; font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.expandable-icon { width: 20px; height: 20px; transition: transform 0.2s; }
+.expandable-section.expanded .expandable-icon { transform: rotate(180deg); }
+.expandable-content { display: none; padding: 16px; background: var(--bg-primary); }
+.expandable-section.expanded .expandable-content { display: block; }
+
+/* Progress Steps */
+.progress-steps { display: flex; align-items: center; gap: 0; margin: 16px 0; overflow-x: auto; padding: 8px 0; }
+.progress-step { display: flex; align-items: center; }
+.progress-step-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: var(--bg-tertiary); border: 2px solid var(--border-color); color: var(--text-muted); transition: all 0.3s; flex-shrink: 0; }
+.progress-step.active .progress-step-circle { background: var(--accent); border-color: var(--accent); color: white; }
+.progress-step.completed .progress-step-circle { background: var(--success); border-color: var(--success); color: white; }
+.progress-step-line { width: 40px; height: 2px; background: var(--border-color); }
+.progress-step.completed + .progress-step .progress-step-line { background: var(--success); }
+.progress-step-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--text-muted); white-space: nowrap; margin-top: 4px; }
+
+/* Interactive Chart Container */
+.chart-container { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.chart-controls { display: flex; gap: 4px; }
+.chart-control-btn { padding: 4px 10px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+.chart-control-btn:hover, .chart-control-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+.chart-canvas { width: 100%; height: 200px; }
+
+/* ===== DOCUMENT UPLOAD & CHAT ===== */
+
+/* Folder with documents indicator */
+.folder-item .folder-docs { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted); margin-left: auto; }
+.folder-item .folder-docs svg { width: 12px; height: 12px; }
+
+/* Chat with context button */
+.chat-context-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.chat-context-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.chat-context-btn svg { width: 14px; height: 14px; }
+.chat-context-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* Upload dropzone */
+.upload-dropzone { border: 2px dashed var(--border-color); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; margin: 8px; }
+.upload-dropzone:hover, .upload-dropzone.dragover { border-color: var(--accent); background: rgba(16, 163, 127, 0.05); }
+.upload-dropzone-icon { font-size: 32px; margin-bottom: 8px; }
+.upload-dropzone-text { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+.upload-dropzone-hint { font-size: 11px; color: var(--text-muted); }
+.upload-dropzone input[type="file"] { display: none; }
+
+/* Document list in folder */
+.folder-documents { background: var(--bg-primary); border-top: 1px solid var(--border-color); margin-top: 4px; }
+.document-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border-color); transition: background 0.2s; }
+.document-item:last-child { border-bottom: none; }
+.document-item:hover { background: var(--bg-hover); }
+.document-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.document-icon.pdf { background: rgba(220, 38, 38, 0.15); color: #dc2626; }
+.document-icon.doc { background: rgba(37, 99, 235, 0.15); color: #2563eb; }
+.document-icon.txt { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+.document-icon.csv { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.document-icon.default { background: var(--bg-tertiary); color: var(--text-muted); }
+.document-info { flex: 1; min-width: 0; }
+.document-name { font-size: 13px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; }
+.document-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+.document-item:hover .document-actions { opacity: 1; }
+.document-action-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.document-action-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.document-action-btn.chat:hover { background: var(--accent); border-color: var(--accent); color: white; }
+.document-action-btn.delete:hover { background: var(--error); border-color: var(--error); color: white; }
+.document-action-btn svg { width: 14px; height: 14px; }
+
+/* Context badge in input area */
+.context-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--accent); border-radius: 20px; font-size: 12px; color: white; margin-bottom: 8px; }
+.context-badge svg { width: 14px; height: 14px; }
+.context-badge-remove { cursor: pointer; opacity: 0.8; transition: opacity 0.2s; }
+.context-badge-remove:hover { opacity: 1; }
+.context-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+
+/* Upload progress */
+.upload-progress { padding: 12px; background: var(--bg-tertiary); border-radius: 8px; margin: 8px; }
+.upload-progress-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.upload-progress-bar { height: 4px; background: var(--border-color); border-radius: 2px; overflow: hidden; }
+.upload-progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+/* Document viewer modal */
+.doc-viewer-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; flex-direction: column; }
+.doc-viewer-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+.doc-viewer-title { font-size: 14px; font-weight: 500; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.doc-viewer-actions { display: flex; gap: 8px; }
+.doc-viewer-content { flex: 1; overflow: auto; padding: 20px; background: var(--bg-primary); }
+.doc-viewer-text { max-width: 800px; margin: 0 auto; font-size: 14px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap; }
+
+/* Chat mode indicator */
+.chat-mode-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: linear-gradient(90deg, rgba(16, 163, 127, 0.1) 0%, transparent 100%); border-left: 3px solid var(--accent); margin-bottom: 8px; border-radius: 0 8px 8px 0; }
+.chat-mode-icon { font-size: 16px; }
+.chat-mode-text { font-size: 13px; color: var(--text-secondary); }
+.chat-mode-text strong { color: var(--accent); }
+.chat-mode-close { margin-left: auto; cursor: pointer; color: var(--text-muted); padding: 4px; }
+.chat-mode-close:hover { color: var(--text-primary); }
+
+/* ===== AG-UI PROTOCOL COMPONENTS ===== */
+/* Open standard for Agent-User Interaction (CopilotKit) */
+
+.agui-tool-call { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; margin: 12px 0; overflow: hidden; }
+.agui-tool-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+.agui-tool-icon { font-size: 16px; }
+.agui-tool-name { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
+.agui-tool-status { font-size: 11px; padding: 3px 8px; border-radius: 10px; }
+.agui-tool-status.running { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+.agui-tool-status.completed { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.agui-tool-body { padding: 12px 14px; }
+.agui-tool-body details { margin: 8px 0; }
+.agui-tool-body summary { cursor: pointer; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.agui-tool-body pre { background: var(--bg-primary); padding: 10px; border-radius: 6px; font-size: 11px; overflow-x: auto; color: var(--text-primary); margin: 0; }
+
+.agui-activity { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; margin: 12px 0; padding: 14px; }
+.agui-plan-header { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.agui-plan-steps { display: flex; flex-direction: column; gap: 8px; }
+.agui-plan-step { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg-primary); border-radius: 8px; }
+.agui-plan-step.completed { opacity: 0.7; }
+.agui-plan-step.current { border-left: 3px solid var(--accent); }
+.agui-step-number { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: var(--accent); color: white; border-radius: 50%; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.agui-plan-step.completed .agui-step-number { background: var(--success); }
+.agui-step-text { flex: 1; font-size: 13px; color: var(--text-primary); }
+.agui-step-check { color: var(--success); font-size: 16px; }
+
+.agui-progress { padding: 4px 0; }
+.agui-progress-header { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.agui-progress-bar { height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; }
+.agui-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.agui-progress-text { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+
+/* Human-in-the-loop approval */
+.agui-approval { background: linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0.05) 100%); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 12px; padding: 16px; margin: 12px 0; }
+.agui-approval-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.agui-approval-icon { font-size: 20px; }
+.agui-approval-title { font-size: 14px; font-weight: 600; color: #eab308; }
+.agui-approval-content { font-size: 13px; color: var(--text-primary); margin-bottom: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; }
+.agui-approval-actions { display: flex; gap: 10px; }
+.agui-approval-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; border: none; }
+.agui-approval-btn.approve { background: var(--success); color: white; }
+.agui-approval-btn.approve:hover { background: #16a34a; }
+.agui-approval-btn.reject { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.agui-approval-btn.reject:hover { background: var(--error); color: white; border-color: var(--error); }
+
+/* State indicator */
+.agui-state-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; font-size: 11px; color: var(--text-secondary); }
+.agui-state-badge.synced { border-color: var(--success); color: var(--success); }
+.agui-state-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
     </style>
 </head>
 <body>
@@ -170,6 +583,21 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     New Chat
+                </button>
+                <button class="sidebar-close-btn" id="sidebar-close-btn" title="Close sidebar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-actions">
+                <button class="sidebar-action-btn" id="create-folder-btn" title="Create folder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    Folder
+                </button>
+                <button class="sidebar-action-btn" id="toggle-archived-btn" title="Show archived">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                    Archived
                 </button>
             </div>
             <div class="sessions-list" id="sessions-list"></div>
@@ -232,6 +660,19 @@ class JottyApp {
         this.messages = [];
         this.isProcessing = false;
         this.streamingContent = '';
+        // Session management state
+        this.sessions = [];
+        this.folders = [];
+        this.showArchived = false;
+        this.activeContextMenu = null;
+        this.renamingSession = null;
+        this.expandedFolders = new Set();
+        this.renamingFolder = null;
+        this.activeFolderMenu = null;
+        // Document & Context state
+        this.folderDocuments = {};  // folderId -> [documents]
+        this.chatContext = null;    // { type: 'folder'|'document'|'chat', id, name }
+        this.suggestedActions = []; // AI-suggested follow-up actions
         // Detect proxy path and build URLs accordingly
         const path = window.location.pathname;
         const proxyMatch = path.match(/^(\/proxy\/\d+)/);
@@ -246,7 +687,26 @@ class JottyApp {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             this.wsBase = `${wsProtocol}//${window.location.host}`;
         }
+        // Test API and detect correct base (for port mismatch scenarios)
+        this.detectApiBase();
         this.init();
+    }
+    async detectApiBase() {
+        // Test if current apiBase works, if not try common alternatives
+        const testBases = [this.apiBase, '', '/proxy/8081'];
+        for (const base of testBases) {
+            try {
+                const response = await fetch(`${base}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+                if (response.ok) {
+                    if (base !== this.apiBase) {
+                        console.log(`API base changed from "${this.apiBase}" to "${base}"`);
+                        this.apiBase = base;
+                    }
+                    return;
+                }
+            } catch (e) { /* continue to next */ }
+        }
+        console.log('Could not detect API base, using default');
     }
     init() {
         this.chatArea = document.getElementById('chat-area');
@@ -267,6 +727,20 @@ class JottyApp {
         this.loadCommands();
         this.newChatBtn.addEventListener('click', () => this.newChat());
         this.menuToggle?.addEventListener('click', () => this.toggleSidebar());
+        // Sidebar close button
+        document.getElementById('sidebar-close-btn')?.addEventListener('click', () => this.toggleSidebar());
+        // Sidebar action buttons
+        document.getElementById('create-folder-btn')?.addEventListener('click', () => this.showFolderModal());
+        document.getElementById('toggle-archived-btn')?.addEventListener('click', () => this.toggleArchived());
+        // Close context menus on outside click
+        document.addEventListener('click', (e) => {
+            if (this.activeContextMenu && !e.target.closest('.session-context-menu') && !e.target.closest('.session-menu-btn')) {
+                this.closeContextMenu();
+            }
+            if (this.activeFolderMenu && !e.target.closest('.folder-context-menu') && !e.target.closest('.folder-menu-btn')) {
+                this.closeFolderContextMenu();
+            }
+        });
         document.querySelectorAll('.example-card').forEach(card => {
             card.addEventListener('click', () => {
                 const text = card.querySelector('.example-text').textContent;
@@ -276,6 +750,8 @@ class JottyApp {
             });
         });
         this.loadSessions();
+        this.loadFolders();
+        this.loadFolderDocuments();
         this.newChat();
     }
     generateSessionId() { return 'web_' + Math.random().toString(36).substr(2, 8); }
@@ -283,39 +759,1062 @@ class JottyApp {
         try {
             const response = await fetch(`${this.apiBase}/api/sessions`);
             const data = await response.json();
-            this.renderSessions(data.sessions || []);
+            this.sessions = data.sessions || [];
+            this.renderSessions();
         } catch (error) { console.error('Failed to load sessions:', error); }
     }
-    renderSessions(sessions) {
+    async loadFolders() {
+        try {
+            const response = await fetch(`${this.apiBase}/api/folders`);
+            if (response.ok) {
+                const data = await response.json();
+                this.folders = data.folders || [];
+            }
+        } catch (error) {
+            console.log('Folders API not available, using local storage');
+            this.folders = JSON.parse(localStorage.getItem('jotty_folders') || '[]');
+        }
+        this.renderSessions();
+    }
+    renderSessions() {
         if (!this.sessionsList) return;
-        const today = new Date().toDateString();
-        const yesterday = new Date(Date.now() - 86400000).toDateString();
-        const grouped = { today: [], yesterday: [], older: [] };
-        sessions.forEach(session => {
-            const date = new Date(session.created_at).toDateString();
-            if (date === today) grouped.today.push(session);
-            else if (date === yesterday) grouped.yesterday.push(session);
-            else grouped.older.push(session);
-        });
+        // Filter based on archived state
+        let filteredSessions = this.sessions.filter(s =>
+            this.showArchived ? s.isArchived : !s.isArchived
+        );
+        // Group sessions
+        const pinned = filteredSessions.filter(s => s.isPinned && !s.folderId);
+        const uncategorized = filteredSessions.filter(s => !s.isPinned && !s.folderId);
+        const byFolder = {};
+        this.folders.forEach(f => { byFolder[f.id] = filteredSessions.filter(s => s.folderId === f.id); });
+
         let html = '';
-        if (grouped.today.length > 0) html += this.renderSessionGroup('Today', grouped.today);
-        if (grouped.yesterday.length > 0) html += this.renderSessionGroup('Yesterday', grouped.yesterday);
-        if (grouped.older.length > 0) html += this.renderSessionGroup('Previous', grouped.older);
-        this.sessionsList.innerHTML = html || '<div class="session-item">No sessions yet</div>';
-        this.sessionsList.querySelectorAll('.session-item').forEach(item => {
-            item.addEventListener('click', () => { const id = item.dataset.sessionId; if (id) this.loadSession(id); });
+        // Update archived button state
+        const archivedBtn = document.getElementById('toggle-archived-btn');
+        if (archivedBtn) {
+            archivedBtn.classList.toggle('active', this.showArchived);
+        }
+        // Pinned section
+        if (pinned.length > 0) {
+            html += `<div class="sessions-section">
+                <div class="sessions-section-header"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>Pinned<span class="count">${pinned.length}</span></div>
+                ${pinned.map(s => this.renderSessionItem(s)).join('')}
+            </div>`;
+        }
+        // Folders with documents
+        this.folders.forEach((folder, index) => {
+            const folderSessions = byFolder[folder.id] || [];
+            const folderDocs = this.folderDocuments[folder.id] || [];
+            const isExpanded = this.expandedFolders.has(folder.id);
+            const isRenaming = this.renamingFolder === folder.id;
+            const totalItems = folderSessions.length + folderDocs.length;
+
+            html += `<div class="folder-item ${isExpanded ? '' : 'collapsed'}" data-folder-id="${folder.id}" data-folder-index="${index}">
+                <svg class="folder-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                <div class="folder-color" style="background:${folder.color}" data-folder-id="${folder.id}"></div>
+                ${isRenaming
+                    ? `<input type="text" class="folder-name-input" value="${folder.name}" data-folder-id="${folder.id}">`
+                    : `<span class="folder-name">${folder.name}</span>`
+                }
+                ${folderDocs.length > 0 ? `<span class="folder-docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${folderDocs.length}</span>` : ''}
+                <span class="folder-count">${folderSessions.length}</span>
+                <button class="chat-context-btn" data-context-type="folder" data-context-id="${folder.id}" data-context-name="${folder.name}" onclick="event.stopPropagation(); jottyApp.setChatContext('folder', '${folder.id}', '${folder.name}');" title="Chat with this folder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </button>
+                <button class="folder-menu-btn" data-folder-id="${folder.id}" onclick="event.stopPropagation();">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                </button>
+            </div>`;
+
+            if (isExpanded) {
+                html += `<div class="folder-content">`;
+                // Upload dropzone
+                html += `<div class="upload-dropzone" data-folder-id="${folder.id}">
+                    <input type="file" id="upload-input-${folder.id}" data-folder-id="${folder.id}" multiple accept=".pdf,.docx,.doc,.pptx,.ppt,.txt,.md,.csv,.json,.html,.htm,.epub" style="display:none;">
+                    <div class="upload-dropzone-icon">📄</div>
+                    <div class="upload-dropzone-text">Drop files or click to upload</div>
+                    <div class="upload-dropzone-hint">PDF, DOCX, TXT, MD, CSV, JSON</div>
+                </div>`;
+                // Documents list
+                if (folderDocs.length > 0) {
+                    html += `<div class="folder-documents">`;
+                    folderDocs.forEach(doc => {
+                        const icon = this.getDocIcon(doc.file_type);
+                        const size = this.formatFileSize(doc.file_size);
+                        html += `<div class="document-item" data-doc-id="${doc.id}">
+                            <div class="document-icon ${icon.class}">${icon.emoji}</div>
+                            <div class="document-info">
+                                <div class="document-name">${doc.filename}</div>
+                                <div class="document-meta"><span>${size}</span><span>${doc.chunk_count || 0} chunks</span></div>
+                            </div>
+                            <div class="document-actions">
+                                <button class="document-action-btn chat" data-doc-id="${doc.id}" data-doc-name="${doc.filename}" title="Chat with document" onclick="event.stopPropagation(); jottyApp.setChatContext('document', '${doc.id}', '${doc.filename}');">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                </button>
+                                <button class="document-action-btn" data-doc-id="${doc.id}" title="View document" onclick="event.stopPropagation(); jottyApp.viewDocument('${doc.id}');">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                </button>
+                                <button class="document-action-btn delete" data-doc-id="${doc.id}" title="Delete document" onclick="event.stopPropagation(); jottyApp.deleteDocument('${doc.id}');">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+                // Sessions
+                if (folderSessions.length > 0) {
+                    html += `<div class="folder-sessions">${folderSessions.map(s => this.renderSessionItem(s)).join('')}</div>`;
+                }
+                html += `</div>`;
+            }
         });
+        // Uncategorized (grouped by date)
+        if (uncategorized.length > 0) {
+            const today = new Date().toDateString();
+            const yesterday = new Date(Date.now() - 86400000).toDateString();
+            const grouped = { today: [], yesterday: [], older: [] };
+            uncategorized.forEach(session => {
+                const date = new Date(session.created_at).toDateString();
+                if (date === today) grouped.today.push(session);
+                else if (date === yesterday) grouped.yesterday.push(session);
+                else grouped.older.push(session);
+            });
+            if (grouped.today.length > 0) html += this.renderSessionGroup('Today', grouped.today);
+            if (grouped.yesterday.length > 0) html += this.renderSessionGroup('Yesterday', grouped.yesterday);
+            if (grouped.older.length > 0) html += this.renderSessionGroup('Previous', grouped.older);
+        }
+        this.sessionsList.innerHTML = html || `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">${this.showArchived ? 'No archived chats' : 'No conversations yet'}</div>`;
+        this.attachSessionListeners();
     }
     renderSessionGroup(title, sessions) {
-        return `<div class="session-group"><div class="session-group-title">${title}</div>${sessions.map(s => `<div class="session-item ${s.session_id === this.sessionId ? 'active' : ''}" data-session-id="${s.session_id}">${this.getSessionTitle(s)}</div>`).join('')}</div>`;
+        return `<div class="sessions-section">
+            <div class="sessions-section-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${title}<span class="count">${sessions.length}</span></div>
+            ${sessions.map(s => this.renderSessionItem(s)).join('')}
+        </div>`;
+    }
+    renderSessionItem(session) {
+        const isActive = session.session_id === this.sessionId;
+        const isRenaming = this.renamingSession === session.session_id;
+        const title = this.getSessionTitle(session);
+        const iconClass = session.isPinned ? 'pinned' : '';
+        const icon = session.isPinned
+            ? '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+        return `<div class="session-item ${isActive ? 'active' : ''}" data-session-id="${session.session_id}">
+            <span class="session-icon ${iconClass}">${icon}</span>
+            ${isRenaming
+                ? `<input type="text" class="session-title-input" value="${title}" data-session-id="${session.session_id}">`
+                : `<span class="session-title">${title}</span>`
+            }
+            <button class="session-menu-btn" data-session-id="${session.session_id}">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
+        </div>`;
+    }
+    attachSessionListeners() {
+        // Session item click (load session)
+        this.sessionsList.querySelectorAll('.session-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.session-menu-btn') || e.target.closest('.session-context-menu')) return;
+                const id = item.dataset.sessionId;
+                if (id && this.renamingSession !== id) this.loadSession(id);
+            });
+        });
+        // Menu button click
+        this.sessionsList.querySelectorAll('.session-menu-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.sessionId;
+                this.toggleContextMenu(id, btn);
+            });
+        });
+        // Folder click (expand/collapse)
+        this.sessionsList.querySelectorAll('.folder-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Don't expand if clicking menu or color
+                if (e.target.closest('.folder-menu-btn') || e.target.closest('.folder-color') || e.target.closest('.folder-name-input')) return;
+                const id = item.dataset.folderId;
+                this.toggleFolderExpand(id);
+            });
+        });
+        // Folder menu button click
+        this.sessionsList.querySelectorAll('.folder-menu-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.folderId;
+                this.toggleFolderContextMenu(id, btn);
+            });
+        });
+        // Folder color click (quick color change)
+        this.sessionsList.querySelectorAll('.folder-color').forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = dot.dataset.folderId;
+                this.showFolderColorPicker(id, dot);
+            });
+        });
+        // Folder rename input
+        this.sessionsList.querySelectorAll('.folder-name-input').forEach(input => {
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.saveFolderRename(input.dataset.folderId, input.value);
+                if (e.key === 'Escape') this.cancelFolderRename();
+            });
+            input.addEventListener('blur', () => this.saveFolderRename(input.dataset.folderId, input.value));
+            input.focus();
+            input.select();
+        });
+        // Rename input
+        this.sessionsList.querySelectorAll('.session-title-input').forEach(input => {
+            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.saveRename(input.dataset.sessionId, input.value);
+                if (e.key === 'Escape') this.cancelRename();
+            });
+            input.addEventListener('blur', () => this.saveRename(input.dataset.sessionId, input.value));
+            input.focus();
+            input.select();
+        });
+        // File upload handlers
+        this.sessionsList.querySelectorAll('input[type="file"]').forEach(input => {
+            input.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                const folderId = input.dataset.folderId;
+                for (const file of files) {
+                    await this.uploadDocument(file, folderId);
+                }
+                input.value = ''; // Reset input
+            });
+        });
+        // Drag and drop on upload zones
+        this.sessionsList.querySelectorAll('.upload-dropzone').forEach(zone => {
+            // Stop propagation to prevent folder collapse when clicking dropzone
+            zone.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const folderId = zone.dataset.folderId;
+                const input = document.getElementById(`upload-input-${folderId}`);
+                if (input) {
+                    console.log('Triggering file input for folder:', folderId);
+                    input.click();
+                } else {
+                    console.error('File input not found for folder:', folderId);
+                }
+            });
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                const folderId = zone.dataset.folderId;
+                console.log('Drop detected, files:', files.length, 'folder:', folderId);
+                for (const file of files) {
+                    await this.uploadDocument(file, folderId);
+                }
+            });
+        });
     }
     getSessionTitle(session) {
+        if (session.title) return session.title;
         if (session.history && session.history.length > 0) {
             const firstUser = session.history.find(m => m.role === 'user');
             if (firstUser) return firstUser.content.substring(0, 30) + (firstUser.content.length > 30 ? '...' : '');
         }
-        return `Session ${session.session_id}`;
+        return `Chat ${session.session_id.substring(0, 8)}`;
     }
+    toggleContextMenu(sessionId, buttonElement) {
+        // Remove any existing context menu
+        const existingMenu = document.getElementById('session-context-menu');
+        if (existingMenu) existingMenu.remove();
+
+        if (this.activeContextMenu === sessionId) {
+            this.activeContextMenu = null;
+            return;
+        }
+
+        this.activeContextMenu = sessionId;
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (!session) return;
+
+        // Get button position
+        const btn = buttonElement || this.sessionsList.querySelector(`.session-menu-btn[data-session-id="${sessionId}"]`);
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+
+        // Create menu element
+        const menu = document.createElement('div');
+        menu.id = 'session-context-menu';
+        menu.className = 'session-context-menu';
+        menu.innerHTML = this.renderContextMenuContent(session);
+
+        // Position menu
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+
+        document.body.appendChild(menu);
+
+        // Attach menu item listeners
+        menu.querySelectorAll('.menu-item[data-action]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = item.dataset.action;
+                const sid = item.dataset.sessionId;
+                const folderId = item.dataset.folderId;
+                this.handleSessionAction(action, sid, folderId);
+            });
+        });
+    }
+    renderContextMenuContent(session) {
+        let html = `
+            <div class="menu-item" data-action="pin" data-session-id="${session.session_id}">
+                <svg viewBox="0 0 24 24" fill="${session.isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                ${session.isPinned ? 'Unpin' : 'Pin'}
+            </div>
+            <div class="menu-item" data-action="rename" data-session-id="${session.session_id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Rename
+            </div>
+            <div class="menu-item" data-action="archive" data-session-id="${session.session_id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                ${session.isArchived ? 'Unarchive' : 'Archive'}
+            </div>
+            <div class="menu-divider"></div>
+            <div class="menu-item danger" data-action="delete" data-session-id="${session.session_id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Delete
+            </div>`;
+
+        if (this.folders.length > 0) {
+            html += `<div class="menu-divider"></div>
+                <div class="menu-submenu-title" style="padding:6px 12px;font-size:10px;color:var(--text-muted);text-transform:uppercase;">Move to folder</div>
+                <div class="menu-item" data-action="moveto" data-session-id="${session.session_id}" data-folder-id="">
+                    No folder
+                </div>`;
+            this.folders.forEach(f => {
+                html += `<div class="menu-item" data-action="moveto" data-session-id="${session.session_id}" data-folder-id="${f.id}">
+                    <div style="width:10px;height:10px;border-radius:3px;background:${f.color}"></div>
+                    ${f.name}
+                </div>`;
+            });
+        }
+        return html;
+    }
+    closeContextMenu() {
+        this.activeContextMenu = null;
+        const existingMenu = document.getElementById('session-context-menu');
+        if (existingMenu) existingMenu.remove();
+    }
+    toggleArchived() {
+        this.showArchived = !this.showArchived;
+        this.renderSessions();
+    }
+    toggleFolderExpand(folderId) {
+        if (this.expandedFolders.has(folderId)) {
+            this.expandedFolders.delete(folderId);
+        } else {
+            this.expandedFolders.add(folderId);
+        }
+        this.renderSessions();
+    }
+    handleSessionAction(action, sessionId, folderId) {
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (!session) return;
+        switch(action) {
+            case 'pin':
+                this.togglePin(sessionId, !session.isPinned);
+                break;
+            case 'rename':
+                this.startRename(sessionId);
+                break;
+            case 'archive':
+                this.toggleArchive(sessionId, !session.isArchived);
+                break;
+            case 'delete':
+                if (confirm('Delete this conversation?')) this.deleteSession(sessionId);
+                break;
+            case 'moveto':
+                this.moveToFolder(sessionId, folderId || null);
+                break;
+        }
+        this.closeContextMenu();
+    }
+    startRename(sessionId) {
+        this.renamingSession = sessionId;
+        this.renderSessions();
+    }
+    cancelRename() {
+        this.renamingSession = null;
+        this.renderSessions();
+    }
+    async saveRename(sessionId, newTitle) {
+        if (!newTitle.trim()) {
+            this.cancelRename();
+            return;
+        }
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (session) session.title = newTitle.trim();
+        this.renamingSession = null;
+        await this.updateSession(sessionId, { title: newTitle.trim() });
+        this.renderSessions();
+    }
+    async togglePin(sessionId, pinned) {
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (session) session.isPinned = pinned;
+        await this.updateSession(sessionId, { isPinned: pinned });
+        this.renderSessions();
+    }
+    async toggleArchive(sessionId, archived) {
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (session) session.isArchived = archived;
+        await this.updateSession(sessionId, { isArchived: archived });
+        if (this.sessionId === sessionId) this.newChat();
+        this.renderSessions();
+    }
+    async moveToFolder(sessionId, folderId) {
+        const session = this.sessions.find(s => s.session_id === sessionId);
+        if (session) session.folderId = folderId;
+        await this.updateSession(sessionId, { folderId: folderId });
+        this.renderSessions();
+    }
+    async deleteSession(sessionId) {
+        try {
+            await fetch(`${this.apiBase}/api/sessions/${sessionId}`, { method: 'DELETE' });
+            this.sessions = this.sessions.filter(s => s.session_id !== sessionId);
+            if (this.sessionId === sessionId) this.newChat();
+            this.renderSessions();
+        } catch (error) { console.error('Failed to delete session:', error); }
+    }
+    async updateSession(sessionId, updates) {
+        try {
+            await fetch(`${this.apiBase}/api/sessions/${sessionId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+        } catch (error) {
+            console.log('Session update not persisted (API may not support PATCH)');
+            // Store locally as fallback
+            const localSessions = JSON.parse(localStorage.getItem('jotty_session_meta') || '{}');
+            localSessions[sessionId] = { ...localSessions[sessionId], ...updates };
+            localStorage.setItem('jotty_session_meta', JSON.stringify(localSessions));
+        }
+    }
+    showFolderModal() {
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+        const modal = document.createElement('div');
+        modal.className = 'folder-modal-overlay';
+        modal.innerHTML = `<div class="folder-modal">
+            <h3>Create Folder</h3>
+            <input type="text" id="folder-name-input" placeholder="Folder name" autofocus>
+            <div class="color-picker">
+                ${colors.map((c, i) => `<div class="color-option ${i===0?'selected':''}" data-color="${c}" style="background:${c}"></div>`).join('')}
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn">Cancel</button>
+                <button class="create-btn">Create</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+        let selectedColor = colors[0];
+        modal.querySelectorAll('.color-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                modal.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedColor = opt.dataset.color;
+            });
+        });
+        modal.querySelector('.cancel-btn').addEventListener('click', () => modal.remove());
+        modal.querySelector('.create-btn').addEventListener('click', () => {
+            const name = modal.querySelector('#folder-name-input').value.trim();
+            if (name) {
+                this.createFolder(name, selectedColor);
+                modal.remove();
+            }
+        });
+        modal.querySelector('#folder-name-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') modal.querySelector('.create-btn').click();
+            if (e.key === 'Escape') modal.remove();
+        });
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    }
+    async createFolder(name, color) {
+        const folder = { id: 'folder_' + Date.now(), name, color, order: this.folders.length };
+        this.folders.push(folder);
+        // Store locally
+        localStorage.setItem('jotty_folders', JSON.stringify(this.folders));
+        // Try API
+        try {
+            await fetch(`${this.apiBase}/api/folders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(folder)
+            });
+        } catch (error) { console.log('Folders stored locally'); }
+        this.renderSessions();
+    }
+
+    // ===== FOLDER MANAGEMENT =====
+    toggleFolderContextMenu(folderId, buttonElement) {
+        // Close any existing menu
+        this.closeFolderContextMenu();
+        this.closeContextMenu();
+
+        if (this.activeFolderMenu === folderId) {
+            this.activeFolderMenu = null;
+            return;
+        }
+
+        this.activeFolderMenu = folderId;
+        const folder = this.folders.find(f => f.id === folderId);
+        if (!folder) return;
+
+        const rect = buttonElement.getBoundingClientRect();
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+        const folderIndex = this.folders.findIndex(f => f.id === folderId);
+
+        const menu = document.createElement('div');
+        menu.id = 'folder-context-menu';
+        menu.className = 'folder-context-menu';
+        menu.innerHTML = `
+            <div class="menu-item" data-action="rename" data-folder-id="${folderId}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Rename
+            </div>
+            <div class="menu-divider"></div>
+            <div style="padding:4px 12px;font-size:10px;color:var(--text-muted);text-transform:uppercase;">Color</div>
+            <div class="color-row">
+                ${colors.map(c => `<div class="color-dot ${folder.color === c ? 'active' : ''}" data-color="${c}" data-folder-id="${folderId}" style="background:${c}"></div>`).join('')}
+            </div>
+            <div class="menu-divider"></div>
+            <div class="menu-item ${folderIndex === 0 ? 'disabled' : ''}" data-action="moveup" data-folder-id="${folderId}" ${folderIndex === 0 ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                Move Up
+            </div>
+            <div class="menu-item ${folderIndex === this.folders.length - 1 ? 'disabled' : ''}" data-action="movedown" data-folder-id="${folderId}" ${folderIndex === this.folders.length - 1 ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                Move Down
+            </div>
+            <div class="menu-divider"></div>
+            <div class="menu-item danger" data-action="delete" data-folder-id="${folderId}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Delete Folder
+            </div>
+        `;
+
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.left = `${Math.min(rect.left, window.innerWidth - 190)}px`;
+        document.body.appendChild(menu);
+
+        // Menu item listeners
+        menu.querySelectorAll('.menu-item[data-action]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = item.dataset.action;
+                const id = item.dataset.folderId;
+                this.handleFolderAction(action, id);
+            });
+        });
+
+        // Color dot listeners
+        menu.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.changeFolderColor(dot.dataset.folderId, dot.dataset.color);
+            });
+        });
+    }
+
+    closeFolderContextMenu() {
+        this.activeFolderMenu = null;
+        const menu = document.getElementById('folder-context-menu');
+        if (menu) menu.remove();
+    }
+
+    handleFolderAction(action, folderId) {
+        switch (action) {
+            case 'rename':
+                this.startFolderRename(folderId);
+                break;
+            case 'delete':
+                if (confirm('Delete this folder? Sessions inside will be moved to uncategorized.')) {
+                    this.deleteFolder(folderId);
+                }
+                break;
+            case 'moveup':
+                this.moveFolderUp(folderId);
+                break;
+            case 'movedown':
+                this.moveFolderDown(folderId);
+                break;
+        }
+        this.closeFolderContextMenu();
+    }
+
+    startFolderRename(folderId) {
+        this.renamingFolder = folderId;
+        this.renderSessions();
+    }
+
+    cancelFolderRename() {
+        this.renamingFolder = null;
+        this.renderSessions();
+    }
+
+    async saveFolderRename(folderId, newName) {
+        if (!newName.trim()) {
+            this.cancelFolderRename();
+            return;
+        }
+        const folder = this.folders.find(f => f.id === folderId);
+        if (folder) {
+            folder.name = newName.trim();
+            await this.saveFolders();
+        }
+        this.renamingFolder = null;
+        this.renderSessions();
+    }
+
+    async changeFolderColor(folderId, color) {
+        const folder = this.folders.find(f => f.id === folderId);
+        if (folder) {
+            folder.color = color;
+            await this.saveFolders();
+        }
+        this.closeFolderContextMenu();
+        this.renderSessions();
+    }
+
+    showFolderColorPicker(folderId, element) {
+        // Quick color picker popup
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
+        const folder = this.folders.find(f => f.id === folderId);
+        if (!folder) return;
+
+        // Remove any existing picker
+        const existing = document.getElementById('quick-color-picker');
+        if (existing) existing.remove();
+
+        const rect = element.getBoundingClientRect();
+        const picker = document.createElement('div');
+        picker.id = 'quick-color-picker';
+        picker.className = 'folder-context-menu';
+        picker.style.cssText = `top:${rect.bottom + 4}px;left:${rect.left}px;width:auto;padding:8px;`;
+        picker.innerHTML = `<div class="color-row" style="padding:0;">
+            ${colors.map(c => `<div class="color-dot ${folder.color === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></div>`).join('')}
+        </div>`;
+
+        document.body.appendChild(picker);
+
+        picker.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.changeFolderColor(folderId, dot.dataset.color);
+                picker.remove();
+            });
+        });
+
+        // Close on outside click
+        setTimeout(() => {
+            document.addEventListener('click', function handler(e) {
+                if (!picker.contains(e.target)) {
+                    picker.remove();
+                    document.removeEventListener('click', handler);
+                }
+            });
+        }, 10);
+    }
+
+    moveFolderUp(folderId) {
+        const index = this.folders.findIndex(f => f.id === folderId);
+        if (index > 0) {
+            [this.folders[index], this.folders[index - 1]] = [this.folders[index - 1], this.folders[index]];
+            this.saveFolders();
+            this.renderSessions();
+        }
+    }
+
+    moveFolderDown(folderId) {
+        const index = this.folders.findIndex(f => f.id === folderId);
+        if (index < this.folders.length - 1) {
+            [this.folders[index], this.folders[index + 1]] = [this.folders[index + 1], this.folders[index]];
+            this.saveFolders();
+            this.renderSessions();
+        }
+    }
+
+    async deleteFolder(folderId) {
+        // Move sessions in this folder to uncategorized
+        this.sessions.forEach(s => {
+            if (s.folderId === folderId) {
+                s.folderId = null;
+                this.updateSession(s.session_id, { folderId: null });
+            }
+        });
+
+        // Remove folder
+        this.folders = this.folders.filter(f => f.id !== folderId);
+        await this.saveFolders();
+
+        // Try API
+        try {
+            await fetch(`${this.apiBase}/api/folders/${folderId}`, { method: 'DELETE' });
+        } catch (e) { /* handled locally */ }
+
+        this.renderSessions();
+    }
+
+    async saveFolders() {
+        // Update order property
+        this.folders.forEach((f, i) => f.order = i);
+        // Save locally
+        localStorage.setItem('jotty_folders', JSON.stringify(this.folders));
+        // Try API
+        try {
+            await fetch(`${this.apiBase}/api/folders/bulk`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folders: this.folders })
+            });
+        } catch (e) { console.log('Folders saved locally'); }
+    }
+
+    // ===== DOCUMENT MANAGEMENT & RAG =====
+
+    async loadFolderDocuments() {
+        // Load documents for all folders
+        try {
+            const response = await fetch(`${this.apiBase}/api/documents`);
+            if (response.ok) {
+                const data = await response.json();
+                // Group by folder
+                this.folderDocuments = {};
+                (data.documents || []).forEach(doc => {
+                    const folderId = doc.folder_id;
+                    if (folderId) {
+                        if (!this.folderDocuments[folderId]) this.folderDocuments[folderId] = [];
+                        this.folderDocuments[folderId].push(doc);
+                    }
+                });
+            }
+        } catch (e) {
+            console.log('Document API not available');
+        }
+    }
+
+    async uploadDocument(file, folderId) {
+        console.log('uploadDocument called:', file?.name, 'folder:', folderId);
+
+        if (!file) {
+            this.showNotification('No file selected', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        if (folderId) formData.append('folder_id', folderId);
+
+        try {
+            // Show upload progress
+            this.showUploadProgress(file.name, folderId);
+            console.log('Uploading to:', `${this.apiBase}/api/documents/upload`);
+
+            const response = await fetch(`${this.apiBase}/api/documents/upload`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                let errorMsg = 'Upload failed';
+                if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    errorMsg = error.detail.map(e => e.msg || e).join(', ');
+                } else if (error.message) {
+                    errorMsg = error.message;
+                }
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json();
+
+            // Update local state
+            if (!this.folderDocuments[folderId]) this.folderDocuments[folderId] = [];
+            this.folderDocuments[folderId].push(result.document);
+
+            this.hideUploadProgress(folderId);
+            this.renderSessions();
+
+            // Show success notification
+            this.showNotification(`Uploaded: ${file.name}`, 'success');
+
+        } catch (error) {
+            console.error('Upload failed:', error);
+            this.hideUploadProgress(folderId);
+            this.showNotification(`Upload failed: ${error.message}`, 'error');
+        }
+    }
+
+    showUploadProgress(filename, folderId) {
+        const dropzone = document.querySelector(`.upload-dropzone[data-folder-id="${folderId}"]`);
+        if (dropzone) {
+            dropzone.innerHTML = `
+                <div class="upload-progress-header">
+                    <span>Uploading ${filename}...</span>
+                    <span class="upload-percent">Processing</span>
+                </div>
+                <div class="upload-progress-bar"><div class="upload-progress-fill" style="width:50%"></div></div>
+            `;
+        }
+    }
+
+    hideUploadProgress(folderId) {
+        const dropzone = document.querySelector(`.upload-dropzone[data-folder-id="${folderId}"]`);
+        if (dropzone) {
+            dropzone.innerHTML = `
+                <div class="upload-dropzone-icon">📄</div>
+                <div class="upload-dropzone-text">Drop files or click to upload</div>
+                <div class="upload-dropzone-hint">PDF, DOCX, TXT, MD, CSV, JSON</div>
+            `;
+        }
+    }
+
+    async deleteDocument(docId) {
+        if (!confirm('Delete this document?')) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/api/documents/${docId}`, { method: 'DELETE' });
+            if (response.ok) {
+                // Remove from local state
+                Object.keys(this.folderDocuments).forEach(folderId => {
+                    this.folderDocuments[folderId] = this.folderDocuments[folderId].filter(d => d.id !== docId);
+                });
+                this.renderSessions();
+                this.showNotification('Document deleted', 'success');
+            }
+        } catch (error) {
+            this.showNotification('Failed to delete document', 'error');
+        }
+    }
+
+    async viewDocument(docId) {
+        try {
+            const response = await fetch(`${this.apiBase}/api/documents/${docId}?include_text=true`);
+            if (!response.ok) throw new Error('Document not found');
+            const data = await response.json();
+
+            const modal = document.createElement('div');
+            modal.className = 'doc-viewer-modal';
+            modal.innerHTML = `
+                <div class="doc-viewer-header">
+                    <div class="doc-viewer-title">
+                        ${this.getDocIcon(data.document.file_type).emoji}
+                        ${data.document.filename}
+                    </div>
+                    <div class="doc-viewer-actions">
+                        <button class="chat-context-btn active" onclick="jottyApp.setChatContext('document', '${docId}', '${data.document.filename}'); this.closest('.doc-viewer-modal').remove();">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            Chat with Document
+                        </button>
+                        <button class="pdf-action-btn" onclick="this.closest('.doc-viewer-modal').remove();">Close</button>
+                    </div>
+                </div>
+                <div class="doc-viewer-content">
+                    <div class="doc-viewer-text">${this.escapeHtml(data.text || 'No text extracted')}</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Close on escape
+            const escHandler = (e) => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', escHandler); } };
+            document.addEventListener('keydown', escHandler);
+        } catch (error) {
+            this.showNotification('Failed to load document', 'error');
+        }
+    }
+
+    getDocIcon(fileType) {
+        const icons = {
+            '.pdf': { emoji: '📕', class: 'pdf' },
+            '.docx': { emoji: '📘', class: 'doc' },
+            '.doc': { emoji: '📘', class: 'doc' },
+            '.txt': { emoji: '📄', class: 'txt' },
+            '.md': { emoji: '📝', class: 'txt' },
+            '.csv': { emoji: '📊', class: 'csv' },
+            '.json': { emoji: '📋', class: 'txt' },
+            '.html': { emoji: '🌐', class: 'txt' },
+            '.pptx': { emoji: '📙', class: 'doc' },
+        };
+        return icons[fileType] || { emoji: '📄', class: 'default' };
+    }
+
+    formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // ===== CHAT CONTEXT (RAG) =====
+
+    setChatContext(type, id, name) {
+        this.chatContext = { type, id, name };
+        this.renderChatContextBadge();
+        this.showNotification(`Now chatting with: ${name}`, 'info');
+
+        // Focus the input
+        if (this.messageInput) {
+            this.messageInput.focus();
+            this.messageInput.placeholder = `Ask about ${name}...`;
+        }
+    }
+
+    clearChatContext() {
+        this.chatContext = null;
+        this.renderChatContextBadge();
+        if (this.messageInput) {
+            this.messageInput.placeholder = 'Message Jotty...';
+        }
+    }
+
+    renderChatContextBadge() {
+        let badgeContainer = document.getElementById('context-badges');
+        if (!badgeContainer) {
+            // Create badge container above input
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) {
+                badgeContainer = document.createElement('div');
+                badgeContainer.id = 'context-badges';
+                badgeContainer.className = 'context-badges';
+                inputArea.insertBefore(badgeContainer, inputArea.firstChild);
+            }
+        }
+
+        if (!badgeContainer) return;
+
+        if (this.chatContext) {
+            const icon = this.chatContext.type === 'folder' ? '📁' : this.chatContext.type === 'document' ? '📄' : '💬';
+            badgeContainer.innerHTML = `
+                <div class="context-badge">
+                    <span>${icon}</span>
+                    <span>Chatting with: ${this.chatContext.name}</span>
+                    <span class="context-badge-remove" onclick="jottyApp.clearChatContext()">✕</span>
+                </div>
+            `;
+        } else {
+            badgeContainer.innerHTML = '';
+        }
+    }
+
+    // ===== AGUI COMPONENTS =====
+
+    showThinkingIndicator(step = '') {
+        const indicator = document.createElement('div');
+        indicator.id = 'thinking-indicator';
+        indicator.className = 'thinking-indicator';
+        indicator.innerHTML = `
+            <div class="thinking-dots"><span></span><span></span><span></span></div>
+            <div>
+                <div class="thinking-text">Jotty is thinking...</div>
+                <div class="thinking-step" id="thinking-step">${step}</div>
+            </div>
+        `;
+
+        if (this.messagesContainer) {
+            this.messagesContainer.appendChild(indicator);
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
+    }
+
+    updateThinkingStep(step) {
+        const stepEl = document.getElementById('thinking-step');
+        if (stepEl) stepEl.textContent = step;
+    }
+
+    hideThinkingIndicator() {
+        const indicator = document.getElementById('thinking-indicator');
+        if (indicator) indicator.remove();
+    }
+
+    renderSuggestedActions(actions) {
+        if (!actions || actions.length === 0) return '';
+
+        return `<div class="suggested-actions">
+            ${actions.map(action => `
+                <button class="action-chip ${action.primary ? 'primary' : ''}" onclick="jottyApp.handleSuggestedAction('${this.escapeHtml(action.text)}')">
+                    ${action.icon ? `<span>${action.icon}</span>` : ''}
+                    ${action.text}
+                </button>
+            `).join('')}
+        </div>`;
+    }
+
+    handleSuggestedAction(text) {
+        if (this.messageInput) {
+            this.messageInput.value = text;
+            this.sendMessage();
+        }
+    }
+
+    generateSuggestedActions(content) {
+        // AI-generated follow-up suggestions based on response content
+        const actions = [];
+
+        // Detect content patterns and suggest relevant follow-ups
+        if (content.includes('```')) {
+            actions.push({ icon: '💡', text: 'Explain this code' });
+            actions.push({ icon: '🔧', text: 'How can I improve this?' });
+        }
+
+        if (content.match(/\d+%|\d+\.\d+/)) {
+            actions.push({ icon: '📊', text: 'Visualize this data' });
+        }
+
+        if (content.includes('http://') || content.includes('https://')) {
+            actions.push({ icon: '🔗', text: 'Summarize linked pages' });
+        }
+
+        // Generic follow-ups
+        if (actions.length === 0) {
+            actions.push({ icon: '🔍', text: 'Tell me more' });
+            actions.push({ icon: '📝', text: 'Create a summary' });
+        }
+
+        return actions.slice(0, 4);  // Max 4 suggestions
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--error)' : 'var(--accent)'};
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
     async loadSession(sessionId) {
         try {
             const response = await fetch(`${this.apiBase}/api/sessions/${sessionId}`);
@@ -369,12 +1868,12 @@ class JottyApp {
         this.updateStreamingMessage();
         console.log('Stream chunk received, total length:', this.streamingContent.length);
     }
-    updateStreamingMessage() {
+    updateStreamingMessage(content = null) {
         const streamingEl = document.getElementById('streaming-message');
         if (streamingEl) {
             const textEl = streamingEl.querySelector('.message-text');
             if (textEl) {
-                textEl.innerHTML = this.renderMarkdown(this.streamingContent);
+                textEl.innerHTML = this.renderMarkdown(content || this.streamingContent);
                 this.scrollToBottom();
             }
         }
@@ -385,13 +1884,9 @@ class JottyApp {
         const statusEl = document.getElementById('status-indicator');
         if (statusEl) statusEl.remove();
         const streamingEl = document.getElementById('streaming-message');
-        if (streamingEl) {
-            streamingEl.removeAttribute('id');
-            const textEl = streamingEl.querySelector('.message-text');
-            if (textEl) textEl.innerHTML = this.renderMarkdown(data.content);
-            if (data.output_path) { const metaEl = streamingEl.querySelector('.message-meta'); if (metaEl) metaEl.innerHTML += `<span class="output-path">Saved: ${data.output_path}</span>`; }
-        }
+        if (streamingEl) streamingEl.remove();  // Remove streaming element, will be re-rendered
         this.messages.push({ role: 'assistant', content: data.content, interface: 'web', output_path: data.output_path });
+        this.renderMessages();  // Re-render to show download buttons
         this.setProcessing(false);
         this.loadSessions();
     }
@@ -430,9 +1925,73 @@ class JottyApp {
             await this.executeCommand(content);
         } else {
             this.addStreamingMessage();
-            // Use SSE for streaming
-            this.sendViaSSE(content);
+            // Use context-aware SSE if chatContext is set
+            if (this.chatContext) {
+                this.sendViaContextSSE(content);
+            } else {
+                this.sendViaSSE(content);
+            }
         }
+    }
+
+    sendViaContextSSE(content) {
+        // SSE streaming with document/folder context (RAG)
+        const url = new URL(`${this.apiBase}/api/chat/context/stream`, window.location.origin);
+        url.searchParams.set('message', content);
+        url.searchParams.set('context_type', this.chatContext.type);
+        url.searchParams.set('context_id', this.chatContext.id);
+        url.searchParams.set('session_id', this.sessionId);
+
+        console.log('Context SSE URL:', url.toString());
+
+        // Show thinking indicator with context
+        this.showThinkingIndicator(`Searching ${this.chatContext.name}...`);
+
+        const evtSource = new EventSource(url.toString());
+        let receivedAnyContent = false;
+
+        evtSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Context SSE event:', data.type, data);
+
+                if (data.type === 'context') {
+                    // Update thinking indicator
+                    if (data.has_context) {
+                        this.updateThinkingStep(`Found ${Math.round(data.context_length / 4)} relevant tokens`);
+                    } else {
+                        this.updateThinkingStep('No matching context found, using general knowledge');
+                    }
+                } else if (data.type === 'status') {
+                    this.updateThinkingStep(data.detail || data.stage);
+                } else if (data.type === 'stream') {
+                    // Hide thinking indicator on first content
+                    if (!receivedAnyContent) {
+                        this.hideThinkingIndicator();
+                        receivedAnyContent = true;
+                    }
+                    this.streamingContent += data.chunk;
+                    this.updateStreamingMessage(this.streamingContent);
+                } else if (data.type === 'complete') {
+                    this.hideThinkingIndicator();
+                    evtSource.close();
+                    this.handleCompleteSSE(data.result);
+                } else if (data.type === 'error') {
+                    this.hideThinkingIndicator();
+                    evtSource.close();
+                    this.handleError(data.error);
+                }
+            } catch (e) {
+                console.warn('Failed to parse SSE data:', e);
+            }
+        };
+
+        evtSource.onerror = (e) => {
+            console.error('Context SSE error:', e);
+            this.hideThinkingIndicator();
+            evtSource.close();
+            this.handleError('Connection error');
+        };
     }
     async loadCommands() {
         try {
@@ -713,36 +2272,44 @@ class JottyApp {
     renderMessages() {
         if (!this.messagesContainer) return;
         this.messagesContainer.innerHTML = this.messages.map((msg, idx) => {
+            // Extract links for assistant messages
+            let linksSection = '';
+            if (msg.role === 'assistant' && msg.content) {
+                const links = this.extractLinks(msg.content);
+                if (links.length > 0) {
+                    linksSection = `<div class="message-links">
+                        <div class="message-links-header" onclick="this.parentElement.classList.toggle('expanded')">
+                            <span>🔗 ${links.length} link${links.length > 1 ? 's' : ''} found</span>
+                            <svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <div class="message-links-list">${links.map(l => `<a href="${l.url}" onclick="jottyApp.openInlineBrowser('${l.url.replace(/'/g, "\\'")}', '${l.text.replace(/'/g, "\\'")}'); return false;" class="message-link-item" title="${l.url}"><span class="link-favicon">🌐</span><span class="link-text">${l.text}</span><span class="link-domain">${this.getDomain(l.url)}</span></a>`).join('')}</div>
+                    </div>`;
+                }
+            }
             const downloadBtns = msg.role === 'assistant' && msg.content ? `
                 <div class="download-buttons">
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'md')" title="Download as Markdown">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        MD
+                    <button class="preview-btn" onclick="jottyApp.openPreview(${idx})" title="Preview Document">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Preview
                     </button>
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'pdf')" title="Download as PDF">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        PDF
-                    </button>
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'docx')" title="Download as Word">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        DOCX
-                    </button>
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'html')" title="Download as HTML">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        HTML
-                    </button>
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'epub')" title="Download as EPUB">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        EPUB
-                    </button>
-                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'slides')" title="Download as Slides">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        Slides
-                    </button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'md')" title="Download Markdown">↓ MD</button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'pdf')" title="Download PDF">↓ PDF</button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'docx')" title="Download Word">↓ DOCX</button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'html')" title="Download HTML">↓ HTML</button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'epub')" title="Download EPUB">↓ EPUB</button>
+                    <button class="download-btn" onclick="jottyApp.exportContent(${idx}, 'slides')" title="Download Slides">↓ Slides</button>
                 </div>` : '';
-            return `<div class="message ${msg.role}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}</div><div class="message-text">${this.renderMarkdown(msg.content)}</div><div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span>${msg.output_path ? `<span class="output-path">Saved: ${msg.output_path}</span>` : ''}</div>${downloadBtns}</div></div>`;
+            return `<div class="message ${msg.role}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}</div><div class="message-text">${this.renderMarkdown(msg.content)}</div>${linksSection}<div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span></div>${downloadBtns}</div></div>`;
         }).join('');
         this.scrollToBottom();
+    }
+
+    getDomain(url) {
+        try {
+            return new URL(url).hostname.replace('www.', '');
+        } catch {
+            return url.substring(0, 30);
+        }
     }
     renderMarkdown(text) {
         if (!text) return '';
@@ -760,9 +2327,709 @@ class JottyApp {
         html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
         html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul>$&</ul>');
         html = html.replace(/^(?!<[huplo]|$)(.+)$/gm, '<p>$1</p>');
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        // Convert markdown links to inline browser links (onclick instead of target="_blank")
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+            const safeUrl = url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const safeText = text.replace(/'/g, "\\'");
+            return `<a href="${url}" onclick="jottyApp.openInlineBrowser('${safeUrl}', '${safeText}'); return false;" class="inline-link" title="Open in preview">${text}</a>`;
+        });
+        // Convert bare URLs to inline browser links (match URLs not already in anchor tags)
+        html = html.replace(/(?<!href="|onclick="[^"]*|<a[^>]*>)(https?:\/\/[^\s<>"']+)/g, (match, url) => {
+            const safeUrl = url.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const displayUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
+            return `<a href="${url}" onclick="jottyApp.openInlineBrowser('${safeUrl}', '${displayUrl}'); return false;" class="inline-link" title="${url}">${displayUrl}</a>`;
+        });
         return html;
     }
+
+    // Inline Browser - opens URLs in a modal overlay
+    // Uses server-side proxy to bypass X-Frame-Options restrictions
+    openInlineBrowser(url, title = '') {
+        // Ensure URL has protocol
+        let fullUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            fullUrl = url.startsWith('/') ? `${window.location.origin}${url}` : `https://${url}`;
+        }
+
+        // Use our server-side proxy to bypass X-Frame-Options
+        const proxyUrl = `${this.apiBase}/api/proxy?url=${encodeURIComponent(fullUrl)}`;
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'inline-browser-modal';
+        modal.className = 'inline-browser-modal';
+        modal.innerHTML = `
+            <div class="inline-browser-header">
+                <div class="inline-browser-actions">
+                    <button class="inline-browser-btn" onclick="jottyApp.inlineBrowserBack()" title="Back">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button class="inline-browser-btn" onclick="jottyApp.inlineBrowserRefresh()" title="Refresh">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                    </button>
+                </div>
+                <div class="inline-browser-url" id="inline-browser-url">${fullUrl}</div>
+                <div class="inline-browser-actions">
+                    <button class="inline-browser-btn" onclick="window.open('${fullUrl}', '_blank')" title="Open in new tab">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Open
+                    </button>
+                    <button class="inline-browser-btn close" onclick="jottyApp.closeInlineBrowser()" title="Close">
+                        ✕ Close
+                    </button>
+                </div>
+            </div>
+            <div class="inline-browser-content">
+                <div class="inline-browser-loading" style="display:flex; align-items:center; justify-content:center; height:100%; background:var(--bg-primary); color:var(--text-secondary);">
+                    <div style="text-align:center;">
+                        <div class="status-spinner" style="margin:0 auto 12px;"></div>
+                        <div>Loading page via proxy...</div>
+                    </div>
+                </div>
+                <iframe id="inline-browser-iframe" src="${proxyUrl}" style="width:100%; height:100%; border:none; display:none;"></iframe>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Store URL for navigation
+        this.inlineBrowserUrl = fullUrl;
+        this.inlineBrowserHistory = [fullUrl];
+        this.inlineBrowserHistoryIndex = 0;
+        this.inlineBrowserProxyAttempted = false;
+
+        // Close on escape
+        this.inlineBrowserEscHandler = (e) => { if (e.key === 'Escape') this.closeInlineBrowser(); };
+        document.addEventListener('keydown', this.inlineBrowserEscHandler);
+
+        // Handle iframe load events
+        const iframe = document.getElementById('inline-browser-iframe');
+        const loading = modal.querySelector('.inline-browser-loading');
+
+        if (iframe) {
+            // Set up load timeout
+            this.inlineBrowserTimeout = setTimeout(() => {
+                this.tryExternalProxyFallback(fullUrl, modal);
+            }, 15000);  // 15 second timeout for server proxy
+
+            iframe.onload = () => {
+                clearTimeout(this.inlineBrowserTimeout);
+                // Hide loading, show iframe
+                if (loading) loading.style.display = 'none';
+                iframe.style.display = 'block';
+
+                // Check if proxy returned an error (empty or error page)
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                    if (iframeDoc) {
+                        const text = iframeDoc.body?.innerText || '';
+                        // Check for common proxy error indicators
+                        if (text.includes('502 Bad Gateway') || text.includes('504 Gateway') || text.includes('Failed to fetch')) {
+                            this.tryExternalProxyFallback(fullUrl, modal);
+                        }
+                    }
+                } catch (e) {
+                    // Cross-origin - page loaded successfully
+                }
+            };
+
+            iframe.onerror = () => {
+                clearTimeout(this.inlineBrowserTimeout);
+                this.tryExternalProxyFallback(fullUrl, modal);
+            };
+        }
+    }
+
+    tryExternalProxyFallback(url, modal) {
+        // If server proxy failed, try allorigins as external fallback
+        if (this.inlineBrowserProxyAttempted) {
+            this.showInlineBrowserError(url, modal);
+            return;
+        }
+        this.inlineBrowserProxyAttempted = true;
+
+        const content = modal.querySelector('.inline-browser-content');
+        const urlEl = document.getElementById('inline-browser-url');
+        if (!content) return;
+
+        // Try using allorigins.win as external proxy
+        const externalProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+
+        content.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:center; height:100%; background:var(--bg-primary); color:var(--text-secondary);">
+                <div style="text-align:center;">
+                    <div class="status-spinner" style="margin:0 auto 12px;"></div>
+                    <div>Trying external proxy...</div>
+                </div>
+            </div>
+        `;
+
+        // Update URL bar to show proxy
+        if (urlEl) urlEl.innerHTML = `<span style="color:var(--accent);">[via external proxy]</span> ${url}`;
+
+        // Create new iframe with external proxy URL
+        setTimeout(() => {
+            content.innerHTML = `<iframe id="inline-browser-iframe" src="${externalProxyUrl}" style="width:100%; height:100%; border:none;"></iframe>`;
+
+            const newIframe = document.getElementById('inline-browser-iframe');
+            if (newIframe) {
+                // Set timeout for external proxy attempt
+                const proxyTimeout = setTimeout(() => {
+                    this.showInlineBrowserError(url, modal);
+                }, 10000);
+
+                newIframe.onload = () => {
+                    clearTimeout(proxyTimeout);
+                };
+
+                newIframe.onerror = () => {
+                    clearTimeout(proxyTimeout);
+                    this.showInlineBrowserError(url, modal);
+                };
+            }
+        }, 500);
+    }
+
+    showInlineBrowserError(url, modal) {
+        const content = modal.querySelector('.inline-browser-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; background:var(--bg-primary); color:var(--text-primary); padding:40px; text-align:center;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.5; margin-bottom:20px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
+                </svg>
+                <h3 style="margin:0 0 12px 0; font-size:18px;">Cannot Load in Preview</h3>
+                <p style="margin:0 0 20px 0; color:var(--text-secondary); max-width:400px;">This site doesn't allow embedding and proxy connection failed. Click below to open in a new tab.</p>
+                <a href="${url}" target="_blank" style="padding:12px 24px; background:var(--accent); color:white; border-radius:8px; text-decoration:none; font-weight:500;">Open in New Tab</a>
+            </div>
+        `;
+    }
+
+    closeInlineBrowser() {
+        const modal = document.getElementById('inline-browser-modal');
+        if (modal) modal.remove();
+        if (this.inlineBrowserEscHandler) {
+            document.removeEventListener('keydown', this.inlineBrowserEscHandler);
+        }
+    }
+
+    inlineBrowserBack() {
+        if (this.inlineBrowserHistoryIndex > 0) {
+            this.inlineBrowserHistoryIndex--;
+            const url = this.inlineBrowserHistory[this.inlineBrowserHistoryIndex];
+            const proxyUrl = `${this.apiBase}/api/proxy?url=${encodeURIComponent(url)}`;
+            const iframe = document.getElementById('inline-browser-iframe');
+            const urlEl = document.getElementById('inline-browser-url');
+            if (iframe) iframe.src = proxyUrl;
+            if (urlEl) urlEl.textContent = url;
+        }
+    }
+
+    inlineBrowserRefresh() {
+        const iframe = document.getElementById('inline-browser-iframe');
+        if (iframe) {
+            // Re-fetch through proxy
+            const currentUrl = this.inlineBrowserHistory[this.inlineBrowserHistoryIndex] || this.inlineBrowserUrl;
+            const proxyUrl = `${this.apiBase}/api/proxy?url=${encodeURIComponent(currentUrl)}`;
+            iframe.src = proxyUrl;
+        }
+    }
+    openPreview(msgIndex) {
+        const msg = this.messages[msgIndex];
+        if (!msg || !msg.content) return;
+
+        // Store current message index for format switching
+        this.previewMsgIndex = msgIndex;
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'preview-modal';
+        modal.className = 'preview-modal';
+        modal.innerHTML = `
+            <div class="preview-header">
+                <span class="preview-title">Document Preview</span>
+                <div class="preview-actions">
+                    <button class="preview-format-btn active" data-format="md">Markdown</button>
+                    <button class="preview-format-btn" data-format="html">HTML</button>
+                    <button class="preview-format-btn" data-format="pdf">PDF</button>
+                    <button class="preview-format-btn" data-format="docx">DOCX</button>
+                    <button class="preview-format-btn" data-format="slides">Slides</button>
+                    <button class="preview-close" onclick="jottyApp.closePreview()">✕ Close</button>
+                </div>
+            </div>
+            <div class="preview-content" id="preview-content">
+                <div class="preview-loading">Loading preview...</div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add format button listeners
+        modal.querySelectorAll('.preview-format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.preview-format-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.loadPreview(msgIndex, btn.dataset.format);
+            });
+        });
+
+        // Close on escape
+        this.previewEscHandler = (e) => { if (e.key === 'Escape') this.closePreview(); };
+        document.addEventListener('keydown', this.previewEscHandler);
+
+        // Load initial markdown preview
+        this.loadPreview(msgIndex, 'md');
+    }
+
+    closePreview() {
+        const modal = document.getElementById('preview-modal');
+        if (modal) modal.remove();
+        if (this.previewEscHandler) {
+            document.removeEventListener('keydown', this.previewEscHandler);
+        }
+    }
+
+    async loadPreview(msgIndex, format) {
+        const msg = this.messages[msgIndex];
+        const contentEl = document.getElementById('preview-content');
+        if (!contentEl || !msg) return;
+
+        contentEl.innerHTML = '<div class="preview-loading">Loading preview...</div>';
+
+        try {
+            if (format === 'md') {
+                // Markdown - render with intelligent section detection
+                const smartRendered = await this.renderSmartPreview(msg.content);
+                const links = this.extractLinks(msg.content);
+                let linksHtml = '';
+                if (links.length > 0) {
+                    linksHtml = `<div class="extracted-links">
+                        <div class="links-header">🔗 Links in this document (${links.length})</div>
+                        <div class="links-list">${links.map(l => `<a href="${l.url}" onclick="jottyApp.openInlineBrowser('${l.url.replace(/'/g, "\\'")}', '${l.text.replace(/'/g, "\\'")}'); return false;" class="link-item" title="${l.url}"><span class="link-text">${l.text}</span><span class="link-url">${l.url}</span></a>`).join('')}</div>
+                    </div>`;
+                }
+                contentEl.innerHTML = `<div class="smart-preview">${smartRendered}</div>${linksHtml}`;
+            } else if (format === 'html') {
+                // HTML - fetch converted and display in iframe
+                const html = await this.fetchPreviewContent(msg.content, 'html');
+                const blob = new Blob([html], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                contentEl.innerHTML = `<iframe src="${url}" sandbox="allow-same-origin"></iframe>`;
+            } else if (format === 'pdf' || format === 'slides') {
+                // PDF/Slides - fetch blob and display
+                try {
+                    const blob = await this.fetchPreviewBlob(msg.content, format);
+                    const url = URL.createObjectURL(blob);
+                    this.currentPdfUrl = url;
+                    const formatLabel = format === 'slides' ? 'Slides (PDF)' : 'PDF';
+
+                    // Create PDF viewer - iframe as primary with prominent actions
+                    contentEl.innerHTML = `
+                        <div class="pdf-viewer-container">
+                            <div class="pdf-viewer-header">
+                                <div class="pdf-info">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pdf-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                                    <span>${formatLabel} Document</span>
+                                </div>
+                                <div class="pdf-actions">
+                                    <button class="pdf-action-btn primary" onclick="window.open('${url}', '_blank')">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                        Open in New Tab
+                                    </button>
+                                    <button class="pdf-action-btn" onclick="jottyApp.downloadPdf('${url}', '${format}')">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        Download
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pdf-embed-container">
+                                <iframe src="${url}#toolbar=1&navpanes=1&scrollbar=1&view=FitH" class="pdf-iframe" id="pdf-iframe"></iframe>
+                                <div class="pdf-fallback" id="pdf-fallback">
+                                    <div class="pdf-fallback-content">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <p>PDF preview may not display inline in your browser.</p>
+                                        <button class="pdf-fallback-btn" onclick="window.open('${url}', '_blank')">
+                                            Open PDF in New Tab
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Check if iframe loaded PDF properly after a delay
+                    setTimeout(() => {
+                        const iframe = document.getElementById('pdf-iframe');
+                        const fallback = document.getElementById('pdf-fallback');
+                        if (iframe && fallback) {
+                            try {
+                                // Try to detect if PDF loaded (this may fail due to cross-origin)
+                                const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                                if (iframeDoc && iframeDoc.body && iframeDoc.body.innerHTML === '') {
+                                    fallback.style.display = 'flex';
+                                    iframe.style.display = 'none';
+                                }
+                            } catch (e) {
+                                // Cross-origin - PDF might be loading, keep both visible
+                                // Hide fallback if iframe seems to have content
+                            }
+                        }
+                    }, 2000);
+                } catch (pdfError) {
+                    console.error('PDF generation failed:', pdfError);
+                    contentEl.innerHTML = `<div class="preview-error">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:48px;height:48px;margin-bottom:16px;opacity:0.5;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="12" y1="9" x2="12.01" y2="9"/></svg>
+                        <h3>PDF Generation Failed</h3>
+                        <p>${pdfError.message}</p>
+                        <p style="font-size:12px;opacity:0.7;margin-top:12px;">Try downloading as HTML or DOCX instead.</p>
+                    </div>`;
+                }
+            } else if (format === 'docx') {
+                // DOCX - convert to HTML for preview
+                const html = await this.fetchPreviewContent(msg.content, 'docx-preview');
+                contentEl.innerHTML = `<div class="markdown-preview">${html}</div>`;
+            }
+        } catch (error) {
+            console.error('Preview failed:', error);
+            contentEl.innerHTML = `<div class="preview-loading" style="color: var(--error);">Preview failed: ${error.message}</div>`;
+        }
+    }
+
+    downloadPdf(url, format) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `document.${format === 'slides' ? 'pdf' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    extractLinks(text) {
+        const links = [];
+        // Match markdown links [text](url)
+        const mdLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+        let match;
+        while ((match = mdLinkRegex.exec(text)) !== null) {
+            links.push({ text: match[1], url: match[2] });
+        }
+        // Match bare URLs
+        const urlRegex = /(?<!\]\()https?:\/\/[^\s<>\[\]()]+/g;
+        while ((match = urlRegex.exec(text)) !== null) {
+            // Check if this URL is already captured as markdown link
+            if (!links.some(l => l.url === match[0])) {
+                const urlObj = new URL(match[0]);
+                links.push({ text: urlObj.hostname, url: match[0] });
+            }
+        }
+        return links;
+    }
+
+    // ===== INTELLIGENT SECTION RENDERERS =====
+    // Detects and renders different content types: mermaid, plantuml, latex, charts, tables, code
+
+    detectContentSections(text) {
+        const sections = [];
+        let remaining = text;
+        let lastIndex = 0;
+
+        // Patterns for different content types
+        const patterns = [
+            { type: 'mermaid', regex: /```mermaid\n([\s\S]*?)```/g },
+            { type: 'plantuml', regex: /```(?:plantuml|puml)\n([\s\S]*?)```/g },
+            { type: 'latex', regex: /```(?:latex|tex|math)\n([\s\S]*?)```/g },
+            { type: 'chart', regex: /```(?:chart|vega|vegalite)\n([\s\S]*?)```/g },
+            { type: 'json', regex: /```json\n([\s\S]*?)```/g },
+            { type: 'python', regex: /```python\n([\s\S]*?)```/g },
+            { type: 'javascript', regex: /```(?:javascript|js)\n([\s\S]*?)```/g },
+            { type: 'code', regex: /```(\w*)\n([\s\S]*?)```/g },
+        ];
+
+        // Also detect inline math: $...$ and $$...$$
+        const inlineMathRegex = /\$\$([^$]+)\$\$|\$([^$\n]+)\$/g;
+
+        // Find all code blocks and their positions
+        const allMatches = [];
+
+        for (const pattern of patterns) {
+            let match;
+            const regex = new RegExp(pattern.regex.source, 'g');
+            while ((match = regex.exec(text)) !== null) {
+                allMatches.push({
+                    type: pattern.type,
+                    content: pattern.type === 'code' ? match[2] : match[1],
+                    lang: pattern.type === 'code' ? match[1] : pattern.type,
+                    start: match.index,
+                    end: match.index + match[0].length,
+                    full: match[0]
+                });
+            }
+        }
+
+        // Sort by position
+        allMatches.sort((a, b) => a.start - b.start);
+
+        // Build sections with text between code blocks
+        let currentPos = 0;
+        for (const match of allMatches) {
+            // Add text before this match
+            if (match.start > currentPos) {
+                const textBefore = text.substring(currentPos, match.start).trim();
+                if (textBefore) {
+                    sections.push({ type: 'markdown', content: textBefore });
+                }
+            }
+            sections.push(match);
+            currentPos = match.end;
+        }
+
+        // Add remaining text
+        if (currentPos < text.length) {
+            const remaining = text.substring(currentPos).trim();
+            if (remaining) {
+                sections.push({ type: 'markdown', content: remaining });
+            }
+        }
+
+        return sections.length > 0 ? sections : [{ type: 'markdown', content: text }];
+    }
+
+    async renderSmartPreview(text) {
+        const sections = this.detectContentSections(text);
+        const renderedSections = [];
+
+        for (const section of sections) {
+            const rendered = await this.renderSection(section);
+            renderedSections.push(rendered);
+        }
+
+        return renderedSections.join('\n');
+    }
+
+    async renderSection(section) {
+        switch (section.type) {
+            case 'mermaid':
+                return this.renderMermaid(section.content);
+            case 'plantuml':
+                return this.renderPlantUML(section.content);
+            case 'latex':
+                return this.renderLatex(section.content);
+            case 'chart':
+            case 'json':
+                return this.renderJsonOrChart(section.content);
+            case 'python':
+            case 'javascript':
+            case 'code':
+                return this.renderCode(section.content, section.lang);
+            case 'markdown':
+            default:
+                return `<div class="section-markdown">${this.renderMarkdown(section.content)}</div>`;
+        }
+    }
+
+    renderMermaid(code) {
+        // Use mermaid.ink API for rendering - requires pako for compression or use base64
+        const cleanCode = code.trim();
+        // mermaid.ink expects base64 of the raw code (not URI encoded)
+        const encoded = this.base64EncodeUnicode(cleanCode);
+        const imgUrl = `https://mermaid.ink/img/base64:${encoded}?theme=neutral&bgColor=!white`;
+
+        return `<div class="section-mermaid">
+            <div class="section-header"><span class="section-icon">📊</span> Mermaid Diagram</div>
+            <div class="section-content">
+                <img src="${imgUrl}" alt="Mermaid Diagram" class="mermaid-img"
+                    onerror="this.onerror=null; this.parentElement.innerHTML=jottyApp.getMermaidFallback('${encoded}', \`${this.escapeHtml(cleanCode).replace(/`/g, '\\`')}\`);">
+            </div>
+            <details class="section-source"><summary>View Source</summary><pre><code>${this.escapeHtml(cleanCode)}</code></pre></details>
+        </div>`;
+    }
+
+    base64EncodeUnicode(str) {
+        // Properly encode unicode to base64
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+            return String.fromCharCode('0x' + p1);
+        }));
+    }
+
+    getMermaidFallback(encoded, code) {
+        // Try alternative rendering - use different mermaid.ink theme or show error
+        const altUrl = `https://mermaid.ink/img/base64:${encoded}?theme=dark`;
+        return `<img src="${altUrl}" alt="Mermaid Diagram" class="mermaid-img"
+            onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'render-error\\'>⚠️ Could not render diagram. The mermaid syntax may have errors. View source below.</div><pre style=\\'background:var(--code-bg);padding:16px;border-radius:8px;overflow-x:auto;\\'><code>${code}</code></pre>';">`;
+    }
+
+    renderPlantUML(code) {
+        // Use PlantUML server for rendering
+        const cleanCode = code.trim();
+        // PlantUML uses deflate + base64 encoding
+        const encoded = this.encodePlantUML(cleanCode);
+        const imgUrl = `https://www.plantuml.com/plantuml/svg/${encoded}`;
+
+        return `<div class="section-plantuml">
+            <div class="section-header"><span class="section-icon">🏗️</span> PlantUML Diagram</div>
+            <div class="section-content">
+                <img src="${imgUrl}" alt="PlantUML Diagram" class="plantuml-img" onerror="this.parentElement.innerHTML='<div class=\\'render-error\\'>Failed to render diagram</div><pre>${this.escapeHtml(cleanCode)}</pre>'">
+            </div>
+            <details class="section-source"><summary>View Source</summary><pre><code>${this.escapeHtml(cleanCode)}</code></pre></details>
+        </div>`;
+    }
+
+    encodePlantUML(text) {
+        // Simple PlantUML encoding (hex-based for simplicity)
+        // For production, use proper deflate encoding
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        let encoded = '';
+        for (let i = 0; i < data.length; i++) {
+            encoded += String.fromCharCode(data[i]);
+        }
+        return btoa(encoded).replace(/\+/g, '-').replace(/\//g, '_');
+    }
+
+    renderLatex(code) {
+        const cleanCode = code.trim();
+        // Use QuickLaTeX or KaTeX CDN
+        const encoded = encodeURIComponent(cleanCode);
+        const imgUrl = `https://latex.codecogs.com/svg.image?${encoded}`;
+
+        return `<div class="section-latex">
+            <div class="section-header"><span class="section-icon">∑</span> LaTeX / Math</div>
+            <div class="section-content math-content">
+                <img src="${imgUrl}" alt="LaTeX" class="latex-img" onerror="this.parentElement.innerHTML='<div class=\\'render-error\\'>Failed to render math</div><pre>${this.escapeHtml(cleanCode)}</pre>'">
+            </div>
+            <details class="section-source"><summary>View Source</summary><pre><code>${this.escapeHtml(cleanCode)}</code></pre></details>
+        </div>`;
+    }
+
+    renderJsonOrChart(code) {
+        const cleanCode = code.trim();
+        try {
+            const data = JSON.parse(cleanCode);
+
+            // Check if it looks like chart data
+            if (this.isChartData(data)) {
+                return this.renderChartFromJson(data, cleanCode);
+            }
+
+            // Render as formatted JSON with syntax highlighting
+            return `<div class="section-json">
+                <div class="section-header"><span class="section-icon">📋</span> JSON Data</div>
+                <div class="section-content">
+                    <pre class="json-pretty"><code>${this.syntaxHighlightJson(data)}</code></pre>
+                </div>
+            </div>`;
+        } catch (e) {
+            return this.renderCode(cleanCode, 'json');
+        }
+    }
+
+    isChartData(data) {
+        // Detect common chart data patterns
+        if (Array.isArray(data) && data.length > 0) {
+            const first = data[0];
+            // Array of objects with x/y or name/value
+            if (typeof first === 'object' && (first.x !== undefined || first.name !== undefined || first.label !== undefined)) {
+                return true;
+            }
+        }
+        // Vega/Vega-Lite spec
+        if (data.$schema && data.$schema.includes('vega')) {
+            return true;
+        }
+        // Chart.js style
+        if (data.type && data.data && data.data.datasets) {
+            return true;
+        }
+        return false;
+    }
+
+    renderChartFromJson(data, rawCode) {
+        // Simple table/chart visualization for data
+        if (Array.isArray(data) && data.length > 0) {
+            const keys = Object.keys(data[0]);
+            const tableHtml = `
+                <table class="data-table">
+                    <thead><tr>${keys.map(k => `<th>${this.escapeHtml(k)}</th>`).join('')}</tr></thead>
+                    <tbody>${data.slice(0, 20).map(row => `<tr>${keys.map(k => `<td>${this.escapeHtml(String(row[k] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody>
+                </table>
+                ${data.length > 20 ? `<div class="table-footer">Showing 20 of ${data.length} rows</div>` : ''}
+            `;
+            return `<div class="section-chart">
+                <div class="section-header"><span class="section-icon">📈</span> Data Table</div>
+                <div class="section-content">${tableHtml}</div>
+                <details class="section-source"><summary>View JSON</summary><pre><code>${this.escapeHtml(rawCode)}</code></pre></details>
+            </div>`;
+        }
+        return this.renderCode(rawCode, 'json');
+    }
+
+    renderCode(code, lang) {
+        const cleanCode = code.trim();
+        const langLabel = lang ? lang.charAt(0).toUpperCase() + lang.slice(1) : 'Code';
+        const langIcon = { python: '🐍', javascript: '⚡', js: '⚡', json: '📋', sql: '🗃️', bash: '💻', shell: '💻' }[lang?.toLowerCase()] || '📝';
+
+        return `<div class="section-code">
+            <div class="section-header"><span class="section-icon">${langIcon}</span> ${langLabel}</div>
+            <div class="section-content">
+                <pre class="code-block"><code class="language-${lang || 'text'}">${this.escapeHtml(cleanCode)}</code></pre>
+            </div>
+        </div>`;
+    }
+
+    syntaxHighlightJson(obj, indent = 0) {
+        const spaces = '  '.repeat(indent);
+        if (obj === null) return '<span class="json-null">null</span>';
+        if (typeof obj === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+        if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+        if (typeof obj === 'string') return `<span class="json-string">"${this.escapeHtml(obj)}"</span>`;
+        if (Array.isArray(obj)) {
+            if (obj.length === 0) return '[]';
+            const items = obj.map(item => spaces + '  ' + this.syntaxHighlightJson(item, indent + 1)).join(',\n');
+            return `[\n${items}\n${spaces}]`;
+        }
+        if (typeof obj === 'object') {
+            const keys = Object.keys(obj);
+            if (keys.length === 0) return '{}';
+            const items = keys.map(key =>
+                `${spaces}  <span class="json-key">"${this.escapeHtml(key)}"</span>: ${this.syntaxHighlightJson(obj[key], indent + 1)}`
+            ).join(',\n');
+            return `{\n${items}\n${spaces}}`;
+        }
+        return String(obj);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    async fetchPreviewContent(content, format) {
+        const filename = 'preview';
+        const response = await fetch(`${this.apiBase}/api/preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, format, filename })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Preview failed');
+        }
+        return await response.text();
+    }
+
+    async fetchPreviewBlob(content, format) {
+        const filename = 'preview';
+        const response = await fetch(`${this.apiBase}/api/export`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, format, filename })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Preview failed');
+        }
+        return await response.blob();
+    }
+
     async exportContent(msgIndex, format) {
         const msg = this.messages[msgIndex];
         if (!msg || !msg.content) return;
@@ -829,8 +3096,11 @@ class JottyApp {
     autoResize() { this.messageInput.style.height = 'auto'; this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 200) + 'px'; }
     scrollToBottom() { if (this.chatArea) this.chatArea.scrollTop = this.chatArea.scrollHeight; }
     toggleSidebar() { if (this.sidebar) this.sidebar.classList.toggle('visible'); }
+
 }
 document.addEventListener('DOMContentLoaded', () => { window.jottyApp = new JottyApp(); });
     </script>
+    <!-- AG-UI Protocol Client (CopilotKit compatible) -->
+    <script src="/static/agui-client.js"></script>
 </body>
 </html>

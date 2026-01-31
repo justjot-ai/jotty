@@ -1,0 +1,77 @@
+{
+  "name": "whatsapp",
+  "version": "1.0.0",
+  "description": "Send messages via WhatsApp Business Cloud API",
+  "category": "messaging",
+  "tools": [
+    {
+      "name": "send_whatsapp_message",
+      "function": "send_whatsapp_message_tool",
+      "description": "Send a text message via WhatsApp",
+      "parameters": {
+        "to": {"type": "string", "required": true, "description": "Phone number with country code"},
+        "message": {"type": "string", "required": true, "description": "Message text"},
+        "preview_url": {"type": "boolean", "default": false, "description": "Enable URL preview"}
+      }
+    },
+    {
+      "name": "send_whatsapp_image",
+      "function": "send_whatsapp_image_tool",
+      "description": "Send an image via WhatsApp",
+      "parameters": {
+        "to": {"type": "string", "required": true, "description": "Phone number"},
+        "image_url": {"type": "string", "description": "URL of image"},
+        "image_path": {"type": "string", "description": "Local path to image"},
+        "caption": {"type": "string", "description": "Image caption"}
+      }
+    },
+    {
+      "name": "send_whatsapp_document",
+      "function": "send_whatsapp_document_tool",
+      "description": "Send a document via WhatsApp",
+      "parameters": {
+        "to": {"type": "string", "required": true, "description": "Phone number"},
+        "document_url": {"type": "string", "description": "URL of document"},
+        "document_path": {"type": "string", "description": "Local path to document"},
+        "filename": {"type": "string", "description": "Display filename"},
+        "caption": {"type": "string", "description": "Document caption"}
+      }
+    },
+    {
+      "name": "send_whatsapp_template",
+      "function": "send_whatsapp_template_tool",
+      "description": "Send a pre-approved template message",
+      "parameters": {
+        "to": {"type": "string", "required": true, "description": "Phone number"},
+        "template_name": {"type": "string", "required": true, "description": "Template name"},
+        "language_code": {"type": "string", "default": "en_US", "description": "Language code"},
+        "components": {"type": "array", "description": "Template variable components"}
+      }
+    },
+    {
+      "name": "send_whatsapp_location",
+      "function": "send_whatsapp_location_tool",
+      "description": "Send a location via WhatsApp",
+      "parameters": {
+        "to": {"type": "string", "required": true, "description": "Phone number"},
+        "latitude": {"type": "number", "required": true, "description": "Latitude"},
+        "longitude": {"type": "number", "required": true, "description": "Longitude"},
+        "name": {"type": "string", "description": "Location name"},
+        "address": {"type": "string", "description": "Location address"}
+      }
+    },
+    {
+      "name": "mark_message_read",
+      "function": "mark_message_read_tool",
+      "description": "Mark a WhatsApp message as read",
+      "parameters": {
+        "message_id": {"type": "string", "required": true, "description": "Message ID to mark as read"}
+      }
+    }
+  ],
+  "environment": [
+    {"name": "WHATSAPP_PHONE_ID", "description": "WhatsApp Business Phone Number ID"},
+    {"name": "WHATSAPP_TOKEN", "description": "WhatsApp Cloud API Access Token"}
+  ],
+  "setup": "1. Create Meta Business account at business.facebook.com\n2. Create WhatsApp app at developers.facebook.com\n3. Get Phone Number ID and permanent access token\n4. Set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN env vars"
+}
