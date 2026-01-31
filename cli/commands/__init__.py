@@ -34,6 +34,9 @@ from .model_chat import ModelChatCommand
 from .gateway import GatewayCommand
 from .whatsapp_cmd import WhatsAppCommand
 from .heartbeat_cmd import HeartbeatCommand, RemindCommand
+from .task_queue import TaskCommand
+from .supervisor_cmd import SupervisorCommand
+from .swimlane import SwimlaneCommand
 
 __all__ = [
     "BaseCommand",
@@ -68,6 +71,9 @@ __all__ = [
     "WhatsAppCommand",
     "HeartbeatCommand",
     "RemindCommand",
+    "TaskCommand",
+    "SupervisorCommand",
+    "SwimlaneCommand",
 ]
 
 
@@ -103,6 +109,9 @@ def register_all_commands(registry: CommandRegistry):
         WhatsAppCommand(),
         HeartbeatCommand(),
         RemindCommand(),
+        TaskCommand(),
+        SupervisorCommand(),
+        SwimlaneCommand(),
     ]
 
     for cmd in commands:
