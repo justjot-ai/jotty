@@ -31,7 +31,7 @@ class TaskCommand(BaseCommand):
         """Execute task command."""
         subcommand = args.positional[0] if args.positional else "stats"
 
-        if subcommand == "create":
+        if subcommand == "create" or subcommand == "new" or subcommand == "add":
             return await self._create_task(args, cli)
         elif subcommand == "list":
             return await self._list_tasks(args, cli)
@@ -69,16 +69,90 @@ class TaskCommand(BaseCommand):
                 async with session.post(url, json=data) as resp:
                     return await resp.json()
 
+    async def _generate_task_with_ai(self, brief_idea: str, cli: "JottyCLI") -> dict:
+        """Use AI to generate a full task from a brief idea."""
+        try:
+            prompt = f"""Generate a coding task from this brief idea: "{brief_idea}"
+
+Return a JSON object with:
+- title: Clear, actionable task title (imperative form, e.g., "Fix login bug", "Add dark mode")
+- description: Detailed description with:
+  - What needs to be done
+  - Acceptance criteria (as checklist)
+  - Any relevant context
+- priority: 1-5 (1=critical/security, 2=high/bugs, 3=medium/features, 4=low/refactor, 5=optional/docs)
+- category: One of: bugfix, feature, refactor, api, ui, security, performance, testing, docs, devops
+
+Respond ONLY with valid JSON, no markdown."""
+
+            result = await self._api_request("POST", "/api/chat", {
+                "message": prompt,
+                "history": []
+            })
+
+            if result.get("success"):
+                response_text = result.get("result", {}).get("response", "")
+                # Try to parse JSON from response
+                import json
+                import re
+
+                # Extract JSON from response (handle markdown code blocks)
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if json_match:
+                    try:
+                        return json.loads(json_match.group())
+                    except json.JSONDecodeError:
+                        pass
+
+            # Fallback: return basic task
+            return {
+                "title": brief_idea.strip().capitalize(),
+                "description": f"Task: {brief_idea}\n\n## Acceptance Criteria\n- [ ] Task completed",
+                "priority": 3,
+                "category": "feature"
+            }
+
+        except Exception as e:
+            cli.renderer.warning(f"AI generation failed: {e}, using basic task")
+            return {
+                "title": brief_idea.strip().capitalize(),
+                "description": brief_idea,
+                "priority": 3,
+                "category": ""
+            }
+
     async def _create_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Create a new task.
 
         Usage:
             /task create "title" ["description"] [--priority=N] [--agent=claude] [--lane=backlog] [--category=X]
+            /task create "brief idea" --generate    # AI generates full task
         """
+        # Check for --generate flag (AI-assisted creation)
+        generate_ai = args.flags.get("generate", args.flags.get("g", False))
+
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task create \"title\" [\"description\"] [--priority=N] [--agent=claude] [--lane=backlog]")
-            cli.renderer.info("\nTip: Use /task templates to see available templates")
-            cli.renderer.info("     Use /task from-template <template> \"summary\" to create from template")
+            # Show helpful usage with examples
+            cli.renderer.panel(
+                """Create a task with title and description:
+
+  /task create "Fix login bug" "Users can't login with OAuth"
+
+With options:
+  /task create "Add dark mode" "Implement theme toggle" --priority=2 --lane=pending
+
+AI-assisted (generates description from brief idea):
+  /task create "fix the checkout flow" --generate
+
+Options:
+  --priority, -p    Priority 1-5 (1=critical, 5=low) [default: 3]
+  --lane, -l        Swimlane: backlog, pending, suggested [default: backlog]
+  --agent, -a       Agent: claude, cursor, opencode [default: claude]
+  --category        Category tag for filtering
+  --generate, -g    Use AI to expand brief idea into full task""",
+                title="Task Create Usage",
+                style="cyan"
+            )
             return CommandResult.fail("Missing title")
 
         title = args.positional[1]
@@ -87,6 +161,17 @@ class TaskCommand(BaseCommand):
         agent_type = args.flags.get("agent", args.flags.get("a", "claude"))
         status = args.flags.get("lane", args.flags.get("status", args.flags.get("l", "backlog")))
         category = args.flags.get("category", args.flags.get("cat", ""))
+
+        # AI-assisted generation
+        if generate_ai:
+            cli.renderer.info("Generating task with AI...")
+            generated = await self._generate_task_with_ai(title, cli)
+            if generated:
+                title = generated.get("title", title)
+                description = generated.get("description", description)
+                priority = generated.get("priority", priority)
+                category = generated.get("category", category)
+                cli.renderer.success("AI generated task details")
 
         # Validate swimlane
         if status not in self.SWIMLANES:
@@ -523,7 +608,7 @@ class TaskCommand(BaseCommand):
     def get_completions(self, partial: str) -> list:
         """Get subcommand completions."""
         subcommands = [
-            "create", "list", "get", "start", "pause", "kill", "delete",
+            "create", "new", "add", "list", "get", "start", "pause", "kill", "delete",
             "log", "stats", "templates", "from-template", "move"
         ]
         return [s for s in subcommands if s.startswith(partial)]
