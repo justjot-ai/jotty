@@ -759,92 +759,73 @@ def create_app() -> "FastAPI":
         SSE streaming chat endpoint.
 
         Returns Server-Sent Events for real-time streaming.
+        Uses asyncio.Queue for proper async handling without blocking.
         """
         from starlette.responses import StreamingResponse
         import json
-        import queue
-        import threading
-        import concurrent.futures
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
+        # Use asyncio.Queue for non-blocking async communication
+        event_queue = asyncio.Queue()
+        done_event = asyncio.Event()
+
+        async def process_message_async():
+            """Process message and put events in queue."""
+            try:
+                async def async_stream_cb(chunk: str):
+                    """Async callback that puts chunks in queue."""
+                    logger.info(f"STREAM_CB: '{chunk[:30]}...' queued")
+                    await event_queue.put({"type": "stream", "chunk": chunk})
+
+                async def async_status_cb(stage: str, detail: str):
+                    """Async callback that puts status in queue."""
+                    logger.info(f"STATUS_CB: {stage} - {detail}")
+                    await event_queue.put({"type": "status", "stage": stage, "detail": detail})
+
+                result = await api.process_message(
+                    message=message,
+                    session_id=session_id,
+                    stream_callback=async_stream_cb,
+                    status_callback=async_status_cb
+                )
+                await event_queue.put({"type": "complete", "result": result})
+            except Exception as e:
+                logger.error(f"Chat processing error: {e}", exc_info=True)
+                await event_queue.put({"type": "complete", "result": {"success": False, "error": str(e)}})
+            finally:
+                done_event.set()
+
         async def event_generator():
-            # Thread-safe queue for chunks and statuses
-            event_queue = queue.Queue()
-            result_holder = {"result": None, "done": False}
+            # Start processing as a background task
+            task = asyncio.create_task(process_message_async())
 
-            def sync_stream_cb(chunk: str):
-                """Thread-safe callback that queues chunks."""
-                logger.info(f"STREAM_CB: '{chunk[:30]}...' queued")
-                event_queue.put({"type": "stream", "chunk": chunk})
+            # Send initial connected event
+            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n"
 
-            def sync_status_cb(stage: str, detail: str):
-                """Thread-safe callback that queues statuses."""
-                logger.info(f"STATUS_CB: {stage} - {detail}")
-                event_queue.put({"type": "status", "stage": stage, "detail": detail})
-
-            # Run processing in thread pool to allow event loop to yield
-            def process_sync():
-                try:
-                    # Create event loop for this thread
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+            try:
+                while not done_event.is_set() or not event_queue.empty():
                     try:
-                        result = loop.run_until_complete(
-                            api.process_message(
-                                message=message,
-                                session_id=session_id,
-                                stream_callback=sync_stream_cb,
-                                status_callback=sync_status_cb
-                            )
-                        )
-                        result_holder["result"] = result
-                    finally:
-                        loop.close()
-                except Exception as e:
-                    logger.error(f"Chat processing error: {e}", exc_info=True)
-                    result_holder["result"] = {"success": False, "error": str(e)}
-                finally:
-                    result_holder["done"] = True
+                        # Wait for event with timeout
+                        event = await asyncio.wait_for(event_queue.get(), timeout=0.1)
+                        event_type = event.get("type")
+                        logger.info(f"SENDING event: {event_type}")
+                        yield f"data: {json.dumps(event)}\n\n"
 
-            # Start in thread pool
-            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-            executor.submit(process_sync)
-
-            # Padding to flush proxy buffers - need to exceed proxy buffer size
-            # nginx default is 4k/8k, but code-server proxy may have larger buffers
-            padding = " " * 16384  # 16KB padding
-
-            # Send initial event with padding
-            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n{padding}"
-
-            # Poll for events until done
-            event_count = 0
-            while not result_holder["done"]:
-                # Drain queue and send events
-                while True:
+                        # If complete event, we're done
+                        if event_type == "complete":
+                            break
+                    except asyncio.TimeoutError:
+                        # Send keepalive comment
+                        yield ": keepalive\n\n"
+            finally:
+                # Ensure task is cleaned up
+                if not task.done():
+                    task.cancel()
                     try:
-                        event = event_queue.get_nowait()
-                        event_count += 1
-                        logger.info(f"SENDING event #{event_count}: {event.get('type')}")
-                        yield f"data: {json.dumps(event)}\n\n{padding}"
-                    except queue.Empty:
-                        break
-
-                # Small sleep to prevent busy loop
-                await asyncio.sleep(0.05)  # Faster polling
-                yield f": keepalive\n\n{padding}"
-
-            # Drain any remaining events
-            while True:
-                try:
-                    event = event_queue.get_nowait()
-                    yield f"data: {json.dumps(event)}\n\n"
-                except queue.Empty:
-                    break
-
-            # Send completion
-            yield f"data: {json.dumps({'type': 'complete', 'result': result_holder['result']})}\n\n"
+                        await task
+                    except asyncio.CancelledError:
+                        pass
 
         return StreamingResponse(
             event_generator(),
@@ -852,9 +833,8 @@ def create_app() -> "FastAPI":
             headers={
                 "Cache-Control": "no-cache, no-store, no-transform, must-revalidate",
                 "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # Disable nginx buffering
+                "X-Accel-Buffering": "no",
                 "X-Content-Type-Options": "nosniff",
-                "Transfer-Encoding": "chunked",
                 "Pragma": "no-cache",
                 "Expires": "0",
             }
