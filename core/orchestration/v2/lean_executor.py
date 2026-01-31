@@ -359,11 +359,11 @@ For other formats: use appropriate markdown.
 
 Content:"""
 
-        # Try OpenRouter first (primary provider)
+        # Try OpenRouter first (primary provider) using OpenAI SDK
         openrouter_key = os.environ.get("OPENROUTER_API_KEY")
         if openrouter_key:
             try:
-                import httpx
+                from openai import OpenAI
 
                 full_content = ""
                 model = os.environ.get("CLAUDE_MODEL", "anthropic/claude-3.5-sonnet")
@@ -371,37 +371,25 @@ Content:"""
                 if "/" not in model:
                     model = f"anthropic/{model}"
 
-                async with httpx.AsyncClient(timeout=300.0) as client:
-                    async with client.stream(
-                        "POST",
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {openrouter_key}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": model,
-                            "messages": [{"role": "user", "content": prompt}],
-                            "max_tokens": 4096,
-                            "stream": True,
-                        },
-                    ) as response:
-                        response.raise_for_status()
-                        async for line in response.aiter_lines():
-                            if line.startswith("data: "):
-                                data = line[6:]
-                                if data.strip() == "[DONE]":
-                                    break
-                                try:
-                                    import json
-                                    chunk = json.loads(data)
-                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
-                                    content = delta.get("content", "")
-                                    if content:
-                                        await self._stream(content)
-                                        full_content += content
-                                except (json.JSONDecodeError, IndexError, KeyError):
-                                    continue
+                # Use OpenAI SDK with OpenRouter base URL
+                client = OpenAI(
+                    api_key=openrouter_key,
+                    base_url="https://openrouter.ai/api/v1"
+                )
+
+                # Create streaming completion
+                stream = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=4096,
+                    stream=True
+                )
+
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        await self._stream(content)
+                        full_content += content
 
                 if full_content:
                     return full_content
