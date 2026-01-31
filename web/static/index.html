@@ -675,7 +675,7 @@ class JottyApp {
         this.suggestedActions = []; // AI-suggested follow-up actions
         // Detect proxy path and build URLs accordingly
         const path = window.location.pathname;
-        const proxyMatch = path.match(/^(\/proxy\/\d+)/);
+        const proxyMatch = path.match(/^(\/proxy\/\d+)/) || path.match(/^(\/jotty-web)/);
         if (proxyMatch) {
             // Running behind proxy - use proxy-relative paths
             this.apiBase = proxyMatch[1];
