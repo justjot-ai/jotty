@@ -220,6 +220,46 @@ class JottyAPI:
                 except Exception as e:
                     logger.warning(f"OpenAI vision failed: {e}")
 
+            # Try OpenRouter (supports Claude vision via API)
+            openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+            if openrouter_key:
+                try:
+                    import openai
+                    client = openai.OpenAI(
+                        api_key=openrouter_key,
+                        base_url="https://openrouter.ai/api/v1"
+                    )
+
+                    # Convert to OpenAI format (OpenRouter uses same format)
+                    openrouter_content = []
+                    for item in message_content:
+                        if item["type"] == "image":
+                            b64 = item["source"]["data"]
+                            media = item["source"]["media_type"]
+                            openrouter_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{media};base64,{b64}"}
+                            })
+                        else:
+                            openrouter_content.append(item)
+
+                    logger.info("Trying OpenRouter for vision...")
+                    response = client.chat.completions.create(
+                        model="anthropic/claude-sonnet-4",  # Vision-capable model
+                        max_tokens=4096,
+                        messages=[{"role": "user", "content": openrouter_content}]
+                    )
+
+                    content = response.choices[0].message.content
+
+                    if status_cb:
+                        status_cb("complete", "Image analysis complete")
+
+                    return ImageResult(success=True, content=content)
+
+                except Exception as e:
+                    logger.warning(f"OpenRouter vision failed: {e}")
+
             # Fallback: describe that images were provided but couldn't be processed
             logger.warning("No vision-capable API available, falling back to text-only")
             enhanced_task = f"[Note: User attached {len(images)} image(s) but no vision API is configured. Please respond to: {task}]"
