@@ -152,8 +152,12 @@ class JottyAPI:
             if status_cb:
                 status_cb("processing", "Analyzing with vision model...")
 
+            logger.info(f"_execute_with_images: processing {len(images)} images")
+            logger.info(f"  First image data starts with: {images[0][:60] if images else 'none'}...")
+
             # Try Anthropic SDK directly (best for vision)
             api_key = os.environ.get("ANTHROPIC_API_KEY")
+            logger.info(f"  ANTHROPIC_API_KEY present: {bool(api_key)}")
             if api_key:
                 try:
                     import anthropic
@@ -2020,6 +2024,13 @@ QUESTION: {message}"""
                 if data.get("type") == "message":
                     content = data.get("content", "")
                     attachments = data.get("attachments", [])
+
+                    # Debug logging for attachments
+                    logger.info(f"WS message received: content length={len(content)}, attachments={len(attachments)}")
+                    if attachments:
+                        for i, att in enumerate(attachments):
+                            data_preview = att.get('data', '')[:50] if att.get('data') else 'None'
+                            logger.info(f"  Attachment {i}: type={att.get('type')}, name={att.get('name')}, data_start={data_preview}")
 
                     if not content.strip() and not attachments:
                         continue
