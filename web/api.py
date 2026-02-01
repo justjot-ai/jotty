@@ -937,18 +937,24 @@ def create_app() -> "FastAPI":
         """Set the active LLM model."""
         try:
             from ..core.foundation.unified_lm_provider import UnifiedLMProvider
+            import dspy
 
             lm = UnifiedLMProvider.create_lm(
                 provider=request.provider,
                 model=request.model
             )
 
-            import dspy
-            dspy.configure(lm=lm)
+            # Use dspy.settings directly to avoid threading issues
+            # dspy.configure() requires same thread, but settings.lm can be set directly
+            dspy.settings.lm = lm
 
             model_name = getattr(lm, 'model', request.model)
             if hasattr(lm, '_wrapped'):
                 model_name = getattr(lm._wrapped, 'model', request.model)
+
+            # Also store in api instance for reference
+            api._current_provider = request.provider
+            api._current_model = model_name
 
             return {
                 "success": True,
