@@ -103,14 +103,24 @@ class JottyAPI:
         Returns:
             ExecutorResult with LLM response
         """
-        import dspy
-        import base64
+        import os
 
         if status_cb:
             status_cb("analyzing", f"Processing {len(images)} image(s)...")
 
+        # Create result dataclass
+        from dataclasses import dataclass
+        @dataclass
+        class ImageResult:
+            success: bool = True
+            content: str = ""
+            output_format: str = "markdown"
+            output_path: str = None
+            steps_taken: int = 1
+            error: str = None
+
         try:
-            # Build multimodal message content for Claude/GPT-4V
+            # Build multimodal message content
             message_content = []
 
             # Add images first
@@ -142,47 +152,74 @@ class JottyAPI:
             if status_cb:
                 status_cb("processing", "Analyzing with vision model...")
 
-            # Use DSPy's configured LM directly for multimodal
-            lm = dspy.settings.lm
-            if lm is None:
-                # Fallback to regular execution if no LM configured
-                return await executor.execute(task)
+            # Try Anthropic SDK directly (best for vision)
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if api_key:
+                try:
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=api_key)
 
-            # Call LM with multimodal message
-            messages = [{"role": "user", "content": message_content}]
+                    response = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=4096,
+                        messages=[{"role": "user", "content": message_content}]
+                    )
 
-            try:
-                response = lm(messages=messages)
+                    # Extract text from response
+                    content = ""
+                    for block in response.content:
+                        if hasattr(block, 'text'):
+                            content += block.text
 
-                # Extract text from response
-                if isinstance(response, list) and len(response) > 0:
-                    content = response[0] if isinstance(response[0], str) else str(response[0])
-                elif isinstance(response, str):
-                    content = response
-                else:
-                    content = str(response)
+                    if status_cb:
+                        status_cb("complete", "Image analysis complete")
 
-                if status_cb:
-                    status_cb("complete", "Image analysis complete")
+                    return ImageResult(success=True, content=content)
 
-                # Create a result object similar to executor result
-                from dataclasses import dataclass
-                @dataclass
-                class ImageResult:
-                    success: bool = True
-                    content: str = ""
-                    output_format: str = "markdown"
-                    output_path: str = None
-                    steps_taken: int = 1
-                    error: str = None
+                except Exception as e:
+                    logger.warning(f"Anthropic vision failed: {e}")
 
-                return ImageResult(success=True, content=content)
+            # Try OpenAI SDK (GPT-4V format)
+            openai_key = os.environ.get("OPENAI_API_KEY")
+            if openai_key:
+                try:
+                    import openai
+                    client = openai.OpenAI(api_key=openai_key)
 
-            except Exception as e:
-                logger.warning(f"Multimodal LLM failed, falling back to text-only: {e}")
-                # Fallback: describe that images were provided
-                enhanced_task = f"[Note: User attached {len(images)} image(s) but vision processing failed. Please respond to: {task}]"
-                return await executor.execute(enhanced_task)
+                    # Convert to OpenAI format
+                    openai_content = []
+                    for item in message_content:
+                        if item["type"] == "image":
+                            # OpenAI uses URL format for base64
+                            b64 = item["source"]["data"]
+                            media = item["source"]["media_type"]
+                            openai_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{media};base64,{b64}"}
+                            })
+                        else:
+                            openai_content.append(item)
+
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        max_tokens=4096,
+                        messages=[{"role": "user", "content": openai_content}]
+                    )
+
+                    content = response.choices[0].message.content
+
+                    if status_cb:
+                        status_cb("complete", "Image analysis complete")
+
+                    return ImageResult(success=True, content=content)
+
+                except Exception as e:
+                    logger.warning(f"OpenAI vision failed: {e}")
+
+            # Fallback: describe that images were provided but couldn't be processed
+            logger.warning("No vision-capable API available, falling back to text-only")
+            enhanced_task = f"[Note: User attached {len(images)} image(s) but no vision API is configured. Please respond to: {task}]"
+            return await executor.execute(enhanced_task)
 
         except Exception as e:
             logger.error(f"Image processing error: {e}", exc_info=True)
