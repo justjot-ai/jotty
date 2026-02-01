@@ -263,19 +263,44 @@ class JottyAPI:
             interface=InterfaceType.WEB
         )
 
-        # Process image attachments into base64 for LLM
+        # Process attachments: images (for vision) and documents (for text extraction)
         image_descriptions = []
         image_data_list = []
+        document_contexts = []
+
         if attachments:
             for att in attachments:
                 if att.get("type") == "image" and att.get("data"):
+                    # Image: use for multimodal vision
                     image_data_list.append(att["data"])
                     image_descriptions.append(f"[Attached image: {att.get('name', 'image')}]")
+                elif att.get("type") == "document" and att.get("docId"):
+                    # Document: extract text for context
+                    try:
+                        from .documents import get_document_processor
+                        processor = get_document_processor()
+                        doc_text = processor.get_document_text(att["docId"])
+                        if doc_text:
+                            # Truncate if too long
+                            max_len = 8000
+                            if len(doc_text) > max_len:
+                                doc_text = doc_text[:max_len] + f"\n\n[... truncated, {len(doc_text) - max_len} more chars ...]"
+                            document_contexts.append(f"=== Content from {att.get('name', 'document')} ===\n{doc_text}")
+                    except Exception as e:
+                        logger.error(f"Failed to extract document text: {e}")
 
-        # Build message content with image context
+        # Build message content with attachments context
         full_message = message
+        context_parts = []
+
+        if document_contexts:
+            context_parts.append("ATTACHED DOCUMENTS:\n\n" + "\n\n".join(document_contexts))
+
         if image_descriptions:
-            full_message = f"{' '.join(image_descriptions)}\n\n{message}" if message else ' '.join(image_descriptions)
+            context_parts.append(' '.join(image_descriptions))
+
+        if context_parts:
+            full_message = "\n\n".join(context_parts) + f"\n\nUSER REQUEST: {message}" if message else "\n\n".join(context_parts)
 
         # Add user message
         message_id = str(uuid.uuid4())[:12]
@@ -938,33 +963,25 @@ def create_app() -> "FastAPI":
 
     @app.post("/api/models/set")
     async def set_model(request: SetModelRequest):
-        """Set the active LLM model."""
+        """Set the active LLM model by storing preference (avoids DSPy threading issues)."""
         try:
-            from ..core.foundation.unified_lm_provider import UnifiedLMProvider
-            import dspy
-
-            lm = UnifiedLMProvider.create_lm(
-                provider=request.provider,
-                model=request.model
-            )
-
-            # Use dspy.settings directly to avoid threading issues
-            # dspy.configure() requires same thread, but settings.lm can be set directly
-            dspy.settings.lm = lm
-
-            model_name = getattr(lm, 'model', request.model)
-            if hasattr(lm, '_wrapped'):
-                model_name = getattr(lm._wrapped, 'model', request.model)
-
-            # Also store in api instance for reference
+            # Store model preference - will be used when creating LLM instances
             api._current_provider = request.provider
-            api._current_model = model_name
+            api._current_model = request.model
+
+            # Also set environment variable so UnifiedLMProvider picks it up
+            import os
+            os.environ["JOTTY_LLM_PROVIDER"] = request.provider
+            os.environ["JOTTY_LLM_MODEL"] = request.model
+
+            # For vision calls, we use Anthropic SDK directly anyway
+            # This preference is for text-only LLM calls
 
             return {
                 "success": True,
                 "provider": request.provider,
-                "model": model_name,
-                "message": f"Model set to {request.provider}/{request.model}"
+                "model": request.model,
+                "message": f"Model preference set to {request.provider}/{request.model}"
             }
         except Exception as e:
             logger.error(f"Failed to set model: {e}", exc_info=True)
