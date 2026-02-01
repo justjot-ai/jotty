@@ -90,16 +90,116 @@ class JottyAPI:
             self._registry = get_session_registry()
         return self._registry
 
+    async def _execute_with_images(self, executor, task: str, images: List[str], status_cb=None):
+        """
+        Execute task with image attachments using multimodal LLM.
+
+        Args:
+            executor: The executor instance
+            task: The task/prompt text
+            images: List of base64 image data URLs
+            status_cb: Status callback function
+
+        Returns:
+            ExecutorResult with LLM response
+        """
+        import dspy
+        import base64
+
+        if status_cb:
+            status_cb("analyzing", f"Processing {len(images)} image(s)...")
+
+        try:
+            # Build multimodal message content for Claude/GPT-4V
+            message_content = []
+
+            # Add images first
+            for i, img_data in enumerate(images):
+                # Extract base64 data from data URL (data:image/png;base64,...)
+                if img_data.startswith('data:'):
+                    # Split off the header and get base64 data
+                    header, b64_data = img_data.split(',', 1)
+                    media_type = header.split(':')[1].split(';')[0]
+                else:
+                    b64_data = img_data
+                    media_type = "image/jpeg"
+
+                message_content.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": b64_data
+                    }
+                })
+
+            # Add text content
+            message_content.append({
+                "type": "text",
+                "text": task
+            })
+
+            if status_cb:
+                status_cb("processing", "Analyzing with vision model...")
+
+            # Use DSPy's configured LM directly for multimodal
+            lm = dspy.settings.lm
+            if lm is None:
+                # Fallback to regular execution if no LM configured
+                return await executor.execute(task)
+
+            # Call LM with multimodal message
+            messages = [{"role": "user", "content": message_content}]
+
+            try:
+                response = lm(messages=messages)
+
+                # Extract text from response
+                if isinstance(response, list) and len(response) > 0:
+                    content = response[0] if isinstance(response[0], str) else str(response[0])
+                elif isinstance(response, str):
+                    content = response
+                else:
+                    content = str(response)
+
+                if status_cb:
+                    status_cb("complete", "Image analysis complete")
+
+                # Create a result object similar to executor result
+                from dataclasses import dataclass
+                @dataclass
+                class ImageResult:
+                    success: bool = True
+                    content: str = ""
+                    output_format: str = "markdown"
+                    output_path: str = None
+                    steps_taken: int = 1
+                    error: str = None
+
+                return ImageResult(success=True, content=content)
+
+            except Exception as e:
+                logger.warning(f"Multimodal LLM failed, falling back to text-only: {e}")
+                # Fallback: describe that images were provided
+                enhanced_task = f"[Note: User attached {len(images)} image(s) but vision processing failed. Please respond to: {task}]"
+                return await executor.execute(enhanced_task)
+
+        except Exception as e:
+            logger.error(f"Image processing error: {e}", exc_info=True)
+            # Fallback to text-only execution
+            return await executor.execute(task)
+
     async def process_message(
         self,
         message: str,
         session_id: str,
         user_id: str = "web_user",
         stream_callback=None,
-        status_callback=None
+        status_callback=None,
+        attachments: List[Dict] = None
     ) -> Dict[str, Any]:
         """
-        Process a chat message.
+        Process a chat message with optional image attachments.
 
         Args:
             message: User message
@@ -107,6 +207,7 @@ class JottyAPI:
             user_id: User identifier
             stream_callback: Optional callback for streaming
             status_callback: Optional callback for status updates
+            attachments: List of image attachments [{type, name, data, size}]
 
         Returns:
             Response dict with content, output_path, etc.
@@ -121,14 +222,28 @@ class JottyAPI:
             interface=InterfaceType.WEB
         )
 
+        # Process image attachments into base64 for LLM
+        image_descriptions = []
+        image_data_list = []
+        if attachments:
+            for att in attachments:
+                if att.get("type") == "image" and att.get("data"):
+                    image_data_list.append(att["data"])
+                    image_descriptions.append(f"[Attached image: {att.get('name', 'image')}]")
+
+        # Build message content with image context
+        full_message = message
+        if image_descriptions:
+            full_message = f"{' '.join(image_descriptions)}\n\n{message}" if message else ' '.join(image_descriptions)
+
         # Add user message
         message_id = str(uuid.uuid4())[:12]
         session.add_message(
             role="user",
-            content=message,
+            content=full_message,
             interface=InterfaceType.WEB,
             user_id=user_id,
-            metadata={"message_id": message_id}
+            metadata={"message_id": message_id, "has_images": len(image_data_list) > 0}
         )
 
         # Create status callback that calls both logger and external callback
@@ -158,15 +273,19 @@ class JottyAPI:
                 task_with_context = f"""Previous conversation:
 {context_str}
 
-Current request: {message}"""
+Current request: {full_message}"""
             else:
-                task_with_context = message
+                task_with_context = full_message
         else:
-            task_with_context = message
+            task_with_context = full_message
 
         try:
-            # Execute with context
-            result = await executor.execute(task_with_context)
+            # Execute with context and images
+            # If we have images, try to use multimodal LLM
+            if image_data_list:
+                result = await self._execute_with_images(executor, task_with_context, image_data_list, status_cb)
+            else:
+                result = await executor.execute(task_with_context)
 
             response_id = str(uuid.uuid4())[:12]
 
@@ -634,52 +753,178 @@ def create_app() -> "FastAPI":
 
     @app.get("/api/providers")
     async def list_providers():
-        """Get LM providers status."""
+        """Get LM providers status with detailed model info."""
+        import os
+        import shutil
+
         providers = {}
 
-        # Check Anthropic
-        import os
-        providers["anthropic"] = {
-            "configured": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "models": ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]
+        # All available providers with their models
+        provider_configs = {
+            "anthropic": {
+                "name": "Anthropic",
+                "icon": "🅰️",
+                "env_key": "ANTHROPIC_API_KEY",
+                "models": [
+                    {"id": "claude-sonnet-4-20250514", "name": "Claude 4 Sonnet", "context": "200K", "vision": True, "recommended": True},
+                    {"id": "claude-opus-4-20250514", "name": "Claude 4 Opus", "context": "200K", "vision": True},
+                    {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku", "context": "200K", "vision": True, "fast": True},
+                ]
+            },
+            "openai": {
+                "name": "OpenAI",
+                "icon": "🤖",
+                "env_key": "OPENAI_API_KEY",
+                "models": [
+                    {"id": "gpt-4o", "name": "GPT-4o", "context": "128K", "vision": True, "recommended": True},
+                    {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "context": "128K", "vision": True},
+                    {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "context": "16K", "fast": True},
+                ]
+            },
+            "google": {
+                "name": "Google",
+                "icon": "🔷",
+                "env_key": "GOOGLE_API_KEY",
+                "models": [
+                    {"id": "gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash", "context": "1M", "vision": True, "recommended": True},
+                    {"id": "gemini-pro", "name": "Gemini Pro", "context": "32K"},
+                    {"id": "gemini-pro-vision", "name": "Gemini Pro Vision", "context": "32K", "vision": True},
+                ]
+            },
+            "groq": {
+                "name": "Groq",
+                "icon": "⚡",
+                "env_key": "GROQ_API_KEY",
+                "models": [
+                    {"id": "llama-3.1-70b-versatile", "name": "Llama 3.1 70B", "context": "128K", "fast": True, "recommended": True},
+                    {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B", "context": "128K", "fast": True},
+                    {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "context": "32K", "fast": True},
+                ]
+            },
+            "openrouter": {
+                "name": "OpenRouter",
+                "icon": "🌐",
+                "env_key": "OPENROUTER_API_KEY",
+                "models": [
+                    {"id": "anthropic/claude-3-opus", "name": "Claude 3 Opus (OR)", "context": "200K", "vision": True},
+                    {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "context": "128K", "free": True, "recommended": True},
+                    {"id": "openai/gpt-4", "name": "GPT-4 (OR)", "context": "128K"},
+                ]
+            },
+            "claude-cli": {
+                "name": "Claude CLI",
+                "icon": "💻",
+                "env_key": None,  # Check for binary
+                "models": [
+                    {"id": "sonnet", "name": "Sonnet (via CLI)", "context": "200K", "vision": True, "local": True, "recommended": True},
+                    {"id": "opus", "name": "Opus (via CLI)", "context": "200K", "vision": True, "local": True},
+                    {"id": "haiku", "name": "Haiku (via CLI)", "context": "200K", "vision": True, "local": True, "fast": True},
+                ]
+            },
         }
 
-        # Check OpenAI
-        providers["openai"] = {
-            "configured": bool(os.environ.get("OPENAI_API_KEY")),
-            "models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
-        }
+        for provider_id, config in provider_configs.items():
+            if config["env_key"]:
+                configured = bool(os.environ.get(config["env_key"]))
+            elif provider_id == "claude-cli":
+                configured = shutil.which("claude") is not None
+            else:
+                configured = False
 
-        # Check Groq
-        providers["groq"] = {
-            "configured": bool(os.environ.get("GROQ_API_KEY")),
-            "models": ["llama-3.1-70b", "llama-3.1-8b", "mixtral-8x7b"]
-        }
-
-        # Check Google
-        providers["google"] = {
-            "configured": bool(os.environ.get("GOOGLE_API_KEY")),
-            "models": ["gemini-pro", "gemini-pro-vision"]
-        }
-
-        # Check OpenRouter
-        providers["openrouter"] = {
-            "configured": bool(os.environ.get("OPENROUTER_API_KEY")),
-            "models": ["anthropic/claude-3-opus", "openai/gpt-4"]
-        }
-
-        # Check Claude CLI (always available in container)
-        try:
-            import subprocess
-            result = subprocess.run(["which", "claude"], capture_output=True)
-            providers["claude-cli"] = {
-                "configured": result.returncode == 0,
-                "models": ["claude-cli"]
+            providers[provider_id] = {
+                "name": config["name"],
+                "icon": config["icon"],
+                "configured": configured,
+                "models": config["models"] if configured else []
             }
-        except Exception:
-            providers["claude-cli"] = {"configured": False, "models": []}
 
-        return {"providers": providers}
+        # Get current active model
+        current_model = None
+        try:
+            import dspy
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+                lm = dspy.settings.lm
+                # Get model name from wrapped LM if ContextAwareLM
+                if hasattr(lm, '_wrapped'):
+                    lm = lm._wrapped
+                current_model = getattr(lm, 'model', None) or getattr(lm, 'model_name', None)
+        except Exception:
+            pass
+
+        return {
+            "providers": providers,
+            "current_model": current_model,
+            "current_provider": None  # Will be inferred from model name
+        }
+
+    @app.get("/api/models")
+    async def list_models():
+        """Get flat list of all available models for model selector."""
+        providers_response = await list_providers()
+        providers = providers_response.get("providers", {})
+
+        models = []
+        for provider_id, provider in providers.items():
+            if provider.get("configured"):
+                for model in provider.get("models", []):
+                    models.append({
+                        "id": f"{provider_id}/{model['id']}",
+                        "provider": provider_id,
+                        "provider_name": provider["name"],
+                        "provider_icon": provider["icon"],
+                        "model_id": model["id"],
+                        "name": model["name"],
+                        "context": model.get("context", "N/A"),
+                        "vision": model.get("vision", False),
+                        "fast": model.get("fast", False),
+                        "free": model.get("free", False),
+                        "local": model.get("local", False),
+                        "recommended": model.get("recommended", False),
+                    })
+
+        # Sort: recommended first, then by provider
+        models.sort(key=lambda m: (not m["recommended"], m["provider"]))
+
+        return {
+            "models": models,
+            "current": providers_response.get("current_model"),
+            "count": len(models)
+        }
+
+    class SetModelRequest(BaseModel):
+        provider: str
+        model: str
+
+    @app.post("/api/models/set")
+    async def set_model(request: SetModelRequest):
+        """Set the active LLM model."""
+        try:
+            from ..core.foundation.unified_lm_provider import UnifiedLMProvider
+
+            lm = UnifiedLMProvider.create_lm(
+                provider=request.provider,
+                model=request.model
+            )
+
+            import dspy
+            dspy.configure(lm=lm)
+
+            model_name = getattr(lm, 'model', request.model)
+            if hasattr(lm, '_wrapped'):
+                model_name = getattr(lm._wrapped, 'model', request.model)
+
+            return {
+                "success": True,
+                "provider": request.provider,
+                "model": model_name,
+                "message": f"Model set to {request.provider}/{request.model}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to set model: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     class SwarmRequest(BaseModel):
         task: str
@@ -1731,8 +1976,9 @@ QUESTION: {message}"""
 
                 if data.get("type") == "message":
                     content = data.get("content", "")
+                    attachments = data.get("attachments", [])
 
-                    if not content.strip():
+                    if not content.strip() and not attachments:
                         continue
 
                     import queue
@@ -1750,7 +1996,10 @@ QUESTION: {message}"""
                         event_queue.put({"type": "status", "stage": stage, "detail": detail})
 
                     # Send processing status
-                    await websocket.send_json({"type": "status", "stage": "processing", "detail": "Starting..."})
+                    status_detail = "Starting..."
+                    if attachments:
+                        status_detail = f"Processing {len(attachments)} image(s)..."
+                    await websocket.send_json({"type": "status", "stage": "processing", "detail": status_detail})
 
                     # Run processing in thread
                     def process_sync():
@@ -1763,7 +2012,8 @@ QUESTION: {message}"""
                                         message=content,
                                         session_id=session_id,
                                         stream_callback=sync_stream_cb,
-                                        status_callback=sync_status_cb
+                                        status_callback=sync_status_cb,
+                                        attachments=attachments
                                     )
                                 )
                                 result_holder["result"] = result
