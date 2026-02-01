@@ -554,20 +554,57 @@ def create_app() -> "FastAPI":
     @app.get("/api/capabilities")
     async def get_capabilities():
         """Get unified tools + widgets + defaults (DRY single source of truth)."""
+        # Fallback widgets and tools when registry is empty
+        fallback_widgets = [
+            {"value": "markdown", "label": "Markdown", "icon": "📝", "category": "Content"},
+            {"value": "code", "label": "Code Block", "icon": "💻", "category": "Content"},
+            {"value": "chart", "label": "Chart", "icon": "📊", "category": "Visualization"},
+            {"value": "table", "label": "Table", "icon": "📋", "category": "Data"},
+            {"value": "image", "label": "Image", "icon": "🖼️", "category": "Media"},
+            {"value": "pdf", "label": "PDF Export", "icon": "📄", "category": "Export"},
+            {"value": "slides", "label": "Slides", "icon": "🎯", "category": "Export"},
+            {"value": "mermaid", "label": "Mermaid Diagram", "icon": "🔀", "category": "Visualization"},
+            {"value": "latex", "label": "LaTeX Math", "icon": "∑", "category": "Content"},
+            {"value": "json", "label": "JSON Viewer", "icon": "{ }", "category": "Data"},
+        ]
+        fallback_tools = [
+            {"name": "web_search", "description": "Search the web", "category": "Research"},
+            {"name": "web_browse", "description": "Browse and read web pages", "category": "Research"},
+            {"name": "file_read", "description": "Read local files", "category": "Files"},
+            {"name": "file_write", "description": "Write to local files", "category": "Files"},
+            {"name": "code_execute", "description": "Execute code snippets", "category": "Development"},
+            {"name": "shell", "description": "Run shell commands", "category": "System"},
+            {"name": "image_generate", "description": "Generate images with AI", "category": "Media"},
+            {"name": "pdf_generate", "description": "Generate PDF documents", "category": "Export"},
+        ]
+
         try:
             from ..core.registry import get_unified_registry
             registry = get_unified_registry()
             all_data = registry.get_all()
             defaults = registry.get_enabled_defaults()
+
+            # Use fallbacks if registry returns empty
+            widgets = all_data.get("widgets", {}).get("available", [])
+            tools = all_data.get("tools", {}).get("available", [])
+
+            if not widgets:
+                all_data["widgets"] = {"available": fallback_widgets, "categories": ["Content", "Visualization", "Data", "Media", "Export"]}
+            if not tools:
+                all_data["tools"] = {"available": fallback_tools, "categories": ["Research", "Files", "Development", "System", "Media", "Export"]}
+
             return {
                 **all_data,
-                "defaults": defaults
+                "defaults": defaults if defaults.get("widgets") or defaults.get("tools") else {
+                    "widgets": ["markdown", "code", "chart", "table"],
+                    "tools": ["web_search", "web_browse"]
+                }
             }
-        except ImportError:
+        except (ImportError, Exception):
             return {
-                "tools": {"tools": [], "categories": []},
-                "widgets": {"widgets": [], "categories": []},
-                "defaults": {"tools": [], "widgets": []}
+                "widgets": {"available": fallback_widgets, "categories": ["Content", "Visualization", "Data", "Media", "Export"]},
+                "tools": {"available": fallback_tools, "categories": ["Research", "Files", "Development", "System", "Media", "Export"]},
+                "defaults": {"widgets": ["markdown", "code", "chart", "table"], "tools": ["web_search", "web_browse"]}
             }
 
     @app.get("/api/agents")
