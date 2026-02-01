@@ -451,6 +451,117 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .chart-control-btn:hover, .chart-control-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
 .chart-canvas { width: 100%; height: 200px; }
 
+/* ===== VOICE CHAT ===== */
+.voice-chat-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+}
+.voice-chat-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+.voice-chat-btn.recording {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+    animation: pulse-recording 1.5s infinite;
+}
+.voice-chat-btn.playing {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+.voice-chat-btn svg {
+    width: 24px;
+    height: 24px;
+}
+@keyframes pulse-recording {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+}
+.voice-chat-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    margin: 8px 0;
+}
+.voice-status {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.voice-status.active {
+    color: var(--accent);
+}
+.voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+}
+.voice-waveform-bar {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: waveform 0.5s ease-in-out infinite;
+}
+.voice-waveform-bar:nth-child(1) { animation-delay: 0s; }
+.voice-waveform-bar:nth-child(2) { animation-delay: 0.1s; }
+.voice-waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+.voice-waveform-bar:nth-child(4) { animation-delay: 0.3s; }
+.voice-waveform-bar:nth-child(5) { animation-delay: 0.4s; }
+@keyframes waveform {
+    0%, 100% { height: 8px; }
+    50% { height: 24px; }
+}
+.voice-transcript {
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    font-style: italic;
+}
+.voice-mode-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 4px;
+}
+.voice-mode-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.voice-mode-btn:hover {
+    color: var(--text-primary);
+}
+.voice-mode-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
 /* ===== DOCUMENT UPLOAD & CHAT ===== */
 
 /* Folder with documents indicator */
@@ -781,8 +892,11 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
                         <!-- Toolbar Buttons -->
                         <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.pptx,.html" multiple hidden>
                         <button class="toolbar-btn" onclick="document.getElementById('file-input').click()" title="Attach files (images, PDFs, docs)">📎</button>
-                        <button class="toolbar-btn" id="voice-btn" onclick="jottyApp && jottyApp.toggleVoice && jottyApp.toggleVoice()" title="Voice input">🎤</button>
+                        <button class="toolbar-btn" id="voice-btn" onclick="jottyApp && jottyApp.toggleVoice && jottyApp.toggleVoice()" title="Voice to text">🎤</button>
                         <textarea class="message-input" id="message-input" placeholder="Message Jotty..." rows="1"></textarea>
+                        <button class="voice-chat-btn" id="voice-chat-btn" onclick="jottyApp && jottyApp.toggleVoiceChat && jottyApp.toggleVoiceChat()" title="Voice chat (speak & listen)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
                         <button class="send-btn" id="send-btn">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -955,6 +1069,7 @@ class JottyApp {
         this.loadCapabilities();
         this.applyTheme();
         this.initVoice();
+        this.initVoiceChat();
         this.initFileInput();
         this.newChat();
     }
@@ -3464,6 +3579,227 @@ class JottyApp {
         }
         this.isListening = false;
         document.getElementById('voice-btn')?.classList.remove('listening');
+    }
+
+    // ==========================================================================
+    // Voice-to-Voice Chat (Full Duplex)
+    // ==========================================================================
+    initVoiceChat() {
+        this.voiceChatMode = false;
+        this.isRecordingVoice = false;
+        this.isPlayingResponse = false;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.audioContext = null;
+        this.currentAudio = null;
+    }
+
+    async toggleVoiceChat() {
+        if (this.isRecordingVoice) {
+            await this.stopVoiceRecording();
+        } else {
+            await this.startVoiceRecording();
+        }
+    }
+
+    async startVoiceRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Use webm for better compatibility
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+            this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+            this.audioChunks = [];
+
+            this.mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    this.audioChunks.push(e.data);
+                }
+            };
+
+            this.mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+                await this.processVoiceRecording();
+            };
+
+            this.mediaRecorder.start();
+            this.isRecordingVoice = true;
+            this.updateVoiceChatUI('recording');
+            this.showNotification('🎤 Recording... Click again to send', 'info');
+
+        } catch (err) {
+            console.error('Microphone access error:', err);
+            this.showNotification('Could not access microphone', 'error');
+        }
+    }
+
+    async stopVoiceRecording() {
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            this.mediaRecorder.stop();
+            this.isRecordingVoice = false;
+            this.updateVoiceChatUI('processing');
+        }
+    }
+
+    async processVoiceRecording() {
+        if (this.audioChunks.length === 0) {
+            this.updateVoiceChatUI('idle');
+            return;
+        }
+
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        this.audioChunks = [];
+
+        try {
+            this.showNotification('🔄 Processing voice...', 'info');
+
+            // Send to voice chat API
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            formData.append('session_id', this.sessionId);
+
+            const response = await fetch(`${this.apiBase}/api/voice/chat`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Voice chat failed: ${response.status}`);
+            }
+
+            // Get metadata from headers
+            const userText = decodeURIComponent(response.headers.get('X-User-Text') || '');
+            const responseText = decodeURIComponent(response.headers.get('X-Response-Text') || '');
+
+            // Add messages to chat
+            if (userText) {
+                this.addMessage('user', userText);
+            }
+            if (responseText) {
+                this.addMessage('assistant', responseText);
+            }
+
+            // Play audio response
+            const audioData = await response.arrayBuffer();
+            await this.playAudioResponse(audioData);
+
+        } catch (err) {
+            console.error('Voice processing error:', err);
+            this.showNotification('Voice processing failed', 'error');
+            this.updateVoiceChatUI('idle');
+        }
+    }
+
+    async playAudioResponse(audioData) {
+        try {
+            this.updateVoiceChatUI('playing');
+
+            // Create audio context if needed
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // Resume if suspended
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+
+            // Decode and play
+            const audioBuffer = await this.audioContext.decodeAudioData(audioData);
+            const source = this.audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(this.audioContext.destination);
+
+            source.onended = () => {
+                this.isPlayingResponse = false;
+                this.updateVoiceChatUI('idle');
+            };
+
+            this.isPlayingResponse = true;
+            source.start(0);
+            this.currentAudioSource = source;
+
+        } catch (err) {
+            console.error('Audio playback error:', err);
+            // Fallback: use HTML5 Audio
+            try {
+                const blob = new Blob([audioData], { type: 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.onended = () => {
+                    URL.revokeObjectURL(url);
+                    this.updateVoiceChatUI('idle');
+                };
+                await audio.play();
+            } catch (e) {
+                console.error('Fallback audio failed:', e);
+                this.updateVoiceChatUI('idle');
+            }
+        }
+    }
+
+    stopAudioPlayback() {
+        if (this.currentAudioSource) {
+            try {
+                this.currentAudioSource.stop();
+            } catch (e) {}
+        }
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+        this.isPlayingResponse = false;
+        this.updateVoiceChatUI('idle');
+    }
+
+    updateVoiceChatUI(state) {
+        const btn = document.getElementById('voice-chat-btn');
+        if (!btn) return;
+
+        btn.classList.remove('recording', 'playing', 'processing');
+
+        switch (state) {
+            case 'recording':
+                btn.classList.add('recording');
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`;
+                btn.title = 'Stop recording';
+                break;
+            case 'processing':
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;
+                btn.title = 'Processing...';
+                break;
+            case 'playing':
+                btn.classList.add('playing');
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+                btn.title = 'Playing response...';
+                break;
+            default:
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+                btn.title = 'Start voice chat';
+        }
+    }
+
+    // Text-to-Speech for any message (read response aloud)
+    async speakText(text) {
+        try {
+            const response = await fetch(`${this.apiBase}/api/voice/tts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text.slice(0, 2000) })  // Limit length
+            });
+
+            if (response.ok) {
+                const audioData = await response.arrayBuffer();
+                await this.playAudioResponse(audioData);
+            }
+        } catch (err) {
+            console.error('TTS error:', err);
+            // Fallback to browser TTS
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                speechSynthesis.speak(utterance);
+            }
+        }
     }
 
     // ==========================================================================

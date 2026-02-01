@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform comprehensive stock research and generate PDF report.
-    
+
     Args:
         params: Dictionary containing:
             - ticker (str, required): Stock ticker symbol
@@ -33,16 +33,51 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
             - send_telegram (bool, optional): Send to Telegram
             - max_results_per_aspect (int, optional): Max results per research aspect
             - target_pages (int, optional): Target report length in pages (default: 10)
-    
+            - enhanced (bool, optional): Use enhanced broker-grade report (default: True)
+            - peers (list, optional): List of peer company tickers
+            - target_price (float, optional): Analyst target price
+            - rating (str, optional): BUY/HOLD/SELL rating
+
     Returns:
         Dictionary with research results and file paths
     """
     try:
+        # Check if enhanced mode is enabled (default: True)
+        enhanced = params.get('enhanced', True)
+
+        if enhanced:
+            # Use the new enhanced research tool
+            try:
+                from Jotty.core.skills.research import enhanced_stock_research_tool
+
+                # Map parameters
+                enhanced_params = {
+                    'ticker': params.get('ticker', ''),
+                    'company_name': params.get('company_name'),
+                    'exchange': params.get('exchange', params.get('country', 'NSE')),
+                    'peers': params.get('peers', []),
+                    'target_price': params.get('target_price'),
+                    'rating': params.get('rating'),
+                    'output_dir': params.get('output_dir', os.path.expanduser('~/jotty/reports')),
+                    'report_type': 'full',
+                    'include_charts': True,
+                    'send_telegram': params.get('send_telegram', True),
+                }
+
+                logger.info(f"📊 Using enhanced broker-grade research for {params.get('ticker')}")
+                return await enhanced_stock_research_tool(enhanced_params)
+
+            except ImportError as e:
+                logger.warning(f"Enhanced research not available: {e}. Falling back to standard.")
+            except Exception as e:
+                logger.warning(f"Enhanced research failed: {e}. Falling back to standard.")
+
+        # Fall back to standard research
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
             from core.registry.skills_registry import get_skills_registry
-        
+
         ticker = params.get('ticker', '').upper().strip()
         if not ticker:
             return {

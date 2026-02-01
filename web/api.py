@@ -2055,6 +2055,188 @@ QUESTION: {message}"""
             logger.error(f"Preview error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    # ===== VOICE CHAT ENDPOINTS =====
+
+    @app.get("/api/voice/voices")
+    async def list_voices():
+        """Get available TTS voices."""
+        from .voice import get_voice_processor
+        processor = get_voice_processor()
+        return {"voices": processor.get_available_voices()}
+
+    @app.post("/api/voice/tts")
+    async def text_to_speech_endpoint(request: dict):
+        """
+        Convert text to speech.
+
+        Request: {"text": "Hello", "voice": "en-US-AvaNeural"}
+        Returns: Audio file (MP3)
+        """
+        from fastapi.responses import Response
+        from .voice import get_voice_processor
+
+        text = request.get("text", "")
+        voice = request.get("voice")
+
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+
+        processor = get_voice_processor()
+        audio_data = await processor.text_to_speech(text, voice)
+
+        if not audio_data:
+            raise HTTPException(status_code=500, detail="TTS failed")
+
+        return Response(
+            content=audio_data,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=speech.mp3"}
+        )
+
+    @app.post("/api/voice/stt")
+    async def speech_to_text_endpoint(audio: UploadFile = File(...)):
+        """
+        Convert speech to text.
+
+        Accepts audio file (webm, wav, mp3, etc.)
+        Returns: {"text": "transcribed text"}
+        """
+        from .voice import get_voice_processor
+
+        content = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        processor = get_voice_processor()
+        text = await processor.speech_to_text(content, mime_type)
+
+        return {"text": text, "success": bool(text)}
+
+    @app.post("/api/voice/chat")
+    async def voice_chat_endpoint(
+        audio: UploadFile = File(...),
+        session_id: Optional[str] = Form(None),
+        voice: Optional[str] = Form(None)
+    ):
+        """
+        Full voice-to-voice chat.
+
+        Accepts audio, transcribes, processes with LLM, returns audio response.
+        """
+        from fastapi.responses import Response
+        from .voice import get_voice_processor
+
+        session_id = session_id or str(uuid.uuid4())[:8]
+
+        # Read audio
+        audio_content = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        processor = get_voice_processor()
+
+        # 1. Speech to text
+        user_text = await processor.speech_to_text(audio_content, mime_type)
+        if not user_text:
+            # Return error audio
+            error_audio = await processor.text_to_speech(
+                "I couldn't understand that. Please try again.",
+                voice
+            )
+            return Response(
+                content=error_audio,
+                media_type="audio/mpeg",
+                headers={
+                    "X-User-Text": "",
+                    "X-Response-Text": "Could not transcribe",
+                    "Content-Disposition": "inline; filename=response.mp3"
+                }
+            )
+
+        # 2. Process with LLM
+        result = await api.process_message(
+            message=user_text,
+            session_id=session_id
+        )
+
+        response_text = result.get("content", "I encountered an error processing your request.")
+
+        # 3. Text to speech
+        response_audio = await processor.text_to_speech(response_text, voice)
+
+        if not response_audio:
+            raise HTTPException(status_code=500, detail="TTS failed")
+
+        # Return audio with metadata in headers
+        import urllib.parse
+        return Response(
+            content=response_audio,
+            media_type="audio/mpeg",
+            headers={
+                "X-User-Text": urllib.parse.quote(user_text[:500]),
+                "X-Response-Text": urllib.parse.quote(response_text[:500]),
+                "X-Session-Id": session_id,
+                "Content-Disposition": "inline; filename=response.mp3"
+            }
+        )
+
+    @app.websocket("/ws/voice/{session_id}")
+    async def websocket_voice_chat(websocket: WebSocket, session_id: str):
+        """
+        WebSocket endpoint for streaming voice chat.
+
+        Client sends: Binary audio chunks or {"type": "config", "voice": "..."}
+        Server sends: Binary audio response chunks
+        """
+        from .voice import get_voice_processor
+
+        await websocket.accept()
+        processor = get_voice_processor()
+        voice = None
+        audio_buffer = bytearray()
+
+        try:
+            while True:
+                message = await websocket.receive()
+
+                if "text" in message:
+                    # Config message
+                    import json
+                    data = json.loads(message["text"])
+                    if data.get("type") == "config":
+                        voice = data.get("voice")
+                        await websocket.send_json({"type": "config_ack", "voice": voice})
+                    elif data.get("type") == "end_audio":
+                        # Process accumulated audio
+                        if audio_buffer:
+                            # STT
+                            user_text = await processor.speech_to_text(bytes(audio_buffer), "audio/webm")
+                            await websocket.send_json({"type": "transcription", "text": user_text})
+
+                            if user_text:
+                                # LLM
+                                result = await api.process_message(
+                                    message=user_text,
+                                    session_id=session_id
+                                )
+                                response_text = result.get("content", "")
+                                await websocket.send_json({"type": "response_text", "text": response_text})
+
+                                # TTS - stream chunks
+                                await websocket.send_json({"type": "audio_start"})
+                                async for chunk in processor.text_to_speech_stream(response_text, voice):
+                                    await websocket.send_bytes(chunk)
+                                await websocket.send_json({"type": "audio_end"})
+
+                            audio_buffer.clear()
+
+                elif "bytes" in message:
+                    # Audio chunk
+                    audio_buffer.extend(message["bytes"])
+
+        except Exception as e:
+            logger.error(f"Voice WebSocket error: {e}")
+        finally:
+            pass
+
     # WebSocket endpoint
     @app.websocket("/ws/chat/{session_id}")
     async def websocket_chat(websocket: WebSocket, session_id: str):
