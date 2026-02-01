@@ -222,6 +222,7 @@ class JottyAPI:
 
             # Try OpenRouter (supports Claude vision via API)
             openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+            logger.info(f"Checking OpenRouter: key present = {bool(openrouter_key)}")
             if openrouter_key:
                 try:
                     import openai
