@@ -526,6 +526,157 @@ def create_app() -> "FastAPI":
         """Health check."""
         return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
+    # ==========================================================================
+    # DRY: Unified Registry APIs - Uses existing registries, no duplication
+    # ==========================================================================
+
+    @app.get("/api/widgets")
+    async def get_widgets():
+        """Get all widgets from unified registry."""
+        try:
+            from ..core.registry import get_unified_registry
+            registry = get_unified_registry()
+            return registry.get_widgets()
+        except ImportError:
+            # Fallback if registry not available
+            return {"widgets": [], "categories": []}
+
+    @app.get("/api/tools")
+    async def get_tools():
+        """Get all tools from unified registry."""
+        try:
+            from ..core.registry import get_unified_registry
+            registry = get_unified_registry()
+            return registry.get_tools()
+        except ImportError:
+            return {"tools": [], "categories": []}
+
+    @app.get("/api/capabilities")
+    async def get_capabilities():
+        """Get unified tools + widgets + defaults (DRY single source of truth)."""
+        try:
+            from ..core.registry import get_unified_registry
+            registry = get_unified_registry()
+            all_data = registry.get_all()
+            defaults = registry.get_enabled_defaults()
+            return {
+                **all_data,
+                "defaults": defaults
+            }
+        except ImportError:
+            return {
+                "tools": {"tools": [], "categories": []},
+                "widgets": {"widgets": [], "categories": []},
+                "defaults": {"tools": [], "widgets": []}
+            }
+
+    @app.get("/api/agents")
+    async def list_agents():
+        """Get agents from skills registry."""
+        try:
+            from ..core.registry import get_skills_registry
+            registry = get_skills_registry()
+            if hasattr(registry, 'list_agents_from_skills'):
+                agents = registry.list_agents_from_skills()
+                # Handle if it's a coroutine
+                if hasattr(agents, '__await__'):
+                    import asyncio
+                    agents = await agents
+                return {"agents": agents if agents else [], "count": len(agents) if agents else 0}
+            return {"agents": [], "count": 0}
+        except (ImportError, Exception) as e:
+            # Fallback: Return basic agent list from CLI commands
+            return {
+                "agents": [
+                    {"id": "research", "name": "Research Agent", "description": "Web research and synthesis", "category": "research"},
+                    {"id": "code", "name": "Code Agent", "description": "Code analysis and generation", "category": "development"},
+                    {"id": "ml", "name": "ML Agent", "description": "Machine learning pipeline", "category": "ml"},
+                ],
+                "count": 3
+            }
+
+    @app.get("/api/providers")
+    async def list_providers():
+        """Get LM providers status."""
+        providers = {}
+
+        # Check Anthropic
+        import os
+        providers["anthropic"] = {
+            "configured": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "models": ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]
+        }
+
+        # Check OpenAI
+        providers["openai"] = {
+            "configured": bool(os.environ.get("OPENAI_API_KEY")),
+            "models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
+        }
+
+        # Check Groq
+        providers["groq"] = {
+            "configured": bool(os.environ.get("GROQ_API_KEY")),
+            "models": ["llama-3.1-70b", "llama-3.1-8b", "mixtral-8x7b"]
+        }
+
+        # Check Google
+        providers["google"] = {
+            "configured": bool(os.environ.get("GOOGLE_API_KEY")),
+            "models": ["gemini-pro", "gemini-pro-vision"]
+        }
+
+        # Check OpenRouter
+        providers["openrouter"] = {
+            "configured": bool(os.environ.get("OPENROUTER_API_KEY")),
+            "models": ["anthropic/claude-3-opus", "openai/gpt-4"]
+        }
+
+        # Check Claude CLI (always available in container)
+        try:
+            import subprocess
+            result = subprocess.run(["which", "claude"], capture_output=True)
+            providers["claude-cli"] = {
+                "configured": result.returncode == 0,
+                "models": ["claude-cli"]
+            }
+        except Exception:
+            providers["claude-cli"] = {"configured": False, "models": []}
+
+        return {"providers": providers}
+
+    class SwarmRequest(BaseModel):
+        task: str
+        mode: str = "auto"  # auto | manual | workflow
+        agents: Optional[List[str]] = None
+        workflow: Optional[dict] = None
+        session_id: Optional[str] = None
+
+    @app.post("/api/agents/swarm")
+    async def execute_swarm(request: SwarmRequest):
+        """Execute multi-agent swarm."""
+        try:
+            from ..core.agents import SwarmManager
+            manager = SwarmManager()
+            result = await manager.execute(
+                task=request.task,
+                mode=request.mode,
+                agents=request.agents,
+                workflow=request.workflow
+            )
+            return {"success": True, "result": result}
+        except ImportError:
+            # Fallback: Execute through regular chat with swarm hint
+            session_id = request.session_id or str(uuid.uuid4())[:8]
+            enhanced_task = f"[Swarm Mode: {request.mode}] {request.task}"
+            result = await api.process_message(
+                message=enhanced_task,
+                session_id=session_id
+            )
+            return {"success": result.get("success", False), "result": result}
+        except Exception as e:
+            logger.error(f"Swarm execution error: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
+
     # CLI Commands endpoints
     @app.get("/api/commands")
     async def list_commands():

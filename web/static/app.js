@@ -15,10 +15,29 @@ class JottyApp {
         this.isProcessing = false;
         this.streamingContent = '';
 
+        // ==========================================================================
+        // NEW: DRY Configuration from API (not hardcoded)
+        // ==========================================================================
+        this.capabilities = null;
+        this.enabledWidgets = [];
+        this.enabledTools = [];
+        this.agents = [];
+
+        // UI state
+        this.chatMode = 'raw';  // raw | agent | swarm
+        this.selectedAgent = null;
+        this.swarmMode = 'auto';  // auto | manual | workflow
+        this.attachments = [];
+        this.isListening = false;
+        this.recognition = null;
+
+        // Theme (sync with JustJot.ai via postMessage)
+        this.theme = localStorage.getItem('jotty_theme') || 'dark';
+
         this.init();
     }
 
-    init() {
+    async init() {
         // DOM elements
         this.chatArea = document.getElementById('chat-area');
         this.messagesContainer = document.getElementById('messages-container');
@@ -49,9 +68,446 @@ class JottyApp {
             });
         });
 
+        // ==========================================================================
+        // NEW: Initialize new features
+        // ==========================================================================
+        await this.loadCapabilities();
+        this.applyTheme();
+        this.initVoice();
+        this.initFileInput();
+        this.syncThemeFromParent();
+        this.loadAgents();
+
         // Initialize
         this.loadSessions();
         this.newChat();
+    }
+
+    // ==========================================================================
+    // DRY: Load from unified registry API
+    // ==========================================================================
+
+    async loadCapabilities() {
+        try {
+            const resp = await fetch('/api/capabilities');
+            this.capabilities = await resp.json();
+
+            // Use defaults from registry
+            if (this.capabilities.defaults) {
+                this.enabledWidgets = this.capabilities.defaults.widgets || [];
+                this.enabledTools = this.capabilities.defaults.tools || [];
+            }
+
+            // Override with localStorage if exists
+            const savedWidgets = localStorage.getItem('jotty_widgets');
+            if (savedWidgets) this.enabledWidgets = JSON.parse(savedWidgets);
+
+            const savedTools = localStorage.getItem('jotty_tools');
+            if (savedTools) this.enabledTools = JSON.parse(savedTools);
+
+            console.log('Capabilities loaded:', this.capabilities);
+        } catch (e) {
+            console.error('Failed to load capabilities:', e);
+        }
+    }
+
+    async loadAgents() {
+        try {
+            const resp = await fetch('/api/agents');
+            const data = await resp.json();
+            this.agents = data.agents || [];
+            this.renderAgentSelector();
+        } catch (e) {
+            console.error('Failed to load agents:', e);
+        }
+    }
+
+    // ==========================================================================
+    // Theme Support (JustJot.ai sync)
+    // ==========================================================================
+
+    applyTheme() {
+        document.documentElement.setAttribute('data-theme', this.theme);
+    }
+
+    toggleTheme() {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('jotty_theme', this.theme);
+        this.applyTheme();
+        this.updateContextPanel();
+    }
+
+    syncThemeFromParent() {
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'theme-change') {
+                this.theme = event.data.theme;
+                localStorage.setItem('jotty_theme', this.theme);
+                this.applyTheme();
+            }
+        });
+    }
+
+    // ==========================================================================
+    // Voice Recording (Web Speech API)
+    // ==========================================================================
+
+    initVoice() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.log('Voice input not supported');
+            return;
+        }
+
+        this.recognition = new SpeechRecognition();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+
+        this.recognition.onresult = (e) => {
+            const transcript = Array.from(e.results)
+                .map(r => r[0].transcript)
+                .join('');
+            this.messageInput.value = transcript;
+            this.autoResize();
+        };
+
+        this.recognition.onerror = (e) => {
+            console.error('Voice error:', e);
+            this.stopVoice();
+        };
+
+        this.recognition.onend = () => {
+            if (this.isListening) {
+                // Restart if still listening
+                this.recognition.start();
+            }
+        };
+    }
+
+    toggleVoice() {
+        if (this.isListening) {
+            this.stopVoice();
+        } else {
+            this.startVoice();
+        }
+    }
+
+    startVoice() {
+        if (!this.recognition) return;
+        try {
+            this.recognition.start();
+            this.isListening = true;
+            const voiceBtn = document.getElementById('voice-btn');
+            if (voiceBtn) voiceBtn.classList.add('listening');
+        } catch (e) {
+            console.error('Failed to start voice:', e);
+        }
+    }
+
+    stopVoice() {
+        if (!this.recognition) return;
+        this.recognition.stop();
+        this.isListening = false;
+        const voiceBtn = document.getElementById('voice-btn');
+        if (voiceBtn) voiceBtn.classList.remove('listening');
+    }
+
+    // ==========================================================================
+    // Image Attachments
+    // ==========================================================================
+
+    initFileInput() {
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files));
+        }
+    }
+
+    handleFileSelect(files) {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.attachments.push({
+                    type: 'image',
+                    name: file.name,
+                    data: e.target.result,
+                    size: file.size
+                });
+                this.renderAttachments();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    renderAttachments() {
+        const container = document.getElementById('attachment-previews');
+        if (!container) return;
+
+        container.innerHTML = this.attachments.map((att, i) => `
+            <div class="attachment-preview">
+                <img src="${att.data}" alt="${att.name}" />
+                <button class="remove-attachment" onclick="jottyApp.removeAttachment(${i})">×</button>
+                <span class="attachment-name">${att.name}</span>
+            </div>
+        `).join('');
+
+        container.style.display = this.attachments.length > 0 ? 'flex' : 'none';
+    }
+
+    removeAttachment(index) {
+        this.attachments.splice(index, 1);
+        this.renderAttachments();
+    }
+
+    // ==========================================================================
+    // Agent/Swarm Mode Selector
+    // ==========================================================================
+
+    setChatMode(mode) {
+        this.chatMode = mode;
+        this.renderAgentSelector();
+
+        if (mode !== 'raw' && this.agents.length === 0) {
+            this.loadAgents();
+        }
+    }
+
+    setSwarmMode(mode) {
+        this.swarmMode = mode;
+        this.renderAgentSelector();
+    }
+
+    selectAgent(agentId) {
+        this.selectedAgent = agentId;
+        this.renderAgentSelector();
+    }
+
+    renderAgentSelector() {
+        const container = document.getElementById('agent-selector');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="mode-toggle">
+                <button class="${this.chatMode === 'raw' ? 'active' : ''}"
+                        onclick="jottyApp.setChatMode('raw')">LLM</button>
+                <button class="${this.chatMode === 'agent' ? 'active' : ''}"
+                        onclick="jottyApp.setChatMode('agent')">Agent</button>
+                <button class="${this.chatMode === 'swarm' ? 'active' : ''}"
+                        onclick="jottyApp.setChatMode('swarm')">Swarm</button>
+            </div>
+
+            ${this.chatMode === 'agent' ? `
+                <select class="agent-dropdown" onchange="jottyApp.selectAgent(this.value)">
+                    <option value="">Select agent...</option>
+                    ${this.agents.map(a => `
+                        <option value="${a.id}" ${this.selectedAgent === a.id ? 'selected' : ''}>
+                            ${a.name}
+                        </option>
+                    `).join('')}
+                </select>
+            ` : ''}
+
+            ${this.chatMode === 'swarm' ? `
+                <div class="swarm-modes">
+                    <button class="${this.swarmMode === 'auto' ? 'active' : ''}"
+                            onclick="jottyApp.setSwarmMode('auto')">Auto</button>
+                    <button class="${this.swarmMode === 'manual' ? 'active' : ''}"
+                            onclick="jottyApp.setSwarmMode('manual')">Manual</button>
+                    <button class="${this.swarmMode === 'workflow' ? 'active' : ''}"
+                            onclick="jottyApp.setSwarmMode('workflow')">Workflow</button>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    // ==========================================================================
+    // Configuration Modal (Widgets/Tools/Models)
+    // ==========================================================================
+
+    showConfigModal() {
+        const modal = document.getElementById('config-modal');
+        if (modal) {
+            modal.classList.add('open');
+            this.renderConfigTabs();
+        }
+    }
+
+    hideConfigModal() {
+        const modal = document.getElementById('config-modal');
+        if (modal) modal.classList.remove('open');
+    }
+
+    showConfigTab(tab) {
+        document.querySelectorAll('.config-tab-content').forEach(el => {
+            el.classList.remove('active');
+        });
+        document.querySelectorAll('.config-tabs button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        const tabContent = document.getElementById(`config-${tab}`);
+        if (tabContent) tabContent.classList.add('active');
+
+        const tabBtn = document.querySelector(`.config-tabs button[onclick*="${tab}"]`);
+        if (tabBtn) tabBtn.classList.add('active');
+    }
+
+    renderConfigTabs() {
+        if (!this.capabilities) return;
+
+        const widgetsHtml = this.renderWidgetConfig();
+        const toolsHtml = this.renderToolConfig();
+
+        const container = document.getElementById('config-content');
+        if (container) {
+            container.innerHTML = `
+                <div class="config-tabs">
+                    <button class="active" onclick="jottyApp.showConfigTab('widgets')">Widgets</button>
+                    <button onclick="jottyApp.showConfigTab('tools')">Tools</button>
+                    <button onclick="jottyApp.showConfigTab('models')">Models</button>
+                </div>
+                <div id="config-widgets" class="config-tab-content active">${widgetsHtml}</div>
+                <div id="config-tools" class="config-tab-content">${toolsHtml}</div>
+                <div id="config-models" class="config-tab-content">
+                    <div class="config-category">
+                        <h4>Model selection coming soon</h4>
+                        <p style="color: var(--text-secondary); font-size: 13px;">
+                            Configure AI providers and models in the next update.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    renderWidgetConfig() {
+        if (!this.capabilities || !this.capabilities.widgets) return '<p>Loading widgets...</p>';
+
+        const widgets = this.capabilities.widgets.widgets || [];
+        const categories = [...new Set(widgets.map(w => w.category))];
+
+        return categories.map(cat => `
+            <div class="config-category">
+                <h4>${cat}</h4>
+                <div class="config-items">
+                    ${widgets.filter(w => w.category === cat).map(w => `
+                        <label class="config-item">
+                            <input type="checkbox"
+                                   ${this.enabledWidgets.includes(w.value) ? 'checked' : ''}
+                                   onchange="jottyApp.toggleWidget('${w.value}')" />
+                            <span class="item-icon">${w.icon || '📦'}</span>
+                            <span class="item-label">${w.label}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    renderToolConfig() {
+        if (!this.capabilities || !this.capabilities.tools) return '<p>Loading tools...</p>';
+
+        const tools = this.capabilities.tools.tools || [];
+        const categories = [...new Set(tools.map(t => t.category))];
+
+        return categories.map(cat => `
+            <div class="config-category">
+                <h4>${cat}</h4>
+                <div class="config-items">
+                    ${tools.filter(t => t.category === cat).map(t => `
+                        <label class="config-item">
+                            <input type="checkbox"
+                                   ${this.enabledTools.includes(t.name) ? 'checked' : ''}
+                                   onchange="jottyApp.toggleTool('${t.name}')" />
+                            <span class="item-label">${t.name}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    toggleWidget(value) {
+        const idx = this.enabledWidgets.indexOf(value);
+        if (idx >= 0) {
+            this.enabledWidgets.splice(idx, 1);
+        } else {
+            this.enabledWidgets.push(value);
+        }
+        localStorage.setItem('jotty_widgets', JSON.stringify(this.enabledWidgets));
+        this.renderConfigTabs();
+        this.updateConfigBadge();
+    }
+
+    toggleTool(name) {
+        const idx = this.enabledTools.indexOf(name);
+        if (idx >= 0) {
+            this.enabledTools.splice(idx, 1);
+        } else {
+            this.enabledTools.push(name);
+        }
+        localStorage.setItem('jotty_tools', JSON.stringify(this.enabledTools));
+        this.renderConfigTabs();
+        this.updateConfigBadge();
+    }
+
+    updateConfigBadge() {
+        const btn = document.getElementById('config-btn');
+        if (btn) {
+            const count = this.enabledWidgets.length + this.enabledTools.length;
+            btn.setAttribute('data-count', count);
+        }
+    }
+
+    // ==========================================================================
+    // Context Panel ("i" icon)
+    // ==========================================================================
+
+    toggleContextPanel() {
+        const panel = document.getElementById('context-panel');
+        if (panel) {
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) {
+                this.updateContextPanel();
+            }
+        }
+    }
+
+    updateContextPanel() {
+        const panel = document.getElementById('context-panel-content');
+        if (!panel) return;
+
+        const modeLabel = this.chatMode === 'raw' ? 'Direct LLM' :
+                          this.chatMode === 'agent' ? 'Single Agent' : 'Multi-Agent Swarm';
+
+        panel.innerHTML = `
+            <div class="context-section">
+                <h4>💬 Conversation</h4>
+                <p>Messages: ${this.messages.length}</p>
+                <p>Session: ${this.sessionId}</p>
+            </div>
+
+            <div class="context-section">
+                <h4>⚡ Execution Mode</h4>
+                <p>Mode: ${modeLabel}</p>
+                ${this.selectedAgent ? `<p>Agent: ${this.selectedAgent}</p>` : ''}
+                ${this.chatMode === 'swarm' ? `<p>Swarm: ${this.swarmMode}</p>` : ''}
+            </div>
+
+            <div class="context-section">
+                <h4>🎛️ Capabilities</h4>
+                <p>Widgets: ${this.enabledWidgets.length} enabled</p>
+                <p>Tools: ${this.enabledTools.length} enabled</p>
+            </div>
+
+            <div class="context-section">
+                <h4>🎨 Theme</h4>
+                <button onclick="jottyApp.toggleTheme()">
+                    ${this.theme === 'dark' ? '☀️ Switch to Light' : '🌙 Switch to Dark'}
+                </button>
+            </div>
+        `;
     }
 
     generateSessionId() {
@@ -356,34 +812,55 @@ class JottyApp {
 
     async sendMessage() {
         const content = this.messageInput.value.trim();
-        if (!content || this.isProcessing) return;
+        if (!content && this.attachments.length === 0) return;
+        if (this.isProcessing) return;
 
         // Hide welcome screen
         if (this.welcomeScreen) this.welcomeScreen.style.display = 'none';
         if (this.messagesContainer) this.messagesContainer.style.display = 'block';
 
-        // Add user message
-        this.messages.push({
+        // Build message with attachments
+        const userMessage = {
             role: 'user',
             content: content,
-            interface: 'web'
-        });
+            interface: 'web',
+            attachments: this.attachments.length > 0 ? [...this.attachments] : undefined
+        };
+
+        // Add user message
+        this.messages.push(userMessage);
         this.renderMessages();
 
-        // Clear input
+        // Clear input and attachments
         this.messageInput.value = '';
+        this.attachments = [];
+        this.renderAttachments();
         this.autoResize();
         this.setProcessing(true);
+
+        // Stop voice if active
+        if (this.isListening) {
+            this.stopVoice();
+        }
 
         // Add streaming placeholder
         this.addStreamingMessage();
 
+        // Build payload with context
+        const payload = {
+            type: 'message',
+            content: content,
+            attachments: userMessage.attachments,
+            mode: this.chatMode,
+            agent: this.selectedAgent,
+            swarmMode: this.chatMode === 'swarm' ? this.swarmMode : null,
+            enabledWidgets: this.enabledWidgets,
+            enabledTools: this.enabledTools
+        };
+
         // Send via WebSocket
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-                type: 'message',
-                content: content
-            }));
+            this.ws.send(JSON.stringify(payload));
         } else {
             // Fallback to REST
             this.sendViaRest(content);
@@ -566,3 +1043,6 @@ class JottyApp {
 document.addEventListener('DOMContentLoaded', () => {
     window.jottyApp = new JottyApp();
 });
+
+// Expose for inline handlers
+window.jottyApp = window.jottyApp || null;
