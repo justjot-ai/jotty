@@ -39,12 +39,19 @@ VOICES = {
 }
 
 # Whisper prompt to improve recognition of informal speech patterns
-WHISPER_PROMPT = """This is a voice assistant conversation. The speaker may use:
-- Informal sounds: psst, shh, hmm, uh, um, ah, oh, ooh, wow, huh
-- Filler words: like, you know, basically, actually, literally
-- Hesitations: uh, um, er, well, so
-- Expressions: hey, hi, hello, bye, thanks, please, sorry, okay, yeah, yep, nope
-- Onomatopoeia: la la la, tra la la, hmm hmm, boop, beep
+# IMPORTANT: Include examples of sounds to help Whisper recognize them
+WHISPER_PROMPT = """Transcribe ALL sounds including whispered and informal speech.
+Examples of sounds to preserve:
+- Whispered: "psst", "shh", "shush"
+- Thinking: "hmm", "uh", "um", "er"
+- Exclamations: "oh", "ooh", "ah", "wow", "oops", "yay"
+- Reactions: "huh", "meh", "ugh", "eww", "yuck"
+- Agreement: "yeah", "yep", "uh-huh", "mm-hmm"
+- Disagreement: "nah", "nope", "uh-uh"
+- Greetings: "hey", "hi", "hello", "yo", "sup"
+- Musical: "la la la", "tra la la", "do re mi", "hmm hmm"
+- Fillers: "like", "you know", "basically", "I mean"
+IMPORTANT: Do NOT skip or filter out any sounds. Transcribe everything spoken.
 """
 
 # Common misrecognitions to fix in post-processing
@@ -295,6 +302,41 @@ class VoiceProcessor:
             logger.error(f"Deepgram STT failed: {e}")
             return ""
 
+    @staticmethod
+    def _preprocess_tts_text(text: str) -> str:
+        """
+        Preprocess text for TTS to handle edge cases.
+
+        Fixes:
+        - Multiple exclamation marks that can crash Edge-TTS
+        - Very short utterances that may not generate audio
+        - ALL CAPS text that Edge-TTS doesn't handle well
+        """
+        import re
+
+        if not text:
+            return text
+
+        result = text
+
+        # Fix multiple exclamation/question marks (Edge-TTS issue)
+        result = re.sub(r'!+', '.', result)  # Replace ! with .
+        result = re.sub(r'\?+', '?', result)  # Keep single ?
+
+        # Convert ALL CAPS to title case (Edge-TTS fails on all caps)
+        if result.isupper() and len(result) > 3:
+            result = result.title()
+
+        # Ensure very short text has enough content for TTS
+        # Edge-TTS needs some minimum content to generate audio
+        if len(result.strip()) < 3:
+            result = f"{result} "  # Add trailing space
+
+        # Remove any control characters that might break TTS
+        result = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', result)
+
+        return result
+
     async def text_to_speech(self, text: str, voice: Optional[str] = None) -> bytes:
         """
         Convert text to speech using edge-tts.
@@ -308,6 +350,9 @@ class VoiceProcessor:
         """
         if not text.strip():
             return b""
+
+        # Preprocess text for TTS compatibility
+        text = self._preprocess_tts_text(text)
 
         try:
             import edge_tts
