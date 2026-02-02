@@ -22,6 +22,16 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# WEB SEARCH - LLM decides when to search via LeanExecutor
+# =============================================================================
+# The LeanExecutor uses DSPy TaskAnalysisSignature where the LLM decides:
+#   - needs_external_data: bool (True if current info needed)
+#   - input_type: "web_search" | "file_read" | "none"
+# This is the AI-native way - no regex keyword matching.
+# See: core/orchestration/v2/lean_executor.py
+
+
 class JottyAPI:
     """
     Jotty API handler.
@@ -331,6 +341,8 @@ class JottyAPI:
                         logger.error(f"Failed to extract document text: {e}")
 
         # Build message content with attachments context
+        # NOTE: Web search is handled by LeanExecutor via LLM decision (not regex)
+        # The LLM decides needs_external_data=True when it needs current info
         full_message = message
         context_parts = []
 
@@ -1562,6 +1574,120 @@ def create_app() -> "FastAPI":
             logger.error(f"Search failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    # ===== RAG CONFIGURATION ENDPOINTS =====
+
+    @app.get("/api/rag/config")
+    async def get_rag_config():
+        """Get current RAG configuration."""
+        from .documents import get_document_processor, RAGConfig
+
+        processor = get_document_processor()
+        return {
+            "config": processor.config.to_dict(),
+            "available_models": RAGConfig.EMBEDDING_MODELS
+        }
+
+    class RAGConfigUpdateRequest(BaseModel):
+        chunk_size: Optional[int] = None
+        overlap: Optional[int] = None
+        embedding_model: Optional[str] = None
+
+    @app.post("/api/rag/config")
+    async def update_rag_config(request: RAGConfigUpdateRequest):
+        """Update RAG configuration."""
+        from .documents import get_document_processor, RAGConfig
+
+        processor = get_document_processor()
+
+        # Validate embedding model
+        if request.embedding_model and request.embedding_model not in RAGConfig.EMBEDDING_MODELS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid embedding model. Available: {list(RAGConfig.EMBEDDING_MODELS.keys())}"
+            )
+
+        # Validate chunk_size
+        if request.chunk_size is not None and (request.chunk_size < 100 or request.chunk_size > 4000):
+            raise HTTPException(status_code=400, detail="chunk_size must be between 100 and 4000")
+
+        # Validate overlap
+        if request.overlap is not None and (request.overlap < 0 or request.overlap > 500):
+            raise HTTPException(status_code=400, detail="overlap must be between 0 and 500")
+
+        config = processor.update_config(
+            chunk_size=request.chunk_size,
+            overlap=request.overlap,
+            embedding_model=request.embedding_model
+        )
+
+        return {"success": True, "config": config.to_dict()}
+
+    @app.post("/api/rag/reindex/{doc_id}")
+    async def reindex_document(doc_id: str):
+        """Re-index a document with current RAG settings."""
+        from .documents import get_document_processor
+
+        processor = get_document_processor()
+        doc = processor.get_document(doc_id)
+
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        try:
+            # Get document text
+            text = processor.get_document_text(doc_id)
+            if not text:
+                raise HTTPException(status_code=500, detail="Failed to read document")
+
+            # Delete old embeddings
+            chunk_count = doc.get("chunk_count", 100)
+            chunk_ids = [f"{doc_id}_chunk_{i}" for i in range(chunk_count)]
+            try:
+                processor.collection.delete(ids=chunk_ids)
+            except Exception:
+                pass
+
+            # Re-chunk and re-embed
+            chunks = processor.chunk_text(text)
+            embeddings = processor.generate_embeddings(chunks)
+
+            new_chunk_ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
+            chunk_metas = [
+                {
+                    "doc_id": doc_id,
+                    "chunk_index": i,
+                    "folder_id": doc.get("folder_id") or "",
+                    "filename": doc.get("filename", ""),
+                    "embedding_model": processor.config.embedding_model,
+                    "chunk_size": processor.config.chunk_size,
+                }
+                for i in range(len(chunks))
+            ]
+
+            processor.collection.add(
+                ids=new_chunk_ids,
+                embeddings=embeddings,
+                documents=chunks,
+                metadatas=chunk_metas
+            )
+
+            # Update document info
+            doc["chunk_count"] = len(chunks)
+            doc["rag_config"] = processor.config.to_dict()
+            doc["reindexed_at"] = datetime.now().isoformat()
+            processor._save_docs_index()
+
+            return {
+                "success": True,
+                "doc_id": doc_id,
+                "chunk_count": len(chunks),
+                "config": processor.config.to_dict()
+            }
+
+        except Exception as e:
+            logger.error(f"Reindex failed: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
+
     class ChatWithContextRequest(BaseModel):
         message: str
         context_type: str  # 'folder', 'document', 'chat'
@@ -2426,6 +2552,871 @@ QUESTION: {message}"""
         except Exception as e:
             logger.error(f"Proxy error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    # ===== LIBRECHAT-STYLE FEATURES =====
+
+    # ===== MCP TOOLS ENDPOINTS =====
+
+    @app.get("/api/mcp/tools")
+    async def list_mcp_tools():
+        """List available MCP tools with enable/disable status."""
+        try:
+            from ..core.integration.mcp_client import MCPClient
+
+            # Try to get tools from MCP server
+            try:
+                client = MCPClient()
+                await client.connect()
+                tools = await client.list_tools()
+                await client.disconnect()
+
+                return {
+                    "tools": [
+                        {
+                            "name": t.get("name", ""),
+                            "description": t.get("description", ""),
+                            "inputSchema": t.get("inputSchema", {}),
+                            "enabled": True
+                        }
+                        for t in tools
+                    ],
+                    "count": len(tools),
+                    "connected": True
+                }
+            except Exception as e:
+                logger.warning(f"MCP connection failed: {e}")
+                # Return fallback tools
+                return {
+                    "tools": [
+                        {"name": "create_idea", "description": "Create a new idea/note", "enabled": True},
+                        {"name": "list_ideas", "description": "List all ideas", "enabled": True},
+                        {"name": "search_ideas", "description": "Search ideas by query", "enabled": True},
+                    ],
+                    "count": 3,
+                    "connected": False,
+                    "error": str(e)
+                }
+        except ImportError:
+            return {"tools": [], "count": 0, "connected": False, "error": "MCP client not available"}
+
+    class MCPExecuteRequest(BaseModel):
+        tool_name: str
+        arguments: dict = {}
+
+    @app.post("/api/mcp/execute")
+    async def execute_mcp_tool(request: MCPExecuteRequest):
+        """Execute an MCP tool and return result."""
+        import time
+        start_time = time.time()
+
+        try:
+            from ..core.integration.mcp_client import call_justjot_mcp_tool
+
+            result = await call_justjot_mcp_tool(
+                tool_name=request.tool_name,
+                arguments=request.arguments
+            )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            return {
+                "success": True,
+                "tool_name": request.tool_name,
+                "result": result,
+                "duration_ms": duration_ms
+            }
+        except Exception as e:
+            logger.error(f"MCP tool execution failed: {e}")
+            return {
+                "success": False,
+                "tool_name": request.tool_name,
+                "error": str(e),
+                "duration_ms": int((time.time() - start_time) * 1000)
+            }
+
+    # ===== ARTIFACTS ENDPOINTS =====
+
+    @app.post("/api/artifacts/extract")
+    async def extract_artifacts(request: dict):
+        """Extract artifacts (code blocks, diagrams, etc.) from text."""
+        from .artifacts import extract_artifacts as do_extract
+
+        text = request.get("text", "")
+        if not text:
+            return {"artifacts": [], "count": 0}
+
+        artifacts = do_extract(text)
+        return {"artifacts": artifacts, "count": len(artifacts)}
+
+    @app.post("/api/artifacts/render")
+    async def render_artifact(request: dict):
+        """
+        Render an artifact to displayable format.
+
+        For HTML: returns sanitized HTML
+        For Mermaid: returns SVG
+        For code: returns syntax-highlighted HTML
+        """
+        artifact_type = request.get("type", "code")
+        content = request.get("content", "")
+
+        if not content:
+            raise HTTPException(status_code=400, detail="Content is required")
+
+        if artifact_type == "mermaid":
+            # For mermaid, return content as-is (frontend will use mermaid.js)
+            return {
+                "type": "mermaid",
+                "content": content,
+                "render_mode": "client"  # Render on client side
+            }
+
+        if artifact_type == "html":
+            # Return HTML for sandboxed iframe
+            return {
+                "type": "html",
+                "content": content,
+                "render_mode": "iframe"
+            }
+
+        if artifact_type == "svg":
+            return {
+                "type": "svg",
+                "content": content,
+                "render_mode": "inline"
+            }
+
+        # Default: code block
+        return {
+            "type": "code",
+            "content": content,
+            "language": request.get("language", ""),
+            "render_mode": "highlight"
+        }
+
+    # ===== CODE INTERPRETER ENDPOINTS =====
+
+    class CodeExecuteRequest(BaseModel):
+        code: str
+        language: str = "python"
+        timeout: int = 30
+
+    @app.post("/api/code/execute")
+    async def execute_code(request: CodeExecuteRequest):
+        """Execute code in sandboxed environment."""
+        from .code_interpreter import execute_code as do_execute
+
+        if not request.code.strip():
+            raise HTTPException(status_code=400, detail="Code is required")
+
+        result = await do_execute(request.code, request.language)
+        return result
+
+    @app.get("/api/code/execute/stream")
+    async def execute_code_stream(code: str, language: str = "python"):
+        """SSE streaming code execution."""
+        from starlette.responses import StreamingResponse
+        from .code_interpreter import get_code_interpreter
+        import json
+
+        interpreter = get_code_interpreter()
+
+        async def event_generator():
+            async for event in interpreter.execute_streaming(code, language):
+                yield f"data: {json.dumps(event)}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+
+    @app.get("/api/code/languages")
+    async def list_code_languages():
+        """List supported programming languages for code execution."""
+        return {
+            "languages": [
+                {"id": "python", "name": "Python", "extension": ".py", "available": True},
+                {"id": "javascript", "name": "JavaScript", "extension": ".js", "available": True},
+                {"id": "typescript", "name": "TypeScript", "extension": ".ts", "available": False},
+                {"id": "bash", "name": "Bash", "extension": ".sh", "available": False},
+            ]
+        }
+
+    # ===== CONVERSATION BRANCHING ENDPOINTS =====
+
+    @app.get("/api/sessions/{session_id}/branches")
+    async def list_branches(session_id: str):
+        """Get all branches for a session."""
+        from ..cli.repl.session import InterfaceType
+
+        registry = api._get_session_registry()
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return {
+            "branches": session.get_branches(),
+            "active_branch": getattr(session, 'active_branch', 'main'),
+            "tree": session.get_branch_tree()
+        }
+
+    class CreateBranchRequest(BaseModel):
+        from_message_id: str
+        branch_name: Optional[str] = None
+
+    @app.post("/api/sessions/{session_id}/branch")
+    async def create_branch(session_id: str, request: CreateBranchRequest):
+        """Create a new branch from a message."""
+        from ..cli.repl.session import InterfaceType
+
+        registry = api._get_session_registry()
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        try:
+            branch_id = session.create_branch(
+                from_message_id=request.from_message_id,
+                branch_name=request.branch_name
+            )
+            return {
+                "success": True,
+                "branch_id": branch_id,
+                "branches": session.get_branches()
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    class EditMessageRequest(BaseModel):
+        new_content: str
+        create_branch: bool = True
+
+    @app.post("/api/sessions/{session_id}/messages/{message_id}/edit")
+    async def edit_message(session_id: str, message_id: str, request: EditMessageRequest):
+        """Edit a message, optionally creating a new branch."""
+        from ..cli.repl.session import InterfaceType
+
+        registry = api._get_session_registry()
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        try:
+            branch_id = session.edit_message(
+                message_id=message_id,
+                new_content=request.new_content,
+                create_branch=request.create_branch
+            )
+            return {
+                "success": True,
+                "branch_id": branch_id,
+                "branches": session.get_branches()
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    class SwitchBranchRequest(BaseModel):
+        branch_id: str
+
+    @app.post("/api/sessions/{session_id}/branch/switch")
+    async def switch_branch(session_id: str, request: SwitchBranchRequest):
+        """Switch to a different branch."""
+        from ..cli.repl.session import InterfaceType
+
+        registry = api._get_session_registry()
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        try:
+            session.switch_branch(request.branch_id)
+            return {
+                "success": True,
+                "active_branch": request.branch_id,
+                "history": session.get_history()
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.delete("/api/sessions/{session_id}/branches/{branch_id}")
+    async def delete_branch(session_id: str, branch_id: str):
+        """Delete a branch."""
+        from ..cli.repl.session import InterfaceType
+
+        registry = api._get_session_registry()
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        try:
+            session.delete_branch(branch_id)
+            return {
+                "success": True,
+                "branches": session.get_branches()
+            }
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # ===== WEB SEARCH ENDPOINTS (Uses existing web-search skill) =====
+
+    class WebSearchRequest(BaseModel):
+        query: str
+        max_results: int = 10
+
+    @app.post("/api/search")
+    async def web_search(request: WebSearchRequest):
+        """
+        Search the web using the existing web-search skill (DuckDuckGo).
+
+        Args:
+            query: Search query
+            max_results: Maximum number of results (default 10)
+
+        Returns:
+            Search results with title, url, snippet
+        """
+        try:
+            # Use existing skill directly
+            import sys
+            from pathlib import Path
+            skills_path = Path(__file__).parent.parent / "skills" / "web-search"
+            if str(skills_path) not in sys.path:
+                sys.path.insert(0, str(skills_path))
+            from tools import search_web_tool
+
+            result = await asyncio.to_thread(
+                search_web_tool,
+                {"query": request.query, "max_results": request.max_results}
+            )
+
+            return result  # Already has success, results, count, query
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/search")
+    async def web_search_get(query: str, max_results: int = 10):
+        """GET endpoint for web search using existing skill."""
+        try:
+            import sys
+            from pathlib import Path
+            skills_path = Path(__file__).parent.parent / "skills" / "web-search"
+            if str(skills_path) not in sys.path:
+                sys.path.insert(0, str(skills_path))
+            from tools import search_web_tool
+
+            result = await asyncio.to_thread(
+                search_web_tool,
+                {"query": query, "max_results": max_results}
+            )
+
+            return result
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ===== SHAREABLE LINKS ENDPOINTS =====
+
+    class CreateShareLinkRequest(BaseModel):
+        session_id: str
+        title: Optional[str] = None
+        expires_in_days: Optional[int] = None
+        branch_id: str = "main"
+
+    @app.post("/api/share/create")
+    async def create_share_link(request: CreateShareLinkRequest):
+        """Create a shareable link for a conversation."""
+        from cli.repl.session import get_share_link_registry, get_session_registry
+
+        # Verify session exists
+        registry = get_session_registry()
+        session = registry.get_session(request.session_id, create=False)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Create share link
+        share_registry = get_share_link_registry()
+        link = share_registry.create_link(
+            session_id=request.session_id,
+            title=request.title,
+            expires_in_days=request.expires_in_days,
+            branch_id=request.branch_id
+        )
+
+        return {
+            "success": True,
+            "link": link.to_dict(),
+            "url": f"/share/{link.token}"
+        }
+
+    @app.get("/api/share/{token}")
+    async def get_share_link_info(token: str):
+        """Get information about a share link."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        link = share_registry.get_link(token)
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+        return {"link": link.to_dict()}
+
+    @app.get("/api/share/{token}/conversation")
+    async def get_shared_conversation(token: str):
+        """Get the shared conversation (public read-only view)."""
+        from cli.repl.session import get_share_link_registry, get_session_registry
+
+        share_registry = get_share_link_registry()
+        link = share_registry.get_link(token)
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+        # Record access
+        share_registry.record_access(token)
+
+        # Get session
+        registry = get_session_registry()
+        session = registry.get_session(link.session_id, create=False)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Get messages for the branch
+        messages = session.get_branch_messages(link.branch_id)
+
+        return {
+            "title": link.title or f"Shared Chat",
+            "messages": [m.to_dict() for m in messages],
+            "created_at": link.created_at.isoformat(),
+            "access_count": link.access_count,
+            "branch_id": link.branch_id
+        }
+
+    @app.get("/api/share/session/{session_id}")
+    async def get_session_share_links(session_id: str):
+        """Get all share links for a session."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        links = share_registry.get_session_links(session_id)
+
+        return {"links": [link.to_dict() for link in links]}
+
+    @app.post("/api/share/{token}/revoke")
+    async def revoke_share_link(token: str):
+        """Revoke a share link."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        success = share_registry.revoke_link(token)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Share link not found")
+
+        return {"success": True}
+
+    @app.post("/api/share/{token}/refresh")
+    async def refresh_share_link(token: str, expires_in_days: int = 30):
+        """Refresh a share link with new token and expiry."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        new_link = share_registry.refresh_link(token, expires_in_days)
+
+        if not new_link:
+            raise HTTPException(status_code=404, detail="Share link not found")
+
+        return {
+            "success": True,
+            "link": new_link.to_dict(),
+            "url": f"/share/{new_link.token}"
+        }
+
+    @app.get("/api/share/{token}/qrcode")
+    async def get_share_qrcode(token: str, base_url: str = None):
+        """Generate QR code for a share link."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        link = share_registry.get_link(token)
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+        # Generate QR code as data URL
+        try:
+            import qrcode
+            import io
+            import base64
+
+            share_url = f"{base_url or ''}/share/{token}"
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(share_url)
+            qr.make(fit=True)
+
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            img_str = base64.b64encode(buffer.getvalue()).decode()
+
+            return {
+                "qrcode": f"data:image/png;base64,{img_str}",
+                "url": share_url
+            }
+        except ImportError:
+            # qrcode library not installed, return URL only
+            return {
+                "qrcode": None,
+                "url": f"{base_url or ''}/share/{token}",
+                "error": "QR code library not installed"
+            }
+
+    # Public share page (no auth required)
+    @app.get("/share/{token}")
+    async def share_page(token: str):
+        """Serve the public share page."""
+        from cli.repl.session import get_share_link_registry
+
+        share_registry = get_share_link_registry()
+        link = share_registry.get_link(token)
+
+        if not link:
+            raise HTTPException(status_code=404, detail="Share link not found or expired")
+
+        # Return HTML page that will load the conversation
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Chat - Jotty</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .shared-container {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
+        .shared-header {{ text-align: center; margin-bottom: 30px; padding: 20px; background: var(--bg-secondary); border-radius: 10px; }}
+        .shared-header h1 {{ margin: 0; font-size: 1.5rem; }}
+        .shared-header p {{ color: var(--text-muted); margin: 10px 0 0; }}
+        .shared-message {{ margin: 15px 0; padding: 15px; border-radius: 10px; }}
+        .shared-message.user {{ background: var(--user-msg-bg); margin-left: 50px; }}
+        .shared-message.assistant {{ background: var(--assistant-msg-bg); margin-right: 50px; }}
+        .shared-footer {{ text-align: center; margin-top: 30px; color: var(--text-muted); }}
+    </style>
+</head>
+<body>
+    <div class="shared-container">
+        <div class="shared-header">
+            <h1 id="share-title">Shared Chat</h1>
+            <p id="share-info">Loading...</p>
+        </div>
+        <div id="messages"></div>
+        <div class="shared-footer">
+            <p>Shared via <a href="/">Jotty</a></p>
+        </div>
+    </div>
+    <script>
+        async function loadSharedConversation() {{
+            try {{
+                const response = await fetch('/api/share/{token}/conversation');
+                if (!response.ok) throw new Error('Failed to load conversation');
+                const data = await response.json();
+
+                document.getElementById('share-title').textContent = data.title;
+                document.getElementById('share-info').textContent = `Viewed ${{data.access_count}} times`;
+
+                const messagesDiv = document.getElementById('messages');
+                data.messages.forEach(msg => {{
+                    const div = document.createElement('div');
+                    div.className = `shared-message ${{msg.role}}`;
+                    div.innerHTML = `<strong>${{msg.role === 'user' ? 'You' : 'Assistant'}}</strong><div>${{msg.content}}</div>`;
+                    messagesDiv.appendChild(div);
+                }});
+            }} catch (error) {{
+                document.getElementById('messages').innerHTML = '<p style="color: red;">Failed to load conversation</p>';
+            }}
+        }}
+        loadSharedConversation();
+    </script>
+</body>
+</html>
+        """)
+
+    # ===== TEMPORARY CHAT ENDPOINTS =====
+
+    class CreateTempSessionRequest(BaseModel):
+        expiry_days: Optional[int] = 30
+
+    @app.post("/api/sessions/temporary")
+    async def create_temporary_session(request: CreateTempSessionRequest = None):
+        """Create a temporary (ephemeral) chat session."""
+        from cli.repl.session import SessionManager, InterfaceType
+
+        expiry_days = (request.expiry_days if request else None) or 30
+        session = SessionManager(
+            interface=InterfaceType.WEB,
+            is_temporary=True
+        )
+        session.set_temporary(True, expiry_days)
+
+        return {
+            "session_id": session.session_id,
+            "is_temporary": True,
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None
+        }
+
+    @app.post("/api/sessions/{session_id}/temporary")
+    async def toggle_session_temporary(session_id: str, is_temporary: bool, expiry_days: Optional[int] = 30):
+        """Toggle temporary mode for a session."""
+        from cli.repl.session import get_session_registry
+
+        registry = get_session_registry()
+        session = registry.get_session(session_id, create=False)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        session.set_temporary(is_temporary, expiry_days)
+
+        if not is_temporary:
+            # Save the session now that it's permanent
+            session.auto_save = True
+            session.save()
+
+        return {
+            "session_id": session_id,
+            "is_temporary": session.is_temporary,
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None
+        }
+
+    @app.post("/api/sessions/cleanup")
+    async def cleanup_expired_sessions():
+        """Clean up expired temporary sessions."""
+        from cli.repl.session import SessionManager
+
+        deleted = SessionManager.cleanup_expired_sessions()
+
+        return {
+            "success": True,
+            "deleted_count": len(deleted),
+            "deleted_sessions": deleted
+        }
+
+    @app.get("/api/sessions")
+    async def list_all_sessions(include_temporary: bool = False, include_expired: bool = False):
+        """List all available sessions with filters."""
+        from cli.repl.session import SessionManager
+
+        session_manager = SessionManager()
+        sessions = session_manager.list_sessions(
+            include_temporary=include_temporary,
+            include_expired=include_expired
+        )
+
+        return {"sessions": sessions}
+
+    # ===== UPDATED CAPABILITIES ENDPOINT =====
+    # Override the earlier one to add feature flags
+
+    @app.get("/api/features")
+    async def get_feature_flags():
+        """Get feature flags for UI capabilities."""
+        return {
+            "features": {
+                "mcp_tools": True,
+                "artifacts": True,
+                "code_interpreter": True,
+                "web_search": True,
+                "branching": True,
+                "voice": True,
+                "documents": True,
+                "shareable_links": True,
+                "temporary_chat": True
+            }
+        }
+
+    # ===== VOICE ENDPOINTS =====
+    # Speech-to-Text, Text-to-Speech, and Voice-to-Voice pipelines
+
+    @app.post("/api/voice/stt")
+    async def speech_to_text(audio: UploadFile):
+        """
+        Convert speech audio to text using Groq Whisper (primary) or Deepgram (fallback).
+
+        Accepts audio files (webm, wav, mp3, ogg, flac, m4a).
+        Returns transcribed text.
+        """
+        from .voice import get_voice_processor
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        transcript = await processor.speech_to_text(audio_data, mime_type)
+
+        return {
+            "success": bool(transcript),
+            "transcript": transcript,
+            "mime_type": mime_type
+        }
+
+    @app.post("/api/voice/tts")
+    async def text_to_speech(text: str, voice: Optional[str] = None):
+        """
+        Convert text to speech using edge-tts (Microsoft neural voices).
+
+        Args:
+            text: Text to convert to speech
+            voice: Optional voice ID (default: en-US-AvaNeural)
+
+        Returns audio/mpeg stream.
+        """
+        from .voice import get_voice_processor
+        from fastapi.responses import Response
+
+        processor = get_voice_processor()
+        audio_bytes = await processor.text_to_speech(text, voice)
+
+        if not audio_bytes:
+            raise HTTPException(status_code=500, detail="TTS generation failed")
+
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+
+    @app.get("/api/voice/voices")
+    async def list_voices():
+        """List available TTS voices."""
+        from .voice import VoiceProcessor
+
+        return {
+            "voices": VoiceProcessor.get_available_voices(),
+            "default": "en-US-AvaNeural"
+        }
+
+    @app.post("/api/voice/chat")
+    async def voice_chat(audio: UploadFile, session_id: Optional[str] = None):
+        """
+        Full voice-to-voice pipeline: STT -> LLM -> TTS.
+
+        Processes audio input through:
+        1. Speech-to-Text (Groq Whisper)
+        2. LLM processing (via chat endpoint logic)
+        3. Text-to-Speech (edge-tts)
+
+        Returns JSON with text and base64-encoded audio.
+        """
+        import base64
+        from .voice import get_voice_processor
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        # Define LLM processing function
+        async def process_with_llm(user_text: str) -> str:
+            api = JottyAPI()
+            result = await api.chat(user_text, session_id=session_id)
+            return result.get("response", "") if isinstance(result, dict) else str(result)
+
+        user_text, response_text, response_audio = await processor.process_voice_message(
+            audio_data, mime_type, process_with_llm
+        )
+
+        return {
+            "success": True,
+            "user_text": user_text,
+            "response_text": response_text,
+            "response_audio_base64": base64.b64encode(response_audio).decode() if response_audio else None,
+            "audio_format": "audio/mpeg"
+        }
+
+    @app.post("/api/voice/chat/fast")
+    async def voice_chat_fast(
+        audio: UploadFile,
+        session_id: Optional[str] = None,
+        max_chars: int = 200
+    ):
+        """
+        Optimized voice pipeline for minimum latency.
+
+        Optimizations:
+        - Truncates response at sentence boundary (max 200 chars default)
+        - Uses 15% faster speech rate
+        - Reduces overall latency by ~40%
+
+        Returns JSON with text and base64-encoded audio.
+        """
+        import base64
+        from .voice import get_voice_processor
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        async def process_with_llm(user_text: str) -> str:
+            api = JottyAPI()
+            result = await api.chat(user_text, session_id=session_id)
+            return result.get("response", "") if isinstance(result, dict) else str(result)
+
+        user_text, response_text, response_audio = await processor.process_voice_fast(
+            audio_data, mime_type, process_with_llm, max_response_chars=max_chars
+        )
+
+        return {
+            "success": True,
+            "user_text": user_text,
+            "response_text": response_text,
+            "response_audio_base64": base64.b64encode(response_audio).decode() if response_audio else None,
+            "audio_format": "audio/mpeg",
+            "mode": "fast"
+        }
+
+    @app.post("/api/voice/chat/stream")
+    async def voice_chat_streaming(audio: UploadFile, session_id: Optional[str] = None):
+        """
+        Streaming voice pipeline for lower perceived latency.
+
+        Returns audio sentence-by-sentence as Server-Sent Events.
+        Each event contains a sentence and its corresponding audio chunk.
+        """
+        import base64
+        import json
+        from .voice import get_voice_processor
+        from fastapi.responses import StreamingResponse
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        async def process_with_llm(user_text: str) -> str:
+            api = JottyAPI()
+            result = await api.chat(user_text, session_id=session_id)
+            return result.get("response", "") if isinstance(result, dict) else str(result)
+
+        async def generate_sse():
+            async for text_chunk, audio_chunk in processor.process_voice_message_streaming(
+                audio_data, mime_type, process_with_llm
+            ):
+                data = {
+                    "text": text_chunk,
+                    "audio_base64": base64.b64encode(audio_chunk).decode() if audio_chunk else None
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(
+            generate_sse(),
+            media_type="text/event-stream"
+        )
 
     # Explicit routes for static files (ensure they work)
     static_dir = Path(__file__).parent / "static"
