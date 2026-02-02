@@ -100,5 +100,81 @@
       "format": "csv"
     },
     "llmHint": "return_data_table(csv_data='Name,Age\\nAlice,30', title)"
+  },
+  "file-download": {
+    "type": "file-download",
+    "description": "Downloadable file with preview. Use for PDFs, Word docs, presentations, and other documents.",
+    "contentType": "json",
+    "schema": {
+      "type": "object",
+      "required": ["url", "filename", "format"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL or path to download the file"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Display name for the file"
+        },
+        "format": {
+          "type": "enum",
+          "values": ["pdf", "docx", "pptx", "xlsx", "csv", "txt", "md", "html", "zip"],
+          "description": "File format for icon and preview handling"
+        },
+        "size": {
+          "type": "string",
+          "optional": true,
+          "description": "Human-readable file size (e.g., '2.5 MB')"
+        },
+        "preview": {
+          "type": "boolean",
+          "optional": true,
+          "description": "Whether to show inline preview (default: true)"
+        },
+        "previewUrl": {
+          "type": "string",
+          "optional": true,
+          "description": "URL for iframe preview (Google Docs Viewer for docx/pptx/xlsx, direct URL for pdf)"
+        },
+        "description": {
+          "type": "string",
+          "optional": true,
+          "description": "Brief description of the file contents"
+        }
+      }
+    },
+    "llmHint": "return_file_download(url='/path/to/file.pdf', filename='Report.pdf', format='pdf', title)"
+  },
+  "image": {
+    "type": "image",
+    "description": "Display an image inline with optional caption",
+    "contentType": "json",
+    "schema": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL or path to the image"
+        },
+        "alt": {
+          "type": "string",
+          "optional": true,
+          "description": "Alt text for accessibility"
+        },
+        "caption": {
+          "type": "string",
+          "optional": true,
+          "description": "Caption displayed below the image"
+        },
+        "width": {
+          "type": "string",
+          "optional": true,
+          "description": "CSS width (e.g., '100%', '500px')"
+        }
+      }
+    },
+    "llmHint": "return_image(url='/path/to/image.png', caption='Description', title)"
   }
 }

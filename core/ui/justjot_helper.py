@@ -234,6 +234,154 @@ Charlie,PM,110000''',
     )
 
 
+def _generate_preview_url(url: str, format: str) -> Optional[str]:
+    """
+    Generate preview URL for different file formats.
+
+    - PDF: Direct URL (browsers render natively)
+    - DOCX/PPTX/XLSX: Google Docs Viewer
+    """
+    from urllib.parse import quote
+
+    format_lower = format.lower().replace('.', '')
+
+    # PDF can be previewed directly by browsers
+    if format_lower == 'pdf':
+        return url
+
+    # Office formats use Google Docs Viewer
+    if format_lower in ['docx', 'pptx', 'xlsx', 'doc', 'ppt', 'xls']:
+        # Google Docs Viewer requires a publicly accessible URL
+        # If it's a relative path, we need to make it absolute
+        if url.startswith('/'):
+            # Relative URL - frontend will need to resolve this
+            # Return a marker that frontend can process
+            return f"gdocs:{url}"
+        elif url.startswith('http'):
+            # Absolute URL - use Google Docs Viewer directly
+            encoded_url = quote(url, safe='')
+            return f"https://docs.google.com/viewer?url={encoded_url}&embedded=true"
+        else:
+            # Local file path - can't preview with Google Docs
+            return None
+
+    # Other formats don't have preview support
+    return None
+
+
+def return_file_download(
+    url: str,
+    filename: str,
+    format: str,
+    size: Optional[str] = None,
+    preview: bool = True,
+    description: Optional[str] = None,
+    title: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Return a downloadable file section for inline display in chat.
+
+    This is the proper way to display generated documents (PDF, DOCX, PPTX)
+    in the chat UI with download buttons and optional preview.
+
+    Preview Support:
+    - PDF: Native browser preview (iframe with direct URL)
+    - DOCX/PPTX/XLSX: Google Docs Viewer (requires public URL)
+
+    Args:
+        url: Path or URL to the file
+        filename: Display name for the file
+        format: File format ('pdf', 'docx', 'pptx', 'xlsx', etc.)
+        size: Optional human-readable file size (e.g., '2.5 MB')
+        preview: Whether to show inline preview (default: True)
+        description: Brief description of the file contents
+        title: Section title
+
+    Returns:
+        A2UI response with file-download section
+
+    Example:
+        response = return_file_download(
+            url='/outputs/report_20240115.pdf',
+            filename='AI Trends Report.pdf',
+            format='pdf',
+            size='1.2 MB',
+            description='Comprehensive analysis of AI trends for 2024',
+            title='Your Report is Ready'
+        )
+    """
+    format_lower = format.lower().replace('.', '')
+
+    content = {
+        "url": url,
+        "filename": filename,
+        "format": format_lower
+    }
+
+    if size:
+        content["size"] = size
+    if description:
+        content["description"] = description
+
+    # Always enable preview for supported formats
+    content["preview"] = preview
+
+    # Generate preview URL based on format
+    if preview:
+        preview_url = _generate_preview_url(url, format_lower)
+        if preview_url:
+            content["previewUrl"] = preview_url
+
+    return return_section(
+        section_type="file-download",
+        content=content,
+        title=title or f"📄 {filename}"
+    )
+
+
+def return_image(
+    url: str,
+    alt: Optional[str] = None,
+    caption: Optional[str] = None,
+    width: Optional[str] = None,
+    title: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Return an image section for inline display in chat.
+
+    Args:
+        url: Path or URL to the image
+        alt: Alt text for accessibility
+        caption: Caption displayed below the image
+        width: CSS width (e.g., '100%', '500px')
+        title: Section title
+
+    Returns:
+        A2UI response with image section
+
+    Example:
+        response = return_image(
+            url='/outputs/chart.png',
+            caption='Sales performance Q4 2024',
+            title='Generated Chart'
+        )
+    """
+    content = {"url": url}
+
+    if alt:
+        content["alt"] = alt
+    if caption:
+        content["caption"] = caption
+    if width:
+        content["width"] = width
+
+    return return_section(
+        section_type="image",
+        content=content,
+        title=title
+    )
+
+
 # Map old adapter names to new section helper (for backwards compatibility during migration)
 # TODO: Remove this once all code is migrated to use return_section() directly
 SECTION_HELPERS = {
@@ -241,4 +389,6 @@ SECTION_HELPERS = {
     "chart": return_chart,
     "mermaid": return_mermaid,
     "data-table": return_data_table,
+    "file-download": return_file_download,
+    "image": return_image,
 }

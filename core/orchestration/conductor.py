@@ -1437,18 +1437,33 @@ class MultiAgentsOrchestrator:
             logger.info("⏱️  Profiling enabled")
 
         # ✅ Ensure we always have an output directory when persistence/logging is enabled.
-        # This keeps RUN_DIR non-null and standardizes artifacts under ./outputs/run_YYYYMMDD_HHMMSS/
+        # This keeps RUN_DIR non-null and standardizes artifacts under outputs/run_YYYYMMDD_HHMMSS/
         if output_dir is None:
             try:
-                base = getattr(self.config, "output_base_dir", "./outputs")
+                import os
+                # Get default base directory based on environment
+                # Priority: config > JOTTY_OUTPUT_DIR env > /data/outputs (Docker) > ./outputs (local)
+                default_base = "./outputs"
+                if os.environ.get('JOTTY_OUTPUT_DIR'):
+                    default_base = os.environ['JOTTY_OUTPUT_DIR']
+                elif Path('/data').exists():
+                    default_base = "/data/outputs"
+
+                base = getattr(self.config, "output_base_dir", default_base)
                 create_run = getattr(self.config, "create_run_folder", True)
+
+                # Ensure base directory exists
+                Path(base).mkdir(parents=True, exist_ok=True)
+
                 if create_run:
                     ts = datetime.now().strftime("run_%Y%m%d_%H%M%S")
                     output_dir = str(Path(base) / ts)
                 else:
                     output_dir = str(Path(base))
             except Exception:
-                output_dir = "./outputs"
+                # Final fallback: use /tmp if nothing else works
+                output_dir = "/tmp/jotty_outputs"
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
 
         # 📁 Setup file logging if enabled
         if getattr(self.config, 'enable_beautified_logs', False) or getattr(self.config, 'enable_debug_logs', False):

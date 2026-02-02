@@ -21,6 +21,8 @@ from .justjot_helper import (
     return_chart,
     return_mermaid,
     return_data_table,
+    return_file_download,
+    return_image,
 )
 
 __all__ = [
@@ -38,4 +40,6 @@ __all__ = [
     'return_chart',
     'return_mermaid',
     'return_data_table',
+    'return_file_download',
+    'return_image',
 ]
