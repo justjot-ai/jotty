@@ -2,7 +2,7 @@
 Browser Automation Skill
 ========================
 
-Full browser automation using Playwright for:
+Full browser automation using Playwright or Selenium for:
 - Navigating to URLs with JS rendering
 - Taking screenshots
 - Filling forms
@@ -12,7 +12,11 @@ Full browser automation using Playwright for:
 - Handling authentication
 - Downloading files
 
-Inspired by OpenClaw's browser automation capabilities.
+Supports:
+- Playwright (default, async, faster)
+- Selenium with CDP (for Electron embedding, remote debugging)
+
+Set BROWSER_BACKEND='selenium' to use Selenium, or use cdp_url for CDP connection.
 """
 import os
 import asyncio
@@ -24,13 +28,29 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Configuration
+BROWSER_BACKEND = os.environ.get('BROWSER_BACKEND', 'playwright')
+
 # Try to import Playwright
+PLAYWRIGHT_AVAILABLE = False
 try:
     from playwright.async_api import async_playwright, Browser, Page, BrowserContext
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
     logger.warning("Playwright not installed. Run: pip install playwright && playwright install chromium")
+
+# Try to import Selenium
+SELENIUM_AVAILABLE = False
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.action_chains import ActionChains
+    SELENIUM_AVAILABLE = True
+except ImportError:
+    logger.info("Selenium not installed. Run: pip install selenium")
 
 
 class BrowserSession:
@@ -87,6 +107,194 @@ class BrowserSession:
         BrowserSession._instance = None
 
 
+class SeleniumBrowserSession:
+    """Selenium-based browser session with CDP support for Electron embedding."""
+
+    _instance: Optional["SeleniumBrowserSession"] = None
+    _driver = None
+
+    @classmethod
+    def get_instance(cls) -> "SeleniumBrowserSession":
+        """Get or create Selenium browser session singleton."""
+        if cls._instance is None:
+            cls._instance = SeleniumBrowserSession()
+        return cls._instance
+
+    def get_driver(self, cdp_url: Optional[str] = None, headless: bool = True):
+        """
+        Get Selenium WebDriver, creating if needed.
+
+        Args:
+            cdp_url: CDP URL for remote debugging (e.g., Electron app)
+            headless: Run in headless mode (default: True)
+
+        Returns:
+            Selenium WebDriver instance
+        """
+        if not SELENIUM_AVAILABLE:
+            raise ImportError("Selenium not installed")
+
+        if self._driver is not None:
+            return self._driver
+
+        options = ChromeOptions()
+
+        if cdp_url:
+            # Connect to existing browser via CDP (for Electron embedding)
+            options.add_experimental_option("debuggerAddress", cdp_url.replace("http://", "").replace("https://", ""))
+        else:
+            # Standard Chrome options
+            if headless:
+                options.add_argument('--headless=new')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--window-size=1920,1080')
+            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+
+        self._driver = webdriver.Chrome(options=options)
+        self._driver.implicitly_wait(10)
+        return self._driver
+
+    def close(self):
+        """Close Selenium driver."""
+        if self._driver:
+            try:
+                self._driver.quit()
+            except Exception:
+                pass
+            self._driver = None
+        SeleniumBrowserSession._instance = None
+
+    def navigate(self, url: str, wait_for: Optional[str] = None, timeout: int = 30) -> Dict[str, Any]:
+        """Navigate to URL using Selenium."""
+        driver = self.get_driver()
+        driver.get(url)
+
+        if wait_for:
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, wait_for))
+            )
+
+        return {
+            'success': True,
+            'url': driver.current_url,
+            'title': driver.title
+        }
+
+    def screenshot(self, selector: Optional[str] = None, full_page: bool = False) -> bytes:
+        """Take screenshot using Selenium."""
+        driver = self.get_driver()
+
+        if selector:
+            element = driver.find_element(By.CSS_SELECTOR, selector)
+            return element.screenshot_as_png
+        else:
+            return driver.get_screenshot_as_png()
+
+    def click(self, selector: str, wait_after: Optional[str] = None, timeout: int = 30):
+        """Click element using Selenium."""
+        driver = self.get_driver()
+        element = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+        )
+        element.click()
+
+        if wait_after:
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, wait_after))
+            )
+
+    def fill(self, selector: str, value: str):
+        """Fill form field using Selenium."""
+        driver = self.get_driver()
+        element = driver.find_element(By.CSS_SELECTOR, selector)
+        element.clear()
+        element.send_keys(value)
+
+    def extract_text(self, selector: Optional[str] = None) -> str:
+        """Extract text using Selenium."""
+        driver = self.get_driver()
+        if selector:
+            element = driver.find_element(By.CSS_SELECTOR, selector)
+            return element.text
+        else:
+            return driver.find_element(By.TAG_NAME, 'body').text
+
+    def execute_script(self, script: str, *args) -> Any:
+        """Execute JavaScript using Selenium."""
+        driver = self.get_driver()
+        return driver.execute_script(script, *args)
+
+
+def _selenium_navigate(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Navigate using Selenium backend."""
+    try:
+        url = params.get('url')
+        wait_for = params.get('wait_for')
+        wait_timeout = params.get('wait_timeout', 30000) // 1000  # Convert to seconds
+        take_screenshot = params.get('screenshot', False)
+        extract_text = params.get('extract_text', True)
+        cdp_url = params.get('cdp_url')
+
+        session = SeleniumBrowserSession.get_instance()
+        driver = session.get_driver(cdp_url=cdp_url)
+
+        result = session.navigate(url, wait_for, wait_timeout)
+
+        if extract_text:
+            result['text'] = session.extract_text()[:50000]
+            result['text_length'] = len(result['text'])
+
+        if take_screenshot:
+            screenshot_bytes = session.screenshot()
+            result['screenshot_base64'] = base64.b64encode(screenshot_bytes).decode('utf-8')
+
+        result['backend'] = 'selenium'
+        return result
+
+    except Exception as e:
+        logger.error(f"Selenium navigation error: {e}", exc_info=True)
+        return {'success': False, 'error': str(e), 'backend': 'selenium'}
+
+
+def _selenium_screenshot(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Take screenshot using Selenium backend."""
+    try:
+        url = params.get('url')
+        selector = params.get('selector')
+        full_page = params.get('full_page', False)
+        save_path = params.get('save_path')
+        cdp_url = params.get('cdp_url')
+
+        session = SeleniumBrowserSession.get_instance()
+        driver = session.get_driver(cdp_url=cdp_url)
+
+        if url:
+            session.navigate(url)
+
+        screenshot_bytes = session.screenshot(selector, full_page)
+
+        result = {
+            'success': True,
+            'screenshot_base64': base64.b64encode(screenshot_bytes).decode('utf-8'),
+            'size_bytes': len(screenshot_bytes),
+            'backend': 'selenium'
+        }
+
+        if save_path:
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_bytes(screenshot_bytes)
+            result['saved_path'] = str(save_path)
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Selenium screenshot error: {e}", exc_info=True)
+        return {'success': False, 'error': str(e), 'backend': 'selenium'}
+
+
 async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Navigate to a URL and optionally wait for content.
@@ -98,6 +306,8 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - wait_timeout (int, optional): Timeout in ms (default: 30000)
             - screenshot (bool, optional): Take screenshot after load (default: False)
             - extract_text (bool, optional): Extract page text (default: True)
+            - backend (str, optional): 'playwright' or 'selenium' (default: auto)
+            - cdp_url (str, optional): CDP URL for Selenium (enables remote debugging)
 
     Returns:
         Dictionary with:
@@ -106,8 +316,20 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - title (str): Page title
             - text (str): Extracted text content
             - screenshot_base64 (str, optional): Screenshot if requested
+            - backend (str): Which backend was used
             - error (str, optional): Error message if failed
     """
+    url = params.get('url')
+    if not url:
+        return {'success': False, 'error': 'url parameter is required'}
+
+    backend = params.get('backend', BROWSER_BACKEND)
+    cdp_url = params.get('cdp_url')
+
+    # Use Selenium if CDP URL provided or backend is selenium
+    if (cdp_url or backend == 'selenium') and SELENIUM_AVAILABLE:
+        return _selenium_navigate(params)
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed. Run: pip install playwright && playwright install chromium'}
 
@@ -682,6 +904,80 @@ async def browser_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+def browser_connect_cdp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Connect to browser via Chrome DevTools Protocol (CDP).
+
+    Useful for connecting to Electron apps or existing browser instances
+    with remote debugging enabled.
+
+    Start browser with: chrome --remote-debugging-port=9222
+
+    Args:
+        params: Dictionary containing:
+            - cdp_url (str, required): CDP URL (e.g., 'localhost:9222')
+            - test_navigate (str, optional): URL to navigate to for testing
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether connection succeeded
+            - cdp_url (str): CDP URL connected to
+            - title (str): Page title if test_navigate provided
+            - error (str, optional): Error message if failed
+    """
+    if not SELENIUM_AVAILABLE:
+        return {
+            'success': False,
+            'error': 'Selenium not installed. Run: pip install selenium'
+        }
+
+    try:
+        cdp_url = params.get('cdp_url')
+        test_navigate = params.get('test_navigate')
+
+        if not cdp_url:
+            return {'success': False, 'error': 'cdp_url parameter is required'}
+
+        session = SeleniumBrowserSession.get_instance()
+        driver = session.get_driver(cdp_url=cdp_url)
+
+        result = {
+            'success': True,
+            'cdp_url': cdp_url,
+            'backend': 'selenium_cdp'
+        }
+
+        if test_navigate:
+            driver.get(test_navigate)
+            result['title'] = driver.title
+            result['url'] = driver.current_url
+
+        return result
+
+    except Exception as e:
+        logger.error(f"CDP connection error: {e}", exc_info=True)
+        return {'success': False, 'error': str(e)}
+
+
+def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Close Selenium browser session.
+
+    Args:
+        params: Empty dictionary (no parameters needed)
+
+    Returns:
+        Dictionary with:
+            - success (bool): Whether close succeeded
+    """
+    try:
+        session = SeleniumBrowserSession.get_instance()
+        session.close()
+        return {'success': True, 'message': 'Selenium session closed'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
 __all__ = [
     'browser_navigate_tool',
     'browser_screenshot_tool',
@@ -691,5 +987,7 @@ __all__ = [
     'browser_execute_js_tool',
     'browser_wait_tool',
     'browser_close_tool',
-    'browser_pdf_tool'
+    'browser_pdf_tool',
+    'browser_connect_cdp_tool',
+    'browser_close_selenium_tool'
 ]
