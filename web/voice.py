@@ -3,7 +3,7 @@ Voice Processing Module
 ========================
 
 Provides voice-to-voice chat capabilities:
-- Speech-to-Text: Deepgram (streaming, low latency)
+- Speech-to-Text: Groq Whisper (primary), Deepgram (fallback)
 - Text-to-Speech: edge-tts (Microsoft neural voices, free)
 
 Usage:
@@ -22,6 +22,7 @@ import os
 import io
 import logging
 import asyncio
+import tempfile
 from typing import Optional, AsyncIterator, Tuple
 from dataclasses import dataclass
 
@@ -53,35 +54,52 @@ class VoiceProcessor:
     """
     Handles voice-to-voice processing.
 
-    Uses Deepgram for STT and edge-tts for TTS.
+    Uses Groq Whisper (primary) or Deepgram (fallback) for STT.
+    Uses edge-tts for TTS.
     """
 
     def __init__(self, config: Optional[VoiceConfig] = None):
         self.config = config or VoiceConfig()
+        self._groq_client = None
         self._deepgram_client = None
 
     @property
+    def groq_client(self):
+        """Lazy-load Groq client for Whisper STT."""
+        if self._groq_client is None:
+            api_key = os.environ.get("GROQ_API_KEY")
+            if not api_key:
+                logger.warning("GROQ_API_KEY not set - Groq Whisper STT unavailable")
+                return None
+            try:
+                from groq import Groq
+                self._groq_client = Groq(api_key=api_key)
+                logger.info("Groq Whisper client initialized")
+            except ImportError:
+                logger.warning("groq not installed. Run: pip install groq")
+                return None
+        return self._groq_client
+
+    @property
     def deepgram_client(self):
-        """Lazy-load Deepgram client."""
+        """Lazy-load Deepgram client (fallback)."""
         if self._deepgram_client is None:
             try:
                 from deepgram import DeepgramClient
-
                 api_key = os.environ.get("DEEPGRAM_API_KEY")
                 if not api_key:
-                    logger.warning("DEEPGRAM_API_KEY not set - STT will not work")
                     return None
-
                 self._deepgram_client = DeepgramClient(api_key)
-                logger.info("Deepgram client initialized")
+                logger.info("Deepgram client initialized (fallback)")
             except ImportError:
-                logger.warning("deepgram-sdk not installed. Run: pip install deepgram-sdk")
                 return None
         return self._deepgram_client
 
     async def speech_to_text(self, audio_data: bytes, mime_type: str = "audio/webm") -> str:
         """
-        Convert speech audio to text using Deepgram.
+        Convert speech audio to text.
+
+        Tries Groq Whisper first (fast, free tier), falls back to Deepgram.
 
         Args:
             audio_data: Raw audio bytes
@@ -90,24 +108,83 @@ class VoiceProcessor:
         Returns:
             Transcribed text
         """
+        # Try Groq Whisper first (primary)
+        transcript = await self._stt_groq_whisper(audio_data, mime_type)
+        if transcript:
+            return transcript
+
+        # Fallback to Deepgram
+        transcript = await self._stt_deepgram(audio_data, mime_type)
+        if transcript:
+            return transcript
+
+        logger.warning("All STT providers failed")
+        return ""
+
+    async def _stt_groq_whisper(self, audio_data: bytes, mime_type: str) -> str:
+        """Transcribe using Groq's Whisper API."""
+        client = self.groq_client
+        if not client:
+            return ""
+
+        try:
+            # Determine file extension from mime type
+            ext_map = {
+                "audio/webm": ".webm",
+                "audio/wav": ".wav",
+                "audio/mp3": ".mp3",
+                "audio/mpeg": ".mp3",
+                "audio/ogg": ".ogg",
+                "audio/flac": ".flac",
+                "audio/m4a": ".m4a",
+            }
+            ext = ext_map.get(mime_type, ".webm")
+
+            # Groq requires a file-like object with a name
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
+                f.write(audio_data)
+                temp_path = f.name
+
+            try:
+                # Transcribe with Groq Whisper
+                with open(temp_path, "rb") as audio_file:
+                    response = await asyncio.to_thread(
+                        lambda: client.audio.transcriptions.create(
+                            file=(f"audio{ext}", audio_file),
+                            model="whisper-large-v3",
+                            language="en",
+                            response_format="text"
+                        )
+                    )
+
+                transcript = response.strip() if isinstance(response, str) else str(response).strip()
+                logger.info(f"Groq Whisper STT: {transcript[:50]}...")
+                return transcript
+            finally:
+                # Clean up temp file
+                os.unlink(temp_path)
+
+        except Exception as e:
+            logger.error(f"Groq Whisper STT failed: {e}")
+            return ""
+
+    async def _stt_deepgram(self, audio_data: bytes, mime_type: str) -> str:
+        """Transcribe using Deepgram (fallback)."""
         client = self.deepgram_client
         if not client:
-            # Fallback: try browser-based transcription hint
-            logger.warning("Deepgram not available, returning empty transcription")
             return ""
 
         try:
             from deepgram import PrerecordedOptions
 
             options = PrerecordedOptions(
-                model="nova-2",          # Best quality model
+                model="nova-2",
                 language="en",
-                smart_format=True,       # Punctuation, formatting
+                smart_format=True,
                 punctuate=True,
-                diarize=False,           # Single speaker
+                diarize=False,
             )
 
-            # Transcribe
             response = await asyncio.to_thread(
                 lambda: client.listen.prerecorded.v("1").transcribe_file(
                     {"buffer": audio_data, "mimetype": mime_type},
@@ -115,7 +192,6 @@ class VoiceProcessor:
                 )
             )
 
-            # Extract transcript
             transcript = ""
             if response.results and response.results.channels:
                 for channel in response.results.channels:
@@ -123,7 +199,7 @@ class VoiceProcessor:
                         transcript += alternative.transcript + " "
 
             transcript = transcript.strip()
-            logger.info(f"STT result: {transcript[:50]}...")
+            logger.info(f"Deepgram STT: {transcript[:50]}...")
             return transcript
 
         except Exception as e:
