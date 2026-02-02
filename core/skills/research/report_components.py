@@ -762,10 +762,18 @@ class ScenarioAnalyzer:
     ) -> Dict[str, Dict[str, Any]]:
         """Generate three scenarios with probabilities."""
 
+        # Guard against zero/None prices
+        if not current_price or current_price <= 0:
+            current_price = 100.0  # Default placeholder
+        if not dcf_price or dcf_price <= 0:
+            dcf_price = current_price
+        if not analyst_target or analyst_target <= 0:
+            analyst_target = current_price
+
         # Calculate base targets
         base_target = analyst_target if analyst_target > 0 else dcf_price
-        revenue_growth = company_data.get('revenue_growth', 10)
-        pe_ratio = company_data.get('pe_ratio', 20)
+        revenue_growth = company_data.get('revenue_growth', 10) or 10
+        pe_ratio = company_data.get('pe_ratio', 20) or 20
 
         scenarios = {
             'bull': {
@@ -820,6 +828,10 @@ class ScenarioAnalyzer:
     @staticmethod
     def format_scenario_table(scenarios: Dict[str, Dict[str, Any]], current_price: float) -> str:
         """Format scenarios as markdown."""
+        # Guard against zero/None current_price
+        if not current_price or current_price <= 0:
+            current_price = 100.0  # Default placeholder
+
         output = """
 ## Scenario Analysis
 

@@ -22,6 +22,22 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
+# Import context utilities for error handling and compression
+try:
+    from ..utils.context_utils import (
+        ContextCompressor,
+        ErrorDetector,
+        ErrorType,
+        ExecutionTrajectory,
+        detect_error_type,
+    )
+    CONTEXT_UTILS_AVAILABLE = True
+except ImportError:
+    CONTEXT_UTILS_AVAILABLE = False
+    ContextCompressor = None
+    ErrorDetector = None
+    ErrorType = None
+
 # Avoid circular import - use TYPE_CHECKING for type hints
 if TYPE_CHECKING:
     from .auto_agent import ExecutionStep, TaskType, ExecutionResult
@@ -75,77 +91,20 @@ class TaskTypeInferenceSignature(dspy.Signature):
 
 
 class ExecutionPlanningSignature(dspy.Signature):
-    """Plan execution steps - output JSON ONLY, NO TEXT.
+    """Create execution plan using available skills. Select only the most relevant skills for the task."""
 
-    You are a PLANNER. Your ONLY job is to PLAN steps, not execute them.
+    task_description: str = dspy.InputField(desc="Task to plan")
+    task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
+    available_skills: str = dspy.InputField(desc="JSON array of available skills with their tools")
+    previous_outputs: str = dspy.InputField(desc="JSON dict of outputs from previous steps")
+    max_steps: int = dspy.InputField(desc="Maximum steps allowed")
 
-    CRITICAL INSTRUCTIONS:
-    1. Output ONLY a JSON array - NO text, NO explanations, NO markdown
-    2. Start your response with '[' and end with ']'
-    3. Do NOT include any text before or after the JSON array
-    4. Create SEPARATE steps for EACH action in the task
-
-    MULTI-STEP PLANNING:
-    - "research X AND send telegram" = 2 steps: (1) research, (2) send telegram
-    - "search AND generate pdf AND notify" = 3 steps: (1) search, (2) generate pdf, (3) send notification
-    - Each selected skill should typically become its OWN step
-    - Use depends_on to chain steps: step 2 depends on step 1's output
-
-    The task_description describes WHAT needs to be done. Your job is to PLAN HOW to do it.
-    You are NOT executing anything. You are ONLY creating a plan.
-
-    Return ONLY a JSON array of steps. Each step must have: skill_name, tool_name, params (object),
-    description, depends_on (array), output_key, optional (boolean).
-
-    REMEMBER: JSON ONLY. NO TEXT. Create MULTIPLE steps for multi-part tasks.
-    """
-    task_description: str = dspy.InputField(desc="Task to plan - you are PLANNING, not executing. Return JSON plan only.")
-    task_type: str = dspy.InputField(
-        desc="Inferred task type"
+    # Use List[dict] for structured JSON output via JSONAdapter
+    execution_plan: List[dict] = dspy.OutputField(
+        desc='List of execution steps. Each step must have: skill (skill name), tool (tool name), params (dict of parameters), description (what this step does)'
     )
-    available_skills: str = dspy.InputField(
-        desc="JSON list of available skills with their capabilities and tool schemas: "
-        "[{'name': 'skill-name', 'description': '...', 'tools': [{'name': 'tool1', 'parameters': [...], 'description': '...'}]}]. "
-        "Each tool object contains: 'name' (exact tool name), 'parameters' (list of parameter schemas with 'name', 'type', 'required', 'description'), and 'description'. "
-        "CRITICAL: You MUST use ONLY the EXACT tool names provided. "
-        "CRITICAL: You MUST provide ALL required parameters for each tool. Check the 'parameters' array for each tool to see which parameters are 'required: true'. "
-        "IMPORTANT FOR DOCUMENT CONVERSION: Pandoc-based tools (convert_to_docx_tool, convert_to_html_tool, convert_to_pdf_tool) "
-        "CANNOT convert FROM PDF files. They can convert FROM markdown, HTML, DOCX, EPUB, etc. "
-        "If you need multiple formats, convert FROM the original source file (e.g., markdown) to all target formats, "
-        "NOT from PDF to other formats. "
-        "Example: If tool 'write_file_tool' has parameters [{'name': 'path', 'required': true}, {'name': 'content', 'required': true}], "
-        "your plan MUST include both 'path' and 'content' in the params object. "
-        "Do NOT invent, abbreviate, or modify tool names or parameter names. "
-        "Copy tool names and parameter names EXACTLY as shown in the schema."
-    )
-    previous_outputs: str = dspy.InputField(
-        desc="JSON dict of outputs from previous steps: {'output_key': 'value'}"
-    )
-    max_steps: int = dspy.InputField(
-        desc="Maximum number of steps allowed"
-    )
-    
-    execution_plan: str = dspy.OutputField(
-        desc="CRITICAL: You MUST output ONLY a valid JSON array. NO TEXT. NO EXPLANATIONS. NO MARKDOWN. "
-        "Start with '[' and end with ']'. Each step is an object with: "
-        "skill_name (string), tool_name (string), params (object), "
-        "description (string), depends_on (array of step indices), output_key (string), optional (boolean). "
-        "CRITICAL: tool_name MUST be one of the exact tool names from the 'tools' array for that skill. "
-        "Do NOT use the skill name as the tool name. "
-        "DATA FLOW: When a step depends on previous step output, reference it in params using "
-        "${output_key} syntax. For example, if step 0 has output_key='search_results', "
-        "step 1 can use {\"text\": \"${search_results}\"} to receive that output. "
-        "EXAMPLE: ["
-        "{\"skill_name\": \"web-search\", \"tool_name\": \"search_web_tool\", \"params\": {\"query\": \"AI trends\"}, \"description\": \"Search\", \"depends_on\": [], \"output_key\": \"search_results\", \"optional\": false}, "
-        "{\"skill_name\": \"summarize\", \"tool_name\": \"summarize_text_tool\", \"params\": {\"text\": \"${search_results}\"}, \"description\": \"Summarize\", \"depends_on\": [0], \"output_key\": \"summary\", \"optional\": false}"
-        "]"
-    )
-    reasoning: str = dspy.OutputField(
-        desc="Brief explanation (1-2 sentences) of why this plan was chosen. Do NOT include markdown or formatting."
-    )
-    estimated_complexity: str = dspy.OutputField(
-        desc="ONLY output one of these exact values: simple, medium, complex. No other text."
-    )
+    reasoning: str = dspy.OutputField(desc="Brief explanation of the plan")
+    estimated_complexity: str = dspy.OutputField(desc="simple, medium, or complex")
 
 
 class SkillSelectionSignature(dspy.Signature):
@@ -224,35 +183,118 @@ class AgenticPlanner:
         """Initialize agentic planner."""
         if not DSPY_AVAILABLE:
             raise RuntimeError("DSPy required for AgenticPlanner")
-        
-        # Hybrid approach: ChainOfThought for reasoning, Predict for structured output
-        # Reasoning tasks (task type, skill selection) benefit from ChainOfThought's transparency
-        # Structured output (execution planning) needs Predict's format enforcement
-        # 
-        # Try using JSONAdapter for execution planning to enforce JSON output
-        # This should prevent LLM from asking for permissions
-        try:
-            from dspy.adapters import JSONAdapter
-            # Use JSONAdapter for execution planning to force JSON output
-            self.execution_planner = dspy.Predict(ExecutionPlanningSignature)
-            # Wrap with JSONAdapter if available
-            # Note: JSONAdapter might need to be configured differently
-            logger.debug("Using Predict with JSONAdapter support for execution planning")
-        except ImportError:
-            self.execution_planner = dspy.Predict(ExecutionPlanningSignature)
-            logger.debug("JSONAdapter not available, using standard Predict")
-        
+
+        # Use Predict for execution planning with JSON output enforcement via prompt
+        self.execution_planner = dspy.Predict(ExecutionPlanningSignature)
+        self._use_typed_predictor = False
+
         self.task_type_inferrer = dspy.ChainOfThought(TaskTypeInferenceSignature)
         self.skill_selector = dspy.ChainOfThought(SkillSelectionSignature)
-        
+
         # Store signatures for JSON schema extraction
         self._signatures = {
             'task_type': TaskTypeInferenceSignature,
             'execution': ExecutionPlanningSignature,
             'skill_selection': SkillSelectionSignature,
         }
-        
+
+        # Context compression for handling context length errors
+        self._compressor = ContextCompressor() if CONTEXT_UTILS_AVAILABLE else None
+        self._max_compression_retries = 3
+
         logger.info("🧠 AgenticPlanner initialized (fully LLM-based, no hardcoded logic)")
+
+    def _call_with_retry(
+        self,
+        module,
+        kwargs: Dict[str, Any],
+        compressible_fields: Optional[List[str]] = None,
+        max_retries: int = 3
+    ):
+        """
+        Call a DSPy module with automatic retry and context compression.
+
+        Learned from BaseSwarmAgent pattern:
+        - Detect error types (context length, timeout, parse)
+        - Compress context on context length errors
+        - Exponential backoff on timeouts
+        - Preserve trajectory/progress
+
+        Args:
+            module: DSPy module to call
+            kwargs: Arguments to pass to module
+            compressible_fields: Fields that can be compressed (e.g., 'available_skills')
+            max_retries: Maximum retry attempts
+
+        Returns:
+            Module result or raises exception
+        """
+        import time
+
+        compression_ratio = 0.7
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    logger.info(f"   Retry {attempt}/{max_retries} after compression")
+
+                return module(**kwargs)
+
+            except Exception as e:
+                last_error = e
+
+                # Detect error type
+                if CONTEXT_UTILS_AVAILABLE:
+                    error_type, strategy = detect_error_type(e)
+                    logger.debug(f"   Error type detected: {error_type.value}")
+                else:
+                    # Fallback detection
+                    error_str = str(e).lower()
+                    if any(p in error_str for p in ['context', 'token', 'too long']):
+                        error_type = 'context_length'
+                        strategy = {'should_retry': True, 'action': 'compress'}
+                    elif 'timeout' in error_str:
+                        error_type = 'timeout'
+                        strategy = {'should_retry': True, 'action': 'backoff', 'delay_seconds': 2}
+                    else:
+                        error_type = 'unknown'
+                        strategy = {'should_retry': False}
+
+                if not strategy.get('should_retry') or attempt >= max_retries:
+                    raise
+
+                action = strategy.get('action', 'fail')
+
+                if action == 'compress' and compressible_fields and self._compressor:
+                    # Compress specified fields
+                    for field in compressible_fields:
+                        if field in kwargs and kwargs[field]:
+                            original = kwargs[field]
+                            if isinstance(original, str) and len(original) > 1000:
+                                result = self._compressor.compress(
+                                    original,
+                                    target_ratio=compression_ratio
+                                )
+                                kwargs[field] = result.content
+                                logger.info(f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars")
+
+                    compression_ratio *= 0.7  # More aggressive next time
+
+                elif action == 'backoff':
+                    delay = strategy.get('delay_seconds', 1) * (2 ** attempt)
+                    logger.info(f"   Backing off for {delay}s...")
+                    time.sleep(min(delay, 30))  # Cap at 30s
+
+                elif action == 'wait':
+                    delay = strategy.get('delay_seconds', 30)
+                    logger.info(f"   Rate limited, waiting {delay}s...")
+                    time.sleep(delay)
+
+        # Should not reach here, but just in case
+        if last_error:
+            raise last_error
+        raise RuntimeError("Unexpected state in retry logic")
     
     def infer_task_type(self, task: str):
         """
@@ -385,10 +427,18 @@ class AgenticPlanner:
 
             import dspy
 
-            result = self.skill_selector(
-                task_description=task,
-                available_skills=skills_json,
-                max_skills=max_skills
+            # Call skill selector with retry and context compression
+            selector_kwargs = {
+                'task_description': task,
+                'available_skills': skills_json,
+                'max_skills': max_skills
+            }
+
+            result = self._call_with_retry(
+                module=self.skill_selector,
+                kwargs=selector_kwargs,
+                compressible_fields=['available_skills'],
+                max_retries=self._max_compression_retries
             )
 
             # Parse selected skills
@@ -583,12 +633,22 @@ class AgenticPlanner:
             logger.debug(f"   Task: {planning_task}")
             logger.debug(f"   Skills count: {len(skills)}")
 
-            result = self.execution_planner(
-                task_description=planning_task,
-                task_type=task_type.value,
-                available_skills=skills_json,
-                previous_outputs=outputs_json,
-                max_steps=max_steps
+            # Call execution planner with retry and context compression
+            # Uses _call_with_retry to handle context length errors gracefully
+            planner_kwargs = {
+                'task_description': planning_task,
+                'task_type': task_type.value,
+                'available_skills': skills_json,
+                'previous_outputs': outputs_json,
+                'max_steps': max_steps,
+                'config': {"response_format": {"type": "json_object"}}
+            }
+
+            result = self._call_with_retry(
+                module=self.execution_planner,
+                kwargs=planner_kwargs,
+                compressible_fields=['available_skills', 'previous_outputs'],
+                max_retries=self._max_compression_retries
             )
 
             # Debug: Log raw LLM response
@@ -597,71 +657,167 @@ class AgenticPlanner:
             logger.debug(f"   Raw execution_plan type: {type(raw_plan)}")
             logger.debug(f"   Raw execution_plan (first 500 chars): {str(raw_plan)[:500] if raw_plan else 'NONE'}")
 
-            # Parse execution plan
-            try:
-                # Try to parse as JSON
-                plan_str = str(result.execution_plan).strip() if result.execution_plan else ""
+            # Parse execution plan - with JSONAdapter, this should be a list already
+            plan_data = None
 
-                if not plan_str:
-                    logger.warning("LLM returned empty execution_plan field")
-                    plan_data = self._create_fallback_plan(task, task_type, skills)
-                
-                # Remove markdown code blocks if present
-                if plan_str.startswith('```'):
-                    # Extract JSON from code block
-                    import re
-                    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', plan_str, re.DOTALL)
+            # Method 0: Already a list (JSONAdapter working correctly)
+            if isinstance(raw_plan, list):
+                plan_data = raw_plan
+                logger.info(f"   JSONAdapter returned list: {len(plan_data)} steps")
+            elif not raw_plan:
+                logger.warning("LLM returned empty execution_plan field")
+                plan_data = []
+            else:
+                # Fallback: String parsing for backwards compatibility
+                import re
+                plan_str = str(raw_plan).strip()
+
+                # Method 1: Direct JSON parse (if LLM followed instructions)
+                if plan_str.startswith('['):
+                    try:
+                        plan_data = json.loads(plan_str)
+                        logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
+                    except json.JSONDecodeError:
+                        pass
+
+                # Method 2: Extract from markdown code block
+                if plan_data is None and '```' in plan_str:
+                    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
                     if json_match:
-                        plan_str = json_match.group(1).strip()
-                
-                plan_data = json.loads(plan_str)
-                if not isinstance(plan_data, list):
-                    plan_data = [plan_data]
-                
-                # Validate: Check if plan is empty
-                if not plan_data or len(plan_data) == 0:
-                    logger.warning("LLM returned empty execution plan, using fallback")
-                    plan_data = self._create_fallback_plan(task, task_type, skills)
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse execution plan JSON: {e}, trying to extract from text")
-                logger.warning(f"   Plan string (first 500 chars): {plan_str[:500]}")
-                logger.warning(f"   Plan string length: {len(plan_str)}")
-                # Log the full response for debugging
-                if hasattr(result, 'execution_plan'):
-                    logger.debug(f"   Full execution_plan response: {str(result.execution_plan)[:1000]}")
-                plan_data = self._extract_plan_from_text(result.execution_plan)
-                if not plan_data:
-                    # Fallback: create intelligent plan based on task type and available skills
-                    logger.warning("Could not extract plan, creating intelligent fallback plan")
-                    logger.warning(f"   Reason: LLM returned invalid JSON. This usually means:")
-                    logger.warning(f"   1. LLM timed out or was interrupted")
-                    logger.warning(f"   2. LLM returned text instead of JSON")
-                    logger.warning(f"   3. LLM response was empty or malformed")
-                    plan_data = self._create_fallback_plan(task, task_type, skills)
+                        try:
+                            plan_data = json.loads(json_match.group(1).strip())
+                            logger.info(f"   Extracted from code block: {len(plan_data)} steps")
+                        except json.JSONDecodeError:
+                            pass
+
+                # Method 3: Find JSON array anywhere in text
+                if plan_data is None:
+                    # Look for JSON array pattern [...]
+                    array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
+                    if array_match:
+                        try:
+                            plan_data = json.loads(array_match.group(0))
+                            logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
+                        except json.JSONDecodeError:
+                            pass
+
+                # Method 4: Use _extract_plan_from_text helper
+                if plan_data is None:
+                    plan_data = self._extract_plan_from_text(str(raw_plan))
+                    if plan_data:
+                        logger.info(f"   Extracted via helper: {len(plan_data)} steps")
+
+                # Method 5: Direct LLM retry with explicit JSON-only prompt
+                if not plan_data:  # None or empty list
+                    logger.warning(f"DSPy returned text, retrying with direct LLM call for JSON...")
+                    try:
+                        import dspy
+                        lm = dspy.settings.lm
+                        if lm:
+                            # Get ALL skills with their first tool for the prompt
+                            skill_info = []
+                            for s in skills:
+                                tools = s.get('tools', [])
+                                if isinstance(tools, list) and tools:
+                                    tool_name = tools[0].get('name', tools[0]) if isinstance(tools[0], dict) else tools[0]
+                                    skill_info.append(f"{s.get('name')}/{tool_name}")
+                                else:
+                                    skill_info.append(s.get('name', ''))
+
+                            direct_prompt = f"""Return ONLY a JSON array with 2-3 steps. Select ONLY the most relevant skills for this task.
+
+Task: {task}
+Task type: {task_type.value if hasattr(task_type, 'value') else task_type}
+Available skills: {skill_info}
+
+Select 2-3 most relevant skills. Return JSON array:
+[{{"skill_name": "skill-name", "tool_name": "tool-name", "params": {{}}, "description": "what it does", "depends_on": [], "output_key": "step_0", "optional": false}}]
+
+JSON:"""
+
+                            response = lm(prompt=direct_prompt)
+                            response_text = response[0] if isinstance(response, list) else str(response)
+                            response_text = response_text.strip()
+                            logger.debug(f"   Direct LLM response (first 200): {response_text[:200]}")
+
+                            # Try to parse JSON from response
+                            if response_text.startswith('['):
+                                plan_data = json.loads(response_text)
+                                logger.info(f"   Direct LLM retry successful: {len(plan_data)} steps")
+                            elif '[' in response_text:
+                                # Extract JSON array from response
+                                start = response_text.find('[')
+                                end = response_text.rfind(']') + 1
+                                if end > start:
+                                    plan_data = json.loads(response_text[start:end])
+                                    logger.info(f"   Extracted from direct LLM: {len(plan_data)} steps")
+                            else:
+                                logger.warning(f"   Direct LLM returned no JSON array")
+                        else:
+                            logger.warning(f"   No LM configured for direct retry")
+                    except Exception as e:
+                        logger.warning(f"   Direct LLM retry failed: {e}")
+
+                # If all methods failed, return empty list
+                if plan_data is None:
+                    logger.error(f"Could not parse execution plan. LLM returned text instead of JSON.")
+                    logger.error(f"   Raw response (first 300 chars): {plan_str[:300]}")
+                    plan_data = []
+
+            # Ensure it's a list
+            if plan_data and not isinstance(plan_data, list):
+                plan_data = [plan_data]
             
             # Convert to ExecutionStep objects
+            # Handle both LLM's preferred field names and our standard names
             ExecutionStep = _get_execution_step()
             steps = []
+
+            # Build tool-to-skill mapping for inferring skill from tool name
+            tool_to_skill = {}
+            for s in skills:
+                skill_name_map = s.get('name', '')
+                for t in s.get('tools', []):
+                    t_name = t.get('name') if isinstance(t, dict) else t
+                    if t_name:
+                        tool_to_skill[t_name] = skill_name_map
+
             for i, step_data in enumerate(plan_data[:max_steps]):
                 try:
-                    # Get params from LLM plan, or build them if empty
-                    step_params = step_data.get('params', {})
+                    # Handle LLM's field name variations:
+                    # - 'skill' or 'skill_name' for skill name
+                    # - 'tool' or 'tool_name' or 'action' for tool name
+                    # - 'params' or 'parameters' or 'query' for parameters
+                    skill_name = step_data.get('skill_name') or step_data.get('skill', '')
+                    tool_name = step_data.get('tool_name') or step_data.get('tool') or step_data.get('action', '')
+
+                    # Infer skill from tool if skill is empty
+                    if not skill_name and tool_name:
+                        skill_name = tool_to_skill.get(tool_name, '')
+                    description = step_data.get('description', f'Step {i+1}')
+
+                    # Handle params - LLM may return 'params', 'parameters', or 'query'
+                    step_params = step_data.get('params') or step_data.get('parameters', {})
+                    if not step_params and 'query' in step_data:
+                        # LLM returned just a query field - wrap it
+                        step_params = {'query': step_data['query']}
+
                     if not step_params:
                         # LLM returned empty params - build them from skill schema
                         prev_output = f'step_{i-1}' if i > 0 else None
                         step_params = self._build_skill_params(
-                            step_data.get('skill_name', ''),
+                            skill_name,
                             task,
                             prev_output,
-                            step_data.get('tool_name')
+                            tool_name
                         )
                         logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
 
                     step = ExecutionStep(
-                        skill_name=step_data.get('skill_name', ''),
-                        tool_name=step_data.get('tool_name', ''),
+                        skill_name=skill_name,
+                        tool_name=tool_name,
                         params=step_params,
-                        description=step_data.get('description', f'Step {i+1}'),
+                        description=description,
                         depends_on=step_data.get('depends_on', []),
                         output_key=step_data.get('output_key', f'step_{i}'),
                         optional=step_data.get('optional', False)
@@ -672,6 +828,7 @@ class AgenticPlanner:
                     continue
             
             # Validate: Ensure we have at least one step
+            is_fallback_plan = False
             if not steps or len(steps) == 0:
                 logger.warning("Execution plan resulted in 0 steps, using fallback plan")
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
@@ -693,16 +850,19 @@ class AgenticPlanner:
                         logger.warning(f"Failed to create fallback step {i+1}: {e}")
                         continue
                 reasoning = f"Fallback plan created: {len(steps)} steps"
+                is_fallback_plan = True
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
 
             # Check if plan uses all selected skills - expand if needed
-            # This handles cases where LLM returns a single combined step
+            # ONLY expand if LLM returned a single step (obvious minimal plan)
+            # If LLM returned 2+ steps, trust its selection - it chose intentionally
+            # Skip expansion for fallback plans (they're already minimal by design)
             used_skills = {step.skill_name for step in steps}
             available_skill_names = {s.get('name') for s in skills}
             missing_skills = available_skill_names - used_skills
 
-            if missing_skills and len(steps) < len(skills):
+            if missing_skills and len(steps) == 1 and not is_fallback_plan:
                 logger.info(f"📋 Plan uses {len(used_skills)} of {len(skills)} selected skills, adding missing: {missing_skills}")
                 ExecutionStep = _get_execution_step()
                 # Add steps for missing skills (with dependency on last step)
@@ -1039,15 +1199,47 @@ class AgenticPlanner:
         """
         Create a minimal fallback plan when LLM fails.
 
-        Uses the first available tool from each selected skill.
-        No keyword matching - the LLM already selected relevant skills.
+        Prioritizes skills by relevance to task type:
+        - RESEARCH: web-search, http-client, web-scraper, claude-cli-llm
+        - CREATION: claude-cli-llm, file-operations, docx-tools
+        - ANALYSIS: calculator, claude-cli-llm
+        - Default: claude-cli-llm, web-search
         """
         if not skills:
             return []
 
+        TaskType = _get_task_type()
+
+        # Priority order by task type
+        priority_map = {
+            TaskType.RESEARCH: ['web-search', 'http-client', 'web-scraper', 'claude-cli-llm', 'arxiv-downloader'],
+            TaskType.COMPARISON: ['web-search', 'claude-cli-llm', 'calculator'],
+            TaskType.CREATION: ['claude-cli-llm', 'file-operations', 'docx-tools', 'text-utils'],
+            TaskType.ANALYSIS: ['calculator', 'claude-cli-llm', 'web-search'],
+            TaskType.COMMUNICATION: ['claude-cli-llm', 'http-client'],
+            TaskType.AUTOMATION: ['shell-exec', 'file-operations', 'process-manager'],
+        }
+
+        # Get priority list for this task type
+        priority_skills = priority_map.get(task_type, ['claude-cli-llm', 'web-search'])
+
+        # Sort skills by priority
+        skill_names = {s.get('name', ''): s for s in skills}
+        sorted_skills = []
+
+        # Add priority skills first (if available)
+        for ps in priority_skills:
+            if ps in skill_names:
+                sorted_skills.append(skill_names[ps])
+
+        # Add remaining skills
+        for s in skills:
+            if s not in sorted_skills:
+                sorted_skills.append(s)
+
         plan = []
 
-        for skill in skills:
+        for skill in sorted_skills:
             skill_name = skill.get('name', '')
             tools = skill.get('tools', [])
             if isinstance(tools, dict):

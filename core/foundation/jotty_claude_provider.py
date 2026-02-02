@@ -199,9 +199,11 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
                     model=f"openai/{model}",
                     api_base=self.base_url,
                     api_key="not-needed",
+                    # Enable JSON output mode for structured responses
+                    response_format={"type": "json_object"},
                 )
                 self._lm._model = model
-                logger.info(f"✅ Using OpenAI wrapper LM: {model}")
+                logger.info(f"✅ Using OpenAI wrapper LM: {model} (JSON mode enabled)")
             return self._lm
 
         # Fallback to direct CLI

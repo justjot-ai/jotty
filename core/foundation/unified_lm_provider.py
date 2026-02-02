@@ -270,28 +270,8 @@ class UnifiedLMProvider:
             return lm
         
         # Auto-detect provider priority:
-        # 1. API providers first (faster, more reliable than CLI)
-        # Check for API keys and use native DSPy support
-        api_providers = [
-            ('anthropic', 'ANTHROPIC_API_KEY', 'sonnet'),
-            ('openai', 'OPENAI_API_KEY', 'gpt-4o'),
-            ('google', 'GOOGLE_API_KEY', 'gemini-2.0-flash-exp'),
-            ('groq', 'GROQ_API_KEY', 'llama-3.1-8b-instant'),
-            ('openrouter', 'OPENROUTER_API_KEY', 'meta-llama/llama-3.3-70b-instruct:free'),
-        ]
-        
-        for provider_name, env_key, default_model in api_providers:
-            if os.getenv(env_key):
-                try:
-                    lm = UnifiedLMProvider.create_lm(provider_name, model=default_model)
-                    dspy.configure(lm=lm)
-                    print(f"✅ DSPy configured with {provider_name} API (native)", file=__import__('sys').stderr)
-                    return lm
-                except Exception as e:
-                    print(f"⚠️  {provider_name} API failed: {e}", file=__import__('sys').stderr)
-                    continue
-        
-        # 2. CLI providers (fallback if no API keys)
+        # 1. CLI providers FIRST (Claude CLI is more reliable than API keys)
+        # This avoids issues with invalid/expired API keys
         # Use JottyClaudeProvider (auto-manages wrapper server)
         try:
             from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
@@ -306,7 +286,28 @@ class UnifiedLMProvider:
         except Exception as e:
             print(f"⚠️  JottyClaudeProvider failed: {e}", file=__import__('sys').stderr)
 
-        # Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
+        # 2. API providers (fallback if CLI not available)
+        # Check for API keys and use native DSPy support
+        api_providers = [
+            ('anthropic', 'ANTHROPIC_API_KEY', 'sonnet'),
+            ('openai', 'OPENAI_API_KEY', 'gpt-4o'),
+            ('google', 'GOOGLE_API_KEY', 'gemini-2.0-flash-exp'),
+            ('groq', 'GROQ_API_KEY', 'llama-3.1-8b-instant'),
+            ('openrouter', 'OPENROUTER_API_KEY', 'meta-llama/llama-3.3-70b-instruct:free'),
+        ]
+
+        for provider_name, env_key, default_model in api_providers:
+            if os.getenv(env_key):
+                try:
+                    lm = UnifiedLMProvider.create_lm(provider_name, model=default_model)
+                    dspy.configure(lm=lm)
+                    print(f"✅ DSPy configured with {provider_name} API (native)", file=__import__('sys').stderr)
+                    return lm
+                except Exception as e:
+                    print(f"⚠️  {provider_name} API failed: {e}", file=__import__('sys').stderr)
+                    continue
+        
+        # 3. Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
         import shutil
         claude_path = shutil.which('claude')
         if claude_path:
@@ -350,17 +351,28 @@ class UnifiedLMProvider:
 # Convenience function
 def configure_dspy_lm(provider: Optional[str] = None, **kwargs) -> BaseLM:
     """
-    Configure DSPy with unified LM provider.
-    
+    Configure DSPy with unified LM provider and JSONAdapter for structured output.
+
     Usage:
         from Jotty.core.foundation.unified_lm_provider import configure_dspy_lm
         import dspy
-        
+
         # Auto-detect best available provider
         configure_dspy_lm()
-        
+
         # Use specific provider
         configure_dspy_lm('opencode')
         configure_dspy_lm('openrouter', model='meta-llama/llama-3.3-70b-instruct:free')
     """
-    return UnifiedLMProvider.configure_default_lm(provider, **kwargs)
+    lm = UnifiedLMProvider.configure_default_lm(provider, **kwargs)
+
+    # Configure JSONAdapter for structured output support
+    # This enables DSPy to enforce JSON output format for Pydantic models
+    try:
+        adapter = dspy.JSONAdapter()
+        dspy.configure(lm=lm, adapter=adapter)
+    except Exception:
+        # Fall back to LM-only config if JSONAdapter fails
+        pass
+
+    return lm

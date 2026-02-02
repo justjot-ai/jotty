@@ -1130,7 +1130,8 @@ Provide:
         steps_executed = 0
         replan_count = 0
         max_replans = 3  # Prevent infinite replanning loops
-        
+        excluded_skills = set()  # Skills that failed due to domain mismatch - exclude from replanning
+
         # Group steps by dependency level for parallel execution
         executed_indices = set()
         
@@ -1289,28 +1290,50 @@ Provide:
                     # For optional steps, just continue; for required steps, consider replanning
                     if step.optional:
                         continue  # Skip optional failed steps (already marked as executed)
-                    elif step_idx < len(steps) - 1 and replan_count < max_replans:
+
+                    # Detect domain-mismatch errors (skill used for wrong task type)
+                    # These indicate the LLM selected an inappropriate skill
+                    domain_mismatch_keywords = [
+                        '404', 'not found', 'delisted', 'no data found',
+                        'quote not found', 'symbol may be delisted',
+                        'invalid ticker', 'unknown symbol', 'no price data',
+                        'division by zero', 'float division',  # Data processing errors from wrong input
+                    ]
+                    is_domain_mismatch = any(kw in error_msg.lower() for kw in domain_mismatch_keywords)
+
+                    if is_domain_mismatch:
+                        # Skill is inappropriate for this task - exclude from future replanning
+                        excluded_skills.add(step.skill_name)
+                        logger.info(f"  🚫 Excluding skill '{step.skill_name}' from replanning (domain mismatch)")
+
+                    if step_idx < len(steps) - 1 and replan_count < max_replans:
                         # Check if tool exists - if not, don't replan
                         if 'Tool not found' in error_msg or 'Skill not found' in error_msg:
                             logger.warning(f"  ⚠️  Tool/skill not found, skipping replan")
                             continue  # Already marked as executed above
-                        
-                        # Try to replan remaining steps
+
+                        # Try to replan remaining steps with excluded skills filtered out
                         logger.info(f"  🔄 Attempting to replan remaining steps")
                         replan_count += 1
                         try:
+                            # Filter out excluded skills before replanning
+                            available_skills = [s for s in skills if s.get('name') not in excluded_skills]
+                            if not available_skills:
+                                logger.warning(f"  ⚠️  No skills remaining after exclusions")
+                                continue
+
                             remaining_steps, _ = self.planner.plan_execution(
                                 task=task,
                                 task_type=task_type,
-                                skills=skills,
+                                skills=available_skills,  # Use filtered skills
                                 previous_outputs=outputs,
                                 max_steps=self.max_steps - len(executed_indices)
                             )
-                            remaining_steps = self._validate_and_filter_steps(remaining_steps, skills)
+                            remaining_steps = self._validate_and_filter_steps(remaining_steps, available_skills)
                             if remaining_steps:
                                 # Replace remaining steps
                                 steps = steps[:step_idx+1] + remaining_steps
-                                logger.info(f"  ✅ Replanned {len(remaining_steps)} remaining steps")
+                                logger.info(f"  ✅ Replanned {len(remaining_steps)} remaining steps (excluded: {excluded_skills})")
                                 break  # Restart execution loop with new steps
                             else:
                                 logger.warning(f"  ⚠️  Replanning produced no valid steps")
