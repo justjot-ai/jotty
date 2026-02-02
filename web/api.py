@@ -3385,6 +3385,69 @@ QUESTION: {message}"""
             "mode": "fast"
         }
 
+    @app.post("/api/voice/chat/turbo")
+    async def voice_chat_turbo(audio: UploadFile, session_id: Optional[str] = None):
+        """
+        Ultra-fast voice pipeline using Groq LLM (~1s total latency).
+
+        Uses Groq for both STT (Whisper) and LLM (llama-3.1-8b-instant).
+        Optimized for conversational voice chat where latency is critical.
+
+        Latency breakdown:
+        - STT (Groq Whisper): ~250ms
+        - LLM (Groq llama-3.1-8b): ~180ms
+        - TTS (edge-tts): ~700ms
+        - Total: ~1.1s
+        """
+        import base64
+        import os
+        import httpx
+        from .voice import get_voice_processor
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+
+        # Ultra-fast LLM using Groq's llama-3.1-8b-instant
+        async def process_with_groq_llm(user_text: str) -> str:
+            groq_key = os.environ.get("GROQ_API_KEY")
+            if not groq_key:
+                return "I'm sorry, the fast response service is unavailable."
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {groq_key}"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [
+                            {"role": "system", "content": "You are a helpful voice assistant. Keep responses brief and conversational (1-3 sentences)."},
+                            {"role": "user", "content": user_text}
+                        ],
+                        "max_tokens": 150,
+                        "temperature": 0.7
+                    }
+                )
+                data = response.json()
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "I couldn't process that.")
+
+        user_text, response_text, response_audio = await processor.process_voice_fast(
+            audio_data, mime_type, process_with_groq_llm, max_response_chars=200
+        )
+
+        return {
+            "success": True,
+            "user_text": user_text,
+            "response_text": response_text,
+            "response_audio_base64": base64.b64encode(response_audio).decode() if response_audio else None,
+            "audio_format": "audio/mpeg",
+            "mode": "turbo",
+            "llm": "groq/llama-3.1-8b-instant"
+        }
+
     @app.post("/api/voice/chat/stream")
     async def voice_chat_streaming(audio: UploadFile, session_id: Optional[str] = None):
         """
