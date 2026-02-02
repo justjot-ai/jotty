@@ -81,7 +81,7 @@ class MetaWisdomSignature(dspy.Signature):
 class MemoryLevelClassificationSignature(dspy.Signature):
     """
     A-Team Enhancement: LLM-based memory level classification.
-    
+
     Instead of hardcoding which level to store to, use LLM to decide:
     - EPISODIC: Raw experiences, specific events, tool outputs
     - SEMANTIC: Patterns, abstractions, generalizations
@@ -89,14 +89,316 @@ class MemoryLevelClassificationSignature(dspy.Signature):
     - META: Wisdom about learning, when to use what
     - CAUSAL: Why things work, cause-effect relationships
     """
-    
+
     experience: str = dspy.InputField(desc="The experience/knowledge to classify")
     context: str = dspy.InputField(desc="Context: task type, agent, goal, outcome")
-    
+
     reasoning: str = dspy.OutputField(desc="Why this memory level is appropriate")
     level: str = dspy.OutputField(desc="One of: EPISODIC, SEMANTIC, PROCEDURAL, META, CAUSAL")
     confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
     should_store: bool = dspy.OutputField(desc="True if worth storing, False if redundant")
+
+
+# =============================================================================
+# CONSOLIDATION VALIDATION (A-Team Critical Fix)
+# =============================================================================
+
+class ConsolidationValidationSignature(dspy.Signature):
+    """
+    Validate consolidated patterns against source memories.
+
+    A-Team Critical Fix: Prevent hallucinated patterns during consolidation.
+    """
+
+    pattern: str = dspy.InputField(desc="The extracted pattern/wisdom to validate")
+    source_memories: str = dspy.InputField(desc="JSON list of source memories that led to this pattern")
+    pattern_type: str = dspy.InputField(desc="Type: SUCCESS_PATTERN, FAILURE_PATTERN, CAUSAL, PROCEDURAL")
+
+    is_valid: bool = dspy.OutputField(desc="True if pattern is supported by sources, False if hallucinated")
+    confidence: float = dspy.OutputField(desc="Confidence in validation (0.0-1.0)")
+    reasoning: str = dspy.OutputField(desc="Why pattern is valid/invalid")
+    corrections: str = dspy.OutputField(desc="Suggested corrections if pattern is invalid/vague")
+
+
+class ConsolidationValidator:
+    """
+    Validate consolidated patterns before storing.
+
+    A-Team Critical Fix: Prevents hallucinated patterns from entering memory.
+
+    Validation checks:
+    1. Pattern references concepts from source memories
+    2. Pattern doesn't contradict source memories
+    3. Pattern is actionable (not vague)
+    4. Confidence threshold met
+
+    Usage:
+        validator = ConsolidationValidator()
+        is_valid, confidence, reasoning = validator.validate_pattern(
+            pattern="SQL queries with date filters should use partition columns",
+            source_memories=[memory1, memory2, memory3]
+        )
+
+        if is_valid and confidence > 0.7:
+            memory.store(pattern, level=SEMANTIC)
+        else:
+            validator.quarantine_suspicious(pattern)
+    """
+
+    def __init__(
+        self,
+        confidence_threshold: float = 0.7,
+        use_llm_validation: bool = True,
+        quarantine_enabled: bool = True
+    ):
+        """
+        Initialize validator.
+
+        Args:
+            confidence_threshold: Minimum confidence for valid patterns
+            use_llm_validation: Use LLM for validation (vs heuristics)
+            quarantine_enabled: Store suspicious patterns for review
+        """
+        self.confidence_threshold = confidence_threshold
+        self.use_llm_validation = use_llm_validation
+        self.quarantine_enabled = quarantine_enabled
+
+        # LLM validator
+        if use_llm_validation:
+            self.validator = dspy.ChainOfThought(ConsolidationValidationSignature)
+        else:
+            self.validator = None
+
+        # Quarantine storage
+        self._quarantine: List[Dict] = []
+        self._quarantine_max_size = 100
+
+        # Statistics
+        self._total_validated = 0
+        self._total_accepted = 0
+        self._total_rejected = 0
+        self._total_quarantined = 0
+
+        logger.info(
+            f"ConsolidationValidator initialized: "
+            f"threshold={confidence_threshold}, llm={use_llm_validation}"
+        )
+
+    def validate_pattern(
+        self,
+        pattern: str,
+        source_memories: List[Any],
+        pattern_type: str = "SEMANTIC"
+    ) -> Tuple[bool, float, str]:
+        """
+        Validate pattern against source memories.
+
+        Args:
+            pattern: The extracted pattern/wisdom
+            source_memories: Source memories that led to this pattern
+            pattern_type: Type of pattern (SUCCESS_PATTERN, FAILURE_PATTERN, etc.)
+
+        Returns:
+            (is_valid, confidence, reasoning)
+        """
+        self._total_validated += 1
+
+        # Empty or too short patterns are invalid
+        if not pattern or len(pattern.strip()) < 10:
+            self._total_rejected += 1
+            return False, 0.0, "Pattern is empty or too short"
+
+        # If LLM validation enabled, use it
+        if self.use_llm_validation and self.validator:
+            return self._llm_validate(pattern, source_memories, pattern_type)
+
+        # Fallback to heuristic validation
+        return self._heuristic_validate(pattern, source_memories, pattern_type)
+
+    def _llm_validate(
+        self,
+        pattern: str,
+        source_memories: List[Any],
+        pattern_type: str
+    ) -> Tuple[bool, float, str]:
+        """Use LLM to validate pattern."""
+        import json
+
+        try:
+            # Format source memories
+            source_texts = []
+            for mem in source_memories[:10]:  # Limit for context
+                if hasattr(mem, 'content'):
+                    source_texts.append(mem.content[:500])
+                elif isinstance(mem, dict):
+                    source_texts.append(str(mem)[:500])
+                else:
+                    source_texts.append(str(mem)[:500])
+
+            result = self.validator(
+                pattern=pattern,
+                source_memories=json.dumps(source_texts),
+                pattern_type=pattern_type
+            )
+
+            is_valid = result.is_valid if hasattr(result, 'is_valid') else True
+            try:
+                confidence = float(result.confidence)
+                confidence = max(0.0, min(1.0, confidence))
+            except (ValueError, TypeError, AttributeError):
+                confidence = 0.5
+            reasoning = result.reasoning or "LLM validation complete"
+
+            # Apply confidence threshold
+            if is_valid and confidence < self.confidence_threshold:
+                is_valid = False
+                reasoning = f"Confidence {confidence:.2f} below threshold {self.confidence_threshold}"
+
+            if is_valid:
+                self._total_accepted += 1
+            else:
+                self._total_rejected += 1
+                # Auto-quarantine rejected patterns
+                if self.quarantine_enabled:
+                    self.quarantine_suspicious(pattern, source_memories, reasoning)
+
+            return is_valid, confidence, reasoning
+
+        except Exception as e:
+            logger.warning(f"LLM validation failed: {e}, using heuristic")
+            return self._heuristic_validate(pattern, source_memories, pattern_type)
+
+    def _heuristic_validate(
+        self,
+        pattern: str,
+        source_memories: List[Any],
+        pattern_type: str
+    ) -> Tuple[bool, float, str]:
+        """Heuristic-based pattern validation."""
+        issues = []
+        confidence = 0.7  # Base confidence for heuristics
+
+        # Check 1: Pattern should not be too vague
+        vague_phrases = [
+            "things work", "stuff happens", "in general", "usually",
+            "it depends", "sometimes", "maybe", "possibly"
+        ]
+        pattern_lower = pattern.lower()
+        for phrase in vague_phrases:
+            if phrase in pattern_lower:
+                issues.append(f"Contains vague phrase: '{phrase}'")
+                confidence -= 0.1
+
+        # Check 2: Pattern should reference something concrete
+        concrete_indicators = [
+            "when", "if", "use", "avoid", "for", "because",
+            "results in", "leads to", "causes", "prevents"
+        ]
+        has_concrete = any(ind in pattern_lower for ind in concrete_indicators)
+        if not has_concrete:
+            issues.append("Pattern lacks concrete indicators (when/if/use/avoid)")
+            confidence -= 0.15
+
+        # Check 3: Pattern should have some overlap with source memories
+        if source_memories:
+            source_words = set()
+            for mem in source_memories:
+                content = mem.content if hasattr(mem, 'content') else str(mem)
+                source_words.update(content.lower().split())
+
+            pattern_words = set(pattern_lower.split())
+            overlap = len(pattern_words & source_words)
+            overlap_ratio = overlap / len(pattern_words) if pattern_words else 0
+
+            if overlap_ratio < 0.2:
+                issues.append(f"Low overlap with sources ({overlap_ratio:.0%})")
+                confidence -= 0.2
+            elif overlap_ratio > 0.5:
+                confidence += 0.1  # Good grounding
+
+        # Check 4: Pattern length should be reasonable
+        if len(pattern) > 500:
+            issues.append("Pattern too long (>500 chars)")
+            confidence -= 0.1
+        elif len(pattern) < 20:
+            issues.append("Pattern too short (<20 chars)")
+            confidence -= 0.15
+
+        # Clamp confidence
+        confidence = max(0.0, min(1.0, confidence))
+
+        # Determine validity
+        is_valid = confidence >= self.confidence_threshold and len(issues) <= 1
+
+        if is_valid:
+            self._total_accepted += 1
+            reasoning = f"Heuristic validation passed (confidence={confidence:.2f})"
+        else:
+            self._total_rejected += 1
+            reasoning = f"Heuristic validation failed: {'; '.join(issues)}"
+            if self.quarantine_enabled:
+                self.quarantine_suspicious(pattern, source_memories, reasoning)
+
+        return is_valid, confidence, reasoning
+
+    def quarantine_suspicious(
+        self,
+        pattern: str,
+        source_memories: List[Any] = None,
+        reason: str = ""
+    ) -> None:
+        """
+        Move suspicious patterns to quarantine for review.
+
+        Args:
+            pattern: The suspicious pattern
+            source_memories: Source memories (for debugging)
+            reason: Why pattern was quarantined
+        """
+        import time
+
+        entry = {
+            'pattern': pattern,
+            'source_count': len(source_memories) if source_memories else 0,
+            'reason': reason,
+            'timestamp': time.time(),
+        }
+
+        self._quarantine.append(entry)
+        self._total_quarantined += 1
+
+        # Keep quarantine bounded
+        if len(self._quarantine) > self._quarantine_max_size:
+            self._quarantine = self._quarantine[-self._quarantine_max_size:]
+
+        logger.warning(
+            f"Quarantined pattern: {pattern[:100]}... "
+            f"Reason: {reason}"
+        )
+
+    def get_quarantine(self) -> List[Dict]:
+        """Get all quarantined patterns for review."""
+        return self._quarantine.copy()
+
+    def clear_quarantine(self) -> int:
+        """Clear quarantine and return count."""
+        count = len(self._quarantine)
+        self._quarantine.clear()
+        return count
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get validation statistics."""
+        return {
+            'total_validated': self._total_validated,
+            'total_accepted': self._total_accepted,
+            'total_rejected': self._total_rejected,
+            'total_quarantined': self._total_quarantined,
+            'acceptance_rate': (
+                self._total_accepted / self._total_validated
+                if self._total_validated > 0 else 0
+            ),
+            'quarantine_size': len(self._quarantine),
+        }
 
 
 class MemoryLevelClassifier:

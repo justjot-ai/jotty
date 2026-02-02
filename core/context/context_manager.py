@@ -20,6 +20,8 @@ from enum import Enum
 from pathlib import Path
 import dspy
 
+from ..utils.tokenizer import SmartTokenizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ class ContextChunk:
     
     def __post_init__(self):
         if not self.tokens:
-            self.tokens = len(self.content) // 4 + 1
+            self.tokens = SmartTokenizer.get_instance().count_tokens(self.content)
         if not self.original_tokens:
             self.original_tokens = self.tokens
 
@@ -377,10 +379,10 @@ class SmartContextManager:
     # =========================================================================
     
     def estimate_tokens(self, text: str) -> int:
-        """Estimate token count from text."""
+        """Estimate token count using SmartTokenizer."""
         if not text:
             return 0
-        return len(text) // self.chars_per_token + 1
+        return SmartTokenizer.get_instance().count_tokens(text)
     
     def clear_chunks(self):
         """Clear non-persistent chunks."""

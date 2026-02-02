@@ -58,7 +58,15 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
             return {'success': False, 'error': 'ticker parameter is required'}
 
         company_name = params.get('company_name', ticker)
-        exchange = params.get('exchange', 'NSE')
+
+        # Auto-detect exchange for US stocks
+        US_TICKERS = {
+            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA',
+            'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'DIS', 'PYPL',
+            'BAC', 'ADBE', 'NFLX', 'CRM', 'INTC', 'AMD', 'CSCO', 'PEP', 'KO'
+        }
+        default_exchange = 'US' if ticker in US_TICKERS else 'NSE'
+        exchange = params.get('exchange', default_exchange)
         peers = params.get('peers', [])
         target_price = params.get('target_price')
         rating = params.get('rating')
@@ -307,9 +315,23 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
 # =============================================================================
 
 def _get_sector_peers(ticker: str, sector: str, exchange: str) -> List[str]:
-    """Get peer companies based on sector."""
-    # Sector-based peer mapping for Indian stocks
-    sector_peers = {
+    """Get peer companies based on sector and exchange."""
+
+    # US stock peers by sector
+    us_sector_peers = {
+        'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMD', 'INTC', 'CRM', 'ORCL'],
+        'Consumer Electronics': ['AAPL', 'SONY', 'DELL', 'HPQ', 'LOGI'],
+        'Semiconductors': ['NVDA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT'],
+        'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'USB', 'PNC'],
+        'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'CL', 'GIS', 'K'],
+        'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'PXD', 'OXY'],
+        'Healthcare': ['JNJ', 'UNH', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT'],
+        'Industrials': ['CAT', 'DE', 'BA', 'HON', 'UPS', 'GE', 'MMM', 'LMT'],
+        'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD', 'SBUX', 'TGT'],
+    }
+
+    # Indian stock peers by sector
+    india_sector_peers = {
         'Technology': ['TCS', 'INFY', 'WIPRO', 'HCLTECH', 'TECHM', 'LTIM'],
         'Financial Services': ['HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK'],
         'Consumer Defensive': ['HINDUNILVR', 'ITC', 'NESTLEIND', 'BRITANNIA', 'DABUR'],
@@ -319,6 +341,10 @@ def _get_sector_peers(ticker: str, sector: str, exchange: str) -> List[str]:
         'Basic Materials': ['TATASTEEL', 'JSWSTEEL', 'HINDALCO', 'VEDL', 'COALINDIA'],
         'Consumer Cyclical': ['MARUTI', 'TATAMOTORS', 'M&M', 'BAJAJ-AUTO', 'EICHERMOT'],
     }
+
+    # Choose peer set based on exchange
+    is_us = exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+    sector_peers = us_sector_peers if is_us else india_sector_peers
 
     peers = sector_peers.get(sector, [])
 

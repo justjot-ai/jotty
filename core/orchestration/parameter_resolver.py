@@ -28,6 +28,9 @@ except ImportError:
     class ActorConfig:
         pass
 
+# Import centralized parameter aliases
+from ..foundation.data_structures import DEFAULT_PARAM_ALIASES
+
 # Type hints only - avoid circular imports
 if TYPE_CHECKING:
     from .conductor import TodoItem
@@ -259,14 +262,16 @@ class ParameterResolver:
                             logger.info(f"   ✅ Found '{param}' in IOManager['{actor_name}']")
                             break
                         
-                        # Check aliases (e.g., 'tables' matches 'relevant_tables')
-                        aliases = {
-                            'tables': ['relevant_tables', 'selected_tables', 'table_list'],
-                            'columns': ['selected_columns', 'column_list'],
-                            'resolved_terms': ['terms', 'business_terms'],
-                            'filters': ['filter_conditions', 'where_conditions'],
-                        }
-                        
+                        # Check aliases using centralized DEFAULT_PARAM_ALIASES
+                        # Merge with config custom mappings if available
+                        aliases = DEFAULT_PARAM_ALIASES.copy()
+                        if hasattr(self.config, 'custom_param_mappings') and self.config.custom_param_mappings:
+                            for key, vals in self.config.custom_param_mappings.items():
+                                if key in aliases:
+                                    aliases[key] = list(set(aliases[key] + vals))
+                                else:
+                                    aliases[key] = vals
+
                         if param in aliases:
                             for alias in aliases[param]:
                                 if alias in actor_output.output_fields:
@@ -290,15 +295,15 @@ class ParameterResolver:
                         logger.info(f"   ✅ Found '{param}' in SharedContext['metadata']")
                         continue
                     
-                    # 🔥 A-TEAM: ALIAS MATCHING (before agentic search)
-                    aliases = {
-                        'tables': ['relevant_tables', 'selected_tables', 'table_list', 'available_tables'],
-                        'table_names': ['available_tables', 'all_tables', 'tables'],
-                        'columns': ['selected_columns', 'column_list'],
-                        'resolved_terms': ['terms', 'business_terms'],
-                        'filters': ['filter_conditions', 'where_conditions'],
-                    }
-                    
+                    # 🔥 A-TEAM: ALIAS MATCHING using centralized DEFAULT_PARAM_ALIASES
+                    aliases = DEFAULT_PARAM_ALIASES.copy()
+                    if hasattr(self.config, 'custom_param_mappings') and self.config.custom_param_mappings:
+                        for key, vals in self.config.custom_param_mappings.items():
+                            if key in aliases:
+                                aliases[key] = list(set(aliases[key] + vals))
+                            else:
+                                aliases[key] = vals
+
                     if param in aliases:
                         for alias in aliases[param]:
                             if alias in metadata:
@@ -851,16 +856,15 @@ class ParameterResolver:
                         
                         return value
         
-                    # 🔥 A-TEAM FIX: GENERIC PARAMETER ALIASING
-                    # Common semantic aliases (NO domain-specific logic!)
-                    aliases = {
-                        'tables': ['relevant_tables', 'selected_tables', 'table_list', 'available_tables'],
-                        'table_names': ['available_tables', 'all_tables', 'tables'],
-                        'columns': ['selected_columns', 'column_list'],
-                        'resolved_terms': ['terms', 'business_terms'],
-                        'filters': ['filter_conditions', 'where_conditions'],
-                    }
-                    
+                    # 🔥 A-TEAM FIX: GENERIC PARAMETER ALIASING using centralized DEFAULT_PARAM_ALIASES
+                    aliases = DEFAULT_PARAM_ALIASES.copy()
+                    if hasattr(self.config, 'custom_param_mappings') and self.config.custom_param_mappings:
+                        for key, vals in self.config.custom_param_mappings.items():
+                            if key in aliases:
+                                aliases[key] = list(set(aliases[key] + vals))
+                            else:
+                                aliases[key] = vals
+
                     # Check if param_name has known aliases
                     if param_name in aliases:
                         for alias in aliases[param_name]:
@@ -955,16 +959,14 @@ class ParameterResolver:
             logger.info(f"✅ Resolved '{param_name}' from SharedContext['metadata']")
             return metadata[param_name]
         
-        # Check metadata with aliases (GENERIC - not domain specific!)
-        aliases = {
-            'tables': ['relevant_tables', 'selected_tables', 'table_list', 'available_tables', 'get_all_tables'],
-            'table_names': ['available_tables', 'tables', 'relevant_tables', 'selected_tables', 'table_list', 'get_all_tables'],
-            'columns': ['column_list', 'selected_columns', 'relevant_columns'],
-            'resolved_terms': ['business_terms', 'terms', 'term_mapping', 'get_business_terms'],
-            'tables_metadata': ['get_all_table_metadata', 'table_metadata', 'schema_info'],
-            'columns_metadata': ['column_metadata', 'columns_info'],
-            'business_terms': ['get_business_terms', 'business_context', 'get_business_context'],
-        }
+        # Check metadata with aliases using centralized DEFAULT_PARAM_ALIASES
+        aliases = DEFAULT_PARAM_ALIASES.copy()
+        if hasattr(self.config, 'custom_param_mappings') and self.config.custom_param_mappings:
+            for key, vals in self.config.custom_param_mappings.items():
+                if key in aliases:
+                    aliases[key] = list(set(aliases[key] + vals))
+                else:
+                    aliases[key] = vals
         param_aliases = aliases.get(param_name, [])
         for alias in param_aliases:
             if alias in metadata:

@@ -8,6 +8,8 @@ import time
 from typing import Dict, List, Tuple, Any, Optional
 import logging
 
+from ..utils.tokenizer import SmartTokenizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +45,8 @@ class LLMContextManager:
         }
     
     def estimate_tokens(self, text: str) -> int:
-        """Estimate token count (rough approximation)."""
-        return len(text) // 4
+        """Estimate token count using SmartTokenizer."""
+        return SmartTokenizer.get_instance().count_tokens(text)
     
     def register(self, key: str, content: str, priority: int):
         """Register content with priority."""

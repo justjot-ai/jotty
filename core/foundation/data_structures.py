@@ -92,7 +92,40 @@ __all__ = [
     # Configuration
     'SwarmConfig',
     'JottyConfig',  # Backward compatibility alias
+    # Parameter aliases
+    'DEFAULT_PARAM_ALIASES',
 ]
+
+
+# =============================================================================
+# DEFAULT PARAMETER ALIASES (A-Team: Centralized Source of Truth)
+# =============================================================================
+
+DEFAULT_PARAM_ALIASES: Dict[str, List[str]] = {
+    # Table-related aliases
+    'tables': ['relevant_tables', 'selected_tables', 'table_list', 'available_tables', 'get_all_tables'],
+    'table_names': ['available_tables', 'all_tables', 'tables', 'relevant_tables', 'selected_tables', 'table_list', 'get_all_tables'],
+
+    # Column-related aliases
+    'columns': ['selected_columns', 'column_list', 'relevant_columns', 'available_columns'],
+    'columns_metadata': ['column_metadata', 'columns_info'],
+
+    # Business terms aliases
+    'resolved_terms': ['terms', 'business_terms', 'term_mapping', 'get_business_terms'],
+    'business_terms': ['get_business_terms', 'business_context', 'get_business_context'],
+
+    # Filter/condition aliases
+    'filters': ['filter_conditions', 'where_conditions'],
+
+    # Metadata aliases
+    'tables_metadata': ['get_all_table_metadata', 'table_metadata', 'schema_info'],
+
+    # Generic content aliases
+    'content': ['content', 'text', 'body'],
+    'data': ['data', 'output_data', 'results'],
+    'file': ['file', 'filepath', 'path', 'file_path'],
+    'url': ['url', 'uri', 'link', 'href'],
+}
 
 
 # =============================================================================
@@ -157,6 +190,17 @@ class SwarmConfig:
     enable_backups: bool = True
     backup_interval: int = 100  # Episodes between backups
     max_backups: int = 10
+
+    # Learning configuration
+    auto_load_learning: bool = True  # Automatically load previous learning on startup
+    per_agent_learning: bool = True  # Each agent has its own Q-table
+    shared_learning: bool = True  # Also maintain shared cross-agent learning
+    learning_alpha: float = 0.3  # Q-learning rate
+    learning_gamma: float = 0.9  # Discount factor
+    learning_epsilon: float = 0.1  # Exploration rate
+    max_q_table_size: int = 10000  # Max Q-table entries before pruning
+    q_prune_percentage: float = 0.2  # Prune 20% when limit hit
+    enable_domain_transfer: bool = True  # Load learning from similar domains
 
     # Logs
     enable_beautified_logs: bool = True  # Generate human-readable logs
@@ -566,6 +610,16 @@ class SwarmConfig:
     enable_cost_tracking: bool = False  # Track LLM API costs (opt-in)
     cost_budget: Optional[float] = None  # Optional cost limit (in USD)
     cost_tracking_file: Optional[str] = None  # Path to save cost tracking data
+
+    # =========================================================================
+    # 22.5 BUDGET CONTROLS (A-Team Critical Fix)
+    # =========================================================================
+    # LLM call budget limits
+    max_llm_calls_per_episode: int = 100  # Max LLM calls per episode
+    max_llm_calls_per_agent: int = 50     # Max LLM calls per agent
+    max_total_tokens_per_episode: int = 500000  # Max tokens per episode
+    enable_budget_enforcement: bool = True  # Enforce budget limits
+    budget_warning_threshold: float = 0.8   # Warn at 80% of budget
     
     # Monitoring framework
     enable_monitoring: bool = False  # Enable comprehensive monitoring (opt-in)

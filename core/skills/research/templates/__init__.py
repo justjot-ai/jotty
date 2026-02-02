@@ -15,7 +15,15 @@ Multiple professional templates for different use cases:
    - Educational (fun facts, quizzes)
    - Activity Book (interactive elements)
 
-3. Business Documents:
+3. ML Backtest Reports:
+   - Two Sigma (quantitative, data-driven)
+   - Renaissance Technologies (mathematical precision)
+   - AQR Capital (academic rigor)
+   - Man Group (institutional quality)
+   - Citadel (professional excellence)
+   - Quantitative (default balanced style)
+
+4. Business Documents:
    - Corporate Report (professional, formal)
    - Pitch Deck (modern, visual)
    - White Paper (technical, detailed)
@@ -33,15 +41,32 @@ from .kids_templates import (
     EducationalTemplate,
     ActivityBookTemplate,
 )
+from .backtest_templates import (
+    TwoSigmaTemplate,
+    RenTechTemplate,
+    AQRTemplate,
+    ManGroupTemplate,
+    CitadelTemplate,
+    QuantitativeTemplate,
+)
 
 __all__ = [
     'BaseTemplate',
     'TemplateRegistry',
+    # Research templates
     'GoldmanSachsTemplate',
     'MorganStanleyTemplate',
     'CLSATemplate',
     'MotilalOswalTemplate',
+    # Kids templates
     'StorybookTemplate',
     'EducationalTemplate',
     'ActivityBookTemplate',
+    # Backtest templates
+    'TwoSigmaTemplate',
+    'RenTechTemplate',
+    'AQRTemplate',
+    'ManGroupTemplate',
+    'CitadelTemplate',
+    'QuantitativeTemplate',
 ]

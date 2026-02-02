@@ -91,6 +91,10 @@ class LLMQPredictor:
         self.gamma = getattr(config, 'gamma', 0.99)
         self.epsilon = getattr(config, 'epsilon', 0.1)
 
+        # A-Team v8.0: Q-table size limits (prevents unbounded growth)
+        self.max_q_table_size = getattr(config, 'max_q_table_size', 10000)
+        self.q_prune_percentage = getattr(config, 'q_prune_percentage', 0.2)  # Remove 20% when limit hit
+
         # A-Team v8.0: Adaptive retention weights (replaces hardcoded 0.4/0.3/0.2/0.1)
         self.retention_weights = AdaptiveWeightGroup({
             'q_value': 0.4,       # Reward salience
@@ -583,8 +587,121 @@ class LLMQPredictor:
             # Keep bounded
             if len(self.Q[key]['learned_lessons']) > 5:
                 self.Q[key]['learned_lessons'] = self.Q[key]['learned_lessons'][-5:]
-        
+
+        # A-Team v8.0: Enforce Q-table size limits
+        self._enforce_q_table_limits()
+
         return td_error
+
+    def _enforce_q_table_limits(self) -> int:
+        """
+        Enforce Q-table size limits with smart pruning.
+
+        A-Team Critical Fix: Prevents unbounded Q-table growth.
+
+        Pruning strategy:
+        1. Compute retention score for each entry
+        2. Sort by retention score (ascending)
+        3. Remove bottom N% lowest scores
+
+        Returns:
+            Number of entries pruned
+        """
+        if len(self.Q) <= self.max_q_table_size:
+            return 0
+
+        # Calculate how many to remove (20% by default)
+        num_to_remove = int(len(self.Q) * self.q_prune_percentage)
+        num_to_remove = max(num_to_remove, len(self.Q) - self.max_q_table_size)
+
+        logger.info(
+            f"🗑️ Q-table limit exceeded ({len(self.Q)} > {self.max_q_table_size}). "
+            f"Pruning {num_to_remove} entries..."
+        )
+
+        # Calculate retention scores for all entries
+        scored_keys = []
+        current_time = time.time()
+
+        for key, q_data in self.Q.items():
+            # 1. Q-value component (higher = more valuable)
+            q_value_score = q_data.get('value', 0.5)
+
+            # 2. Visit count component (more visits = more valuable)
+            visit_count = q_data.get('visit_count', 1)
+            visit_score = min(1.0, visit_count / 10.0)  # Cap at 10 visits
+
+            # 3. Recency component (more recent = more valuable)
+            last_updated = q_data.get('last_updated', q_data.get('created_at', current_time))
+            age_hours = (current_time - last_updated) / 3600
+            recency_score = max(0.0, 1.0 - (age_hours / 168))  # Decay over 1 week
+
+            # 4. TD error variance (high variance = interesting, keep)
+            td_errors = q_data.get('td_errors', [])
+            if len(td_errors) > 1:
+                import statistics
+                td_variance = statistics.variance(td_errors)
+                variance_score = min(1.0, td_variance * 5)  # Scale up
+            else:
+                variance_score = 0.5
+
+            # 5. Lesson count (more lessons = more valuable)
+            lesson_count = len(q_data.get('learned_lessons', []))
+            lesson_score = min(1.0, lesson_count / 3.0)
+
+            # Compute weighted retention score using adaptive weights
+            weights = self.retention_weights.get_all()
+            retention_score = (
+                weights.get('q_value', 0.4) * q_value_score +
+                weights.get('novelty', 0.3) * variance_score +
+                weights.get('causal_impact', 0.2) * (visit_score + lesson_score) / 2 +
+                weights.get('staleness', 0.1) * recency_score
+            )
+
+            scored_keys.append((key, retention_score, q_data))
+
+        # Sort by retention score (ascending - lowest first for removal)
+        scored_keys.sort(key=lambda x: x[1])
+
+        # Remove entries with lowest retention scores
+        keys_to_remove = [k for k, _, _ in scored_keys[:num_to_remove]]
+        for key in keys_to_remove:
+            del self.Q[key]
+
+        logger.info(
+            f"✅ Q-table pruned: {len(self.Q)} entries remaining "
+            f"(removed {num_to_remove} with lowest retention scores)"
+        )
+
+        return num_to_remove
+
+    def get_q_table_stats(self) -> Dict[str, Any]:
+        """
+        Get Q-table statistics.
+
+        Returns:
+            Dictionary with Q-table size, average Q-value, etc.
+        """
+        if not self.Q:
+            return {
+                'size': 0,
+                'max_size': self.max_q_table_size,
+                'utilization': 0.0,
+            }
+
+        q_values = [q_data.get('value', 0.5) for q_data in self.Q.values()]
+        visit_counts = [q_data.get('visit_count', 1) for q_data in self.Q.values()]
+
+        return {
+            'size': len(self.Q),
+            'max_size': self.max_q_table_size,
+            'utilization': len(self.Q) / self.max_q_table_size,
+            'avg_q_value': sum(q_values) / len(q_values),
+            'min_q_value': min(q_values),
+            'max_q_value': max(q_values),
+            'total_visits': sum(visit_counts),
+            'avg_visits': sum(visit_counts) / len(visit_counts),
+        }
     
     def _get_q_value(self, state_desc: str, action_desc: str) -> float:
         """Alias for _get_q_value_from_table (for backward compatibility)."""

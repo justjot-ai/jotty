@@ -17,6 +17,8 @@ import dspy
 from typing import Dict, List, Optional, Callable
 import logging
 
+from ..utils.tokenizer import SmartTokenizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,12 +92,13 @@ class LLMChunkManager:
             Combined result from all chunks
         """
         content_length = len(content)
+        tokenizer = SmartTokenizer.get_instance()
+        estimated_tokens = tokenizer.count_tokens(content)
         logger.info(f"📄 Agentic chunking for {task_context.get('actor_name', 'unknown')}...")
-        logger.info(f"   Content length: {content_length} chars (~{content_length // 4} tokens)")
+        logger.info(f"   Content length: {content_length} chars (~{estimated_tokens} tokens)")
         logger.info(f"   Max chunk size: {max_chunk_size} tokens")
-        
+
         # Check if chunking needed
-        estimated_tokens = content_length // 4
         if estimated_tokens <= max_chunk_size:
             logger.info(f"✅ No chunking needed ({estimated_tokens} <= {max_chunk_size} tokens)")
             return await processor_fn(content)

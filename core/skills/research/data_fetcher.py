@@ -87,8 +87,30 @@ class ResearchDataFetcher:
         """Fetch data from Yahoo Finance."""
         import yfinance as yf
 
+        # Auto-detect exchange from ticker pattern
+        # Common US stock tickers (no suffix needed)
+        US_TICKERS = {
+            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA',
+            'BRK.A', 'BRK.B', 'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH',
+            'HD', 'DIS', 'PYPL', 'BAC', 'ADBE', 'NFLX', 'CRM', 'INTC', 'AMD',
+            'CSCO', 'PEP', 'KO', 'TMO', 'ABT', 'COST', 'AVGO', 'NKE', 'MRK',
+            'ORCL', 'ACN', 'MCD', 'LLY', 'DHR', 'TXN', 'QCOM', 'UPS', 'NEE',
+            'IBM', 'GE', 'CAT', 'BA', 'RTX', 'GS', 'MS', 'BLK', 'SCHW', 'AXP'
+        }
+
+        ticker_upper = ticker.upper().strip()
+
+        # Check if it's a known US ticker or has US-style format
+        is_us_ticker = (
+            ticker_upper in US_TICKERS or
+            exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX') or
+            (len(ticker_upper) <= 5 and ticker_upper.isalpha() and '.' not in ticker)
+        )
+
         # Format ticker for Yahoo Finance
-        if exchange.upper() == "NSE":
+        if is_us_ticker:
+            yf_ticker = ticker_upper  # No suffix for US stocks
+        elif exchange.upper() == "NSE":
             yf_ticker = f"{ticker}.NS"
         elif exchange.upper() == "BSE":
             yf_ticker = f"{ticker}.BO"

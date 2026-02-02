@@ -30,6 +30,52 @@ VECTORS_DIR = JOTTY_DIR / "vectors"
 DOCS_INDEX_FILE = JOTTY_DIR / "documents_index.json"
 
 
+class RAGConfig:
+    """
+    Configuration for RAG processing.
+
+    Allows customization of chunking and embedding parameters.
+    """
+
+    # Available embedding models (sentence-transformers)
+    EMBEDDING_MODELS = {
+        "all-MiniLM-L6-v2": {"dim": 384, "description": "Fast, good quality (default)"},
+        "all-mpnet-base-v2": {"dim": 768, "description": "Higher quality, slower"},
+        "paraphrase-MiniLM-L3-v2": {"dim": 384, "description": "Fastest, lower quality"},
+        "multi-qa-MiniLM-L6-cos-v1": {"dim": 384, "description": "Optimized for Q&A"},
+    }
+
+    DEFAULT_CHUNK_SIZE = 512
+    DEFAULT_OVERLAP = 50
+    DEFAULT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+    def __init__(
+        self,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        overlap: int = DEFAULT_OVERLAP,
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL
+    ):
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+        self.embedding_model = embedding_model
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "chunk_size": self.chunk_size,
+            "overlap": self.overlap,
+            "embedding_model": self.embedding_model,
+            "embedding_dim": self.EMBEDDING_MODELS.get(self.embedding_model, {}).get("dim", 384)
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RAGConfig":
+        return cls(
+            chunk_size=data.get("chunk_size", cls.DEFAULT_CHUNK_SIZE),
+            overlap=data.get("overlap", cls.DEFAULT_OVERLAP),
+            embedding_model=data.get("embedding_model", cls.DEFAULT_EMBEDDING_MODEL)
+        )
+
+
 class DocumentProcessor:
     """
     Handles document parsing, embedding, and storage.
@@ -38,17 +84,59 @@ class DocumentProcessor:
     - unstructured: For parsing various document formats
     - chromadb: For vector storage
     - sentence-transformers: For generating embeddings
+
+    Supports configurable chunking and embedding parameters via RAGConfig.
     """
 
-    def __init__(self):
+    def __init__(self, config: Optional[RAGConfig] = None):
         self._chroma_client = None
         self._collection = None
         self._embedding_model = None
+        self._embedding_model_name = None
         self._docs_index = self._load_docs_index()
+        self.config = config or self._load_config()
 
         # Ensure directories exist
         DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
         VECTORS_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _load_config(self) -> RAGConfig:
+        """Load RAG config from disk or use defaults."""
+        config_file = JOTTY_DIR / "rag_config.json"
+        if config_file.exists():
+            try:
+                data = json.loads(config_file.read_text())
+                return RAGConfig.from_dict(data)
+            except Exception as e:
+                logger.warning(f"Failed to load RAG config: {e}")
+        return RAGConfig()
+
+    def save_config(self):
+        """Save current RAG config to disk."""
+        config_file = JOTTY_DIR / "rag_config.json"
+        try:
+            config_file.write_text(json.dumps(self.config.to_dict(), indent=2))
+        except Exception as e:
+            logger.error(f"Failed to save RAG config: {e}")
+
+    def update_config(
+        self,
+        chunk_size: Optional[int] = None,
+        overlap: Optional[int] = None,
+        embedding_model: Optional[str] = None
+    ) -> RAGConfig:
+        """Update RAG configuration."""
+        if chunk_size is not None:
+            self.config.chunk_size = chunk_size
+        if overlap is not None:
+            self.config.overlap = overlap
+        if embedding_model is not None and embedding_model in RAGConfig.EMBEDDING_MODELS:
+            self.config.embedding_model = embedding_model
+            # Clear cached model to reload with new model
+            self._embedding_model = None
+            self._embedding_model_name = None
+        self.save_config()
+        return self.config
 
     def _load_docs_index(self) -> Dict[str, Any]:
         """Load documents index from disk."""
@@ -96,14 +184,18 @@ class DocumentProcessor:
 
     @property
     def embedding_model(self):
-        """Lazy-load sentence-transformers model."""
+        """Lazy-load sentence-transformers model based on config."""
+        # Reload if model changed
+        if self._embedding_model is not None and self._embedding_model_name != self.config.embedding_model:
+            self._embedding_model = None
+
         if self._embedding_model is None:
             try:
                 from sentence_transformers import SentenceTransformer
 
-                # Use a small, fast model for local embeddings
-                model_name = "all-MiniLM-L6-v2"
+                model_name = self.config.embedding_model
                 self._embedding_model = SentenceTransformer(model_name)
+                self._embedding_model_name = model_name
                 logger.info(f"Loaded embedding model: {model_name}")
             except ImportError:
                 logger.warning("sentence-transformers not installed. Run: pip install sentence-transformers")
@@ -192,8 +284,11 @@ class DocumentProcessor:
         except Exception as e:
             return f"[Error reading file: {e}]", {"error": str(e)}
 
-    def chunk_text(self, text: str, chunk_size: int = 512, overlap: int = 50) -> List[str]:
+    def chunk_text(self, text: str, chunk_size: Optional[int] = None, overlap: Optional[int] = None) -> List[str]:
         """Split text into overlapping chunks for embedding."""
+        chunk_size = chunk_size or self.config.chunk_size
+        overlap = overlap or self.config.overlap
+
         if len(text) <= chunk_size:
             return [text]
 
@@ -225,7 +320,9 @@ class DocumentProcessor:
         file_content: bytes,
         filename: str,
         folder_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        chunk_size: Optional[int] = None,
+        overlap: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Upload and process a document.
@@ -235,10 +332,14 @@ class DocumentProcessor:
             filename: Original filename
             folder_id: Optional folder to associate with
             metadata: Optional additional metadata
+            chunk_size: Optional custom chunk size (overrides config)
+            overlap: Optional custom overlap (overrides config)
 
         Returns:
             Document info dict
         """
+        import asyncio
+
         # Generate document ID
         doc_hash = hashlib.sha256(file_content).hexdigest()[:16]
         doc_id = f"doc_{doc_hash}"
@@ -246,16 +347,21 @@ class DocumentProcessor:
         # Save file
         file_ext = Path(filename).suffix.lower()
         doc_path = DOCUMENTS_DIR / f"{doc_id}{file_ext}"
-        doc_path.write_bytes(file_content)
 
-        # Parse document
-        text, parse_meta = self.parse_document(str(doc_path))
+        # Async file write
+        await asyncio.to_thread(doc_path.write_bytes, file_content)
 
-        # Chunk and embed
-        chunks = self.chunk_text(text)
+        # Parse document (run in thread for large files)
+        text, parse_meta = await asyncio.to_thread(self.parse_document, str(doc_path))
+
+        # Chunk with custom or config values
+        chunks = self.chunk_text(text, chunk_size=chunk_size, overlap=overlap)
 
         try:
-            embeddings = self.generate_embeddings(chunks)
+            import asyncio
+
+            # Generate embeddings in thread (CPU intensive)
+            embeddings = await asyncio.to_thread(self.generate_embeddings, chunks)
 
             # Store in ChromaDB
             chunk_ids = [f"{doc_id}_chunk_{i}" for i in range(len(chunks))]
@@ -265,11 +371,15 @@ class DocumentProcessor:
                     "chunk_index": i,
                     "folder_id": folder_id or "",
                     "filename": filename,
+                    "embedding_model": self.config.embedding_model,
+                    "chunk_size": chunk_size or self.config.chunk_size,
                 }
                 for i in range(len(chunks))
             ]
 
-            self.collection.add(
+            # Add to collection in thread
+            await asyncio.to_thread(
+                self.collection.add,
                 ids=chunk_ids,
                 embeddings=embeddings,
                 documents=chunks,
@@ -293,6 +403,11 @@ class DocumentProcessor:
             "text_length": len(text),
             "chunk_count": len(chunks),
             "embedded": embedded,
+            "rag_config": {
+                "chunk_size": chunk_size or self.config.chunk_size,
+                "overlap": overlap or self.config.overlap,
+                "embedding_model": self.config.embedding_model
+            },
             "metadata": {**(metadata or {}), **parse_meta}
         }
 

@@ -59,6 +59,26 @@ from .trajectory_parser import (
     TrajectoryParser,
     create_parser,
 )
+from .tokenizer import (
+    SmartTokenizer,
+    get_tokenizer,
+    count_tokens,
+    estimate_tokens,
+)
+from .llm_cache import (
+    LLMCallCache,
+    CachedResponse,
+    CacheStats,
+    get_cache,
+)
+from .budget_tracker import (
+    BudgetTracker,
+    BudgetConfig,
+    BudgetUsage,
+    BudgetScope,
+    BudgetExceededError,
+    get_budget_tracker,
+)
 
 __all__ = [
     # algorithmic_foundations
@@ -104,4 +124,21 @@ __all__ = [
     'TaggedAttempt',
     'TrajectoryParser',
     'create_parser',
+    # tokenizer
+    'SmartTokenizer',
+    'get_tokenizer',
+    'count_tokens',
+    'estimate_tokens',
+    # llm_cache
+    'LLMCallCache',
+    'CachedResponse',
+    'CacheStats',
+    'get_cache',
+    # budget_tracker
+    'BudgetTracker',
+    'BudgetConfig',
+    'BudgetUsage',
+    'BudgetScope',
+    'BudgetExceededError',
+    'get_budget_tracker',
 ]

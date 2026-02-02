@@ -271,6 +271,17 @@ class JottyHTTPServer:
                     for agent in self.agents
                 ]
             })
+
+        # Unified Executor endpoints (LeanExecutor + ChatAssistant V2 combined)
+        @self.app.route('/api/chat/unified/stream', methods=['POST'])
+        def unified_chat_stream():
+            """Stream unified chat response with native tool calling (SSE)."""
+            return self._handle_unified_chat_stream()
+
+        @self.app.route('/api/chat/unified/execute', methods=['POST'])
+        def unified_chat_execute():
+            """Execute unified chat synchronously with native tool calling."""
+            return self._handle_unified_chat_execute()
     
     def _handle_chat_stream(self) -> Response:
         """Handle chat streaming request."""
@@ -587,7 +598,7 @@ class JottyHTTPServer:
     def _get_sse_formatter(self) -> SSEFormatter:
         """Get SSE formatter based on config."""
         format_type = self.server_config.sse_format.lower()
-        
+
         if format_type == "usechat":
             return useChatFormatter()
         elif format_type == "openai":
@@ -597,7 +608,199 @@ class JottyHTTPServer:
         else:
             # Raw format (default)
             return SSEFormatter()
-    
+
+    def _handle_unified_chat_stream(self) -> Response:
+        """
+        Handle unified chat streaming request using UnifiedExecutor.
+
+        This endpoint combines LeanExecutor + ChatAssistant V2 capabilities:
+        - Native Claude tool calling
+        - Web search, file read, output tools
+        - A2UI visualization support (70+ section types)
+        - Full streaming with tool events
+        """
+        try:
+            data = request.json
+            if not data:
+                return jsonify({"error": "Request body required"}), 400
+
+            # Extract message
+            messages_data = data.get('messages', [])
+            message = data.get('message')
+
+            if messages_data:
+                if len(messages_data) == 0:
+                    return jsonify({"error": "messages array is required"}), 400
+                last_msg = messages_data[-1]
+                if last_msg.get('role') != 'user':
+                    return jsonify({"error": "Last message must be from user"}), 400
+                message = last_msg.get('content', '')
+                if isinstance(message, list):
+                    message = ' '.join([
+                        item.get('text', '') for item in message
+                        if item.get('type') == 'text'
+                    ])
+            elif not message:
+                return jsonify({"error": "message or messages is required"}), 400
+
+            # Optional parameters
+            enabled_tools = data.get('enabledTools')  # List of tool names to enable
+            model = data.get('model')  # Model name (uses provider default if not specified)
+            provider = data.get('provider')  # 'anthropic', 'openai', 'openrouter', 'groq', 'google'
+            output_format = data.get('outputFormat', 'auto')  # 'auto', 'pdf', 'docx', 'slides', etc.
+
+            def generate_events():
+                """Generate SSE events from UnifiedExecutor."""
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                try:
+                    from ..orchestration.v2.unified_executor import UnifiedExecutor
+
+                    # Create executor with streaming callback
+                    accumulated_text = []
+
+                    def stream_callback(chunk: str):
+                        accumulated_text.append(chunk)
+
+                    executor = UnifiedExecutor(
+                        provider=provider,  # Auto-detects if None
+                        model=model,
+                        stream_callback=stream_callback,
+                        enabled_tools=enabled_tools.split(',') if isinstance(enabled_tools, str) else enabled_tools,
+                        output_format=output_format  # Force specific output format
+                    )
+
+                    # Execute task
+                    result = loop.run_until_complete(executor.execute(message))
+
+                    # Stream accumulated text
+                    full_text = ''.join(accumulated_text)
+                    if full_text:
+                        yield f"event: text\ndata: {json.dumps({'type': 'text', 'content': full_text})}\n\n"
+
+                    # Stream tool results
+                    for tool_result in result.tool_results:
+                        yield f"event: tool\ndata: {json.dumps({'type': 'tool', 'name': tool_result.tool_name, 'success': tool_result.success, 'result': tool_result.result})}\n\n"
+
+                    # Stream sections (A2UI)
+                    for section in result.sections:
+                        yield f"event: section\ndata: {json.dumps({'type': 'section', 'section': section})}\n\n"
+
+                    # Send output path if available
+                    if result.output_path:
+                        yield f"event: output\ndata: {json.dumps({'type': 'output', 'path': result.output_path})}\n\n"
+
+                    # Complete event
+                    yield f"event: done\ndata: {json.dumps({'type': 'complete', 'success': result.success, 'steps': result.steps_taken})}\n\n"
+
+                except Exception as e:
+                    logger.error(f"Unified chat streaming error: {e}", exc_info=True)
+                    yield f"event: error\ndata: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+                finally:
+                    loop.close()
+
+            return Response(
+                generate_events(),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no'
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Unified chat stream endpoint error: {e}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": str(e) if self.server_config.show_error_details else "Internal server error"
+            }), 500
+
+    def _handle_unified_chat_execute(self) -> Response:
+        """
+        Handle unified chat execution request (non-streaming).
+
+        This endpoint combines LeanExecutor + ChatAssistant V2 capabilities:
+        - Native Claude tool calling
+        - Web search, file read, output tools
+        - A2UI visualization support (70+ section types)
+        """
+        try:
+            data = request.json
+            if not data:
+                return jsonify({"error": "Request body required"}), 400
+
+            # Extract message
+            messages_data = data.get('messages', [])
+            message = data.get('message')
+
+            if messages_data:
+                if len(messages_data) == 0:
+                    return jsonify({"error": "messages array is required"}), 400
+                last_msg = messages_data[-1]
+                if last_msg.get('role') != 'user':
+                    return jsonify({"error": "Last message must be from user"}), 400
+                message = last_msg.get('content', '')
+                if isinstance(message, list):
+                    message = ' '.join([
+                        item.get('text', '') for item in message
+                        if item.get('type') == 'text'
+                    ])
+            elif not message:
+                return jsonify({"error": "message or messages is required"}), 400
+
+            # Optional parameters
+            enabled_tools = data.get('enabledTools')
+            model = data.get('model')  # Model name (uses provider default if not specified)
+            provider = data.get('provider')  # 'anthropic', 'openai', 'openrouter', 'groq', 'google'
+            output_format = data.get('outputFormat', 'auto')  # 'auto', 'pdf', 'docx', 'slides', etc.
+
+            # Execute synchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            try:
+                from ..orchestration.v2.unified_executor import UnifiedExecutor
+
+                executor = UnifiedExecutor(
+                    provider=provider,  # Auto-detects if None
+                    model=model,
+                    enabled_tools=enabled_tools.split(',') if isinstance(enabled_tools, str) else enabled_tools,
+                    output_format=output_format  # Force specific output format
+                )
+
+                result = loop.run_until_complete(executor.execute(message))
+
+                return jsonify({
+                    "success": result.success,
+                    "content": result.content,
+                    "tool_results": [
+                        {
+                            "name": r.tool_name,
+                            "success": r.success,
+                            "result": r.result,
+                            "error": r.error
+                        }
+                        for r in result.tool_results
+                    ],
+                    "sections": result.sections,
+                    "output_path": result.output_path,
+                    "output_format": result.output_format,
+                    "steps": result.steps_taken,
+                    "error": result.error
+                })
+
+            finally:
+                loop.close()
+
+        except Exception as e:
+            logger.error(f"Unified chat execute endpoint error: {e}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": str(e) if self.server_config.show_error_details else "Internal server error"
+            }), 500
+
     def run(self, **kwargs):
         """
         Run the HTTP server.

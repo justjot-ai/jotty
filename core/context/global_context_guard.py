@@ -10,7 +10,7 @@ Wraps ALL LLM calls to:
 3. Integrate with ContentGate for chunking
 4. Inject memories into prompts
 
-Key Insight: Don't just catch errors at top-level. 
+Key Insight: Don't just catch errors at top-level.
 DSPy modules, ReAct loops, CoT chains - ANY can overflow.
 """
 
@@ -21,6 +21,8 @@ import json
 from typing import Any, Callable, Dict, List, Optional, Union
 from dataclasses import dataclass
 import logging
+
+from ..utils.tokenizer import SmartTokenizer
 
 try:
     import dspy
@@ -282,7 +284,8 @@ class GlobalContextGuard:
         self.detector = OverflowDetector(max_tokens)
         self.compressor = ContentCompressor()
         self.memory = memory
-        
+        self._tokenizer = SmartTokenizer.get_instance()
+
         # Priority-based buffers (A-Team v2.0)
         self.buffers = {
             self.CRITICAL: [],
@@ -290,12 +293,12 @@ class GlobalContextGuard:
             self.MEDIUM: [],
             self.LOW: []
         }
-        
+
         # Statistics
         self.total_calls = 0
         self.overflow_recovered = 0
         self.compression_applied = 0
-        
+
         logger.info(f"🛡️ GlobalContextGuard initialized (max_tokens={max_tokens})")
     
     def register(self, key: str, content: str, priority: int = None):
@@ -367,9 +370,8 @@ class GlobalContextGuard:
         return '\n\n'.join(result)
     
     def _estimate_tokens(self, content: str) -> int:
-        """Estimate token count for content."""
-        # Simple estimation: ~4 chars per token
-        return len(content) // 4
+        """Estimate token count using SmartTokenizer."""
+        return self._tokenizer.count_tokens(content)
     
     def wrap_function(self, func: Callable) -> Callable:
         """Wrap a function with context guard."""

@@ -106,6 +106,8 @@ async def _run_stock_ml(cli, args):
             cmd += " --backtest"
         if args.fundamentals:
             cmd += " --fundamentals"
+        if args.wc:
+            cmd += " --wc"
     else:
         # No symbol provided, show help
         from rich.console import Console
@@ -212,6 +214,7 @@ For more info: https://github.com/yourusername/jotty
     stockml_parser.add_argument("--sets", action="store_true", help="Show stock sets")
     stockml_parser.add_argument("--backtest", "--bt", action="store_true", help="Run backtesting")
     stockml_parser.add_argument("--fundamentals", "--fund", action="store_true", help="Include fundamental features")
+    stockml_parser.add_argument("--wc", "--world-class", action="store_true", help="Run world-class comprehensive backtest")
 
     # ml - general ML command
     ml_parser = subparsers.add_parser("ml", help="Machine learning on any dataset")

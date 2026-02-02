@@ -22,6 +22,8 @@ from typing import List, Dict, Any, Optional, Tuple, Callable
 from dataclasses import dataclass
 import logging
 
+from ..utils.tokenizer import SmartTokenizer
+
 try:
     import dspy
     DSPY_AVAILABLE = True
@@ -221,8 +223,8 @@ class ContentGate:
         self.relevance_threshold = relevance_threshold
         
         self.relevance_estimator = RelevanceEstimator()
-        self.chars_per_token = 4
-        
+        self._tokenizer = SmartTokenizer.get_instance()
+
         # Statistics
         self.total_processed = 0
         self.chunked_count = 0
@@ -233,8 +235,8 @@ class ContentGate:
         )
     
     def estimate_tokens(self, content: str) -> int:
-        """Estimate token count."""
-        return len(content) // self.chars_per_token + 1
+        """Estimate token count using SmartTokenizer."""
+        return self._tokenizer.count_tokens(content)
     
     async def process(
         self,
@@ -311,8 +313,10 @@ class ContentGate:
     
     def _create_chunks(self, content: str) -> List[ContentChunk]:
         """Split content into overlapping chunks."""
-        chunk_chars = self.chunk_size * self.chars_per_token
-        overlap_chars = self.chunk_overlap * self.chars_per_token
+        # Use ~4 chars per token as approximation for chunking boundaries
+        chars_per_token = 4
+        chunk_chars = self.chunk_size * chars_per_token
+        overlap_chars = self.chunk_overlap * chars_per_token
         
         chunks = []
         pos = 0

@@ -388,6 +388,12 @@ class UnifiedToolGenerator:
                 # Convert section type to tool name (kebab-case to snake_case)
                 tool_name = f"return_{section_type.replace('-', '_')}"
 
+                # Sanitize the content schema for use as a property definition
+                # Remove meta-keywords that aren't valid in nested schemas
+                content_schema = self._sanitize_schema_for_property(
+                    schema.get('schema', {"type": "object"})
+                )
+
                 # Build tool definition
                 tool = {
                     "name": tool_name,
@@ -395,7 +401,7 @@ class UnifiedToolGenerator:
                     "input_schema": {
                         "type": "object",
                         "properties": {
-                            "content": schema.get('schema', {"type": "object"}),
+                            "content": content_schema,
                             "title": {
                                 "type": "string",
                                 "description": "Title for the section"
@@ -416,6 +422,75 @@ class UnifiedToolGenerator:
             return self._generate_fallback_visualization_tools()
 
         return tools
+
+    def _sanitize_schema_for_property(self, schema: Dict[str, Any], is_properties_dict: bool = False) -> Dict[str, Any]:
+        """
+        Sanitize a JSON schema for use as a property definition.
+
+        Removes meta-keywords ($schema, $id, etc.) that aren't valid
+        when the schema is used as a nested property definition.
+        Also converts custom schema extensions to valid JSON Schema 2020-12:
+        - "type": "enum" with "values" -> "type": "string" with "enum"
+        - removes "optional": true (not valid in JSON Schema)
+
+        This ensures compatibility with Claude's tool calling which
+        requires JSON Schema draft 2020-12 compliance.
+
+        Args:
+            schema: The schema dict to sanitize
+            is_properties_dict: True if this dict is a "properties" mapping (not a schema itself)
+        """
+        if not isinstance(schema, dict):
+            return {"type": "object"}
+
+        # Keywords to remove (not valid in nested property definitions or JSON Schema)
+        invalid_keywords = {
+            '$schema', '$id', '$ref', '$defs', '$vocabulary',
+            '$comment', '$anchor', '$dynamicRef', '$dynamicAnchor',
+            'optional',  # Not valid JSON Schema - optionality is via "required"
+            'values',    # Custom extension - handled separately for enum conversion
+            'contentType',  # Custom extension
+            'transforms',   # Custom extension
+            'llmHint',      # Custom extension
+        }
+
+        # Handle custom "type": "enum" conversion to proper JSON Schema
+        # Only if this is a schema object (not a properties dict)
+        if not is_properties_dict and schema.get('type') == 'enum' and 'values' in schema:
+            return {
+                "type": "string",
+                "enum": schema['values']
+            }
+
+        # Create sanitized copy
+        sanitized = {}
+        for key, value in schema.items():
+            if key in invalid_keywords:
+                continue
+
+            # Recursively sanitize nested schemas
+            if isinstance(value, dict):
+                # The "properties" key contains a dict of property names -> schemas
+                # Each value in "properties" is a schema, but the dict itself is not
+                if key == 'properties':
+                    sanitized[key] = self._sanitize_schema_for_property(value, is_properties_dict=True)
+                else:
+                    sanitized[key] = self._sanitize_schema_for_property(value, is_properties_dict=False)
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    self._sanitize_schema_for_property(item, is_properties_dict=False) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+
+        # Only add "type": "object" if this is an actual schema (not a properties dict)
+        # and it's missing a type specifier
+        if not is_properties_dict:
+            if 'type' not in sanitized and 'anyOf' not in sanitized and 'oneOf' not in sanitized:
+                sanitized['type'] = 'object'
+
+        return sanitized
 
     def _generate_fallback_visualization_tools(self) -> List[Dict]:
         """Generate core visualization tools as fallback."""

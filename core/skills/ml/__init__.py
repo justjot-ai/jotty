@@ -38,6 +38,32 @@ from .ensemble import EnsembleSkill
 from .mlflow_tracker import MLflowTrackerSkill
 from .automl_skill import AutoMLSkill
 from .fundamental_features import FundamentalFeaturesSkill
+from .backtest_report import (
+    BacktestReportSkill,
+    BacktestReportGenerator,
+    BacktestChartGenerator,
+    BacktestResult,
+    BacktestMetrics,
+    TradeStatistics,
+    ModelResults,
+)
+from .backtest_engine import (
+    WorldClassBacktestEngine,
+    ComprehensiveBacktestResult,
+    TransactionCosts,
+    RiskMetrics,
+    StatisticalTests,
+    RegimeAnalysis,
+    FactorExposure,
+    MonteCarloResult,
+    WalkForwardResult,
+    PositionSizing,
+    StressTester,
+)
+from .comprehensive_backtest_report import (
+    ComprehensiveBacktestReportGenerator,
+    ComprehensiveBacktestChartGenerator,
+)
 
 __all__ = [
     # Base classes
@@ -57,4 +83,26 @@ __all__ = [
     'MLflowTrackerSkill',
     'AutoMLSkill',
     'FundamentalFeaturesSkill',
+    # Backtest Report
+    'BacktestReportSkill',
+    'BacktestReportGenerator',
+    'BacktestChartGenerator',
+    'BacktestResult',
+    'BacktestMetrics',
+    'TradeStatistics',
+    'ModelResults',
+    # Comprehensive Backtest Engine
+    'WorldClassBacktestEngine',
+    'ComprehensiveBacktestResult',
+    'TransactionCosts',
+    'RiskMetrics',
+    'StatisticalTests',
+    'RegimeAnalysis',
+    'FactorExposure',
+    'MonteCarloResult',
+    'WalkForwardResult',
+    'PositionSizing',
+    'StressTester',
+    'ComprehensiveBacktestReportGenerator',
+    'ComprehensiveBacktestChartGenerator',
 ]

@@ -26,6 +26,8 @@ import json
 import sys
 import os
 
+from ..utils.tokenizer import SmartTokenizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -573,8 +575,12 @@ class SmartAgentSlack:
             return 1000  # Default estimate
     
     def _estimate_tokens(self, data: Any) -> int:
-        """Estimate token count (rough: 1 token ≈ 4 chars)."""
+        """Estimate token count using SmartTokenizer."""
+        if isinstance(data, str):
+            return SmartTokenizer.get_instance().count_tokens(data)
+        # For non-string data, convert to string first
         size_bytes = self._estimate_size(data)
+        # Use size-based estimation for non-string types
         return size_bytes // 4
     
     def get_statistics(self) -> Dict[str, Any]:

@@ -62,6 +62,8 @@ from ..conductor import SwarmLearner
 from ...learning.transfer_learning import TransferableLearningStore
 from .swarm_intelligence import SwarmIntelligence, SyntheticTask, CurriculumGenerator
 from ...foundation.robust_parsing import AdaptiveWeightGroup
+# MAS Learning - Persistent learning across sessions
+from .mas_learning import MASLearning, get_mas_learning
 
 # Skill Provider System (V2 World-Class) - Lazy imported to avoid circular deps
 PROVIDERS_AVAILABLE = False
@@ -245,6 +247,23 @@ class SwarmManager:
             max_fix_attempts=3
         )
         logger.info("🤖 Autonomous components initialized (including SwarmTerminal)")
+
+        # MAS Learning - Persistent learning across sessions
+        workspace_path = getattr(self.config, 'base_path', None)
+        self.mas_learning = MASLearning(
+            config=self.config,
+            workspace_path=workspace_path
+        )
+
+        # Enable memory persistence for swarm_memory
+        self.memory_persistence = self.mas_learning.enable_memory_persistence(
+            self.swarm_memory,
+            agent_name="SwarmShared"
+        )
+
+        # Integrate fix database with SwarmTerminal
+        self.mas_learning.integrate_with_terminal(self.swarm_terminal)
+        logger.info("🧠 MASLearning initialized (persistent learning across sessions)")
         
         # Initialize shared context and supporting components for state management
         from ...persistence.shared_context import SharedContext
@@ -760,6 +779,75 @@ class SwarmManager:
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
+        # Log MAS Learning statistics
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            stats = self.mas_learning.get_statistics()
+            logger.info(f"MAS Learning ready: {stats['fix_database']['total_fixes']} fixes, "
+                       f"{stats['agent_performance']['total_agents']} agents, "
+                       f"{stats['sessions']['total_sessions']} sessions")
+
+    def load_relevant_learnings(self, task_description: str, agent_types: List[str] = None) -> Dict[str, Any]:
+        """
+        Load learnings relevant to the current task.
+
+        This is the key method for smart learning selection:
+        - Matches task topics to past sessions
+        - Suggests best agents for the task
+        - Provides relevant fixes and strategies
+
+        Args:
+            task_description: Description of the current task
+            agent_types: Agent types that will be used (optional)
+
+        Returns:
+            Dict with relevant learnings
+        """
+        if not hasattr(self, 'mas_learning') or not self.mas_learning:
+            return {}
+
+        return self.mas_learning.load_relevant_learnings(
+            task_description=task_description,
+            agent_types=agent_types or [a.name for a in self.agents]
+        )
+
+    def record_agent_result(
+        self,
+        agent_name: str,
+        task_type: str,
+        success: bool,
+        time_taken: float,
+        output_quality: float = 0.0
+    ):
+        """Record an agent's task result for learning."""
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            self.mas_learning.record_agent_task(
+                agent_type=agent_name,
+                task_type=task_type,
+                success=success,
+                time_taken=time_taken,
+                output_quality=output_quality
+            )
+
+    def record_session_result(
+        self,
+        task_description: str,
+        agent_performances: Dict[str, Dict[str, Any]],
+        total_time: float,
+        success: bool,
+        fixes_applied: List[Dict[str, Any]] = None,
+        stigmergy_signals: int = 0
+    ):
+        """Record session results for future learning."""
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            self.mas_learning.record_session(
+                task_description=task_description,
+                agent_performances=agent_performances,
+                fixes_applied=fixes_applied or [],
+                stigmergy_signals=stigmergy_signals,
+                total_time=total_time,
+                success=success
+            )
+
     def _auto_save_learnings(self):
         """Auto-save learnings after execution (persists across sessions)."""
         # Save Q-learner state
@@ -801,6 +889,23 @@ class SwarmManager:
                 self.provider_registry.save_state(str(provider_path))
             except Exception as e:
                 logger.debug(f"Could not auto-save provider learnings: {e}")
+
+        # Save MAS Learning (fix database, agent performance, sessions)
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            try:
+                # Sync fixes from SwarmTerminal before saving
+                self.mas_learning.sync_from_terminal(self.swarm_terminal)
+                # Save all MAS learnings
+                self.mas_learning.save_all()
+            except Exception as e:
+                logger.debug(f"Could not auto-save MAS learnings: {e}")
+
+        # Save HierarchicalMemory persistence
+        if hasattr(self, 'memory_persistence') and self.memory_persistence:
+            try:
+                self.memory_persistence.save()
+            except Exception as e:
+                logger.debug(f"Could not auto-save memory: {e}")
 
     def get_transferable_context(self, query: str, agent: str = None) -> str:
         """
@@ -2263,6 +2368,58 @@ Provide a structured synthesis with:
             )
         except Exception as e:
             logger.debug(f"Swarm intelligence record skipped: {e}")
+
+        # 7. MAS Learning: Record agent performance and session
+        try:
+            if hasattr(self, 'mas_learning') and self.mas_learning:
+                task_type = self.transfer_learning.extractor.extract_task_type(goal) if hasattr(self, 'transfer_learning') else 'general'
+                execution_time = getattr(result, 'execution_time', 0.0)
+
+                # Record individual agent performance
+                if hasattr(result, 'agent_contributions') and result.agent_contributions:
+                    agent_performances = {}
+                    for agent_name, contrib in result.agent_contributions.items():
+                        success = getattr(contrib, 'decision_correct', result.success)
+                        agent_time = getattr(contrib, 'execution_time', execution_time / len(result.agent_contributions))
+                        self.mas_learning.record_agent_task(
+                            agent_type=agent_name,
+                            task_type=task_type,
+                            success=success,
+                            time_taken=agent_time
+                        )
+                        agent_performances[agent_name] = {
+                            'success': success,
+                            'success_rate': 1.0 if success else 0.0,
+                            'avg_time': agent_time
+                        }
+                else:
+                    agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
+                    self.mas_learning.record_agent_task(
+                        agent_type=agent_name,
+                        task_type=task_type,
+                        success=result.success,
+                        time_taken=execution_time
+                    )
+                    agent_performances = {
+                        agent_name: {
+                            'success': result.success,
+                            'success_rate': 1.0 if result.success else 0.0,
+                            'avg_time': execution_time
+                        }
+                    }
+
+                # Record session
+                stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self, 'swarm_intelligence') else 0
+                self.mas_learning.record_session(
+                    task_description=goal,
+                    agent_performances=agent_performances,
+                    fixes_applied=getattr(self.swarm_terminal, '_fix_history', []) if hasattr(self, 'swarm_terminal') else [],
+                    stigmergy_signals=stigmergy_signals,
+                    total_time=execution_time,
+                    success=result.success
+                )
+        except Exception as e:
+            logger.debug(f"MAS Learning record skipped: {e}")
 
         logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
 

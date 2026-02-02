@@ -37,6 +37,7 @@ from .heartbeat_cmd import HeartbeatCommand, RemindCommand
 from .task_queue import TaskCommand
 from .supervisor_cmd import SupervisorCommand
 from .swimlane import SwimlaneCommand
+from .backtest_report import BacktestReportCommand, BatchBacktestReportCommand
 
 __all__ = [
     "BaseCommand",
@@ -74,6 +75,8 @@ __all__ = [
     "TaskCommand",
     "SupervisorCommand",
     "SwimlaneCommand",
+    "BacktestReportCommand",
+    "BatchBacktestReportCommand",
 ]
 
 
@@ -112,6 +115,8 @@ def register_all_commands(registry: CommandRegistry):
         TaskCommand(),
         SupervisorCommand(),
         SwimlaneCommand(),
+        BacktestReportCommand(),
+        BatchBacktestReportCommand(),
     ]
 
     for cmd in commands:

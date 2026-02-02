@@ -37,6 +37,7 @@ import dspy
 import asyncio
 
 from ..foundation.data_structures import JottyConfig, EpisodeResult
+from ..utils.tokenizer import SmartTokenizer
 
 
 # =============================================================================
@@ -68,17 +69,15 @@ class ContextGuard:
         self.max_context_tokens = max_context_tokens
         self.effective_limit = int(max_context_tokens * safety_margin)
         self.enable_compression = enable_compression
-        
-        # Token estimation (rough: 4 chars = 1 token)
-        self.chars_per_token = 4
-        
+        self._tokenizer = SmartTokenizer.get_instance()
+
         # Overflow counter for monitoring
         self.overflow_count = 0
         self.compressions_performed = 0
-    
+
     def estimate_tokens(self, text: str) -> int:
-        """Estimate token count from text."""
-        return len(text) // self.chars_per_token + 1
+        """Estimate token count using SmartTokenizer."""
+        return self._tokenizer.count_tokens(text)
     
     def check_and_truncate(self, 
                            system_prompt: str,
