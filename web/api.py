@@ -2194,16 +2194,17 @@ QUESTION: {message}"""
 
         return {"text": text, "success": bool(text)}
 
-    @app.post("/api/voice/chat")
-    async def voice_chat_endpoint(
+    @app.post("/api/voice/chat/audio")
+    async def voice_chat_audio_endpoint(
         audio: UploadFile = File(...),
         session_id: Optional[str] = Form(None),
         voice: Optional[str] = Form(None)
     ):
         """
-        Full voice-to-voice chat.
+        Full voice-to-voice chat - returns raw audio.
 
-        Accepts audio, transcribes, processes with LLM, returns audio response.
+        For direct audio playback in browser. Returns MP3 with metadata in headers.
+        For JSON response with base64 audio, use /api/voice/chat instead.
         """
         from fastapi.responses import Response
         from .voice import get_voice_processor
