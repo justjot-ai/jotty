@@ -305,7 +305,8 @@ class SwarmManager:
                 swarm_memory=self.swarm_memory,
                 swarm_state_manager=self.swarm_state_manager,
                 learning_manager=self.learning_manager,
-                transfer_learning=self.transfer_learning
+                transfer_learning=self.transfer_learning,
+                swarm_terminal=self.swarm_terminal  # Shared intelligent terminal
             )
 
             self.runners[agent_config.name] = runner
@@ -1255,7 +1256,8 @@ For component-specific help:
                             swarm_memory=self.swarm_memory,
                             swarm_state_manager=self.swarm_state_manager,
                             learning_manager=self.learning_manager,
-                            transfer_learning=self.transfer_learning
+                            transfer_learning=self.transfer_learning,
+                            swarm_terminal=self.swarm_terminal  # Shared intelligent terminal
                         )
                         self.runners[agent_config.name] = runner
 

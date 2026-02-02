@@ -30,6 +30,7 @@ class AgentRunnerConfig:
     agent_name: str = "agent"
     enable_learning: bool = True
     enable_memory: bool = True
+    enable_terminal: bool = True  # Enable SwarmTerminal for auto-fix
 
 
 class AgentRunner:
@@ -53,6 +54,7 @@ class AgentRunner:
         swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
         learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
         transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
+        swarm_terminal=None,  # SwarmTerminal for intelligent command execution
     ):
         """
         Initialize AgentRunner.
@@ -76,7 +78,21 @@ class AgentRunner:
         self.swarm_state_manager = swarm_state_manager
         self.learning_manager = learning_manager
         self.transfer_learning = transfer_learning
-        
+
+        # SwarmTerminal for intelligent command execution and auto-fix
+        self.swarm_terminal = swarm_terminal
+        if swarm_terminal is None and config.enable_terminal:
+            try:
+                from .swarm_terminal import SwarmTerminal
+                self.swarm_terminal = SwarmTerminal(
+                    config=config.config,
+                    auto_fix=True,
+                    max_fix_attempts=3
+                )
+                logger.info(f"🖥️  SwarmTerminal enabled for agent '{self.agent_name}'")
+            except Exception as e:
+                logger.debug(f"SwarmTerminal not available for {self.agent_name}: {e}")
+
         # Get agent state tracker (creates if doesn't exist)
         if self.swarm_state_manager:
             self.agent_tracker = self.swarm_state_manager.get_agent_tracker(self.agent_name)
@@ -485,35 +501,74 @@ class AgentRunner:
             logger.error(f"❌ Agent execution failed: {e}", exc_info=True)
             import traceback
             logger.debug(traceback.format_exc())
-            
+
+            error_str = str(e)
+            error_type = type(e).__name__
+            fix_applied = False
+            fix_description = ""
+
+            # Try auto-fix using SwarmTerminal
+            if self.swarm_terminal:
+                try:
+                    logger.info(f"🔧 Attempting auto-fix via SwarmTerminal...")
+                    # Check if error is command/package related
+                    error_keywords = ['command', 'module', 'import', 'pip', 'npm', 'permission', 'not found']
+                    if any(kw in error_str.lower() for kw in error_keywords):
+                        # Try to diagnose and fix
+                        diagnostics = await self.swarm_terminal.diagnose_system()
+
+                        # Search for solution
+                        solution = await self.swarm_terminal._find_solution(goal, error_str)
+                        if solution and solution.commands:
+                            logger.info(f"   Found solution: {solution.solution[:100]}")
+                            for cmd in solution.commands[:3]:
+                                result = await self.swarm_terminal.execute(cmd, auto_fix=False)
+                                if result.success:
+                                    fix_applied = True
+                                    fix_description = f"Applied: {cmd}"
+                                    logger.info(f"   ✅ Fix applied: {cmd}")
+
+                            # Retry the original execution if fix was applied
+                            if fix_applied:
+                                logger.info(f"   🔄 Retrying execution after fix...")
+                                _status("Retrying", "after auto-fix")
+                                # Recursive retry (limited to avoid infinite loop)
+                                if not kwargs.get('_retry_after_fix'):
+                                    kwargs['_retry_after_fix'] = True
+                                    return await self.run(goal, **kwargs)
+
+                except Exception as fix_error:
+                    logger.debug(f"Auto-fix attempt failed: {fix_error}")
+
             # Track error in state
             if self.swarm_state_manager:
-                error_type = type(e).__name__
                 self.agent_tracker.record_error(
-                    error=str(e),
+                    error=error_str,
                     error_type=error_type,
-                    context={'goal': goal, 'kwargs': kwargs}
+                    context={'goal': goal, 'kwargs': kwargs, 'fix_applied': fix_applied}
                 )
                 # Record swarm-level error step
                 self.swarm_state_manager.record_swarm_step({
                     'agent': self.agent_name,
                     'step': 'error',
-                    'error': str(e),
+                    'error': error_str,
                     'error_type': error_type,
-                    'success': False
+                    'success': False,
+                    'fix_applied': fix_applied,
+                    'fix_description': fix_description
                 })
-            
+
             # Return failed EpisodeResult with correct structure
             duration = time.time() - start_time
             return EpisodeResult(
                 output=None,
                 success=False,
-                trajectory=[{'step': 0, 'action': 'error', 'error': str(e)}],
+                trajectory=[{'step': 0, 'action': 'error', 'error': error_str, 'fix_applied': fix_applied}],
                 tagged_outputs=[],
                 episode=0,
                 execution_time=time.time() - start_time,
                 architect_results=architect_results if 'architect_results' in locals() else [],
                 auditor_results=[],
                 agent_contributions={},
-                alerts=[f"Execution failed: {str(e)[:100]}"]
+                alerts=[f"Execution failed: {error_str[:100]}" + (f" (fix applied: {fix_description})" if fix_applied else "")]
             )
