@@ -312,6 +312,133 @@ class VoiceProcessor:
 
         return user_text, response_text, response_audio
 
+    async def process_voice_message_streaming(
+        self,
+        audio_data: bytes,
+        mime_type: str = "audio/webm",
+        process_text_fn=None
+    ) -> AsyncIterator[Tuple[str, bytes]]:
+        """
+        Streaming voice-to-voice pipeline for lower latency.
+
+        Yields audio chunks as soon as first sentence is ready,
+        reducing perceived latency significantly.
+
+        Args:
+            audio_data: Input audio bytes
+            mime_type: Audio MIME type
+            process_text_fn: Async function to process text (your LLM)
+
+        Yields:
+            Tuples of (text_chunk, audio_chunk)
+        """
+        import re
+
+        # 1. Speech to text
+        user_text = await self.speech_to_text(audio_data, mime_type)
+        if not user_text:
+            error_audio = await self.text_to_speech("I couldn't understand that.")
+            yield ("I couldn't understand that.", error_audio)
+            return
+
+        # 2. Process with LLM
+        if process_text_fn:
+            response_text = await process_text_fn(user_text)
+        else:
+            response_text = f"You said: {user_text}"
+
+        # 3. Split into sentences and generate TTS for each
+        # This allows streaming audio back sentence by sentence
+        sentences = re.split(r'(?<=[.!?])\s+', response_text)
+
+        for sentence in sentences:
+            if sentence.strip():
+                audio_chunk = await self.text_to_speech(sentence)
+                yield (sentence, audio_chunk)
+
+    async def process_voice_fast(
+        self,
+        audio_data: bytes,
+        mime_type: str = "audio/webm",
+        process_text_fn=None,
+        max_response_chars: int = 200
+    ) -> Tuple[str, str, bytes]:
+        """
+        Optimized voice pipeline for minimum latency.
+
+        Optimizations:
+        - Limits response length for faster TTS
+        - Uses faster speech rate
+        - Truncates at sentence boundary
+
+        Args:
+            audio_data: Input audio bytes
+            mime_type: Audio MIME type
+            process_text_fn: Async function to process text
+            max_response_chars: Max characters in response (default 200)
+
+        Returns:
+            Tuple of (user_text, response_text, response_audio)
+        """
+        import re
+
+        # 1. Speech to text
+        user_text = await self.speech_to_text(audio_data, mime_type)
+        if not user_text:
+            return "", "I couldn't understand that.", b""
+
+        # 2. Process with LLM
+        if process_text_fn:
+            response_text = await process_text_fn(user_text)
+        else:
+            response_text = f"You said: {user_text}"
+
+        # 3. Truncate at sentence boundary for faster TTS
+        if len(response_text) > max_response_chars:
+            # Find last sentence boundary before limit
+            truncated = response_text[:max_response_chars]
+            last_sentence_end = max(
+                truncated.rfind('.'),
+                truncated.rfind('!'),
+                truncated.rfind('?')
+            )
+            if last_sentence_end > 50:
+                response_text = truncated[:last_sentence_end + 1]
+            else:
+                response_text = truncated + "..."
+
+        # 4. TTS with faster speech rate for quicker delivery
+        fast_config = VoiceConfig(
+            voice=self.config.voice,
+            rate="+15%",  # 15% faster speech
+            pitch=self.config.pitch,
+            volume=self.config.volume
+        )
+
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(
+                response_text,
+                fast_config.voice,
+                rate=fast_config.rate,
+                pitch=fast_config.pitch,
+                volume=fast_config.volume
+            )
+
+            audio_data = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data.write(chunk["data"])
+
+            response_audio = audio_data.getvalue()
+            logger.info(f"Fast TTS: {len(response_audio)} bytes for '{response_text[:30]}...'")
+
+        except Exception as e:
+            logger.error(f"Fast TTS failed: {e}")
+            response_audio = await self.text_to_speech(response_text)
+
+        return user_text, response_text, response_audio
+
     @staticmethod
     def get_available_voices() -> dict:
         """Get list of available voices."""
