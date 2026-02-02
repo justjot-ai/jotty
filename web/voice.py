@@ -54,11 +54,15 @@ ONOMATOPOEIA_CORRECTIONS = {
     "pust,": "psst,",
     "shush": "shh",
     "shhh": "shh",
+    # Exclamations (common mishearings)
+    "ew,": "ooh,",
+    "ew ": "ooh ",
+    "you,": "ooh,",  # Sometimes "ooh" → "you"
     # Hesitations
-    "um,": "um,",
     "erm": "um",
     "er,": "uh,",
-    # Common mishearings
+    "ah,": "ah,",
+    # Common contractions/informal speech
     "gonna": "going to",
     "wanna": "want to",
     "gotta": "got to",
@@ -67,10 +71,22 @@ ONOMATOPOEIA_CORRECTIONS = {
     "dunno": "don't know",
     "lemme": "let me",
     "gimme": "give me",
+    "coulda": "could have",
+    "woulda": "would have",
+    "shoulda": "should have",
+    "oughta": "ought to",
+    "outta": "out of",
+    "lotsa": "lots of",
+    "betcha": "bet you",
+    "gotcha": "got you",
+    "whatcha": "what are you",
     # Musical sounds (preserve these)
     "la la la": "la la la",
     "tra la la": "tra la la",
     "hmm hmm": "hmm hmm",
+    # Greeting variations
+    "hiya": "hi",
+    "heya": "hey",
 }
 
 DEFAULT_VOICE = "en-US-AvaNeural"
