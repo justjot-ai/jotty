@@ -42,6 +42,7 @@ from .swarm_configurator import SwarmConfigurator
 from .swarm_code_generator import SwarmCodeGenerator
 from .swarm_workflow_learner import SwarmWorkflowLearner
 from .swarm_integrator import SwarmIntegrator
+from .swarm_terminal import SwarmTerminal
 # Unified Provider Gateway (DRY: reuse existing provider system)
 from .swarm_provider_gateway import SwarmProviderGateway
 # State Management (V1 capabilities integrated)
@@ -236,7 +237,14 @@ class SwarmManager:
         self.swarm_code_generator = SwarmCodeGenerator(config=self.config)
         self.swarm_workflow_learner = SwarmWorkflowLearner(swarm_memory=self.swarm_memory)
         self.swarm_integrator = SwarmIntegrator(config=self.config)
-        logger.info("🤖 Autonomous components initialized")
+
+        # Intelligent Terminal (auto-fix, web search, skill generation)
+        self.swarm_terminal = SwarmTerminal(
+            config=self.config,
+            auto_fix=True,
+            max_fix_attempts=3
+        )
+        logger.info("🤖 Autonomous components initialized (including SwarmTerminal)")
         
         # Initialize shared context and supporting components for state management
         from ...persistence.shared_context import SharedContext
@@ -497,6 +505,195 @@ class SwarmManager:
         return {
             'available': True,
             **self.provider_registry.get_registry_summary(),
+        }
+
+    # =========================================================================
+    # Intelligent Terminal Methods (SwarmTerminal)
+    # =========================================================================
+
+    async def terminal_execute(
+        self,
+        command: str,
+        timeout: int = 60,
+        auto_fix: bool = True,
+        working_dir: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute command with intelligent error handling.
+
+        Uses SwarmTerminal for:
+        - Automatic error detection
+        - Web search for solutions
+        - Auto-apply fixes
+        - Learning from successful fixes
+
+        Args:
+            command: Shell command to execute
+            timeout: Command timeout in seconds
+            auto_fix: Automatically fix errors (default: True)
+            working_dir: Working directory for command
+
+        Returns:
+            Dict with success, output, error, and fix info
+        """
+        result = await self.swarm_terminal.execute(
+            command=command,
+            timeout=timeout,
+            auto_fix=auto_fix,
+            working_dir=working_dir
+        )
+
+        return {
+            'success': result.success,
+            'command': result.command,
+            'output': result.output,
+            'error': result.error,
+            'exit_code': result.exit_code,
+            'fix_applied': result.fix_applied,
+            'fix_description': result.fix_description
+        }
+
+    async def terminal_diagnose(self) -> Dict[str, Any]:
+        """
+        Run system diagnostics.
+
+        Checks:
+        - Internet connectivity
+        - Disk space
+        - Memory usage
+        - Python environment
+        - Common tools (git, node, docker)
+
+        Returns:
+            Dict with diagnostic results
+        """
+        return await self.swarm_terminal.diagnose_system()
+
+    async def terminal_generate_skill(
+        self,
+        problem: str,
+        error_context: str = "",
+        skill_name: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Generate a new skill to solve a problem.
+
+        Uses LLM to:
+        - Analyze the problem
+        - Generate skill code
+        - Install dependencies
+        - Register skill
+
+        Args:
+            problem: Problem description
+            error_context: Error context from failed attempts
+            skill_name: Optional skill name
+
+        Returns:
+            Dict with skill info or None if failed
+        """
+        return await self.swarm_terminal.generate_skill(
+            problem=problem,
+            error_context=error_context,
+            skill_name=skill_name
+        )
+
+    def terminal_get_fix_history(self) -> List[Dict[str, Any]]:
+        """Get history of applied fixes from SwarmTerminal."""
+        return self.swarm_terminal.get_fix_history()
+
+    async def terminal_auto_remediate(
+        self,
+        error_message: str,
+        context: Dict[str, Any] = None,
+        auto_generate_skill: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Attempt to auto-remediate an error using SwarmTerminal.
+
+        This method:
+        1. Analyzes the error
+        2. Searches web for solutions
+        3. Attempts to apply fixes
+        4. Optionally generates a new skill if needed
+
+        Args:
+            error_message: Error message to remediate
+            context: Additional context (task, agent, etc.)
+            auto_generate_skill: Generate skill if fix not found
+
+        Returns:
+            Dict with remediation results
+        """
+        context = context or {}
+
+        # First, run diagnostics to check system state
+        diagnostics = await self.swarm_terminal.diagnose_system()
+
+        # Check if it's a network issue
+        if not diagnostics['checks'].get('internet'):
+            logger.warning("🌐 Network issue detected, attempting to diagnose...")
+            net_result = await self.swarm_terminal.execute(
+                "nmcli networking connectivity check || ping -c 3 8.8.8.8",
+                auto_fix=True
+            )
+            if not net_result.success:
+                return {
+                    'success': False,
+                    'error': 'Network connectivity issue',
+                    'diagnostics': diagnostics,
+                    'remediation': 'Network fix attempted but failed'
+                }
+
+        # Analyze error and search for solutions
+        solution_found = False
+        fix_applied = False
+        fix_description = ""
+
+        # Check if error looks like a command/package issue
+        error_keywords = ['command not found', 'module', 'import', 'pip', 'npm', 'permission']
+        is_command_error = any(kw in error_message.lower() for kw in error_keywords)
+
+        if is_command_error:
+            # Try to extract and fix the command
+            import re
+            cmd_match = re.search(r"'([^']+)'|`([^`]+)`|command:\s*(\S+)", error_message)
+            if cmd_match:
+                failed_cmd = cmd_match.group(1) or cmd_match.group(2) or cmd_match.group(3)
+                logger.info(f"🔧 Attempting to fix command issue: {failed_cmd}")
+
+                # Try running with auto-fix
+                result = await self.swarm_terminal.execute(
+                    f"which {failed_cmd} || type {failed_cmd}",
+                    auto_fix=True
+                )
+                fix_applied = result.fix_applied
+                fix_description = result.fix_description
+                solution_found = result.success
+
+        # If still not fixed and auto_generate_skill is enabled
+        if not solution_found and auto_generate_skill:
+            logger.info("✨ Attempting to generate new skill for problem...")
+            skill_result = await self.swarm_terminal.generate_skill(
+                problem=f"Error: {error_message}",
+                error_context=str(context)
+            )
+            if skill_result:
+                return {
+                    'success': True,
+                    'error': error_message,
+                    'remediation': 'Generated new skill',
+                    'skill_generated': skill_result,
+                    'diagnostics': diagnostics
+                }
+
+        return {
+            'success': solution_found,
+            'error': error_message,
+            'fix_applied': fix_applied,
+            'fix_description': fix_description,
+            'diagnostics': diagnostics,
+            'remediation': 'Auto-remediation attempted'
         }
 
     def _get_learning_path(self) -> Path:
