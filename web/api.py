@@ -3324,9 +3324,11 @@ QUESTION: {message}"""
 
         # Define LLM processing function
         async def process_with_llm(user_text: str) -> str:
-            api = JottyAPI()
-            result = await api.chat(user_text, session_id=session_id)
-            return result.get("response", "") if isinstance(result, dict) else str(result)
+            result = await api.process_message(
+                message=user_text,
+                session_id=session_id or str(uuid.uuid4())[:8]
+            )
+            return result.get("content", "") if isinstance(result, dict) else str(result)
 
         user_text, response_text, response_audio = await processor.process_voice_message(
             audio_data, mime_type, process_with_llm
@@ -3364,9 +3366,11 @@ QUESTION: {message}"""
         mime_type = audio.content_type or "audio/webm"
 
         async def process_with_llm(user_text: str) -> str:
-            api = JottyAPI()
-            result = await api.chat(user_text, session_id=session_id)
-            return result.get("response", "") if isinstance(result, dict) else str(result)
+            result = await api.process_message(
+                message=user_text,
+                session_id=session_id or str(uuid.uuid4())[:8]
+            )
+            return result.get("content", "") if isinstance(result, dict) else str(result)
 
         user_text, response_text, response_audio = await processor.process_voice_fast(
             audio_data, mime_type, process_with_llm, max_response_chars=max_chars
@@ -3399,9 +3403,11 @@ QUESTION: {message}"""
         mime_type = audio.content_type or "audio/webm"
 
         async def process_with_llm(user_text: str) -> str:
-            api = JottyAPI()
-            result = await api.chat(user_text, session_id=session_id)
-            return result.get("response", "") if isinstance(result, dict) else str(result)
+            result = await api.process_message(
+                message=user_text,
+                session_id=session_id or str(uuid.uuid4())[:8]
+            )
+            return result.get("content", "") if isinstance(result, dict) else str(result)
 
         async def generate_sse():
             async for text_chunk, audio_chunk in processor.process_voice_message_streaming(
