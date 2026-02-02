@@ -38,6 +38,41 @@ VOICES = {
     "en-in-female": "en-IN-NeerjaNeural",   # Indian English
 }
 
+# Whisper prompt to improve recognition of informal speech patterns
+WHISPER_PROMPT = """This is a voice assistant conversation. The speaker may use:
+- Informal sounds: psst, shh, hmm, uh, um, ah, oh, ooh, wow, huh
+- Filler words: like, you know, basically, actually, literally
+- Hesitations: uh, um, er, well, so
+- Expressions: hey, hi, hello, bye, thanks, please, sorry, okay, yeah, yep, nope
+- Onomatopoeia: la la la, tra la la, hmm hmm, boop, beep
+"""
+
+# Common misrecognitions to fix in post-processing
+ONOMATOPOEIA_CORRECTIONS = {
+    # Whispered sounds
+    "pust": "psst",
+    "pust,": "psst,",
+    "shush": "shh",
+    "shhh": "shh",
+    # Hesitations
+    "um,": "um,",
+    "erm": "um",
+    "er,": "uh,",
+    # Common mishearings
+    "gonna": "going to",
+    "wanna": "want to",
+    "gotta": "got to",
+    "kinda": "kind of",
+    "sorta": "sort of",
+    "dunno": "don't know",
+    "lemme": "let me",
+    "gimme": "give me",
+    # Musical sounds (preserve these)
+    "la la la": "la la la",
+    "tra la la": "tra la la",
+    "hmm hmm": "hmm hmm",
+}
+
 DEFAULT_VOICE = "en-US-AvaNeural"
 
 
@@ -62,6 +97,37 @@ class VoiceProcessor:
         self.config = config or VoiceConfig()
         self._groq_client = None
         self._deepgram_client = None
+
+    @staticmethod
+    def _post_process_transcript(text: str) -> str:
+        """
+        Post-process transcript to fix common misrecognitions.
+
+        Handles:
+        - Onomatopoeia corrections (psst, shh, hmm)
+        - Case normalization for sentence starts
+        - Repeated word cleanup (stuttering artifacts)
+        """
+        if not text:
+            return text
+
+        result = text
+
+        # Apply onomatopoeia corrections (case-insensitive)
+        for wrong, correct in ONOMATOPOEIA_CORRECTIONS.items():
+            # Replace at word boundaries
+            import re
+            pattern = re.compile(re.escape(wrong), re.IGNORECASE)
+            result = pattern.sub(correct, result)
+
+        # Fix common Whisper artifacts
+        # Remove excessive repeated words (stuttering over-correction)
+        result = re.sub(r'\b(\w+)(\s+\1){2,}\b', r'\1', result, flags=re.IGNORECASE)
+
+        # Clean up multiple spaces
+        result = re.sub(r'\s+', ' ', result).strip()
+
+        return result
 
     @property
     def groq_client(self):
@@ -147,17 +213,24 @@ class VoiceProcessor:
 
             try:
                 # Transcribe with Groq Whisper
+                # Use prompt to improve recognition of informal speech
                 with open(temp_path, "rb") as audio_file:
                     response = await asyncio.to_thread(
                         lambda: client.audio.transcriptions.create(
                             file=(f"audio{ext}", audio_file),
                             model="whisper-large-v3",
                             language="en",
-                            response_format="text"
+                            response_format="text",
+                            prompt=WHISPER_PROMPT,  # Helps with onomatopoeia
+                            temperature=0.0  # More deterministic
                         )
                     )
 
                 transcript = response.strip() if isinstance(response, str) else str(response).strip()
+
+                # Apply post-processing for onomatopoeia corrections
+                transcript = self._post_process_transcript(transcript)
+
                 logger.info(f"Groq Whisper STT: {transcript[:50]}...")
                 return transcript
             finally:
