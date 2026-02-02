@@ -43,9 +43,38 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 import re
 
+try:
+    import dspy
+    DSPY_AVAILABLE = True
+except ImportError:
+    DSPY_AVAILABLE = False
+
 from .base import (
     SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig, ModelTier
 )
+
+
+# =============================================================================
+# LLM-Based Task Classification (No Keyword Matching)
+# =============================================================================
+
+if DSPY_AVAILABLE:
+    class TaskClassificationSignature(dspy.Signature):
+        """Classify a task - LLM decides, no keywords.
+
+        Classify what type of task this is and what it needs.
+        """
+        task: str = dspy.InputField(desc="The user's task/request")
+
+        task_type: str = dspy.OutputField(
+            desc="One of: 'checklist', 'document', 'summary', 'research', 'analysis', 'file_operation'. Choose based on what the user wants as output."
+        )
+        needs_web_search: bool = dspy.OutputField(
+            desc="True if task needs current/external info from web. False if can be done with knowledge or local files."
+        )
+        output_format: str = dspy.OutputField(
+            desc="Expected output: 'docx', 'pdf', 'text', 'markdown', 'slides'. Default 'text' for display."
+        )
 
 
 class SwarmLean(SwarmTemplate):
@@ -217,76 +246,61 @@ Use clear headings, bullet points, and professional formatting.""",
         super().__init__()
         self._task_type = None
 
+    def _classify_task(self, task: str) -> dict:
+        """
+        LLM-based task classification - no keyword matching.
+
+        Returns dict with: task_type, needs_web_search, output_format
+        """
+        # Use cached result if available
+        cache_key = hash(task)
+        if hasattr(self, '_classification_cache') and cache_key in self._classification_cache:
+            return self._classification_cache[cache_key]
+
+        if not hasattr(self, '_classification_cache'):
+            self._classification_cache = {}
+
+        # LLM decides
+        if DSPY_AVAILABLE and hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+            try:
+                classifier = dspy.Predict(TaskClassificationSignature)
+                result = classifier(task=task)
+
+                classification = {
+                    'task_type': str(result.task_type).lower().strip(),
+                    'needs_web_search': bool(result.needs_web_search),
+                    'output_format': str(result.output_format).lower().strip()
+                }
+
+                # Validate task_type
+                valid_types = ['checklist', 'document', 'summary', 'research', 'analysis', 'file_operation']
+                if classification['task_type'] not in valid_types:
+                    classification['task_type'] = 'research'
+
+                self._classification_cache[cache_key] = classification
+                return classification
+
+            except Exception:
+                pass
+
+        # Fallback (only if LLM unavailable)
+        return {
+            'task_type': 'research',
+            'needs_web_search': True,
+            'output_format': 'text'
+        }
+
     def detect_task_type(self, task: str) -> str:
-        """
-        Detect the type of task from the description.
-
-        Returns:
-            One of: research, document, checklist, summary, analysis, file_operation
-        """
-        task_lower = task.lower()
-
-        # Checklist patterns
-        if any(kw in task_lower for kw in ['checklist', 'todo', 'list of', 'steps to']):
-            return "checklist"
-
-        # Document patterns
-        if any(kw in task_lower for kw in ['document', 'docx', 'report', 'write a']):
-            return "document"
-
-        # Summary patterns
-        if any(kw in task_lower for kw in ['summarize', 'summary', 'overview', 'brief']):
-            return "summary"
-
-        # Research patterns
-        if any(kw in task_lower for kw in ['research', 'find', 'search', 'look up', 'what is']):
-            return "research"
-
-        # Analysis patterns
-        if any(kw in task_lower for kw in ['analyze', 'analysis', 'compare', 'evaluate']):
-            return "analysis"
-
-        # File operation patterns
-        if any(kw in task_lower for kw in ['read file', 'write file', 'edit file', 'create file']):
-            return "file_operation"
-
-        # Default to research (needs information gathering)
-        return "research"
+        """LLM decides task type - no keywords."""
+        return self._classify_task(task)['task_type']
 
     def needs_web_search(self, task: str) -> bool:
-        """Determine if the task needs web search."""
-        task_lower = task.lower()
-
-        # Explicit search indicators
-        if any(kw in task_lower for kw in ['search', 'find', 'look up', 'research', 'latest', 'current']):
-            return True
-
-        # Domain-specific terms often need search
-        if any(kw in task_lower for kw in ['framework', 'regulation', 'compliance', 'bafin', 'sec', 'law']):
-            return True
-
-        # File operations don't need search
-        if self.detect_task_type(task) == "file_operation":
-            return False
-
-        return True
+        """LLM decides if web search needed - no keywords."""
+        return self._classify_task(task)['needs_web_search']
 
     def get_output_format(self, task: str) -> str:
-        """Determine expected output format."""
-        task_lower = task.lower()
-
-        if 'docx' in task_lower or 'word' in task_lower:
-            return "docx"
-        if 'pdf' in task_lower:
-            return "pdf"
-        if 'markdown' in task_lower or '.md' in task_lower:
-            return "markdown"
-        if self.detect_task_type(task) == "checklist":
-            return "docx"  # Checklists are nice as docx
-        if self.detect_task_type(task) == "document":
-            return "docx"
-
-        return "text"
+        """LLM decides output format - no keywords."""
+        return self._classify_task(task)['output_format']
 
     def validate_inputs(self, **kwargs) -> bool:
         """Validate that required inputs are provided."""

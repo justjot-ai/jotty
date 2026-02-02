@@ -82,29 +82,31 @@ TRANSFORM_SKILLS = {
 # =============================================================================
 
 class TaskAnalysisSignature(dspy.Signature):
-    """Analyze what a task needs. Be intelligent, not rule-based.
+    """Analyze what a task needs. YOU HAVE WEB SEARCH AND FILE READ CAPABILITIES.
 
-    You understand natural language. Decide:
-    1. Can you answer this from your knowledge, or need external data?
-    2. What output format does the user want?
-    3. Is this a checklist/structured document task?
+    IMPORTANT: You CAN search the web! If you set is_web_search=True, a real web search
+    will be performed and the results will be given to you to answer the question.
 
-    Examples of your reasoning:
-    - "Explain transformers" → You KNOW this, output=text (display inline)
-    - "Create a checklist for X framework" → output=checklist (saved to DOCX)
-    - "What's the latest news on X" → Need CURRENT info, search needed
-    - "Summarize this file: /path" → Need to READ the file first
-    - "Send report to telegram" → output=telegram
-    - "Save as markdown/pdf/docx" → User explicitly wants file saved
+    Decide:
+    1. Does this need CURRENT info? → Set is_web_search=True (search WILL happen)
+    2. Does this need to read a file? → Set is_file_read=True
+    3. What output format does the user want?
+
+    Examples:
+    - "Explain transformers" → is_web_search=False (you know this)
+    - "What's the latest news on AI" → is_web_search=True (need CURRENT info)
+    - "Today's weather in NYC" → is_web_search=True (need CURRENT info)
+    - "Recent developments in X" → is_web_search=True (need CURRENT info)
+    - "Summarize this file: /path" → is_file_read=True
     """
 
     task: str = dspy.InputField(desc="User's task/request")
 
-    needs_external_data: bool = dspy.OutputField(
-        desc="True ONLY if you need CURRENT/RECENT info (news, prices, live data). False for knowledge-based tasks like explaining concepts, creating checklists, writing documents."
+    is_web_search: bool = dspy.OutputField(
+        desc="Set True to trigger web search for CURRENT info (news, prices, weather, today, recent, latest). YOU HAVE THIS CAPABILITY - use it!"
     )
-    input_type: str = dspy.OutputField(
-        desc="If needs_external_data: 'web_search', 'file_read', or 'none'"
+    is_file_read: bool = dspy.OutputField(
+        desc="Set True if task requires reading a local file path. False otherwise."
     )
     output_format: str = dspy.OutputField(
         desc="How to deliver output: 'text' (DEFAULT - display inline), 'checklist' (DOCX), 'docx', 'pdf', 'slides' (PowerPoint PPTX), 'slides_pdf' (slides as PDF), 'file', 'telegram', 'justjot' (save as idea to JustJot.ai). Use 'slides' for presentations, 'justjot' for JustJot ideas."
@@ -458,33 +460,29 @@ Content:"""
 
             analysis = self.analyzer(task=task)
 
-            needs_external = analysis.needs_external_data
-            input_type = str(analysis.input_type).lower().strip()
+            # LLM directly decides - no keyword parsing needed
+            is_web_search = bool(analysis.is_web_search)
+            is_file_read = bool(analysis.is_file_read)
             output_format = str(analysis.output_format).lower().strip()
             output_hint = str(analysis.output_path_hint).strip()
 
             self._status("Decision",
-                f"external_data={needs_external}, input={input_type}, output={output_format}")
+                f"web_search={is_web_search}, file_read={is_file_read}, output={output_format}")
             logger.info(f"Analysis reasoning: {analysis.reasoning}")
 
             # =================================================================
-            # Step 2: INPUT - Get external data if needed
+            # Step 2: INPUT - Get external data if needed (LLM decided)
             # =================================================================
             context = "none"
 
-            # Flexible matching for web search (LLM may return variations)
-            web_search_types = ["web_search", "web-search", "search", "research", "research_query", "internet", "online"]
-            file_read_types = ["file_read", "file-read", "read_file", "file", "local_file"]
-
-            if needs_external and input_type in web_search_types:
+            if is_web_search:
                 self._status("Searching", "gathering external information")
                 steps.append("web_search")
                 context = await self._do_web_search(task)
 
-            elif needs_external and input_type in file_read_types:
+            elif is_file_read:
                 self._status("Reading", "loading file content")
                 steps.append("file_read")
-                # Extract file path from task
                 context = await self._do_file_read(task)
 
             # =================================================================
@@ -1025,7 +1023,25 @@ Content:"""
             return {'success': False, 'error': str(e)}
 
     def _extract_search_query(self, task: str) -> str:
-        """Extract search query from task."""
+        """Extract search query from task.
+
+        Handles tasks that include conversation context by extracting
+        just the current request.
+        """
+        import re
+
+        # If task contains "Current request:", extract just that part
+        if "Current request:" in task:
+            match = re.search(r'Current request:\s*(.+?)(?:\n|$)', task, re.DOTALL)
+            if match:
+                task = match.group(1).strip()
+
+        # If task contains "USER REQUEST:", extract just that part
+        if "USER REQUEST:" in task:
+            match = re.search(r'USER REQUEST:\s*(.+?)(?:\n|$)', task, re.DOTALL)
+            if match:
+                task = match.group(1).strip()
+
         # Remove common prefixes
         prefixes = [
             "search for", "find", "look up", "research",
@@ -1040,4 +1056,4 @@ Content:"""
                 break
 
         # Limit length
-        return query[:100]
+        return query[:150]
