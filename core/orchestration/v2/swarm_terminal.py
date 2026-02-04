@@ -185,9 +185,13 @@ class SwarmTerminal:
         self._session_id: Optional[str] = None
         self._session_manager = None
 
-        # Fix cache (learned fixes)
+        # Fix cache (learned fixes) with persistence
         self._fix_cache: Dict[str, ErrorSolution] = {}
         self._fix_history: List[Dict[str, Any]] = []
+
+        # Fix persistence directory
+        self._fix_db_path = Path.home() / '.jotty' / 'fix_database.json'
+        self._load_fix_database()
 
         # DSPy modules for intelligent analysis
         if DSPY_AVAILABLE:
@@ -200,6 +204,11 @@ class SwarmTerminal:
         # Load web search skill
         self._web_search = None
         self._load_web_search()
+
+        # Load file operations skill (safer than shell echo/cat for file writing)
+        self._write_file = None
+        self._read_file = None
+        self._load_file_operations()
 
         logger.info("🖥️  SwarmTerminal initialized (intelligent terminal agent)")
 
@@ -225,7 +234,118 @@ class SwarmTerminal:
                 self._web_search = search_web_tool
                 self._web_scrape = search_and_scrape_tool
             except ImportError:
-                logger.warning("Web search not available for error resolution")
+                logger.debug("Web search not available for error resolution")
+
+    def _load_file_operations(self):
+        """Load file operations for safe file writing (instead of shell echo/cat)."""
+        try:
+            from ....registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            registry.init()  # Ensure registry is initialized
+            skill = registry.get_skill('file-operations')
+            if skill and skill.tools:
+                self._write_file = skill.tools.get('write_file_tool')
+                self._read_file = skill.tools.get('read_file_tool')
+                logger.debug("File operations tools loaded for SwarmTerminal")
+        except Exception as e:
+            logger.debug(f"Could not load file-operations from registry: {e}")
+
+        # Fallback: direct import from skills directory
+        if not self._write_file:
+            try:
+                import sys
+                import importlib.util
+                tools_path = self.skills_dir / "file-operations" / "tools.py"
+                if tools_path.exists():
+                    spec = importlib.util.spec_from_file_location("file_operations_tools", tools_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    self._write_file = getattr(module, 'write_file_tool', None)
+                    self._read_file = getattr(module, 'read_file_tool', None)
+                    if self._write_file:
+                        logger.debug("File operations loaded via direct import")
+            except Exception as e:
+                logger.debug(f"File operations fallback failed: {e}")
+
+    def _load_fix_database(self):
+        """Load fix database from disk."""
+        if not self._fix_db_path.exists():
+            return
+
+        try:
+            with open(self._fix_db_path) as f:
+                data = json.load(f)
+
+            for hash_, fix_data in data.items():
+                self._fix_cache[hash_] = ErrorSolution(
+                    error_pattern=fix_data['error_pattern'],
+                    solution=fix_data['solution_description'],
+                    source=fix_data.get('source', 'database'),
+                    confidence=fix_data.get('success_count', 1) / max(fix_data.get('success_count', 1) + fix_data.get('fail_count', 0), 1),
+                    commands=fix_data.get('solution_commands', [])
+                )
+
+            logger.info(f"Loaded {len(self._fix_cache)} fixes from database")
+
+        except Exception as e:
+            logger.warning(f"Could not load fix database: {e}")
+
+    def save_fix_database(self):
+        """Save fix database to disk."""
+        try:
+            self._fix_db_path.parent.mkdir(parents=True, exist_ok=True)
+
+            data = {}
+            for hash_, fix in self._fix_cache.items():
+                data[hash_] = {
+                    'error_pattern': fix.error_pattern,
+                    'solution_description': fix.solution,
+                    'solution_commands': fix.commands,
+                    'source': fix.source,
+                    'success_count': int(fix.confidence * 10),  # Approximate
+                    'fail_count': int((1 - fix.confidence) * 10) if fix.confidence < 1 else 0
+                }
+
+            # Also save from fix history
+            for entry in self._fix_history:
+                error = entry.get('error', '')
+                if error:
+                    import hashlib
+                    normalized = re.sub(r'\d+', 'N', error.lower())
+                    normalized = re.sub(r'/[\w/.-]+', '/PATH', normalized)
+                    hash_ = hashlib.md5(normalized.encode()).hexdigest()
+                    if hash_ not in data:
+                        data[hash_] = {
+                            'error_pattern': error[:500],
+                            'solution_description': entry.get('description', ''),
+                            'solution_commands': entry.get('commands', []),
+                            'source': entry.get('source', 'terminal'),
+                            'success_count': 1 if entry.get('success', True) else 0,
+                            'fail_count': 0 if entry.get('success', True) else 1
+                        }
+
+            with open(self._fix_db_path, 'w') as f:
+                json.dump(data, f, indent=2)
+
+            logger.info(f"Saved {len(data)} fixes to database")
+
+        except Exception as e:
+            logger.warning(f"Could not save fix database: {e}")
+
+    def record_fix(self, error: str, commands: List[str], description: str, source: str, success: bool):
+        """Record a fix for future use."""
+        self._fix_history.append({
+            'error': error,
+            'commands': commands,
+            'description': description,
+            'source': source,
+            'success': success,
+            'timestamp': datetime.now().isoformat()
+        })
+
+        # Auto-save periodically
+        if len(self._fix_history) % 5 == 0:
+            self.save_fix_database()
 
     async def _get_session(self) -> str:
         """Get or create terminal session."""
@@ -363,6 +483,70 @@ class SwarmTerminal:
                 error=str(e),
                 exit_code=-1
             )
+
+    async def write_file(self, path: str, content: str, mode: str = 'w') -> CommandResult:
+        """
+        Write content to file using file-operations tool (safer than shell commands).
+
+        This is preferred over echo/cat shell commands because:
+        1. No shell escaping issues
+        2. No special character problems
+        3. Atomic write operation
+        4. Proper error handling
+        """
+        if self._write_file:
+            try:
+                result = self._write_file({'path': path, 'content': content, 'mode': mode})
+                if result.get('success'):
+                    return CommandResult(
+                        success=True,
+                        command=f"write_file({path})",
+                        output=f"Written {result.get('bytes_written', len(content))} bytes to {path}",
+                        exit_code=0
+                    )
+                else:
+                    return CommandResult(
+                        success=False,
+                        command=f"write_file({path})",
+                        output="",
+                        error=result.get('error', 'Unknown error'),
+                        exit_code=1
+                    )
+            except Exception as e:
+                logger.warning(f"write_file tool failed, falling back to shell: {e}")
+
+        # Fallback to shell (escape content properly)
+        import shlex
+        escaped_content = content.replace("'", "'\\''")
+        command = f"printf '%s' '{escaped_content}' > {shlex.quote(path)}"
+        return await self._execute_raw(command)
+
+    async def read_file(self, path: str) -> CommandResult:
+        """Read file content using file-operations tool."""
+        if self._read_file:
+            try:
+                result = self._read_file({'path': path})
+                if result.get('success'):
+                    return CommandResult(
+                        success=True,
+                        command=f"read_file({path})",
+                        output=result.get('content', ''),
+                        exit_code=0
+                    )
+                else:
+                    return CommandResult(
+                        success=False,
+                        command=f"read_file({path})",
+                        output="",
+                        error=result.get('error', 'Unknown error'),
+                        exit_code=1
+                    )
+            except Exception as e:
+                logger.warning(f"read_file tool failed, falling back to shell: {e}")
+
+        # Fallback to shell
+        import shlex
+        return await self._execute_raw(f"cat {shlex.quote(path)}")
 
     async def _find_solution(
         self,
@@ -553,7 +737,7 @@ class SwarmTerminal:
 
         try:
             # Get available tools for context
-            available_tools = "requests, subprocess, json, re, os, pathlib"
+            available_tools = "requests, subprocess, json, re, os, pathlib, write_file(path, content), read_file(path)"
 
             result = self.skill_generator(
                 problem_description=problem,

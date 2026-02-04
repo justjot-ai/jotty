@@ -755,8 +755,9 @@ _registry_instance: Optional[SkillsRegistry] = None
 
 
 def get_skills_registry(skills_dir: Optional[str] = None) -> SkillsRegistry:
-    """Get singleton skills registry instance."""
+    """Get singleton skills registry instance (auto-initialized)."""
     global _registry_instance
     if _registry_instance is None:
         _registry_instance = SkillsRegistry(skills_dir)
+        _registry_instance.init()  # Auto-initialize to load skills
     return _registry_instance

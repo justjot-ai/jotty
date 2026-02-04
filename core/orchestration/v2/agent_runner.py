@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from ...foundation.data_structures import JottyConfig, EpisodeResult
 from ...agents.inspector import InspectorAgent, MultiRoundValidator
 from ...memory.cortex import HierarchicalMemory
+from ...utils.prompt_selector import get_prompt_selector, PromptSelector
 from ...learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate, IntermediateRewardCalculator,
     ReasoningCreditAssigner, AdaptiveExploration
@@ -157,7 +158,71 @@ class AgentRunner:
             self.shaped_reward_manager = ShapedRewardManager()
 
         logger.info(f"AgentRunner initialized: {self.agent_name}")
-    
+
+        # Prompt selector for dynamic template selection
+        self._prompt_selector: Optional[PromptSelector] = None
+        self._current_task_type: str = 'default'
+        self._scratchpad = scratchpad  # Store for validator recreation
+
+    def _update_validators_for_task(self, goal: str) -> str:
+        """
+        Update validators with task-specific prompts based on goal analysis.
+
+        Returns the detected task type.
+        """
+        from pathlib import Path
+
+        # Initialize prompt selector on first use
+        if self._prompt_selector is None:
+            try:
+                self._prompt_selector = get_prompt_selector()
+            except Exception as e:
+                logger.warning(f"Prompt selector not available: {e}")
+                return 'default'
+
+        # Detect task type from goal
+        task_type = self._prompt_selector.detect_task_type(goal)
+
+        # Skip if same task type (validators already configured)
+        if task_type == self._current_task_type:
+            return task_type
+
+        # Get task-specific prompts
+        architect_path, auditor_path = self._prompt_selector.select_prompts(goal)
+
+        # Recreate validators with new prompts
+        try:
+            architect_agents = [
+                InspectorAgent(
+                    md_path=Path(architect_path),
+                    is_architect=True,
+                    tools=[],
+                    config=self.config.config,
+                    scratchpad=self._scratchpad
+                )
+            ]
+
+            auditor_agents = [
+                InspectorAgent(
+                    md_path=Path(auditor_path),
+                    is_architect=False,
+                    tools=[],
+                    config=self.config.config,
+                    scratchpad=self._scratchpad
+                )
+            ]
+
+            self.architect_validator = MultiRoundValidator(architect_agents, self.config.config)
+            self.auditor_validator = MultiRoundValidator(auditor_agents, self.config.config)
+
+            self._current_task_type = task_type
+            logger.info(f"📋 Validators updated for task type: {task_type}")
+
+        except Exception as e:
+            logger.warning(f"Failed to update validators for {task_type}: {e}")
+
+        return task_type
+
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Run agent execution with validation and learning.
@@ -188,6 +253,11 @@ class AgentRunner:
             logger.info(f"  📍 {stage}" + (f": {detail}" if detail else ""))
 
         logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}..." + (" [FAST]" if skip_validation else ""))
+
+        # Dynamic prompt selection based on task type
+        if not skip_validation:
+            task_type = self._update_validators_for_task(goal)
+            logger.debug(f"Task type detected: {task_type}")
 
         # Start episode for TD(λ) learning (if enabled)
         if self.agent_learner:

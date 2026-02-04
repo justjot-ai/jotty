@@ -2,6 +2,10 @@
 Parameter Resolver - Extracted from Conductor
 ==============================================
 
+DEPRECATED: This module is part of v1 orchestration.
+Consider using core.orchestration.v2.SwarmManager which handles
+parameter resolution internally via AgentRunner.
+
 Handles parameter resolution from multiple sources:
 - Actor outputs (IOManager)
 - Metadata provider

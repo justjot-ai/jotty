@@ -2,6 +2,11 @@
 SingleAgentOrchestrator v6.0 - Single-Agent Episode Orchestrator
 ===================================================================
 
+DEPRECATED: Use core.orchestration.v2.SwarmManager instead.
+
+SwarmManager handles both single-agent (N=1) and multi-agent (N>1) cases
+with better skill integration and MASLearning for persistence.
+
 Complete JOTTY system with all A-Team enhancements:
 - Dr. Manning: Adaptive learning, intermediate rewards, TD(λ) correct
 - Dr. Chen: Inter-agent communication, multi-round validation, reasoning credit

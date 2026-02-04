@@ -18,15 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 class ResearchDataFetcher:
-    """Fetch research data from multiple sources."""
+    """Fetch research data from multiple sources including web search."""
 
     def __init__(self):
         self._screener_available = False
         self._yfinance_available = False
+        self._web_search_available = False
+        self._web_search_tool = None
         self._init_sources()
 
     def _init_sources(self):
-        """Initialize data sources."""
+        """Initialize data sources including web search."""
         try:
             # Check if screener skill is available
             from Jotty.skills import get_skill
@@ -41,6 +43,20 @@ class ResearchDataFetcher:
         except ImportError:
             self._yfinance_available = False
             logger.info("yfinance not available - install with: pip install yfinance")
+
+        # Initialize web search for real news/data
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            registry.init()
+            web_skill = registry.get_skill('web-search')
+            if web_skill:
+                self._web_search_tool = web_skill.tools.get('search_web_tool')
+                self._web_search_available = self._web_search_tool is not None
+                logger.info("✅ Web search enabled for real-time news")
+        except Exception as e:
+            logger.debug(f"Web search init: {e}")
+            self._web_search_available = False
 
     async def fetch_company_data(self, ticker: str, exchange: str = "NSE") -> Dict[str, Any]:
         """
@@ -69,9 +85,14 @@ class ResearchDataFetcher:
         if self._screener_available:
             tasks.append(self._fetch_screener_data(ticker))
 
+        # Always fetch web search for real news (critical for accurate data)
+        if self._web_search_available:
+            tasks.append(self._fetch_web_search_data(ticker, exchange))
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Merge results
+        api_data_found = False
         for result in results:
             if isinstance(result, Exception):
                 logger.warning(f"Data fetch error: {result}")
@@ -79,7 +100,15 @@ class ResearchDataFetcher:
             if isinstance(result, dict):
                 source = result.pop("_source", "unknown")
                 data["sources"].append(source)
+                # Track if we got real API data
+                if source in ['yahoo_finance', 'screener'] and result.get('current_price'):
+                    api_data_found = True
                 data.update(result)
+
+        # If no API data found, web search news becomes primary source
+        if not api_data_found and data.get('web_search_news'):
+            logger.info("📰 Using web search as primary data source (API data unavailable)")
+            data['data_source'] = 'web_search'
 
         return data
 
@@ -100,11 +129,23 @@ class ResearchDataFetcher:
 
         ticker_upper = ticker.upper().strip()
 
+        # Common Indian stock tickers (to avoid misclassifying as US)
+        INDIAN_TICKERS = {
+            'PAYTM', 'RELIANCE', 'TCS', 'INFY', 'HDFC', 'HDFCBANK', 'ICICIBANK',
+            'SBIN', 'BAJFINANCE', 'BHARTIARTL', 'ITC', 'KOTAKBANK', 'LT', 'AXISBANK',
+            'WIPRO', 'HCLTECH', 'MARUTI', 'TITAN', 'ULTRACEMCO', 'TATASTEEL',
+            'TECHM', 'SUNPHARMA', 'ONGC', 'NTPC', 'POWERGRID', 'ASIANPAINT',
+            'ZOMATO', 'DMART', 'ADANIENT', 'JSWSTEEL', 'TATAMOTORS', 'HINDALCO',
+            'NYKAA', 'POLICYBAZAAR', 'PHONEPE', 'RAZORPAY', 'ZERODHA', 'CRED'
+        }
+
         # Check if it's a known US ticker or has US-style format
+        is_indian_ticker = ticker_upper in INDIAN_TICKERS or exchange.upper() in ('NSE', 'BSE', 'INDIA')
         is_us_ticker = (
-            ticker_upper in US_TICKERS or
-            exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX') or
-            (len(ticker_upper) <= 5 and ticker_upper.isalpha() and '.' not in ticker)
+            not is_indian_ticker and (
+                ticker_upper in US_TICKERS or
+                exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+            )
         )
 
         # Format ticker for Yahoo Finance
@@ -211,6 +252,78 @@ class ResearchDataFetcher:
         except Exception as e:
             logger.error(f"Yahoo Finance error for {ticker}: {e}")
             return {"_source": "yahoo_finance", "error": str(e)}
+
+    async def _fetch_web_search_data(self, ticker: str, exchange: str = "NSE") -> Dict[str, Any]:
+        """Fetch real-time news and data via web search (DuckDuckGo)."""
+        import inspect
+
+        if not self._web_search_tool:
+            return {"_source": "web_search", "error": "Web search not available"}
+
+        try:
+            logger.info(f"🔍 Searching web for {ticker} news and data...")
+
+            # Run multiple search queries for comprehensive coverage
+            search_queries = [
+                f"{ticker} stock latest news 2024 2025",
+                f"{ticker} quarterly results earnings profit",
+                f"{ticker} stock price target analyst rating",
+                f"{ticker} {exchange} financial performance revenue",
+            ]
+
+            all_results = []
+            for query in search_queries:
+                try:
+                    if inspect.iscoroutinefunction(self._web_search_tool):
+                        result = await self._web_search_tool({'query': query, 'max_results': 8})
+                    else:
+                        result = self._web_search_tool({'query': query, 'max_results': 8})
+
+                    if result.get('success') and result.get('results'):
+                        all_results.extend(result['results'])
+                except Exception as e:
+                    logger.debug(f"Search query failed: {e}")
+
+            if not all_results:
+                return {"_source": "web_search", "error": "No results found"}
+
+            # Deduplicate by URL
+            seen_urls = set()
+            unique_results = []
+            for r in all_results:
+                url = r.get('url', '')
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_results.append(r)
+
+            # Extract key data from search results
+            news_items = []
+            for r in unique_results[:20]:  # Top 20 results
+                news_items.append({
+                    'title': r.get('title', ''),
+                    'snippet': r.get('snippet', '')[:400],
+                    'url': r.get('url', ''),
+                    'source': r.get('source', '')
+                })
+
+            # Compile comprehensive news summary
+            news_text = "\n".join([
+                f"• {n['title']}: {n['snippet']}"
+                for n in news_items[:15]
+            ])
+
+            logger.info(f"📰 Found {len(unique_results)} web search results for {ticker}")
+
+            return {
+                "_source": "web_search",
+                "web_search_news": news_text,
+                "web_search_results": news_items,
+                "web_search_count": len(unique_results),
+            }
+
+        except Exception as e:
+            logger.error(f"Web search error for {ticker}: {e}")
+            return {"_source": "web_search", "error": str(e)}
 
     async def _fetch_screener_data(self, ticker: str) -> Dict[str, Any]:
         """Fetch data from Screener.in."""

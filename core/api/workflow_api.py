@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
 from ..use_cases.workflow import WorkflowUseCase
-from ..orchestration.conductor import Conductor
+from ..orchestration import SwarmManager
 from ..foundation.data_structures import JottyConfig
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class WorkflowAPI:
     
     def __init__(
         self,
-        conductor: Conductor,
+        conductor: SwarmManager,
         mode: str = "dynamic",
         agent_order: Optional[List[str]] = None
     ):
@@ -40,7 +40,7 @@ class WorkflowAPI:
         Initialize Workflow API.
         
         Args:
-            conductor: Jotty Conductor instance
+            conductor: Jotty SwarmManager instance
             mode: Orchestration mode ("static" or "dynamic")
             agent_order: Required for static mode
         """

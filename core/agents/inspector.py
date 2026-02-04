@@ -35,74 +35,38 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# SIGNATURES
+# SIGNATURES (Optimized for speed - matching AutoAgent pattern)
 # =============================================================================
 
 class PlannerSignature(dspy.Signature):
-    """🔍 Pre-Exploration Agent: Explore data and brief the actor.
+    """Pre-validation: Quick check if task inputs are sufficient.
 
-    Renamed from ArchitectSignature for clarity (planner role, not architect).
-
-    🔥 A-TEAM PHASE 2 FIX: Planner is an ADVISOR, not a gatekeeper!
-
-    YOUR ROLE:
-    - EXPLORE available data using your tools
-    - UNDERSTAND what data exists and its quality
-    - BRIEF the actor on your findings
-    - ADVISE on best approaches
-    - DO NOT BLOCK execution!
-
-    YOU ARE A REACT AGENT WITH TOOLS:
-    - CALL tools to discover tables, search terms, explore metadata
-    - DO NOT just generate text
-    - Base your briefing on TOOL EVIDENCE
-
-    CRITICAL: You are an exploration advisor, NOT a validator!
+    You are a VALIDATOR, not an executor. Analyze inputs and decide if task can proceed.
+    Keep response concise - this is a fast validation step.
     """
-    
-    # Simple inputs - agent uses TOOLS for details
-    task: str = dspy.InputField(desc="What to explore. USE TOOLS to discover available data.")
-    context: str = dspy.InputField(desc="Current state summary. Call tools for specifics.")
-    
-    # 🔥 A-TEAM: Exploration outputs (NO should_proceed!)
-    reasoning: str = dspy.OutputField(desc="Step-by-step exploration WITH tool calls and results. What did you discover?")
-    exploration_summary: str = dspy.OutputField(desc="Summary of what you found: available tables, relevant terms, data quality notes")
-    recommendations: str = dspy.OutputField(desc="Recommendations for the actor: suggested approach, things to be careful about, tips")
-    data_quality_notes: str = dspy.OutputField(desc="Notes on data quality: missing data, stale tables, partition issues, etc.")
-    confidence: float = dspy.OutputField(desc="Confidence in your exploration 0.0-1.0. Low confidence = need more exploration.")
-    suggested_approach: str = dspy.OutputField(desc="Suggested approach for the actor based on what you discovered")
-    insight_to_share: str = dspy.OutputField(desc="Key insight to share with other agents for learning")
+    task: str = dspy.InputField(desc="Task description to validate")
+    context: str = dspy.InputField(desc="Available context and inputs")
+
+    # Only 3 essential output fields (like AutoAgent)
+    should_proceed: bool = dspy.OutputField(desc="True if inputs are sufficient, False if missing critical info")
+    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+    reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
 
 
 class ReviewerSignature(dspy.Signature):
-    """Post-validation agent. USE YOUR TOOLS to validate extracted data.
+    """Post-validation: Quick check if task output is valid.
 
-    Renamed from AuditorSignature for clarity (reviewer role, not auditor).
-
-    You are a ReAct agent with tools. DO NOT just generate text.
-    CALL your tools to check the extraction, then validate based on tool results.
-    
-    CRITICAL: Validate TASK SUCCESS, not just extraction quality.
-    - If task failed (success=False, steps_executed=0, errors present), mark as INVALID
-    - If task succeeded (success=True, outputs produced), mark as VALID
-    - Consider both extraction quality AND task completion status
+    You are a VALIDATOR. Check if task succeeded and output meets requirements.
+    CRITICAL: If success=False or output is incomplete/wrong, mark is_valid=False.
     """
-    
-    # Simple inputs - agent uses TOOLS for details
-    task: str = dspy.InputField(desc="What extraction to validate. USE TOOLS to inspect actual data.")
-    context: str = dspy.InputField(desc="Extraction summary. Call tools for detailed validation.")
-    
-    # FULL outputs for memory, RL, and reflection
-    reasoning: str = dspy.OutputField(desc="Step-by-step analysis WITH tool calls and validation results")
-    is_valid: bool = dspy.OutputField(desc="True if task SUCCEEDED and extraction is valid, False if task failed or issues found. "
-                                         "CRITICAL: Check if task actually completed successfully (success=True, outputs produced). "
-                                         "A failed task (success=False, no outputs) should be marked INVALID even if the failure is well-documented.")
-    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0 based on tool observations")
-    output_tag: str = dspy.OutputField(desc="One of: useful (valid), fail (invalid), enquiry (uncertain)")
-    output_name: str = dspy.OutputField(desc="Name for this validated output")
-    why_useful: str = dspy.OutputField(desc="Why this output is useful - for memory/learning")
-    fix_instructions: str = dspy.OutputField(desc="If invalid, specific fix instructions from tools")
-    insight_to_share: str = dspy.OutputField(desc="Key insight to share with other agents for learning")
+    task: str = dspy.InputField(desc="Original task that was executed")
+    context: str = dspy.InputField(desc="Execution result and output to validate")
+
+    # Only 4 essential output fields
+    is_valid: bool = dspy.OutputField(desc="True if task succeeded with correct output, False otherwise")
+    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+    output_tag: str = dspy.OutputField(desc="useful (valid), fail (invalid), or enquiry (uncertain)")
+    reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
 
 
 class RefinementSignature(dspy.Signature):
@@ -306,13 +270,12 @@ class InspectorAgent:
         self.reasoning_tool = InternalReasoningTool(self.memory, config)
         self.all_tools = self.cached_tools + [self.reasoning_tool]
         
-        # Create DSPy agent
+        # Create DSPy agent with ChainOfThought for fast validation
+        # Optimized: Single LLM call like AutoAgent (not iterative ReAct)
         self.signature = PlannerSignature if is_architect else ReviewerSignature
-        self.agent = dspy.ReAct(
-            self.signature,
-            tools=self.all_tools,
-            max_iters=config.max_eval_iters
-        )
+
+        logger.debug(f"⚡ [{self.agent_name}] ChainOfThought validation (fast mode)")
+        self.agent = dspy.ChainOfThought(self.signature)
         
         # Refinement agent
         if config.enable_multi_round:

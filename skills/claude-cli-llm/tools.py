@@ -184,8 +184,14 @@ def _multi_perspective_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]
     print(f"  → Ensemble: generating {total} perspectives...")
 
     for idx, perspective in enumerate(perspectives):
-        name = perspective.get('name', 'expert')
-        system = perspective.get('system', '')
+        # Handle both dict format (standard) and string format (fallback)
+        if isinstance(perspective, dict):
+            name = perspective.get('name', 'expert')
+            system = perspective.get('system', '')
+        else:
+            # String perspective: use as both name and system prompt
+            name = str(perspective) if perspective else f'expert_{idx+1}'
+            system = f"You are a {name}. Provide your expert analysis."
 
         # Show which perspective is being generated
         print(f"    [{idx+1}/{total}] {name}...", end=" ", flush=True)

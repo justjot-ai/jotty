@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 
-from ..orchestration.optimization_pipeline import (
+from ..orchestration import (
     create_optimization_pipeline,
     OptimizationPipeline,
     OptimizationConfig

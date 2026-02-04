@@ -9,7 +9,7 @@ import logging
 
 from ..foundation.agent_config import AgentConfig
 from ..use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
-from ..orchestration.conductor import Conductor
+from ..orchestration import SwarmManager
 from ..foundation.data_structures import JottyConfig
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class JottyAPI:
         self,
         agents: List[AgentConfig],
         config: Optional[JottyConfig] = None,
-        conductor: Optional[Conductor] = None
+        conductor: Optional[SwarmManager] = None
     ):
         """
         Initialize Jotty API.

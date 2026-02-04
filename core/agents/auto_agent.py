@@ -134,7 +134,18 @@ class AutoAgent:
             logger.info(f"AutoAgent initialized with skill filter: {skill_filter}")
 
     def _init_dependencies(self):
-        """Lazy load dependencies."""
+        """Lazy load dependencies and auto-configure DSPy LM if needed."""
+        # Auto-configure DSPy LM with DirectClaudeCLI if not set
+        import dspy
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            try:
+                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                lm = DirectClaudeCLI(model="sonnet")
+                dspy.configure(lm=lm)
+                logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI (sonnet)")
+            except Exception as e:
+                logger.warning(f"Could not auto-configure DSPy LM: {e}")
+
         if self._registry is None:
             from ..registry.skills_registry import get_skills_registry
             self._registry = get_skills_registry()
@@ -306,7 +317,7 @@ Provide:
         Discover relevant skills for task using Jotty's SkillsRegistry.
 
         Uses semantic matching (task words vs skill name/description).
-        No hardcoded categories or skill lists - purely data-driven.
+        Enhanced with action-to-skill mappings for common operations.
         """
         try:
             from ..registry.skills_registry import get_skills_registry
@@ -320,9 +331,64 @@ Provide:
             stop_words = {'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is', 'to', 'of', 'in', 'on', 'a', 'an'}
             task_words = [w for w in task_lower.split() if len(w) > 2 and w not in stop_words]
 
-            skills = []
+            # Action-to-skill mappings for common operations
+            # When task contains these keywords, include the mapped skills
+            action_skill_mappings = {
+                # File creation/writing
+                'create': ['file-operations', 'claude-cli-llm'],
+                'write': ['file-operations', 'claude-cli-llm'],
+                'generate': ['claude-cli-llm', 'file-operations'],
+                'make': ['file-operations', 'claude-cli-llm'],
+                'save': ['file-operations'],
+                # Code generation
+                'code': ['claude-cli-llm', 'file-operations'],
+                'class': ['claude-cli-llm', 'file-operations'],
+                'function': ['claude-cli-llm', 'file-operations'],
+                'script': ['claude-cli-llm', 'file-operations', 'shell-exec'],
+                'program': ['claude-cli-llm', 'file-operations'],
+                '.py': ['claude-cli-llm', 'file-operations'],
+                '.js': ['claude-cli-llm', 'file-operations'],
+                '.ts': ['claude-cli-llm', 'file-operations'],
+                # File operations
+                'read': ['file-operations'],
+                'delete': ['file-operations'],
+                'rename': ['file-operations'],
+                'move': ['file-operations'],
+                'copy': ['file-operations'],
+                # Research/search
+                'search': ['web-search', 'http-client'],
+                'research': ['web-search', 'http-client', 'claude-cli-llm'],
+                'find': ['web-search', 'file-operations'],
+                'lookup': ['web-search', 'http-client'],
+            }
 
+            # Collect required skills based on action mappings
+            required_skills = set()
+            for keyword, skill_list in action_skill_mappings.items():
+                if keyword in task_lower:
+                    required_skills.update(skill_list)
+
+            skills = []
+            skill_names_added = set()
+
+            # First, add required skills with high priority
+            for skill_name in required_skills:
+                if skill_name in registry.loaded_skills:
+                    skill_def = registry.loaded_skills[skill_name]
+                    desc = getattr(skill_def, 'description', '') or ''
+                    skills.append({
+                        'name': skill_name,
+                        'description': desc or skill_name,
+                        'category': getattr(skill_def, 'category', 'general'),
+                        'relevance_score': 100  # High priority for action-mapped skills
+                    })
+                    skill_names_added.add(skill_name)
+
+            # Then add skills based on keyword matching
             for skill_name, skill_def in registry.loaded_skills.items():
+                if skill_name in skill_names_added:
+                    continue
+
                 skill_name_lower = skill_name.lower()
                 desc = getattr(skill_def, 'description', '') or ''
                 desc_lower = desc.lower()
@@ -345,6 +411,7 @@ Provide:
                         'category': getattr(skill_def, 'category', 'general'),
                         'relevance_score': score
                     })
+                    skill_names_added.add(skill_name)
 
             # Sort by relevance score
             skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
@@ -360,6 +427,7 @@ Provide:
                         'relevance_score': 0
                     })
 
+            logger.debug(f"Discovered skills: {[s['name'] for s in skills[:10]]}")
             return skills[:15]  # Return top 15 for LLM to select from
 
         except Exception as e:
@@ -465,6 +533,14 @@ Provide:
                 error_msg += f'. Available tools in {skill_name}: {available_tools[:5]}'
             return {'success': False, 'error': error_msg}
 
+        # Debug: log params being passed to tool
+        logger.debug(f"🔧 _execute_tool: {skill_name}.{tool_name}")
+        logger.debug(f"   params keys: {list(params.keys())}")
+        if 'content' in params:
+            logger.debug(f"   content length: {len(params.get('content', ''))}")
+        if 'path' in params:
+            logger.debug(f"   path: {params.get('path')}")
+
         # Retry logic for network errors
         last_error = None
         for attempt in range(max_retries):
@@ -475,6 +551,7 @@ Provide:
                     result = await tool(params)
                 else:
                     result = tool(params)
+                logger.debug(f"   result: success={result.get('success')}, error={result.get('error')}")
 
                 # Handle None or non-dict results
                 if result is None:
@@ -620,17 +697,30 @@ Provide:
             Filtered list of steps with valid tools
         """
         self._init_dependencies()
-        if not self._registry:
-            return steps
-        
-        # Build skill->tools mapping
+
+        # Build skill->tools mapping from passed-in skills first (authoritative source)
+        # Then enrich from registry if available
         skill_tools = {}
         for skill in skills:
             skill_name = skill.get('name', '')
             if skill_name:
-                skill_obj = self._registry.get_skill(skill_name)
-                if skill_obj:
-                    skill_tools[skill_name] = list(skill_obj.tools.keys()) if hasattr(skill_obj, 'tools') else []
+                # First, use tools from the passed-in skill dict
+                skill_tool_list = skill.get('tools', [])
+                if skill_tool_list:
+                    # Handle both dict format and string format for tools
+                    tools = []
+                    for t in skill_tool_list:
+                        if isinstance(t, dict):
+                            tools.append(t.get('name', ''))
+                        else:
+                            tools.append(str(t))
+                    skill_tools[skill_name] = [t for t in tools if t]  # Filter empty
+
+                # Fallback/enrich from registry if available
+                if self._registry and (not skill_tools.get(skill_name)):
+                    skill_obj = self._registry.get_skill(skill_name)
+                    if skill_obj and hasattr(skill_obj, 'tools') and skill_obj.tools:
+                        skill_tools[skill_name] = list(skill_obj.tools.keys())
         
         valid_steps = []
         invalid_count = 0
@@ -991,6 +1081,81 @@ Provide:
 
         return resolved
 
+    async def _expand_minimal_content(
+        self,
+        params: Dict[str, Any],
+        tool_name: str,
+        task_description: str,
+        step_description: str
+    ) -> Dict[str, Any]:
+        """
+        Expand minimal/placeholder content using LLM for write_file operations.
+
+        If content is too small for the expected file type, generate full content.
+        """
+        if tool_name != 'write_file_tool':
+            return params
+
+        content = params.get('content', '')
+        path = params.get('path', '')
+
+        # Determine minimum expected size based on file type
+        min_sizes = {
+            '.html': 500,   # Minimal HTML with features should be > 500 bytes
+            '.py': 200,     # Python with class/functions > 200 bytes
+            '.js': 200,
+            '.css': 100,
+            '.json': 50,
+        }
+
+        ext = '.' + path.split('.')[-1] if '.' in path else ''
+        min_size = min_sizes.get(ext, 100)
+
+        # Check if content looks like placeholder or is too small
+        is_placeholder = content in ('...', '[code]', '[content]', '# TODO', '// TODO', '')
+        is_too_small = len(content) < min_size
+
+        if not is_placeholder and not is_too_small:
+            return params  # Content looks adequate
+
+        logger.info(f"⚡ Content too small ({len(content)} bytes) for {path}, generating full content...")
+
+        try:
+            import dspy
+
+            # Use ChainOfThought to generate full content
+            class ContentGenerationSignature(dspy.Signature):
+                """Generate complete, working code for a file.
+
+                Generate FULL, COMPLETE, WORKING code - not a placeholder or skeleton.
+                Include all imports, classes, functions, styling, and logic needed.
+                """
+                task: str = dspy.InputField(desc="What the file should accomplish")
+                file_path: str = dspy.InputField(desc="Target file path")
+                file_type: str = dspy.InputField(desc="File extension/type")
+
+                content: str = dspy.OutputField(desc="Complete, working file content - NOT a placeholder")
+
+            generator = dspy.ChainOfThought(ContentGenerationSignature)
+            result = generator(
+                task=f"{task_description}\n\nSpecific step: {step_description}",
+                file_path=path,
+                file_type=ext or 'text'
+            )
+
+            generated_content = getattr(result, 'content', '')
+
+            if generated_content and len(generated_content) > len(content):
+                logger.info(f"✅ Generated {len(generated_content)} bytes of content for {path}")
+                params['content'] = generated_content
+            else:
+                logger.warning(f"⚠️ Content generation didn't improve size, keeping original")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Content expansion failed: {e}, keeping original content")
+
+        return params
+
     async def execute(self, task: str, **kwargs) -> ExecutionResult:
         """
         Execute a task automatically.
@@ -1068,11 +1233,14 @@ Provide:
         _status("Skills found", f"{len(all_skills)} potential skills")
 
         # Step 2.5: Select best skills using agentic planner
-        # Use enriched_task so LLM has ensemble context for better selection
+        # Use ORIGINAL task for skill selection to avoid confusion from injected context
+        # (transferable learnings, Q-learning context, etc. confuse the LLM into selecting wrong skills)
         if all_skills:
             _status("Selecting", "choosing best skills for task")
+            # Clean task: strip any injected context (# Transferable, [Multi-Perspective], Learned Insights)
+            clean_task = task.split('\n\n#')[0].split('\n\n[')[0].split('\n\nLearned')[0].strip()
             skills, selection_reasoning = self.planner.select_skills(
-                task=enriched_task,  # Use enriched task with ensemble insights
+                task=clean_task,  # Use clean task without injected context
                 available_skills=all_skills,
                 max_skills=8
             )
@@ -1101,9 +1269,11 @@ Provide:
                 skills = []
 
         # Step 3: Plan execution using agentic planner
-        # Use enriched_task so planner has ensemble insights for better execution plan
+        # Use clean task for planning to avoid confusion from injected context
+        # The planner also cleans the task, but we do it here too for safety
         _status("Planning", "creating execution plan")
-        steps = self._plan_execution(enriched_task, task_type, skills)
+        planning_task = task.split('\n\n#')[0].split('\n\n[')[0].split('\n\nLearned')[0].strip()
+        steps = self._plan_execution(planning_task, task_type, skills)
         _status("Plan ready", f"{len(steps)} steps to execute")
 
         # Step 3.5: Validate tools exist before execution
@@ -1145,6 +1315,11 @@ Provide:
 
                 # Resolve params with current outputs
                 resolved_params = self._resolve_params(step.params, outputs, step=step)
+
+                # Expand minimal content for file write operations
+                resolved_params = await self._expand_minimal_content(
+                    resolved_params, step.tool_name, task, step.description
+                )
 
                 # Execute
                 result = await self._execute_tool(
@@ -1209,6 +1384,12 @@ Provide:
                 _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description}")
                 _status(f"  Executing", f"{step.tool_name} with {len(step.params)} params")
                 resolved_params = self._resolve_params(step.params, outputs, step=step)
+
+                # Expand minimal content for file write operations
+                resolved_params = await self._expand_minimal_content(
+                    resolved_params, step.tool_name, task, step.description
+                )
+
                 result = await self._execute_tool(
                     step.skill_name,
                     step.tool_name,

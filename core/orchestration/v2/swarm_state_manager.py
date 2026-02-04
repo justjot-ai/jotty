@@ -30,7 +30,7 @@ from pathlib import Path
 import json
 
 if TYPE_CHECKING:
-    from ..roadmap import MarkovianTODO, SubtaskState, TaskStatus
+    from .swarm_roadmap import MarkovianTODO, SubtaskState, TaskStatus
     from ...foundation.agent_config import AgentConfig
     from ...data.data_registry import DataRegistry
     from ...data.io_manager import IOManager

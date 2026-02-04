@@ -7,7 +7,7 @@ Brain-Inspired Orchestration for LLM Agent Swarms
 This is the main entry point for the JOTTY framework (evolved from Jotty).
 
 JOTTY Terminology:
-- Conductor = Main orchestrator (was Conductor)
+- SwarmManager = Main orchestrator (was SwarmManager)
 - JottyCore = Core execution engine 
 - Architect = Pre-execution planner 
 - Auditor = Post-execution validator 
@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 # JOTTY CORE IMPORTS (mapping new names to existing implementations)
 # =============================================================================
 
-# Conductor = Main Orchestrator
-from .orchestration.conductor import Conductor
+# SwarmManager = Main Orchestrator (V2)
+from .orchestration import SwarmManager
 
-# JottyCore = Core Execution Engine
-from .orchestration.jotty_core import JottyCore
+# JottyCore = alias for backward compatibility
+JottyCore = SwarmManager
 
 # Configuration
 from .foundation.data_structures import SwarmConfig, JottyConfig  # JottyConfig = backward compat
@@ -55,12 +55,12 @@ from .memory.cortex import HierarchicalMemory as Cortex
 # Axon = Agent Communication
 from .agents.axon import SmartAgentSlack as Axon
 
-# Roadmap = Markovian TODO
-from .orchestration.roadmap import MarkovianTODO as Roadmap
-from .orchestration.roadmap import SubtaskState as Checkpoint
+# Roadmap = Markovian TODO (V2)
+from .orchestration import MarkovianTODO as Roadmap
+from .orchestration import SubtaskState as Checkpoint
 
-# Optimization Pipeline
-from .orchestration.optimization_pipeline import (
+# Optimization Pipeline (V2)
+from .orchestration import (
     OptimizationPipeline,
     OptimizationConfig,
     IterationResult,
@@ -114,18 +114,18 @@ def create_conductor(
     config: Optional[JottyConfig] = None,
     metadata_provider: Any = None,
     **kwargs
-) -> Conductor:
+) -> SwarmManager:
     """
-    Create a new JOTTY Conductor (orchestrator) for agent swarms.
+    Create a new JOTTY SwarmManager (orchestrator) for agent swarms.
     
     Args:
         agents: List of AgentConfig defining the agents in the swarm
         config: JottyConfig with framework settings
         metadata_provider: Optional metadata provider instance
-        **kwargs: Additional arguments passed to Conductor
+        **kwargs: Additional arguments passed to SwarmManager
     
     Returns:
-        Conductor instance ready to orchestrate the swarm
+        SwarmManager instance ready to orchestrate the swarm
     
     Example:
         ```python
@@ -147,7 +147,7 @@ def create_conductor(
     if config is None:
         config = JottyConfig()
     
-    return Conductor(
+    return SwarmManager(
         actors=agents,  # Still uses 'actors' internally for now
         config=config,
         metadata_provider=metadata_provider,
@@ -256,7 +256,7 @@ except ImportError:
 
 __all__ = [
     # JOTTY Core
-    "Conductor",
+    "SwarmManager",
     "JottyCore",
     "SwarmConfig",
     "JottyConfig",  # Backward compatibility

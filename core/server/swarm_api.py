@@ -3,7 +3,7 @@ Swarm API for JustJot.ai Integration
 ====================================
 
 Exposes swarm orchestration operations via HTTP API.
-Reuses Jotty's existing Conductor infrastructure - no duplication.
+Reuses Jotty's existing SwarmManager infrastructure - no duplication.
 
 Endpoints:
 - POST /api/swarm/execute - Execute swarm (auto or manual mode)
@@ -25,7 +25,7 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 from ..foundation.unified_lm_provider import UnifiedLMProvider
-from ..orchestration.conductor import Conductor
+from ..orchestration import SwarmManager
 from ..foundation.data_structures import JottyConfig
 from ..foundation.agent_config import AgentConfig
 
@@ -159,18 +159,18 @@ def execute_swarm():
         # Create swarm ID
         swarm_id = str(uuid.uuid4())
         
-        # Execute swarm using Jotty's Conductor (reuses existing infrastructure)
+        # Execute swarm using Jotty's SwarmManager (reuses existing infrastructure)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            # Use Jotty's Conductor for swarm execution
+            # Use Jotty's SwarmManager for swarm execution
             conductor = jotty_api.conductor if hasattr(jotty_api, 'conductor') else None
             if not conductor:
-                return jsonify({"error": "Conductor not available"}), 500
+                return jsonify({"error": "SwarmManager not available"}), 500
             
-            # Run swarm using Conductor
-            # Conductor already handles multi-actor orchestration
+            # Run swarm using SwarmManager
+            # SwarmManager already handles multi-actor orchestration
             result = loop.run_until_complete(
                 conductor.run(
                     goal=task,
@@ -180,7 +180,7 @@ def execute_swarm():
                 )
             )
             
-            # Transform Conductor result to swarm result format
+            # Transform SwarmManager result to swarm result format
             return jsonify({
                 "success": True,
                 "swarmId": swarm_id,
@@ -194,7 +194,7 @@ def execute_swarm():
                     for agent_info in agents_info
                 ],
                 "aggregatedOutput": str(result) if result else "",
-                "totalDuration": 0,  # Conductor doesn't track this separately
+                "totalDuration": 0,  # SwarmManager doesn't track this separately
                 "metadata": {
                     "mode": mode,
                     "agents": [a['id'] for a in agents_info],
@@ -282,15 +282,15 @@ def stream_swarm():
             asyncio.set_event_loop(loop)
             
             try:
-                # Use Jotty's Conductor for swarm execution (reuses existing infrastructure)
+                # Use Jotty's SwarmManager for swarm execution (reuses existing infrastructure)
                 conductor = jotty_api.conductor if hasattr(jotty_api, 'conductor') else None
                 if not conductor:
                     error_event = {
                         "type": "error",
-                        "data": {"error": "Conductor not available"}
+                        "data": {"error": "SwarmManager not available"}
                     }
                     if formatter:
-                        yield formatter.error_event("Conductor not available")
+                        yield formatter.error_event("SwarmManager not available")
                     else:
                         yield f"data: {json.dumps(error_event)}\n\n"
                     return
@@ -311,7 +311,7 @@ def stream_swarm():
                 else:
                     yield f"data: {json.dumps(start_event)}\n\n"
                 
-                # Run swarm using Conductor
+                # Run swarm using SwarmManager
                 async def run_swarm_execution():
                     result = await conductor.run(
                         goal=task,

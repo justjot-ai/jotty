@@ -2,6 +2,17 @@
 JOTTY Conductor v2.3 - Brain-Inspired Multi-Actor Orchestration with Agentic Data Discovery
 ================================================================================================
 
+DEPRECATED: Use core.orchestration.v2.SwarmManager instead.
+
+This module is kept for backward compatibility but all new code should use:
+    from core.orchestration.v2 import SwarmManager
+
+V2 includes all features plus:
+- Zero-config agent creation from natural language
+- Unified provider gateway
+- Better skill integration
+- MASLearning for cross-session persistence
+
 SOTA Agentic Architecture with:
 - Multi-actor orchestration with shared learning
 - LLM-based Q-Predictor and Value Estimator (no static tables!)

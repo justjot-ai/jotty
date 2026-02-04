@@ -1,125 +1,168 @@
 """
-Orchestration Layer - Multi-Agent Coordination
-===============================================
+Orchestration Layer - V2 Multi-Agent Coordination
+==================================================
 
-This layer handles agent orchestration, execution planning,
-task management, and dependency resolution.
+V2 is the ONLY implementation. All v1 code archived to _v1_archive/.
 
-Modules:
---------
-- conductor: Main orchestrator (PRIMARY ENTRY POINT) - MultiAgentsOrchestrator
-- modes: Execution modes (WorkflowMode, ChatMode)
-- single_agent_orchestrator: Single-agent episode manager (Phase 7-8)
-- team_templates: Factory functions for common team patterns (Phase 8)
-- jotty_core: DEPRECATED - Use single_agent_orchestrator instead
-- roadmap: Markovian TODO management for long-horizon tasks
-- dynamic_dependency_graph: Agent dependency resolution
-- policy_explorer: Exploration when stuck
-- langgraph_orchestrator: LangGraph-based orchestration
+Usage:
+    from core.orchestration import SwarmManager
+
+    swarm = SwarmManager(agents="Research AI startups")
+    result = await swarm.run(goal="Research AI startups")
+
+Core Components:
+---------------
+- SwarmManager: Main orchestrator (handles N=1 and N>N agents)
+- AgentRunner: Per-agent execution with validation
+- SwarmTaskBoard: Task tracking (MarkovianTODO)
+- SwarmLearner: Online prompt learning
+- MASLearning: Cross-session learning persistence
+
+RL Components:
+-------------
+- CreditAssignment: Multi-agent credit attribution
+- AdaptiveLearning: Learning rate adaptation
+- PolicyExplorer: Exploration when stuck
+- OptimizationPipeline: Iterative optimization
 """
 
-from .conductor import (
-    MultiAgentsOrchestrator,  # Phase 8: Main orchestrator class
-    Conductor,  # Backward compatibility alias
-    TodoItem,
-    create_conductor,
-)
-from .modes import (
-    ExecutionMode,
-    WorkflowMode,
-    ChatMode,
-    ChatMessage,
-    create_workflow,
-    create_chat,
-)
-from .dynamic_dependency_graph import (
-    CycleDetectedError,
-    DependencySnapshot,
-    DynamicDependencyGraph,
-)
-from .single_agent_orchestrator import (
-    SingleAgentOrchestrator,
-    PersistenceManager,
-    create_jotty,
-)
-from .jotty_core import (
-    JottyCore,  # Deprecated alias for SingleAgentOrchestrator
-)
-from .policy_explorer import (
-    PolicyExplorer,
-    PolicyExplorerSignature,
-    SwarmLearnerSignature,
-)
-from .roadmap import (
+# V2 is the ONLY implementation
+from .v2 import (
+    # Main orchestrator
+    SwarmManager,
+    # Agent execution
+    AgentRunner,
+    AgentRunnerConfig,
+    # Task management
+    SwarmTaskBoard,
     MarkovianTODO,
     SubtaskState,
     TaskStatus,
-)
-from .optimization_pipeline import (
+    # Planning
+    SwarmPlanner,
+    ExecutionPlan,
+    # Memory
+    SwarmMemory,
+    # Learning
+    SwarmLearner,
+    SwarmLearnerSignature,
+    # RL Components (core features)
+    CreditAssignment,
+    ImprovementCredit,
+    AdaptiveLearning,
+    LearningState,
+    PolicyExplorer,
+    PolicyExplorerSignature,
+    LearningManager,
+    LearningUpdate,
+    # OptimizationPipeline
     OptimizationPipeline,
     OptimizationConfig,
     IterationResult,
     create_optimization_pipeline,
-)
-
-from .task_orchestrator import TaskOrchestrator
-from .agent_spawner import AgentSpawner
-from .deployment_hook import DeploymentHook
-
-# 🆕 Phase 8: Team Templates
-from .team_templates import (
-    create_diagram_team,
-    create_sql_analytics_team,
-    create_documentation_team,
-    create_data_science_team,
-    create_custom_team
+    # Feature components
+    SwarmUIRegistry,
+    SwarmProfiler,
+    SwarmToolValidator,
+    SwarmToolRegistry,
+    # Autonomous components
+    SwarmResearcher,
+    SwarmInstaller,
+    SwarmConfigurator,
+    SwarmCodeGenerator,
+    SwarmWorkflowLearner,
+    SwarmIntegrator,
+    # Provider gateway
+    SwarmProviderGateway,
+    # State management
+    SwarmStateManager,
+    AgentStateTracker,
+    # Sandbox
+    SandboxManager,
+    TrustLevel,
+    SandboxType,
+    SandboxResult,
+    # Auto provider discovery
+    AutoProviderDiscovery,
+    DiscoveryResult,
+    # Unified executor
+    UnifiedExecutor,
+    ExecutionResult,
+    ToolResult,
+    StreamEvent,
+    create_unified_executor,
+    UnifiedToolGenerator,
+    ToolDefinition,
+    # Legacy executor
+    LeanExecutor,
 )
 
 __all__ = [
-    # conductor
-    'MultiAgentsOrchestrator',  # Phase 8: Main class
-    'Conductor',  # Backward compatibility
-    'TodoItem',
-    'create_conductor',
-    # modes
-    'ExecutionMode',
-    'WorkflowMode',
-    'ChatMode',
-    'ChatMessage',
-    'create_workflow',
-    'create_chat',
-    # dynamic_dependency_graph
-    'CycleDetectedError',
-    'DependencySnapshot',
-    'DynamicDependencyGraph',
-    # single_agent_orchestrator (Phase 7)
-    'SingleAgentOrchestrator',
-    'PersistenceManager',
-    'create_jotty',
-    # jotty_core (deprecated)
-    'JottyCore',  # Deprecated alias
-    # policy_explorer
-    'PolicyExplorer',
-    'PolicyExplorerSignature',
-    'SwarmLearnerSignature',
-    # roadmap
+    # Main orchestrator
+    'SwarmManager',
+    # Agent execution
+    'AgentRunner',
+    'AgentRunnerConfig',
+    # Task management
+    'SwarmTaskBoard',
     'MarkovianTODO',
     'SubtaskState',
     'TaskStatus',
-    # optimization_pipeline
+    # Planning
+    'SwarmPlanner',
+    'ExecutionPlan',
+    # Memory
+    'SwarmMemory',
+    # Learning
+    'SwarmLearner',
+    'SwarmLearnerSignature',
+    # RL Components (core features)
+    'CreditAssignment',
+    'ImprovementCredit',
+    'AdaptiveLearning',
+    'LearningState',
+    'PolicyExplorer',
+    'PolicyExplorerSignature',
+    'LearningManager',
+    'LearningUpdate',
+    # OptimizationPipeline
     'OptimizationPipeline',
     'OptimizationConfig',
     'IterationResult',
     'create_optimization_pipeline',
-    # task_orchestrator
-    'TaskOrchestrator',
-    'AgentSpawner',
-    'DeploymentHook',
-
-    # Phase 8: Team Templates
-    'create_diagram_team',
-    'create_sql_analytics_team',
-    'create_documentation_team',
-    'create_data_science_team',
-    'create_custom_team',
+    # Feature components
+    'SwarmUIRegistry',
+    'SwarmProfiler',
+    'SwarmToolValidator',
+    'SwarmToolRegistry',
+    # Autonomous components
+    'SwarmResearcher',
+    'SwarmInstaller',
+    'SwarmConfigurator',
+    'SwarmCodeGenerator',
+    'SwarmWorkflowLearner',
+    'SwarmIntegrator',
+    # Provider gateway
+    'SwarmProviderGateway',
+    # State management
+    'SwarmStateManager',
+    'AgentStateTracker',
+    # Sandbox
+    'SandboxManager',
+    'TrustLevel',
+    'SandboxType',
+    'SandboxResult',
+    # Auto provider discovery
+    'AutoProviderDiscovery',
+    'DiscoveryResult',
+    # Unified executor
+    'UnifiedExecutor',
+    'ExecutionResult',
+    'ToolResult',
+    'StreamEvent',
+    'create_unified_executor',
+    'UnifiedToolGenerator',
+    'ToolDefinition',
+    # Legacy executor
+    'LeanExecutor',
 ]

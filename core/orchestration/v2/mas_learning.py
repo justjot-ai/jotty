@@ -1,17 +1,20 @@
 """
-MAS Learning - Multi-Agent System Learning & Persistence
-=========================================================
+MAS Learning - Multi-Agent System Learning & Persistence (DRY Version)
+======================================================================
 
-Provides persistent learning across sessions for the multi-agent swarm:
+Provides UNIQUE learning functionality not covered by other components:
 
-1. Memory Persistence - HierarchicalMemory saved/loaded from disk
-2. Fix Database - Successful error→solution mappings persisted
-3. Performance Metrics - Track agent/strategy effectiveness over time
-4. Agent Performance - Which agents excel at which task types
-5. Smart Loading - Match current task to relevant past learnings
+1. Fix Database - Persistent error→solution mappings (UNIQUE)
+2. Session History - Task history with topic-based relevance matching (UNIQUE)
+3. Execution Strategy - Combines learnings for smart execution (UNIQUE)
+
+DELEGATES TO (does not duplicate):
+- SwarmIntelligence: Agent performance, specialization, best agent selection
+- LearningManager: Q-learning, RL operations
+- TransferableLearningStore: Cross-task pattern transfer
 
 Usage:
-    mas_learning = MASLearning(config, workspace_path)
+    mas_learning = MASLearning(config, swarm_intelligence=si)
     mas_learning.load_relevant_learnings(task_description)
     # ... run MAS ...
     mas_learning.save_all()
@@ -24,10 +27,13 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# Fix Database (UNIQUE to MAS Learning)
+# =============================================================================
 
 @dataclass
 class FixRecord:
@@ -48,59 +54,9 @@ class FixRecord:
         return self.success_count / total if total > 0 else 0.0
 
 
-@dataclass
-class AgentPerformance:
-    """Track performance metrics for an agent type."""
-    agent_type: str
-    task_types: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    total_tasks: int = 0
-    total_success: int = 0
-    total_time: float = 0.0
-    specializations: List[str] = field(default_factory=list)
-
-    def record_task(self, task_type: str, success: bool, time_taken: float, output_quality: float = 0.0):
-        """Record a task execution."""
-        if task_type not in self.task_types:
-            self.task_types[task_type] = {
-                'count': 0, 'success': 0, 'total_time': 0.0,
-                'avg_quality': 0.0, 'quality_samples': 0
-            }
-
-        stats = self.task_types[task_type]
-        stats['count'] += 1
-        stats['total_time'] += time_taken
-        if success:
-            stats['success'] += 1
-        if output_quality > 0:
-            n = stats['quality_samples']
-            stats['avg_quality'] = (stats['avg_quality'] * n + output_quality) / (n + 1)
-            stats['quality_samples'] += 1
-
-        self.total_tasks += 1
-        if success:
-            self.total_success += 1
-        self.total_time += time_taken
-
-        # Update specializations (top 3 task types by success rate)
-        self._update_specializations()
-
-    def _update_specializations(self):
-        """Update agent's specializations based on performance."""
-        task_scores = []
-        for task_type, stats in self.task_types.items():
-            if stats['count'] >= 2:  # Need at least 2 samples
-                success_rate = stats['success'] / stats['count']
-                quality = stats.get('avg_quality', 0.5)
-                score = 0.7 * success_rate + 0.3 * quality
-                task_scores.append((task_type, score))
-
-        task_scores.sort(key=lambda x: x[1], reverse=True)
-        self.specializations = [t[0] for t in task_scores[:3]]
-
-    @property
-    def success_rate(self) -> float:
-        return self.total_success / self.total_tasks if self.total_tasks > 0 else 0.0
-
+# =============================================================================
+# Session History (UNIQUE to MAS Learning)
+# =============================================================================
 
 @dataclass
 class SessionLearning:
@@ -109,12 +65,14 @@ class SessionLearning:
     timestamp: str
     task_description: str
     task_topics: List[str]
-    agent_performances: Dict[str, Dict[str, Any]]
-    fixes_applied: List[Dict[str, Any]]
+    agents_used: List[str]
     stigmergy_signals: int
     total_time: float
     success: bool
     workspace: str
+    # Lightweight metrics (no duplication with SwarmIntelligence)
+    agent_count: int = 0
+    output_quality: float = 0.0
 
     def get_relevance_score(self, query_topics: List[str], query_agents: List[str] = None) -> float:
         """Calculate relevance of this session to a query."""
@@ -123,7 +81,7 @@ class SessionLearning:
 
         agent_score = 0.0
         if query_agents:
-            agent_overlap = len(set(self.agent_performances.keys()) & set(query_agents))
+            agent_overlap = len(set(self.agents_used) & set(query_agents))
             agent_score = agent_overlap / len(query_agents)
 
         recency_days = (datetime.now() - datetime.fromisoformat(self.timestamp)).days
@@ -134,33 +92,52 @@ class SessionLearning:
         return 0.4 * topic_score + 0.2 * agent_score + 0.2 * recency_score + 0.2 + success_bonus
 
 
+# =============================================================================
+# MAS Learning (Coordinator - DRY)
+# =============================================================================
+
 class MASLearning:
     """
-    Multi-Agent System Learning Manager.
+    Multi-Agent System Learning Manager (DRY Version).
 
-    Handles all persistent learning across sessions:
+    Provides UNIQUE functionality:
     - Fix database (error→solution mappings)
-    - Agent performance metrics
-    - Session learnings with smart retrieval
-    - Memory persistence integration
+    - Session history with task relevance matching
+    - Execution strategy recommendations
+
+    DELEGATES to existing components (no duplication):
+    - SwarmIntelligence for agent performance/specialization
+    - LearningManager for Q-learning
+    - TransferableLearningStore for pattern transfer
     """
 
     def __init__(
         self,
         config: Any = None,
         workspace_path: Optional[Path] = None,
-        learning_dir: Optional[Path] = None
+        learning_dir: Optional[Path] = None,
+        swarm_intelligence: Any = None,  # SwarmIntelligence instance
+        learning_manager: Any = None,    # LearningManager instance
+        transfer_learning: Any = None    # TransferableLearningStore instance
     ):
         """
         Initialize MAS Learning.
 
         Args:
             config: JottyConfig (optional)
-            workspace_path: Current workspace/project path (for project-specific learning)
-            learning_dir: Directory for learning files (default: ~/.jotty/mas_learning/)
+            workspace_path: Current workspace/project path
+            learning_dir: Directory for learning files
+            swarm_intelligence: SwarmIntelligence for agent tracking (DELEGATE)
+            learning_manager: LearningManager for Q-learning (DELEGATE)
+            transfer_learning: TransferableLearningStore for patterns (DELEGATE)
         """
         self.config = config
         self.workspace_path = Path(workspace_path) if workspace_path else Path.cwd()
+
+        # Delegate to existing components (DRY)
+        self.swarm_intelligence = swarm_intelligence
+        self.learning_manager = learning_manager
+        self.transfer_learning = transfer_learning
 
         # Learning directory
         if learning_dir:
@@ -179,9 +156,8 @@ class MASLearning:
         self.project_learning_dir = self.learning_dir / 'projects' / workspace_hash
         self.project_learning_dir.mkdir(parents=True, exist_ok=True)
 
-        # Core data stores
+        # UNIQUE data stores (not in other components)
         self.fix_database: Dict[str, FixRecord] = {}
-        self.agent_performances: Dict[str, AgentPerformance] = {}
         self.session_learnings: List[SessionLearning] = []
         self.current_session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -191,21 +167,20 @@ class MASLearning:
         # Load existing learnings
         self._load_all()
 
-        logger.info(f"🧠 MASLearning initialized: {len(self.fix_database)} fixes, "
-                   f"{len(self.agent_performances)} agents, {len(self.session_learnings)} sessions")
+        logger.info(f"🧠 MASLearning initialized (DRY): {len(self.fix_database)} fixes, "
+                   f"{len(self.session_learnings)} sessions")
 
     # =========================================================================
-    # Fix Database (Error → Solution Mappings)
+    # Fix Database (UNIQUE - error→solution mappings)
     # =========================================================================
 
     def _error_hash(self, error: str) -> str:
         """Create hash of error for lookup."""
-        # Normalize: remove timestamps, paths, specific values
         import re
         normalized = error.lower()
-        normalized = re.sub(r'\d+', 'N', normalized)  # Replace numbers
-        normalized = re.sub(r'/[\w/.-]+', '/PATH', normalized)  # Replace paths
-        normalized = re.sub(r'0x[0-9a-f]+', 'ADDR', normalized)  # Replace addresses
+        normalized = re.sub(r'\d+', 'N', normalized)
+        normalized = re.sub(r'/[\w/.-]+', '/PATH', normalized)
+        normalized = re.sub(r'0x[0-9a-f]+', 'ADDR', normalized)
         return hashlib.md5(normalized.encode()).hexdigest()
 
     def find_fix(self, error: str) -> Optional[FixRecord]:
@@ -214,10 +189,9 @@ class MASLearning:
 
         if error_hash in self.fix_database:
             fix = self.fix_database[error_hash]
-            if fix.success_rate >= 0.5:  # Only return if >50% success rate
+            if fix.success_rate >= 0.5:
                 return fix
 
-        # Try partial matching for similar errors
         for fix_hash, fix in self.fix_database.items():
             if fix.error_pattern in error or error in fix.error_pattern:
                 if fix.success_rate >= 0.6:
@@ -245,9 +219,8 @@ class MASLearning:
                 fix.fail_count += 1
             fix.last_used = datetime.now().isoformat()
         elif success:
-            # Only create new record if successful
             self.fix_database[error_hash] = FixRecord(
-                error_pattern=error[:500],  # Truncate long errors
+                error_pattern=error[:500],
                 error_hash=error_hash,
                 solution_commands=solution_commands,
                 solution_description=solution_description,
@@ -255,169 +228,11 @@ class MASLearning:
                 context=context or {}
             )
 
-        # Auto-save periodically
         if len(self.fix_database) % 10 == 0:
             self._save_fix_database()
 
     # =========================================================================
-    # Agent Performance Tracking
-    # =========================================================================
-
-    def record_agent_task(
-        self,
-        agent_type: str,
-        task_type: str,
-        success: bool,
-        time_taken: float,
-        output_quality: float = 0.0
-    ):
-        """Record an agent's task execution for learning."""
-        if agent_type not in self.agent_performances:
-            self.agent_performances[agent_type] = AgentPerformance(agent_type=agent_type)
-
-        self.agent_performances[agent_type].record_task(
-            task_type, success, time_taken, output_quality
-        )
-
-    def get_best_agent_for_task(self, task_type: str) -> Optional[str]:
-        """Get the best performing agent for a task type."""
-        candidates = []
-
-        for agent_type, perf in self.agent_performances.items():
-            if task_type in perf.task_types:
-                stats = perf.task_types[task_type]
-                if stats['count'] >= 2:
-                    success_rate = stats['success'] / stats['count']
-                    quality = stats.get('avg_quality', 0.5)
-                    score = 0.6 * success_rate + 0.4 * quality
-                    candidates.append((agent_type, score))
-
-        if candidates:
-            candidates.sort(key=lambda x: x[1], reverse=True)
-            return candidates[0][0]
-
-        return None
-
-    def get_agent_specializations(self) -> Dict[str, List[str]]:
-        """Get specializations for all agents."""
-        return {
-            agent_type: perf.specializations
-            for agent_type, perf in self.agent_performances.items()
-            if perf.specializations
-        }
-
-    def get_underperforming_agents(self, threshold: float = 0.6) -> Dict[str, float]:
-        """
-        Get agents with success rate below threshold.
-
-        Args:
-            threshold: Success rate threshold (default 60%)
-
-        Returns:
-            Dict of agent_name → success_rate for underperformers
-        """
-        underperformers = {}
-        for agent_type, perf in self.agent_performances.items():
-            if perf.total_tasks >= 2 and perf.success_rate < threshold:
-                underperformers[agent_type] = perf.success_rate
-        return underperformers
-
-    def should_use_agent(self, agent_type: str, task_type: str = None, min_success_rate: float = 0.5) -> Tuple[bool, str]:
-        """
-        Determine if an agent should be used based on learning history.
-
-        Args:
-            agent_type: The agent to check
-            task_type: Specific task type (optional)
-            min_success_rate: Minimum acceptable success rate
-
-        Returns:
-            (should_use: bool, reason: str)
-        """
-        if agent_type not in self.agent_performances:
-            return True, "No performance history - allow first use"
-
-        perf = self.agent_performances[agent_type]
-
-        if perf.total_tasks < 2:
-            return True, "Insufficient data - allow more attempts"
-
-        # Check overall performance
-        if perf.success_rate < min_success_rate:
-            return False, f"Low success rate: {perf.success_rate*100:.0f}% (threshold: {min_success_rate*100:.0f}%)"
-
-        # Check task-specific performance if requested
-        if task_type and task_type in perf.task_types:
-            stats = perf.task_types[task_type]
-            if stats['count'] >= 2:
-                task_success_rate = stats['success'] / stats['count']
-                if task_success_rate < min_success_rate:
-                    return False, f"Low success for {task_type}: {task_success_rate*100:.0f}%"
-
-        return True, f"Good performance: {perf.success_rate*100:.0f}% success"
-
-    def get_execution_strategy(self, task_description: str, available_agents: List[str]) -> Dict[str, Any]:
-        """
-        Get recommended execution strategy based on learnings.
-
-        Args:
-            task_description: The task to execute
-            available_agents: List of available agent names
-
-        Returns:
-            Strategy dict with:
-            - recommended_order: Suggested agent execution order
-            - skip_agents: Agents to skip (low performance)
-            - retry_agents: Agents that might need retries
-            - expected_time: Estimated total time
-            - confidence: Strategy confidence (0-1)
-        """
-        learnings = self.load_relevant_learnings(task_description, available_agents)
-        underperformers = self.get_underperforming_agents()
-
-        # Determine which agents to skip or retry
-        skip_agents = []
-        retry_agents = []
-        recommended_agents = []
-
-        for agent in available_agents:
-            should_use, reason = self.should_use_agent(agent)
-            if not should_use:
-                skip_agents.append({'agent': agent, 'reason': reason})
-            elif agent in underperformers:
-                retry_agents.append({'agent': agent, 'success_rate': underperformers[agent]})
-                recommended_agents.append(agent)  # Still use, but mark for retry
-            else:
-                recommended_agents.append(agent)
-
-        # Order agents by performance (best first for critical tasks)
-        agent_scores = {}
-        for agent in recommended_agents:
-            if agent in self.agent_performances:
-                agent_scores[agent] = self.agent_performances[agent].success_rate
-            else:
-                agent_scores[agent] = 0.5  # Unknown agents get neutral score
-
-        recommended_order = sorted(recommended_agents, key=lambda a: agent_scores.get(a, 0.5), reverse=True)
-
-        # Calculate expected time and confidence
-        hints = learnings.get('performance_hints', {})
-        expected_time = hints.get('expected_time', 60.0)
-        similar_count = hints.get('similar_task_count', 0)
-        confidence = min(1.0, similar_count / 5)  # More similar tasks = higher confidence
-
-        return {
-            'recommended_order': recommended_order,
-            'skip_agents': skip_agents,
-            'retry_agents': retry_agents,
-            'expected_time': expected_time,
-            'confidence': confidence,
-            'underperformers': underperformers,
-            'suggested_agents': learnings.get('suggested_agents', {})
-        }
-
-    # =========================================================================
-    # Session Learning & Smart Loading
+    # Session History (UNIQUE - task relevance matching)
     # =========================================================================
 
     def _extract_topics(self, text: str) -> List[str]:
@@ -425,11 +240,9 @@ class MASLearning:
         if text in self._topic_cache:
             return self._topic_cache[text]
 
-        # Simple keyword extraction (can be enhanced with NLP)
         import re
         words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
 
-        # Filter common words
         stopwords = {'this', 'that', 'with', 'from', 'have', 'will', 'would', 'could',
                     'should', 'being', 'been', 'were', 'what', 'when', 'where', 'which',
                     'their', 'them', 'then', 'than', 'these', 'those', 'some', 'such',
@@ -437,7 +250,6 @@ class MASLearning:
 
         topics = [w for w in words if w not in stopwords]
 
-        # Get unique topics by frequency
         from collections import Counter
         topic_counts = Counter(topics)
         top_topics = [t for t, _ in topic_counts.most_common(10)]
@@ -448,11 +260,11 @@ class MASLearning:
     def record_session(
         self,
         task_description: str,
-        agent_performances: Dict[str, Dict[str, Any]],
-        fixes_applied: List[Dict[str, Any]],
-        stigmergy_signals: int,
+        agents_used: List[str],
         total_time: float,
-        success: bool
+        success: bool,
+        stigmergy_signals: int = 0,
+        output_quality: float = 0.0
     ):
         """Record learning from a completed session."""
         session = SessionLearning(
@@ -460,17 +272,17 @@ class MASLearning:
             timestamp=datetime.now().isoformat(),
             task_description=task_description,
             task_topics=self._extract_topics(task_description),
-            agent_performances=agent_performances,
-            fixes_applied=fixes_applied,
+            agents_used=agents_used,
             stigmergy_signals=stigmergy_signals,
             total_time=total_time,
             success=success,
-            workspace=str(self.workspace_path)
+            workspace=str(self.workspace_path),
+            agent_count=len(agents_used),
+            output_quality=output_quality
         )
 
         self.session_learnings.append(session)
 
-        # Keep only last 100 sessions
         if len(self.session_learnings) > 100:
             self.session_learnings = self.session_learnings[-100:]
 
@@ -485,23 +297,14 @@ class MASLearning:
         """
         Load learnings relevant to the current task.
 
-        This is the key method for "which MAS learning should be loaded".
-
-        Args:
-            task_description: Description of the current task
-            agent_types: Agent types that will be used (optional)
-            top_k: Number of relevant sessions to consider
-
-        Returns:
-            Dict with relevant learnings:
-            - suggested_agents: Best agents for this task type
-            - relevant_fixes: Fixes likely to be needed
-            - performance_hints: Expected performance based on history
-            - past_strategies: Strategies that worked before
+        Combines:
+        - Session history (unique to MAS Learning)
+        - SwarmIntelligence agent recommendations (delegated)
+        - Fix database (unique to MAS Learning)
         """
         query_topics = self._extract_topics(task_description)
 
-        # Score and rank past sessions by relevance
+        # Score and rank past sessions
         scored_sessions = [
             (session, session.get_relevance_score(query_topics, agent_types))
             for session in self.session_learnings
@@ -509,53 +312,37 @@ class MASLearning:
         scored_sessions.sort(key=lambda x: x[1], reverse=True)
         relevant_sessions = [s for s, score in scored_sessions[:top_k] if score > 0.3]
 
-        # Extract insights from relevant sessions
-        suggested_agents = {}
-        relevant_fixes = []
-        performance_hints = {}
+        # Extract insights from sessions
         past_strategies = []
-
         for session in relevant_sessions:
-            # Aggregate agent performance from similar past tasks
-            for agent_type, perf in session.agent_performances.items():
-                if agent_type not in suggested_agents:
-                    suggested_agents[agent_type] = {'score': 0, 'count': 0, 'avg_time': 0}
-                sa = suggested_agents[agent_type]
-                sa['count'] += 1
-                sa['score'] += perf.get('success_rate', 0.5)
-                sa['avg_time'] += perf.get('avg_time', 0)
-
-            # Collect relevant fixes
-            for fix in session.fixes_applied:
-                if fix not in relevant_fixes:
-                    relevant_fixes.append(fix)
-
-            # Extract strategies
             if session.success:
                 past_strategies.append({
                     'task': session.task_description[:100],
-                    'agents_used': list(session.agent_performances.keys()),
+                    'agents_used': session.agents_used,
                     'time': session.total_time,
                     'stigmergy_signals': session.stigmergy_signals
                 })
 
-        # Finalize suggested agents
-        for agent_type, stats in suggested_agents.items():
-            if stats['count'] > 0:
-                stats['score'] /= stats['count']
-                stats['avg_time'] /= stats['count']
+        # Get agent recommendations from SwarmIntelligence (DELEGATE - DRY)
+        suggested_agents = {}
+        underperformers = {}
+        if self.swarm_intelligence:
+            try:
+                # Use SwarmIntelligence's existing agent tracking
+                for agent_name in (agent_types or []):
+                    profile = self.swarm_intelligence.get_agent_profile(agent_name)
+                    if profile:
+                        suggested_agents[agent_name] = {
+                            'success_rate': profile.success_rate,
+                            'specialization': profile.specialization.value if hasattr(profile, 'specialization') else 'unknown',
+                            'total_tasks': profile.total_tasks
+                        }
+                        if profile.success_rate < 0.6 and profile.total_tasks >= 2:
+                            underperformers[agent_name] = profile.success_rate
+            except Exception as e:
+                logger.debug(f"Could not get SwarmIntelligence data: {e}")
 
-        # Add global agent specializations
-        specializations = self.get_agent_specializations()
-        for agent_type, specs in specializations.items():
-            for topic in query_topics:
-                if any(topic in spec.lower() for spec in specs):
-                    if agent_type not in suggested_agents:
-                        suggested_agents[agent_type] = {'score': 0.7, 'count': 0, 'specialized': True}
-                    else:
-                        suggested_agents[agent_type]['specialized'] = True
-
-        # Performance hints based on task complexity
+        # Performance hints from session history
         avg_time = sum(s.total_time for s in relevant_sessions) / len(relevant_sessions) if relevant_sessions else 60
         success_rate = sum(1 for s in relevant_sessions if s.success) / len(relevant_sessions) if relevant_sessions else 0.5
 
@@ -563,39 +350,84 @@ class MASLearning:
             'expected_time': avg_time,
             'expected_success_rate': success_rate,
             'similar_task_count': len(relevant_sessions),
-            'recommended_agents': sorted(
-                suggested_agents.items(),
-                key=lambda x: x[1]['score'],
-                reverse=True
-            )[:3]
         }
 
-        logger.info(f"📚 Loaded learnings: {len(relevant_sessions)} relevant sessions, "
-                   f"{len(suggested_agents)} suggested agents, {len(relevant_fixes)} fixes")
+        # Get relevant fixes
+        relevant_fixes = list(self.fix_database.values())[:10]
+
+        logger.info(f"📚 Loaded learnings: {len(relevant_sessions)} sessions, "
+                   f"{len(suggested_agents)} agents, {len(relevant_fixes)} fixes")
 
         return {
             'suggested_agents': suggested_agents,
-            'relevant_fixes': relevant_fixes[:10],  # Top 10 fixes
+            'underperformers': underperformers,
+            'relevant_fixes': [{'pattern': f.error_pattern[:50], 'solution': f.solution_description} for f in relevant_fixes],
             'performance_hints': performance_hints,
-            'past_strategies': past_strategies[:5],  # Top 5 strategies
+            'past_strategies': past_strategies[:5],
             'query_topics': query_topics
         }
 
     # =========================================================================
-    # Persistence
+    # Execution Strategy (Combines learnings - UNIQUE)
+    # =========================================================================
+
+    def get_execution_strategy(self, task_description: str, available_agents: List[str]) -> Dict[str, Any]:
+        """
+        Get recommended execution strategy based on all learnings.
+
+        Combines:
+        - Session history for expected performance
+        - SwarmIntelligence for agent selection (delegated)
+        - Fix database for potential issues
+        """
+        learnings = self.load_relevant_learnings(task_description, available_agents)
+
+        # Get underperformers from SwarmIntelligence (DELEGATE)
+        skip_agents = []
+        retry_agents = []
+
+        for agent in available_agents:
+            if agent in learnings.get('underperformers', {}):
+                success_rate = learnings['underperformers'][agent]
+                if success_rate < 0.4:
+                    skip_agents.append({'agent': agent, 'reason': f'{success_rate*100:.0f}% success rate'})
+                else:
+                    retry_agents.append({'agent': agent, 'success_rate': success_rate})
+
+        # Order by success rate (use SwarmIntelligence data)
+        agent_scores = {}
+        for agent in available_agents:
+            if agent in learnings.get('suggested_agents', {}):
+                agent_scores[agent] = learnings['suggested_agents'][agent].get('success_rate', 0.5)
+            else:
+                agent_scores[agent] = 0.5
+
+        recommended_order = sorted(
+            [a for a in available_agents if a not in [s['agent'] for s in skip_agents]],
+            key=lambda a: agent_scores.get(a, 0.5),
+            reverse=True
+        )
+
+        hints = learnings.get('performance_hints', {})
+
+        return {
+            'recommended_order': recommended_order,
+            'skip_agents': skip_agents,
+            'retry_agents': retry_agents,
+            'expected_time': hints.get('expected_time', 60.0),
+            'confidence': min(1.0, hints.get('similar_task_count', 0) / 5),
+            'relevant_fixes': learnings.get('relevant_fixes', [])
+        }
+
+    # =========================================================================
+    # Persistence (Fix Database + Sessions only - others delegated)
     # =========================================================================
 
     def _get_fix_db_path(self) -> Path:
         return self.learning_dir / 'fix_database.json'
 
-    def _get_agent_perf_path(self) -> Path:
-        return self.learning_dir / 'agent_performance.json'
-
     def _get_sessions_path(self) -> Path:
         return self.learning_dir / 'session_learnings.json'
-
-    def _get_project_sessions_path(self) -> Path:
-        return self.project_learning_dir / 'sessions.json'
 
     def _save_fix_database(self):
         """Save fix database to disk."""
@@ -649,67 +481,12 @@ class MASLearning:
         except Exception as e:
             logger.warning(f"Could not load fix database: {e}")
 
-    def _save_agent_performance(self):
-        """Save agent performance to disk."""
-        try:
-            data = {}
-            for agent_type, perf in self.agent_performances.items():
-                data[agent_type] = {
-                    'agent_type': perf.agent_type,
-                    'task_types': perf.task_types,
-                    'total_tasks': perf.total_tasks,
-                    'total_success': perf.total_success,
-                    'total_time': perf.total_time,
-                    'specializations': perf.specializations
-                }
-
-            with open(self._get_agent_perf_path(), 'w') as f:
-                json.dump(data, f, indent=2)
-
-        except Exception as e:
-            logger.warning(f"Could not save agent performance: {e}")
-
-    def _load_agent_performance(self):
-        """Load agent performance from disk."""
-        path = self._get_agent_perf_path()
-        if not path.exists():
-            return
-
-        try:
-            with open(path) as f:
-                data = json.load(f)
-
-            for agent_type, perf_data in data.items():
-                self.agent_performances[agent_type] = AgentPerformance(
-                    agent_type=perf_data['agent_type'],
-                    task_types=perf_data.get('task_types', {}),
-                    total_tasks=perf_data.get('total_tasks', 0),
-                    total_success=perf_data.get('total_success', 0),
-                    total_time=perf_data.get('total_time', 0.0),
-                    specializations=perf_data.get('specializations', [])
-                )
-
-            logger.info(f"Loaded performance for {len(self.agent_performances)} agents")
-
-        except Exception as e:
-            logger.warning(f"Could not load agent performance: {e}")
-
     def _save_sessions(self):
         """Save session learnings to disk."""
         try:
-            # Global sessions
             data = [asdict(s) for s in self.session_learnings]
             with open(self._get_sessions_path(), 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-
-            # Project-specific sessions
-            project_sessions = [
-                s for s in self.session_learnings
-                if s.workspace == str(self.workspace_path)
-            ]
-            project_data = [asdict(s) for s in project_sessions]
-            with open(self._get_project_sessions_path(), 'w') as f:
-                json.dump(project_data, f, indent=2, default=str)
 
         except Exception as e:
             logger.warning(f"Could not save sessions: {e}")
@@ -730,12 +507,13 @@ class MASLearning:
                     timestamp=session_data['timestamp'],
                     task_description=session_data['task_description'],
                     task_topics=session_data.get('task_topics', []),
-                    agent_performances=session_data.get('agent_performances', {}),
-                    fixes_applied=session_data.get('fixes_applied', []),
+                    agents_used=session_data.get('agents_used', []),
                     stigmergy_signals=session_data.get('stigmergy_signals', 0),
                     total_time=session_data.get('total_time', 0),
                     success=session_data.get('success', False),
-                    workspace=session_data.get('workspace', '')
+                    workspace=session_data.get('workspace', ''),
+                    agent_count=session_data.get('agent_count', 0),
+                    output_quality=session_data.get('output_quality', 0.0)
                 ))
 
             logger.info(f"Loaded {len(self.session_learnings)} sessions")
@@ -746,27 +524,20 @@ class MASLearning:
     def _load_all(self):
         """Load all learning data from disk."""
         self._load_fix_database()
-        self._load_agent_performance()
         self._load_sessions()
 
     def save_all(self):
         """Save all learning data to disk."""
         self._save_fix_database()
-        self._save_agent_performance()
         self._save_sessions()
-        logger.info("💾 All MAS learnings saved")
+        logger.info("💾 MAS learnings saved (fix database + sessions)")
 
     # =========================================================================
-    # Integration with SwarmTerminal
+    # Integration with SwarmTerminal (UNIQUE - fix persistence)
     # =========================================================================
 
     def integrate_with_terminal(self, swarm_terminal) -> None:
-        """
-        Integrate with SwarmTerminal to persist fix learnings.
-
-        Args:
-            swarm_terminal: SwarmTerminal instance
-        """
+        """Integrate with SwarmTerminal to persist fix learnings."""
         if not swarm_terminal:
             return
 
@@ -786,21 +557,12 @@ class MASLearning:
         logger.info(f"Integrated {len(self.fix_database)} fixes with SwarmTerminal")
 
     def sync_from_terminal(self, swarm_terminal) -> int:
-        """
-        Sync fix learnings from SwarmTerminal to database.
-
-        Args:
-            swarm_terminal: SwarmTerminal instance
-
-        Returns:
-            Number of new fixes synced
-        """
+        """Sync fix learnings from SwarmTerminal to database."""
         if not swarm_terminal:
             return 0
 
         new_fixes = 0
 
-        # Sync from fix history
         for fix_entry in getattr(swarm_terminal, '_fix_history', []):
             error = fix_entry.get('error', '')
             if not error:
@@ -823,32 +585,7 @@ class MASLearning:
         return new_fixes
 
     # =========================================================================
-    # Integration with HierarchicalMemory
-    # =========================================================================
-
-    def enable_memory_persistence(self, swarm_memory, agent_name: str = "SwarmShared"):
-        """
-        Enable persistence for HierarchicalMemory.
-
-        Args:
-            swarm_memory: HierarchicalMemory instance
-            agent_name: Name for the memory persistence
-        """
-        try:
-            from ...memory.memory_persistence import enable_memory_persistence
-
-            persistence_dir = self.learning_dir / 'memories' / agent_name
-            persistence = enable_memory_persistence(swarm_memory, persistence_dir)
-
-            logger.info(f"Enabled memory persistence for {agent_name} at {persistence_dir}")
-            return persistence
-
-        except Exception as e:
-            logger.warning(f"Could not enable memory persistence: {e}")
-            return None
-
-    # =========================================================================
-    # Statistics & Reporting
+    # Statistics
     # =========================================================================
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -857,27 +594,21 @@ class MASLearning:
             'fix_database': {
                 'total_fixes': len(self.fix_database),
                 'avg_success_rate': sum(f.success_rate for f in self.fix_database.values()) / max(len(self.fix_database), 1),
-                'by_source': dict(defaultdict(int, {
-                    fix.source: sum(1 for f in self.fix_database.values() if f.source == fix.source)
-                    for fix in self.fix_database.values()
-                }))
-            },
-            'agent_performance': {
-                'total_agents': len(self.agent_performances),
-                'total_tasks': sum(p.total_tasks for p in self.agent_performances.values()),
-                'overall_success_rate': sum(p.total_success for p in self.agent_performances.values()) /
-                                        max(sum(p.total_tasks for p in self.agent_performances.values()), 1),
-                'specializations': self.get_agent_specializations()
             },
             'sessions': {
                 'total_sessions': len(self.session_learnings),
                 'successful_sessions': sum(1 for s in self.session_learnings if s.success),
                 'avg_time': sum(s.total_time for s in self.session_learnings) / max(len(self.session_learnings), 1)
+            },
+            'delegates_to': {
+                'swarm_intelligence': self.swarm_intelligence is not None,
+                'learning_manager': self.learning_manager is not None,
+                'transfer_learning': self.transfer_learning is not None
             }
         }
 
 
-# Convenience function for quick integration
-def get_mas_learning(config=None, workspace_path=None) -> MASLearning:
+# Convenience function
+def get_mas_learning(config=None, workspace_path=None, **delegates) -> MASLearning:
     """Get or create MAS Learning instance."""
-    return MASLearning(config=config, workspace_path=workspace_path)
+    return MASLearning(config=config, workspace_path=workspace_path, **delegates)

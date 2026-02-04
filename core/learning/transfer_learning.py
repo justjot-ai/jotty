@@ -687,10 +687,233 @@ class TransferableLearningStore:
 
         return "\n".join(lines)
 
+    # =========================================================================
+    # Session History & Task Scoring (consolidated from MASLearning)
+    # =========================================================================
+
+    def record_session(
+        self,
+        task_description: str,
+        agents_used: List[str],
+        total_time: float,
+        success: bool,
+        stigmergy_signals: int = 0,
+        output_quality: float = 0.0
+    ):
+        """Record a session for task relevance matching."""
+        if not hasattr(self, 'sessions'):
+            self.sessions = []
+
+        # Extract topics for matching
+        topics = self._extract_topics(task_description)
+
+        session = {
+            'session_id': hashlib.md5(f"{task_description}:{time.time()}".encode()).hexdigest()[:12],
+            'timestamp': time.time(),
+            'task_description': task_description,
+            'task_topics': topics,
+            'agents_used': agents_used,
+            'stigmergy_signals': stigmergy_signals,
+            'total_time': total_time,
+            'success': success,
+            'output_quality': output_quality
+        }
+
+        self.sessions.append(session)
+
+        # Keep only last 100 sessions
+        if len(self.sessions) > 100:
+            self.sessions = self.sessions[-100:]
+
+    def _extract_topics(self, text: str) -> List[str]:
+        """Extract topics from text for similarity matching."""
+        import re
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+
+        stopwords = {'this', 'that', 'with', 'from', 'have', 'will', 'would', 'could',
+                    'should', 'being', 'been', 'were', 'what', 'when', 'where', 'which',
+                    'their', 'them', 'then', 'than', 'these', 'those', 'some', 'such',
+                    'only', 'other', 'into', 'over', 'also', 'more', 'most', 'very'}
+
+        topics = [w for w in words if w not in stopwords]
+
+        from collections import Counter
+        topic_counts = Counter(topics)
+        return [t for t, _ in topic_counts.most_common(10)]
+
+    def score_task_relevance(self, task_description: str, session: Dict) -> float:
+        """
+        Score relevance for EXECUTION - find best strategy to copy.
+
+        Optimized for: recent successful similar tasks.
+        - Prefers recent sessions (recency decay)
+        - Prefers successful sessions (success bonus)
+        - Topic similarity matters
+        """
+        query_topics = self._extract_topics(task_description)
+        session_topics = session.get('task_topics', [])
+
+        # Topic overlap score
+        topic_overlap = len(set(query_topics) & set(session_topics))
+        topic_score = topic_overlap / max(len(query_topics), 1)
+
+        # Recency score (decay over 30 days)
+        age_seconds = time.time() - session.get('timestamp', 0)
+        age_days = age_seconds / 86400
+        recency_score = max(0, 1 - age_days / 30)
+
+        # Success bonus
+        success_bonus = 0.2 if session.get('success', False) else 0
+
+        return 0.5 * topic_score + 0.3 * recency_score + 0.2 + success_bonus
+
+    def score_learning_relevance(self, task_description: str, session: Dict) -> float:
+        """
+        Score relevance for LEARNING - find lessons to apply.
+
+        Optimized for: learning from both successes and failures.
+        - No recency decay (old lessons still valuable)
+        - Weights failures higher (learn from mistakes)
+        - Higher weight on topic similarity
+        - Considers output quality
+        """
+        query_topics = self._extract_topics(task_description)
+        session_topics = session.get('task_topics', [])
+
+        # Topic overlap score (higher weight for learning)
+        topic_overlap = len(set(query_topics) & set(session_topics))
+        topic_score = topic_overlap / max(len(query_topics), 1)
+
+        # Failure bonus - learn more from mistakes
+        success = session.get('success', False)
+        outcome_score = 0.3 if not success else 0.1
+
+        # Quality score - high quality outputs are better lessons
+        quality = session.get('output_quality', 0.5)
+        quality_score = quality * 0.2
+
+        # Diversity bonus - sessions with more agents provide richer lessons
+        agents_used = session.get('agents_used', [])
+        diversity_score = min(len(agents_used) / 5, 1.0) * 0.1
+
+        return 0.5 * topic_score + outcome_score + quality_score + diversity_score
+
+    def get_learning_sessions(self, task_description: str, top_k: int = 10) -> List[Dict]:
+        """
+        Get sessions most relevant for LEARNING about a task type.
+
+        Returns both successes and failures to learn from.
+        Uses score_learning_relevance() for scoring.
+        """
+        if not hasattr(self, 'sessions') or not self.sessions:
+            return []
+
+        scored = [
+            (session, self.score_learning_relevance(task_description, session))
+            for session in self.sessions
+        ]
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        # Return sessions above threshold, ensuring mix of outcomes
+        results = []
+        successes = 0
+        failures = 0
+
+        for session, score in scored:
+            if score < 0.2:
+                continue
+            if len(results) >= top_k:
+                break
+
+            is_success = session.get('success', False)
+            # Ensure we get at least some of each outcome type
+            if is_success:
+                if successes < top_k // 2 or failures >= top_k // 2:
+                    results.append(session)
+                    successes += 1
+            else:
+                if failures < top_k // 2 or successes >= top_k // 2:
+                    results.append(session)
+                    failures += 1
+
+        return results
+
+    def get_relevant_sessions(self, task_description: str, top_k: int = 5) -> List[Dict]:
+        """
+        Get sessions most relevant for EXECUTION strategy.
+
+        Returns recent successful similar tasks to inform execution.
+        Uses score_task_relevance() for scoring.
+        """
+        if not hasattr(self, 'sessions') or not self.sessions:
+            return []
+
+        scored = [
+            (session, self.score_task_relevance(task_description, session))
+            for session in self.sessions
+        ]
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        return [s for s, score in scored[:top_k] if score > 0.3]
+
+    def get_execution_strategy(self, task_description: str, available_agents: List[str]) -> Dict:
+        """Get recommended execution strategy based on learnings."""
+        relevant = self.get_relevant_sessions(task_description, top_k=5)
+
+        # Aggregate agent performance from relevant sessions
+        agent_success = {}
+        for session in relevant:
+            for agent in session.get('agents_used', []):
+                if agent not in agent_success:
+                    agent_success[agent] = {'success': 0, 'total': 0, 'time': 0}
+                agent_success[agent]['total'] += 1
+                if session.get('success', False):
+                    agent_success[agent]['success'] += 1
+                agent_success[agent]['time'] += session.get('total_time', 0) / max(len(session.get('agents_used', [])), 1)
+
+        # Calculate success rates
+        agent_scores = {}
+        for agent in available_agents:
+            if agent in agent_success and agent_success[agent]['total'] >= 2:
+                agent_scores[agent] = agent_success[agent]['success'] / agent_success[agent]['total']
+            else:
+                agent_scores[agent] = 0.5  # Unknown agents get neutral score
+
+        # Identify underperformers
+        skip_agents = []
+        retry_agents = []
+        for agent, score in agent_scores.items():
+            if score < 0.4:
+                skip_agents.append({'agent': agent, 'reason': f'{score*100:.0f}% success'})
+            elif score < 0.6:
+                retry_agents.append({'agent': agent, 'success_rate': score})
+
+        # Order by success rate
+        recommended_order = sorted(
+            [a for a in available_agents if a not in [s['agent'] for s in skip_agents]],
+            key=lambda a: agent_scores.get(a, 0.5),
+            reverse=True
+        )
+
+        # Expected time from similar tasks
+        expected_time = 60.0
+        if relevant:
+            expected_time = sum(s.get('total_time', 60) for s in relevant) / len(relevant)
+
+        return {
+            'recommended_order': recommended_order,
+            'skip_agents': skip_agents,
+            'retry_agents': retry_agents,
+            'expected_time': expected_time,
+            'confidence': min(1.0, len(relevant) / 5),
+            'similar_sessions': len(relevant)
+        }
+
     def save(self, path: str):
         """Save transferable learnings to disk."""
         data = {
             'experiences': self.experiences[-500:],  # Keep recent
+            'sessions': getattr(self, 'sessions', [])[-100:],  # Session history
             'task_patterns': {
                 k: {
                     'pattern_id': v.pattern_id,
@@ -757,6 +980,9 @@ class TransferableLearningStore:
             # Restore experiences
             self.experiences = data.get('experiences', [])
 
+            # Restore sessions (for task relevance scoring)
+            self.sessions = data.get('sessions', [])
+
             # Re-embed experiences
             for exp in self.experiences:
                 self.experience_embeddings[exp['id']] = self.embedder.embed(exp['query'])
@@ -778,7 +1004,7 @@ class TransferableLearningStore:
                 self.meta_patterns[k] = MetaPattern(**v)
 
             logger.info(f"Loaded transferable learnings: {len(self.task_patterns)} task patterns, "
-                       f"{len(self.role_profiles)} role profiles")
+                       f"{len(self.role_profiles)} role profiles, {len(self.sessions)} sessions")
             return True
 
         except Exception as e:

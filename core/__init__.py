@@ -59,7 +59,7 @@ warnings.filterwarnings(
 # =============================================================================
 from .jotty import (
     # Core Orchestration
-    Conductor,
+    SwarmManager,
     JottyCore,
     SwarmConfig,
     JottyConfig,  # Backward compatibility
@@ -151,8 +151,8 @@ from .foundation.data_structures import (
     RichObservation
 )
 
-# v6.1 A-Team Enhancements: Rich State Representation
-from .orchestration.roadmap import (
+# v6.1 A-Team Enhancements: Rich State Representation (V2)
+from .orchestration.v2.swarm_roadmap import (
     AgenticState,
     TrajectoryStep,
     DecomposedQFunction,
@@ -244,27 +244,28 @@ from .context.context_gradient import (
     ContextUpdate
 )
 
-from .orchestration.jotty_core import (
-    JottyCore,
-    PersistenceManager,
-    create_reval
-)
+# JottyCore is now SwarmManager (V2)
+from .orchestration import SwarmManager as JottyCore
+PersistenceManager = None  # Deprecated, use MASLearning
+create_reval = None  # Deprecated
 
 # v9.1 Complete Persistence Manager - NO HARDCODING
 from .persistence.persistence import (
     Vault
 )
 
-# v7.0 Conductor - Multi-Actor Orchestration (A-Team Enhancement)
-from .orchestration.conductor import (
-    Conductor,
-    create_conductor
+# v7.0 SwarmManager - Multi-Actor Orchestration (V2)
+from .orchestration import (
+    SwarmManager,
+    MarkovianTODO as SwarmMarkovianTODO,
+    PolicyExplorer,  # Now in v2
+    CreditAssignment,
+    AdaptiveLearning,
 )
+from .orchestration.v2.swarm_roadmap import TodoItem
 from .foundation.agent_config import AgentConfig
-from .orchestration.roadmap import MarkovianTODO as SwarmMarkovianTODO, TodoItem
 from .learning.q_learning import LLMQPredictor
 from .context.context_guard import SmartContextGuard
-from .orchestration.policy_explorer import PolicyExplorer
 # SwarmLearner is now internal to swarm_reval, not exported
 
 # v7.1 Predictive MARL - Multi-Agent Trajectory Prediction (Vision Implementation)

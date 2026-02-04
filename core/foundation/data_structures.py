@@ -220,7 +220,7 @@ class SwarmConfig:
     # 2. EXECUTION
     # =========================================================================
     max_actor_iters: int = 50  # ✅ Configurable! (was hardcoded in agents)
-    max_eval_iters: int = 10   # ✅ Configurable! (was hardcoded=3 in agent.py)
+    max_eval_iters: int = 1    # ✅ Architect/Auditor ReAct iterations (1=minimal, 2-3=balanced, 5-10=thorough)
     max_episode_iterations: int = 12  # ✅ A-TEAM: Max task iterations per episode (used in swarm.run)
     async_timeout: float = 60.0
     actor_timeout: float = 900.0  # Specific timeout for actor execution (15 minutes)

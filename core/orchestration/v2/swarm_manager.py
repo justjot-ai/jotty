@@ -24,8 +24,8 @@ from collections import defaultdict
 from ...foundation.data_structures import JottyConfig, EpisodeResult
 from ...foundation.agent_config import AgentConfig
 from .agent_runner import AgentRunner, AgentRunnerConfig
-# Import directly from source to avoid circular import
-from ..roadmap import MarkovianTODO as SwarmTaskBoard, TaskStatus
+# Import from v2 local modules (no v1 dependencies)
+from .swarm_roadmap import MarkovianTODO as SwarmTaskBoard, TaskStatus
 from ...agents.agentic_planner import AgenticPlanner as SwarmPlanner
 from ...memory.cortex import HierarchicalMemory as SwarmMemory
 # Feature components (using Swarm prefix for consistency)
@@ -47,8 +47,8 @@ from .swarm_terminal import SwarmTerminal
 from .swarm_provider_gateway import SwarmProviderGateway
 # State Management (V1 capabilities integrated)
 from .swarm_state_manager import SwarmStateManager
-# V1 Learning Pipeline (restored in V2)
-from ..managers.learning_manager import LearningManager
+# V2 Learning Pipeline (RL operations)
+from .rl_learning_manager import LearningManager
 from ...learning.predictive_marl import (
     LLMTrajectoryPredictor, DivergenceMemory,
     CooperativeCreditAssigner, ActualTrajectory
@@ -58,7 +58,7 @@ from ...memory.consolidation_engine import (
 )
 from ...agents.axon import SmartAgentSlack
 from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
-from ..conductor import SwarmLearner
+from .swarm_learner import SwarmLearner
 from ...learning.transfer_learning import TransferableLearningStore
 from .swarm_intelligence import SwarmIntelligence, SyntheticTask, CurriculumGenerator
 from ...foundation.robust_parsing import AdaptiveWeightGroup
@@ -212,9 +212,9 @@ class SwarmManager:
         self.mode = "multi" if len(agents) > 1 else "single"
         logger.info(f"🤖 Agent mode: {self.mode} ({len(self.agents)} agents)")
         
-        # Default prompts if not provided
-        self.architect_prompts = architect_prompts or ["prompts/architect.md"]
-        self.auditor_prompts = auditor_prompts or ["prompts/auditor.md"]
+        # Default prompts - use evolved prompts from configs/prompts/ directory
+        self.architect_prompts = architect_prompts or ["configs/prompts/architect/base_architect.md"]
+        self.auditor_prompts = auditor_prompts or ["configs/prompts/auditor/base_auditor.md"]
         
         # Swarm-level Feature Components (consistent naming)
         # UI Component Registry
@@ -248,22 +248,7 @@ class SwarmManager:
         )
         logger.info("🤖 Autonomous components initialized (including SwarmTerminal)")
 
-        # MAS Learning - Persistent learning across sessions
-        workspace_path = getattr(self.config, 'base_path', None)
-        self.mas_learning = MASLearning(
-            config=self.config,
-            workspace_path=workspace_path
-        )
-
-        # Enable memory persistence for swarm_memory
-        self.memory_persistence = self.mas_learning.enable_memory_persistence(
-            self.swarm_memory,
-            agent_name="SwarmShared"
-        )
-
-        # Integrate fix database with SwarmTerminal
-        self.mas_learning.integrate_with_terminal(self.swarm_terminal)
-        logger.info("🧠 MASLearning initialized (persistent learning across sessions)")
+        # MAS Learning initialization moved after _init_learning_pipeline() for DRY delegation
         
         # Initialize shared context and supporting components for state management
         from ...persistence.shared_context import SharedContext
@@ -300,6 +285,18 @@ class SwarmManager:
 
         # Initialize V1 learning pipeline
         self._init_learning_pipeline()
+
+        # MAS Learning - DRY: delegates to existing components
+        workspace_path = getattr(self.config, 'base_path', None)
+        self.mas_learning = MASLearning(
+            config=self.config,
+            workspace_path=workspace_path,
+            swarm_intelligence=self.swarm_intelligence,  # DELEGATE
+            learning_manager=self.learning_manager,      # DELEGATE
+            transfer_learning=self.transfer_learning     # DELEGATE
+        )
+        self.mas_learning.integrate_with_terminal(self.swarm_terminal)
+        logger.info("🧠 MASLearning initialized (DRY: delegates to SwarmIntelligence/LearningManager)")
 
         # Auto-load previous learnings (makes it truly self-learning across sessions)
         self._auto_load_learnings()
@@ -779,11 +776,10 @@ class SwarmManager:
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
-        # Log MAS Learning statistics
+        # Log MAS Learning statistics (DRY: agents tracked via SwarmIntelligence)
         if hasattr(self, 'mas_learning') and self.mas_learning:
             stats = self.mas_learning.get_statistics()
             logger.info(f"MAS Learning ready: {stats['fix_database']['total_fixes']} fixes, "
-                       f"{stats['agent_performance']['total_agents']} agents, "
                        f"{stats['sessions']['total_sessions']} sessions")
 
     def load_relevant_learnings(self, task_description: str, agent_types: List[str] = None) -> Dict[str, Any]:
@@ -1441,9 +1437,9 @@ For component-specific help:
             if self.mode == "single":
                 agent_name = self.agents[0].name if self.agents else "auto"
                 _status("Executing", f"agent '{agent_name}' with skill orchestration")
-                # Skip validation for zero-config mode since AutoAgent has its own planning
-                # Architect/Auditor validation is redundant and slow (10 ReAct iterations)
-                skip_val = skip_autonomous_setup or self.enable_zero_config
+                # Architect → Actor → Auditor pipeline (now fast with max_eval_iters=2)
+                # skip_validation only when explicitly requested via skip_autonomous_setup
+                skip_val = skip_autonomous_setup
                 result = await self._execute_single_agent(
                     goal,
                     skip_validation=skip_val,
@@ -2922,3 +2918,265 @@ Provide a structured synthesis with:
             'recommended_episodes': 0,
             'weak_areas': []
         }
+
+    # =====================================================================
+    # DAG-Based Orchestration (TaskBreakdownAgent + TodoCreatorAgent)
+    # =====================================================================
+
+    async def run_with_dag(
+        self,
+        implementation_plan: str,
+        available_actors: List[Dict[str, Any]] = None,
+        status_callback=None,
+        **kwargs
+    ) -> EpisodeResult:
+        """
+        Execute a task using DAG-based orchestration.
+
+        This method:
+        1. Uses TaskBreakdownAgent to convert plan into tasks
+        2. Uses TodoCreatorAgent to assign actors and validate DAG
+        3. Executes tasks in parallel stages
+        4. Records learning from execution outcomes
+
+        Args:
+            implementation_plan: Implementation plan or goal description
+            available_actors: List of actor dicts with 'name' and 'capabilities'
+                             If None, uses existing agents as actors
+            status_callback: Optional callback(stage, detail) for progress
+            **kwargs: Additional arguments
+
+        Returns:
+            EpisodeResult with execution output and metadata
+
+        Example:
+            plan = '''
+            # Build REST API
+            1. Create data models
+            2. Implement endpoints
+            3. Add validation
+            4. Write tests
+            '''
+            actors = [
+                {"name": "CodeAgent", "capabilities": ["coding", "api"]},
+                {"name": "TestAgent", "capabilities": ["testing"]}
+            ]
+            result = await swarm.run_with_dag(plan, actors)
+        """
+        from ...agents.dag_agents import (
+            TaskBreakdownAgent, TodoCreatorAgent, ExecutableDAG
+        )
+
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"📍 [DAG] {stage}" + (f": {detail}" if detail else ""))
+
+        _status("Initializing", "DAG-based orchestration")
+
+        # Ensure DSPy LM is configured
+        import dspy
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            lm = self.swarm_provider_gateway.get_lm()
+            if lm:
+                dspy.configure(lm=lm)
+
+        # Default actors from existing agents
+        if available_actors is None:
+            available_actors = [
+                {
+                    "name": agent.name,
+                    "capabilities": getattr(agent.agent, 'capabilities', ['coding', 'analysis']),
+                    "description": getattr(agent.agent, 'description', None)
+                }
+                for agent in self.agents
+            ]
+            _status("Using existing agents", f"{len(available_actors)} actors")
+
+        # Step 1: Break down plan into tasks
+        _status("Task breakdown", "analyzing plan")
+        breakdown_agent = TaskBreakdownAgent(config=self.config)
+        markovian_todo = breakdown_agent(implementation_plan)  # Use __call__ not forward
+        _status("Tasks extracted", f"{len(markovian_todo.subtasks)} tasks")
+
+        # Step 2: Assign actors and create executable DAG
+        _status("Actor assignment", "optimizing assignments")
+        todo_agent = TodoCreatorAgent(config=self.config, lm=dspy.settings.lm)
+        executable_dag = todo_agent.create_executable_dag(
+            markovian_todo=markovian_todo,
+            available_actors=available_actors
+        )
+        _status("DAG created", f"{len(executable_dag.assignments)} assignments")
+
+        # Visualize
+        viz = todo_agent.visualize_assignments(executable_dag)
+        logger.info(viz)
+
+        # Step 3: Execute in parallel stages
+        _status("Execution", "starting stage-based execution")
+        stages = executable_dag.get_execution_stages()
+        all_outputs = []
+        outcomes = {}
+        total_start = time.time()
+
+        for stage_idx, stage_task_ids in enumerate(stages, 1):
+            _status(f"Stage {stage_idx}/{len(stages)}", f"{len(stage_task_ids)} tasks in parallel")
+
+            # Execute tasks in this stage (can be parallel)
+            stage_results = await self._execute_dag_stage(
+                executable_dag, stage_task_ids, status_callback
+            )
+
+            for task_id, result in stage_results.items():
+                outcomes[task_id] = result.get('success', False)
+                if result.get('output'):
+                    all_outputs.append(f"[{task_id}]: {result['output']}")
+
+                # Record trajectory step
+                executable_dag.add_trajectory_step(
+                    task_id=task_id,
+                    action_type='execution',
+                    action_content=f"Executed by {result.get('actor', 'unknown')}",
+                    observation=str(result.get('output', ''))[:200],
+                    reward=1.0 if result.get('success') else -0.5
+                )
+
+        total_time = time.time() - total_start
+
+        # Step 4: Learn from outcomes
+        _status("Learning", "recording execution outcomes")
+        todo_agent.update_from_execution(executable_dag, outcomes)
+
+        # Calculate overall success
+        success_count = sum(1 for s in outcomes.values() if s)
+        overall_success = success_count == len(outcomes) if outcomes else False
+        success_rate = success_count / len(outcomes) if outcomes else 0.0
+
+        _status("Complete", f"{success_count}/{len(outcomes)} tasks succeeded ({success_rate:.0%})")
+
+        # Create EpisodeResult
+        from ...foundation.data_structures import EpisodeResult
+
+        return EpisodeResult(
+            output="\n\n".join(all_outputs) if all_outputs else "No output",
+            success=overall_success,
+            trajectory=[
+                {
+                    'step': s.step_idx,
+                    'action': s.action_content,
+                    'observation': s.observation,
+                    'reward': s.reward
+                }
+                for s in executable_dag.trajectory
+            ],
+            tagged_outputs=[],  # No tagged outputs for DAG mode
+            episode=0,  # DAG orchestration doesn't use episode numbering
+            execution_time=total_time,
+            architect_results=[],  # No architect validation in DAG mode
+            auditor_results=[],    # No auditor validation in DAG mode
+            agent_contributions={},  # Track per-agent contributions
+            override_metadata={
+                'mode': 'dag_orchestration',
+                'total_tasks': len(executable_dag.markovian_todo.subtasks),
+                'stages': len(stages),
+                'outcomes': outcomes,
+                'success_rate': success_rate,
+                'dag_serialized': executable_dag.to_dict()
+            }
+        )
+
+    async def _execute_dag_stage(
+        self,
+        executable_dag,
+        task_ids: List[str],
+        status_callback=None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Execute a stage of tasks (potentially in parallel).
+
+        Args:
+            executable_dag: ExecutableDAG with tasks and assignments
+            task_ids: List of task IDs in this stage
+            status_callback: Optional progress callback
+
+        Returns:
+            Dict of task_id -> result dict
+        """
+        results = {}
+
+        # Create coroutines for parallel execution
+        async def execute_single_task(task_id: str):
+            task = executable_dag.markovian_todo.subtasks.get(task_id)
+            actor = executable_dag.assignments.get(task_id)
+
+            if not task or not actor:
+                return task_id, {'success': False, 'error': 'Task or actor not found'}
+
+            # Find corresponding AgentRunner
+            runner = self.runners.get(actor.name)
+
+            if runner:
+                # Execute via AgentRunner with full validation
+                try:
+                    task.start()
+                    result = await runner.run(task.description)
+                    task.complete({'output': result.output if hasattr(result, 'output') else str(result)})
+                    return task_id, {
+                        'success': result.success if hasattr(result, 'success') else True,
+                        'output': result.output if hasattr(result, 'output') else str(result),
+                        'actor': actor.name
+                    }
+                except Exception as e:
+                    task.fail(str(e))
+                    return task_id, {'success': False, 'error': str(e), 'actor': actor.name}
+            else:
+                # No runner - use AutoAgent directly
+                try:
+                    task.start()
+                    auto_agent = AutoAgent()
+                    result = await auto_agent.execute(task.description)
+                    task.complete({'output': result.final_output if hasattr(result, 'final_output') else str(result)})
+                    return task_id, {
+                        'success': result.success if hasattr(result, 'success') else True,
+                        'output': result.final_output if hasattr(result, 'final_output') else str(result),
+                        'actor': actor.name
+                    }
+                except Exception as e:
+                    task.fail(str(e))
+                    return task_id, {'success': False, 'error': str(e), 'actor': actor.name}
+
+        # Execute all tasks in stage (parallel)
+        tasks = [execute_single_task(tid) for tid in task_ids]
+        completed = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for item in completed:
+            if isinstance(item, Exception):
+                logger.error(f"Task execution error: {item}")
+            else:
+                task_id, result = item
+                results[task_id] = result
+
+        return results
+
+    def get_dag_agents(self):
+        """
+        Get DAG agents for external use.
+
+        Returns:
+            Tuple of (TaskBreakdownAgent, TodoCreatorAgent)
+        """
+        from ...agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+        import dspy
+
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            lm = self.swarm_provider_gateway.get_lm()
+            if lm:
+                dspy.configure(lm=lm)
+
+        return (
+            TaskBreakdownAgent(config=self.config),
+            TodoCreatorAgent(config=self.config, lm=dspy.settings.lm)
+        )

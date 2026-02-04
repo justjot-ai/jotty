@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
 from ..use_cases.chat import ChatUseCase, ChatMessage
-from ..orchestration.conductor import Conductor
+from ..orchestration import SwarmManager
 from ..foundation.data_structures import JottyConfig
 from ..foundation.agent_config import AgentSpec
 from ..agents.chat_assistant import create_chat_assistant
@@ -31,7 +31,7 @@ class ChatAPI:
     
     def __init__(
         self,
-        conductor: Conductor,
+        conductor: SwarmManager,
         agent_id: Optional[str] = None,
         mode: str = "dynamic",
         auto_register_chat_assistant: bool = True,
@@ -41,7 +41,7 @@ class ChatAPI:
         Initialize Chat API.
 
         Args:
-            conductor: Jotty Conductor instance
+            conductor: Jotty SwarmManager instance
             agent_id: Specific agent ID for single-agent chat (optional)
             mode: Orchestration mode ("static" or "dynamic")
             auto_register_chat_assistant: Auto-register ChatAssistant if agent_id="ChatAssistant" (default: True)
@@ -95,7 +95,7 @@ class ChatAPI:
             if hasattr(self.conductor, 'actors') and isinstance(self.conductor.actors, dict):
                 self.conductor.actors["ChatAssistant"] = agent_spec
 
-                # Initialize local_memories for ChatAssistant (required by Conductor)
+                # Initialize local_memories for ChatAssistant (required by SwarmManager)
                 if hasattr(self.conductor, 'local_memories') and isinstance(self.conductor.local_memories, dict):
                     try:
                         from ..memory.hierarchical_memory import HierarchicalMemory
@@ -115,7 +115,7 @@ class ChatAPI:
 
                 logger.info("✅ ChatAssistant registered successfully")
             else:
-                logger.warning("⚠️  Conductor doesn't have 'actors' dict - ChatAssistant not registered")
+                logger.warning("⚠️  SwarmManager doesn't have 'actors' dict - ChatAssistant not registered")
 
         except Exception as e:
             logger.error(f"❌ Failed to auto-register ChatAssistant: {e}")

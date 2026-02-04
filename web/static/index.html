@@ -1004,10 +1004,22 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
                         <input type="file" id="file-input" accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv,.json,.pptx,.html" multiple hidden>
                         <button class="toolbar-btn" onclick="document.getElementById('file-input').click()" title="Attach files (images, PDFs, docs)">📎</button>
                         <button class="toolbar-btn" id="voice-btn" onclick="jottyApp && jottyApp.toggleVoice && jottyApp.toggleVoice()" title="Voice to text">🎤</button>
+                        <button class="toolbar-btn" id="wake-word-btn" onclick="jottyApp && jottyApp.toggleWakeWord && jottyApp.toggleWakeWord()" title='Enable wake word ("Hey Jotty")'>👂</button>
+                        <button class="toolbar-btn" id="continuous-btn" onclick="jottyApp && jottyApp.toggleContinuousMode && jottyApp.toggleContinuousMode()" title="Enable continuous conversation">🔄</button>
+                        <button class="toolbar-btn" id="transcript-btn" onclick="jottyApp && jottyApp.toggleTranscriptPanel && jottyApp.toggleTranscriptPanel()" title="Show transcript">📝</button>
                         <textarea class="message-input" id="message-input" placeholder="Message Jotty..." rows="1"></textarea>
-                        <button class="voice-chat-btn" id="voice-chat-btn" onclick="jottyApp && jottyApp.toggleVoiceChat && jottyApp.toggleVoiceChat()" title="Voice chat (speak & listen)">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                        </button>
+                        <div class="voice-chat-wrapper">
+                            <div class="audio-level-meter" id="audio-level-meter">
+                                <div class="level-bar" id="level-bar"></div>
+                            </div>
+                            <button class="voice-chat-btn" id="voice-chat-btn" onclick="jottyApp && jottyApp.toggleVoiceChat && jottyApp.toggleVoiceChat()" title="Voice chat (speak & listen)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                            </button>
+                            <button class="voice-picker-btn" id="voice-picker-btn" onclick="jottyApp && jottyApp.toggleVoicePicker && jottyApp.toggleVoicePicker()" title="Select voice">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="voice-picker-dropdown" id="voice-picker-dropdown"></div>
+                        </div>
                         <button class="send-btn" id="send-btn">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -1061,6 +1073,23 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
         </div>
         <div id="context-panel-content">
             <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Transcript Panel -->
+    <div id="transcript-panel" class="transcript-panel">
+        <div class="panel-header">
+            <h3>📝 Transcript</h3>
+            <div class="panel-actions">
+                <button onclick="jottyApp && jottyApp.copyTranscript()" title="Copy">📋</button>
+                <button onclick="jottyApp && jottyApp.exportTranscriptText()" title="Export text">💾</button>
+                <button onclick="jottyApp && jottyApp.exportConversationAudio()" title="Export audio">🎵</button>
+                <button onclick="jottyApp && jottyApp.clearTranscript()" title="Clear">🗑️</button>
+                <button onclick="jottyApp && jottyApp.toggleTranscriptPanel()">&times;</button>
+            </div>
+        </div>
+        <div id="transcript-content" class="transcript-content">
+            <p class="transcript-empty">Voice transcripts will appear here...</p>
         </div>
     </div>
 
@@ -2758,7 +2787,9 @@ class JottyApp {
                     att.type === 'image' ? `<div class="message-attachment"><img src="${att.data}" alt="${att.name}" title="${att.name}" /></div>` : ''
                 ).join('')}</div>`;
             }
-            return `<div class="message ${msg.role}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}</div>${attachmentsHtml}<div class="message-text">${this.renderMarkdown(msg.content || '')}</div>${linksSection}<div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span></div>${downloadBtns}</div></div>`;
+            // Add speak button for assistant messages
+            const speakBtn = msg.role === 'assistant' ? `<button class="speak-btn" onclick="jottyApp.speakMessage(${index})" title="Read aloud">🔊</button>` : '';
+            return `<div class="message ${msg.role}" data-index="${index}"><div class="message-avatar">${msg.role === 'user' ? 'U' : 'J'}</div><div class="message-content"><div class="message-role">${msg.role === 'user' ? 'You' : 'Jotty'}${speakBtn}</div>${attachmentsHtml}<div class="message-text">${this.renderMarkdown(msg.content || '')}</div>${linksSection}<div class="message-meta"><span class="message-interface">${msg.interface || 'web'}</span></div>${downloadBtns}</div></div>`;
         }).join('');
         this.scrollToBottom();
     }
@@ -3703,24 +3734,577 @@ class JottyApp {
         this.audioChunks = [];
         this.audioContext = null;
         this.currentAudio = null;
+
+        // Voice picker
+        this.availableVoices = {};
+        this.selectedVoice = localStorage.getItem('jotty_voice') || 'en-US-AvaNeural';
+        this.voicePickerOpen = false;
+        this.loadAvailableVoices();
+
+        // Speed control (0.5x to 2x)
+        this.ttsSpeed = parseFloat(localStorage.getItem('jotty_tts_speed')) || 1.0;
+
+        // Push-to-talk (hold spacebar)
+        this.pushToTalkEnabled = true;
+        this.spacebarHeld = false;
+        this.initPushToTalk();
+
+        // Wake word detection
+        this.wakeWordEnabled = false;
+        this.wakeWordListening = false;
+        this.wakeWordRecognition = null;
+        this.wakeWords = ['hey jotty', 'hey jody', 'hey jordy', 'ok jotty', 'hello jotty'];
+
+        // Continuous conversation mode
+        this.continuousMode = false;
+
+        // Transcript panel
+        this.voiceTranscript = [];
+
+        // WebSocket voice mode (low latency)
+        this.voiceWebSocket = null;
+        this.voiceConfig = {
+            localWhisper: false,
+            speculativeTts: false,
+            websocketVoice: false,
+            whisperModel: 'base'
+        };
+        this.loadVoiceConfig();
     }
 
-    async toggleVoiceChat() {
-        if (this.isRecordingVoice) {
-            await this.stopVoiceRecording();
-        } else {
-            await this.startVoiceRecording();
+    async loadVoiceConfig() {
+        // Load voice processing configuration from server
+        try {
+            const resp = await fetch(`${this.apiBase}/api/voice/config`);
+            if (resp.ok) {
+                const config = await resp.json();
+                this.voiceConfig = {
+                    localWhisper: config.local_whisper || false,
+                    speculativeTts: config.speculative_tts || false,
+                    websocketVoice: config.websocket_voice || false,
+                    whisperModel: config.whisper_model || 'base'
+                };
+                console.log('Voice config loaded:', this.voiceConfig);
+
+                // Auto-connect WebSocket if enabled
+                if (this.voiceConfig.websocketVoice) {
+                    this.connectVoiceWebSocket();
+                }
+            }
+        } catch (e) {
+            console.log('Voice config not available, using defaults');
         }
     }
 
-    async startVoiceRecording() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    connectVoiceWebSocket() {
+        // Connect to WebSocket for low-latency voice
+        if (this.voiceWebSocket && this.voiceWebSocket.readyState === WebSocket.OPEN) {
+            return;
+        }
 
-            // Use webm for better compatibility
+        const wsUrl = `${this.wsBase}/ws/voice/${this.sessionId}`;
+        console.log('Connecting voice WebSocket:', wsUrl);
+
+        this.voiceWebSocket = new WebSocket(wsUrl);
+
+        this.voiceWebSocket.onopen = () => {
+            console.log('Voice WebSocket connected');
+            // Send config
+            this.voiceWebSocket.send(JSON.stringify({
+                type: 'config',
+                voice: this.selectedVoice,
+                speed: this.ttsSpeed,
+                speculative: this.voiceConfig.speculativeTts
+            }));
+        };
+
+        this.voiceWebSocket.onmessage = async (event) => {
+            if (event.data instanceof Blob) {
+                // Audio data - queue for playback
+                const arrayBuffer = await event.data.arrayBuffer();
+                this.audioQueue.push(arrayBuffer);
+                if (!this.isPlayingQueue) {
+                    this.playAudioQueue();
+                }
+            } else {
+                // JSON message
+                const data = JSON.parse(event.data);
+                this.handleVoiceWebSocketMessage(data);
+            }
+        };
+
+        this.voiceWebSocket.onerror = (e) => {
+            console.error('Voice WebSocket error:', e);
+        };
+
+        this.voiceWebSocket.onclose = () => {
+            console.log('Voice WebSocket closed');
+            this.voiceWebSocket = null;
+        };
+    }
+
+    handleVoiceWebSocketMessage(data) {
+        switch (data.type) {
+            case 'capabilities':
+                console.log('Server capabilities:', data);
+                this.voiceConfig.localWhisper = data.local_whisper;
+                this.voiceConfig.speculativeTts = data.speculative_tts;
+                break;
+
+            case 'config_ack':
+                console.log('Config acknowledged:', data);
+                break;
+
+            case 'transcription':
+                // User's transcribed text
+                this.showCaption(data.text, 'user');
+                setTimeout(() => this.hideCaption(), 2000);
+                this.addMessage('user', data.text);
+                this.addToTranscript('user', data.text);
+                // Show confidence if available
+                if (data.confidence !== undefined) {
+                    const lastMsg = this.messagesContainer.lastElementChild;
+                    if (lastMsg) {
+                        const meta = lastMsg.querySelector('.message-meta');
+                        if (meta) this.showConfidenceIndicator(data.confidence, meta);
+                    }
+                }
+                break;
+
+            case 'response_text':
+                this.showCaption(data.text.slice(-100), 'assistant');
+                break;
+
+            case 'audio_start':
+                this.updateVoiceChatUI('playing');
+                this.startBargeInDetection();
+                break;
+
+            case 'audio_end':
+                this.hideCaption();
+                // Don't stop barge-in detection yet - wait for queue to finish
+                break;
+
+            case 'error':
+                this.showNotification(`Voice error: ${data.message}`, 'error');
+                this.updateVoiceChatUI('idle');
+                break;
+
+            case 'cancelled':
+                this.updateVoiceChatUI('idle');
+                break;
+        }
+    }
+
+    disconnectVoiceWebSocket() {
+        if (this.voiceWebSocket) {
+            this.voiceWebSocket.close();
+            this.voiceWebSocket = null;
+        }
+    }
+
+    toggleWakeWord() {
+        if (this.wakeWordListening) {
+            this.stopWakeWordDetection();
+        } else {
+            this.startWakeWordDetection();
+        }
+    }
+
+    startWakeWordDetection() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            this.showNotification('Wake word not supported in this browser', 'error');
+            return;
+        }
+
+        this.wakeWordRecognition = new SpeechRecognition();
+        this.wakeWordRecognition.continuous = true;
+        this.wakeWordRecognition.interimResults = true;
+        this.wakeWordRecognition.lang = 'en-US';
+
+        this.wakeWordRecognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript.toLowerCase().trim();
+
+                // Check for wake word
+                for (const wakeWord of this.wakeWords) {
+                    if (transcript.includes(wakeWord)) {
+                        console.log('Wake word detected:', transcript);
+                        this.onWakeWordDetected();
+                        return;
+                    }
+                }
+            }
+        };
+
+        this.wakeWordRecognition.onerror = (event) => {
+            if (event.error !== 'no-speech') {
+                console.error('Wake word error:', event.error);
+            }
+        };
+
+        this.wakeWordRecognition.onend = () => {
+            // Restart if still enabled
+            if (this.wakeWordListening && !this.isRecordingVoice) {
+                setTimeout(() => {
+                    if (this.wakeWordListening) {
+                        this.wakeWordRecognition.start();
+                    }
+                }, 100);
+            }
+        };
+
+        this.wakeWordRecognition.start();
+        this.wakeWordListening = true;
+        this.wakeWordEnabled = true;
+        this.updateWakeWordUI(true);
+        this.showNotification('🎤 Listening for "Hey Jotty"...', 'info');
+    }
+
+    stopWakeWordDetection() {
+        if (this.wakeWordRecognition) {
+            this.wakeWordListening = false;
+            this.wakeWordRecognition.stop();
+            this.wakeWordRecognition = null;
+        }
+        this.wakeWordEnabled = false;
+        this.updateWakeWordUI(false);
+    }
+
+    onWakeWordDetected() {
+        // Stop wake word detection temporarily
+        if (this.wakeWordRecognition) {
+            this.wakeWordRecognition.stop();
+        }
+
+        // Play activation sound (optional beep)
+        this.playActivationBeep();
+
+        // Start voice recording
+        this.showNotification('🎤 Yes? I\'m listening...', 'info');
+        this.startVoiceRecording();
+    }
+
+    playActivationBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.frequency.value = 880; // A5 note
+            oscillator.type = 'sine';
+            gainNode.gain.value = 0.1;
+
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 0.1); // 100ms beep
+        } catch (e) {}
+    }
+
+    updateWakeWordUI(active) {
+        const btn = document.getElementById('wake-word-btn');
+        if (btn) {
+            btn.classList.toggle('active', active);
+            btn.title = active ? 'Wake word active (click to disable)' : 'Enable wake word ("Hey Jotty")';
+        }
+    }
+
+    toggleContinuousMode() {
+        this.continuousMode = !this.continuousMode;
+        const btn = document.getElementById('continuous-btn');
+        if (btn) {
+            btn.classList.toggle('active', this.continuousMode);
+            btn.title = this.continuousMode ? 'Continuous mode ON (click to disable)' : 'Enable continuous conversation';
+        }
+        this.showNotification(
+            this.continuousMode ? '🔄 Continuous mode ON' : '⏹️ Continuous mode OFF',
+            'info'
+        );
+    }
+
+    // Transcript panel functions
+    toggleTranscriptPanel() {
+        const panel = document.getElementById('transcript-panel');
+        panel?.classList.toggle('open');
+    }
+
+    addToTranscript(role, text) {
+        const timestamp = new Date().toLocaleTimeString();
+        this.voiceTranscript.push({ role, text, timestamp });
+        this.renderTranscript();
+    }
+
+    renderTranscript() {
+        const content = document.getElementById('transcript-content');
+        if (!content) return;
+
+        if (this.voiceTranscript.length === 0) {
+            content.innerHTML = '<p class="transcript-empty">Voice transcripts will appear here...</p>';
+            return;
+        }
+
+        content.innerHTML = this.voiceTranscript.map(entry => `
+            <div class="transcript-entry ${entry.role}">
+                <span class="transcript-time">${entry.timestamp}</span>
+                <span class="transcript-role">${entry.role === 'user' ? 'You' : 'Jotty'}:</span>
+                <span class="transcript-text">${entry.text}</span>
+            </div>
+        `).join('');
+
+        // Scroll to bottom
+        content.scrollTop = content.scrollHeight;
+    }
+
+    copyTranscript() {
+        const text = this.voiceTranscript.map(e =>
+            `[${e.timestamp}] ${e.role === 'user' ? 'You' : 'Jotty'}: ${e.text}`
+        ).join('\n');
+
+        navigator.clipboard.writeText(text).then(() => {
+            this.showNotification('📋 Transcript copied!', 'info');
+        });
+    }
+
+    clearTranscript() {
+        this.voiceTranscript = [];
+        this.renderTranscript();
+        this.showNotification('🗑️ Transcript cleared', 'info');
+    }
+
+    // Export audio as MP3
+    async exportConversationAudio() {
+        if (this.voiceTranscript.length === 0) {
+            this.showNotification('No transcript to export', 'error');
+            return;
+        }
+
+        this.showNotification('🎵 Generating audio export...', 'info');
+
+        try {
+            // Combine all text
+            const fullText = this.voiceTranscript.map(e =>
+                `${e.role === 'user' ? 'User says:' : 'Assistant says:'} ${e.text}`
+            ).join('. ');
+
+            // Generate TTS
+            const formData = new FormData();
+            formData.append('text', fullText.slice(0, 5000));
+            formData.append('voice', this.selectedVoice || 'en-US-AvaNeural');
+
+            const response = await fetch(`${this.apiBase}/api/voice/tts`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `jotty-conversation-${Date.now()}.mp3`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.showNotification('✅ Audio exported!', 'info');
+            }
+        } catch (e) {
+            console.error('Export failed:', e);
+            this.showNotification('Export failed', 'error');
+        }
+    }
+
+    exportTranscriptText() {
+        if (this.voiceTranscript.length === 0) {
+            this.showNotification('No transcript to export', 'error');
+            return;
+        }
+
+        const text = this.voiceTranscript.map(e =>
+            `[${e.timestamp}] ${e.role === 'user' ? 'You' : 'Jotty'}: ${e.text}`
+        ).join('\n\n');
+
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jotty-transcript-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showNotification('✅ Transcript exported!', 'info');
+    }
+
+    // #24 Recording tab indicator
+    setTabRecordingIndicator(recording) {
+        const originalTitle = document.title.replace(/^🔴 /, '');
+        document.title = recording ? `🔴 ${originalTitle}` : originalTitle;
+    }
+
+    // #25 Live captions during playback
+    showCaption(text) {
+        let caption = document.getElementById('live-caption');
+        if (!caption) {
+            caption = document.createElement('div');
+            caption.id = 'live-caption';
+            caption.className = 'live-caption';
+            document.body.appendChild(caption);
+        }
+        caption.textContent = text;
+        caption.classList.add('visible');
+
+        // Hide after 3 seconds
+        clearTimeout(this.captionTimeout);
+        this.captionTimeout = setTimeout(() => {
+            caption.classList.remove('visible');
+        }, 3000);
+    }
+
+    hideCaption() {
+        const caption = document.getElementById('live-caption');
+        if (caption) {
+            caption.classList.remove('visible');
+        }
+    }
+
+    // #22 Confidence indicator - shows STT confidence level
+    showConfidenceIndicator(confidence, element) {
+        if (!element || typeof confidence !== 'number') return;
+
+        const percent = Math.round(confidence * 100);
+        let level = 'high';
+        if (percent < 70) level = 'low';
+        else if (percent < 85) level = 'medium';
+
+        const indicator = document.createElement('span');
+        indicator.className = 'confidence-indicator';
+        indicator.innerHTML = `
+            <span class="confidence-bar">
+                <span class="confidence-fill ${level}" style="width: ${percent}%"></span>
+            </span>
+            <span class="confidence-text">${percent}%</span>
+        `;
+        indicator.title = `STT Confidence: ${percent}%`;
+        element.appendChild(indicator);
+    }
+
+    // #23 Retry on failure - auto-retry voice operations
+    async retryWithBackoff(fn, maxRetries = 3, baseDelay = 500) {
+        let lastError;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (err) {
+                lastError = err;
+                console.log(`Attempt ${attempt + 1} failed:`, err.message);
+                if (attempt < maxRetries - 1) {
+                    const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+                    this.showNotification(`Retrying... (${attempt + 2}/${maxRetries})`, 'info');
+                    await new Promise(r => setTimeout(r, delay));
+                }
+            }
+        }
+        throw lastError;
+    }
+
+    initPushToTalk() {
+        // Keydown handler for push-to-talk and shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if typing in input/textarea
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (
+                activeEl.tagName === 'INPUT' ||
+                activeEl.tagName === 'TEXTAREA' ||
+                activeEl.isContentEditable
+            );
+
+            if (isTyping) return;
+
+            // Push-to-talk: Hold spacebar
+            if (e.code === 'Space' && !this.spacebarHeld && this.pushToTalkEnabled) {
+                if (!this.isRecordingVoice) {
+                    e.preventDefault();
+                    this.spacebarHeld = true;
+                    this.startPushToTalk();
+                }
+            }
+
+            // Keyboard shortcuts (without modifiers to keep it simple)
+            switch (e.key.toLowerCase()) {
+                case 'r': // R = Start recording
+                    if (!e.ctrlKey && !e.metaKey && !this.isRecordingVoice) {
+                        e.preventDefault();
+                        this.toggleVoiceChat();
+                    }
+                    break;
+                case 's': // S = Stop
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        if (this.isRecordingVoice) {
+                            this.stopVoiceRecording();
+                        } else if (this.isPlayingQueue || this.isPlayingResponse) {
+                            this.interruptPlayback();
+                        }
+                    }
+                    break;
+                case 'm': // M = Mute/stop playback
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.interruptPlayback();
+                    }
+                    break;
+                case 'c': // C = Continuous mode
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.toggleContinuousMode();
+                    }
+                    break;
+                case 't': // T = Transcript panel
+                    if (!e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        this.toggleTranscriptPanel();
+                    }
+                    break;
+                case 'escape': // ESC = Stop everything
+                    this.interruptPlayback();
+                    if (this.isRecordingVoice) {
+                        this.stopVoiceRecording();
+                    }
+                    break;
+            }
+        });
+
+        // Keyup - stop recording when spacebar released
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' && this.spacebarHeld) {
+                e.preventDefault();
+                this.spacebarHeld = false;
+                this.stopPushToTalk();
+            }
+        });
+    }
+
+    async startPushToTalk() {
+        // Interrupt any playing audio
+        if (this.isPlayingQueue || this.isPlayingResponse) {
+            this.interruptPlayback();
+        }
+
+        // Start recording without VAD auto-stop (manual release)
+        try {
+            // Audio with noise suppression
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
             const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
             this.mediaRecorder = new MediaRecorder(stream, { mimeType });
             this.audioChunks = [];
+            this.voiceStream = stream;
 
             this.mediaRecorder.ondataavailable = (e) => {
                 if (e.data.size > 0) {
@@ -3733,10 +4317,308 @@ class JottyApp {
                 await this.processVoiceRecording();
             };
 
-            this.mediaRecorder.start();
+            this.mediaRecorder.start(100);
             this.isRecordingVoice = true;
             this.updateVoiceChatUI('recording');
-            this.showNotification('🎤 Recording... Click again to send', 'info');
+            this.showNotification('🎤 Hold spacebar... release to send', 'info');
+
+        } catch (err) {
+            console.error('Push-to-talk error:', err);
+            this.spacebarHeld = false;
+        }
+    }
+
+    stopPushToTalk() {
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            this.mediaRecorder.stop();
+            this.isRecordingVoice = false;
+            this.updateVoiceChatUI('processing');
+        }
+    }
+
+    async loadAvailableVoices() {
+        try {
+            const resp = await fetch(`${this.apiBase}/api/voice/voices`);
+            const data = await resp.json();
+            this.availableVoices = data.voices || {};
+        } catch (e) {
+            console.error('Failed to load voices:', e);
+            // Fallback
+            this.availableVoices = {
+                'en-us-female': 'en-US-AvaNeural',
+                'en-us-male': 'en-US-AndrewNeural'
+            };
+        }
+    }
+
+    toggleVoicePicker() {
+        this.voicePickerOpen = !this.voicePickerOpen;
+        const dropdown = document.getElementById('voice-picker-dropdown');
+        if (!dropdown) return;
+
+        if (this.voicePickerOpen) {
+            const voicesHtml = Object.entries(this.availableVoices).map(([key, value]) => `
+                <div class="voice-option ${this.selectedVoice === value ? 'selected' : ''}"
+                     onclick="jottyApp.selectVoice('${value}', '${key}')">
+                    <span class="voice-icon">${key.includes('female') ? '👩' : '👨'}</span>
+                    <span class="voice-name">${this.formatVoiceName(key)}</span>
+                    ${this.selectedVoice === value ? '<span class="voice-check">✓</span>' : ''}
+                </div>
+            `).join('');
+
+            // Add speed control slider
+            const speedHtml = `
+                <div class="voice-speed-control">
+                    <label>Speed: <span id="speed-value">${this.ttsSpeed.toFixed(1)}x</span></label>
+                    <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.1"
+                           value="${this.ttsSpeed}" onchange="jottyApp.setTTSSpeed(this.value)"
+                           oninput="document.getElementById('speed-value').textContent = parseFloat(this.value).toFixed(1) + 'x'">
+                    <div class="speed-labels"><span>0.5x</span><span>1x</span><span>2x</span></div>
+                </div>
+            `;
+
+            dropdown.innerHTML = voicesHtml + speedHtml;
+            dropdown.classList.add('open');
+        } else {
+            dropdown.classList.remove('open');
+        }
+    }
+
+    setTTSSpeed(speed) {
+        this.ttsSpeed = parseFloat(speed);
+        localStorage.setItem('jotty_tts_speed', this.ttsSpeed);
+    }
+
+    // Voice commands detection and execution
+    detectVoiceCommand(text) {
+        const lowerText = text.toLowerCase().trim();
+
+        // Command patterns
+        const commands = {
+            'stop': ['stop', 'stop it', 'shut up', 'be quiet', 'silence', 'cancel'],
+            'repeat': ['repeat', 'repeat that', 'say that again', 'what did you say', 'again please', 'come again'],
+            'slower': ['slower', 'slow down', 'speak slower', 'too fast', 'more slowly'],
+            'faster': ['faster', 'speed up', 'speak faster', 'too slow', 'quicker'],
+            'louder': ['louder', 'speak up', 'can\'t hear', 'volume up'],
+            'help': ['help', 'what can you do', 'voice commands', 'what commands']
+        };
+
+        for (const [command, phrases] of Object.entries(commands)) {
+            for (const phrase of phrases) {
+                if (lowerText.includes(phrase) || lowerText === phrase) {
+                    return command;
+                }
+            }
+        }
+        return null;
+    }
+
+    async executeVoiceCommand(command, originalText) {
+        this.updateVoiceChatUI('idle');
+
+        switch (command) {
+            case 'stop':
+                this.interruptPlayback();
+                this.showNotification('⏹️ Stopped', 'info');
+                break;
+
+            case 'repeat':
+                // Repeat the last assistant message
+                const lastAssistant = [...this.messages].reverse().find(m => m.role === 'assistant');
+                if (lastAssistant && lastAssistant.content) {
+                    this.showNotification('🔄 Repeating...', 'info');
+                    await this.speakText(lastAssistant.content);
+                } else {
+                    this.showNotification('Nothing to repeat', 'info');
+                }
+                break;
+
+            case 'slower':
+                this.ttsSpeed = Math.max(0.5, this.ttsSpeed - 0.2);
+                localStorage.setItem('jotty_tts_speed', this.ttsSpeed);
+                this.showNotification(`🐢 Speed: ${this.ttsSpeed.toFixed(1)}x`, 'info');
+                await this.speakText(`Speaking slower now at ${this.ttsSpeed.toFixed(1)} times speed`);
+                break;
+
+            case 'faster':
+                this.ttsSpeed = Math.min(2.0, this.ttsSpeed + 0.2);
+                localStorage.setItem('jotty_tts_speed', this.ttsSpeed);
+                this.showNotification(`🐇 Speed: ${this.ttsSpeed.toFixed(1)}x`, 'info');
+                await this.speakText(`Speaking faster now at ${this.ttsSpeed.toFixed(1)} times speed`);
+                break;
+
+            case 'louder':
+                this.showNotification('🔊 Volume is at maximum', 'info');
+                await this.speakText('Volume is already at maximum. Please adjust your device volume.');
+                break;
+
+            case 'help':
+                const helpText = 'You can say: Stop, Repeat that, Slower, Faster, or just talk to me normally.';
+                this.showNotification('Voice commands', 'info');
+                await this.speakText(helpText);
+                break;
+        }
+
+        // Restart wake word if enabled
+        if (this.wakeWordEnabled && !this.wakeWordListening) {
+            setTimeout(() => this.startWakeWordDetection(), 1000);
+        }
+    }
+
+    formatVoiceName(key) {
+        // Convert 'en-us-female' to 'US Female'
+        const parts = key.split('-');
+        const region = parts[1]?.toUpperCase() || '';
+        const gender = parts[2]?.charAt(0).toUpperCase() + parts[2]?.slice(1) || '';
+        return `${region} ${gender}`;
+    }
+
+    selectVoice(voiceId, key) {
+        this.selectedVoice = voiceId;
+        localStorage.setItem('jotty_voice', voiceId);
+        this.voicePickerOpen = false;
+        document.getElementById('voice-picker-dropdown')?.classList.remove('open');
+        this.showNotification(`Voice: ${this.formatVoiceName(key)}`, 'info');
+    }
+
+    async toggleVoiceChat() {
+        if (this.isRecordingVoice) {
+            await this.stopVoiceRecording();
+        } else {
+            // Interrupt: Stop any playing audio before recording
+            if (this.isPlayingQueue || this.isPlayingResponse) {
+                this.interruptPlayback();
+            }
+            await this.startVoiceRecording();
+        }
+    }
+
+    interruptPlayback() {
+        // Stop audio queue playback
+        this.isPlayingQueue = false;
+        this.audioQueue = [];
+
+        // Stop current audio source
+        if (this.currentAudioSource) {
+            try {
+                this.currentAudioSource.stop();
+            } catch (e) {}
+            this.currentAudioSource = null;
+        }
+
+        // Stop HTML5 audio fallback
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+
+        this.isPlayingResponse = false;
+        this.updateVoiceChatUI('idle');
+        console.log('Playback interrupted for new recording');
+    }
+
+    async startVoiceRecording() {
+        try {
+            // Audio constraints with noise suppression and echo cancellation
+            const audioConstraints = {
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    channelCount: 1,
+                    sampleRate: 16000
+                }
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+
+            // Use webm for better compatibility
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+            this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+            this.audioChunks = [];
+            this.voiceStream = stream;
+
+            // VAD (Voice Activity Detection) setup
+            this.vadContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = this.vadContext.createMediaStreamSource(stream);
+            this.vadAnalyser = this.vadContext.createAnalyser();
+            this.vadAnalyser.fftSize = 512;
+            this.vadAnalyser.smoothingTimeConstant = 0.5;
+            source.connect(this.vadAnalyser);
+
+            // VAD parameters
+            const silenceThreshold = 15;      // Audio level below this = silence
+            const silenceDuration = 1500;     // Stop after 1.5s of silence
+            const minRecordingTime = 500;     // Minimum 0.5s recording
+            let silenceStart = null;
+            let recordingStart = Date.now();
+            let hasDetectedSpeech = false;
+
+            this.mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    this.audioChunks.push(e.data);
+                    // Stream audio to WebSocket if connected (lower latency)
+                    if (this.voiceWebSocket && this.voiceWebSocket.readyState === WebSocket.OPEN) {
+                        this.voiceWebSocket.send(e.data);
+                    }
+                }
+            };
+
+            this.mediaRecorder.onstop = async () => {
+                this.stopVAD();
+                stream.getTracks().forEach(track => track.stop());
+
+                // Use WebSocket if connected, otherwise HTTP
+                if (this.voiceWebSocket && this.voiceWebSocket.readyState === WebSocket.OPEN) {
+                    // Signal end of audio to WebSocket
+                    this.voiceWebSocket.send(JSON.stringify({ type: 'end_audio' }));
+                    this.updateVoiceChatUI('processing');
+                } else {
+                    // Fallback to HTTP
+                    await this.processVoiceRecording();
+                }
+            };
+
+            // VAD monitoring loop
+            const dataArray = new Uint8Array(this.vadAnalyser.frequencyBinCount);
+            const levelBar = document.getElementById('level-bar');
+            const wrapper = document.querySelector('.voice-chat-wrapper');
+            wrapper?.classList.add('recording');
+
+            this.vadInterval = setInterval(() => {
+                if (!this.isRecordingVoice) return;
+
+                this.vadAnalyser.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+                // Update audio level meter (0-100%)
+                const level = Math.min(100, (average / 128) * 100);
+                if (levelBar) {
+                    levelBar.style.height = `${level}%`;
+                }
+
+                const elapsed = Date.now() - recordingStart;
+
+                if (average > silenceThreshold) {
+                    // Speech detected
+                    hasDetectedSpeech = true;
+                    silenceStart = null;
+                } else if (hasDetectedSpeech && elapsed > minRecordingTime) {
+                    // Silence after speech
+                    if (!silenceStart) {
+                        silenceStart = Date.now();
+                    } else if (Date.now() - silenceStart > silenceDuration) {
+                        // Auto-stop after silence threshold
+                        console.log('VAD: Auto-stopping after silence');
+                        this.stopVoiceRecording();
+                    }
+                }
+            }, 100);
+
+            this.mediaRecorder.start(100); // Collect data every 100ms
+            this.isRecordingVoice = true;
+            this.updateVoiceChatUI('recording');
+            this.setTabRecordingIndicator(true);
+            this.showNotification('🎤 Listening... (auto-stops when you pause)', 'info');
 
         } catch (err) {
             console.error('Microphone access error:', err);
@@ -3744,10 +4626,26 @@ class JottyApp {
         }
     }
 
+    stopVAD() {
+        if (this.vadInterval) {
+            clearInterval(this.vadInterval);
+            this.vadInterval = null;
+        }
+        if (this.vadContext && this.vadContext.state !== 'closed') {
+            this.vadContext.close().catch(() => {});
+            this.vadContext = null;
+        }
+        // Reset level meter
+        const levelBar = document.getElementById('level-bar');
+        if (levelBar) levelBar.style.height = '0%';
+        document.querySelector('.voice-chat-wrapper')?.classList.remove('recording');
+    }
+
     async stopVoiceRecording() {
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
             this.mediaRecorder.stop();
             this.isRecordingVoice = false;
+            this.setTabRecordingIndicator(false);
             this.updateVoiceChatUI('processing');
         }
     }
@@ -3764,41 +4662,289 @@ class JottyApp {
         try {
             this.showNotification('🔄 Processing voice...', 'info');
 
-            // Send to voice chat API
-            const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.webm');
-            formData.append('session_id', this.sessionId);
+            // Use retry wrapper for resilience (#23)
+            await this.retryWithBackoff(async () => {
+                // Send to turbo streaming voice chat API for lowest latency
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                formData.append('session_id', this.sessionId);
+                formData.append('voice', this.selectedVoice || 'en-US-AvaNeural');
+                formData.append('speed', this.ttsSpeed || 1.0);
 
-            const response = await fetch(`${this.apiBase}/api/voice/chat`, {
-                method: 'POST',
-                body: formData
-            });
+                const response = await fetch(`${this.apiBase}/api/voice/chat/stream/ultra`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-            if (!response.ok) {
-                throw new Error(`Voice chat failed: ${response.status}`);
-            }
+                if (!response.ok) {
+                    throw new Error(`Voice chat failed: ${response.status}`);
+                }
 
-            // Get metadata from headers
-            const userText = decodeURIComponent(response.headers.get('X-User-Text') || '');
-            const responseText = decodeURIComponent(response.headers.get('X-Response-Text') || '');
-
-            // Add messages to chat
-            if (userText) {
-                this.addMessage('user', userText);
-            }
-            if (responseText) {
-                this.addMessage('assistant', responseText);
-            }
-
-            // Play audio response
-            const audioData = await response.arrayBuffer();
-            await this.playAudioResponse(audioData);
+                // Process SSE stream - play audio chunks as they arrive
+                await this.processStreamingVoiceResponse(response);
+            }, 2); // Max 2 retries
 
         } catch (err) {
             console.error('Voice processing error:', err);
-            this.showNotification('Voice processing failed', 'error');
+            this.showNotification('Voice processing failed. Please try again.', 'error');
             this.updateVoiceChatUI('idle');
         }
+    }
+
+    async processStreamingVoiceResponse(response) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+        let userText = '';
+        let isFirstChunk = true;
+
+        // Audio queue for seamless playback
+        this.audioQueue = [];
+        this.isPlayingQueue = false;
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                            // Add final message to chat and transcript
+                            if (fullText) {
+                                this.addMessage('assistant', fullText);
+                                this.addToTranscript('assistant', fullText);
+                            }
+                            // Hide live caption when done
+                            this.hideCaption();
+                            continue;
+                        }
+
+                        try {
+                            const chunk = JSON.parse(data);
+
+                            // First chunk contains user text
+                            if (isFirstChunk && chunk.user_text) {
+                                userText = chunk.user_text;
+
+                                // Show live caption for user text (#25)
+                                this.showCaption(userText, 'user');
+                                setTimeout(() => this.hideCaption(), 2000);
+
+                                // Check for voice commands before processing
+                                const command = this.detectVoiceCommand(userText);
+                                if (command) {
+                                    await this.executeVoiceCommand(command, userText);
+                                    reader.cancel(); // Stop reading the stream
+                                    return;
+                                }
+
+                                this.addMessage('user', userText);
+                                this.addToTranscript('user', userText);
+
+                                // Show confidence indicator if available (#22)
+                                if (chunk.confidence !== undefined) {
+                                    const lastMsg = this.messagesContainer.lastElementChild;
+                                    if (lastMsg) {
+                                        const meta = lastMsg.querySelector('.message-meta');
+                                        if (meta) this.showConfidenceIndicator(chunk.confidence, meta);
+                                    }
+                                }
+                                isFirstChunk = false;
+                            }
+
+                            // Accumulate response text and show live caption (#25)
+                            if (chunk.text) {
+                                fullText += chunk.text;
+                                // Show last 100 chars of response as live caption
+                                const captionText = fullText.length > 100
+                                    ? '...' + fullText.slice(-100)
+                                    : fullText;
+                                this.showCaption(captionText, 'assistant');
+                            }
+
+                            // Queue audio for playback
+                            if (chunk.audio_base64) {
+                                const audioData = this.base64ToArrayBuffer(chunk.audio_base64);
+                                this.audioQueue.push(audioData);
+
+                                // Start playing if not already
+                                if (!this.isPlayingQueue) {
+                                    this.playAudioQueue();
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse SSE chunk:', e);
+                        }
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+        }
+    }
+
+    base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    async playAudioQueue() {
+        if (this.isPlayingQueue) return;
+        this.isPlayingQueue = true;
+        this.updateVoiceChatUI('playing');
+
+        // Start barge-in detection while playing
+        this.startBargeInDetection();
+
+        while (this.audioQueue.length > 0 || this.isPlayingQueue) {
+            // Check if barge-in interrupted playback
+            if (this.bargeInTriggered) {
+                this.bargeInTriggered = false;
+                break;
+            }
+
+            if (this.audioQueue.length === 0) {
+                // Wait for more audio
+                await new Promise(r => setTimeout(r, 50));
+                continue;
+            }
+
+            const audioData = this.audioQueue.shift();
+            await this.playAudioChunk(audioData);
+        }
+
+        this.stopBargeInDetection();
+        this.updateVoiceChatUI('idle');
+
+        // Continuous mode: auto-start recording after response finishes
+        if (this.continuousMode && !this.bargeInTriggered) {
+            setTimeout(() => {
+                if (this.continuousMode && !this.isRecordingVoice) {
+                    this.showNotification('🎤 Listening...', 'info');
+                    this.startVoiceRecording();
+                }
+            }, 500); // Small delay before next listen
+        }
+    }
+
+    async startBargeInDetection() {
+        if (this.bargeInStream) return;
+
+        try {
+            this.bargeInStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true }
+            });
+
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = ctx.createMediaStreamSource(this.bargeInStream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const threshold = 40; // Higher threshold to avoid echo
+            let consecutiveHits = 0;
+
+            this.bargeInInterval = setInterval(() => {
+                if (!this.isPlayingQueue) return;
+
+                analyser.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+                if (average > threshold) {
+                    consecutiveHits++;
+                    if (consecutiveHits >= 3) { // Need 300ms of speech
+                        console.log('Barge-in detected!');
+                        this.triggerBargeIn();
+                    }
+                } else {
+                    consecutiveHits = 0;
+                }
+            }, 100);
+
+            this.bargeInContext = ctx;
+
+        } catch (e) {
+            console.log('Barge-in detection not available:', e);
+        }
+    }
+
+    stopBargeInDetection() {
+        if (this.bargeInInterval) {
+            clearInterval(this.bargeInInterval);
+            this.bargeInInterval = null;
+        }
+        if (this.bargeInStream) {
+            this.bargeInStream.getTracks().forEach(t => t.stop());
+            this.bargeInStream = null;
+        }
+        if (this.bargeInContext) {
+            this.bargeInContext.close().catch(() => {});
+            this.bargeInContext = null;
+        }
+    }
+
+    triggerBargeIn() {
+        // Stop current playback
+        this.bargeInTriggered = true;
+        this.interruptPlayback();
+        this.stopBargeInDetection();
+
+        // Start new recording
+        this.showNotification('🎤 Barge-in: Listening...', 'info');
+        this.startVoiceRecording();
+    }
+
+    async playAudioChunk(audioData) {
+        return new Promise(async (resolve) => {
+            try {
+                // Create audio context if needed
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+
+                const audioBuffer = await this.audioContext.decodeAudioData(audioData.slice(0));
+                const source = this.audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(this.audioContext.destination);
+
+                source.onended = () => resolve();
+                source.start(0);
+                this.currentAudioSource = source;
+
+            } catch (err) {
+                console.error('Audio chunk playback error:', err);
+                // Fallback to HTML5 Audio
+                try {
+                    const blob = new Blob([audioData], { type: 'audio/mpeg' });
+                    const url = URL.createObjectURL(blob);
+                    const audio = new Audio(url);
+                    audio.onended = () => {
+                        URL.revokeObjectURL(url);
+                        resolve();
+                    };
+                    audio.onerror = () => resolve();
+                    await audio.play();
+                } catch (e) {
+                    resolve();
+                }
+            }
+        });
     }
 
     async playAudioResponse(audioData) {
@@ -3863,7 +5009,7 @@ class JottyApp {
         this.updateVoiceChatUI('idle');
     }
 
-    updateVoiceChatUI(state) {
+    updateVoiceChatUI(state, level = 0) {
         const btn = document.getElementById('voice-chat-btn');
         if (!btn) return;
 
@@ -3872,17 +5018,26 @@ class JottyApp {
         switch (state) {
             case 'recording':
                 btn.classList.add('recording');
-                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`;
-                btn.title = 'Stop recording';
+                // Animated waveform bars
+                btn.innerHTML = `
+                    <div class="voice-waveform">
+                        <span class="bar" style="animation-delay: 0s"></span>
+                        <span class="bar" style="animation-delay: 0.1s"></span>
+                        <span class="bar" style="animation-delay: 0.2s"></span>
+                        <span class="bar" style="animation-delay: 0.1s"></span>
+                        <span class="bar" style="animation-delay: 0s"></span>
+                    </div>`;
+                btn.title = 'Listening... (click to send now)';
                 break;
             case 'processing':
+                btn.classList.add('processing');
                 btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`;
                 btn.title = 'Processing...';
                 break;
             case 'playing':
                 btn.classList.add('playing');
                 btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
-                btn.title = 'Playing response...';
+                btn.title = 'Playing... (click to interrupt)';
                 break;
             default:
                 btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
@@ -3893,10 +5048,14 @@ class JottyApp {
     // Text-to-Speech for any message (read response aloud)
     async speakText(text) {
         try {
+            // Use selected voice
+            const formData = new FormData();
+            formData.append('text', text.slice(0, 2000));
+            formData.append('voice', this.selectedVoice || 'en-US-AvaNeural');
+
             const response = await fetch(`${this.apiBase}/api/voice/tts`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text.slice(0, 2000) })  // Limit length
+                body: formData
             });
 
             if (response.ok) {
@@ -3909,6 +5068,33 @@ class JottyApp {
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 speechSynthesis.speak(utterance);
+            }
+        }
+    }
+
+    async speakMessage(index) {
+        // Get message by index and speak it
+        if (index >= 0 && index < this.messages.length) {
+            const msg = this.messages[index];
+            if (msg && msg.content) {
+                // Stop any current playback
+                this.interruptPlayback();
+
+                // Visual feedback
+                const msgEl = document.querySelector(`.message[data-index="${index}"]`);
+                const speakBtn = msgEl?.querySelector('.speak-btn');
+                if (speakBtn) {
+                    speakBtn.textContent = '🔉';
+                    speakBtn.classList.add('speaking');
+                }
+
+                await this.speakText(msg.content);
+
+                // Reset button
+                if (speakBtn) {
+                    speakBtn.textContent = '🔊';
+                    speakBtn.classList.remove('speaking');
+                }
             }
         }
     }

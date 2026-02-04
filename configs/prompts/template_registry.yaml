@@ -1,0 +1,82 @@
+# Prompt Template Registry
+# Maps task types to specialized Architect and Auditor prompts
+
+# Default templates (used when no specific match)
+defaults:
+  architect: base_architect.md
+  auditor: base_auditor.md
+
+# Task-type specific templates
+templates:
+  # Code generation tasks
+  code_generation:
+    patterns:
+      - "create.*file"
+      - "write.*code"
+      - "build.*app"
+      - "generate.*script"
+      - "implement.*function"
+      - ".*\\.py$"
+      - ".*\\.html$"
+      - ".*\\.js$"
+      - ".*\\.ts$"
+    architect: architect_code.md
+    auditor: auditor_code.md
+
+  # Research and analysis tasks
+  research:
+    patterns:
+      - "research.*"
+      - "analyze.*"
+      - "compare.*"
+      - "investigate.*"
+      - "find.*information"
+      - "summarize.*"
+    architect: architect_research.md
+    auditor: auditor_research.md
+
+  # Data processing tasks
+  data_processing:
+    patterns:
+      - "process.*data"
+      - "transform.*"
+      - "clean.*data"
+      - "parse.*"
+      - "extract.*"
+      - "aggregate.*"
+    architect: architect_data.md
+    auditor: auditor_data.md
+
+  # API and integration tasks
+  api_integration:
+    patterns:
+      - "call.*api"
+      - "integrate.*"
+      - "fetch.*"
+      - "send.*request"
+      - "webhook.*"
+    architect: architect_api.md
+    auditor: auditor_api.md
+
+  # Web automation tasks
+  web_automation:
+    patterns:
+      - "scrape.*"
+      - "browse.*"
+      - "navigate.*"
+      - "fill.*form"
+      - "click.*"
+      - "automate.*web"
+    architect: architect_web.md
+    auditor: auditor_web.md
+
+# Template descriptions for documentation
+descriptions:
+  base_architect: "General-purpose task validation with research-first approach"
+  base_auditor: "General-purpose output validation with reasoning framework"
+  architect_code: "Specialized for code generation - validates completeness, structure, best practices"
+  auditor_code: "Code quality auditor - checks syntax, completeness, security"
+  architect_research: "Research task validation - ensures proper sources and methodology"
+  auditor_research: "Research quality validation - checks citations, accuracy, completeness"
+  architect_data: "Data processing validation - checks data formats, transformations"
+  auditor_data: "Data quality validation - checks integrity, format, completeness"

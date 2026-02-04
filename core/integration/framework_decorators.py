@@ -524,8 +524,8 @@ class JottyEnhanced:
         final_architect = self.prompt_handler.get_architect_prompts(architect_prompts or [])
         final_auditor = self.prompt_handler.get_auditor_prompts(auditor_prompts or [])
         
-        # Import JottyCore
-        from .orchestration.jotty_core import JottyCore
+        # Import JottyCore (V2: SwarmManager alias)
+        from ..orchestration import JottyCore
         
         # Create wrapped JottyCore
         self._jotty = JottyCore(

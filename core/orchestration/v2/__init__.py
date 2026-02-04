@@ -74,7 +74,7 @@ For more information, see: V2_QUICK_START.md
 """
 
 # Phase 1: Import V1 components and rename
-from ..roadmap import MarkovianTODO, SubtaskState, TaskStatus
+from .swarm_roadmap import MarkovianTODO, SubtaskState, TaskStatus
 from ...agents.agentic_planner import AgenticPlanner, ExecutionPlan
 from ...memory.cortex import HierarchicalMemory
 
@@ -124,6 +124,23 @@ from .tool_generator import UnifiedToolGenerator, ToolDefinition
 # LeanExecutor (legacy, still available)
 from .lean_executor import LeanExecutor, ExecutionResult as LeanExecutionResult
 
+# SwarmLearner (extracted from v1 conductor for v2 independence)
+from .swarm_learner import SwarmLearner, SwarmLearnerSignature
+
+# OptimizationPipeline (moved from v1)
+from .optimization_pipeline import (
+    OptimizationPipeline,
+    OptimizationConfig,
+    IterationResult,
+    create_optimization_pipeline
+)
+
+# Core RL Components (essential for learning)
+from .credit_assignment import CreditAssignment, ImprovementCredit
+from .adaptive_learning import AdaptiveLearning, LearningState
+from .policy_explorer import PolicyExplorer, PolicyExplorerSignature
+from .rl_learning_manager import LearningManager, LearningUpdate
+
 # Export components
 __all__ = [
     'SwarmTaskBoard',
@@ -171,4 +188,21 @@ __all__ = [
     # LeanExecutor (legacy)
     'LeanExecutor',
     'LeanExecutionResult',
+    # SwarmLearner (online prompt learning)
+    'SwarmLearner',
+    'SwarmLearnerSignature',
+    # OptimizationPipeline
+    'OptimizationPipeline',
+    'OptimizationConfig',
+    'IterationResult',
+    'create_optimization_pipeline',
+    # Core RL Components
+    'CreditAssignment',
+    'ImprovementCredit',
+    'AdaptiveLearning',
+    'LearningState',
+    'PolicyExplorer',
+    'PolicyExplorerSignature',
+    'LearningManager',
+    'LearningUpdate',
 ]

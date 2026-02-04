@@ -453,3 +453,138 @@ Code only:""",
             iteration=iteration,
             **context
         )
+
+    # ========================================================================
+    # CONVENIENCE METHODS (for direct use by orchestrator)
+    # These provide simpler access patterns without the SkillResult wrapper
+    # ========================================================================
+
+    async def reason_features(self,
+                              X: pd.DataFrame,
+                              y: pd.Series,
+                              problem_type: str,
+                              context: str = "") -> List[Dict]:
+        """
+        Generate feature suggestions using LLM reasoning.
+
+        Convenience method for orchestrator use.
+        Automatically runs EDA first to provide insights to LLM.
+
+        Args:
+            X: Input features
+            y: Target variable
+            problem_type: 'classification' or 'regression'
+            context: Business context string
+
+        Returns:
+            List of suggestion dicts with 'code', 'perspective', 'source' keys
+        """
+        # Run EDA first to get insights for LLM prompts
+        eda_insights = {}
+        try:
+            from .eda import EDASkill
+            eda = EDASkill()
+            eda_insights = eda.analyze(X, y, problem_type)
+
+            # Also get EDA-based recommendations as suggestions
+            eda_suggestions = []
+            for rec in eda_insights.get('recommendations', []):
+                if rec.get('code') and not rec['code'].startswith('#'):
+                    eda_suggestions.append({
+                        'perspective': 'eda_rule',
+                        'code': rec['code'],
+                        'source': 'eda',
+                        'reason': rec.get('reason', '')
+                    })
+
+            logger.info(f"EDA generated {len(eda_suggestions)} rule-based suggestions")
+        except Exception as e:
+            logger.debug(f"EDA analysis skipped: {e}")
+            eda_suggestions = []
+
+        # Run LLM reasoning with EDA insights
+        result = await self.execute(
+            X, y,
+            problem_type=problem_type,
+            business_context=context,
+            eda_insights=eda_insights
+        )
+
+        if result.success:
+            llm_suggestions = result.metadata.get('suggestions', [])
+            # Combine EDA and LLM suggestions
+            return eda_suggestions + llm_suggestions
+        return eda_suggestions
+
+    def apply_suggestions(self,
+                          X: pd.DataFrame,
+                          suggestions: List[Dict],
+                          drop_text_cols: bool = True) -> pd.DataFrame:
+        """
+        Apply feature suggestions to dataframe.
+
+        Public wrapper for _apply_suggestions with optional text column dropping.
+
+        Args:
+            X: Input dataframe
+            suggestions: List of suggestion dicts with 'code' key
+            drop_text_cols: Whether to drop high-cardinality text columns
+
+        Returns:
+            Enhanced dataframe with new features
+        """
+        X_new = self._apply_suggestions(X, suggestions)
+
+        # Drop high-cardinality text columns to prevent leakage
+        if drop_text_cols:
+            original_text_cols = X.select_dtypes(include=['object']).columns.tolist()
+            n_rows = len(X_new)
+            threshold = max(50, int(n_rows * 0.1))
+
+            cols_to_drop = []
+            for col in original_text_cols:
+                if col in X_new.columns:
+                    n_unique = X_new[col].nunique()
+                    if n_unique > threshold:
+                        cols_to_drop.append(col)
+
+            if cols_to_drop:
+                X_new = X_new.drop(columns=cols_to_drop)
+                logger.info(f"Dropped {len(cols_to_drop)} high-cardinality text columns")
+
+        return X_new
+
+    async def reason_with_feedback(self,
+                                   X: pd.DataFrame,
+                                   y: pd.Series,
+                                   problem_type: str,
+                                   context: str,
+                                   feature_importance: Dict[str, float],
+                                   iteration: int = 1) -> List[Dict]:
+        """
+        Generate improved features based on model feedback.
+
+        Convenience method for orchestrator use.
+
+        Args:
+            X: Input features
+            y: Target variable
+            problem_type: 'classification' or 'regression'
+            context: Business context string
+            feature_importance: Dict of feature_name -> importance score
+            iteration: Feedback loop iteration number
+
+        Returns:
+            List of suggestion dicts
+        """
+        result = await self.execute(
+            X, y,
+            problem_type=problem_type,
+            business_context=context,
+            feature_importance=feature_importance,
+            iteration=iteration
+        )
+
+        if result.success:
+            return result.metadata.get('suggestions', [])
+        return []

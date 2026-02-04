@@ -306,6 +306,36 @@ html, body {
 
 .message.assistant .message-role {
     color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Speak button (read aloud) */
+.speak-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.5;
+    transition: opacity 0.2s, transform 0.2s;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.speak-btn:hover {
+    opacity: 1;
+    background: var(--bg-tertiary);
+}
+
+.speak-btn.speaking {
+    opacity: 1;
+    animation: pulse-speak 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse-speak {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
 }
 
 .message-text {
@@ -2186,4 +2216,643 @@ html, body {
 .share-btn svg {
     width: 18px;
     height: 18px;
+}
+
+/* =============================================================================
+   VOICE CHAT & TOOLBAR BUTTONS
+   ============================================================================= */
+
+/* Toolbar buttons (attach, voice-to-text) */
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin: 4px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toolbar-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.toolbar-btn.active,
+.toolbar-btn.listening {
+    background: var(--accent);
+    color: white;
+}
+
+/* Voice Chat Button - Main microphone */
+.voice-chat-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 4px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.voice-chat-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.voice-chat-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Recording state - pulsing red */
+.voice-chat-btn.recording {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+    animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-recording {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+    }
+}
+
+/* Processing state - spinning */
+.voice-chat-btn.processing {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    pointer-events: none;
+}
+
+.voice-chat-btn.processing svg {
+    animation: spin 1s linear infinite;
+}
+
+/* Playing response - animated waves */
+.voice-chat-btn.playing {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    animation: pulse-playing 1s ease-in-out infinite;
+}
+
+@keyframes pulse-playing {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Voice waveform animation */
+.voice-waveform {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 20px;
+}
+
+.voice-waveform .bar {
+    width: 3px;
+    height: 8px;
+    background: white;
+    border-radius: 2px;
+    animation: waveform 0.6s ease-in-out infinite;
+}
+
+@keyframes waveform {
+    0%, 100% {
+        height: 8px;
+    }
+    50% {
+        height: 18px;
+    }
+}
+
+/* Voice chat wrapper with picker */
+.voice-chat-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Audio level meter (VU meter) */
+.audio-level-meter {
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 32px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.voice-chat-wrapper.recording .audio-level-meter {
+    opacity: 1;
+}
+
+.level-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(to top, #22c55e, #eab308, #ef4444);
+    border-radius: 2px;
+    transition: height 0.05s ease-out;
+}
+
+/* Transcript Panel */
+.transcript-panel {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 320px;
+    height: 100vh;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
+    z-index: 200;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.transcript-panel.open {
+    right: 0;
+}
+
+.transcript-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.transcript-panel .panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.transcript-panel .panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.transcript-panel .panel-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0.7;
+}
+
+.transcript-panel .panel-actions button:hover {
+    opacity: 1;
+    background: var(--bg-tertiary);
+}
+
+.transcript-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.transcript-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.transcript-entry {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.transcript-entry.user {
+    background: var(--bg-tertiary);
+}
+
+.transcript-entry.assistant {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+}
+
+.transcript-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.transcript-role {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.transcript-text {
+    color: var(--text-primary);
+}
+
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    .voice-chat-btn {
+        width: 56px;
+        height: 56px;
+    }
+
+    .voice-chat-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .toolbar-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+    }
+
+    .voice-picker-dropdown {
+        min-width: 200px;
+        right: -50px;
+    }
+
+    .transcript-panel {
+        width: 100%;
+        right: -100%;
+    }
+
+    .transcript-panel.open {
+        right: 0;
+    }
+
+    /* Larger touch targets */
+    .voice-option {
+        padding: 14px 16px;
+    }
+
+    .speak-btn {
+        padding: 8px 12px;
+        font-size: 18px;
+    }
+
+    /* Hide some buttons on mobile */
+    #wake-word-btn,
+    #continuous-btn {
+        display: none;
+    }
+}
+
+/* Touch-friendly recording indicator */
+@media (hover: none) {
+    .voice-chat-btn:active {
+        transform: scale(0.95);
+    }
+
+    .toolbar-btn:active {
+        background: var(--bg-tertiary);
+    }
+}
+
+.voice-picker-btn {
+    width: 20px;
+    height: 20px;
+    margin-left: -8px;
+    margin-right: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.voice-picker-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.voice-picker-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+.voice-picker-dropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 160px;
+    display: none;
+    z-index: 100;
+    overflow: hidden;
+}
+
+.voice-picker-dropdown.open {
+    display: block;
+}
+
+.voice-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.voice-option:hover {
+    background: var(--bg-hover);
+}
+
+.voice-option.selected {
+    background: var(--bg-tertiary);
+}
+
+.voice-icon {
+    font-size: 16px;
+}
+
+.voice-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.voice-check {
+    color: var(--accent);
+    font-weight: bold;
+}
+
+/* Speed control in voice picker */
+.voice-speed-control {
+    padding: 12px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+
+.voice-speed-control label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.voice-speed-control input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+}
+
+.voice-speed-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.speed-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Voice status indicator text */
+.voice-status {
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Attachment previews area */
+.attachment-previews {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.attachment-preview {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.attachment-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.attachment-preview .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Light theme adjustments for voice button */
+[data-theme="light"] .voice-chat-btn {
+    background: var(--bg-secondary);
+}
+
+[data-theme="light"] .voice-chat-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+/* =============================================================================
+   LIVE CAPTIONS - Shows real-time transcription during voice chat
+   ============================================================================= */
+
+.live-caption {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 80%;
+    min-width: 200px;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: captionFadeIn 0.2s ease-out;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.live-caption.user {
+    background: rgba(16, 163, 127, 0.9);
+}
+
+.live-caption.assistant {
+    background: rgba(59, 130, 246, 0.9);
+}
+
+@keyframes captionFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Light theme live captions */
+[data-theme="light"] .live-caption {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .live-caption.user {
+    background: rgba(16, 163, 127, 0.15);
+    border-color: rgba(16, 163, 127, 0.3);
+}
+
+[data-theme="light"] .live-caption.assistant {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* =============================================================================
+   CONFIDENCE INDICATOR - Shows STT confidence level
+   ============================================================================= */
+
+.confidence-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.confidence-indicator .confidence-bar {
+    width: 40px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.confidence-indicator .confidence-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.confidence-indicator .confidence-fill.high {
+    background: var(--success);
+}
+
+.confidence-indicator .confidence-fill.medium {
+    background: #eab308;
+}
+
+.confidence-indicator .confidence-fill.low {
+    background: var(--error);
+}
+
+/* =============================================================================
+   MOBILE OPTIMIZATIONS FOR VOICE
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .voice-chat-btn {
+        width: 56px;
+        height: 56px;
+    }
+
+    .voice-chat-btn svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .live-caption {
+        max-width: 90%;
+        font-size: 14px;
+        padding: 10px 16px;
+        bottom: 80px;
+    }
+
+    .audio-level-meter {
+        height: 40px;
+    }
+
+    .voice-picker-dropdown {
+        max-width: 90vw;
+    }
 }

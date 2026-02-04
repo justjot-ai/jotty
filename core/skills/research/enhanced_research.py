@@ -168,6 +168,11 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         company_overview = _generate_company_overview(company_data)
         report_sections.append(company_overview)
 
+        # 4.5 Recent News & Developments (from web search)
+        if company_data.get('web_search_news'):
+            news_section = _generate_news_section(company_data, ticker)
+            report_sections.append(news_section)
+
         # 5. Industry Analysis (NEW)
         industry_section = IndustryAnalyzer.get_industry_analysis(
             company_data.get('sector', ''), company_data
@@ -630,6 +635,45 @@ specifically within the **{data.get('industry', 'N/A')}** industry.
 | EBITDA (TTM) | ₹{data.get('ebitda', 0)/1e7:,.0f} Cr |
 | Employees | {data.get('employees', 'N/A')} |
 """
+
+
+def _generate_news_section(data: Dict[str, Any], ticker: str) -> str:
+    """Generate recent news section from web search results."""
+    news_text = data.get('web_search_news', '')
+    news_results = data.get('web_search_results', [])
+
+    if not news_text and not news_results:
+        return ""
+
+    section = f"""
+## Recent News & Developments
+
+**Source:** Web Search (DuckDuckGo) | **Updated:** {datetime.now().strftime('%Y-%m-%d')}
+
+### Latest Headlines for {ticker}
+
+"""
+    # Add formatted news items
+    if news_results:
+        for i, item in enumerate(news_results[:10], 1):
+            title = item.get('title', 'N/A')
+            snippet = item.get('snippet', '')[:200]
+            url = item.get('url', '')
+            section += f"**{i}. {title}**\n"
+            if snippet:
+                section += f"> {snippet}...\n"
+            if url:
+                section += f"*Source: [{url[:50]}...]({url})*\n"
+            section += "\n"
+    elif news_text:
+        # Fallback to raw news text
+        section += news_text
+
+    section += """
+---
+*Note: News sourced from web search. Verify information from official sources.*
+"""
+    return section
 
 
 def _generate_financial_section(financials: 'FinancialStatements',

@@ -201,9 +201,12 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
                     api_key="not-needed",
                     # Enable JSON output mode for structured responses
                     response_format={"type": "json_object"},
+                    # Longer timeout - Claude CLI calls can take 30-60s each
+                    # When serialized, multiple calls queue up and need more time
+                    timeout=300,  # 5 minutes to handle queued requests
                 )
                 self._lm._model = model
-                logger.info(f"✅ Using OpenAI wrapper LM: {model} (JSON mode enabled)")
+                logger.info(f"✅ Using OpenAI wrapper LM: {model} (JSON mode, 300s timeout)")
             return self._lm
 
         # Fallback to direct CLI

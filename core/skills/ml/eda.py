@@ -460,3 +460,51 @@ class EDASkill(MLSkill):
             lines.append(f"- {rec['action']} on {rec.get('feature', rec.get('features'))}: {rec['reason']}")
 
         return "\n".join(lines)
+
+    # ========================================================================
+    # CONVENIENCE METHODS (for direct use by orchestrator)
+    # These provide synchronous access without the SkillResult wrapper
+    # ========================================================================
+
+    def analyze(self, X: pd.DataFrame, y: pd.Series = None, problem_type: str = "classification") -> Dict:
+        """
+        Run comprehensive EDA and return actionable insights.
+
+        This is a convenience method for direct use by orchestrators.
+        For the full MLSkill interface, use execute() instead.
+
+        Args:
+            X: Feature dataframe
+            y: Target series (optional)
+            problem_type: 'classification' or 'regression'
+
+        Returns:
+            Dict with insights and recommendations
+        """
+        insights = {
+            'distributions': self._analyze_distributions(X),
+            'correlations': self._analyze_correlations(X, y),
+            'missing': self._analyze_missing(X, y),
+            'categorical': self._analyze_categorical(X, y),
+            'outliers': self._analyze_outliers(X),
+            'interactions': self._analyze_interactions(X, y),
+            'recommendations': []
+        }
+
+        insights['recommendations'] = self._generate_recommendations(insights, X, y)
+
+        return insights
+
+    def format_for_llm(self, insights: Dict) -> str:
+        """
+        Format EDA insights as text for LLM consumption.
+
+        Public wrapper for _format_for_llm.
+
+        Args:
+            insights: Dict from analyze()
+
+        Returns:
+            Formatted text string
+        """
+        return self._format_for_llm(insights)

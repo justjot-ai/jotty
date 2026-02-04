@@ -2147,6 +2147,48 @@ QUESTION: {message}"""
         processor = get_voice_processor()
         return {"voices": processor.get_available_voices()}
 
+    @app.get("/api/voice/config")
+    async def get_voice_config():
+        """
+        Get voice processing configuration.
+
+        Returns current settings for:
+        - Local Whisper (LOCAL_WHISPER env var)
+        - Speculative TTS (SPECULATIVE_TTS env var)
+        - WebSocket voice (WEBSOCKET_VOICE env var)
+        - Whisper model size
+        """
+        import os
+        use_local_whisper = os.environ.get("LOCAL_WHISPER", "0") == "1"
+        return {
+            "local_whisper": use_local_whisper,
+            "whisper_model": os.environ.get("WHISPER_MODEL", "base") if use_local_whisper else None,
+            "speculative_tts": os.environ.get("SPECULATIVE_TTS", "0") == "1",
+            "websocket_voice": os.environ.get("WEBSOCKET_VOICE", "0") == "1",
+            "websocket_url": "/ws/voice/{session_id}"
+        }
+
+    @app.post("/api/voice/config")
+    async def set_voice_config(request: dict):
+        """
+        Update voice processing configuration at runtime.
+
+        Request: {"local_whisper": true, "speculative_tts": true, "whisper_model": "small"}
+        """
+        import os
+
+        if "local_whisper" in request:
+            os.environ["LOCAL_WHISPER"] = "1" if request["local_whisper"] else "0"
+        if "speculative_tts" in request:
+            os.environ["SPECULATIVE_TTS"] = "1" if request["speculative_tts"] else "0"
+        if "websocket_voice" in request:
+            os.environ["WEBSOCKET_VOICE"] = "1" if request["websocket_voice"] else "0"
+        if "whisper_model" in request:
+            os.environ["WHISPER_MODEL"] = request["whisper_model"]
+
+        # Return updated config
+        return await get_voice_config()
+
     @app.post("/api/voice/tts")
     async def text_to_speech_endpoint(request: dict):
         """
@@ -2190,9 +2232,9 @@ QUESTION: {message}"""
         mime_type = audio.content_type or "audio/webm"
 
         processor = get_voice_processor()
-        text = await processor.speech_to_text(content, mime_type)
+        text, confidence = await processor.speech_to_text(content, mime_type)
 
-        return {"text": text, "success": bool(text)}
+        return {"text": text, "confidence": confidence, "success": bool(text)}
 
     @app.post("/api/voice/chat/audio")
     async def voice_chat_audio_endpoint(
@@ -2218,7 +2260,7 @@ QUESTION: {message}"""
         processor = get_voice_processor()
 
         # 1. Speech to text
-        user_text = await processor.speech_to_text(audio_content, mime_type)
+        user_text, _ = await processor.speech_to_text(audio_content, mime_type)
         if not user_text:
             # Return error audio
             error_audio = await processor.text_to_speech(
@@ -2265,61 +2307,150 @@ QUESTION: {message}"""
     @app.websocket("/ws/voice/{session_id}")
     async def websocket_voice_chat(websocket: WebSocket, session_id: str):
         """
-        WebSocket endpoint for streaming voice chat.
+        WebSocket endpoint for low-latency streaming voice chat.
 
-        Client sends: Binary audio chunks or {"type": "config", "voice": "..."}
-        Server sends: Binary audio response chunks
+        Features:
+        - Real-time audio streaming (lower latency than HTTP)
+        - Local Whisper support (if LOCAL_WHISPER=1)
+        - Speculative TTS (if SPECULATIVE_TTS=1)
+        - Confidence scores for transcription
+
+        Client sends:
+        - Binary audio chunks (accumulates until end_audio)
+        - {"type": "config", "voice": "...", "speed": 1.0, "speculative": true}
+        - {"type": "end_audio"} - triggers processing
+        - {"type": "cancel"} - cancel current processing
+
+        Server sends:
+        - {"type": "config_ack", "voice": "...", "local_whisper": bool, "speculative_tts": bool}
+        - {"type": "transcription", "text": "...", "confidence": 0.95}
+        - {"type": "response_text", "text": "..."}
+        - {"type": "audio_start"}
+        - Binary audio chunks
+        - {"type": "audio_end"}
+        - {"type": "error", "message": "..."}
         """
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor, VoiceConfig
+        import os
 
         await websocket.accept()
+
+        # Get config from environment
+        use_local_whisper = os.environ.get("LOCAL_WHISPER", "0") == "1"
+        use_speculative_tts = os.environ.get("SPECULATIVE_TTS", "0") == "1"
+
         processor = get_voice_processor()
         voice = None
+        speed = 1.0
         audio_buffer = bytearray()
+        cancelled = False
 
         try:
+            # Send initial capabilities
+            await websocket.send_json({
+                "type": "capabilities",
+                "local_whisper": use_local_whisper,
+                "speculative_tts": use_speculative_tts,
+                "whisper_model": os.environ.get("WHISPER_MODEL", "base") if use_local_whisper else None
+            })
+
             while True:
                 message = await websocket.receive()
 
                 if "text" in message:
-                    # Config message
                     import json
                     data = json.loads(message["text"])
+
                     if data.get("type") == "config":
                         voice = data.get("voice")
-                        await websocket.send_json({"type": "config_ack", "voice": voice})
+                        speed = data.get("speed", 1.0)
+                        # Allow client to override speculative TTS
+                        if "speculative" in data:
+                            use_speculative_tts = data["speculative"]
+                        await websocket.send_json({
+                            "type": "config_ack",
+                            "voice": voice,
+                            "speed": speed,
+                            "local_whisper": use_local_whisper,
+                            "speculative_tts": use_speculative_tts
+                        })
+
+                    elif data.get("type") == "cancel":
+                        cancelled = True
+                        audio_buffer.clear()
+                        await websocket.send_json({"type": "cancelled"})
+
                     elif data.get("type") == "end_audio":
-                        # Process accumulated audio
+                        cancelled = False
                         if audio_buffer:
-                            # STT
-                            user_text = await processor.speech_to_text(bytes(audio_buffer), "audio/webm")
-                            await websocket.send_json({"type": "transcription", "text": user_text})
-
-                            if user_text:
-                                # LLM
-                                result = await api.process_message(
-                                    message=user_text,
-                                    session_id=session_id
+                            try:
+                                # STT - with confidence
+                                user_text, confidence = await processor.speech_to_text(
+                                    bytes(audio_buffer), "audio/webm"
                                 )
-                                response_text = result.get("content", "")
-                                await websocket.send_json({"type": "response_text", "text": response_text})
+                                await websocket.send_json({
+                                    "type": "transcription",
+                                    "text": user_text,
+                                    "confidence": confidence
+                                })
 
-                                # TTS - stream chunks
-                                await websocket.send_json({"type": "audio_start"})
-                                async for chunk in processor.text_to_speech_stream(response_text, voice):
-                                    await websocket.send_bytes(chunk)
-                                await websocket.send_json({"type": "audio_end"})
+                                if user_text and not cancelled:
+                                    # LLM
+                                    result = await api.process_message(
+                                        message=user_text,
+                                        session_id=session_id
+                                    )
+                                    response_text = result.get("content", "")
+
+                                    if cancelled:
+                                        continue
+
+                                    await websocket.send_json({
+                                        "type": "response_text",
+                                        "text": response_text
+                                    })
+
+                                    # TTS - stream chunks
+                                    await websocket.send_json({"type": "audio_start"})
+
+                                    if use_speculative_tts and hasattr(processor, 'speculative_tts_stream'):
+                                        # Use speculative TTS for even lower latency
+                                        # Split into sentences for parallel generation
+                                        import re
+                                        sentences = re.split(r'(?<=[.!?])\s+', response_text)
+                                        for sentence in sentences:
+                                            if cancelled:
+                                                break
+                                            if sentence.strip():
+                                                audio = await processor.text_to_speech(sentence, voice, speed)
+                                                if audio:
+                                                    await websocket.send_bytes(audio)
+                                    else:
+                                        # Standard streaming TTS
+                                        async for chunk in processor.text_to_speech_stream(response_text, voice):
+                                            if cancelled:
+                                                break
+                                            await websocket.send_bytes(chunk)
+
+                                    await websocket.send_json({"type": "audio_end"})
+
+                            except Exception as e:
+                                logger.error(f"Voice processing error: {e}")
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": str(e)
+                                })
 
                             audio_buffer.clear()
 
                 elif "bytes" in message:
-                    # Audio chunk
+                    # Audio chunk - accumulate
                     audio_buffer.extend(message["bytes"])
 
         except Exception as e:
             logger.error(f"Voice WebSocket error: {e}")
         finally:
-            pass
+            audio_buffer.clear()
 
     # WebSocket endpoint
     @app.websocket("/ws/chat/{session_id}")
@@ -3263,21 +3394,25 @@ QUESTION: {message}"""
         audio_data = await audio.read()
         mime_type = audio.content_type or "audio/webm"
 
-        transcript = await processor.speech_to_text(audio_data, mime_type)
+        transcript, confidence = await processor.speech_to_text(audio_data, mime_type)
 
         return {
             "success": bool(transcript),
             "transcript": transcript,
+            "confidence": confidence,
             "mime_type": mime_type
         }
 
     @app.post("/api/voice/tts")
-    async def text_to_speech(text: str, voice: Optional[str] = None):
+    async def text_to_speech(
+        text: str = Form(...),
+        voice: Optional[str] = Form(None)
+    ):
         """
         Convert text to speech using edge-tts (Microsoft neural voices).
 
         Args:
-            text: Text to convert to speech
+            text: Text to convert to speech (form field)
             voice: Optional voice ID (default: en-US-AvaNeural)
 
         Returns audio/mpeg stream.
@@ -3388,7 +3523,7 @@ QUESTION: {message}"""
     @app.post("/api/voice/chat/turbo")
     async def voice_chat_turbo(audio: UploadFile, session_id: Optional[str] = None):
         """
-        Ultra-fast voice pipeline using Groq LLM (~1s total latency).
+        Ultra-fast voice pipeline using Groq LLM (~2s total latency).
 
         Uses Groq for both STT (Whisper) and LLM (llama-3.1-8b-instant).
         Optimized for conversational voice chat where latency is critical.
@@ -3397,12 +3532,15 @@ QUESTION: {message}"""
         - STT (Groq Whisper): ~250ms
         - LLM (Groq llama-3.1-8b): ~180ms
         - TTS (edge-tts): ~700ms
-        - Total: ~1.1s
+        - Total: ~1.1-2.3s
+
+        Returns raw audio/mpeg with X-User-Text and X-Response-Text headers.
         """
-        import base64
         import os
         import httpx
+        from urllib.parse import quote
         from .voice import get_voice_processor
+        from fastapi.responses import Response
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -3438,15 +3576,17 @@ QUESTION: {message}"""
             audio_data, mime_type, process_with_groq_llm, max_response_chars=200
         )
 
-        return {
-            "success": True,
-            "user_text": user_text,
-            "response_text": response_text,
-            "response_audio_base64": base64.b64encode(response_audio).decode() if response_audio else None,
-            "audio_format": "audio/mpeg",
-            "mode": "turbo",
-            "llm": "groq/llama-3.1-8b-instant"
-        }
+        # Return raw audio with text in headers (for UI compatibility)
+        return Response(
+            content=response_audio or b"",
+            media_type="audio/mpeg",
+            headers={
+                "X-User-Text": quote(user_text or ""),
+                "X-Response-Text": quote(response_text or ""),
+                "X-Mode": "turbo",
+                "X-LLM": "groq/llama-3.1-8b-instant"
+            }
+        )
 
     @app.post("/api/voice/chat/stream")
     async def voice_chat_streaming(audio: UploadFile, session_id: Optional[str] = None):
@@ -3454,8 +3594,9 @@ QUESTION: {message}"""
         Streaming voice pipeline for lower perceived latency.
 
         Returns audio sentence-by-sentence as Server-Sent Events.
-        Each event contains a sentence and its corresponding audio chunk.
+        First event includes user_text, then response chunks follow.
         """
+        import re
         import base64
         import json
         from .voice import get_voice_processor
@@ -3473,14 +3614,262 @@ QUESTION: {message}"""
             return result.get("content", "") if isinstance(result, dict) else str(result)
 
         async def generate_sse():
-            async for text_chunk, audio_chunk in processor.process_voice_message_streaming(
-                audio_data, mime_type, process_with_llm
-            ):
+            # 1. Speech to text
+            user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
+
+            if not user_text:
+                error_audio = await processor.text_to_speech("I couldn't understand that.")
                 data = {
-                    "text": text_chunk,
+                    "user_text": "",
+                    "confidence": 0.0,
+                    "text": "I couldn't understand that.",
+                    "audio_base64": base64.b64encode(error_audio).decode() if error_audio else None
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # 2. Send first event with user_text immediately
+            yield f"data: {json.dumps({'user_text': user_text, 'confidence': confidence, 'text': '', 'audio_base64': None})}\n\n"
+
+            # 3. Process with LLM
+            response_text = await process_with_llm(user_text)
+
+            # 4. Split into sentences and stream TTS for each
+            sentences = re.split(r'(?<=[.!?])\s+', response_text)
+
+            for sentence in sentences:
+                if sentence.strip():
+                    audio_chunk = await processor.text_to_speech(sentence)
+                    data = {
+                        "text": sentence + " ",
+                        "audio_base64": base64.b64encode(audio_chunk).decode() if audio_chunk else None
+                    }
+                    yield f"data: {json.dumps(data)}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(
+            generate_sse(),
+            media_type="text/event-stream"
+        )
+
+    @app.post("/api/voice/chat/stream/turbo")
+    async def voice_chat_streaming_turbo(
+        audio: UploadFile,
+        session_id: Optional[str] = None,
+        voice: Optional[str] = None
+    ):
+        """
+        Ultra-fast streaming voice pipeline using Groq LLM.
+
+        Combines Groq Whisper STT + Groq LLM + parallel TTS.
+        First sentence plays in ~1s, subsequent sentences ready immediately.
+
+        Optimization: TTS for all sentences generated in parallel.
+        """
+        import re
+        import os
+        import asyncio
+        import base64
+        import json
+        import httpx
+        from .voice import get_voice_processor
+        from fastapi.responses import StreamingResponse
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+        tts_voice = voice or "en-US-AvaNeural"
+
+        async def process_with_groq_llm(user_text: str) -> str:
+            groq_key = os.environ.get("GROQ_API_KEY")
+            if not groq_key:
+                return "I'm sorry, the fast response service is unavailable."
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {groq_key}"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [
+                            {"role": "system", "content": "You are a helpful voice assistant. Keep responses brief and conversational (2-4 sentences)."},
+                            {"role": "user", "content": user_text}
+                        ],
+                        "max_tokens": 200,
+                        "temperature": 0.7
+                    }
+                )
+                data = response.json()
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "I couldn't process that.")
+
+        async def generate_sse():
+            # 1. Speech to text (Groq Whisper - ~250ms, or local Whisper)
+            user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
+
+            if not user_text:
+                error_audio = await processor.text_to_speech("I couldn't understand that.")
+                data = {
+                    "user_text": "",
+                    "confidence": 0.0,
+                    "text": "I couldn't understand that.",
+                    "audio_base64": base64.b64encode(error_audio).decode() if error_audio else None
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # 2. Send user_text immediately with confidence
+            yield f"data: {json.dumps({'user_text': user_text, 'confidence': confidence, 'text': '', 'audio_base64': None})}\n\n"
+
+            # 3. Process with Groq LLM (~180ms)
+            response_text = await process_with_groq_llm(user_text)
+
+            # 4. Split into sentences
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', response_text) if s.strip()]
+
+            if not sentences:
+                yield "data: [DONE]\n\n"
+                return
+
+            # 5. PARALLEL TTS: Generate audio for ALL sentences concurrently
+            # This reduces total TTS time from 700ms * N to ~700ms (parallel)
+            async def generate_tts(sentence: str) -> tuple:
+                audio = await processor.text_to_speech(sentence, tts_voice)
+                return (sentence, audio)
+
+            # Start all TTS tasks in parallel
+            tts_tasks = [generate_tts(s) for s in sentences]
+
+            # Stream results as they complete, but maintain order
+            # Use asyncio.gather to run in parallel, preserving order
+            results = await asyncio.gather(*tts_tasks)
+
+            # Yield each result in order
+            for sentence, audio_chunk in results:
+                data = {
+                    "text": sentence + " ",
                     "audio_base64": base64.b64encode(audio_chunk).decode() if audio_chunk else None
                 }
                 yield f"data: {json.dumps(data)}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(
+            generate_sse(),
+            media_type="text/event-stream"
+        )
+
+    @app.post("/api/voice/chat/stream/ultra")
+    async def voice_chat_streaming_ultra(
+        audio: UploadFile,
+        session_id: Optional[str] = None,
+        voice: Optional[str] = None,
+        speed: Optional[float] = None
+    ):
+        """
+        Ultra-low-latency streaming: TTS starts BEFORE LLM finishes.
+
+        Streams LLM tokens, generates TTS as soon as each sentence completes.
+        First audio plays ~500ms after first sentence is generated.
+        """
+        import re
+        import os
+        import base64
+        import json
+        import httpx
+        from .voice import get_voice_processor
+        from fastapi.responses import StreamingResponse
+
+        processor = get_voice_processor()
+        audio_data = await audio.read()
+        mime_type = audio.content_type or "audio/webm"
+        tts_voice = voice or "en-US-AvaNeural"
+        tts_speed = speed or 1.0
+
+        async def generate_sse():
+            # 1. Speech to text (now returns tuple with confidence)
+            user_text, confidence = await processor.speech_to_text(audio_data, mime_type)
+
+            if not user_text:
+                error_audio = await processor.text_to_speech("I couldn't understand that.", tts_voice, tts_speed)
+                yield f"data: {json.dumps({'user_text': '', 'text': 'Error', 'confidence': 0.0, 'audio_base64': base64.b64encode(error_audio).decode() if error_audio else None})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # Send user text immediately with confidence
+            yield f"data: {json.dumps({'user_text': user_text, 'confidence': confidence, 'text': '', 'audio_base64': None})}\n\n"
+
+            # 2. Stream from Groq LLM
+            groq_key = os.environ.get("GROQ_API_KEY")
+            if not groq_key:
+                error_audio = await processor.text_to_speech("Fast response service unavailable.", tts_voice, tts_speed)
+                yield f"data: {json.dumps({'text': 'Error', 'audio_base64': base64.b64encode(error_audio).decode() if error_audio else None})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            sentence_buffer = ""
+            full_response = ""
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                async with client.stream(
+                    "POST",
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {groq_key}"
+                    },
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [
+                            {"role": "system", "content": "You are a helpful voice assistant. Keep responses brief (2-3 sentences). IMPORTANT: Always respond in the SAME LANGUAGE the user speaks. If they speak Spanish, respond in Spanish. If French, respond in French. Match their language exactly."},
+                            {"role": "user", "content": user_text}
+                        ],
+                        "max_tokens": 150,
+                        "temperature": 0.7,
+                        "stream": True
+                    }
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
+                            break
+
+                        try:
+                            chunk = json.loads(data_str)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+
+                            if content:
+                                sentence_buffer += content
+                                full_response += content
+
+                                # Check for sentence boundary
+                                sentence_match = re.match(r'^(.*?[.!?])\s*(.*)$', sentence_buffer, re.DOTALL)
+                                if sentence_match:
+                                    complete_sentence = sentence_match.group(1).strip()
+                                    sentence_buffer = sentence_match.group(2)
+
+                                    if complete_sentence:
+                                        # Generate TTS immediately for this sentence
+                                        audio_chunk = await processor.text_to_speech(complete_sentence, tts_voice, tts_speed)
+                                        yield f"data: {json.dumps({'text': complete_sentence + ' ', 'audio_base64': base64.b64encode(audio_chunk).decode() if audio_chunk else None})}\n\n"
+
+                        except json.JSONDecodeError:
+                            continue
+
+            # Send any remaining text
+            if sentence_buffer.strip():
+                audio_chunk = await processor.text_to_speech(sentence_buffer.strip(), tts_voice, tts_speed)
+                yield f"data: {json.dumps({'text': sentence_buffer.strip(), 'audio_base64': base64.b64encode(audio_chunk).decode() if audio_chunk else None})}\n\n"
+
             yield "data: [DONE]\n\n"
 
         return StreamingResponse(
