@@ -103,6 +103,45 @@ def _progress(phase: str, agent: str, message: str):
             pass  # Never let callback errors break the pipeline
 
 
+async def _stream_call(module, phase: str, agent: str, listener_field: str = "reasoning", **kwargs):
+    """Call a DSPy module with streaming, forwarding reasoning tokens to _progress().
+
+    Args:
+        module: DSPy ChainOfThought module to call
+        phase: Phase name for progress messages (e.g. "Phase 1")
+        agent: Agent name for progress messages (e.g. "Architect")
+        listener_field: Output field to stream (default: "reasoning")
+        **kwargs: Arguments to pass to the module
+
+    Returns:
+        dspy.Prediction result
+    """
+    from dspy.streaming import streamify, StreamListener
+
+    listener = StreamListener(listener_field)
+    streaming_module = streamify(module, stream_listeners=[listener])
+
+    result = None
+    last_text = ""
+    async for chunk in streaming_module(**kwargs):
+        if isinstance(chunk, dspy.Prediction):
+            result = chunk
+        elif isinstance(chunk, str):
+            # chunk is cumulative streamed text for the listened field
+            new_text = chunk[len(last_text):]
+            if new_text.strip():
+                # Show last 80 chars of reasoning in progress
+                display = chunk.strip()[-80:]
+                _progress(phase, agent, f"  ...{display}")
+            last_text = chunk
+
+    if result is None:
+        # Fallback: non-streaming call if streamify didn't yield a Prediction
+        result = module(**kwargs)
+
+    return result
+
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -444,6 +483,26 @@ class ReviewArbitrationSignature(dspy.Signature):
     valid: str = dspy.OutputField(desc="TRUE or FALSE — is this rejection valid and actionable?")
     reasoning: str = dspy.OutputField(desc="Why the rejection is valid or invalid")
     actionable_fix: str = dspy.OutputField(desc="If valid: specific fix. If invalid: empty string.")
+
+
+class ScopeClassificationSignature(dspy.Signature):
+    """Classify whether software requirements need a single-tier or full-stack architecture.
+
+    You are a SOFTWARE ARCHITECTURE CLASSIFIER. Analyze the requirements and determine scope.
+
+    SINGLE_TIER — one concern, one process:
+    - CLI tools, scripts, libraries, algorithms, utilities, single-file programs
+    - Example: "Build a CLI calculator", "Create a sorting library"
+
+    FULL_STACK — multiple architectural tiers (database + backend API + frontend):
+    - Web applications, platforms, dashboards, CRUD apps, SaaS products
+    - Any system needing persistent storage + API layer + user interface
+    - Example: "Build an e-commerce platform", "Create a project management tool"
+    """
+    requirements: str = dspy.InputField(desc="Software requirements to classify")
+
+    scope: str = dspy.OutputField(desc="Exactly one of: single_tier, full_stack")
+    reasoning: str = dspy.OutputField(desc="One-sentence justification")
 
 
 class CodeVerificationSignature(dspy.Signature):
@@ -815,6 +874,10 @@ class BaseCodeAgent:
             except Exception:
                 pass
 
+    async def _stream(self, module, phase: str, agent: str, listener_field: str = "reasoning", **kwargs):
+        """Call DSPy module with streaming reasoning to progress callback."""
+        return await _stream_call(module, phase, agent, listener_field, **kwargs)
+
 
 class ArchitectAgent(BaseCodeAgent):
     """Designs software architecture."""
@@ -835,7 +898,7 @@ class ArchitectAgent(BaseCodeAgent):
             if self.learned_context:
                 requirements = requirements + f"\n\n{self.learned_context}"
 
-            result = self._designer(
+            result = await self._stream(self._designer, "Phase 1", "Architect",
                 requirements=requirements,
                 language=language,
                 style=style,
@@ -884,7 +947,7 @@ class DeveloperAgent(BaseCodeAgent):
             if self.learned_context:
                 architecture = architecture + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 2", "Developer",
                 architecture=architecture,
                 component=component,
                 language=language,
@@ -925,7 +988,7 @@ class DebuggerAgent(BaseCodeAgent):
             if self.learned_context:
                 code = code + f"\n\n{self.learned_context}"
 
-            result = self._analyzer(
+            result = await self._stream(self._analyzer, "Phase 3.5", "Debugger",
                 code=code,
                 error_message=error_message,
                 context=context or "No additional context"
@@ -966,7 +1029,7 @@ class OptimizerAgent(BaseCodeAgent):
             if self.learned_context:
                 code = code + f"\n\n{self.learned_context}"
 
-            result = self._optimizer(
+            result = await self._stream(self._optimizer, "Phase 3", "Optimizer",
                 code=code,
                 focus=focus,
                 requirements=requirements or "No specific requirements provided",
@@ -1009,7 +1072,7 @@ class TestWriterAgent(BaseCodeAgent):
             if self.learned_context:
                 code = code + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 4", "TestWriter",
                 code=code,
                 framework=framework,
                 coverage_target=coverage_target
@@ -1051,7 +1114,7 @@ class DocWriterAgent(BaseCodeAgent):
             if self.learned_context:
                 code = code + f"\n\n{self.learned_context}"
 
-            result = self._writer(
+            result = await self._stream(self._writer, "Phase 5", "DocWriter",
                 code=code,
                 architecture=architecture,
                 audience=audience
@@ -1090,7 +1153,7 @@ class VerifierAgent(BaseCodeAgent):
             if self.learned_context:
                 code = code + f"\n\n{self.learned_context}"
 
-            result = self._verifier(
+            result = await self._stream(self._verifier, "Phase 5.5", "Verifier",
                 code=code,
                 original_requirements=original_requirements,
                 architecture=architecture or "No architecture provided"
@@ -1153,7 +1216,7 @@ class SystemDesignerAgent(BaseCodeAgent):
             if self.learned_context:
                 requirements = requirements + f"\n\n{self.learned_context}"
 
-            result = self._designer(
+            result = await self._stream(self._designer, "Phase 1", "SystemDesigner",
                 requirements=requirements,
                 language=language,
                 tech_stack=json.dumps(tech_stack)
@@ -1195,7 +1258,7 @@ class DatabaseArchitectAgent(BaseCodeAgent):
             if self.learned_context:
                 data_model = data_model + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 2a", "DatabaseArchitect",
                 data_model=data_model,
                 db_type=db_type,
                 language=language
@@ -1237,7 +1300,7 @@ class APIDesignerAgent(BaseCodeAgent):
             if self.learned_context:
                 architecture = architecture + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 2b", "APIDesigner",
                 architecture=architecture,
                 orm_models=orm_models,
                 api_contract=api_contract,
@@ -1279,7 +1342,7 @@ class FrontendDeveloperAgent(BaseCodeAgent):
             if self.learned_context:
                 openapi_spec = openapi_spec + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 2c", "FrontendDeveloper",
                 openapi_spec=openapi_spec,
                 ui_requirements=ui_requirements,
                 framework=framework
@@ -1319,7 +1382,7 @@ class IntegrationAgent(BaseCodeAgent):
             if self.learned_context:
                 architecture = architecture + f"\n\n{self.learned_context}"
 
-            result = self._generator(
+            result = await self._stream(self._generator, "Phase 2d", "IntegrationEngineer",
                 file_list=json.dumps(file_list),
                 tech_stack=json.dumps(tech_stack),
                 architecture=architecture
@@ -1420,6 +1483,9 @@ class CodingSwarm(BaseSwarm):
         if self.config.team:
             self._team_config = TEAM_PRESETS.get(self.config.team)
 
+        # Scope classifier (uses DSPy's configured LM)
+        self._scope_classifier = dspy.ChainOfThought(ScopeClassificationSignature)
+
         # Review module (lazy init)
         self._review_module = None
 
@@ -1482,18 +1548,35 @@ class CodingSwarm(BaseSwarm):
 
         Priority:
         1. Explicit config.scope overrides everything
-        2. Full-stack keywords trigger full_stack
-        3. Multi-tier signal counting (db + api + frontend >= 2) triggers full_stack
-        4. Default: single_tier
+        2. LLM classification via ScopeClassificationSignature
+        3. Keyword fallback if LLM fails
         """
         # 1. Explicit config
         explicit = getattr(self.config, 'scope', None)
         if explicit in ('single_tier', 'full_stack'):
             return explicit
 
+        # 2. LLM classification
+        try:
+            result = self._scope_classifier(requirements=requirements)
+            scope = str(result.scope).strip().lower().replace('-', '_').replace(' ', '_')
+            if scope in ('single_tier', 'full_stack'):
+                return scope
+            # Handle partial matches from LLM output
+            if 'full' in scope:
+                return 'full_stack'
+            if 'single' in scope:
+                return 'single_tier'
+        except Exception as e:
+            logger.warning(f"LLM scope classification failed, falling back to keywords: {e}")
+
+        # 3. Keyword fallback
+        return self._detect_scope_keywords(requirements)
+
+    def _detect_scope_keywords(self, requirements: str) -> str:
+        """Keyword-based scope detection fallback."""
         req_lower = requirements.lower()
 
-        # 2. Full-stack keywords
         fullstack_keywords = [
             'full-stack', 'full stack', 'fullstack',
             'web app', 'web application',
@@ -1501,7 +1584,6 @@ class CodingSwarm(BaseSwarm):
         if any(kw in req_lower for kw in fullstack_keywords):
             return 'full_stack'
 
-        # 3. Count tiers
         has_db = any(kw in req_lower for kw in [
             'database', 'sqlite', 'postgresql', 'mysql', 'mongodb',
             'sql', 'schema', 'orm', 'migration',
@@ -1518,7 +1600,6 @@ class CodingSwarm(BaseSwarm):
         if tier_count >= 2:
             return 'full_stack'
 
-        # 4. Default
         return 'single_tier'
 
     def _init_fullstack_agents(self):
@@ -1909,19 +1990,30 @@ class CodingSwarm(BaseSwarm):
                 if review_criteria:
                     enriched_arch = enriched_arch + "\n\n## Code Review Criteria (your code WILL be reviewed against these)\n" + review_criteria
 
-                code_tasks = []
-                for comp in components:
-                    comp_name = comp.get('name', 'component') if isinstance(comp, dict) else str(comp)
-                    code_tasks.append(
-                        self._developer.generate(
-                            architecture=enriched_arch,
-                            component=comp_name,
-                            language=lang.value,
-                            dependencies=config.frameworks
-                        )
-                    )
+                total_components = len(components)
+                completed_count = 0
 
-                code_results = await asyncio.gather(*code_tasks, return_exceptions=True)
+                async def _generate_component(comp):
+                    nonlocal completed_count
+                    comp_name = comp.get('name', 'component') if isinstance(comp, dict) else str(comp)
+                    _progress("Phase 2", "Developer", f"  Writing {comp_name}...")
+                    result = await self._developer.generate(
+                        architecture=enriched_arch,
+                        component=comp_name,
+                        language=lang.value,
+                        dependencies=config.frameworks
+                    )
+                    completed_count += 1
+                    if isinstance(result, dict) and 'filename' in result:
+                        _progress("Phase 2", "Developer", f"  [{completed_count}/{total_components}] {result['filename']} ready")
+                    else:
+                        _progress("Phase 2", "Developer", f"  [{completed_count}/{total_components}] {comp_name} failed")
+                    return result
+
+                code_results = await asyncio.gather(
+                    *[_generate_component(comp) for comp in components],
+                    return_exceptions=True
+                )
 
                 # Collect generated files (strip markdown fences from LLM output)
                 files = {}
@@ -1956,14 +2048,21 @@ class CodingSwarm(BaseSwarm):
             # =================================================================
             _progress("Phase 3", "Optimizer", f"Optimizing {len(files)} file(s) in parallel...")
 
+            total_files = len(files)
+            optimized_count = 0
+
             async def _optimize_one(fname: str, code_str: str):
+                nonlocal optimized_count
+                _progress("Phase 3", "Optimizer", f"  Optimizing {fname}...")
                 opt_result = await self._optimizer.optimize(
                     code=code_str,
                     focus="readability",
                     constraints="Maintain all functionality",
                     requirements=requirements
                 )
+                optimized_count += 1
                 improvements = opt_result.get('improvements', [])
+                _progress("Phase 3", "Optimizer", f"  [{optimized_count}/{total_files}] {fname} optimized")
                 return fname, _strip_code_fences(opt_result.get('optimized_code', code_str)), improvements
 
             opt_tasks = [_optimize_one(fn, c) for fn, c in files.items()]
@@ -2344,9 +2443,10 @@ class CodingSwarm(BaseSwarm):
     ) -> Dict[str, Any]:
         """Run a single persona review. Non-blocking on failure."""
         try:
+            _progress("Phase 6", persona.name, f"Reviewing ({phase})...")
             if self._review_module is None:
                 self._review_module = dspy.ChainOfThought(TeamReviewSignature)
-            result = self._review_module(
+            result = await _stream_call(self._review_module, "Phase 6", persona.name,
                 code=code,
                 requirements=requirements,
                 review_phase=phase,
@@ -2359,6 +2459,7 @@ class CodingSwarm(BaseSwarm):
                     issues = []
             except (json.JSONDecodeError, TypeError):
                 issues = []
+            _progress("Phase 6", persona.name, f"Done -- {verdict}")
             return {
                 "persona": persona.name,
                 "verdict": verdict,
@@ -2368,6 +2469,7 @@ class CodingSwarm(BaseSwarm):
             }
         except Exception as e:
             logger.error(f"Persona review failed for {persona.name} (non-blocking): {e}")
+            _progress("Phase 6", persona.name, "Failed (auto-approved)")
             return {"persona": persona.name, "verdict": "APPROVED", "issues": [], "feedback": "", "evidence": ""}
 
     async def _run_review_phase(
@@ -2659,6 +2761,8 @@ __all__ = [
     'WorkspaceManager',
     '_strip_code_fences',
     '_progress',
+    '_stream_call',
+    'BaseCodeAgent',
     # Team personas & config
     'TeamPersona',
     'TeamConfig',

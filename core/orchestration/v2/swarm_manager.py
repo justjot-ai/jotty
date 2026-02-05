@@ -397,6 +397,42 @@ class SwarmManager:
 
         logger.info("V1 learning pipeline initialized")
 
+    # =========================================================================
+    # ML Learning Bridge (for SkillOrchestrator / Swarm pipeline integration)
+    # =========================================================================
+
+    def get_ml_learning(self):
+        """Get MASLearning instance for ML pipeline integration."""
+        return self.mas_learning
+
+    def record_report_section_outcome(self, section_name: str, success: bool, error: str = None):
+        """Record report section outcome for cross-run learning."""
+        try:
+            if self.learning_manager and hasattr(self.learning_manager, 'record_experience'):
+                self.learning_manager.record_experience(
+                    agent_name='report_generator',
+                    state={'section': section_name, 'error': (error or '')[:200]},
+                    action={'type': 'generate_section', 'section': section_name},
+                    reward=1.0 if success else -1.0,
+                    domain='report_sections',
+                )
+        except Exception as e:
+            logger.debug(f"Record section outcome failed: {e}")
+
+    def should_skip_report_section(self, section_name: str) -> bool:
+        """Check if a report section should be skipped based on learned failures."""
+        try:
+            if self.learning_manager and hasattr(self.learning_manager, 'get_learned_context'):
+                context = self.learning_manager.get_learned_context(
+                    state={'section': section_name, 'task': 'report_generation'},
+                    action={'type': 'generate_section', 'section': section_name}
+                )
+                if context and 'negative reward' in context.lower():
+                    return True
+        except Exception:
+            pass
+        return False
+
     def _init_provider_registry(self):
         """Initialize the skill provider registry with all available providers."""
         global ProviderRegistry, BrowserUseProvider, OpenHandsProvider

@@ -23,6 +23,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Callable, Union
 from enum import Enum
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ModelTier(Enum):
@@ -182,6 +185,7 @@ class SwarmTemplate:
         self._results: Dict[str, Any] = {}
         self._iteration: int = 0
         self._best_score: float = 0.0
+        self._learning = None  # MASLearning instance, set by Swarm
 
     def detect_problem_type(self, X, y=None, **kwargs) -> str:
         """
@@ -293,6 +297,73 @@ class SwarmTemplate:
             template.feedback_config = FeedbackConfig(**data['feedback_config'])
 
         return template
+
+    # =========================================================================
+    # Learning Lifecycle Hooks (inherited by ALL templates)
+    # =========================================================================
+
+    def set_learning(self, mas_learning):
+        """Attach learning system (called by Swarm before execution)."""
+        self._learning = mas_learning
+
+    async def before_execution(self, **kwargs) -> Dict[str, Any]:
+        """
+        Pre-execution learning phase. Loads relevant past sessions.
+        Override in subclass for template-specific learning.
+        """
+        if not getattr(self, '_learning', None):
+            return {}
+        try:
+            task_desc = kwargs.get('business_context', '') or kwargs.get('context', '')
+            learnings = self._learning.load_relevant_learnings(
+                task_description=task_desc,
+                agent_types=[],
+                top_k=5,
+            )
+            return learnings
+        except Exception as e:
+            logger.debug(f"Pre-execution learning failed: {e}")
+            return {}
+
+    async def after_execution(self, results: Dict[str, Any], **kwargs):
+        """
+        Post-execution learning phase. Records session outcome.
+        Override in subclass for template-specific pattern extraction.
+        """
+        if not getattr(self, '_learning', None):
+            return
+        try:
+            self._learning.record_session(
+                task_description=kwargs.get('business_context', ''),
+                agents_used=['skill_orchestrator'],
+                total_time=0.0,
+                success=results.get('final_score', 0) > 0,
+            )
+            self._learning.save_all()
+        except Exception as e:
+            logger.debug(f"Post-execution learning failed: {e}")
+
+    def on_stage_complete(self, stage_name: str, results: Dict[str, Any]):
+        """
+        Called after each pipeline stage. Records experience for Q-learning.
+        Override in subclass for custom reward shaping.
+        """
+        if not getattr(self, '_learning', None):
+            return
+        try:
+            reward = 0.5 if results.get('success', True) else -0.5
+            # MASLearning delegates to LearningManager which IS the LearningCoordinator
+            lm = getattr(self._learning, 'learning_manager', None)
+            if lm and hasattr(lm, 'record_experience'):
+                lm.record_experience(
+                    agent_name='pipeline',
+                    state={'stage': stage_name, 'template': self.name},
+                    action={'type': 'execute_stage', 'stage': stage_name},
+                    reward=reward,
+                    domain='ml_pipeline',
+                )
+        except Exception as e:
+            logger.debug(f"Stage learning failed: {e}")
 
 
 class TemplateExecutor:

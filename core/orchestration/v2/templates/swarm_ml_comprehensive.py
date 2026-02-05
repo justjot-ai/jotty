@@ -476,24 +476,28 @@ JSON only:""",
             return
 
         try:
-            # Import learning components
             from ...learning.transfer_learning import TransferableLearningStore
             from ...learning.learning_coordinator import LearningCoordinator
 
-            # Initialize transfer learning store
             self._transfer_store = TransferableLearningStore()
+            store_path = os.path.join('Jotty', 'outputs', 'transfer_store.json')
+            if os.path.exists(store_path):
+                self._transfer_store.load(store_path)
 
-            # Initialize learning coordinator
+            class _LCConfig:
+                output_base_dir = os.path.join('Jotty', 'outputs')
+                enable_rl = False
+
             self._learning_coordinator = LearningCoordinator(
-                learning_rate=self.learning_config.initial_learning_rate,
-                gamma=self.learning_config.discount_factor,
-                lambda_trace=self.learning_config.lambda_trace,
+                config=_LCConfig(),
+                base_dir=os.path.join('Jotty', 'outputs'),
             )
+            self._learning_coordinator.initialize(auto_load=True)
 
             self._initialized_learning = True
-            logger.info("Learning components initialized successfully")
+            logger.info("Learning components initialized")
 
-        except ImportError as e:
+        except Exception as e:
             logger.warning(f"Learning components not available: {e}")
             self._initialized_learning = False
 
@@ -591,15 +595,28 @@ JSON only:""",
                 'timestamp': time.time(),
             }
 
-            # Store session
-            self._transfer_store.store_session(session_record)
+            # Store session using actual API
+            self._transfer_store.record_session(
+                task_description=self._learning_state.task_description,
+                agents_used=['ml_pipeline'],
+                total_time=time.time() - session_record.get('timestamp', time.time()),
+                success=results.get('final_score', 0) > 0,
+            )
 
-            # Extract and store patterns
+            # Extract and store patterns as experiences
             if results.get('final_score', 0) > 0.7:  # Only learn from good sessions
                 patterns = self._extract_patterns_from_results(results, kwargs)
                 for pattern in patterns:
-                    self._transfer_store.store_pattern(pattern)
+                    self._transfer_store.record_experience(
+                        query=self._learning_state.task_description,
+                        action=pattern.get('code', ''),
+                        reward=results.get('final_score', 0),
+                        success=True,
+                        agent='ml_pipeline',
+                    )
 
+            # Persist learning
+            self._save_learning()
             logger.info(f"Post-execution: Stored session with score {results.get('final_score', 0):.4f}")
 
         except Exception as e:
@@ -607,12 +624,12 @@ JSON only:""",
 
     def on_stage_complete(self, stage_name: str, results: Dict[str, Any]):
         """
-        Called after each stage completes.
+        ML-specific stage completion with custom reward shaping.
 
         Updates Q-values, records experience, adapts epsilon.
         """
-        if not self._learning_coordinator:
-            return
+        # Base learning (Q-value update via MASLearning)
+        super().on_stage_complete(stage_name, results)
 
         try:
             # Calculate reward from stage results
@@ -762,6 +779,40 @@ JSON only:""",
         parts.append(f"Problem: {problem_type}")
 
         return " | ".join(parts)
+
+    def _save_learning(self):
+        """Persist all learning state."""
+        try:
+            if self._transfer_store:
+                store_path = os.path.join('Jotty', 'outputs', 'transfer_store.json')
+                os.makedirs(os.path.dirname(store_path), exist_ok=True)
+                self._transfer_store.save(store_path)
+            if self._learning_coordinator:
+                self._learning_coordinator.save_all(
+                    episode_count=self._learning_state.iteration,
+                    avg_reward=self._learning_state.best_score,
+                    domains=['ml_pipeline'],
+                )
+        except Exception as e:
+            logger.debug(f"Save learning failed: {e}")
+
+    def _guarded_section(self, section_name: str, report, fn_name: str, *args, **kwargs):
+        """Execute report section with skip guard and outcome recording."""
+        manager = getattr(self, '_swarm_manager', None)
+
+        if manager and manager.should_skip_report_section(section_name):
+            logger.info(f"  - SKIPPING {section_name} (learned from past failures)")
+            return
+
+        try:
+            fn = getattr(report, fn_name)
+            fn(*args, **kwargs)
+            if manager:
+                manager.record_report_section_outcome(section_name, success=True)
+        except Exception as e:
+            logger.debug(f"{section_name} failed: {e}")
+            if manager:
+                manager.record_report_section_outcome(section_name, success=False, error=str(e))
 
     def format_learned_patterns_prompt(self, patterns: List[Dict]) -> str:
         """Format learned patterns for LLM prompt."""
@@ -2121,14 +2172,9 @@ JSON only:""",
             # ==== SECTION 1.5: EXECUTIVE DASHBOARD (NEW) ====
             if include_all and metrics:
                 logger.info("  - Adding executive dashboard...")
-                try:
-                    report.add_executive_dashboard(
-                        metrics=metrics,
-                        model_name=best_model,
-                        dataset_name=results.get('dataset', '')
-                    )
-                except Exception as e:
-                    logger.debug(f"Executive dashboard failed: {e}")
+                self._guarded_section('executive_dashboard', report, 'add_executive_dashboard',
+                    metrics=metrics, model_name=best_model,
+                    dataset_name=results.get('dataset', ''))
 
             # ==== SECTION 2: DATA QUALITY ANALYSIS ====
             if include_all:
@@ -2138,11 +2184,8 @@ JSON only:""",
             # ==== SECTION 2.5: CLASS DISTRIBUTION (NEW) ====
             if include_all and not is_regression:
                 logger.info("  - Adding class distribution analysis...")
-                try:
-                    labels = results.get('labels', None)
-                    report.add_class_distribution(y, y_pred, labels)
-                except Exception as e:
-                    logger.debug(f"Class distribution failed: {e}")
+                self._guarded_section('class_distribution', report, 'add_class_distribution',
+                    y, y_pred, results.get('labels', None))
 
             # ==== SECTION 3: CORRELATION ANALYSIS ====
             if include_all and len(X.select_dtypes(include=[np.number]).columns) >= 2:
@@ -2162,10 +2205,8 @@ JSON only:""",
             # ==== SECTION 4.5: PIPELINE DAG VISUALIZATION (NEW) ====
             if include_all and pipeline_steps:
                 logger.info("  - Adding pipeline visualization...")
-                try:
-                    report.add_pipeline_visualization(pipeline_steps)
-                except Exception as e:
-                    logger.debug(f"Pipeline visualization failed: {e}")
+                self._guarded_section('pipeline_visualization', report, 'add_pipeline_visualization',
+                    pipeline_steps)
 
             # ==== SECTION 5: FEATURE IMPORTANCE ====
             if feature_importance:
@@ -2174,18 +2215,14 @@ JSON only:""",
             # ==== SECTION 5.5: PERMUTATION IMPORTANCE (NEW) ====
             if include_all and model is not None:
                 logger.info("  - Adding permutation importance...")
-                try:
-                    report.add_permutation_importance(model, X, y)
-                except Exception as e:
-                    logger.debug(f"Permutation importance failed: {e}")
+                self._guarded_section('permutation_importance', report, 'add_permutation_importance',
+                    model, X, y)
 
             # ==== SECTION 5.7: PARTIAL DEPENDENCE PLOTS (NEW) ====
             if include_all and model is not None:
                 logger.info("  - Adding partial dependence plots...")
-                try:
-                    report.add_partial_dependence(model, X, feature_names)
-                except Exception as e:
-                    logger.debug(f"Partial dependence failed: {e}")
+                self._guarded_section('partial_dependence', report, 'add_partial_dependence',
+                    model, X, feature_names)
 
             # ==== SECTION 6: MODEL BENCHMARKING ====
             if model_scores:
@@ -2195,51 +2232,39 @@ JSON only:""",
             comparison_models = trained_models or results.get('trained_models')
             if include_all and comparison_models and isinstance(comparison_models, dict) and len(comparison_models) >= 2:
                 logger.info("  - Adding model comparison...")
-                try:
-                    report.add_model_comparison(comparison_models, X, y)
-                except Exception as e:
-                    logger.debug(f"Model comparison failed: {e}")
+                self._guarded_section('model_comparison', report, 'add_model_comparison',
+                    comparison_models, X, y)
 
             # ==== SECTION 6.5: MULTI-DATASET VALIDATION (NEW) ====
             if include_all and validation_datasets:
                 logger.info("  - Adding cross-dataset validation...")
-                try:
-                    report.add_cross_dataset_validation(validation_datasets, model)
-                except Exception as e:
-                    logger.debug(f"Cross-dataset validation failed: {e}")
+                self._guarded_section('cross_dataset_validation', report, 'add_cross_dataset_validation',
+                    validation_datasets, model)
 
             # ==== SECTION 7: LEARNING CURVES ====
             if include_all and model is not None:
                 logger.info("  - Adding learning curves...")
-                try:
-                    report.add_learning_curves(model, X, y)
-                except Exception as e:
-                    logger.debug(f"Learning curves failed: {e}")
+                self._guarded_section('learning_curves', report, 'add_learning_curves',
+                    model, X, y)
 
             # ==== SECTION 8: CV DETAILED ANALYSIS ====
             if include_all and model is not None:
                 logger.info("  - Adding CV analysis...")
-                try:
-                    report.add_cv_detailed_analysis(model, X, y)
-                except Exception as e:
-                    logger.debug(f"CV analysis failed: {e}")
+                self._guarded_section('cv_detailed_analysis', report, 'add_cv_detailed_analysis',
+                    model, X, y)
 
             # ==== SECTION 8.5: STATISTICAL SIGNIFICANCE (NEW) ====
             if include_all and y_pred is not None:
                 logger.info("  - Adding statistical significance tests...")
-                try:
-                    report.add_statistical_tests(y, y_pred, y_prob)
-                except Exception as e:
-                    logger.debug(f"Statistical tests failed: {e}")
+                self._guarded_section('statistical_tests', report, 'add_statistical_tests',
+                    y, y_pred, y_prob)
 
             # ==== SECTION 9/9R: CLASSIFICATION METRICS or REGRESSION ANALYSIS ====
             if is_regression and y_pred is not None:
                 # ==== SECTION 9R: REGRESSION ANALYSIS (NEW) ====
                 logger.info("  - Adding regression analysis...")
-                try:
-                    report.add_regression_analysis(y, y_pred)
-                except Exception as e:
-                    logger.debug(f"Regression analysis failed: {e}")
+                self._guarded_section('regression_analysis', report, 'add_regression_analysis',
+                    y, y_pred)
             elif y_pred is not None:
                 n_cls = len(np.unique(y))
                 default_labels = ['Negative', 'Positive'] if n_cls <= 2 else [f'Class {i}' for i in range(n_cls)]
@@ -2258,10 +2283,8 @@ JSON only:""",
                     # ==== SECTION 10.5: CONFIDENCE-CALIBRATED PREDICTIONS (NEW) ====
                     if include_all:
                         logger.info("  - Adding prediction confidence analysis...")
-                        try:
-                            report.add_prediction_confidence_analysis(X, y, y_pred, y_prob)
-                        except Exception as e:
-                            logger.debug(f"Prediction confidence analysis failed: {e}")
+                        self._guarded_section('prediction_confidence', report,
+                            'add_prediction_confidence_analysis', X, y, y_pred, y_prob)
 
                     # ==== SECTION 11: LIFT & GAIN ====
                     if include_all:
@@ -2276,10 +2299,8 @@ JSON only:""",
                     # ==== SECTION 12.5: SCORE DISTRIBUTION (NEW) ====
                     if include_all:
                         logger.info("  - Adding score distribution...")
-                        try:
-                            report.add_score_distribution(y, y_prob, labels)
-                        except Exception as e:
-                            logger.debug(f"Score distribution failed: {e}")
+                        self._guarded_section('score_distribution', report, 'add_score_distribution',
+                            y, y_prob, labels)
 
                 # ==== SECTION 13: ERROR ANALYSIS ====
                 if include_all:
@@ -2289,11 +2310,8 @@ JSON only:""",
             # ==== SECTION 13.5: DATA DRIFT MONITORING (NEW) ====
             if include_all and X_reference is not None:
                 logger.info("  - Adding drift analysis...")
-                try:
-                    report.add_drift_analysis(X_reference, X,
-                                              feature_importance=feature_importance)
-                except Exception as e:
-                    logger.debug(f"Drift analysis failed: {e}")
+                self._guarded_section('drift_analysis', report, 'add_drift_analysis',
+                    X_reference, X, feature_importance=feature_importance)
 
             # ==== SECTION 14: SHAP DEEP DIVE ====
             if shap_values is not None:
@@ -2304,33 +2322,22 @@ JSON only:""",
                 # ==== SECTION 14.5: FEATURE INTERACTIONS (NEW) ====
                 if include_all:
                     logger.info("  - Adding feature interactions...")
-                    try:
-                        report.add_feature_interactions(
-                            shap_values, feature_names, X_array, model
-                        )
-                    except Exception as e:
-                        logger.debug(f"Feature interactions failed: {e}")
+                    self._guarded_section('feature_interactions', report, 'add_feature_interactions',
+                        shap_values, feature_names, X_array, model)
 
             # ==== SECTION 14.6: INTERPRETABILITY ANALYSIS (NEW) ====
             if include_all and model is not None and y_pred is not None:
                 logger.info("  - Adding interpretability analysis...")
-                try:
-                    X_array = X.values if hasattr(X, 'values') else X
-                    report.add_interpretability_analysis(model, X_array, y_pred, feature_names, top_n=5)
-                except Exception as e:
-                    logger.debug(f"Interpretability analysis failed: {e}")
+                X_array = X.values if hasattr(X, 'values') else X
+                self._guarded_section('interpretability_analysis', report, 'add_interpretability_analysis',
+                    model, X_array, y_pred, feature_names, top_n=5)
 
             # ==== SECTION 14.7: DEEP LEARNING ANALYSIS (NEW) ====
             if include_all and model is not None:
                 logger.info("  - Adding deep learning analysis...")
-                try:
-                    X_array = X.values if hasattr(X, 'values') else X
-                    report.add_deep_learning_analysis(
-                        model, X_array,
-                        training_history=results.get('training_history')
-                    )
-                except Exception as e:
-                    logger.debug(f"Deep learning analysis failed: {e}")
+                X_array = X.values if hasattr(X, 'values') else X
+                self._guarded_section('deep_learning_analysis', report, 'add_deep_learning_analysis',
+                    model, X_array, training_history=results.get('training_history'))
 
             # ==== SECTION 15: BASELINE COMPARISON ====
             if 'baseline_score' in results:
@@ -2355,49 +2362,35 @@ JSON only:""",
             # ==== SECTION 17.2: DEPLOYMENT READINESS (NEW) ====
             if include_all and model is not None:
                 logger.info("  - Adding deployment readiness...")
-                try:
-                    X_array = X.values if hasattr(X, 'values') else X
-                    report.add_deployment_readiness(model, X_array)
-                except Exception as e:
-                    logger.debug(f"Deployment readiness failed: {e}")
+                X_array = X.values if hasattr(X, 'values') else X
+                self._guarded_section('deployment_readiness', report, 'add_deployment_readiness',
+                    model, X_array)
 
             # ==== SECTION 17.5: HYPERPARAMETER SEARCH VIZ (NEW) ====
             if include_all and study_or_trials is not None:
                 logger.info("  - Adding hyperparameter visualization...")
-                try:
-                    report.add_hyperparameter_visualization(study_or_trials)
-                except Exception as e:
-                    logger.debug(f"Hyperparameter visualization failed: {e}")
+                self._guarded_section('hyperparameter_visualization', report,
+                    'add_hyperparameter_visualization', study_or_trials)
 
             # ==== SECTION 18: MODEL CARD (NEW) ====
             if include_all:
                 logger.info("  - Adding model card...")
-                try:
-                    report.add_model_card(
-                        model=model,
-                        results=results,
-                        intended_use=results.get('intended_use', ''),
-                        limitations=results.get('limitations', ''),
-                        ethical=results.get('ethical_considerations', '')
-                    )
-                except Exception as e:
-                    logger.debug(f"Model card failed: {e}")
+                self._guarded_section('model_card', report, 'add_model_card',
+                    model=model, results=results,
+                    intended_use=results.get('intended_use', ''),
+                    limitations=results.get('limitations', ''),
+                    ethical=results.get('ethical_considerations', ''))
 
             # ==== SECTION 18.5: FAIRNESS & BIAS AUDIT (NEW) ====
             if include_all and sensitive_features is not None:
                 logger.info("  - Adding fairness audit...")
-                try:
-                    report.add_fairness_audit(X, y, y_pred, y_prob, sensitive_features)
-                except Exception as e:
-                    logger.debug(f"Fairness audit failed: {e}")
+                self._guarded_section('fairness_audit', report, 'add_fairness_audit',
+                    X, y, y_pred, y_prob, sensitive_features)
 
             # ==== INSIGHT PRIORITIZATION (LAST — reads all section data) ====
             if include_all:
                 logger.info("  - Adding insight prioritization...")
-                try:
-                    report.add_insight_prioritization()
-                except Exception as e:
-                    logger.debug(f"Insight prioritization failed: {e}")
+                self._guarded_section('insight_prioritization', report, 'add_insight_prioritization')
 
             # Generate PDF
             logger.info("  - Generating PDF...")

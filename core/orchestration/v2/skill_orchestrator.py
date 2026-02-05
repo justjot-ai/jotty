@@ -225,7 +225,8 @@ class SkillOrchestrator:
                     problem_type: str = "auto",
                     target_metric: str = "auto",
                     time_budget: int = 300,
-                    business_context: str = "") -> PipelineResult:
+                    business_context: str = "",
+                    on_stage_complete: Callable = None) -> PipelineResult:
         """
         Solve any ML problem by orchestrating skills.
 
@@ -335,9 +336,29 @@ class SkillOrchestrator:
 
                 if self._progress:
                     self._progress.complete_stage(category.value, result.metrics)
+
+                if on_stage_complete:
+                    try:
+                        on_stage_complete(category.value, {
+                            'success': result.success,
+                            'metrics': result.metrics,
+                            'error': result.error,
+                        })
+                    except Exception:
+                        pass
             else:
                 if self._progress:
                     self._progress.complete_stage(category.value, {'skipped': result.error or 'failed'})
+
+                if on_stage_complete:
+                    try:
+                        on_stage_complete(category.value, {
+                            'success': False,
+                            'metrics': result.metrics,
+                            'error': result.error,
+                        })
+                    except Exception:
+                        pass
 
         # Compile initial result
         best_score = context.get('score', 0)

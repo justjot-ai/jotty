@@ -239,6 +239,7 @@ class SwarmState:
     current_phase: str = ""
     current_agent: str = ""
     current_message: str = ""
+    streaming_text: str = ""  # Live streaming text (reasoning tokens from current agent)
     phases: List[Dict[str, str]] = field(default_factory=lambda: [
         {"id": "Phase 0", "name": "ScopeDetector", "status": "pending"},
         {"id": "Phase 1", "name": "Architect", "status": "pending"},
@@ -370,6 +371,12 @@ class SwarmState:
         self.current_agent = agent
         self.current_message = message
         self.add_log(f"[{phase}] {agent}: {message}")
+
+        # Track streaming reasoning
+        if message.strip().startswith("..."):
+            self.streaming_text = message.strip()
+        else:
+            self.streaming_text = ""  # Clear on non-streaming message
 
         # Mark phase transitions
         msg_lower = message.lower()
@@ -788,6 +795,9 @@ class SwarmDashboard:
             if self.state.current_message:
                 msg = (self.state.current_message[:60] + "...") if len(self.state.current_message) > 60 else self.state.current_message
                 sections.append(f"  [dim]{msg}[/dim]")
+            # Show live reasoning stream
+            if self.state.streaming_text:
+                sections.append(f"  [dim italic]{self.state.streaming_text[:70]}[/dim italic]")
             sections.append("")
 
         # Components

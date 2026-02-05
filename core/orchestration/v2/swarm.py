@@ -119,6 +119,32 @@ class Swarm:
 
     _instance: Optional['Swarm'] = None
     _swarm_manager: Optional[SwarmManager] = None
+    _mas_learning = None
+
+    @classmethod
+    def _get_swarm_manager(cls):
+        """Get or create SwarmManager for learning integration."""
+        if cls._swarm_manager is None:
+            try:
+                cls._swarm_manager = SwarmManager(config=None)
+            except Exception as e:
+                logger.debug(f"SwarmManager init failed, learning disabled: {e}")
+        return cls._swarm_manager
+
+    @classmethod
+    def _get_learning(cls):
+        """Get learning system, with or without full SwarmManager."""
+        manager = cls._get_swarm_manager()
+        if manager:
+            return manager.get_ml_learning()
+        # Fallback: create lightweight MASLearning directly
+        if cls._mas_learning is None:
+            try:
+                from .mas_learning import MASLearning
+                cls._mas_learning = MASLearning(config=None, workspace_path=None)
+            except Exception:
+                pass
+        return cls._mas_learning
 
     @classmethod
     async def solve(cls,
@@ -251,20 +277,52 @@ class Swarm:
         Solve ML problem using the existing SkillOrchestrator.
 
         This provides backward compatibility while we migrate to the new template system.
+        Integrates learning lifecycle: before_execution -> pipeline -> after_execution.
         """
         from .skill_orchestrator import get_skill_orchestrator
 
         start_time = time.time()
 
         orchestrator = get_skill_orchestrator()
+
+        # --- Initialize learning from SwarmManager ---
+        template_instance = kwargs.get('_template_instance', None)
+        if template_instance is None:
+            template_instance = TemplateRegistry.get("ml")
+
+        manager = cls._get_swarm_manager()
+        learning = cls._get_learning()
+        if learning:
+            try:
+                template_instance.set_learning(learning)
+                await template_instance.before_execution(business_context=context, X=X, y=y)
+            except Exception as e:
+                logger.debug(f"Learning pre-execution failed: {e}")
+
+        # --- Execute pipeline with stage callback ---
         result = await orchestrator.solve(
             X=X,
             y=y,
             time_budget=time_budget,
             business_context=context,
+            on_stage_complete=template_instance.on_stage_complete,
         )
 
         execution_time = time.time() - start_time
+
+        # --- Post-execution learning ---
+        try:
+            await template_instance.after_execution(
+                results={
+                    'final_score': result.best_score,
+                    'best_model': type(result.best_model).__name__ if result.best_model else '',
+                    'feature_importance': result.feature_importance or {},
+                    'problem_type': result.problem_type.value,
+                },
+                business_context=context,
+            )
+        except Exception as e:
+            logger.debug(f"Learning post-execution failed: {e}")
 
         swarm_result = SwarmResult(
             success=True,
@@ -284,12 +342,12 @@ class Swarm:
 
         # Auto-generate report if requested
         if kwargs.get('generate_report', False) and result.best_model is not None:
-            swarm_result = cls._generate_report(swarm_result, context, **kwargs)
+            swarm_result = cls._generate_report(swarm_result, context, _manager=manager, **kwargs)
 
         return swarm_result
 
     @classmethod
-    def _generate_report(cls, swarm_result: 'SwarmResult', context: str, **kwargs) -> 'SwarmResult':
+    def _generate_report(cls, swarm_result: 'SwarmResult', context: str, _manager=None, **kwargs) -> 'SwarmResult':
         """Generate world-class PDF report and optionally send to Telegram."""
         try:
             from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
@@ -340,6 +398,12 @@ class Swarm:
             }
 
             swarm_comp = SwarmMLComprehensive()
+            if _manager:
+                learning = _manager.get_ml_learning()
+                if learning:
+                    swarm_comp.set_learning(learning)
+                swarm_comp._swarm_manager = _manager
+
             pdf_path = swarm_comp.generate_world_class_report(
                 X=X_processed, y=y,
                 model=model,
