@@ -40,6 +40,8 @@ try:
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
+    from rich.syntax import Syntax
+    from rich.tree import Tree as RichTree
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -286,6 +288,21 @@ class SwarmState:
     # Export
     output_path: str = ""
 
+    # File content (available after completion, for Page 3 preview)
+    file_contents: Dict[str, str] = field(default_factory=dict)
+
+    # File explorer state
+    selected_file_index: int = 0
+    file_scroll_offset: int = 0
+
+    # Component tracking
+    components: List[str] = field(default_factory=list)
+    component_count: int = 0
+
+    # Review - detailed tracking
+    reviewer_verdicts: List[Dict[str, str]] = field(default_factory=list)
+    current_review_phase: str = ""
+
     def add_log(self, entry: str):
         """Add log entry, maintaining max size."""
         self.log_entries.append(entry)
@@ -316,6 +333,36 @@ class SwarmState:
         """Add execution trace entry."""
         trace_dict["elapsed"] = self.elapsed_str()
         self.traces.append(trace_dict)
+
+    def expand_phases_fullstack(self):
+        """Replace single-tier phases with full-stack sub-phases."""
+        for p in self.phases:
+            if p["id"] == "Phase 1":
+                p["name"] = "SystemDesigner"
+                break
+        idx = next((i for i, p in enumerate(self.phases) if p["id"] == "Phase 2"), None)
+        if idx is not None:
+            self.phases.pop(idx)
+            for i, sub in enumerate([
+                {"id": "Phase 2a", "name": "DatabaseArchitect", "status": "pending"},
+                {"id": "Phase 2b", "name": "APIDesigner", "status": "pending"},
+                {"id": "Phase 2c", "name": "FrontendDeveloper", "status": "pending"},
+                {"id": "Phase 2d", "name": "IntegrationEngineer", "status": "pending"},
+            ]):
+                self.phases.insert(idx + i, sub)
+
+    def expand_phases_teamreview(self):
+        """Expand Phase 6 to show team review sub-steps."""
+        idx = next((i for i, p in enumerate(self.phases) if p["id"] == "Phase 6"), None)
+        if idx is not None:
+            self.phases.pop(idx)
+            for i, sub in enumerate([
+                {"id": "Phase 6", "name": "TeamReview", "status": "pending"},
+                {"id": "Phase 6a", "name": "FunctionalReview", "status": "pending"},
+                {"id": "Phase 6-arb", "name": "Arbitrator", "status": "pending"},
+                {"id": "Phase 6b", "name": "QualityReview", "status": "pending"},
+            ]):
+                self.phases.insert(idx + i, sub)
 
     def update_from_progress(self, phase: str, agent: str, message: str):
         """Update state from a _progress() callback."""
@@ -354,6 +401,62 @@ class SwarmState:
         # Track scope
         if "detected scope" in msg_lower:
             self.scope = message.split(': ')[-1].strip() if ': ' in message else ""
+            if self.scope == "full_stack":
+                self.expand_phases_fullstack()
+
+        # Team review expansion trigger
+        if phase == "Phase 6" and "team review" in msg_lower:
+            if not any(p["id"] == "Phase 6a" for p in self.phases):
+                self.expand_phases_teamreview()
+
+        # Component tracking
+        if phase == "Phase 1" and agent in ("Architect", "SystemDesigner"):
+            comp_count_match = re.search(r'(\d+)\s+component', message)
+            if comp_count_match:
+                self.component_count = int(comp_count_match.group(1))
+            comp_name_match = re.match(r'\s*Component:\s*(.+)', message)
+            if comp_name_match:
+                comp_name = comp_name_match.group(1).strip()
+                if comp_name and comp_name not in self.components:
+                    self.components.append(comp_name)
+
+        # Phase 6 sub-phase status tracking
+        if phase == "Phase 6":
+            if "functional review" in msg_lower:
+                for p in self.phases:
+                    if p["id"] == "Phase 6a" and p["status"] == "pending":
+                        p["status"] = "active"
+            elif "quality review" in msg_lower:
+                for p in self.phases:
+                    if p["id"] == "Phase 6b" and p["status"] == "pending":
+                        p["status"] = "active"
+            elif agent == "Arbitrator":
+                for p in self.phases:
+                    if p["id"] == "Phase 6-arb" and p["status"] == "pending":
+                        p["status"] = "active"
+
+            # Track reviewer verdicts
+            verdict_match = re.match(r'(APPROVED|REJECTED)', message)
+            if verdict_match and agent not in ("TeamReview", "Arbitrator", "Optimizer"):
+                issue_match = re.search(r'\((\d+)\s+issue', message)
+                self.reviewer_verdicts.append({
+                    "persona": agent,
+                    "verdict": verdict_match.group(1),
+                    "issues": issue_match.group(1) if issue_match else "0",
+                    "phase": self.current_review_phase,
+                })
+
+            # Track review phase type
+            if re.match(r'(Functional|Quality)\s+review:', message, re.IGNORECASE):
+                self.current_review_phase = message.split()[0].lower()
+                self.review_status = "reviewing"
+
+            # Mark sub-phases completed
+            if "final verdict" in msg_lower:
+                for p in self.phases:
+                    if p["id"] in ("Phase 6a", "Phase 6b", "Phase 6-arb"):
+                        if p["status"] == "active":
+                            p["status"] = "completed"
 
         # Track review
         if "approved" in msg_lower and phase == "Phase 6":
@@ -432,6 +535,35 @@ class SwarmDashboard:
                             self.state.current_page = 2
                             if self._live:
                                 self._live.update(self._build_layout())
+                        elif ch == '3':
+                            self.state.current_page = 3
+                            if self._live:
+                                self._live.update(self._build_layout())
+                        elif ch == 'j' and self.state.current_page == 3:
+                            file_count = len(self.state.files)
+                            if file_count > 0:
+                                self.state.selected_file_index = min(
+                                    self.state.selected_file_index + 1, file_count - 1
+                                )
+                                self.state.file_scroll_offset = 0
+                                if self._live:
+                                    self._live.update(self._build_layout())
+                        elif ch == 'k' and self.state.current_page == 3:
+                            if self.state.selected_file_index > 0:
+                                self.state.selected_file_index -= 1
+                                self.state.file_scroll_offset = 0
+                                if self._live:
+                                    self._live.update(self._build_layout())
+                        elif ch == 'd' and self.state.current_page == 3:
+                            self.state.file_scroll_offset += 10
+                            if self._live:
+                                self._live.update(self._build_layout())
+                        elif ch == 'u' and self.state.current_page == 3:
+                            self.state.file_scroll_offset = max(
+                                0, self.state.file_scroll_offset - 10
+                            )
+                            if self._live:
+                                self._live.update(self._build_layout())
             except Exception:
                 pass
             finally:
@@ -468,8 +600,10 @@ class SwarmDashboard:
 
         if self.state.current_page == 1:
             self._build_page1(layout["body"])
-        else:
+        elif self.state.current_page == 2:
             self._build_page2(layout["body"])
+        elif self.state.current_page == 3:
+            self._build_page3(layout["body"])
 
         return layout
 
@@ -501,6 +635,101 @@ class SwarmDashboard:
         body["top"]["taskboard"].update(self._render_taskboard())
         body["top"]["comms"].update(self._render_comms())
 
+    def _build_page3(self, body: "Layout"):
+        """Page 3: File Explorer + Content Preview."""
+        body.split_row(
+            Layout(name="file_tree", ratio=1, minimum_size=25),
+            Layout(name="file_preview", ratio=3),
+        )
+        body["file_tree"].update(self._render_file_tree())
+        body["file_preview"].update(self._render_file_preview())
+
+    def _render_file_tree(self) -> "Panel":
+        """Render file tree with selection marker and validation icons."""
+        file_list = sorted(self.state.files.keys())
+        if not file_list:
+            return Panel("[dim]No files generated yet[/dim]", title="[bold]Files[/bold]", border_style="cyan")
+
+        # Group files by directory
+        dirs: Dict[str, List[str]] = {}
+        for fname in file_list:
+            parts = fname.rsplit("/", 1)
+            if len(parts) == 2:
+                dir_name, base_name = parts
+            else:
+                dir_name, base_name = ".", parts[0]
+            dirs.setdefault(dir_name, []).append(fname)
+
+        tree = RichTree("[bold]Project[/bold]")
+        idx = 0
+        for dir_name in sorted(dirs.keys()):
+            if dir_name == ".":
+                branch = tree
+            else:
+                branch = tree.add(f"[bold blue]{dir_name}/[/bold blue]")
+            for fname in sorted(dirs[dir_name]):
+                info = self.state.files.get(fname, {})
+                validated = info.get("validated", False)
+                v_icon = "[green]✓[/green]" if validated else "[dim]○[/dim]"
+                display_name = fname.rsplit("/", 1)[-1]
+                if idx == self.state.selected_file_index:
+                    branch.add(f"{v_icon} [bold reverse] {display_name} [/bold reverse]")
+                else:
+                    branch.add(f"{v_icon} {display_name}")
+                idx += 1
+
+        return Panel(tree, title="[bold]Files[/bold]", border_style="cyan")
+
+    def _render_file_preview(self) -> "Panel":
+        """Render syntax-highlighted file content preview."""
+        file_list = sorted(self.state.files.keys())
+        if not file_list:
+            return Panel("[dim]Select a file to preview[/dim]", title="[bold]Preview[/bold]", border_style="green")
+
+        sel_idx = max(0, min(self.state.selected_file_index, len(file_list) - 1))
+        selected_file = file_list[sel_idx]
+        content = self.state.file_contents.get(selected_file, "")
+
+        if not content:
+            return Panel(
+                f"[dim]Content for [bold]{selected_file}[/bold] will be available after completion[/dim]",
+                title=f"[bold]{selected_file}[/bold]",
+                border_style="green",
+            )
+
+        # Detect language from extension
+        ext_map = {
+            ".py": "python", ".js": "javascript", ".ts": "typescript",
+            ".html": "html", ".css": "css", ".json": "json",
+            ".yaml": "yaml", ".yml": "yaml", ".md": "markdown",
+            ".sql": "sql", ".sh": "bash", ".go": "go",
+            ".rs": "rust", ".java": "java", ".tsx": "tsx",
+            ".jsx": "jsx", ".rb": "ruby", ".php": "php",
+        }
+        ext = "." + selected_file.rsplit(".", 1)[-1] if "." in selected_file else ""
+        lang = ext_map.get(ext, "text")
+
+        # Apply scroll offset
+        lines = content.split("\n")
+        offset = self.state.file_scroll_offset
+        visible_lines = lines[offset:]
+        visible_content = "\n".join(visible_lines)
+
+        scroll_info = ""
+        if offset > 0:
+            scroll_info = f" (line {offset + 1}+)"
+
+        try:
+            syntax = Syntax(
+                visible_content, lang,
+                line_numbers=True,
+                start_line=offset + 1,
+                theme="monokai",
+            )
+            return Panel(syntax, title=f"[bold]{selected_file}{scroll_info}[/bold]", border_style="green")
+        except Exception:
+            return Panel(visible_content, title=f"[bold]{selected_file}{scroll_info}[/bold]", border_style="green")
+
     def _render_header(self) -> "Panel":
         """Render header with title, config, elapsed time."""
         req_display = (self.state.requirements[:70] + "...") if len(self.state.requirements) > 70 else self.state.requirements
@@ -519,6 +748,7 @@ class SwarmDashboard:
         nav = (
             f"[{'bold' if pg == 1 else 'dim'}]1:Pipeline[/{'bold' if pg == 1 else 'dim'}]"
             f" [{'bold' if pg == 2 else 'dim'}]2:Tasks[/{'bold' if pg == 2 else 'dim'}]"
+            f" [{'bold' if pg == 3 else 'dim'}]3:Files[/{'bold' if pg == 3 else 'dim'}]"
         )
         parts.append(nav)
 
@@ -560,6 +790,13 @@ class SwarmDashboard:
                 sections.append(f"  [dim]{msg}[/dim]")
             sections.append("")
 
+        # Components
+        if self.state.components or self.state.component_count:
+            sections.append(f"[bold]Components:[/bold] {self.state.component_count} designed")
+            for comp in self.state.components:
+                sections.append(f"  [cyan]>[/cyan] {comp}")
+            sections.append("")
+
         # Files
         if self.state.files:
             sections.append("[bold]Files Generated:[/bold]")
@@ -597,7 +834,15 @@ class SwarmDashboard:
             }.get(self.state.review_status, "")
             sections.append(f"[bold]Review:[/bold] {r_icon} {self.state.review_status}")
             if self.state.rework_attempts:
-                sections.append(f"  Rework: {self.state.rework_attempts}")
+                sections.append(f"  Rework cycles: {self.state.rework_attempts}")
+            # Per-reviewer verdicts
+            if self.state.reviewer_verdicts:
+                for rv in self.state.reviewer_verdicts:
+                    v_icon = "[green]✓[/green]" if rv["verdict"] == "APPROVED" else "[red]✗[/red]"
+                    issues = f" ({rv['issues']} issues)" if rv["issues"] != "0" else ""
+                    phase_tag = f" [{rv['phase']}]" if rv.get("phase") else ""
+                    sections.append(f"  {v_icon} {rv['persona']}: {rv['verdict']}{issues}{phase_tag}")
+            # Arbitrator decisions
             for dec in self.state.arbitrator_decisions[-3:]:
                 sections.append(f"  [dim]{dec}[/dim]")
 
@@ -621,7 +866,7 @@ class SwarmDashboard:
         """Render footer with navigation hint."""
         pg = self.state.current_page
         return Panel(
-            f"[dim]Press [bold]1[/bold]=Pipeline  [bold]2[/bold]=Tasks/Comms  |  Page {pg}/2[/dim]",
+            f"[dim]Press [bold]1[/bold]=Pipeline  [bold]2[/bold]=Tasks/Comms  [bold]3[/bold]=Files  |  Page {pg}/3[/dim]",
             style="dim",
             height=1,
         )

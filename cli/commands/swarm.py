@@ -236,6 +236,9 @@ class SwarmCommand(BaseCommand):
                             "loc": loc,
                             "validated": True,
                         }
+                    # Populate file contents for Page 3 explorer
+                    for fname, content in result.code.files.items():
+                        dashboard.state.file_contents[fname] = content
                     # Final refresh
                     if dashboard._live:
                         dashboard._live.update(dashboard._build_layout())
