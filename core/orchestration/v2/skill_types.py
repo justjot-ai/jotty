@@ -80,6 +80,7 @@ class PipelineResult:
     skill_results: List[SkillResult] = field(default_factory=list)
     predictions: Optional[np.ndarray] = None
     feature_importance: Optional[Dict[str, float]] = None
+    processed_X: Optional[Any] = None
 
 
 # =============================================================================
@@ -243,14 +244,12 @@ class SkillAdapter:
 
     async def _execute_by_category(self, context: Dict) -> SkillResult:
         """Execute skill based on its category."""
-        # This is where we'd call actual skill tools
-        # For now, use built-in implementations
+        # Stub: no real skill execution yet — fall through to builtins
         return SkillResult(
             skill_name=self.skill_name,
             category=self.category,
-            success=True,
-            data=context.get('X'),
-            metadata={'executed': True}
+            success=False,
+            error="No real implementation — using builtin fallback"
         )
 
 

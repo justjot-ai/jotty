@@ -1232,17 +1232,23 @@ The table below shows the performance of each model.
                     except Exception:
                         pass
 
-                acc = accuracy_score(y_true_arr, y_pred)
-                prec = precision_score(y_true_arr, y_pred, average='binary', zero_division=0)
-                rec = recall_score(y_true_arr, y_pred, average='binary', zero_division=0)
-                f1 = f1_score(y_true_arr, y_pred, average='binary', zero_division=0)
+                n_classes = len(np.unique(y_true_arr))
+                avg_method = 'binary' if n_classes <= 2 else 'weighted'
 
-                if y_prob is not None and len(np.unique(y_true_arr)) == 2:
+                acc = accuracy_score(y_true_arr, y_pred)
+                prec = precision_score(y_true_arr, y_pred, average=avg_method, zero_division=0)
+                rec = recall_score(y_true_arr, y_pred, average=avg_method, zero_division=0)
+                f1 = f1_score(y_true_arr, y_pred, average=avg_method, zero_division=0)
+
+                if y_prob is not None:
                     try:
-                        prob_1d = y_prob if y_prob.ndim == 1 else y_prob[:, 1]
-                        auc_val = roc_auc_score(y_true_arr, prob_1d)
-                        fpr, tpr, _ = roc_curve(y_true_arr, prob_1d)
-                        roc_curves[model_name] = {'fpr': fpr, 'tpr': tpr}
+                        if n_classes <= 2:
+                            prob_1d = y_prob if y_prob.ndim == 1 else y_prob[:, 1]
+                            auc_val = roc_auc_score(y_true_arr, prob_1d)
+                            fpr, tpr, _ = roc_curve(y_true_arr, prob_1d)
+                            roc_curves[model_name] = {'fpr': fpr, 'tpr': tpr}
+                        else:
+                            auc_val = roc_auc_score(y_true_arr, y_prob, multi_class='ovr', average='weighted')
                     except Exception:
                         auc_val = None
 
@@ -1536,23 +1542,28 @@ Evaluating model generalization across {len(results)} different datasets.
     def _add_roc_analysis_impl(self, y_true, y_prob, pos_label):
         preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used, pass y_true
         from sklearn.metrics import roc_curve, auc, roc_auc_score
+        from sklearn.preprocessing import label_binarize
 
-        fpr, tpr, thresholds = roc_curve(preds.y_true, preds.y_prob, pos_label=pos_label)
-        roc_auc = auc(fpr, tpr)
+        n_classes = len(np.unique(preds.y_true))
+        is_binary = n_classes <= 2
 
-        # Find optimal threshold (Youden's J)
-        j_scores = tpr - fpr
-        optimal_idx = np.argmax(j_scores)
-        optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
+        if is_binary:
+            # Binary: single ROC curve
+            prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
+            fpr, tpr, thresholds = roc_curve(preds.y_true, prob_1d, pos_label=pos_label)
+            roc_auc = auc(fpr, tpr)
 
-        # Create ROC curve figure (isolated)
-        fig_path = ""
-        try:
-            fig_path = self._create_roc_chart(fpr, tpr, roc_auc)
-        except Exception as e:
-            self._record_chart_failure('roc_chart', e)
+            j_scores = tpr - fpr
+            optimal_idx = np.argmax(j_scores)
+            optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
 
-        content = f"""
+            fig_path = ""
+            try:
+                fig_path = self._create_roc_chart(fpr, tpr, roc_auc)
+            except Exception as e:
+                self._record_chart_failure('roc_chart', e)
+
+            content = f"""
 # ROC Curve Analysis
 
 The Receiver Operating Characteristic (ROC) curve shows the trade-off between
@@ -1569,6 +1580,55 @@ true positive rate and false positive rate at various classification thresholds.
 
 ---
 """
+        else:
+            # Multiclass: One-vs-Rest ROC curves
+            classes = np.unique(preds.y_true)
+            y_bin = label_binarize(preds.y_true, classes=classes)
+            y_prob_2d = preds.y_prob if preds.y_prob.ndim == 2 else None
+
+            if y_prob_2d is None or y_prob_2d.shape[1] != n_classes:
+                self._record_section_failure('ROC Analysis',
+                    ValueError(f"y_prob shape {preds.y_prob.shape} incompatible with {n_classes} classes"))
+                return
+
+            roc_curves = {}
+            per_class_auc = {}
+            for i, cls in enumerate(classes):
+                fpr_i, tpr_i, _ = roc_curve(y_bin[:, i], y_prob_2d[:, i])
+                auc_i = auc(fpr_i, tpr_i)
+                roc_curves[f"Class {cls}"] = {'fpr': fpr_i, 'tpr': tpr_i}
+                per_class_auc[f"Class {cls}"] = auc_i
+
+            roc_auc = np.mean(list(per_class_auc.values()))
+
+            fig_path = ""
+            try:
+                fig_path = self._create_overlaid_roc_chart(roc_curves)
+            except Exception as e:
+                self._record_chart_failure('roc_chart_multiclass', e)
+
+            content = f"""
+# ROC Curve Analysis (One-vs-Rest)
+
+Multiclass ROC analysis using One-vs-Rest strategy for {n_classes} classes.
+
+## Per-Class AUC
+
+| Class | AUC |
+|-------|-----|
+"""
+            for cls_name, auc_val in per_class_auc.items():
+                content += f"| {cls_name} | {auc_val:.4f} |\n"
+
+            content += f"""
+**Macro-Average AUC:** {roc_auc:.4f}
+
+## ROC Curves
+
+![ROC Curves]({fig_path})
+
+---
+"""
         self._content.append(content)
         self._store_section_data('roc_analysis', 'ROC Curve Analysis', {'auc': roc_auc})
 
@@ -1582,18 +1642,23 @@ true positive rate and false positive rate at various classification thresholds.
     def _add_precision_recall_impl(self, y_true, y_prob, pos_label):
         preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
         from sklearn.metrics import precision_recall_curve, average_precision_score
+        from sklearn.preprocessing import label_binarize
 
-        precision, recall, _ = precision_recall_curve(preds.y_true, preds.y_prob, pos_label=pos_label)
-        avg_precision = average_precision_score(preds.y_true, preds.y_prob, pos_label=pos_label)
+        n_classes = len(np.unique(preds.y_true))
+        is_binary = n_classes <= 2
 
-        # Create PR curve figure (isolated)
-        fig_path = ""
-        try:
-            fig_path = self._create_pr_chart(precision, recall, avg_precision)
-        except Exception as e:
-            self._record_chart_failure('pr_chart', e)
+        if is_binary:
+            prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
+            precision, recall, _ = precision_recall_curve(preds.y_true, prob_1d, pos_label=pos_label)
+            avg_precision = average_precision_score(preds.y_true, prob_1d, pos_label=pos_label)
 
-        content = f"""
+            fig_path = ""
+            try:
+                fig_path = self._create_pr_chart(precision, recall, avg_precision)
+            except Exception as e:
+                self._record_chart_failure('pr_chart', e)
+
+            content = f"""
 # Precision-Recall Analysis
 
 The Precision-Recall curve is especially useful for imbalanced datasets,
@@ -1606,6 +1671,42 @@ showing the trade-off between precision and recall.
 ## Precision-Recall Curve
 
 ![Precision-Recall Curve]({fig_path})
+
+---
+"""
+        else:
+            # Multiclass: One-vs-Rest PR curves
+            classes = np.unique(preds.y_true)
+            y_bin = label_binarize(preds.y_true, classes=classes)
+            y_prob_2d = preds.y_prob if preds.y_prob.ndim == 2 else None
+
+            if y_prob_2d is None or y_prob_2d.shape[1] != n_classes:
+                self._record_section_failure('Precision-Recall Analysis',
+                    ValueError(f"y_prob shape {preds.y_prob.shape} incompatible with {n_classes} classes"))
+                return
+
+            per_class_ap = {}
+            for i, cls in enumerate(classes):
+                ap_i = average_precision_score(y_bin[:, i], y_prob_2d[:, i])
+                per_class_ap[f"Class {cls}"] = ap_i
+
+            avg_precision = np.mean(list(per_class_ap.values()))
+
+            content = f"""
+# Precision-Recall Analysis (One-vs-Rest)
+
+Multiclass precision-recall analysis for {n_classes} classes.
+
+## Per-Class Average Precision
+
+| Class | Average Precision |
+|-------|------------------|
+"""
+            for cls_name, ap_val in per_class_ap.items():
+                content += f"| {cls_name} | {ap_val:.4f} |\n"
+
+            content += f"""
+**Macro-Average Precision:** {avg_precision:.4f}
 
 ---
 """
@@ -2149,29 +2250,33 @@ helping diagnose underfitting vs overfitting.
         - Calibration curve (reliability diagram)
         - Brier score
         - Expected Calibration Error (ECE)
+
+        Supports both binary and multiclass (per-class calibration).
         """
         try:
             preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
             from sklearn.calibration import calibration_curve
             from sklearn.metrics import brier_score_loss
+            from sklearn.preprocessing import label_binarize
 
-            fraction_of_positives, mean_predicted = calibration_curve(preds.y_true, preds.y_prob, n_bins=n_bins)
+            n_classes = len(np.unique(preds.y_true))
+            is_binary = n_classes <= 2
 
-            # Calculate metrics
-            brier_score = brier_score_loss(preds.y_true, preds.y_prob)
+            if is_binary:
+                prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
+                fraction_of_positives, mean_predicted = calibration_curve(preds.y_true, prob_1d, n_bins=n_bins)
+                brier_score = brier_score_loss(preds.y_true, prob_1d)
 
-            # Expected Calibration Error
-            bin_counts = np.histogram(preds.y_prob, bins=n_bins, range=(0, 1))[0]
-            ece = np.sum(np.abs(fraction_of_positives - mean_predicted) * (bin_counts[:len(fraction_of_positives)] / preds.n_samples))
+                bin_counts = np.histogram(prob_1d, bins=n_bins, range=(0, 1))[0]
+                ece = np.sum(np.abs(fraction_of_positives - mean_predicted) * (bin_counts[:len(fraction_of_positives)] / preds.n_samples))
 
-            # Create visualization
-            fig_path = ""
-            try:
-                fig_path = self._create_calibration_chart(fraction_of_positives, mean_predicted, y_prob)
-            except Exception as e:
-                self._record_chart_failure('calibration', e)
+                fig_path = ""
+                try:
+                    fig_path = self._create_calibration_chart(fraction_of_positives, mean_predicted, prob_1d)
+                except Exception as e:
+                    self._record_chart_failure('calibration', e)
 
-            content = f"""
+                content = f"""
 # Probability Calibration Analysis
 
 Well-calibrated probabilities are essential for reliable decision-making.
@@ -2196,6 +2301,47 @@ A perfectly calibrated model's predicted probabilities should match actual outco
 
 ---
 """
+            else:
+                # Multiclass: per-class calibration
+                classes = np.unique(preds.y_true)
+                y_bin = label_binarize(preds.y_true, classes=classes)
+                y_prob_2d = preds.y_prob if preds.y_prob.ndim == 2 else None
+
+                if y_prob_2d is None or y_prob_2d.shape[1] != n_classes:
+                    self._record_section_failure('Calibration Analysis',
+                        ValueError(f"y_prob shape {preds.y_prob.shape} incompatible with {n_classes} classes"))
+                    return
+
+                per_class_brier = {}
+                for i, cls in enumerate(classes):
+                    try:
+                        bs = brier_score_loss(y_bin[:, i], y_prob_2d[:, i])
+                        per_class_brier[f"Class {cls}"] = bs
+                    except Exception:
+                        pass
+
+                brier_score = np.mean(list(per_class_brier.values())) if per_class_brier else 0.0
+                ece = 0.0  # ECE per-class averaging
+
+                content = f"""
+# Probability Calibration Analysis (Multiclass)
+
+Per-class calibration analysis for {n_classes} classes.
+
+## Per-Class Brier Scores
+
+| Class | Brier Score |
+|-------|------------|
+"""
+                for cls_name, bs_val in per_class_brier.items():
+                    content += f"| {cls_name} | {bs_val:.4f} |\n"
+
+                content += f"""
+**Mean Brier Score:** {brier_score:.4f} (lower is better)
+
+---
+"""
+
             self._content.append(content)
             self._store_section_data('calibration', 'Calibration Analysis', {'brier_score': brier_score, 'ece': ece})
 
@@ -2230,18 +2376,24 @@ A perfectly calibrated model's predicted probabilities should match actual outco
 
             X_arr = np.asarray(X_sample)
 
+            # For multiclass, use max probability as confidence; for binary, use positive class prob
+            if preds.y_prob.ndim == 2:
+                prob_1d = np.max(preds.y_prob, axis=1)
+            else:
+                prob_1d = preds.y_prob
+
             # Compute ECE
-            ece_data = self._compute_ece(preds.y_true, preds.y_prob)
+            ece_data = self._compute_ece(preds.y_true, prob_1d)
 
             # Create visualization
             fig_path = ""
             try:
-                fig_path = self._create_confidence_charts(preds.y_true, preds.y_prob, ece_data)
+                fig_path = self._create_confidence_charts(preds.y_true, prob_1d, ece_data)
             except Exception as e:
                 self._record_chart_failure('confidence_charts', e)
 
             # Find most/least confident predictions
-            confidence = np.abs(preds.y_prob - 0.5) * 2  # 0 = uncertain, 1 = very confident
+            confidence = np.abs(prob_1d - 0.5) * 2  # 0 = uncertain, 1 = very confident
             correct = (~preds.errors).astype(int)
 
             # Most confident correct
@@ -2289,7 +2441,7 @@ Analyzing model prediction confidence and its relationship to actual correctness
 |-------|------|------|-------------|------------|
 """
                 for idx in top_correct[:top_n]:
-                    content += f"| {idx} | {y_true_arr[idx]} | {y_pred_arr[idx]} | {y_prob_arr[idx]:.4f} | {confidence[idx]:.4f} |\n"
+                    content += f"| {idx} | {preds.y_true[idx]} | {preds.y_pred[idx]} | {prob_1d[idx]:.4f} | {confidence[idx]:.4f} |\n"
                 content += "\n"
 
             # Table of most confident wrong predictions
@@ -2300,7 +2452,7 @@ Analyzing model prediction confidence and its relationship to actual correctness
 |-------|------|------|-------------|------------|
 """
                 for idx in top_wrong[:top_n]:
-                    content += f"| {idx} | {y_true_arr[idx]} | {y_pred_arr[idx]} | {y_prob_arr[idx]:.4f} | {confidence[idx]:.4f} |\n"
+                    content += f"| {idx} | {preds.y_true[idx]} | {preds.y_pred[idx]} | {prob_1d[idx]:.4f} | {confidence[idx]:.4f} |\n"
                 content += "\n"
 
             content += """
@@ -2364,11 +2516,30 @@ Analyzing model prediction confidence and its relationship to actual correctness
         - Cumulative gains curve
         - Lift curve
         - KS statistic
+
+        Note: Lift/Gain analysis is only applicable to binary classification.
         """
         try:
             preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
+
+            n_classes = len(np.unique(preds.y_true))
+            if n_classes > 2:
+                self._content.append("""
+# Lift & Gain Analysis
+
+> Lift/Gain analysis is only applicable to binary classification.
+> This section is skipped for multiclass problems.
+
+---
+""")
+                self._store_section_data('lift_gain', 'Lift & Gain Analysis', {'skipped': 'multiclass'})
+                return
+
+            # Ensure 1D probabilities for binary
+            prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
+
             # Sort by probability descending
-            sorted_idx = np.argsort(preds.y_prob)[::-1]
+            sorted_idx = np.argsort(prob_1d)[::-1]
             y_sorted = preds.y_true[sorted_idx]
 
             # Calculate cumulative gains
@@ -2627,17 +2798,36 @@ Shows how features contribute to a single prediction.
         - Optimal threshold for different objectives
         - Cost-benefit analysis at different thresholds
         - Threshold impact table
+
+        Note: Threshold optimization is only applicable to binary classification.
         """
         try:
             preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred computed per threshold
+
+            n_classes = len(np.unique(preds.y_true))
+            if n_classes > 2:
+                self._content.append("""
+# Threshold Optimization
+
+> Threshold optimization is only applicable to binary classification.
+> This section is skipped for multiclass problems.
+
+---
+""")
+                self._store_section_data('threshold_optimization', 'Threshold Optimization', {'skipped': 'multiclass'})
+                return
+
             from sklearn.metrics import precision_recall_curve, f1_score, confusion_matrix
+
+            # Ensure 1D probabilities
+            prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
 
             # Calculate metrics at different thresholds
             thresholds = np.linspace(0.1, 0.9, 17)
             results = []
 
             for thresh in thresholds:
-                y_pred_thresh = (preds.y_prob >= thresh).astype(int)
+                y_pred_thresh = (prob_1d >= thresh).astype(int)
                 cm = confusion_matrix(preds.y_true, y_pred_thresh)
 
                 tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
@@ -3600,17 +3790,26 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             from sklearn.metrics import roc_curve
 
             unique_classes = np.unique(preds.y_true)
+            n_classes = len(unique_classes)
+            is_binary = n_classes <= 2
             if labels is None:
                 labels = [f'Class {c}' for c in unique_classes]
+
+            # Get 1D probabilities per class
+            if is_binary:
+                prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
+            else:
+                # For multiclass, use max probability (confidence) per sample
+                prob_1d = np.max(preds.y_prob, axis=1) if preds.y_prob.ndim == 2 else preds.y_prob
 
             # Separate probabilities by class
             class_probs = {}
             for cls, label in zip(unique_classes, labels):
-                class_probs[label] = preds.y_prob[preds.y_true == cls]
+                class_probs[label] = prob_1d[preds.y_true == cls]
 
             # Calculate KL divergence between class distributions
             kl_div = None
-            if len(unique_classes) == 2:
+            if is_binary:
                 p0 = class_probs[labels[0]]
                 p1 = class_probs[labels[1]]
 
@@ -3628,8 +3827,8 @@ Bootstrap resampling provides robust confidence intervals for model performance 
                 kl_div = float(scipy_stats.entropy(hist0, hist1))
 
             # Find optimal threshold (Youden's J)
-            if len(unique_classes) == 2:
-                fpr, tpr, thresholds = roc_curve(preds.y_true, preds.y_prob)
+            if is_binary:
+                fpr, tpr, thresholds = roc_curve(preds.y_true, prob_1d)
                 j_scores = tpr - fpr
                 optimal_idx = np.argmax(j_scores)
                 optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5

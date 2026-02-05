@@ -243,6 +243,9 @@ High SHAP correlation between features suggests they interact in the model.
         try:
             X_arr = X_sample if isinstance(X_sample, np.ndarray) else (
                 X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample))
+            # Ensure float64 to avoid numpy ufunc errors with object dtypes
+            if X_arr.dtype == object:
+                X_arr = X_arr.astype(np.float64)
             y_pred_arr = np.asarray(y_pred)
 
             # Get prediction confidences
@@ -483,6 +486,10 @@ Top feature interaction pairs detected via SHAP interaction values:
         try:
             import shap
 
+            # Ensure float64 to avoid numpy ufunc errors with object dtypes
+            if hasattr(X_arr, 'dtype') and X_arr.dtype == object:
+                X_arr = X_arr.astype(np.float64)
+
             # Try TreeExplainer for tree-based models
             is_tree = self._is_tree_model(model)
 
@@ -695,7 +702,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             X_opposite_std = (X_arr[opposite_indices] - col_means) / col_stds
 
             # L2 distance in standardized space
-            distances = np.sqrt(np.sum((X_opposite_std - original_std) ** 2, axis=1))
+            distances = np.sqrt(np.asarray((X_opposite_std - original_std) ** 2).sum(axis=1).astype(np.float64))
             nearest_idx = opposite_indices[np.argmin(distances)]
             nearest = X_arr[nearest_idx]
             new_pred = int(all_preds[nearest_idx])
@@ -765,7 +772,7 @@ Top feature interaction pairs detected via SHAP interaction values:
 
                     new_pred = int(model.predict(perturbed.reshape(1, -1))[0])
                     if new_pred != original_pred:
-                        actual_radius = np.sqrt(np.sum(((perturbed - original) / col_stds) ** 2))
+                        actual_radius = np.sqrt(np.float64(np.sum(((perturbed - original) / col_stds) ** 2)))
                         if actual_radius < best_radius:
                             best_radius = actual_radius
                             changes = []

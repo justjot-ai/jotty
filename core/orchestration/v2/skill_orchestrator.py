@@ -93,6 +93,68 @@ class SkillOrchestrator:
         self._llm_reasoner = LLMFeatureReasoner() if self._use_llm_features else None
         self._progress = None
 
+    @staticmethod
+    def _drop_target_leaks(X: pd.DataFrame, y: pd.Series) -> pd.DataFrame:
+        """Drop features with near-perfect correlation to the target.
+
+        Detects columns that are trivial transformations of y (e.g. the
+        ``alive`` column in seaborn's Titanic dataset which is just
+        ``survived`` spelled out).  Threshold: |correlation| > 0.95.
+        """
+        try:
+            corr = X.corrwith(y).abs()
+            leaky = corr[corr > 0.95].index.tolist()
+            if leaky:
+                logger.info(f"  Dropped {len(leaky)} target-leaking columns: {leaky}")
+                X = X.drop(columns=leaky)
+        except Exception:
+            pass
+        return X
+
+    @staticmethod
+    def _ensure_numeric(X: pd.DataFrame) -> pd.DataFrame:
+        """Encode all remaining categorical/object columns to numeric.
+
+        Called once after feature engineering so every downstream stage
+        (feature selection, model selection, hyperopt, ensemble) receives
+        a fully numeric DataFrame.  Also handles inf/NaN cleanup.
+        """
+        from sklearn.preprocessing import LabelEncoder
+
+        X_out = X.copy()
+        for col in X_out.select_dtypes(include=['object', 'category']).columns:
+            try:
+                X_out[col] = LabelEncoder().fit_transform(X_out[col].astype(str))
+            except Exception:
+                X_out = X_out.drop(columns=[col])
+
+        # Replace inf with NaN, then fill NaN with 0
+        X_out = X_out.replace([np.inf, -np.inf], np.nan).fillna(0)
+        return X_out
+
+    @staticmethod
+    def _encode_categoricals_and_scale(X: pd.DataFrame) -> np.ndarray:
+        """Encode remaining categorical columns and apply StandardScaler.
+
+        LLM feature reasoning can leave string columns (e.g. Sex, Embarked)
+        that survive through data cleaning and feature engineering. This helper
+        ensures they are label-encoded (or dropped) before scaling so that
+        downstream model fitting never receives non-numeric data.
+
+        Returns:
+            np.ndarray of scaled numeric features.
+        """
+        from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+        X_numeric = X.copy()
+        for col in X_numeric.select_dtypes(include=['object', 'category']).columns:
+            try:
+                X_numeric[col] = LabelEncoder().fit_transform(X_numeric[col].astype(str))
+            except Exception:
+                X_numeric = X_numeric.drop(columns=[col])
+
+        return StandardScaler().fit_transform(X_numeric)
+
     async def init(self):
         """Initialize registries and discover skills."""
         if self._initialized:
@@ -252,9 +314,20 @@ class SkillOrchestrator:
             if result.success:
                 # Update context with result
                 if result.data is not None:
-                    if category == SkillCategory.FEATURE_ENGINEERING:
+                    if category in [SkillCategory.DATA_CLEANING,
+                                    SkillCategory.FEATURE_ENGINEERING,
+                                    SkillCategory.FEATURE_SELECTION]:
                         context['X'] = result.data
-                    elif category in [SkillCategory.MODEL_SELECTION,
+
+                # After feature engineering, ensure all columns are numeric
+                # LLM feature reasoning and various skills can leave string
+                # columns that break downstream StandardScaler / corr calls
+                if category == SkillCategory.FEATURE_ENGINEERING:
+                    context['X'] = self._ensure_numeric(context['X'])
+                    context['X'] = self._drop_target_leaks(context['X'], context['y'])
+
+                if result.data is not None:
+                    if category in [SkillCategory.MODEL_SELECTION,
                                      SkillCategory.HYPERPARAMETER_OPTIMIZATION,
                                      SkillCategory.ENSEMBLE]:
                         context['model'] = result.data
@@ -340,6 +413,7 @@ class SkillOrchestrator:
             skill_results=skill_results,
             predictions=context.get('predictions'),
             feature_importance=context.get('feature_importance'),
+            processed_X=context['X'],
         )
 
         # Final progress summary
@@ -1189,8 +1263,8 @@ class SkillOrchestrator:
         import xgboost as xgb
 
         n_samples, n_features = X.shape
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+
+        X_scaled = self._encode_categoricals_and_scale(X)
 
         # Adaptive configuration based on data size
         n_estimators = 100 if n_samples < 5000 else 200
@@ -1317,7 +1391,6 @@ class SkillOrchestrator:
                 'all_std': all_std,
                 'model_ranking': [m[0] for m in sorted_models],
                 'oof_predictions': oof_predictions,
-                'scaler': scaler,
                 'X_scaled': X_scaled,
             }
         )
@@ -1342,8 +1415,7 @@ class SkillOrchestrator:
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        X_scaled = self._encode_categoricals_and_scale(X)
 
         # Get top models from model selection stage
         model_metadata = {}
@@ -1533,8 +1605,7 @@ class SkillOrchestrator:
         import lightgbm as lgb
         import xgboost as xgb
 
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        X_scaled = self._encode_categoricals_and_scale(X)
 
         # Get optimized model and scores from previous stages
         optimized = context.get('model')

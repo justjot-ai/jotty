@@ -1509,6 +1509,21 @@ class BaseSwarm(ABC):
         )
         self._traces.append(trace)
 
+        # Fire TUI trace callback if active
+        try:
+            from .coding_swarm import _active_trace_callback
+            if _active_trace_callback is not None:
+                _active_trace_callback({
+                    "agent": agent_name,
+                    "role": agent_role.value if agent_role else "",
+                    "time": execution_time,
+                    "success": success,
+                    "error": error,
+                    "output_summary": str(output_data)[:100] if output_data else "",
+                })
+        except Exception:
+            pass
+
         # Agent0: Per-phase swarm-level feedback removed — swarm-level recording
         # is handled once by _post_execute_learning() at end of execute().
         # Only per-agent recording happens here (below).

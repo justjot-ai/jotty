@@ -123,6 +123,8 @@ class Swarm:
     @classmethod
     async def solve(cls,
                     template: Union[str, SwarmTemplate] = "ml",
+                    data: pd.DataFrame = None,
+                    target: str = None,
                     X: pd.DataFrame = None,
                     y: pd.Series = None,
                     time_budget: int = 300,
@@ -136,9 +138,11 @@ class Swarm:
         This is the main entry point for Jotty.
 
         Args:
+            data: Full DataFrame (alternative to X/y). Swarm splits internally.
+            target: Target column name (used with data param)
             template: Template name ("ml", "nlp", "cv") or SwarmTemplate instance
-            X: Input features (DataFrame or path)
-            y: Target variable (optional for some templates)
+            X: Input features (DataFrame) — used if data/target not provided
+            y: Target variable (Series) — used if data/target not provided
             time_budget: Maximum seconds for execution
             context: Business context for LLM reasoning
             feedback_iterations: Number of feedback loop iterations
@@ -149,6 +153,16 @@ class Swarm:
             SwarmResult with model, score, and metadata
         """
         start_time = time.time()
+
+        # If data + target provided, split into X/y automatically
+        if data is not None and target is not None:
+            if target not in data.columns:
+                raise ValueError(f"Target column '{target}' not found in data. "
+                                 f"Available: {list(data.columns)}")
+            y = data[target]
+            X = data.drop(columns=[target])
+        elif data is not None and target is None:
+            raise ValueError("When passing 'data', you must also specify 'target' column name")
 
         # Get template
         if isinstance(template, str):
@@ -252,11 +266,11 @@ class Swarm:
 
         execution_time = time.time() - start_time
 
-        return SwarmResult(
+        swarm_result = SwarmResult(
             success=True,
             score=result.best_score,
             model=result.best_model,
-            data=None,  # Could extract from result
+            data=result.processed_X,
             feature_count=result.feature_count,
             execution_time=execution_time,
             template_name="SwarmML",
@@ -264,8 +278,89 @@ class Swarm:
             metadata={
                 'problem_type': result.problem_type.value,
                 'feature_importance': result.feature_importance,
+                'y': y,
             },
         )
+
+        # Auto-generate report if requested
+        if kwargs.get('generate_report', False) and result.best_model is not None:
+            swarm_result = cls._generate_report(swarm_result, context, **kwargs)
+
+        return swarm_result
+
+    @classmethod
+    def _generate_report(cls, swarm_result: 'SwarmResult', context: str, **kwargs) -> 'SwarmResult':
+        """Generate world-class PDF report and optionally send to Telegram."""
+        try:
+            from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
+            from sklearn.metrics import (accuracy_score, precision_score,
+                                         recall_score, f1_score, roc_auc_score)
+
+            from .skill_orchestrator import SkillOrchestrator
+            from sklearn.preprocessing import StandardScaler
+
+            model = swarm_result.model
+            X_processed = swarm_result.data
+            y = swarm_result.metadata['y']
+
+            # Model was trained on scaled data — scale before predicting
+            X_scaled = StandardScaler().fit_transform(X_processed)
+
+            y_pred = model.predict(X_scaled)
+
+            # Detect binary vs multiclass for correct metric averaging
+            n_classes = len(set(y))
+            is_binary = n_classes <= 2
+            avg = 'binary' if is_binary else 'weighted'
+
+            y_prob = None
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(X_scaled)
+                y_prob = proba[:, 1] if is_binary else proba
+
+            metrics = {
+                'accuracy': float(accuracy_score(y, y_pred)),
+                'precision': float(precision_score(y, y_pred, average=avg, zero_division=0)),
+                'recall': float(recall_score(y, y_pred, average=avg, zero_division=0)),
+                'f1': float(f1_score(y, y_pred, average=avg, zero_division=0)),
+            }
+            if y_prob is not None and is_binary:
+                try:
+                    metrics['roc_auc'] = float(roc_auc_score(y, y_prob))
+                except Exception:
+                    pass
+
+            results_dict = {
+                'final_score': swarm_result.score,
+                'best_model': type(model).__name__,
+                'metrics': metrics,
+                'feature_importance': swarm_result.metadata.get('feature_importance', {}),
+                'problem_type': swarm_result.metadata.get('problem_type', 'Classification'),
+                'dataset': kwargs.get('dataset_name', 'Dataset'),
+            }
+
+            swarm_comp = SwarmMLComprehensive()
+            pdf_path = swarm_comp.generate_world_class_report(
+                X=X_processed, y=y,
+                model=model,
+                results=results_dict,
+                y_pred=y_pred, y_prob=y_prob,
+                title=kwargs.get('report_title', 'ML Analysis Report'),
+                context=context,
+                filename=kwargs.get('report_filename', 'swarm_report.pdf'),
+                include_all=True,
+                theme=kwargs.get('report_theme', 'professional'),
+                generate_html=kwargs.get('generate_html', True),
+            )
+
+            swarm_result.metadata['report_path'] = pdf_path
+            swarm_result.metadata['metrics'] = metrics
+
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Report generation failed: {e}")
+
+        return swarm_result
 
     @classmethod
     async def auto_solve(cls, X, y=None, **kwargs) -> SwarmResult:

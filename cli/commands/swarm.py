@@ -5,7 +5,10 @@ Swarm Command
 Swarm intelligence status and management.
 """
 
+import asyncio
+import traceback
 from typing import TYPE_CHECKING, Dict, Any
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -17,8 +20,8 @@ class SwarmCommand(BaseCommand):
 
     name = "swarm"
     aliases = ["sw"]
-    description = "View swarm intelligence status, consensus, and routing"
-    usage = "/swarm [status|routing|consensus|providers]"
+    description = "View swarm intelligence status, consensus, routing, and run coding swarm"
+    usage = "/swarm [status|routing|consensus|providers|run <requirements>]"
     category = "swarm"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -33,6 +36,8 @@ class SwarmCommand(BaseCommand):
             return await self._show_consensus(cli)
         elif subcommand == "providers":
             return await self._show_providers(cli)
+        elif subcommand == "run":
+            return await self._run_with_tui(args, cli)
         else:
             return await self._show_status(cli)
 
@@ -174,7 +179,99 @@ class SwarmCommand(BaseCommand):
             cli.renderer.error(f"Failed to get provider info: {e}")
             return CommandResult.fail(str(e))
 
+    async def _run_with_tui(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
+        """Run CodingSwarm with TUI dashboard."""
+        requirements = " ".join(args.positional[1:]) if len(args.positional) > 1 else ""
+        if not requirements:
+            cli.renderer.error("Usage: /swarm run <requirements>")
+            return CommandResult.fail("No requirements provided")
+
+        try:
+            try:
+                from ..ui.progress import SwarmDashboard
+            except ImportError:
+                from Jotty.cli.ui.progress import SwarmDashboard
+
+            try:
+                from ...core.swarms.coding_swarm import CodingSwarm, CodingConfig
+            except ImportError:
+                from Jotty.core.swarms.coding_swarm import CodingSwarm, CodingConfig
+
+            # Parse config flags
+            team = args.flags.get("team", "fullstack")
+            scope = args.flags.get("scope", None)
+            language = args.flags.get("lang", "python")
+
+            config = CodingConfig(
+                team=team,
+                scope=scope,
+                enable_workspace=True,
+                enable_research=True,
+            )
+
+            swarm = CodingSwarm(config)
+
+            # Create dashboard
+            dashboard = SwarmDashboard(cli.renderer.console, requirements=requirements)
+            dashboard.state.team = team
+            dashboard.state.language = language
+
+            # Run with TUI
+            result = None
+            dashboard.start()
+            try:
+                result = await swarm.generate(
+                    requirements=requirements,
+                    progress_callback=dashboard.on_progress,
+                    trace_callback=dashboard.on_trace,
+                )
+            finally:
+                # Update final stats before closing
+                if result and hasattr(result, 'code') and result.code:
+                    dashboard.state.total_loc = result.loc
+                    dashboard.state.main_file = result.code.main_file
+                    for fname, content in result.code.files.items():
+                        loc = content.count('\n') + 1
+                        dashboard.state.files[fname] = {
+                            "loc": loc,
+                            "validated": True,
+                        }
+                    # Final refresh
+                    if dashboard._live:
+                        dashboard._live.update(dashboard._build_layout())
+                        await asyncio.sleep(1)
+                dashboard.stop()
+
+            # Show final summary
+            dashboard.show_final_summary()
+
+            # Export menu
+            output_path = ""
+            if result and hasattr(result, 'metadata'):
+                output_path = result.metadata.get('output_path', '')
+            dashboard.show_export_menu(result, output_path)
+
+            # Show generated files
+            if result.success and result.code:
+                cli.renderer.newline()
+                cli.renderer.print("[bold green]Generated Files:[/bold green]")
+                for fname, content in result.code.files.items():
+                    loc = content.count('\n') + 1
+                    cli.renderer.print(f"  {fname} ({loc} lines)")
+
+            return CommandResult.ok(data={
+                "success": result.success,
+                "files": list(result.code.files.keys()) if result.code else [],
+                "loc": result.loc,
+            })
+
+        except Exception as e:
+            cli.renderer.error(f"Swarm run failed: {e}")
+            if hasattr(cli.config, 'debug') and cli.config.debug:
+                traceback.print_exc()
+            return CommandResult.fail(str(e))
+
     def get_completions(self, partial: str) -> list:
         """Get subcommand completions."""
-        subcommands = ["status", "routing", "consensus", "providers"]
+        subcommands = ["status", "routing", "consensus", "providers", "run"]
         return [s for s in subcommands if s.startswith(partial)]

@@ -1952,7 +1952,9 @@ JSON only:""",
 
             # Classification metrics
             if y_true is not None and y_pred is not None:
-                labels = results.get('labels', ['Class 0', 'Class 1'])
+                n_classes = len(np.unique(y_true))
+                default_labels = [f'Class {i}' for i in range(n_classes)]
+                labels = results.get('labels', default_labels)
                 report.add_confusion_matrix(y_true, y_pred, labels)
 
                 if y_prob is not None:
@@ -2018,6 +2020,7 @@ JSON only:""",
         pipeline_steps: List[Dict] = None,
         study_or_trials=None,
         validation_datasets: Dict = None,
+        trained_models: Dict = None,
     ) -> Optional[str]:
         """
         Generate the world's most comprehensive ML report.
@@ -2041,6 +2044,7 @@ JSON only:""",
         - Fairness & Bias Audit (if sensitive_features provided)
         - Hyperparameter Search Visualization (if study_or_trials provided)
         - Multi-Dataset Validation (if validation_datasets provided)
+        - Model Comparison with overlaid ROC & radar (if trained_models provided)
         - Confidence-Calibrated Predictions
         - Pipeline DAG Visualization (if pipeline_steps provided)
         - Deep Learning Analysis (if model is neural network)
@@ -2067,6 +2071,7 @@ JSON only:""",
             pipeline_steps: List of pipeline step dicts for DAG visualization
             study_or_trials: Optuna study or List[Dict] for hyperparameter viz
             validation_datasets: Dict[name -> (X, y)] for cross-dataset validation
+            trained_models: Dict[name -> trained model] for side-by-side model comparison
 
         Returns:
             Path to generated PDF
@@ -2186,6 +2191,15 @@ JSON only:""",
             if model_scores:
                 report.add_model_benchmarking(model_scores)
 
+            # ==== SECTION 6.3: MODEL COMPARISON (NEW — Round 4) ====
+            comparison_models = trained_models or results.get('trained_models')
+            if include_all and comparison_models and isinstance(comparison_models, dict) and len(comparison_models) >= 2:
+                logger.info("  - Adding model comparison...")
+                try:
+                    report.add_model_comparison(comparison_models, X, y)
+                except Exception as e:
+                    logger.debug(f"Model comparison failed: {e}")
+
             # ==== SECTION 6.5: MULTI-DATASET VALIDATION (NEW) ====
             if include_all and validation_datasets:
                 logger.info("  - Adding cross-dataset validation...")
@@ -2227,7 +2241,9 @@ JSON only:""",
                 except Exception as e:
                     logger.debug(f"Regression analysis failed: {e}")
             elif y_pred is not None:
-                labels = results.get('labels', ['Negative', 'Positive'])
+                n_cls = len(np.unique(y))
+                default_labels = ['Negative', 'Positive'] if n_cls <= 2 else [f'Class {i}' for i in range(n_cls)]
+                labels = results.get('labels', default_labels)
                 report.add_confusion_matrix(y, y_pred, labels)
 
                 if y_prob is not None:
@@ -2402,6 +2418,19 @@ JSON only:""",
                 if html_path:
                     logger.info(f"  - HTML report: {html_path}")
 
+            # Auto-send to Telegram if configured
+            if pdf_path:
+                try:
+                    if not getattr(self, '_telegram_available', False):
+                        self.init_telegram()
+                    if self._telegram_available:
+                        logger.info("  - Sending report to Telegram...")
+                        sent = self.send_telegram_report(pdf_path, results=results)
+                        if sent:
+                            logger.info("  - Report sent to Telegram")
+                except Exception as e:
+                    logger.debug(f"Telegram send failed: {e}")
+
             return pdf_path
 
         except Exception as e:
@@ -2480,9 +2509,20 @@ JSON only:""",
         if not self._telegram_config.enabled:
             return
 
-        # Get credentials from env if not provided
+        # Load .env file if available
+        try:
+            from dotenv import load_dotenv
+            env_file = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '.env')
+            load_dotenv(os.path.abspath(env_file), override=False)
+        except ImportError:
+            pass
+
+        # Get credentials from env if not provided (support both var names)
         if not self._telegram_config.bot_token:
-            self._telegram_config.bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+            self._telegram_config.bot_token = (
+                os.environ.get('TELEGRAM_BOT_TOKEN', '')
+                or os.environ.get('TELEGRAM_TOKEN', '')
+            )
         if not self._telegram_config.chat_id:
             self._telegram_config.chat_id = os.environ.get('TELEGRAM_CHAT_ID', '')
 

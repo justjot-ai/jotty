@@ -55,11 +55,15 @@ class ErrorAnalysisMixin:
             hardest_samples = []
             if preds.has_probabilities:
                 error_idx = np.where(errors)[0]
-                error_probs = preds.y_prob[error_idx]
-                # For wrong predictions, high probability = more confident error
-                if hasattr(error_probs, '__len__') and len(error_probs) > 0:
-                    confidence = np.abs(error_probs - 0.5) * 2  # Distance from 0.5
-                    sorted_idx = np.argsort(confidence)[::-1][:top_n]
+                # Get 1D confidence: max prob for multiclass, raw prob for binary
+                if preds.y_prob.ndim == 2:
+                    all_confidence = np.max(preds.y_prob, axis=1)
+                else:
+                    all_confidence = preds.y_prob
+                error_conf = all_confidence[error_idx]
+                # For wrong predictions, high confidence = more confident error
+                if hasattr(error_conf, '__len__') and len(error_conf) > 0:
+                    sorted_idx = np.argsort(error_conf)[::-1][:top_n]
 
                     for i in sorted_idx:
                         orig_idx = error_idx[i]
@@ -67,8 +71,8 @@ class ErrorAnalysisMixin:
                             'index': int(orig_idx),
                             'true': int(preds.y_true[orig_idx]),
                             'pred': int(preds.y_pred[orig_idx]),
-                            'prob': float(preds.y_prob[orig_idx]),
-                            'confidence': float(confidence[i])
+                            'prob': float(all_confidence[orig_idx]),
+                            'confidence': float(error_conf[i])
                         })
 
             # Error distribution by feature (for top features)
@@ -371,7 +375,11 @@ Selective prediction: reject uncertain samples to improve accuracy.
         y_pred_arr = np.asarray(y_pred)
         y_prob_arr = np.asarray(y_prob)
 
-        confidence = np.abs(y_prob_arr - 0.5) * 2  # Distance from 0.5 scaled to [0, 1]
+        # For multiclass, use max probability as confidence; for binary, distance from 0.5
+        if y_prob_arr.ndim == 2:
+            confidence = np.max(y_prob_arr, axis=1)
+        else:
+            confidence = np.abs(y_prob_arr - 0.5) * 2  # Distance from 0.5 scaled to [0, 1]
         result = {}
 
         for target in targets:
