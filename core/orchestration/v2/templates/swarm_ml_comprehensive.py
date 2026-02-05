@@ -2274,7 +2274,8 @@ JSON only:""",
             if include_all and X_reference is not None:
                 logger.info("  - Adding drift analysis...")
                 try:
-                    report.add_drift_analysis(X_reference, X)
+                    report.add_drift_analysis(X_reference, X,
+                                              feature_importance=feature_importance)
                 except Exception as e:
                     logger.debug(f"Drift analysis failed: {e}")
 

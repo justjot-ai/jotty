@@ -28,16 +28,109 @@ import subprocess
 import tempfile
 import shutil
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional, Protocol, Tuple, Union
 import logging
 
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
+
+# Mixin imports for decomposed functionality
+from ._interpretability_mixin import InterpretabilityMixin
+from ._fairness_mixin import FairnessMixin
+from ._drift_mixin import DriftMixin
+from ._error_analysis_mixin import ErrorAnalysisMixin
+from ._deployment_mixin import DeploymentMixin
+from ._visualization_mixin import VisualizationMixin
+
+
+# =============================================================================
+# MIXIN PROTOCOL — documents the interface mixins expect from the host class
+# =============================================================================
+
+class ReportContext(Protocol):
+    """Interface contract that mixins expect from ProfessionalMLReport.
+
+    This Protocol exists solely for documentation and IDE support.
+    It is never instantiated at runtime. Mixins access these attributes
+    and methods via ``self`` when mixed into ProfessionalMLReport.
+    """
+    theme: Dict[str, Any]
+    theme_name: str
+    figures_dir: Path
+    output_dir: Path
+    config: Dict[str, Any]
+    _content: List[str]
+    _section_data: List[Dict]
+    _failed_sections: List[Dict]
+    _failed_charts: List[Dict]
+    _warnings: List[Dict]
+    _llm_narrative_enabled: bool
+
+    def _record_section_failure(self, section_name: str, error: Exception) -> None: ...
+    def _record_chart_failure(self, chart_name: str, error: Exception) -> None: ...
+    def _record_internal_warning(self, component: str, message: str, error: Exception = None) -> None: ...
+    def _store_section_data(self, section_type: str, title: str, data: Dict, chart_configs: List[Dict] = None) -> None: ...
+    def _maybe_add_narrative(self, section_name: str, data_context: str, section_type: str = 'general') -> str: ...
+    def _validate_inputs(self, **kwargs) -> None: ...
+
+
+# =============================================================================
+# PREDICTION DATA CONTAINER
+# =============================================================================
+
+@dataclass
+class PredictionResult:
+    """Consolidated container for y_true / y_pred / y_prob triplets.
+
+    Handles numpy conversion and length validation in one place, eliminating
+    repeated ``np.asarray`` calls scattered across 13+ methods.
+
+    Public ``add_*`` method signatures remain unchanged — each method creates
+    a ``PredictionResult`` internally at the start of its implementation.
+    """
+    y_true: np.ndarray
+    y_pred: np.ndarray
+    y_prob: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        self.y_true = np.asarray(self.y_true)
+        self.y_pred = np.asarray(self.y_pred)
+        if self.y_prob is not None:
+            self.y_prob = np.asarray(self.y_prob)
+        if len(self.y_true) != len(self.y_pred):
+            raise ValueError(
+                f"y_true length ({len(self.y_true)}) != y_pred length ({len(self.y_pred)})"
+            )
+        if self.y_prob is not None and len(self.y_prob) != len(self.y_true):
+            raise ValueError(
+                f"y_prob length ({len(self.y_prob)}) != y_true length ({len(self.y_true)})"
+            )
+
+    @classmethod
+    def from_predictions(cls, y_true, y_pred, y_prob=None):
+        """Factory method accepting any array-like inputs."""
+        return cls(y_true, y_pred, y_prob)
+
+    @property
+    def n_samples(self) -> int:
+        return len(self.y_true)
+
+    @property
+    def has_probabilities(self) -> bool:
+        return self.y_prob is not None
+
+    @property
+    def errors(self) -> np.ndarray:
+        return self.y_true != self.y_pred
+
+    @property
+    def n_errors(self) -> int:
+        return int(self.errors.sum())
 
 
 # =============================================================================
@@ -109,11 +202,14 @@ THEMES = {
     },
 }
 
-# Module-level reference (set by ProfessionalMLReport instance)
+# DEPRECATED: Module-level COLORS is kept for backward compatibility only.
+# All internal code uses self.theme instead. Do not rely on this global;
+# it is not updated when a different theme is selected at instance creation.
 COLORS = THEMES['professional']
 
 
-class ProfessionalMLReport:
+class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin,
+                           FairnessMixin, ErrorAnalysisMixin, DeploymentMixin):
     """
     World-Class ML Report Generator using Markdown + Pandoc + LaTeX.
 
@@ -131,8 +227,63 @@ class ProfessionalMLReport:
         report = ProfessionalMLReport(theme='professional')  # Default blue
     """
 
+    _REPORT_VERSION = '4.0.0'
+
+    _SECTION_PROMPTS = {
+        'executive_summary': (
+            "You are a senior data scientist writing an executive summary. "
+            "First analyze the key performance numbers, then provide 2-3 sentences of strategic insight. "
+            "Focus on whether the model is production-ready and what the main risk factors are."
+        ),
+        'error_analysis': (
+            "You are a senior data scientist analyzing model errors. "
+            "First examine the error patterns and rates, then provide 2-3 sentences on "
+            "the most actionable improvements. Focus on systematic failure modes."
+        ),
+        'fairness_audit': (
+            "You are a senior data scientist evaluating model fairness. "
+            "First analyze the fairness metrics across groups, then provide 2-3 sentences "
+            "on whether the model exhibits bias and what specific mitigation steps to take."
+        ),
+        'drift_analysis': (
+            "You are a senior data scientist monitoring data drift. "
+            "First assess which features show significant distribution shift, then provide "
+            "2-3 sentences on the operational implications and recommended actions."
+        ),
+        'interpretability': (
+            "You are a senior data scientist explaining model behavior. "
+            "First summarize the key feature contributions, then provide 2-3 sentences "
+            "on whether the model's reasoning aligns with domain knowledge."
+        ),
+        'deployment_readiness': (
+            "You are a senior ML engineer assessing deployment readiness. "
+            "First review the latency, size, and checklist results, then provide "
+            "2-3 sentences on production readiness and any blockers to address."
+        ),
+        'feature_importance': (
+            "You are a senior data scientist analyzing feature importance. "
+            "First identify the dominant features, then provide 2-3 sentences on "
+            "potential feature engineering opportunities or redundant features to remove."
+        ),
+        'general': (
+            "You are a senior data scientist. Given the following ML analysis data, "
+            "write a 2-3 sentence insight in plain English. Focus on actionable takeaways."
+        ),
+    }
+
+    _DEFAULT_CONFIG = {
+        'psi_bins': 10,
+        'psi_binning_method': 'quantile',
+        'js_divergence_bins': 50,
+        'mmd_permutations': 500,
+        'classifier_drift_auc_threshold': 0.6,
+        'ensemble_drift_weights': (0.3, 0.35, 0.35),
+        'min_group_size_fairness': 5,
+    }
+
     def __init__(self, output_dir: str = "professional_reports", theme: str = "professional",
-                 llm_narrative: bool = False, html_enabled: bool = False):
+                 llm_narrative: bool = False, html_enabled: bool = False,
+                 config: Dict = None):
         self.output_dir = Path(output_dir).resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.figures_dir = self.output_dir / "figures"
@@ -145,17 +296,21 @@ class ProfessionalMLReport:
 
         # Structured data for HTML generation
         self._section_data = []
+        self._failed_sections = []
+        self._failed_charts = []
+        self._warnings = []
         self._llm_narrative_enabled = llm_narrative
         self._html_enabled = html_enabled
         self._llm = None  # Lazy-loaded UnifiedLLM
 
+        # Configurable parameters (merge user config over defaults)
+        self.config = dict(self._DEFAULT_CONFIG)
+        if config:
+            self.config.update(config)
+
         # Set theme
         self.theme_name = theme
         self.theme = THEMES.get(theme, THEMES['professional'])
-
-        # Update module-level COLORS for backward compat
-        global COLORS
-        COLORS = self.theme
 
         # Configure matplotlib style for this theme
         self._setup_plot_style()
@@ -174,11 +329,22 @@ class ProfessionalMLReport:
         return self._fig_path_for_markdown(filename)
 
     def _setup_plot_style(self):
-        """Configure matplotlib for theme-matched professional visualizations."""
+        """Configure matplotlib for theme-matched professional visualizations.
+
+        Warning — Thread Safety:
+            This method mutates the process-global ``mpl.rcParams`` dict.
+            Concurrent ProfessionalMLReport instances with different themes
+            will overwrite each other's settings. If thread-safety is required,
+            use ``matplotlib.rc_context()`` around individual chart renders or
+            generate reports sequentially.
+        """
         try:
             import matplotlib.pyplot as plt
             import matplotlib as mpl
             from matplotlib import cycler
+
+            # Save original rcParams for later restoration
+            self._saved_rcparams = dict(mpl.rcParams)
 
             t = self.theme
 
@@ -186,8 +352,9 @@ class ProfessionalMLReport:
                 # Goldman: clean, minimal, serif fonts, subtle grid
                 try:
                     plt.style.use('seaborn-v0_8-whitegrid')
-                except:
-                    pass
+                except Exception as e:
+                    if hasattr(self, '_warnings'):
+                        self._record_internal_warning('PlotStyleGoldman', 'seaborn style not available', e)
                 mpl.rcParams.update({
                     'font.family': 'serif',
                     'font.serif': ['DejaVu Serif', 'Georgia', 'Times New Roman'],
@@ -222,8 +389,9 @@ class ProfessionalMLReport:
                 # Professional: modern, bold, sans-serif
                 try:
                     plt.style.use('seaborn-v0_8-whitegrid')
-                except:
-                    pass
+                except Exception as e:
+                    if hasattr(self, '_warnings'):
+                        self._record_internal_warning('PlotStyleProfessional', 'seaborn style not available', e)
                 mpl.rcParams.update({
                     'font.family': 'sans-serif',
                     'font.sans-serif': ['DejaVu Sans', 'Arial', 'Helvetica'],
@@ -248,6 +416,198 @@ class ProfessionalMLReport:
         except Exception as e:
             logger.debug(f"Could not setup plot style: {e}")
 
+    def restore_plot_style(self):
+        """Restore matplotlib rcParams to their state before report initialization."""
+        try:
+            import matplotlib as mpl
+            if hasattr(self, '_saved_rcparams'):
+                mpl.rcParams.update(self._saved_rcparams)
+        except Exception as e:
+            if hasattr(self, '_warnings'):
+                self._record_internal_warning('RestorePlotStyle', 'failed to restore rcParams', e)
+
+    def _record_section_failure(self, section_name: str, error: Exception):
+        """Record a section generation failure for health tracking.
+
+        Logs a warning, appends to _failed_sections, and adds a visible
+        placeholder to _content so failures are not silently swallowed.
+        """
+        self._failed_sections.append({
+            'section': section_name,
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+        })
+        logger.warning(f"{section_name} failed: {error}")
+        self._content.append(
+            f"\n> **{section_name}:** Section generation failed — {type(error).__name__}: {error}\n\n---\n"
+        )
+
+    def _validate_inputs(self, **kwargs):
+        """Validate common ML inputs before processing.
+
+        Checks for None/empty data, length mismatches, probability ranges,
+        and feature name types. Raises ValueError with clear messages.
+
+        Keyword Args:
+            X: Feature matrix (DataFrame or array)
+            y_true: True labels array
+            y_pred: Predicted labels array
+            y_prob: Predicted probabilities array
+            feature_names: List of feature name strings
+            require_X: Whether X is mandatory (default False)
+        """
+        X = kwargs.get('X')
+        y_true = kwargs.get('y_true')
+        y_pred = kwargs.get('y_pred')
+        y_prob = kwargs.get('y_prob')
+        feature_names = kwargs.get('feature_names')
+        require_X = kwargs.get('require_X', False)
+
+        # Validate X
+        if require_X:
+            if X is None:
+                raise ValueError("X (feature matrix) is required but was None")
+            x_len = len(X) if hasattr(X, '__len__') else 0
+            if x_len == 0:
+                raise ValueError("X (feature matrix) is empty")
+
+        # Validate y_true / y_pred length match
+        if y_true is not None and y_pred is not None:
+            y_true_arr = np.asarray(y_true)
+            y_pred_arr = np.asarray(y_pred)
+            if len(y_true_arr) != len(y_pred_arr):
+                raise ValueError(
+                    f"y_true length ({len(y_true_arr)}) != y_pred length ({len(y_pred_arr)})"
+                )
+
+        # Validate X rows match y_true length
+        if X is not None and y_true is not None:
+            x_len = len(X) if hasattr(X, '__len__') else 0
+            y_len = len(np.asarray(y_true))
+            if x_len > 0 and x_len != y_len:
+                raise ValueError(
+                    f"X rows ({x_len}) != y_true length ({y_len})"
+                )
+
+        # Validate y_prob in [0, 1]
+        if y_prob is not None:
+            y_prob_arr = np.asarray(y_prob)
+            if y_prob_arr.size > 0:
+                if np.any(y_prob_arr < 0) or np.any(y_prob_arr > 1):
+                    raise ValueError(
+                        f"y_prob values must be in [0, 1], got range "
+                        f"[{y_prob_arr.min():.4f}, {y_prob_arr.max():.4f}]"
+                    )
+
+        # Validate feature_names are strings
+        if feature_names is not None:
+            if not all(isinstance(f, str) for f in feature_names):
+                bad_types = {type(f).__name__ for f in feature_names if not isinstance(f, str)}
+                raise ValueError(
+                    f"feature_names must all be strings, found types: {bad_types}"
+                )
+
+    @staticmethod
+    def _make_predictions(y_true, y_pred, y_prob=None) -> 'PredictionResult':
+        """Create a validated PredictionResult from raw arrays.
+
+        Convenience wrapper used at the start of internal ``_impl`` methods
+        to consolidate numpy conversion and length validation.
+        """
+        return PredictionResult.from_predictions(y_true, y_pred, y_prob)
+
+    def _record_chart_failure(self, chart_name: str, error: Exception):
+        """Record a chart generation failure for health tracking.
+
+        Logs a warning and appends to _failed_charts so chart failures
+        are visible in the report health summary.
+        """
+        self._failed_charts.append({
+            'chart': chart_name,
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+        })
+        logger.warning(f"Chart '{chart_name}' failed: {error}")
+
+    def _record_internal_warning(self, component: str, message: str, error: Exception = None):
+        """Record a non-fatal internal warning for health tracking.
+
+        Used to replace silent ``except: pass`` blocks so that suppressed
+        errors are still visible in the report health summary without
+        changing return values or control flow.
+        """
+        if hasattr(self, '_warnings'):
+            self._warnings.append({
+                'component': component,
+                'message': message,
+                'error_type': type(error).__name__ if error else None,
+                'error_message': str(error) if error else None,
+            })
+        logger.debug(
+            f"Internal warning [{component}]: {message}"
+            + (f" ({error})" if error else "")
+        )
+
+    def _capture_environment(self) -> Dict:
+        """Capture environment info for report reproducibility.
+
+        Collects Python version, platform details, library versions,
+        ISO timestamp, and report generator version.
+
+        Returns:
+            Dict with python_version, platform, machine, libraries,
+            timestamp, and report_version.
+        """
+        import sys
+        import platform
+        import importlib
+
+        env = {
+            'python_version': sys.version,
+            'platform': platform.system(),
+            'machine': platform.machine(),
+            'timestamp': datetime.now().isoformat(),
+            'report_version': self._REPORT_VERSION,
+        }
+
+        libraries = {}
+        for lib_name in ['sklearn', 'numpy', 'pandas', 'matplotlib', 'shap']:
+            try:
+                mod = importlib.import_module(lib_name)
+                libraries[lib_name] = getattr(mod, '__version__', 'unknown')
+            except Exception as e:
+                self._record_internal_warning(
+                    'EnvironmentCapture',
+                    f'Could not get version for {lib_name}',
+                    e
+                )
+                libraries[lib_name] = 'not installed'
+        env['libraries'] = libraries
+
+        return env
+
+    def get_report_health(self) -> Dict:
+        """Return health summary of the report generation.
+
+        Returns:
+            Dict with total_sections, succeeded, failed, failed_sections,
+            failed_charts, total_charts_failed, warnings, total_warnings,
+            healthy
+        """
+        total = len(self._section_data) + len(self._failed_sections)
+        warnings_list = list(self._warnings) if hasattr(self, '_warnings') else []
+        return {
+            'total_sections': total,
+            'succeeded': len(self._section_data),
+            'failed': len(self._failed_sections),
+            'failed_sections': list(self._failed_sections),
+            'failed_charts': list(self._failed_charts),
+            'total_charts_failed': len(self._failed_charts),
+            'warnings': warnings_list,
+            'total_warnings': len(warnings_list),
+            'healthy': len(self._failed_sections) == 0,
+        }
+
     def _store_section_data(self, section_type: str, title: str, data: Dict,
                             chart_configs: List[Dict] = None):
         """Store structured section data for HTML generation."""
@@ -270,32 +630,178 @@ class ProfessionalMLReport:
             logger.debug(f"LLM initialization failed (expected if no API key): {e}")
             return False
 
-    def _maybe_add_narrative(self, section_name: str, data_context: str) -> str:
-        """Generate LLM narrative insight if enabled. Returns markdown blockquote or empty string."""
+    def _validate_narrative(self, text: str, section_type: str = 'general') -> Dict:
+        """Validate LLM-generated narrative for quality, accuracy, and format.
+
+        Checks:
+        1. Length: 15-500 words (penalize outside range)
+        2. Numbers present: must contain at least one numeric value
+        3. Topic relevance: section-specific keywords
+        4. Impossible values: probability > 1.0, negative counts
+        5. Fabricated metrics: unknown metric names in "the X score" patterns
+        6. Format enforcement: strip markdown headers, collapse triple newlines
+
+        Args:
+            text: Raw narrative text
+            section_type: Section type for topic relevance check
+
+        Returns:
+            Dict with valid (bool), score (float 0-1), issues (list), cleaned_text (str)
+        """
+        import re
+
+        issues = []
+        score = 1.0
+        cleaned = text.strip()
+
+        # 1. Length check (15-500 words)
+        word_count = len(cleaned.split())
+        if word_count < 15:
+            score -= 0.4
+            issues.append(f'Too short ({word_count} words, min 15)')
+        elif word_count > 500:
+            score -= 0.2
+            issues.append(f'Too long ({word_count} words, max 500)')
+            cleaned = ' '.join(cleaned.split()[:500])
+
+        # 2. Numbers present
+        has_numbers = bool(re.search(r'\d+\.?\d*', cleaned))
+        if not has_numbers:
+            score -= 0.2
+            issues.append('No numeric values found')
+
+        # 3. Topic relevance (section-specific keywords)
+        topic_keywords = {
+            'fairness_audit': ['bias', 'group', 'disparit', 'fair', 'parity', 'equit'],
+            'drift_analysis': ['drift', 'shift', 'distribut', 'monitor', 'change'],
+            'error_analysis': ['error', 'misclass', 'wrong', 'fail', 'incorrect'],
+            'interpretability': ['feature', 'explain', 'contribut', 'import', 'shap'],
+            'deployment_readiness': ['latency', 'deploy', 'production', 'throughput', 'size'],
+            'executive_summary': ['model', 'performance', 'accuracy', 'result'],
+            'feature_importance': ['feature', 'import', 'contribut', 'impact'],
+        }
+        keywords = topic_keywords.get(section_type, [])
+        if keywords:
+            text_lower = cleaned.lower()
+            matches = sum(1 for kw in keywords if kw in text_lower)
+            if matches == 0:
+                score -= 0.15
+                issues.append(f'No topic-relevant keywords for {section_type}')
+
+        # 4. Impossible values
+        prob_matches = re.findall(r'(?:probability|prob|p-value|confidence)\s*(?:of|=|:)?\s*(\d+\.?\d*)', cleaned.lower())
+        for m in prob_matches:
+            val = float(m)
+            if val > 1.0:
+                score -= 0.3
+                issues.append(f'Impossible probability value: {val}')
+
+        count_matches = re.findall(r'(\-\d+)\s*(?:samples|instances|observations|errors|count)', cleaned.lower())
+        for m in count_matches:
+            score -= 0.3
+            issues.append(f'Negative count: {m}')
+
+        # 5. Fabricated metrics
+        known_metrics = {
+            'accuracy', 'precision', 'recall', 'f1', 'auc', 'roc', 'rmse', 'mae',
+            'mse', 'r2', 'mape', 'psi', 'ks', 'silhouette', 'mmd', 'mahalanobis',
+            'gini', 'log loss', 'brier', 'cohen', 'kappa', 'specificity',
+            'sensitivity', 'tpr', 'fpr', 'ppv', 'npv', 'fnr', 'fdr',
+        }
+        fabricated_pattern = re.findall(r'the\s+(\w+(?:\s+\w+)?)\s+score', cleaned.lower())
+        for metric in fabricated_pattern:
+            metric_clean = metric.strip().lower()
+            if not any(km in metric_clean for km in known_metrics):
+                score -= 0.15
+                issues.append(f'Potentially fabricated metric: "{metric}"')
+
+        # 6. Format enforcement
+        cleaned = re.sub(r'^#+\s+.*$', '', cleaned, flags=re.MULTILINE).strip()
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
+        score = max(0.0, min(1.0, score))
+
+        return {
+            'valid': score >= 0.5,
+            'score': score,
+            'issues': issues,
+            'cleaned_text': cleaned,
+        }
+
+    def _maybe_add_narrative(self, section_name: str, data_context: str,
+                              section_type: str = 'general') -> str:
+        """Generate LLM narrative insight if enabled using section-specific prompts.
+
+        Includes structured validation and fact-checking of generated narratives.
+
+        Args:
+            section_name: Display name for the section
+            data_context: Data to pass to the LLM for analysis
+            section_type: Key into _SECTION_PROMPTS for section-specific prompt
+
+        Returns:
+            Markdown blockquote string or empty string
+        """
         if not self._llm_narrative_enabled:
             return ""
 
         if not self._init_llm():
             return ""
 
-        try:
-            prompt = (
-                "You are a senior data scientist. Given the following ML analysis data, "
-                "write a 2-3 sentence insight in plain English. Focus on actionable takeaways. "
-                f"Section: {section_name}. Data: {data_context[:2000]}"
-            )
+        # Use section-specific prompt
+        base_prompt = self._SECTION_PROMPTS.get(section_type, self._SECTION_PROMPTS['general'])
 
-            response = self._llm.generate(
-                prompt=prompt,
-                timeout=30,
-                max_tokens=300,
-                fallback=True
-            )
+        # Chain-of-thought prompt with extended context
+        prompt = (
+            f"{base_prompt}\n\n"
+            f"First analyze the numbers, then provide your insight.\n\n"
+            f"Section: {section_name}.\nData: {data_context[:4000]}"
+        )
 
-            if response.success and response.text:
-                return f"\n> **Insight:** {response.text.strip()}\n\n"
-        except Exception as e:
-            logger.debug(f"LLM narrative generation failed: {e}")
+        # Refusal patterns to validate against
+        refusal_patterns = ['i cannot', 'i can\'t', 'as an ai', 'i\'m unable', 'i don\'t have']
+
+        # Try with full prompt, retry with simpler prompt on validation failure
+        for attempt in range(2):
+            try:
+                if attempt == 1:
+                    # Simpler fallback prompt
+                    prompt = (
+                        f"Summarize the key finding from this ML analysis in 2 sentences. "
+                        f"Section: {section_name}. Data: {data_context[:2000]}"
+                    )
+
+                response = self._llm.generate(
+                    prompt=prompt,
+                    timeout=30,
+                    max_tokens=400,
+                    fallback=True
+                )
+
+                if response.success and response.text:
+                    text = response.text.strip()
+                    # Basic refusal check
+                    if len(text) < 20:
+                        continue
+                    if any(pat in text.lower() for pat in refusal_patterns):
+                        continue
+
+                    # Structured validation
+                    validation = self._validate_narrative(text, section_type)
+
+                    if validation['valid']:
+                        return f"\n> **Insight:** {validation['cleaned_text']}\n\n"
+
+                    # On first attempt failure, retry with simpler prompt
+                    if attempt == 0:
+                        continue
+
+                    # On second attempt, accept if score >= 0.3
+                    if validation['score'] >= 0.3:
+                        return f"\n> **Insight:** {validation['cleaned_text']}\n\n"
+
+            except Exception as e:
+                logger.debug(f"LLM narrative generation attempt {attempt + 1} failed: {e}")
 
         return ""
 
@@ -310,26 +816,144 @@ class ProfessionalMLReport:
             'dataset': dataset,
             'problem_type': problem_type,
         }
+        self._metadata['environment'] = self._capture_environment()
+
+    def _compute_risk_score(self, metrics: Dict[str, float]) -> Dict:
+        """Compute overall risk score with per-metric traffic-light assessment.
+
+        Thresholds:
+            AUC:      GREEN >= 0.95, AMBER >= 0.80, RED < 0.80
+            Accuracy: GREEN >= 0.95, AMBER >= 0.85, RED < 0.85
+            F1:       GREEN >= 0.90, AMBER >= 0.75, RED < 0.75
+
+        Returns:
+            Dict with 'overall_risk' (float 0-1), 'metric_assessments' (list), 'traffic_light' (str)
+        """
+        thresholds = {
+            'auc': {'green': 0.95, 'amber': 0.80, 'red': 0.70},
+            'roc_auc': {'green': 0.95, 'amber': 0.80, 'red': 0.70},
+            'accuracy': {'green': 0.95, 'amber': 0.85, 'red': 0.70},
+            'f1': {'green': 0.90, 'amber': 0.75, 'red': 0.60},
+            'f1_score': {'green': 0.90, 'amber': 0.75, 'red': 0.60},
+            'precision': {'green': 0.90, 'amber': 0.75, 'red': 0.60},
+            'recall': {'green': 0.90, 'amber': 0.75, 'red': 0.60},
+        }
+
+        assessments = []
+        risk_scores = []
+
+        for metric_name, value in metrics.items():
+            if not isinstance(value, (int, float)):
+                continue
+
+            name_lower = metric_name.lower().replace(' ', '_')
+            thresh = thresholds.get(name_lower)
+
+            if thresh:
+                if value >= thresh['green']:
+                    light = 'GREEN'
+                    score = 0.0
+                elif value >= thresh['amber']:
+                    light = 'AMBER'
+                    score = 0.5
+                else:
+                    light = 'RED'
+                    score = 1.0
+            else:
+                # Unknown metric: assess based on generic 0-1 scale
+                if value >= 0.9:
+                    light = 'GREEN'
+                    score = 0.0
+                elif value >= 0.7:
+                    light = 'AMBER'
+                    score = 0.5
+                else:
+                    light = 'RED'
+                    score = 1.0
+
+            assessments.append({
+                'metric': metric_name,
+                'value': value,
+                'traffic_light': light,
+            })
+            risk_scores.append(score)
+
+        overall_risk = float(np.mean(risk_scores)) if risk_scores else 0.5
+
+        if overall_risk <= 0.2:
+            traffic_light = 'GREEN'
+        elif overall_risk <= 0.6:
+            traffic_light = 'AMBER'
+        else:
+            traffic_light = 'RED'
+
+        return {
+            'overall_risk': overall_risk,
+            'metric_assessments': assessments,
+            'traffic_light': traffic_light,
+        }
 
     def add_executive_summary(self, metrics: Dict[str, float], best_model: str,
                              n_features: int, context: str = ""):
-        """Add executive summary section."""
+        """Add executive summary section with risk scoring and traffic-light indicators."""
+        try:
+            self._add_executive_summary_impl(metrics, best_model, n_features, context)
+        except Exception as e:
+            self._record_section_failure('Executive Summary', e)
 
-        # Create metrics table
-        metrics_md = "| Metric | Value |\n|--------|-------|\n"
+    def _add_executive_summary_impl(self, metrics, best_model, n_features, context):
+        # Compute risk score
+        risk_data = self._compute_risk_score(metrics)
+
+        # Traffic light indicator mapping
+        light_icons = {'GREEN': 'Good', 'AMBER': 'Needs Improvement', 'RED': 'Critical'}
+
+        # Create metrics table with traffic lights
+        metrics_md = "| Metric | Value | Assessment |\n|--------|-------|------------|\n"
+        assessment_map = {a['metric']: a['traffic_light'] for a in risk_data['metric_assessments']}
         for name, value in metrics.items():
+            light = assessment_map.get(name, '')
             if isinstance(value, float):
                 if value < 1:
-                    metrics_md += f"| {name.replace('_', ' ').title()} | {value:.4f} |\n"
+                    metrics_md += f"| {name.replace('_', ' ').title()} | {value:.4f} | {light} |\n"
                 else:
-                    metrics_md += f"| {name.replace('_', ' ').title()} | {value:.2f} |\n"
+                    metrics_md += f"| {name.replace('_', ' ').title()} | {value:.2f} | {light} |\n"
             else:
-                metrics_md += f"| {name.replace('_', ' ').title()} | {value} |\n"
+                metrics_md += f"| {name.replace('_', ' ').title()} | {value} | {light} |\n"
+
+        # Generate key findings
+        key_findings = []
+        for assessment in risk_data['metric_assessments']:
+            if assessment['traffic_light'] == 'RED':
+                key_findings.append(f"- **{assessment['metric']}** ({assessment['value']:.4f}) is below acceptable threshold")
+            elif assessment['traffic_light'] == 'GREEN':
+                key_findings.append(f"- **{assessment['metric']}** ({assessment['value']:.4f}) meets production standards")
+
+        if not key_findings:
+            key_findings = [f"- Model {best_model} achieves moderate performance across all metrics"]
+
+        # Limit to 5 findings
+        findings_md = '\n'.join(key_findings[:5])
+
+        # Overall assessment paragraph
+        overall_light = risk_data['traffic_light']
+        if overall_light == 'GREEN':
+            assessment_text = f"The model demonstrates strong performance across all evaluated metrics. {best_model} appears ready for production deployment with standard monitoring."
+        elif overall_light == 'AMBER':
+            assessment_text = f"The model shows moderate performance with some areas needing improvement. Consider additional tuning or feature engineering before production deployment."
+        else:
+            assessment_text = f"The model has significant performance gaps that should be addressed before deployment. Review the detailed analysis sections for specific improvement recommendations."
 
         summary = f"""
 # Executive Summary
 
 {context if context else "This report presents the results of an automated machine learning analysis."}
+
+## Overall Assessment
+
+**Risk Level:** {overall_light} ({light_icons.get(overall_light, '')})
+
+{assessment_text}
 
 ## Key Results
 
@@ -341,17 +965,30 @@ class ProfessionalMLReport:
 
 **Dataset:** {n_features} features analyzed
 
-{self._maybe_add_narrative('Executive Summary', f'Best model: {best_model}, Metrics: {metrics}, Features: {n_features}')}
+## Key Findings
+
+{findings_md}
+
+{self._maybe_add_narrative('Executive Summary', f'Best model: {best_model}, Metrics: {metrics}, Features: {n_features}, Risk: {overall_light}', section_type='executive_summary')}
 
 ---
 """
         self._content.append(summary)
-        self._store_section_data('executive_summary', 'Executive Summary', {'metrics': metrics, 'best_model': best_model})
+        self._store_section_data('executive_summary', 'Executive Summary', {
+            'metrics': metrics,
+            'best_model': best_model,
+            'risk_score': risk_data,
+        })
 
     def add_data_profile(self, shape: Tuple[int, int], dtypes: Dict[str, int],
                         missing: Dict[str, int], recommendations: List[str]):
         """Add data profiling section."""
+        try:
+            self._add_data_profile_impl(shape, dtypes, missing, recommendations)
+        except Exception as e:
+            self._record_section_failure('Data Profile', e)
 
+    def _add_data_profile_impl(self, shape, dtypes, missing, recommendations):
         dtype_md = "| Data Type | Count |\n|-----------|-------|\n"
         for dtype, count in dtypes.items():
             dtype_md += f"| {dtype} | {count} |\n"
@@ -449,99 +1086,18 @@ Visual representation of the ML pipeline data flow.
             }, [{'type': 'dag', 'path': fig_path}])
 
         except Exception as e:
-            logger.warning(f"Pipeline visualization failed: {e}")
+            self._record_section_failure('Pipeline Visualization', e)
 
-    def _create_pipeline_dag(self, pipeline_steps: List[Dict]) -> str:
-        """Create pipeline flowchart using matplotlib FancyBboxPatch + FancyArrowPatch."""
-        try:
-            import matplotlib.pyplot as plt
-            from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
-
-            type_colors = {
-                'preprocessing': self.theme['accent'],
-                'feature_engineering': self.theme['success'],
-                'model': self.theme['warning'],
-                'ensemble': self.theme['danger'],
-                'unknown': self.theme['muted'],
-            }
-
-            n_steps = len(pipeline_steps)
-            fig_width = max(10, n_steps * 2.5)
-            fig, ax = plt.subplots(figsize=(fig_width, 4))
-            ax.set_xlim(-0.5, n_steps * 2.5 + 0.5)
-            ax.set_ylim(-1, 3)
-            ax.axis('off')
-
-            box_width = 1.8
-            box_height = 1.5
-            y_center = 1.0
-
-            for i, step in enumerate(pipeline_steps):
-                x = i * 2.5 + 0.5
-                name = step.get('name', f'Step {i + 1}')
-                stype = step.get('type', 'unknown')
-                color = type_colors.get(stype, type_colors['unknown'])
-
-                # Draw box
-                box = FancyBboxPatch(
-                    (x, y_center - box_height / 2), box_width, box_height,
-                    boxstyle="round,pad=0.1",
-                    facecolor=color, edgecolor='white', alpha=0.85, linewidth=2
-                )
-                ax.add_patch(box)
-
-                # Step name
-                ax.text(x + box_width / 2, y_center + 0.15, name[:18],
-                       ha='center', va='center', fontsize=9, fontweight='bold',
-                       color='white')
-
-                # Step type
-                ax.text(x + box_width / 2, y_center - 0.25, stype[:18],
-                       ha='center', va='center', fontsize=7, color='white', alpha=0.9)
-
-                # Shape info
-                in_shape = step.get('input_shape', None)
-                out_shape = step.get('output_shape', None)
-                if out_shape:
-                    ax.text(x + box_width / 2, y_center - box_height / 2 - 0.2,
-                           f'{out_shape}', ha='center', va='top', fontsize=7,
-                           color=self.theme['muted'])
-
-                # Arrow to next step
-                if i < n_steps - 1:
-                    arrow = FancyArrowPatch(
-                        (x + box_width, y_center),
-                        (x + 2.5 + 0.5, y_center),
-                        arrowstyle='->', mutation_scale=15,
-                        color=self.theme['text'], linewidth=1.5
-                    )
-                    ax.add_patch(arrow)
-
-            # Legend
-            legend_elements = []
-            from matplotlib.patches import Patch
-            for stype, color in type_colors.items():
-                if stype != 'unknown':
-                    legend_elements.append(Patch(facecolor=color, alpha=0.85, label=stype.replace('_', ' ').title()))
-
-            ax.legend(handles=legend_elements, loc='upper center',
-                     bbox_to_anchor=(0.5, 1.15), ncol=4, fontsize=9)
-
-            ax.set_title('ML Pipeline Architecture', fontsize=14, fontweight='bold',
-                        color=self.theme['primary'], pad=30)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'pipeline_dag.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/pipeline_dag.png'
-        except Exception as e:
-            logger.debug(f"Failed to create pipeline DAG: {e}")
-            return ""
 
     def add_feature_importance(self, importance: Dict[str, float], top_n: int = 20):
         """Add feature importance section with chart."""
+        try:
+            self._add_feature_importance_impl(importance, top_n)
+        except Exception as e:
+            self._record_section_failure('Feature Importance', e)
 
+    def _add_feature_importance_impl(self, importance, top_n):
+        self._validate_inputs(feature_names=list(importance.keys()))
         sorted_imp = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:top_n]
 
         # Create table
@@ -549,8 +1105,12 @@ Visual representation of the ML pipeline data flow.
         for i, (feat, imp) in enumerate(sorted_imp, 1):
             table_md += f"| {i} | {feat[:40]} | {imp:.4f} |\n"
 
-        # Create bar chart
-        fig_path = self._create_importance_chart(sorted_imp)
+        # Create bar chart (isolated so chart failure doesn't lose table)
+        fig_path = ""
+        try:
+            fig_path = self._create_importance_chart(sorted_imp)
+        except Exception as e:
+            self._record_chart_failure('importance_chart', e)
 
         content = f"""
 # Feature Importance Analysis
@@ -566,7 +1126,7 @@ Higher values indicate more influential features.
 
 ![Feature Importance]({fig_path})
 
-{self._maybe_add_narrative('Feature Importance', f'Top features: {sorted_imp[:5]}')}
+{self._maybe_add_narrative('Feature Importance', f'Top features: {sorted_imp[:5]}', section_type='feature_importance')}
 
 ---
 """
@@ -577,7 +1137,12 @@ Higher values indicate more influential features.
 
     def add_model_benchmarking(self, model_scores: Dict[str, Dict[str, float]]):
         """Add model benchmarking comparison."""
+        try:
+            self._add_model_benchmarking_impl(model_scores)
+        except Exception as e:
+            self._record_section_failure('Model Benchmarking', e)
 
+    def _add_model_benchmarking_impl(self, model_scores):
         # Create comparison table
         table_md = "| Model | CV Score | Std Dev | Test Score | Time (s) |\n"
         table_md += "|-------|----------|---------|------------|----------|\n"
@@ -593,8 +1158,12 @@ Higher values indicate more influential features.
             time_s = scores.get('train_time', 0)
             table_md += f"| {model} | {cv:.4f} | ±{std:.4f} | {test:.4f} | {time_s:.2f} |\n"
 
-        # Create benchmark chart
-        fig_path = self._create_benchmark_chart(sorted_models)
+        # Create benchmark chart (isolated)
+        fig_path = ""
+        try:
+            fig_path = self._create_benchmark_chart(sorted_models)
+        except Exception as e:
+            self._record_chart_failure('benchmark_chart', e)
 
         content = f"""
 # Model Benchmarking
@@ -610,7 +1179,7 @@ The table below shows the performance of each model.
 
 ![Model Benchmarking]({fig_path})
 
-{self._maybe_add_narrative('Model Benchmarking', f'Model comparison results: {list(model_scores.keys())}')}
+{self._maybe_add_narrative('Model Benchmarking', f'Model comparison results: {list(model_scores.keys())}', section_type='general')}
 
 ---
 """
@@ -618,6 +1187,172 @@ The table below shows the performance of each model.
         self._store_section_data('model_benchmarking', 'Model Benchmarking',
                                 {'model_scores': model_scores},
                                 [{'type': 'bar'}])
+
+    # =========================================================================
+    # MODEL COMPARISON (Phase 3 — Round 4)
+    # =========================================================================
+
+    def add_model_comparison(self, models: Dict, X_test, y_true,
+                             class_labels: List[str] = None):
+        """Add side-by-side comparison of multiple trained models.
+
+        Args:
+            models: Dict mapping model_name -> trained model with predict/predict_proba.
+            X_test: Test features (array-like).
+            y_true: True labels (array-like).
+            class_labels: Optional class label names for display.
+        """
+        try:
+            self._add_model_comparison_impl(models, X_test, y_true, class_labels)
+        except Exception as e:
+            self._record_section_failure('Model Comparison', e)
+
+    def _add_model_comparison_impl(self, models, X_test, y_true, class_labels=None):
+        """Implementation for side-by-side model comparison."""
+        from sklearn.metrics import (accuracy_score, precision_score, recall_score,
+                                     f1_score, roc_auc_score, roc_curve)
+
+        y_true_arr = np.asarray(y_true)
+        X_arr = X_test.values if hasattr(X_test, 'values') else np.asarray(X_test)
+
+        comparison = {}
+        roc_curves = {}
+        metrics_list = ['Accuracy', 'Precision', 'Recall', 'F1', 'AUC']
+
+        for model_name, model in models.items():
+            try:
+                y_pred = model.predict(X_arr)
+                y_prob = None
+                auc_val = None
+
+                if hasattr(model, 'predict_proba'):
+                    try:
+                        proba = model.predict_proba(X_arr)
+                        y_prob = proba[:, 1] if proba.shape[1] == 2 else proba
+                    except Exception:
+                        pass
+
+                acc = accuracy_score(y_true_arr, y_pred)
+                prec = precision_score(y_true_arr, y_pred, average='binary', zero_division=0)
+                rec = recall_score(y_true_arr, y_pred, average='binary', zero_division=0)
+                f1 = f1_score(y_true_arr, y_pred, average='binary', zero_division=0)
+
+                if y_prob is not None and len(np.unique(y_true_arr)) == 2:
+                    try:
+                        prob_1d = y_prob if y_prob.ndim == 1 else y_prob[:, 1]
+                        auc_val = roc_auc_score(y_true_arr, prob_1d)
+                        fpr, tpr, _ = roc_curve(y_true_arr, prob_1d)
+                        roc_curves[model_name] = {'fpr': fpr, 'tpr': tpr}
+                    except Exception:
+                        auc_val = None
+
+                comparison[model_name] = {
+                    'Accuracy': acc,
+                    'Precision': prec,
+                    'Recall': rec,
+                    'F1': f1,
+                    'AUC': auc_val,
+                }
+
+            except Exception as e:
+                self._record_internal_warning(
+                    'ModelComparison', f'Failed to evaluate model {model_name}', e)
+
+        if not comparison:
+            return
+
+        # Find best model per metric
+        best_per_metric = {}
+        for metric in metrics_list:
+            valid = {m: v[metric] for m, v in comparison.items()
+                     if v.get(metric) is not None}
+            if valid:
+                best_model = max(valid, key=valid.get)
+                best_per_metric[metric] = {
+                    'model': best_model, 'value': valid[best_model]
+                }
+
+        # Build comparison table
+        table_md = "| Model |"
+        for m in metrics_list:
+            table_md += f" {m} |"
+        table_md += "\n|-------|"
+        for _ in metrics_list:
+            table_md += "--------|"
+        table_md += "\n"
+
+        for model_name, scores in comparison.items():
+            table_md += f"| {model_name} |"
+            for metric in metrics_list:
+                val = scores.get(metric)
+                if val is None:
+                    table_md += " N/A |"
+                else:
+                    is_best = (metric in best_per_metric and
+                               best_per_metric[metric]['model'] == model_name)
+                    fmt = f"{val:.4f}"
+                    table_md += f" **{fmt}** |" if is_best else f" {fmt} |"
+            table_md += "\n"
+
+        # Best per metric summary table
+        best_md = "| Metric | Best Model | Score |\n|--------|-----------|-------|\n"
+        for metric in metrics_list:
+            if metric in best_per_metric:
+                bp = best_per_metric[metric]
+                best_md += f"| {metric} | {bp['model']} | {bp['value']:.4f} |\n"
+
+        # Create charts
+        roc_fig_path = ""
+        if roc_curves:
+            try:
+                roc_fig_path = self._create_overlaid_roc_chart(roc_curves)
+            except Exception as e:
+                self._record_chart_failure('model_comparison_roc', e)
+
+        radar_fig_path = ""
+        try:
+            radar_fig_path = self._create_metrics_radar_chart(comparison)
+        except Exception as e:
+            self._record_chart_failure('model_comparison_radar', e)
+
+        content = f"""
+# Model Comparison
+
+Side-by-side evaluation of {len(models)} trained models on the test set.
+
+## Performance Comparison
+
+{table_md}
+
+## Best Model Per Metric
+
+{best_md}
+"""
+        if roc_fig_path:
+            content += f"""
+## Overlaid ROC Curves
+
+![Model Comparison ROC]({roc_fig_path})
+
+"""
+        if radar_fig_path:
+            content += f"""
+## Metrics Radar Chart
+
+![Model Comparison Radar]({radar_fig_path})
+
+"""
+        content += f"""
+{self._maybe_add_narrative('Model Comparison', f'Compared models: {list(comparison.keys())}', section_type='general')}
+
+---
+"""
+        self._content.append(content)
+        self._store_section_data('model_comparison', 'Model Comparison', {
+            'n_models': len(comparison),
+            'comparison': comparison,
+            'best_per_metric': best_per_metric,
+        })
 
     # =========================================================================
     # MULTI-DATASET VALIDATION
@@ -686,7 +1421,11 @@ The table below shows the performance of each model.
                         break
 
             # Create chart
-            fig_path = self._create_cross_dataset_chart(results, metric_name)
+            fig_path = ""
+            try:
+                fig_path = self._create_cross_dataset_chart(results, metric_name)
+            except Exception as e:
+                self._record_chart_failure('cross_dataset', e)
 
             # Build table
             table_md = f"| Dataset | {metric_name} | Samples | Features |\n"
@@ -729,56 +1468,22 @@ Evaluating model generalization across {len(results)} different datasets.
             }, [{'type': 'bar', 'path': fig_path}])
 
         except Exception as e:
-            logger.warning(f"Cross-dataset validation failed: {e}")
+            self._record_section_failure('Cross-Dataset Validation', e)
 
-    def _create_cross_dataset_chart(self, results: Dict, metric_name: str) -> str:
-        """Create grouped bar chart of metrics per dataset."""
-        try:
-            import matplotlib.pyplot as plt
-
-            ds_names = list(results.keys())
-            scores = [results[ds]['score'] for ds in ds_names]
-            n_samples = [results[ds]['n_samples'] for ds in ds_names]
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Score comparison
-            colors = [self.theme['chart_palette'][i % len(self.theme['chart_palette'])]
-                     for i in range(len(ds_names))]
-            bars = ax1.bar(ds_names, scores, color=colors, alpha=0.85, edgecolor='white')
-
-            for bar, score in zip(bars, scores):
-                ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f'{score:.4f}', ha='center', va='bottom', fontsize=9, fontweight='medium')
-
-            ax1.set_ylabel(metric_name, fontsize=11)
-            ax1.set_title(f'{metric_name} by Dataset', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.set_ylim(0, max(scores) * 1.15 if scores else 1)
-            plt.setp(ax1.xaxis.get_majorticklabels(), rotation=30, ha='right')
-
-            # Sample size comparison
-            ax2.bar(ds_names, n_samples, color=self.theme['accent'], alpha=0.7)
-            ax2.set_ylabel('Number of Samples', fontsize=11)
-            ax2.set_title('Dataset Sizes', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            plt.setp(ax2.xaxis.get_majorticklabels(), rotation=30, ha='right')
-
-            plt.tight_layout()
-            path = self.figures_dir / 'cross_dataset_validation.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/cross_dataset_validation.png'
-        except Exception as e:
-            logger.debug(f"Failed to create cross-dataset chart: {e}")
-            return ""
 
     def add_confusion_matrix(self, y_true, y_pred, labels: List[str] = None):
         """Add confusion matrix section."""
+        try:
+            self._add_confusion_matrix_impl(y_true, y_pred, labels)
+        except Exception as e:
+            self._record_section_failure('Classification Performance', e)
+
+    def _add_confusion_matrix_impl(self, y_true, y_pred, labels):
+        preds = self._make_predictions(y_true, y_pred)
         from sklearn.metrics import confusion_matrix, classification_report
 
-        cm = confusion_matrix(y_true, y_pred)
-        report = classification_report(y_true, y_pred, target_names=labels, output_dict=True)
+        cm = confusion_matrix(preds.y_true, preds.y_pred)
+        report = classification_report(preds.y_true, preds.y_pred, target_names=labels, output_dict=True)
 
         # Create classification report table
         table_md = "| Class | Precision | Recall | F1-Score | Support |\n"
@@ -794,8 +1499,12 @@ Evaluating model generalization across {len(results)} different datasets.
 
         table_md += f"| **Accuracy** | | | **{report['accuracy']:.3f}** | |\n"
 
-        # Create confusion matrix figure
-        fig_path = self._create_confusion_matrix_chart(cm, labels)
+        # Create confusion matrix figure (isolated)
+        fig_path = ""
+        try:
+            fig_path = self._create_confusion_matrix_chart(cm, labels)
+        except Exception as e:
+            self._record_chart_failure('confusion_matrix', e)
 
         content = f"""
 # Classification Performance
@@ -819,9 +1528,16 @@ Evaluating model generalization across {len(results)} different datasets.
 
     def add_roc_analysis(self, y_true, y_prob, pos_label=1):
         """Add ROC curve analysis."""
+        try:
+            self._add_roc_analysis_impl(y_true, y_prob, pos_label)
+        except Exception as e:
+            self._record_section_failure('ROC Analysis', e)
+
+    def _add_roc_analysis_impl(self, y_true, y_prob, pos_label):
+        preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used, pass y_true
         from sklearn.metrics import roc_curve, auc, roc_auc_score
 
-        fpr, tpr, thresholds = roc_curve(y_true, y_prob, pos_label=pos_label)
+        fpr, tpr, thresholds = roc_curve(preds.y_true, preds.y_prob, pos_label=pos_label)
         roc_auc = auc(fpr, tpr)
 
         # Find optimal threshold (Youden's J)
@@ -829,8 +1545,12 @@ Evaluating model generalization across {len(results)} different datasets.
         optimal_idx = np.argmax(j_scores)
         optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
 
-        # Create ROC curve figure
-        fig_path = self._create_roc_chart(fpr, tpr, roc_auc)
+        # Create ROC curve figure (isolated)
+        fig_path = ""
+        try:
+            fig_path = self._create_roc_chart(fpr, tpr, roc_auc)
+        except Exception as e:
+            self._record_chart_failure('roc_chart', e)
 
         content = f"""
 # ROC Curve Analysis
@@ -854,13 +1574,24 @@ true positive rate and false positive rate at various classification thresholds.
 
     def add_precision_recall(self, y_true, y_prob, pos_label=1):
         """Add precision-recall curve analysis."""
+        try:
+            self._add_precision_recall_impl(y_true, y_prob, pos_label)
+        except Exception as e:
+            self._record_section_failure('Precision-Recall Analysis', e)
+
+    def _add_precision_recall_impl(self, y_true, y_prob, pos_label):
+        preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
         from sklearn.metrics import precision_recall_curve, average_precision_score
 
-        precision, recall, _ = precision_recall_curve(y_true, y_prob, pos_label=pos_label)
-        avg_precision = average_precision_score(y_true, y_prob, pos_label=pos_label)
+        precision, recall, _ = precision_recall_curve(preds.y_true, preds.y_prob, pos_label=pos_label)
+        avg_precision = average_precision_score(preds.y_true, preds.y_prob, pos_label=pos_label)
 
-        # Create PR curve figure
-        fig_path = self._create_pr_chart(precision, recall, avg_precision)
+        # Create PR curve figure (isolated)
+        fig_path = ""
+        try:
+            fig_path = self._create_pr_chart(precision, recall, avg_precision)
+        except Exception as e:
+            self._record_chart_failure('pr_chart', e)
 
         content = f"""
 # Precision-Recall Analysis
@@ -884,7 +1615,12 @@ showing the trade-off between precision and recall.
     def add_baseline_comparison(self, baseline_score: float, final_score: float,
                                baseline_model: str = "Baseline"):
         """Add baseline comparison section."""
+        try:
+            self._add_baseline_comparison_impl(baseline_score, final_score, baseline_model)
+        except Exception as e:
+            self._record_section_failure('Baseline Comparison', e)
 
+    def _add_baseline_comparison_impl(self, baseline_score, final_score, baseline_model):
         improvement = final_score - baseline_score
         improvement_pct = (improvement / baseline_score * 100) if baseline_score > 0 else 0
 
@@ -923,10 +1659,14 @@ The final model achieves a **{improvement_pct:.1f}%** improvement over the basel
             shap_importance = sorted(zip(feature_names, mean_shap),
                                     key=lambda x: x[1], reverse=True)[:15]
 
-            # Create SHAP summary plot
-            fig_path = self._create_shap_chart(shap_values, feature_names, X_sample)
+            # Create SHAP summary plot (isolated)
+            fig_path = ""
+            try:
+                fig_path = self._create_shap_chart(shap_values, feature_names, X_sample)
+            except Exception as e:
+                self._record_chart_failure('shap_chart', e)
 
-            table_md = "| Feature | Mean |SHAP| |\n|---------|-------------|\n"
+            table_md = "| Feature | Mean Abs SHAP |\n|---------|-------------|\n"
             for feat, val in shap_importance:
                 table_md += f"| {feat[:30]} | {val:.4f} |\n"
 
@@ -953,11 +1693,16 @@ showing how each feature contributes to individual predictions.
             }, [{'type': 'importance_bar'}])
 
         except Exception as e:
-            logger.warning(f"SHAP analysis failed: {e}")
+            self._record_section_failure('SHAP Analysis', e)
 
     def add_recommendations(self, recommendations: List[str]):
         """Add recommendations section."""
+        try:
+            self._add_recommendations_impl(recommendations)
+        except Exception as e:
+            self._record_section_failure('Recommendations', e)
 
+    def _add_recommendations_impl(self, recommendations):
         recs_md = "\n".join([f"{i}. {rec}" for i, rec in enumerate(recommendations, 1)])
 
         content = f"""
@@ -984,6 +1729,13 @@ showing how each feature contributes to individual predictions.
         - Distribution analysis (skewness, kurtosis)
         - Data type summary
         """
+        try:
+            self._add_data_quality_analysis_impl(X, y)
+        except Exception as e:
+            self._record_section_failure('Data Quality Analysis', e)
+
+    def _add_data_quality_analysis_impl(self, X, y):
+        self._validate_inputs(X=X, require_X=True)
         self._raw_data['X'] = X
         self._raw_data['y'] = y
 
@@ -1004,10 +1756,25 @@ showing how each feature contributes to individual predictions.
         # Distribution stats
         dist_stats = self._calculate_distribution_stats(X[numeric_cols]) if n_numeric > 0 else {}
 
-        # Create visualizations
-        fig_missing = self._create_missing_pattern_chart(X) if n_missing_cols > 0 else ""
-        fig_dist = self._create_distribution_overview(X[numeric_cols]) if n_numeric > 0 else ""
-        fig_outlier = self._create_outlier_boxplot(X[numeric_cols], outlier_summary) if outlier_summary else ""
+        # Create visualizations (isolated so chart failure doesn't lose tables)
+        fig_missing = ""
+        if n_missing_cols > 0:
+            try:
+                fig_missing = self._create_missing_pattern_chart(X)
+            except Exception as e:
+                self._record_chart_failure('missing_pattern', e)
+        fig_dist = ""
+        if n_numeric > 0:
+            try:
+                fig_dist = self._create_distribution_overview(X[numeric_cols])
+            except Exception as e:
+                self._record_chart_failure('distribution_overview', e)
+        fig_outlier = ""
+        if outlier_summary:
+            try:
+                fig_outlier = self._create_outlier_boxplot(X[numeric_cols], outlier_summary)
+            except Exception as e:
+                self._record_chart_failure('outlier_boxplot', e)
 
         # Build content
         content = f"""
@@ -1153,118 +1920,7 @@ A comprehensive analysis of data quality, identifying potential issues before mo
 
         return ", ".join(assessments) if assessments else "Normal"
 
-    def _create_missing_pattern_chart(self, df: pd.DataFrame) -> str:
-        """Create missing value pattern heatmap."""
-        try:
-            import matplotlib.pyplot as plt
-            import seaborn as sns
 
-            missing_cols = df.columns[df.isnull().any()].tolist()
-            if not missing_cols:
-                return ""
-
-            # Limit to top 20 columns with most missing
-            missing_counts = df[missing_cols].isnull().sum().sort_values(ascending=False)
-            top_cols = missing_counts.head(20).index.tolist()
-
-            fig, ax = plt.subplots(figsize=(12, 6))
-
-            # Sample if too many rows
-            sample_df = df[top_cols].head(200) if len(df) > 200 else df[top_cols]
-
-            sns.heatmap(sample_df.isnull(), cmap='RdYlBu_r', cbar_kws={'label': 'Missing'},
-                       yticklabels=False, ax=ax)
-            ax.set_title('Missing Value Pattern', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.set_xlabel('Features', fontsize=11)
-            ax.set_ylabel('Samples', fontsize=11)
-            plt.xticks(rotation=45, ha='right', fontsize=8)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'missing_pattern.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/missing_pattern.png'
-        except Exception as e:
-            logger.debug(f"Failed to create missing pattern chart: {e}")
-            return ""
-
-    def _create_distribution_overview(self, df: pd.DataFrame) -> str:
-        """Create distribution overview with histograms."""
-        try:
-            import matplotlib.pyplot as plt
-
-            # Select top features to display
-            n_features = min(12, len(df.columns))
-            cols = df.columns[:n_features]
-
-            n_rows = (n_features + 3) // 4
-            fig, axes = plt.subplots(n_rows, 4, figsize=(14, 3 * n_rows))
-            axes = axes.flatten() if n_features > 1 else [axes]
-
-            for i, col in enumerate(cols):
-                ax = axes[i]
-                data = df[col].dropna()
-                ax.hist(data, bins=30, color=self.theme['accent'], alpha=0.7, edgecolor='white')
-                ax.set_title(col[:20], fontsize=10, fontweight='medium')
-                ax.tick_params(labelsize=8)
-                ax.spines['top'].set_visible(False)
-                ax.spines['right'].set_visible(False)
-
-            # Hide empty subplots
-            for i in range(n_features, len(axes)):
-                axes[i].set_visible(False)
-
-            fig.suptitle('Feature Distributions', fontsize=14, fontweight='bold', color=self.theme['primary'], y=1.02)
-            plt.tight_layout()
-
-            path = self.figures_dir / 'distributions.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/distributions.png'
-        except Exception as e:
-            logger.debug(f"Failed to create distribution chart: {e}")
-            return ""
-
-    def _create_outlier_boxplot(self, df: pd.DataFrame, outlier_summary: Dict) -> str:
-        """Create boxplot for features with outliers."""
-        try:
-            import matplotlib.pyplot as plt
-
-            # Select features with most outliers
-            outlier_cols = sorted(outlier_summary.keys(),
-                                 key=lambda x: outlier_summary[x]['count'],
-                                 reverse=True)[:10]
-
-            if not outlier_cols:
-                return ""
-
-            fig, ax = plt.subplots(figsize=(12, 6))
-
-            # Normalize data for comparison
-            plot_data = df[outlier_cols].copy()
-            plot_data = (plot_data - plot_data.mean()) / plot_data.std()
-
-            bp = ax.boxplot([plot_data[col].dropna() for col in outlier_cols],
-                           labels=[c[:15] for c in outlier_cols],
-                           patch_artist=True)
-
-            colors_list = plt.cm.Blues(np.linspace(0.4, 0.8, len(outlier_cols)))
-            for patch, color in zip(bp['boxes'], colors_list):
-                patch.set_facecolor(color)
-
-            ax.set_title('Outlier Distribution (Standardized)', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.set_ylabel('Standardized Value', fontsize=11)
-            plt.xticks(rotation=45, ha='right', fontsize=9)
-            ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'outlier_boxplot.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/outlier_boxplot.png'
-        except Exception as e:
-            logger.debug(f"Failed to create outlier boxplot: {e}")
-            return ""
 
     # =========================================================================
     # CORRELATION & MULTICOLLINEARITY ANALYSIS
@@ -1277,6 +1933,13 @@ A comprehensive analysis of data quality, identifying potential issues before mo
         - Highly correlated feature pairs
         - VIF analysis for multicollinearity
         """
+        try:
+            self._add_correlation_analysis_impl(X, threshold)
+        except Exception as e:
+            self._record_section_failure('Correlation Analysis', e)
+
+    def _add_correlation_analysis_impl(self, X, threshold):
+        self._validate_inputs(X=X, require_X=True)
         numeric_cols = X.select_dtypes(include=[np.number]).columns
         if len(numeric_cols) < 2:
             return
@@ -1298,9 +1961,18 @@ A comprehensive analysis of data quality, identifying potential issues before mo
         # Calculate VIF
         vif_data = self._calculate_vif(X[numeric_cols])
 
-        # Create visualizations
-        fig_corr = self._create_correlation_heatmap(corr_matrix)
-        fig_vif = self._create_vif_chart(vif_data) if vif_data else ""
+        # Create visualizations (isolated)
+        fig_corr = ""
+        try:
+            fig_corr = self._create_correlation_heatmap(corr_matrix)
+        except Exception as e:
+            self._record_chart_failure('correlation_heatmap', e)
+        fig_vif = ""
+        if vif_data:
+            try:
+                fig_vif = self._create_vif_chart(vif_data)
+            except Exception as e:
+                self._record_chart_failure('vif_chart', e)
 
         content = f"""
 # Correlation & Multicollinearity Analysis
@@ -1372,8 +2044,9 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
                     vif = variance_inflation_factor(clean_df.values, i)
                     if not np.isinf(vif) and not np.isnan(vif):
                         vif_data[col] = vif
-                except:
-                    pass
+                except Exception as e:
+                    if hasattr(self, '_warnings'):
+                        self._record_internal_warning('VIFComputation', f'VIF failed for {col}', e)
 
             return vif_data
         except ImportError:
@@ -1382,84 +2055,6 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
             logger.debug(f"VIF calculation failed: {e}")
             return {}
 
-    def _create_correlation_heatmap(self, corr_matrix: pd.DataFrame) -> str:
-        """Create clustered correlation heatmap."""
-        try:
-            import matplotlib.pyplot as plt
-            import seaborn as sns
-            from scipy.cluster import hierarchy
-            from scipy.spatial.distance import squareform
-
-            # Limit size
-            if len(corr_matrix) > 30:
-                # Select most variable features
-                cols = corr_matrix.columns[:30]
-                corr_matrix = corr_matrix.loc[cols, cols]
-
-            fig, ax = plt.subplots(figsize=(12, 10))
-
-            # Cluster the correlation matrix
-            try:
-                linkage = hierarchy.linkage(squareform(1 - np.abs(corr_matrix)), method='average')
-                order = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(linkage, squareform(1 - np.abs(corr_matrix))))
-                corr_matrix = corr_matrix.iloc[order, order]
-            except:
-                pass
-
-            mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
-            sns.heatmap(corr_matrix, mask=mask, cmap=self.theme['chart_diverging_cmap'], center=0,
-                       annot=len(corr_matrix) <= 15, fmt='.2f', ax=ax,
-                       square=True, linewidths=0.5,
-                       cbar_kws={'shrink': 0.8, 'label': 'Correlation'})
-
-            ax.set_title('Feature Correlation Matrix (Clustered)', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            plt.xticks(rotation=45, ha='right', fontsize=8)
-            plt.yticks(fontsize=8)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'correlation_matrix.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/correlation_matrix.png'
-        except Exception as e:
-            logger.debug(f"Failed to create correlation heatmap: {e}")
-            return ""
-
-    def _create_vif_chart(self, vif_data: Dict) -> str:
-        """Create VIF bar chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            if not vif_data:
-                return ""
-
-            sorted_vif = sorted(vif_data.items(), key=lambda x: x[1], reverse=True)[:20]
-            features = [x[0][:20] for x in sorted_vif]
-            values = [x[1] for x in sorted_vif]
-
-            fig, ax = plt.subplots(figsize=(10, 6))
-
-            colors = ['#e53e3e' if v > 10 else ('#d69e2e' if v > 5 else '#38a169') for v in values]
-            bars = ax.barh(range(len(features)), values, color=colors)
-
-            ax.set_yticks(range(len(features)))
-            ax.set_yticklabels(features, fontsize=9)
-            ax.set_xlabel('Variance Inflation Factor', fontsize=11)
-            ax.set_title('VIF Analysis', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # Add threshold lines
-            ax.axvline(x=5, color=self.theme['warning'], linestyle='--', alpha=0.7, label='Moderate (5)')
-            ax.axvline(x=10, color=self.theme['danger'], linestyle='--', alpha=0.7, label='Severe (10)')
-            ax.legend(loc='lower right')
-
-            plt.tight_layout()
-            path = self.figures_dir / 'vif_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/vif_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create VIF chart: {e}")
-            return ""
 
     # =========================================================================
     # LEARNING CURVES & BIAS-VARIANCE ANALYSIS
@@ -1473,6 +2068,7 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
         - Optimal training size recommendation
         """
         try:
+            self._validate_inputs(X=X, y_true=y, require_X=True)
             from sklearn.model_selection import learning_curve
 
             train_sizes = np.linspace(0.1, 1.0, 10)
@@ -1499,9 +2095,13 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
                 diagnosis = "**Good Fit**: Model has balanced bias-variance tradeoff."
 
             # Create visualization
-            fig_path = self._create_learning_curve_chart(
-                train_sizes_abs, train_mean, train_std, val_mean, val_std
-            )
+            fig_path = ""
+            try:
+                fig_path = self._create_learning_curve_chart(
+                    train_sizes_abs, train_mean, train_std, val_mean, val_std
+                )
+            except Exception as e:
+                self._record_chart_failure('learning_curve', e)
 
             content = f"""
 # Learning Curve Analysis
@@ -1537,40 +2137,7 @@ helping diagnose underfitting vs overfitting.
             self._store_section_data('learning_curves', 'Learning Curves', {'diagnosis': diagnosis})
 
         except Exception as e:
-            logger.warning(f"Learning curve analysis failed: {e}")
-
-    def _create_learning_curve_chart(self, sizes, train_mean, train_std, val_mean, val_std) -> str:
-        """Create learning curve visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, ax = plt.subplots(figsize=(10, 6))
-
-            # Training curve
-            ax.plot(sizes, train_mean, 'o-', color=self.theme['accent'], linewidth=2, label='Training Score')
-            ax.fill_between(sizes, train_mean - train_std, train_mean + train_std,
-                           alpha=0.2, color=self.theme['accent'])
-
-            # Validation curve
-            ax.plot(sizes, val_mean, 's-', color=self.theme['success'], linewidth=2, label='Validation Score')
-            ax.fill_between(sizes, val_mean - val_std, val_mean + val_std,
-                           alpha=0.2, color=self.theme['success'])
-
-            ax.set_xlabel('Training Set Size', fontsize=11)
-            ax.set_ylabel('Score', fontsize=11)
-            ax.set_title('Learning Curves', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.legend(loc='lower right')
-            ax.grid(True, alpha=0.3)
-            ax.set_ylim([0, 1.05])
-
-            plt.tight_layout()
-            path = self.figures_dir / 'learning_curves.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/learning_curves.png'
-        except Exception as e:
-            logger.debug(f"Failed to create learning curve chart: {e}")
-            return ""
+            self._record_section_failure('Learning Curves', e)
 
     # =========================================================================
     # CALIBRATION ANALYSIS
@@ -1584,20 +2151,25 @@ helping diagnose underfitting vs overfitting.
         - Expected Calibration Error (ECE)
         """
         try:
+            preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
             from sklearn.calibration import calibration_curve
             from sklearn.metrics import brier_score_loss
 
-            fraction_of_positives, mean_predicted = calibration_curve(y_true, y_prob, n_bins=n_bins)
+            fraction_of_positives, mean_predicted = calibration_curve(preds.y_true, preds.y_prob, n_bins=n_bins)
 
             # Calculate metrics
-            brier_score = brier_score_loss(y_true, y_prob)
+            brier_score = brier_score_loss(preds.y_true, preds.y_prob)
 
             # Expected Calibration Error
-            bin_counts = np.histogram(y_prob, bins=n_bins, range=(0, 1))[0]
-            ece = np.sum(np.abs(fraction_of_positives - mean_predicted) * (bin_counts[:len(fraction_of_positives)] / len(y_true)))
+            bin_counts = np.histogram(preds.y_prob, bins=n_bins, range=(0, 1))[0]
+            ece = np.sum(np.abs(fraction_of_positives - mean_predicted) * (bin_counts[:len(fraction_of_positives)] / preds.n_samples))
 
             # Create visualization
-            fig_path = self._create_calibration_chart(fraction_of_positives, mean_predicted, y_prob)
+            fig_path = ""
+            try:
+                fig_path = self._create_calibration_chart(fraction_of_positives, mean_predicted, y_prob)
+            except Exception as e:
+                self._record_chart_failure('calibration', e)
 
             content = f"""
 # Probability Calibration Analysis
@@ -1628,43 +2200,7 @@ A perfectly calibrated model's predicted probabilities should match actual outco
             self._store_section_data('calibration', 'Calibration Analysis', {'brier_score': brier_score, 'ece': ece})
 
         except Exception as e:
-            logger.warning(f"Calibration analysis failed: {e}")
-
-    def _create_calibration_chart(self, fraction_pos, mean_pred, y_prob) -> str:
-        """Create calibration curve visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Calibration curve
-            ax1.plot([0, 1], [0, 1], 'k--', label='Perfectly Calibrated')
-            ax1.plot(mean_pred, fraction_pos, 's-', color=self.theme['accent'], linewidth=2,
-                    markersize=8, label='Model')
-            ax1.fill_between(mean_pred, fraction_pos, mean_pred, alpha=0.2, color=self.theme['warning'])
-
-            ax1.set_xlabel('Mean Predicted Probability', fontsize=11)
-            ax1.set_ylabel('Fraction of Positives', fontsize=11)
-            ax1.set_title('Calibration Curve', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax1.legend(loc='lower right')
-            ax1.grid(True, alpha=0.3)
-            ax1.set_xlim([0, 1])
-            ax1.set_ylim([0, 1])
-
-            # Prediction histogram
-            ax2.hist(y_prob, bins=30, color=self.theme['accent'], alpha=0.7, edgecolor='white')
-            ax2.set_xlabel('Predicted Probability', fontsize=11)
-            ax2.set_ylabel('Count', fontsize=11)
-            ax2.set_title('Prediction Distribution', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            plt.tight_layout()
-            path = self.figures_dir / 'calibration.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/calibration.png'
-        except Exception as e:
-            logger.debug(f"Failed to create calibration chart: {e}")
-            return ""
+            self._record_section_failure('Calibration Analysis', e)
 
     # =========================================================================
     # CONFIDENCE-CALIBRATED PREDICTIONS
@@ -1684,9 +2220,7 @@ A perfectly calibrated model's predicted probabilities should match actual outco
             top_n: Number of top/bottom confident predictions to show
         """
         try:
-            y_true_arr = np.asarray(y_true)
-            y_pred_arr = np.asarray(y_pred)
-            y_prob_arr = np.asarray(y_prob)
+            preds = self._make_predictions(y_true, y_pred, y_prob)
 
             if feature_names is None:
                 if hasattr(X_sample, 'columns'):
@@ -1697,14 +2231,18 @@ A perfectly calibrated model's predicted probabilities should match actual outco
             X_arr = np.asarray(X_sample)
 
             # Compute ECE
-            ece_data = self._compute_ece(y_true_arr, y_prob_arr)
+            ece_data = self._compute_ece(preds.y_true, preds.y_prob)
 
             # Create visualization
-            fig_path = self._create_confidence_charts(y_true_arr, y_prob_arr, ece_data)
+            fig_path = ""
+            try:
+                fig_path = self._create_confidence_charts(preds.y_true, preds.y_prob, ece_data)
+            except Exception as e:
+                self._record_chart_failure('confidence_charts', e)
 
             # Find most/least confident predictions
-            confidence = np.abs(y_prob_arr - 0.5) * 2  # 0 = uncertain, 1 = very confident
-            correct = (y_true_arr == y_pred_arr).astype(int)
+            confidence = np.abs(preds.y_prob - 0.5) * 2  # 0 = uncertain, 1 = very confident
+            correct = (~preds.errors).astype(int)
 
             # Most confident correct
             confident_correct_idx = np.where(correct == 1)[0]
@@ -1783,7 +2321,7 @@ Analyzing model prediction confidence and its relationship to actual correctness
             }, [{'type': 'multi', 'path': fig_path}])
 
         except Exception as e:
-            logger.warning(f"Prediction confidence analysis failed: {e}")
+            self._record_section_failure('Prediction Confidence Analysis', e)
 
     def _compute_ece(self, y_true, y_prob, n_bins: int = 10) -> Dict:
         """Compute Expected Calibration Error with per-bin breakdown."""
@@ -1816,68 +2354,6 @@ Analyzing model prediction confidence and its relationship to actual correctness
 
         return {'ece': ece, 'bins': bin_data}
 
-    def _create_confidence_charts(self, y_true, y_prob, ece_data: Dict) -> str:
-        """Create confidence vs accuracy curve and per-bin reliability bar chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            bins = ece_data['bins']
-            confidences = [b['confidence'] for b in bins if b['count'] > 0]
-            accuracies = [b['accuracy'] for b in bins if b['count'] > 0]
-            counts = [b['count'] for b in bins if b['count'] > 0]
-            gaps = [b['gap'] for b in bins if b['count'] > 0]
-
-            # 1. Reliability diagram
-            ax1.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
-            ax1.plot(confidences, accuracies, 'o-', color=self.theme['accent'],
-                    linewidth=2, markersize=8, label='Model')
-
-            # Shade gap areas
-            for conf, acc in zip(confidences, accuracies):
-                ax1.plot([conf, conf], [conf, acc], color=self.theme['danger'],
-                        alpha=0.5, linewidth=1.5)
-
-            ax1.set_xlabel('Mean Predicted Confidence', fontsize=11)
-            ax1.set_ylabel('Fraction of Positives', fontsize=11)
-            ax1.set_title('Reliability Diagram', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.legend(loc='lower right')
-            ax1.set_xlim([0, 1])
-            ax1.set_ylim([0, 1])
-            ax1.grid(True, alpha=0.3)
-
-            # 2. Per-bin bar chart with gap overlay
-            bin_centers = np.arange(len(confidences))
-            width = 0.35
-
-            ax2.bar(bin_centers - width / 2, accuracies, width, label='Accuracy',
-                   color=self.theme['success'], alpha=0.8)
-            ax2.bar(bin_centers + width / 2, confidences, width, label='Confidence',
-                   color=self.theme['accent'], alpha=0.8)
-
-            ax2.set_xlabel('Bin', fontsize=11)
-            ax2.set_ylabel('Value', fontsize=11)
-            ax2.set_title(f'Per-Bin Calibration (ECE={ece_data["ece"]:.4f})', fontsize=14,
-                         fontweight='bold', color=self.theme['primary'])
-            ax2.legend()
-            ax2.set_ylim([0, 1.1])
-
-            # Add count labels
-            for i, count in enumerate(counts):
-                ax2.text(i, max(accuracies[i], confidences[i]) + 0.02,
-                        f'n={count}', ha='center', fontsize=7)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'confidence_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/confidence_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create confidence charts: {e}")
-            return ""
-
     # =========================================================================
     # LIFT & GAIN ANALYSIS
     # =========================================================================
@@ -1890,12 +2366,13 @@ Analyzing model prediction confidence and its relationship to actual correctness
         - KS statistic
         """
         try:
+            preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
             # Sort by probability descending
-            sorted_idx = np.argsort(y_prob)[::-1]
-            y_sorted = np.array(y_true)[sorted_idx]
+            sorted_idx = np.argsort(preds.y_prob)[::-1]
+            y_sorted = preds.y_true[sorted_idx]
 
             # Calculate cumulative gains
-            n = len(y_true)
+            n = preds.n_samples
             positives = y_sorted.sum()
             cum_gains = np.cumsum(y_sorted) / positives
             deciles = np.arange(1, n + 1) / n
@@ -1909,7 +2386,11 @@ Analyzing model prediction confidence and its relationship to actual correctness
             ks_idx = np.argmax(cum_gains - deciles)
 
             # Create visualizations
-            fig_path = self._create_lift_gain_chart(deciles, cum_gains, lift, ks_stat, ks_idx)
+            fig_path = ""
+            try:
+                fig_path = self._create_lift_gain_chart(deciles, cum_gains, lift, ks_stat, ks_idx)
+            except Exception as e:
+                self._record_chart_failure('lift_gain', e)
 
             content = f"""
 # Lift & Gain Analysis
@@ -1941,51 +2422,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             self._store_section_data('lift_gain', 'Lift & Gain Analysis', {'ks_stat': ks_stat})
 
         except Exception as e:
-            logger.warning(f"Lift/gain analysis failed: {e}")
-
-    def _create_lift_gain_chart(self, deciles, gains, lift, ks_stat, ks_idx) -> str:
-        """Create lift and gain visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Cumulative gains
-            ax1.plot(deciles * 100, gains * 100, color=self.theme['accent'], linewidth=2, label='Model')
-            ax1.plot(deciles * 100, deciles * 100, 'k--', label='Random')
-            ax1.fill_between(deciles * 100, gains * 100, deciles * 100, alpha=0.2, color=self.theme['accent'])
-
-            # KS line
-            ax1.axvline(x=deciles[ks_idx] * 100, color=self.theme['danger'], linestyle=':', alpha=0.7)
-            ax1.annotate(f'KS = {ks_stat:.3f}', xy=(deciles[ks_idx] * 100, (gains[ks_idx] + deciles[ks_idx]) / 2 * 100),
-                        fontsize=10, color=self.theme['danger'])
-
-            ax1.set_xlabel('% of Population', fontsize=11)
-            ax1.set_ylabel('% of Positives Captured', fontsize=11)
-            ax1.set_title('Cumulative Gains Curve', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax1.legend(loc='lower right')
-            ax1.grid(True, alpha=0.3)
-
-            # Lift curve
-            sample_idx = np.linspace(0, len(lift) - 1, 100).astype(int)
-            ax2.plot(deciles[sample_idx] * 100, lift[sample_idx], color=self.theme['success'], linewidth=2)
-            ax2.axhline(y=1, color='k', linestyle='--', label='Random (Lift=1)')
-            ax2.fill_between(deciles[sample_idx] * 100, lift[sample_idx], 1, alpha=0.2, color=self.theme['success'])
-
-            ax2.set_xlabel('% of Population', fontsize=11)
-            ax2.set_ylabel('Lift', fontsize=11)
-            ax2.set_title('Lift Curve', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax2.legend(loc='upper right')
-            ax2.grid(True, alpha=0.3)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'lift_gain.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/lift_gain.png'
-        except Exception as e:
-            logger.debug(f"Failed to create lift/gain chart: {e}")
-            return ""
+            self._record_section_failure('Lift/Gain Analysis', e)
 
     # =========================================================================
     # CROSS-VALIDATION DETAILED ANALYSIS
@@ -2003,7 +2440,9 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
 
             # Multiple metrics
             scoring = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
-            cv_results = cross_validate(model, X, y, cv=cv, scoring=scoring, return_train_score=True)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                cv_results = cross_validate(model, X, y, cv=cv, scoring=scoring, return_train_score=True)
 
             # Create fold results table
             fold_data = []
@@ -2022,7 +2461,11 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             cv_coefficient = acc_std / acc_mean * 100
 
             # Create visualization
-            fig_path = self._create_cv_chart(cv_results)
+            fig_path = ""
+            try:
+                fig_path = self._create_cv_chart(cv_results)
+            except Exception as e:
+                self._record_chart_failure('cv_chart', e)
 
             content = f"""
 # Cross-Validation Detailed Analysis
@@ -2059,218 +2502,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             self._store_section_data('cv_analysis', 'CV Detailed Analysis', {'acc_mean': acc_mean})
 
         except Exception as e:
-            logger.warning(f"CV detailed analysis failed: {e}")
-
-    def _create_cv_chart(self, cv_results: Dict) -> str:
-        """Create cross-validation visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            n_folds = len(cv_results['test_accuracy'])
-            folds = range(1, n_folds + 1)
-
-            # Fold comparison
-            width = 0.35
-            ax1.bar([x - width/2 for x in folds], cv_results['train_accuracy'], width,
-                   label='Train', color=self.theme['accent'], alpha=0.8)
-            ax1.bar([x + width/2 for x in folds], cv_results['test_accuracy'], width,
-                   label='Test', color=self.theme['success'], alpha=0.8)
-
-            ax1.set_xlabel('Fold', fontsize=11)
-            ax1.set_ylabel('Accuracy', fontsize=11)
-            ax1.set_title('Accuracy by Fold', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax1.set_xticks(folds)
-            ax1.legend()
-            ax1.set_ylim([0, 1.05])
-
-            # Box plot of metrics
-            metrics = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
-            data = [cv_results[f'test_{m}'] for m in metrics]
-
-            bp = ax2.boxplot(data, labels=['Accuracy', 'Precision', 'Recall', 'F1'],
-                            patch_artist=True)
-
-            colors_list = [self.theme['accent'], self.theme['success'], self.theme['warning'], self.theme['info']]
-            for patch, color in zip(bp['boxes'], colors_list):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.7)
-
-            ax2.set_ylabel('Score', fontsize=11)
-            ax2.set_title('Metric Distribution', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax2.set_ylim([0, 1.05])
-
-            plt.tight_layout()
-            path = self.figures_dir / 'cv_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/cv_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create CV chart: {e}")
-            return ""
-
-    # =========================================================================
-    # ERROR ANALYSIS
-    # =========================================================================
-
-    def add_error_analysis(self, X: pd.DataFrame, y_true, y_pred, y_prob=None, top_n: int = 10):
-        """
-        Add error analysis including:
-        - Misclassification breakdown
-        - Hardest samples to classify
-        - Error patterns by feature
-        """
-        try:
-            from sklearn.metrics import confusion_matrix
-
-            # Find misclassified samples
-            errors = y_true != y_pred
-            n_errors = errors.sum()
-            error_rate = n_errors / len(y_true) * 100
-
-            # Confusion matrix
-            cm = confusion_matrix(y_true, y_pred)
-
-            # Find hardest samples (most confidently wrong)
-            hardest_samples = []
-            if y_prob is not None:
-                error_idx = np.where(errors)[0]
-                error_probs = y_prob[error_idx]
-                # For wrong predictions, high probability = more confident error
-                if hasattr(error_probs, '__len__') and len(error_probs) > 0:
-                    confidence = np.abs(error_probs - 0.5) * 2  # Distance from 0.5
-                    sorted_idx = np.argsort(confidence)[::-1][:top_n]
-
-                    for i in sorted_idx:
-                        orig_idx = error_idx[i]
-                        hardest_samples.append({
-                            'index': int(orig_idx),
-                            'true': int(y_true.iloc[orig_idx] if hasattr(y_true, 'iloc') else y_true[orig_idx]),
-                            'pred': int(y_pred[orig_idx]),
-                            'prob': float(y_prob[orig_idx]),
-                            'confidence': float(confidence[i])
-                        })
-
-            # Error distribution by feature (for top features)
-            error_by_feature = self._analyze_error_patterns(X, errors)
-
-            # Create visualization
-            fig_path = self._create_error_analysis_chart(X, errors, y_true, y_pred, error_by_feature)
-
-            content = f"""
-# Error Analysis
-
-Understanding where the model fails helps improve performance and set realistic expectations.
-
-## Misclassification Summary
-
-| Metric | Value |
-|--------|-------|
-| Total Errors | {n_errors:,} |
-| Error Rate | {error_rate:.2f}% |
-| Accuracy | {100 - error_rate:.2f}% |
-
-## Confusion Matrix Breakdown
-
-"""
-            # Add confusion matrix details
-            n_classes = len(cm)
-            labels = [f'Class {i}' for i in range(n_classes)]
-            for i in range(n_classes):
-                for j in range(n_classes):
-                    if i != j and cm[i, j] > 0:
-                        content += f"- {labels[i]} misclassified as {labels[j]}: {cm[i, j]:,} ({cm[i, j]/cm[i].sum()*100:.1f}%)\n"
-
-            if hardest_samples:
-                content += f"""
-## Hardest to Classify Samples (Most Confident Errors)
-
-| Sample | True | Predicted | Probability | Confidence |
-|--------|------|-----------|-------------|------------|
-"""
-                for s in hardest_samples[:top_n]:
-                    content += f"| {s['index']} | {s['true']} | {s['pred']} | {s['prob']:.3f} | {s['confidence']:.3f} |\n"
-
-            narrative = self._maybe_add_narrative('Error Analysis', f'Error rate: {error_rate:.2f}%, Total errors: {n_errors}')
-
-            content += f"""
-## Error Distribution Analysis
-
-![Error Analysis]({fig_path})
-
-{narrative}
-
----
-"""
-            self._content.append(content)
-            self._store_section_data('error_analysis', 'Error Analysis', {'error_rate': error_rate, 'n_errors': n_errors})
-
-        except Exception as e:
-            logger.warning(f"Error analysis failed: {e}")
-
-    def _analyze_error_patterns(self, X: pd.DataFrame, errors) -> Dict:
-        """Analyze error patterns by feature."""
-        patterns = {}
-        numeric_cols = X.select_dtypes(include=[np.number]).columns[:10]
-
-        for col in numeric_cols:
-            correct_mean = X.loc[~errors, col].mean()
-            error_mean = X.loc[errors, col].mean()
-            diff = abs(error_mean - correct_mean) / (correct_mean + 1e-10) * 100
-
-            patterns[col] = {
-                'correct_mean': correct_mean,
-                'error_mean': error_mean,
-                'diff_pct': diff
-            }
-
-        return patterns
-
-    def _create_error_analysis_chart(self, X, errors, y_true, y_pred, patterns) -> str:
-        """Create error analysis visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Error rate by predicted class
-            ax1 = axes[0]
-            unique_pred = np.unique(y_pred)
-            error_rates = []
-            for cls in unique_pred:
-                mask = y_pred == cls
-                if mask.sum() > 0:
-                    error_rates.append((errors[mask].sum() / mask.sum()) * 100)
-                else:
-                    error_rates.append(0)
-
-            ax1.bar(unique_pred, error_rates, color=self.theme['danger'], alpha=0.8)
-            ax1.set_xlabel('Predicted Class', fontsize=11)
-            ax1.set_ylabel('Error Rate (%)', fontsize=11)
-            ax1.set_title('Error Rate by Predicted Class', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # Feature difference in errors
-            ax2 = axes[1]
-            if patterns:
-                sorted_patterns = sorted(patterns.items(), key=lambda x: x[1]['diff_pct'], reverse=True)[:10]
-                features = [x[0][:15] for x in sorted_patterns]
-                diffs = [x[1]['diff_pct'] for x in sorted_patterns]
-
-                ax2.barh(range(len(features)), diffs, color=self.theme['warning'], alpha=0.8)
-                ax2.set_yticks(range(len(features)))
-                ax2.set_yticklabels(features, fontsize=9)
-                ax2.set_xlabel('% Difference (Error vs Correct)', fontsize=11)
-                ax2.set_title('Features with Different Error Patterns', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            plt.tight_layout()
-            path = self.figures_dir / 'error_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/error_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create error analysis chart: {e}")
-            return ""
+            self._record_section_failure('CV Detailed Analysis', e)
 
     # =========================================================================
     # SHAP DEEP DIVE
@@ -2302,10 +2534,29 @@ Understanding where the model fails helps improve performance and set realistic 
             shap_importance = sorted(zip(feature_names, mean_shap), key=lambda x: x[1], reverse=True)
 
             # Create all SHAP visualizations
-            fig_summary = self._create_shap_summary(shap_values, feature_names, X_sample)
-            fig_bar = self._create_shap_bar(shap_importance)
-            fig_dependence = self._create_shap_dependence(shap_values, feature_names, X_sample, top_n)
-            fig_waterfall = self._create_shap_waterfall(shap_values, feature_names, X_sample)
+            fig_summary = ""
+            try:
+                fig_summary = self._create_shap_summary(shap_values, feature_names, X_sample)
+            except Exception as e:
+                self._record_chart_failure('shap_summary', e)
+
+            fig_bar = ""
+            try:
+                fig_bar = self._create_shap_bar(shap_importance)
+            except Exception as e:
+                self._record_chart_failure('shap_bar', e)
+
+            fig_dependence = ""
+            try:
+                fig_dependence = self._create_shap_dependence(shap_values, feature_names, X_sample, top_n)
+            except Exception as e:
+                self._record_chart_failure('shap_dependence', e)
+
+            fig_waterfall = ""
+            try:
+                fig_waterfall = self._create_shap_waterfall(shap_values, feature_names, X_sample)
+            except Exception as e:
+                self._record_chart_failure('shap_waterfall', e)
 
             content = f"""
 # SHAP Deep Analysis
@@ -2313,9 +2564,9 @@ Understanding where the model fails helps improve performance and set realistic 
 SHAP (SHapley Additive exPlanations) provides consistent, locally accurate feature attributions
 for any machine learning model.
 
-## Global Feature Importance (Mean |SHAP|)
+## Global Feature Importance (Mean Abs SHAP)
 
-| Rank | Feature | Mean |SHAP| | Cumulative % |
+| Rank | Feature | Mean Abs SHAP | Cumulative % |
 |------|---------|-------------|--------------|
 """
             total_shap = sum(x[1] for x in shap_importance)
@@ -2364,130 +2615,7 @@ Shows how features contribute to a single prediction.
             })
 
         except Exception as e:
-            logger.warning(f"SHAP deep analysis failed: {e}")
-
-    def _create_shap_summary(self, shap_values, feature_names, X_sample) -> str:
-        """Create SHAP summary plot."""
-        try:
-            import matplotlib.pyplot as plt
-            import shap
-
-            # Extract values for binary classification (use positive class)
-            plot_values = shap_values
-            if hasattr(shap_values, 'values'):
-                vals = shap_values.values
-                if len(vals.shape) == 3:
-                    plot_values = vals[:, :, 1]
-                else:
-                    plot_values = vals
-
-            fig, ax = plt.subplots(figsize=(10, 8))
-            shap.summary_plot(plot_values, X_sample, feature_names=feature_names,
-                            show=False, max_display=20)
-            plt.title('SHAP Summary Plot', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            plt.tight_layout()
-
-            path = self.figures_dir / 'shap_summary.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/shap_summary.png'
-        except Exception as e:
-            logger.debug(f"Failed to create SHAP summary: {e}")
-            return ""
-
-    def _create_shap_bar(self, shap_importance: List[Tuple]) -> str:
-        """Create SHAP bar plot."""
-        try:
-            import matplotlib.pyplot as plt
-
-            top_n = min(20, len(shap_importance))
-            features = [x[0][:25] for x in shap_importance[:top_n]]
-            values = [x[1] for x in shap_importance[:top_n]]
-
-            fig, ax = plt.subplots(figsize=(10, 8))
-
-            colors = plt.cm.Reds(np.linspace(0.4, 0.9, len(features)))[::-1]
-            ax.barh(range(len(features)), values[::-1], color=colors)
-
-            ax.set_yticks(range(len(features)))
-            ax.set_yticklabels(features[::-1], fontsize=9)
-            ax.set_xlabel('Mean |SHAP Value|', fontsize=11)
-            ax.set_title('SHAP Feature Importance', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # Add value labels
-            for i, val in enumerate(values[::-1]):
-                ax.text(val + 0.001, i, f'{val:.3f}', va='center', fontsize=8)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'shap_bar.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/shap_bar.png'
-        except Exception as e:
-            logger.debug(f"Failed to create SHAP bar: {e}")
-            return ""
-
-    def _create_shap_dependence(self, shap_values, feature_names, X_sample, top_n: int) -> str:
-        """Create SHAP dependence plots."""
-        try:
-            import matplotlib.pyplot as plt
-            import shap
-
-            if hasattr(shap_values, 'values'):
-                values = shap_values.values
-            else:
-                values = shap_values
-
-            if len(values.shape) == 3:
-                values = values[:, :, 1]
-
-            mean_shap = np.abs(values).mean(axis=0)
-            top_idx = np.argsort(mean_shap)[::-1][:top_n]
-
-            fig, axes = plt.subplots(1, top_n, figsize=(5 * top_n, 4))
-            if top_n == 1:
-                axes = [axes]
-
-            for i, idx in enumerate(top_idx):
-                ax = axes[i]
-                feat_name = feature_names[idx]
-                feat_values = X_sample[:, idx] if isinstance(X_sample, np.ndarray) else X_sample.iloc[:, idx]
-                shap_vals = values[:, idx]
-
-                scatter = ax.scatter(feat_values, shap_vals, c=feat_values, cmap='coolwarm', alpha=0.6, s=20)
-                ax.set_xlabel(feat_name[:20], fontsize=10)
-                ax.set_ylabel('SHAP Value', fontsize=10)
-                ax.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
-                ax.set_title(f'{feat_name[:20]}', fontsize=11, fontweight='medium')
-
-            plt.suptitle('SHAP Dependence Plots', fontsize=14, fontweight='bold', color=self.theme['primary'], y=1.02)
-            plt.tight_layout()
-
-            path = self.figures_dir / 'shap_dependence.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/shap_dependence.png'
-        except Exception as e:
-            logger.debug(f"Failed to create SHAP dependence: {e}")
-            return ""
-
-    def _create_shap_waterfall(self, shap_values, feature_names, X_sample) -> str:
-        """Create SHAP waterfall for a sample."""
-        try:
-            import matplotlib.pyplot as plt
-            import shap
-
-            plt.figure(figsize=(10, 8))
-            shap.plots.waterfall(shap_values[0], max_display=15, show=False)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'shap_waterfall.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/shap_waterfall.png'
-        except Exception as e:
-            logger.debug(f"Failed to create SHAP waterfall: {e}")
-            return ""
+            self._record_section_failure('SHAP Deep Analysis', e)
 
     # =========================================================================
     # THRESHOLD OPTIMIZATION
@@ -2501,6 +2629,7 @@ Shows how features contribute to a single prediction.
         - Threshold impact table
         """
         try:
+            preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred computed per threshold
             from sklearn.metrics import precision_recall_curve, f1_score, confusion_matrix
 
             # Calculate metrics at different thresholds
@@ -2508,8 +2637,8 @@ Shows how features contribute to a single prediction.
             results = []
 
             for thresh in thresholds:
-                y_pred = (y_prob >= thresh).astype(int)
-                cm = confusion_matrix(y_true, y_pred)
+                y_pred_thresh = (preds.y_prob >= thresh).astype(int)
+                cm = confusion_matrix(preds.y_true, y_pred_thresh)
 
                 tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
                 precision = tp / (tp + fp) if (tp + fp) > 0 else 0
@@ -2534,7 +2663,11 @@ Shows how features contribute to a single prediction.
             balanced = min(results, key=lambda x: abs(x['precision'] - x['recall']))
 
             # Create visualization
-            fig_path = self._create_threshold_chart(results, best_f1['threshold'], best_cost['threshold'])
+            fig_path = ""
+            try:
+                fig_path = self._create_threshold_chart(results, best_f1['threshold'], best_cost['threshold'])
+            except Exception as e:
+                self._record_chart_failure('threshold_chart', e)
 
             content = f"""
 # Threshold Optimization
@@ -2573,55 +2706,7 @@ Choosing the right classification threshold depends on business objectives.
             self._store_section_data('threshold_optimization', 'Threshold Optimization', {'best_f1_threshold': best_f1['threshold']})
 
         except Exception as e:
-            logger.warning(f"Threshold optimization failed: {e}")
-
-    def _create_threshold_chart(self, results: List[Dict], best_f1_thresh: float, best_cost_thresh: float) -> str:
-        """Create threshold analysis visualization."""
-        try:
-            import matplotlib.pyplot as plt
-
-            thresholds = [r['threshold'] for r in results]
-            precision = [r['precision'] for r in results]
-            recall = [r['recall'] for r in results]
-            f1 = [r['f1'] for r in results]
-            cost = [r['cost'] for r in results]
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Precision/Recall/F1 vs threshold
-            ax1.plot(thresholds, precision, 'o-', color=self.theme['accent'], linewidth=2, label='Precision')
-            ax1.plot(thresholds, recall, 's-', color=self.theme['success'], linewidth=2, label='Recall')
-            ax1.plot(thresholds, f1, '^-', color=self.theme['warning'], linewidth=2, label='F1 Score')
-
-            ax1.axvline(x=best_f1_thresh, color=self.theme['danger'], linestyle='--', alpha=0.7, label=f'Best F1 ({best_f1_thresh:.2f})')
-
-            ax1.set_xlabel('Threshold', fontsize=11)
-            ax1.set_ylabel('Score', fontsize=11)
-            ax1.set_title('Metrics vs Threshold', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax1.legend(loc='best')
-            ax1.grid(True, alpha=0.3)
-            ax1.set_xlim([0, 1])
-            ax1.set_ylim([0, 1.05])
-
-            # Cost vs threshold
-            ax2.plot(thresholds, cost, 'o-', color=self.theme['danger'], linewidth=2)
-            ax2.fill_between(thresholds, cost, alpha=0.2, color=self.theme['danger'])
-            ax2.axvline(x=best_cost_thresh, color=self.theme['success'], linestyle='--', alpha=0.7, label=f'Min Cost ({best_cost_thresh:.2f})')
-
-            ax2.set_xlabel('Threshold', fontsize=11)
-            ax2.set_ylabel('Total Cost', fontsize=11)
-            ax2.set_title('Cost vs Threshold', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax2.legend(loc='best')
-            ax2.grid(True, alpha=0.3)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'threshold_optimization.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/threshold_optimization.png'
-        except Exception as e:
-            logger.debug(f"Failed to create threshold chart: {e}")
-            return ""
+            self._record_section_failure('Threshold Optimization', e)
 
     # =========================================================================
     # REPRODUCIBILITY SECTION
@@ -2636,6 +2721,12 @@ Choosing the right classification threshold depends on business objectives.
         - Environment details
         - Package versions
         """
+        try:
+            self._add_reproducibility_section_impl(model, params, random_state, environment)
+        except Exception as e:
+            self._record_section_failure('Reproducibility', e)
+
+    def _add_reproducibility_section_impl(self, model, params, random_state, environment):
         import sys
         import platform
 
@@ -2653,8 +2744,9 @@ Choosing the right classification threshold depends on business objectives.
             try:
                 mod = __import__(pkg.replace('-', '_'))
                 packages[pkg] = getattr(mod, '__version__', 'N/A')
-            except:
-                pass
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('PackageVersion', f'Could not get version for {pkg}', e)
 
         # Get model params
         if params is None and hasattr(model, 'get_params'):
@@ -2724,195 +2816,6 @@ Full information for reproducing this analysis.
         })
 
     # =========================================================================
-    # DEPLOYMENT READINESS ASSESSMENT
-    # =========================================================================
-
-    def add_deployment_readiness(self, model, X_sample,
-                                  batch_sizes: List[int] = None):
-        """
-        Add deployment readiness assessment:
-        - Prediction latency at various batch sizes
-        - Model serialization size
-        - Memory footprint estimation
-        - Deployment checklist
-        """
-        try:
-            import time as _time
-            import sys
-            import pickle
-
-            X_arr = X_sample if isinstance(X_sample, np.ndarray) else (
-                X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample))
-
-            if batch_sizes is None:
-                batch_sizes = [1, 10, 100, 1000]
-            batch_sizes = [b for b in batch_sizes if b <= len(X_arr)]
-            if not batch_sizes:
-                batch_sizes = [min(len(X_arr), 1)]
-
-            # Measure latency
-            latency_results = []
-            n_runs = 10
-
-            for batch_size in batch_sizes:
-                X_batch = X_arr[:batch_size]
-                times = []
-                for _ in range(n_runs):
-                    start = _time.perf_counter()
-                    model.predict(X_batch)
-                    elapsed = (_time.perf_counter() - start) * 1000  # ms
-                    times.append(elapsed)
-
-                times_arr = np.array(times)
-                latency_results.append({
-                    'batch_size': batch_size,
-                    'mean_ms': float(np.mean(times_arr)),
-                    'p95_ms': float(np.percentile(times_arr, 95)),
-                    'throughput': float(batch_size / (np.mean(times_arr) / 1000)) if np.mean(times_arr) > 0 else 0,
-                })
-
-            # Model serialization size
-            model_size_mb = None
-            try:
-                serialized = pickle.dumps(model)
-                model_size_mb = len(serialized) / (1024 * 1024)
-            except Exception:
-                pass
-
-            # Memory footprint
-            memory_bytes = sys.getsizeof(model)
-            memory_mb = memory_bytes / (1024 * 1024)
-
-            # Deployment checklist
-            checklist = {
-                'serializable': model_size_mb is not None,
-                'has_predict': hasattr(model, 'predict'),
-                'has_predict_proba': hasattr(model, 'predict_proba'),
-                'deterministic': True,  # Assumed for sklearn
-                'latency_ok': latency_results[0]['mean_ms'] < 10 if latency_results else False,
-                'size_ok': model_size_mb < 100 if model_size_mb else False,
-            }
-
-            # Test determinism
-            if len(X_arr) > 0:
-                pred1 = model.predict(X_arr[:1])
-                pred2 = model.predict(X_arr[:1])
-                checklist['deterministic'] = np.array_equal(pred1, pred2)
-
-            passed = sum(1 for v in checklist.values() if v)
-            total = len(checklist)
-
-            # Create latency chart
-            fig_path = self._create_latency_chart(latency_results)
-
-            # Build content
-            content = f"""
-# Deployment Readiness Assessment
-
-Evaluating model readiness for production deployment.
-
-## Prediction Latency
-
-| Batch Size | Mean Latency (ms) | P95 Latency (ms) | Throughput (samples/sec) |
-|-----------|-------------------|-------------------|-------------------------|
-"""
-            for lr in latency_results:
-                content += f"| {lr['batch_size']:,} | {lr['mean_ms']:.2f} | {lr['p95_ms']:.2f} | {lr['throughput']:,.0f} |\n"
-
-            content += f"""
-## Model Size
-
-| Property | Value |
-|----------|-------|
-| Serialized Size | {f'{model_size_mb:.2f} MB' if model_size_mb else 'Not serializable'} |
-| Memory Footprint | {memory_mb:.4f} MB |
-| Model Type | {type(model).__name__} |
-
-## Deployment Checklist
-
-| Check | Status |
-|-------|--------|
-| Serializable (pickle) | {'PASS' if checklist['serializable'] else 'FAIL'} |
-| Has predict() | {'PASS' if checklist['has_predict'] else 'FAIL'} |
-| Has predict_proba() | {'PASS' if checklist['has_predict_proba'] else 'FAIL'} |
-| Deterministic | {'PASS' if checklist['deterministic'] else 'FAIL'} |
-| Latency < 10ms (single) | {'PASS' if checklist['latency_ok'] else 'FAIL'} |
-| Size < 100MB | {'PASS' if checklist['size_ok'] else 'FAIL'} |
-
-**Overall: {passed}/{total} checks passed**
-
-"""
-            if fig_path:
-                content += f"""## Latency Profile
-
-![Deployment Latency]({fig_path})
-
-"""
-
-            content += "---\n"
-            self._content.append(content)
-            self._store_section_data('deployment_readiness', 'Deployment Readiness', {
-                'latency_results': latency_results,
-                'model_size_mb': model_size_mb,
-                'checklist': checklist,
-            }, [{'type': 'line'}])
-
-        except Exception as e:
-            logger.warning(f"Deployment readiness assessment failed: {e}")
-
-    def _create_latency_chart(self, latency_results):
-        """Create 2-panel latency and throughput chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            if not latency_results:
-                return ""
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            batch_sizes = [r['batch_size'] for r in latency_results]
-            mean_latencies = [r['mean_ms'] for r in latency_results]
-            p95_latencies = [r['p95_ms'] for r in latency_results]
-            throughputs = [r['throughput'] for r in latency_results]
-
-            # Latency panel
-            ax1.plot(batch_sizes, mean_latencies, 'o-', color=self.theme['accent'],
-                    linewidth=2, markersize=8, label='Mean')
-            ax1.plot(batch_sizes, p95_latencies, 's--', color=self.theme['warning'],
-                    linewidth=2, markersize=6, label='P95')
-            ax1.axhline(y=10, color=self.theme['danger'], linestyle=':', alpha=0.7, label='10ms threshold')
-            ax1.set_xlabel('Batch Size', fontsize=11)
-            ax1.set_ylabel('Latency (ms)', fontsize=11)
-            ax1.set_title('Prediction Latency', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.legend(fontsize=9)
-            if len(batch_sizes) > 1:
-                ax1.set_xscale('log')
-
-            # Throughput panel
-            ax2.bar(range(len(batch_sizes)), throughputs, color=self.theme['accent'],
-                   alpha=0.85, edgecolor='white')
-            ax2.set_xticks(range(len(batch_sizes)))
-            ax2.set_xticklabels([str(b) for b in batch_sizes])
-            ax2.set_xlabel('Batch Size', fontsize=11)
-            ax2.set_ylabel('Throughput (samples/sec)', fontsize=11)
-            ax2.set_title('Prediction Throughput', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-
-            for i, tp in enumerate(throughputs):
-                ax2.text(i, tp + max(throughputs) * 0.02, f'{tp:,.0f}',
-                        ha='center', va='bottom', fontsize=9, fontweight='medium')
-
-            plt.tight_layout()
-            path = self.figures_dir / 'deployment_latency.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/deployment_latency.png'
-        except Exception as e:
-            logger.debug(f"Failed to create latency chart: {e}")
-            return ""
-
-    # =========================================================================
     # HYPERPARAMETER SEARCH VISUALIZATION
     # =========================================================================
 
@@ -2940,7 +2843,11 @@ Evaluating model readiness for production deployment.
             param_names = param_names[:8]
 
             # Create visualization
-            fig_path = self._create_hyperparameter_charts(trials, param_names, objective_name)
+            fig_path = ""
+            try:
+                fig_path = self._create_hyperparameter_charts(trials, param_names, objective_name)
+            except Exception as e:
+                self._record_chart_failure('hyperparameter_charts', e)
 
             # Build table of best trials
             sorted_trials = sorted(trials, key=lambda t: t['value'], reverse=True)
@@ -2989,7 +2896,7 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
             }, [{'type': 'multi', 'path': fig_path}])
 
         except Exception as e:
-            logger.warning(f"Hyperparameter visualization failed: {e}")
+            self._record_section_failure('Hyperparameter Visualization', e)
 
     def _normalize_trials(self, study_or_trials) -> List[Dict]:
         """Normalize Optuna study or list of dicts into uniform trial format."""
@@ -3012,108 +2919,6 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
                     })
 
         return trials
-
-    def _create_hyperparameter_charts(self, trials: List[Dict], param_names: List[str],
-                                       objective_name: str) -> str:
-        """Create 1x3 subplot: parallel coordinates, importance bar, optimization history."""
-        try:
-            import matplotlib.pyplot as plt
-            from matplotlib.collections import LineCollection
-
-            fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-
-            values = [t['value'] for t in trials]
-            norm_values = np.array(values)
-            if norm_values.max() != norm_values.min():
-                norm_values = (norm_values - norm_values.min()) / (norm_values.max() - norm_values.min())
-            else:
-                norm_values = np.ones_like(norm_values) * 0.5
-
-            # 1. Parallel Coordinates
-            ax1 = axes[0]
-            n_params = len(param_names)
-
-            # Normalize parameter values to [0, 1]
-            param_data = {}
-            for pname in param_names:
-                raw = [t['params'].get(pname, 0) for t in trials]
-                # Handle non-numeric
-                try:
-                    raw_arr = np.array(raw, dtype=float)
-                    if raw_arr.max() != raw_arr.min():
-                        param_data[pname] = (raw_arr - raw_arr.min()) / (raw_arr.max() - raw_arr.min())
-                    else:
-                        param_data[pname] = np.ones_like(raw_arr) * 0.5
-                except (ValueError, TypeError):
-                    # Categorical - encode
-                    unique_vals = sorted(set(str(v) for v in raw))
-                    val_map = {v: i / max(1, len(unique_vals) - 1) for i, v in enumerate(unique_vals)}
-                    param_data[pname] = np.array([val_map.get(str(v), 0.5) for v in raw])
-
-            cmap = plt.cm.RdYlGn
-            for i in range(len(trials)):
-                coords = [param_data[pname][i] for pname in param_names]
-                color = cmap(norm_values[i])
-                ax1.plot(range(n_params), coords, alpha=0.4, color=color, linewidth=1)
-
-            ax1.set_xticks(range(n_params))
-            ax1.set_xticklabels([p[:12] for p in param_names], rotation=45, ha='right', fontsize=8)
-            ax1.set_ylabel('Normalized Value', fontsize=10)
-            ax1.set_title('Parallel Coordinates', fontsize=12, fontweight='bold',
-                         color=self.theme['primary'])
-
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(min(values), max(values)))
-            plt.colorbar(sm, ax=ax1, label=objective_name, shrink=0.8)
-
-            # 2. Parameter Importance (variance-based)
-            ax2 = axes[1]
-            importances = {}
-            for pname in param_names:
-                param_vals = param_data.get(pname, np.zeros(len(trials)))
-                # Correlation with objective as proxy for importance
-                if np.std(param_vals) > 0:
-                    corr = abs(np.corrcoef(param_vals, values)[0, 1])
-                    importances[pname] = corr if not np.isnan(corr) else 0
-                else:
-                    importances[pname] = 0
-
-            sorted_imp = sorted(importances.items(), key=lambda x: x[1], reverse=True)
-            imp_names = [x[0][:15] for x in sorted_imp]
-            imp_vals = [x[1] for x in sorted_imp]
-
-            colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(imp_names)))[::-1]
-            ax2.barh(range(len(imp_names)), imp_vals[::-1], color=colors)
-            ax2.set_yticks(range(len(imp_names)))
-            ax2.set_yticklabels(imp_names[::-1], fontsize=9)
-            ax2.set_xlabel('Importance (|correlation|)', fontsize=10)
-            ax2.set_title('Parameter Importance', fontsize=12, fontweight='bold',
-                         color=self.theme['primary'])
-
-            # 3. Optimization History
-            ax3 = axes[2]
-            ax3.scatter(range(len(values)), values, alpha=0.5, s=15,
-                       color=self.theme['accent'], label='Trial')
-
-            # Best-so-far overlay
-            best_so_far = np.maximum.accumulate(values)
-            ax3.plot(range(len(values)), best_so_far, color=self.theme['danger'],
-                    linewidth=2, label='Best So Far')
-
-            ax3.set_xlabel('Trial Number', fontsize=10)
-            ax3.set_ylabel(objective_name, fontsize=10)
-            ax3.set_title('Optimization History', fontsize=12, fontweight='bold',
-                         color=self.theme['primary'])
-            ax3.legend(fontsize=9)
-            ax3.grid(True, alpha=0.3)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'hyperparameter_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/hyperparameter_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create hyperparameter charts: {e}")
-            return ""
 
     # =========================================================================
     # EXECUTIVE DASHBOARD (Phase 1)
@@ -3179,7 +2984,7 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
             self._store_section_data('executive_dashboard', 'Executive Dashboard', {'kpis': kpis})
 
         except Exception as e:
-            logger.warning(f"Executive dashboard failed: {e}")
+            self._record_section_failure('Executive Dashboard', e)
 
     def add_insight_prioritization(self):
         """
@@ -3276,6 +3081,85 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
                             'action': 'Apply SMOTE, class weights, or threshold tuning',
                         })
 
+            # Model benchmarking: CV-test gap (overfitting)
+            bench_data = section_lookup.get('model_benchmarking', {})
+            model_scores = bench_data.get('model_scores', {})
+            for model_name, scores in model_scores.items():
+                if isinstance(scores, dict):
+                    cv = scores.get('cv_score', 0)
+                    test = scores.get('test_score', 0)
+                    if cv > 0 and test > 0 and (cv - test) > 0.1:
+                        findings.append({
+                            'severity': 'HIGH',
+                            'source': 'Model Benchmarking',
+                            'description': f"Model '{model_name}' CV-test gap = {cv - test:.3f} (>0.1, overfitting)",
+                            'action': 'Regularize model, reduce complexity, or gather more training data',
+                        })
+
+            # Deployment readiness: latency check
+            deploy_data = section_lookup.get('deployment_readiness', {})
+            checklist = deploy_data.get('checklist', {})
+            if checklist.get('latency_ok') is False:
+                findings.append({
+                    'severity': 'HIGH',
+                    'source': 'Deployment Readiness',
+                    'description': 'Model inference latency exceeds acceptable threshold',
+                    'action': 'Optimize model (pruning, quantization) or use faster hardware',
+                })
+
+            # Error analysis: dominant error cluster
+            error_data = section_lookup.get('error_analysis', {})
+            error_clusters = error_data.get('clusters', [])
+            for cluster in error_clusters:
+                if isinstance(cluster, dict) and cluster.get('percentage', 0) > 30:
+                    findings.append({
+                        'severity': 'HIGH',
+                        'source': 'Error Analysis',
+                        'description': f"Error cluster '{cluster.get('name', '?')}' contains {cluster.get('percentage', 0):.0f}% of all errors",
+                        'action': 'Investigate and address this systematic failure mode',
+                    })
+
+            # Deployment readiness: model size check
+            if checklist.get('size_ok') is False:
+                findings.append({
+                    'severity': 'MEDIUM',
+                    'source': 'Deployment Readiness',
+                    'description': 'Model size exceeds deployment size limit',
+                    'action': 'Compress model (distillation, pruning) or increase size budget',
+                })
+
+            # Regression: low R²
+            reg_data = section_lookup.get('regression', {})
+            r2_val = reg_data.get('r2')
+            if r2_val is not None and r2_val < 0.5:
+                findings.append({
+                    'severity': 'MEDIUM',
+                    'source': 'Regression Analysis',
+                    'description': f"R² = {r2_val:.3f} (<0.5, poor explanatory power)",
+                    'action': 'Add features, try non-linear models, or investigate data quality',
+                })
+
+            # Regression: heteroscedasticity
+            if reg_data.get('is_heteroscedastic') is True:
+                findings.append({
+                    'severity': 'MEDIUM',
+                    'source': 'Regression Analysis',
+                    'description': 'Heteroscedasticity detected in residuals',
+                    'action': 'Use weighted regression or variance-stabilizing transformations',
+                })
+
+            # Correlation: near-perfect collinearity
+            corr_data = section_lookup.get('correlation', {})
+            high_pairs = corr_data.get('high_corr_pairs', [])
+            for pair in high_pairs:
+                if isinstance(pair, dict) and abs(pair.get('corr', 0)) > 0.95:
+                    findings.append({
+                        'severity': 'MEDIUM',
+                        'source': 'Correlation Analysis',
+                        'description': f"Features '{pair.get('f1', '?')}' and '{pair.get('f2', '?')}' have |r|={abs(pair['corr']):.3f} (>0.95)",
+                        'action': 'Remove one feature or use PCA to reduce collinearity',
+                    })
+
             # Sort by severity
             severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2}
             findings.sort(key=lambda f: severity_order.get(f['severity'], 3))
@@ -3326,69 +3210,7 @@ Automated scan of all analysis sections for actionable findings.
             })
 
         except Exception as e:
-            logger.warning(f"Insight prioritization failed: {e}")
-
-    def _create_gauge_chart(self, ax, value: float, title: str):
-        """Create a single donut/arc gauge chart on given axes."""
-        # Color based on value
-        if value > 0.9:
-            color = self.theme['success']
-        elif value > 0.7:
-            color = self.theme['warning']
-        else:
-            color = self.theme['danger']
-
-        # Create donut arc
-        theta1 = 180  # Start angle (left)
-        theta2 = 180 - (value * 180)  # End angle based on value
-
-        # Background arc (full semicircle)
-        bg_theta = np.linspace(0, np.pi, 100)
-        bg_x = np.cos(bg_theta)
-        bg_y = np.sin(bg_theta)
-        ax.fill_between(bg_x, bg_y * 0.6, bg_y, alpha=0.15, color='gray')
-
-        # Value arc
-        val_theta = np.linspace(0, np.pi * value, 100)
-        val_x = np.cos(val_theta)
-        val_y = np.sin(val_theta)
-        ax.fill_between(val_x, val_y * 0.6, val_y, alpha=0.8, color=color)
-
-        # Center text
-        ax.text(0, 0.3, f'{value:.1%}', ha='center', va='center',
-                fontsize=18, fontweight='bold', color=color)
-        ax.text(0, -0.1, title.upper(), ha='center', va='center',
-                fontsize=9, fontweight='medium', color=self.theme['text'])
-
-        ax.set_xlim(-1.2, 1.2)
-        ax.set_ylim(-0.3, 1.2)
-        ax.set_aspect('equal')
-        ax.axis('off')
-
-    def _create_executive_dashboard_chart(self, kpis: Dict[str, float]) -> str:
-        """Create the executive dashboard with gauge charts for all KPIs."""
-        try:
-            import matplotlib.pyplot as plt
-
-            n_kpis = len(kpis)
-            fig, axes = plt.subplots(1, n_kpis, figsize=(4 * n_kpis, 3.5))
-            if n_kpis == 1:
-                axes = [axes]
-
-            for ax, (name, value) in zip(axes, kpis.items()):
-                self._create_gauge_chart(ax, value, name)
-
-            fig.suptitle('Key Performance Indicators', fontsize=14, fontweight='bold',
-                        color=self.theme['primary'], y=1.05)
-            plt.tight_layout()
-
-            path = self.figures_dir / 'executive_dashboard.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/executive_dashboard.png'
-        except Exception as e:
-            logger.debug(f"Failed to create executive dashboard chart: {e}")
-            return ""
+            self._record_section_failure('Insight Prioritization', e)
 
     # =========================================================================
     # CLASS DISTRIBUTION ANALYSIS (Phase 2)
@@ -3420,10 +3242,10 @@ Automated scan of all analysis sections for actionable findings.
             # Calculate metrics if predictions available
             metrics_md = ""
             if y_pred is not None:
-                y_pred_arr = np.asarray(y_pred)
-                mcc = matthews_corrcoef(y_true_arr, y_pred_arr)
-                balanced_acc = balanced_accuracy_score(y_true_arr, y_pred_arr)
-                kappa = cohen_kappa_score(y_true_arr, y_pred_arr)
+                preds = self._make_predictions(y_true, y_pred)
+                mcc = matthews_corrcoef(preds.y_true, preds.y_pred)
+                balanced_acc = balanced_accuracy_score(preds.y_true, preds.y_pred)
+                kappa = cohen_kappa_score(preds.y_true, preds.y_pred)
 
                 metrics_md = f"""
 ## Class-Aware Metrics
@@ -3437,7 +3259,11 @@ Automated scan of all analysis sections for actionable findings.
 """
 
             # Create visualization
-            fig_path = self._create_class_distribution_chart(labels, class_counts)
+            fig_path = ""
+            try:
+                fig_path = self._create_class_distribution_chart(labels, class_counts)
+            except Exception as e:
+                self._record_chart_failure('class_distribution', e)
 
             # Build class table
             class_table = "| Class | Count | Percentage | Ratio |\n|-------|-------|------------|-------|\n"
@@ -3488,46 +3314,7 @@ and choosing appropriate evaluation metrics.
             self._store_section_data('class_distribution', 'Class Distribution', {'imbalance_ratio': imbalance_ratio})
 
         except Exception as e:
-            logger.warning(f"Class distribution analysis failed: {e}")
-
-    def _create_class_distribution_chart(self, labels: List[str], counts) -> str:
-        """Create class distribution bar chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            # Bar chart
-            colors = [self.theme['chart_palette'][i % len(self.theme['chart_palette'])]
-                     for i in range(len(labels))]
-            bars = ax1.bar(labels, counts, color=colors, alpha=0.85, edgecolor='white', linewidth=1.5)
-
-            ax1.set_xlabel('Class', fontsize=11)
-            ax1.set_ylabel('Count', fontsize=11)
-            ax1.set_title('Class Distribution', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # Add value labels
-            for bar, count in zip(bars, counts):
-                ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + max(counts) * 0.02,
-                        f'{count:,}', ha='center', va='bottom', fontsize=10, fontweight='medium')
-
-            ax1.spines['top'].set_visible(False)
-            ax1.spines['right'].set_visible(False)
-
-            # Pie chart
-            explode = [0.05] * len(labels)
-            ax2.pie(counts, labels=labels, autopct='%1.1f%%', explode=explode,
-                   colors=colors, startangle=90, textprops={'fontsize': 10})
-            ax2.set_title('Class Proportions', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            plt.tight_layout()
-            path = self.figures_dir / 'class_distribution.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/class_distribution.png'
-        except Exception as e:
-            logger.debug(f"Failed to create class distribution chart: {e}")
-            return ""
+            self._record_section_failure('Class Distribution', e)
 
     # =========================================================================
     # PERMUTATION FEATURE IMPORTANCE (Phase 3)
@@ -3557,9 +3344,13 @@ and choosing appropriate evaluation metrics.
             top_idx = sorted_idx[:top_n]
 
             # Create chart
-            fig_path = self._create_permutation_importance_chart(
-                result, feature_names, top_idx
-            )
+            fig_path = ""
+            try:
+                fig_path = self._create_permutation_importance_chart(
+                    result, feature_names, top_idx
+                )
+            except Exception as e:
+                self._record_chart_failure('permutation_importance', e)
 
             # Build table
             table_md = "| Rank | Feature | Importance (Mean) | Std Dev |\n|------|---------|-------------------|--------|\n"
@@ -3597,41 +3388,7 @@ values are randomly shuffled, breaking the relationship with the target.
             }, [{'type': 'importance_bar'}])
 
         except Exception as e:
-            logger.warning(f"Permutation importance failed: {e}")
-
-    def _create_permutation_importance_chart(self, result, feature_names: List[str],
-                                              top_idx) -> str:
-        """Create permutation importance chart with error bars."""
-        try:
-            import matplotlib.pyplot as plt
-
-            n = len(top_idx)
-            fig, ax = plt.subplots(figsize=(10, max(6, n * 0.4)))
-
-            names = [feature_names[i][:25] for i in top_idx][::-1]
-            means = result.importances_mean[top_idx][::-1]
-            stds = result.importances_std[top_idx][::-1]
-
-            colors = [self.theme['success'] if m > 0 else self.theme['danger'] for m in means]
-
-            ax.barh(range(n), means, xerr=stds, color=colors, alpha=0.8,
-                   capsize=3, edgecolor='white', linewidth=0.5)
-
-            ax.set_yticks(range(n))
-            ax.set_yticklabels(names, fontsize=9)
-            ax.set_xlabel('Mean Importance Decrease', fontsize=11)
-            ax.set_title('Permutation Feature Importance', fontsize=14, fontweight='bold',
-                        color=self.theme['primary'])
-            ax.axvline(x=0, color='gray', linestyle='--', alpha=0.5)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'permutation_importance.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/permutation_importance.png'
-        except Exception as e:
-            logger.debug(f"Failed to create permutation importance chart: {e}")
-            return ""
+            self._record_section_failure('Permutation Importance', e)
 
     # =========================================================================
     # PARTIAL DEPENDENCE PLOTS (Phase 4)
@@ -3664,7 +3421,11 @@ values are randomly shuffled, breaking the relationship with the target.
                 top_features = feature_names[:top_n]
 
             # Create PDP chart
-            fig_path = self._create_pdp_chart(model, X, top_features, feature_names)
+            fig_path = ""
+            try:
+                fig_path = self._create_pdp_chart(model, X, top_features, feature_names)
+            except Exception as e:
+                self._record_chart_failure('pdp_chart', e)
 
             features_list = "\n".join([f"- **{f}**" for f in top_features])
 
@@ -3696,66 +3457,7 @@ averaging over the values of all other features.
             self._store_section_data('partial_dependence', 'Partial Dependence', {'top_features': top_features})
 
         except Exception as e:
-            logger.warning(f"Partial dependence analysis failed: {e}")
-
-    def _create_pdp_chart(self, model, X, top_features: List[str],
-                           all_feature_names: List[str]) -> str:
-        """Create PDP charts with ICE background lines."""
-        try:
-            import matplotlib.pyplot as plt
-            from sklearn.inspection import partial_dependence
-
-            n = len(top_features)
-            fig, axes = plt.subplots(1, n, figsize=(5 * n, 4.5))
-            if n == 1:
-                axes = [axes]
-
-            X_array = X.values if hasattr(X, 'values') else X
-
-            for i, feat_name in enumerate(top_features):
-                ax = axes[i]
-                feat_idx = all_feature_names.index(feat_name) if feat_name in all_feature_names else i
-
-                # Compute PDP
-                pdp_result = partial_dependence(
-                    model, X, features=[feat_idx], kind='both',
-                    grid_resolution=50
-                )
-
-                # ICE lines (individual)
-                if 'individual' in pdp_result:
-                    ice_values = pdp_result['individual'][0]
-                    grid_values = pdp_result['grid_values'][0]
-
-                    # Plot ICE lines (subsample for clarity)
-                    n_ice = min(50, ice_values.shape[0])
-                    ice_sample_idx = np.random.choice(ice_values.shape[0], n_ice, replace=False)
-                    for idx in ice_sample_idx:
-                        ax.plot(grid_values, ice_values[idx], color=self.theme['accent'],
-                               alpha=0.1, linewidth=0.5)
-
-                # PDP line (average)
-                avg_values = pdp_result['average'][0]
-                grid_values = pdp_result['grid_values'][0]
-                ax.plot(grid_values, avg_values, color=self.theme['primary'],
-                       linewidth=2.5, label='PDP (Average)')
-
-                ax.set_xlabel(feat_name[:20], fontsize=10)
-                ax.set_ylabel('Partial Dependence', fontsize=10)
-                ax.set_title(f'{feat_name[:20]}', fontsize=11, fontweight='medium')
-                ax.legend(fontsize=8, loc='best')
-
-            fig.suptitle('Partial Dependence Plots with ICE', fontsize=14, fontweight='bold',
-                        color=self.theme['primary'], y=1.05)
-            plt.tight_layout()
-
-            path = self.figures_dir / 'pdp_ice.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/pdp_ice.png'
-        except Exception as e:
-            logger.debug(f"Failed to create PDP chart: {e}")
-            return ""
+            self._record_section_failure('Partial Dependence', e)
 
     # =========================================================================
     # STATISTICAL SIGNIFICANCE TESTING (Phase 5)
@@ -3770,17 +3472,16 @@ averaging over the values of all other features.
         try:
             from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
 
-            y_true_arr = np.asarray(y_true)
-            y_pred_arr = np.asarray(y_pred)
+            preds = self._make_predictions(y_true, y_pred, y_prob)
 
             # Bootstrap accuracy
             n_boot = 1000
             boot_accuracies = []
-            n = len(y_true_arr)
+            n = preds.n_samples
 
             for _ in range(n_boot):
                 idx = np.random.choice(n, n, replace=True)
-                boot_accuracies.append(accuracy_score(y_true_arr[idx], y_pred_arr[idx]))
+                boot_accuracies.append(accuracy_score(preds.y_true[idx], preds.y_pred[idx]))
 
             acc_mean = np.mean(boot_accuracies)
             acc_ci_lower = np.percentile(boot_accuracies, 2.5)
@@ -3788,14 +3489,17 @@ averaging over the values of all other features.
 
             # Bootstrap AUC if probabilities available
             auc_data = None
-            if y_prob is not None:
-                y_prob_arr = np.asarray(y_prob)
-                auc_data = self._bootstrap_auc_ci(y_true_arr, y_prob_arr, n_boot)
+            if preds.has_probabilities:
+                auc_data = self._bootstrap_auc_ci(preds.y_true, preds.y_prob, n_boot)
 
             # Create visualization
-            fig_path = self._create_bootstrap_auc_chart(
-                boot_accuracies, auc_data
-            )
+            fig_path = ""
+            try:
+                fig_path = self._create_bootstrap_auc_chart(
+                    boot_accuracies, auc_data
+                )
+            except Exception as e:
+                self._record_chart_failure('bootstrap_auc', e)
 
             content = f"""
 # Statistical Significance Testing
@@ -3849,7 +3553,7 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             })
 
         except Exception as e:
-            logger.warning(f"Statistical testing failed: {e}")
+            self._record_section_failure('Statistical Tests', e)
 
     def _bootstrap_auc_ci(self, y_true, y_prob, n_boot: int = 1000) -> Dict:
         """Compute bootstrap confidence interval for AUC."""
@@ -3863,8 +3567,9 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             try:
                 if len(np.unique(y_true[idx])) > 1:
                     boot_aucs.append(roc_auc_score(y_true[idx], y_prob[idx]))
-            except:
-                pass
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('BootstrapAUC', 'single bootstrap iteration failed', e)
 
         if not boot_aucs:
             return None
@@ -3876,61 +3581,6 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             'ci_lower': np.percentile(boot_aucs, 2.5),
             'ci_upper': np.percentile(boot_aucs, 97.5),
         }
-
-    def _create_bootstrap_auc_chart(self, boot_accuracies: List[float],
-                                     auc_data: Dict = None) -> str:
-        """Create bootstrap distribution histogram with CI bands."""
-        try:
-            import matplotlib.pyplot as plt
-
-            n_plots = 2 if auc_data else 1
-            fig, axes = plt.subplots(1, n_plots, figsize=(6 * n_plots, 5))
-            if n_plots == 1:
-                axes = [axes]
-
-            # Accuracy distribution
-            ax1 = axes[0]
-            ax1.hist(boot_accuracies, bins=40, color=self.theme['accent'], alpha=0.7,
-                    edgecolor='white', density=True)
-            acc_ci_lower = np.percentile(boot_accuracies, 2.5)
-            acc_ci_upper = np.percentile(boot_accuracies, 97.5)
-            ax1.axvline(np.mean(boot_accuracies), color=self.theme['primary'],
-                       linestyle='-', linewidth=2, label=f'Mean: {np.mean(boot_accuracies):.4f}')
-            ax1.axvline(acc_ci_lower, color=self.theme['danger'], linestyle='--',
-                       linewidth=1.5, label=f'95% CI: [{acc_ci_lower:.4f}, {acc_ci_upper:.4f}]')
-            ax1.axvline(acc_ci_upper, color=self.theme['danger'], linestyle='--', linewidth=1.5)
-            ax1.axvspan(acc_ci_lower, acc_ci_upper, alpha=0.15, color=self.theme['danger'])
-            ax1.set_xlabel('Accuracy', fontsize=11)
-            ax1.set_ylabel('Density', fontsize=11)
-            ax1.set_title('Bootstrap Accuracy Distribution', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.legend(fontsize=9)
-
-            # AUC distribution
-            if auc_data and n_plots > 1:
-                ax2 = axes[1]
-                ax2.hist(auc_data['values'], bins=40, color=self.theme['success'], alpha=0.7,
-                        edgecolor='white', density=True)
-                ax2.axvline(auc_data['mean'], color=self.theme['primary'], linestyle='-',
-                           linewidth=2, label=f'Mean: {auc_data["mean"]:.4f}')
-                ax2.axvline(auc_data['ci_lower'], color=self.theme['danger'], linestyle='--',
-                           linewidth=1.5, label=f'95% CI: [{auc_data["ci_lower"]:.4f}, {auc_data["ci_upper"]:.4f}]')
-                ax2.axvline(auc_data['ci_upper'], color=self.theme['danger'], linestyle='--', linewidth=1.5)
-                ax2.axvspan(auc_data['ci_lower'], auc_data['ci_upper'], alpha=0.15, color=self.theme['danger'])
-                ax2.set_xlabel('AUC-ROC', fontsize=11)
-                ax2.set_ylabel('Density', fontsize=11)
-                ax2.set_title('Bootstrap AUC Distribution', fontsize=14, fontweight='bold',
-                             color=self.theme['primary'])
-                ax2.legend(fontsize=9)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'bootstrap_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/bootstrap_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create bootstrap chart: {e}")
-            return ""
 
     # =========================================================================
     # SCORE DISTRIBUTION BY CLASS (Phase 6)
@@ -3945,20 +3595,18 @@ Bootstrap resampling provides robust confidence intervals for model performance 
         - Optimal threshold annotation
         """
         try:
+            preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used
             from scipy import stats as scipy_stats
             from sklearn.metrics import roc_curve
 
-            y_true_arr = np.asarray(y_true)
-            y_prob_arr = np.asarray(y_prob)
-
-            unique_classes = np.unique(y_true_arr)
+            unique_classes = np.unique(preds.y_true)
             if labels is None:
                 labels = [f'Class {c}' for c in unique_classes]
 
             # Separate probabilities by class
             class_probs = {}
             for cls, label in zip(unique_classes, labels):
-                class_probs[label] = y_prob_arr[y_true_arr == cls]
+                class_probs[label] = preds.y_prob[preds.y_true == cls]
 
             # Calculate KL divergence between class distributions
             kl_div = None
@@ -3981,7 +3629,7 @@ Bootstrap resampling provides robust confidence intervals for model performance 
 
             # Find optimal threshold (Youden's J)
             if len(unique_classes) == 2:
-                fpr, tpr, thresholds = roc_curve(y_true_arr, y_prob_arr)
+                fpr, tpr, thresholds = roc_curve(preds.y_true, preds.y_prob)
                 j_scores = tpr - fpr
                 optimal_idx = np.argmax(j_scores)
                 optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
@@ -3989,9 +3637,13 @@ Bootstrap resampling provides robust confidence intervals for model performance 
                 optimal_threshold = 0.5
 
             # Create visualization
-            fig_path = self._create_score_distribution_chart(
-                class_probs, optimal_threshold
-            )
+            fig_path = ""
+            try:
+                fig_path = self._create_score_distribution_chart(
+                    class_probs, optimal_threshold
+                )
+            except Exception as e:
+                self._record_chart_failure('score_distribution', e)
 
             content = f"""
 # Score Distribution by Class
@@ -4031,448 +3683,7 @@ reveals model discrimination capability.
             })
 
         except Exception as e:
-            logger.warning(f"Score distribution analysis failed: {e}")
-
-    def _create_score_distribution_chart(self, class_probs: Dict[str, np.ndarray],
-                                          optimal_threshold: float) -> str:
-        """Create score distribution chart with overlap shading."""
-        try:
-            import matplotlib.pyplot as plt
-            from scipy.stats import gaussian_kde
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            colors = [self.theme['chart_palette'][i % len(self.theme['chart_palette'])]
-                     for i in range(len(class_probs))]
-
-            # Histogram
-            for (label, probs), color in zip(class_probs.items(), colors):
-                ax1.hist(probs, bins=40, alpha=0.5, color=color, label=label,
-                        density=True, edgecolor='white')
-
-            ax1.axvline(optimal_threshold, color=self.theme['danger'], linestyle='--',
-                       linewidth=2, label=f'Threshold: {optimal_threshold:.3f}')
-            ax1.set_xlabel('Predicted Probability', fontsize=11)
-            ax1.set_ylabel('Density', fontsize=11)
-            ax1.set_title('Score Histogram by Class', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.legend(fontsize=9)
-
-            # KDE with overlap shading
-            x_range = np.linspace(0, 1, 200)
-            kde_curves = {}
-
-            for (label, probs), color in zip(class_probs.items(), colors):
-                if len(probs) > 2:
-                    try:
-                        kde = gaussian_kde(probs, bw_method=0.1)
-                        kde_values = kde(x_range)
-                        ax2.plot(x_range, kde_values, color=color, linewidth=2, label=label)
-                        ax2.fill_between(x_range, kde_values, alpha=0.2, color=color)
-                        kde_curves[label] = kde_values
-                    except:
-                        pass
-
-            # Shade overlap region
-            if len(kde_curves) == 2:
-                curves = list(kde_curves.values())
-                overlap = np.minimum(curves[0], curves[1])
-                ax2.fill_between(x_range, overlap, alpha=0.4, color=self.theme['warning'],
-                               label='Overlap', hatch='//')
-
-            ax2.axvline(optimal_threshold, color=self.theme['danger'], linestyle='--',
-                       linewidth=2, label=f'Threshold: {optimal_threshold:.3f}')
-            ax2.set_xlabel('Predicted Probability', fontsize=11)
-            ax2.set_ylabel('Density', fontsize=11)
-            ax2.set_title('KDE with Overlap Region', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax2.legend(fontsize=9)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'score_distribution.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/score_distribution.png'
-        except Exception as e:
-            logger.debug(f"Failed to create score distribution chart: {e}")
-            return ""
-
-    # =========================================================================
-    # FEATURE INTERACTION DETECTION (Phase 7)
-    # =========================================================================
-
-    def add_feature_interactions(self, shap_values, feature_names: List[str],
-                                 X_sample=None, model=None, top_n: int = 3):
-        """
-        Add feature interaction detection:
-        - SHAP interaction values for tree models
-        - Pairwise SHAP correlation fallback
-        - 2D scatter colored by interaction value
-        """
-        try:
-            import shap
-
-            # Extract SHAP values
-            if hasattr(shap_values, 'values'):
-                values = shap_values.values
-            else:
-                values = shap_values
-
-            if len(values.shape) == 3:
-                values = values[:, :, 1]  # Binary classification
-
-            # Try SHAP interaction values for tree models
-            interaction_data = None
-            try:
-                if model is not None and hasattr(model, 'predict_proba'):
-                    explainer = shap.TreeExplainer(model)
-                    interaction_values = explainer.shap_interaction_values(X_sample)
-                    if isinstance(interaction_values, list):
-                        interaction_values = interaction_values[1]  # Binary
-                    interaction_data = interaction_values
-            except:
-                pass
-
-            # Fallback: pairwise SHAP correlation
-            n_features = min(len(feature_names), values.shape[1])
-            shap_corr = np.corrcoef(values.T[:n_features])
-
-            # Find top interactions
-            interactions = []
-            for i in range(n_features):
-                for j in range(i + 1, n_features):
-                    interactions.append({
-                        'feature_1': feature_names[i],
-                        'feature_2': feature_names[j],
-                        'correlation': abs(shap_corr[i, j]),
-                        'idx_1': i,
-                        'idx_2': j,
-                    })
-
-            interactions.sort(key=lambda x: x['correlation'], reverse=True)
-            top_interactions = interactions[:top_n]
-
-            # Create visualization
-            fig_path = self._create_interaction_chart(
-                values, feature_names, X_sample, top_interactions
-            )
-
-            # Build table
-            table_md = "| Feature 1 | Feature 2 | SHAP Correlation | Strength |\n|-----------|-----------|-----------------|----------|\n"
-            for inter in top_interactions:
-                strength = "Strong" if inter['correlation'] > 0.5 else ("Moderate" if inter['correlation'] > 0.3 else "Weak")
-                table_md += f"| {inter['feature_1'][:20]} | {inter['feature_2'][:20]} | {inter['correlation']:.4f} | {strength} |\n"
-
-            content = f"""
-# Feature Interaction Analysis
-
-Feature interactions reveal how pairs of features jointly influence model predictions.
-High SHAP correlation between features suggests they interact in the model.
-
-## Top {top_n} Feature Interactions
-
-{table_md}
-
-## Interaction Visualizations
-
-![Feature Interactions]({fig_path})
-
-## Interpretation
-
-- High SHAP correlation between two features means they jointly influence predictions
-- Colored scatter shows how the interaction affects SHAP values
-- Non-linear patterns suggest complex interactions the model has learned
-
----
-"""
-            self._content.append(content)
-            self._store_section_data('feature_interactions', 'Feature Interactions', {
-                'n_interactions': len(top_interactions),
-                'top_pairs': [{'f1': i['feature_1'], 'f2': i['feature_2'], 'corr': i['correlation']}
-                              for i in top_interactions],
-            })
-
-        except Exception as e:
-            logger.warning(f"Feature interaction analysis failed: {e}")
-
-    def _create_interaction_chart(self, shap_values, feature_names: List[str],
-                                   X_sample, top_interactions: List[Dict]) -> str:
-        """Create feature interaction scatter plots."""
-        try:
-            import matplotlib.pyplot as plt
-
-            n = len(top_interactions)
-            fig, axes = plt.subplots(1, n, figsize=(5 * n, 4.5))
-            if n == 1:
-                axes = [axes]
-
-            X_arr = X_sample if isinstance(X_sample, np.ndarray) else X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample)
-
-            for i, inter in enumerate(top_interactions):
-                ax = axes[i]
-                idx1 = inter['idx_1']
-                idx2 = inter['idx_2']
-
-                feat1_vals = X_arr[:, idx1]
-                feat2_vals = X_arr[:, idx2]
-                shap_vals = shap_values[:, idx1]
-
-                scatter = ax.scatter(feat1_vals, feat2_vals, c=shap_vals,
-                                   cmap='coolwarm', alpha=0.6, s=20)
-                plt.colorbar(scatter, ax=ax, label='SHAP Value', shrink=0.8)
-
-                ax.set_xlabel(inter['feature_1'][:15], fontsize=10)
-                ax.set_ylabel(inter['feature_2'][:15], fontsize=10)
-                ax.set_title(f"r={inter['correlation']:.3f}", fontsize=11, fontweight='medium')
-
-            fig.suptitle('Feature Interaction Plots', fontsize=14, fontweight='bold',
-                        color=self.theme['primary'], y=1.05)
-            plt.tight_layout()
-
-            path = self.figures_dir / 'feature_interactions.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/feature_interactions.png'
-        except Exception as e:
-            logger.debug(f"Failed to create interaction chart: {e}")
-            return ""
-
-    # =========================================================================
-    # INTERPRETABILITY ANALYSIS (LIME / PERTURBATION)
-    # =========================================================================
-
-    def add_interpretability_analysis(self, model, X_sample, y_pred,
-                                       feature_names: List[str], top_n: int = 5):
-        """
-        Add local interpretability analysis using LIME or perturbation-based explanations.
-
-        Includes:
-        - Most/least confident prediction explanations
-        - Feature contribution analysis per instance
-        - Counterfactual generation (greedy perturbation until prediction flips)
-
-        Args:
-            model: Trained model with predict/predict_proba
-            X_sample: Feature array or DataFrame
-            y_pred: Predictions array
-            feature_names: List of feature names
-            top_n: Number of most/least confident samples to explain
-        """
-        try:
-            X_arr = X_sample if isinstance(X_sample, np.ndarray) else (
-                X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample))
-            y_pred_arr = np.asarray(y_pred)
-
-            # Get prediction confidences
-            has_proba = hasattr(model, 'predict_proba')
-            if has_proba:
-                probas = model.predict_proba(X_arr)
-                confidences = np.max(probas, axis=1)
-            else:
-                confidences = np.ones(len(y_pred_arr))
-
-            sorted_idx = np.argsort(confidences)
-            most_confident = sorted_idx[-top_n:][::-1]
-            least_confident = sorted_idx[:top_n]
-
-            # Try LIME, fall back to perturbation
-            method = 'perturbation'
-            explanations = []
-
-            try:
-                from lime.lime_tabular import LimeTabularExplainer
-                explainer = LimeTabularExplainer(
-                    X_arr, feature_names=feature_names, mode='classification',
-                    discretize_continuous=True, random_state=42)
-                method = 'lime'
-
-                for idx in list(most_confident) + list(least_confident):
-                    exp = explainer.explain_instance(X_arr[idx], model.predict_proba if has_proba else model.predict,
-                                                     num_features=min(10, len(feature_names)))
-                    contributions = {f: w for f, w in exp.as_list()}
-                    explanations.append({
-                        'sample_idx': int(idx),
-                        'confidence': float(confidences[idx]),
-                        'predicted': int(y_pred_arr[idx]),
-                        'contributions': contributions,
-                    })
-            except ImportError:
-                # Perturbation-based fallback
-                for idx in list(most_confident) + list(least_confident):
-                    contributions = self._perturbation_explain(
-                        model, X_arr, idx, feature_names, has_proba)
-                    explanations.append({
-                        'sample_idx': int(idx),
-                        'confidence': float(confidences[idx]),
-                        'predicted': int(y_pred_arr[idx]),
-                        'contributions': contributions,
-                    })
-
-            # Counterfactual generation
-            counterfactuals = []
-            for idx in most_confident[:3]:
-                cf = self._generate_counterfactual(model, X_arr, idx, feature_names, has_proba)
-                if cf:
-                    counterfactuals.append(cf)
-
-            # Create visualization
-            fig_path = self._create_lime_chart(explanations[:top_n], feature_names)
-
-            # Build content
-            content = f"""
-# Interpretability Analysis
-
-Local explanations showing why the model makes specific predictions.
-
-**Method:** {'LIME (Local Interpretable Model-agnostic Explanations)' if method == 'lime' else 'Perturbation-based feature contribution'}
-
-## Most Confident Predictions
-
-| Sample | Predicted | Confidence | Top Contributing Features |
-|--------|-----------|------------|--------------------------|
-"""
-            for exp in explanations[:top_n]:
-                top_contribs = sorted(exp['contributions'].items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-                contribs_str = ', '.join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
-                content += f"| #{exp['sample_idx']} | {exp['predicted']} | {exp['confidence']:.4f} | {contribs_str} |\n"
-
-            content += f"""
-## Least Confident Predictions
-
-| Sample | Predicted | Confidence | Top Contributing Features |
-|--------|-----------|------------|--------------------------|
-"""
-            for exp in explanations[top_n:]:
-                top_contribs = sorted(exp['contributions'].items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-                contribs_str = ', '.join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
-                content += f"| #{exp['sample_idx']} | {exp['predicted']} | {exp['confidence']:.4f} | {contribs_str} |\n"
-
-            if fig_path:
-                content += f"""
-## Feature Contributions (Most Confident Samples)
-
-![Interpretability Analysis]({fig_path})
-
-"""
-
-            if counterfactuals:
-                content += """## Counterfactual Analysis
-
-What minimal changes would flip the prediction?
-
-| Sample | Original Pred | Changes Required |
-|--------|--------------|-----------------|
-"""
-                for cf in counterfactuals:
-                    changes = ', '.join([f"{c['feature'][:15]}: {c['from']:.2f}→{c['to']:.2f}"
-                                        for c in cf['changes'][:3]])
-                    content += f"| #{cf['sample_idx']} | {cf['original_pred']} | {changes} |\n"
-
-            content += "\n---\n"
-            self._content.append(content)
-            self._store_section_data('interpretability', 'Interpretability Analysis', {
-                'method': method,
-                'n_explained': len(explanations),
-            }, [{'type': 'importance_bar'}])
-
-        except Exception as e:
-            logger.warning(f"Interpretability analysis failed: {e}")
-
-    def _perturbation_explain(self, model, X_arr, idx, feature_names, has_proba):
-        """Compute feature contributions via single-feature perturbation."""
-        contributions = {}
-        original = X_arr[idx].copy()
-
-        if has_proba:
-            base_pred = model.predict_proba(original.reshape(1, -1))[0]
-        else:
-            base_pred = model.predict(original.reshape(1, -1))[0]
-
-        for i, feat in enumerate(feature_names):
-            perturbed = original.copy()
-            col_std = np.std(X_arr[:, i])
-            perturbed[i] += col_std if col_std > 0 else 1.0
-            if has_proba:
-                new_pred = model.predict_proba(perturbed.reshape(1, -1))[0]
-                diff = float(np.max(np.abs(new_pred - base_pred)))
-            else:
-                new_pred = model.predict(perturbed.reshape(1, -1))[0]
-                diff = float(abs(new_pred - base_pred))
-            contributions[feat] = diff
-
-        return contributions
-
-    def _generate_counterfactual(self, model, X_arr, idx, feature_names, has_proba):
-        """Generate counterfactual by greedy perturbation of features."""
-        try:
-            original = X_arr[idx].copy()
-            original_pred = int(model.predict(original.reshape(1, -1))[0])
-
-            # Get feature importance via perturbation
-            contributions = self._perturbation_explain(model, X_arr, idx, feature_names, has_proba)
-            sorted_features = sorted(contributions.items(), key=lambda x: abs(x[1]), reverse=True)
-
-            perturbed = original.copy()
-            changes = []
-
-            for feat, _ in sorted_features[:len(feature_names)]:
-                feat_idx = feature_names.index(feat)
-                col_mean = np.mean(X_arr[:, feat_idx])
-                old_val = perturbed[feat_idx]
-                perturbed[feat_idx] = col_mean
-
-                new_pred = int(model.predict(perturbed.reshape(1, -1))[0])
-                changes.append({'feature': feat, 'from': float(old_val), 'to': float(col_mean)})
-
-                if new_pred != original_pred:
-                    return {
-                        'sample_idx': int(idx),
-                        'original_pred': original_pred,
-                        'new_pred': new_pred,
-                        'changes': changes,
-                    }
-
-            return None
-        except Exception:
-            return None
-
-    def _create_lime_chart(self, explanations, feature_names):
-        """Create horizontal bar chart of feature contributions."""
-        try:
-            import matplotlib.pyplot as plt
-
-            n_exp = min(len(explanations), 4)
-            if n_exp == 0:
-                return ""
-
-            fig, axes = plt.subplots(1, n_exp, figsize=(5 * n_exp, 5))
-            if n_exp == 1:
-                axes = [axes]
-
-            for i, exp in enumerate(explanations[:n_exp]):
-                ax = axes[i]
-                sorted_contribs = sorted(exp['contributions'].items(), key=lambda x: x[1])[-10:]
-                names = [c[0][:20] for c in sorted_contribs]
-                vals = [c[1] for c in sorted_contribs]
-                colors = [self.theme['success'] if v > 0 else self.theme['danger'] for v in vals]
-
-                ax.barh(range(len(names)), vals, color=colors, alpha=0.85)
-                ax.set_yticks(range(len(names)))
-                ax.set_yticklabels(names, fontsize=8)
-                ax.set_title(f"Sample #{exp['sample_idx']}\n(conf={exp['confidence']:.3f})",
-                            fontsize=10, fontweight='bold', color=self.theme['primary'])
-                ax.axvline(x=0, color='gray', linewidth=0.5)
-
-            fig.suptitle('Feature Contributions (Local Explanations)', fontsize=14,
-                        fontweight='bold', color=self.theme['primary'], y=1.02)
-            plt.tight_layout()
-            path = self.figures_dir / 'interpretability_analysis.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/interpretability_analysis.png'
-        except Exception as e:
-            logger.debug(f"Failed to create interpretability chart: {e}")
-            return ""
+            self._record_section_failure('Score Distribution', e)
 
     # =========================================================================
     # DEEP LEARNING ANALYSIS
@@ -4575,7 +3786,7 @@ Feature importance via input gradient analysis (gradient × input).
             }, [{'type': 'line', 'path': p} for p in fig_paths])
 
         except Exception as e:
-            logger.warning(f"Deep learning analysis failed: {e}")
+            self._record_section_failure('Deep Learning Analysis', e)
 
     def _is_neural_network(self, model) -> bool:
         """Check if model is a neural network using string-based type check (no framework imports)."""
@@ -4586,70 +3797,6 @@ Feature importance via input gradient analysis (gradient × input).
             'tensorflow.keras', 'tensorflow.python.keras',
         ]
         return any(indicator in model_type for indicator in nn_indicators)
-
-    def _create_training_curves(self, history: Dict) -> str:
-        """Create training curves with loss/val_loss and early stopping annotation."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(1, 2 if 'accuracy' in history else 1,
-                                     figsize=(12 if 'accuracy' in history else 8, 5))
-            if not isinstance(axes, np.ndarray):
-                axes = [axes]
-
-            # Loss curves
-            ax1 = axes[0]
-            loss = history.get('loss', [])
-            val_loss = history.get('val_loss', [])
-            epochs = range(1, len(loss) + 1)
-
-            ax1.plot(epochs, loss, color=self.theme['accent'], linewidth=2, label='Training Loss')
-            if val_loss:
-                ax1.plot(epochs, val_loss, color=self.theme['danger'], linewidth=2,
-                        label='Validation Loss')
-
-                # Best epoch annotation
-                best_epoch = int(np.argmin(val_loss)) + 1
-                best_val = min(val_loss)
-                ax1.axvline(x=best_epoch, color=self.theme['success'], linestyle='--',
-                           alpha=0.7, label=f'Best Epoch ({best_epoch})')
-                ax1.scatter([best_epoch], [best_val], color=self.theme['success'],
-                           s=100, zorder=5, marker='*')
-
-            ax1.set_xlabel('Epoch', fontsize=11)
-            ax1.set_ylabel('Loss', fontsize=11)
-            ax1.set_title('Training & Validation Loss', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            ax1.legend(fontsize=9)
-            ax1.grid(True, alpha=0.3)
-
-            # Accuracy curves (if available)
-            if 'accuracy' in history and len(axes) > 1:
-                ax2 = axes[1]
-                acc = history.get('accuracy', [])
-                val_acc = history.get('val_accuracy', [])
-
-                ax2.plot(range(1, len(acc) + 1), acc, color=self.theme['accent'],
-                        linewidth=2, label='Training Accuracy')
-                if val_acc:
-                    ax2.plot(range(1, len(val_acc) + 1), val_acc, color=self.theme['danger'],
-                            linewidth=2, label='Validation Accuracy')
-
-                ax2.set_xlabel('Epoch', fontsize=11)
-                ax2.set_ylabel('Accuracy', fontsize=11)
-                ax2.set_title('Training & Validation Accuracy', fontsize=14, fontweight='bold',
-                             color=self.theme['primary'])
-                ax2.legend(fontsize=9)
-                ax2.grid(True, alpha=0.3)
-
-            plt.tight_layout()
-            path = self.figures_dir / 'training_curves.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/training_curves.png'
-        except Exception as e:
-            logger.debug(f"Failed to create training curves: {e}")
-            return ""
 
     def _get_nn_architecture_info(self, model) -> Dict:
         """Extract neural network architecture information."""
@@ -4665,8 +3812,9 @@ Feature importance via input gradient analysis (gradient × input).
                 info['total_params'] = total
                 info['trainable_params'] = trainable
                 info['n_layers'] = len(list(model.modules())) - 1
-            except Exception:
-                pass
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('PyTorchModelInfo', 'failed to extract PyTorch model info', e)
 
         # Keras / TensorFlow
         elif 'keras' in model_type or 'tensorflow' in model_type:
@@ -4678,8 +3826,9 @@ Feature importance via input gradient analysis (gradient × input).
                 )
                 info['trainable_params'] = trainable_count
                 info['n_layers'] = len(model.layers)
-            except Exception:
-                pass
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('KerasModelInfo', 'failed to extract Keras model info', e)
 
         return info
 
@@ -4715,241 +3864,6 @@ Feature importance via input gradient analysis (gradient × input).
         return {}
 
     # =========================================================================
-    # DATA DRIFT MONITORING
-    # =========================================================================
-
-    def add_drift_analysis(self, X_reference, X_current, feature_names: List[str] = None,
-                           psi_warn: float = 0.1, psi_alert: float = 0.25):
-        """
-        Add data drift monitoring analysis between reference and current datasets.
-
-        Uses PSI, KS test, and Jensen-Shannon divergence to detect feature-level drift.
-
-        Args:
-            X_reference: Reference dataset (training data)
-            X_current: Current dataset (production/new data)
-            feature_names: Feature names (auto-detected from DataFrame)
-            psi_warn: PSI threshold for warning (default 0.1)
-            psi_alert: PSI threshold for alert (default 0.25)
-        """
-        try:
-            from scipy.stats import ks_2samp
-            from scipy.spatial.distance import jensenshannon
-
-            X_ref = np.asarray(X_reference)
-            X_cur = np.asarray(X_current)
-
-            if feature_names is None:
-                if hasattr(X_reference, 'columns'):
-                    feature_names = list(X_reference.columns)
-                else:
-                    feature_names = [f'Feature_{i}' for i in range(X_ref.shape[1])]
-
-            n_features = min(X_ref.shape[1], X_cur.shape[1], len(feature_names))
-            drift_results = []
-
-            for i in range(n_features):
-                ref_col = X_ref[:, i].astype(float)
-                cur_col = X_cur[:, i].astype(float)
-
-                # Remove NaN
-                ref_col = ref_col[~np.isnan(ref_col)]
-                cur_col = cur_col[~np.isnan(cur_col)]
-
-                if len(ref_col) < 10 or len(cur_col) < 10:
-                    continue
-
-                # PSI
-                psi = self._calculate_psi(ref_col, cur_col)
-
-                # KS test
-                ks_stat, ks_pval = ks_2samp(ref_col, cur_col)
-
-                # Jensen-Shannon divergence
-                js_div = self._calculate_js_divergence(ref_col, cur_col)
-
-                # Severity
-                if psi >= psi_alert:
-                    status = "ALERT"
-                elif psi >= psi_warn:
-                    status = "WARNING"
-                else:
-                    status = "OK"
-
-                drift_results.append({
-                    'feature': feature_names[i],
-                    'psi': psi,
-                    'ks_stat': ks_stat,
-                    'ks_pval': ks_pval,
-                    'js_div': js_div,
-                    'status': status,
-                })
-
-            if not drift_results:
-                return
-
-            # Create visualization
-            fig_path = self._create_drift_heatmap(drift_results, psi_warn, psi_alert)
-
-            # Summary stats
-            n_alert = sum(1 for r in drift_results if r['status'] == 'ALERT')
-            n_warn = sum(1 for r in drift_results if r['status'] == 'WARNING')
-            n_ok = sum(1 for r in drift_results if r['status'] == 'OK')
-
-            # Build table
-            table_md = "| Feature | PSI | KS Stat | KS p-value | JS Divergence | Status |\n"
-            table_md += "|---------|-----|---------|------------|---------------|--------|\n"
-            for r in sorted(drift_results, key=lambda x: x['psi'], reverse=True)[:20]:
-                status_icon = "ALERT" if r['status'] == 'ALERT' else ("WARN" if r['status'] == 'WARNING' else "OK")
-                table_md += (f"| {r['feature'][:25]} | {r['psi']:.4f} | {r['ks_stat']:.4f} | "
-                            f"{r['ks_pval']:.4f} | {r['js_div']:.4f} | {status_icon} |\n")
-
-            content = f"""
-# Data Drift Monitoring
-
-Monitoring for distribution shift between reference (training) and current (production) data.
-
-## Drift Summary
-
-| Status | Count |
-|--------|-------|
-| Alert (PSI >= {psi_alert}) | {n_alert} |
-| Warning (PSI >= {psi_warn}) | {n_warn} |
-| OK | {n_ok} |
-
-**Total Features Analyzed:** {len(drift_results)}
-
-## Feature-Level Drift Analysis
-
-{table_md}
-
-## Drift Heatmap
-
-![Data Drift Heatmap]({fig_path})
-
-## Interpretation
-
-- **PSI** (Population Stability Index): < {psi_warn} = stable, {psi_warn}-{psi_alert} = moderate drift, > {psi_alert} = significant drift
-- **KS Test**: p-value < 0.05 suggests statistically significant distribution change
-- **JS Divergence**: Symmetric measure of distribution difference (0 = identical)
-
----
-"""
-            self._content.append(content)
-
-            self._store_section_data('drift_analysis', 'Data Drift Monitoring', {
-                'drift_results': drift_results,
-                'n_alert': n_alert, 'n_warn': n_warn, 'n_ok': n_ok,
-            }, [{'type': 'heatmap', 'path': fig_path}])
-
-        except Exception as e:
-            logger.warning(f"Drift analysis failed: {e}")
-
-    def _calculate_psi(self, reference, current, n_bins: int = 10) -> float:
-        """Calculate Population Stability Index between two distributions."""
-        eps = 1e-4
-
-        # Create bins from reference distribution
-        breakpoints = np.linspace(np.min(reference), np.max(reference), n_bins + 1)
-        breakpoints[0] = -np.inf
-        breakpoints[-1] = np.inf
-
-        ref_counts = np.histogram(reference, bins=breakpoints)[0]
-        cur_counts = np.histogram(current, bins=breakpoints)[0]
-
-        ref_pct = ref_counts / len(reference) + eps
-        cur_pct = cur_counts / len(current) + eps
-
-        psi = np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct))
-        return float(psi)
-
-    def _calculate_js_divergence(self, reference, current, n_bins: int = 50) -> float:
-        """Calculate Jensen-Shannon divergence between two distributions."""
-        try:
-            from scipy.spatial.distance import jensenshannon
-
-            all_data = np.concatenate([reference, current])
-            bins = np.linspace(np.min(all_data), np.max(all_data), n_bins + 1)
-
-            ref_hist = np.histogram(reference, bins=bins, density=True)[0] + 1e-10
-            cur_hist = np.histogram(current, bins=bins, density=True)[0] + 1e-10
-
-            ref_hist = ref_hist / ref_hist.sum()
-            cur_hist = cur_hist / cur_hist.sum()
-
-            return float(jensenshannon(ref_hist, cur_hist))
-        except Exception:
-            return 0.0
-
-    def _create_drift_heatmap(self, drift_results: List[Dict],
-                               psi_warn: float, psi_alert: float) -> str:
-        """Create drift heatmap visualization."""
-        try:
-            import matplotlib.pyplot as plt
-            from matplotlib.colors import LinearSegmentedColormap
-
-            n = min(len(drift_results), 25)
-            sorted_results = sorted(drift_results, key=lambda x: x['psi'], reverse=True)[:n]
-
-            features = [r['feature'][:20] for r in sorted_results]
-            metrics = ['PSI', 'KS Stat', 'JS Div']
-
-            data = np.array([
-                [r['psi'] for r in sorted_results],
-                [r['ks_stat'] for r in sorted_results],
-                [r['js_div'] for r in sorted_results],
-            ]).T
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, max(6, n * 0.35)),
-                                            gridspec_kw={'width_ratios': [3, 1]})
-
-            # Heatmap
-            colors_cmap = LinearSegmentedColormap.from_list('drift',
-                [self.theme['success'], self.theme['warning'], self.theme['danger']])
-            im = ax1.imshow(data, cmap=colors_cmap, aspect='auto')
-
-            ax1.set_xticks(range(len(metrics)))
-            ax1.set_xticklabels(metrics, fontsize=10)
-            ax1.set_yticks(range(len(features)))
-            ax1.set_yticklabels(features, fontsize=9)
-
-            # Annotate
-            for i in range(len(features)):
-                for j in range(len(metrics)):
-                    ax1.text(j, i, f'{data[i, j]:.3f}', ha='center', va='center',
-                            fontsize=8, color='white' if data[i, j] > 0.5 else 'black')
-
-            ax1.set_title('Drift Metrics Heatmap', fontsize=14, fontweight='bold',
-                         color=self.theme['primary'])
-            plt.colorbar(im, ax=ax1, shrink=0.8, label='Metric Value')
-
-            # PSI bar chart
-            psi_values = [r['psi'] for r in sorted_results]
-            colors = [self.theme['danger'] if v >= psi_alert
-                     else (self.theme['warning'] if v >= psi_warn
-                           else self.theme['success']) for v in psi_values]
-
-            ax2.barh(range(len(features)), psi_values, color=colors, alpha=0.8)
-            ax2.axvline(x=psi_warn, color=self.theme['warning'], linestyle='--',
-                       alpha=0.7, label=f'Warn ({psi_warn})')
-            ax2.axvline(x=psi_alert, color=self.theme['danger'], linestyle='--',
-                       alpha=0.7, label=f'Alert ({psi_alert})')
-            ax2.set_yticks([])
-            ax2.set_xlabel('PSI', fontsize=10)
-            ax2.set_title('PSI Values', fontsize=12, fontweight='bold', color=self.theme['primary'])
-            ax2.legend(fontsize=8, loc='lower right')
-            ax2.invert_yaxis()
-
-            plt.tight_layout()
-            path = self.figures_dir / 'drift_heatmap.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/drift_heatmap.png'
-        except Exception as e:
-            logger.debug(f"Failed to create drift heatmap: {e}")
-            return ""
-
-    # =========================================================================
     # MODEL CARD (Phase 8)
     # =========================================================================
 
@@ -4964,6 +3878,12 @@ Monitoring for distribution shift between reference (training) and current (prod
         - Ethical considerations
         - Auto-generated limitations from analysis results
         """
+        try:
+            self._add_model_card_impl(model, results, intended_use, limitations, ethical)
+        except Exception as e:
+            self._record_section_failure('Model Card', e)
+
+    def _add_model_card_impl(self, model, results, intended_use, limitations, ethical):
         import platform
 
         model_type = type(model).__name__ if model else 'Unknown'
@@ -4971,8 +3891,9 @@ Monitoring for distribution shift between reference (training) and current (prod
         if model and hasattr(model, 'get_params'):
             try:
                 model_params = model.get_params()
-            except:
-                pass
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('ModelParams', 'failed to get model params', e)
 
         # Auto-generate limitations from analysis
         auto_limitations = []
@@ -5068,197 +3989,6 @@ transparent model documentation.
         })
 
     # =========================================================================
-    # FAIRNESS & BIAS AUDIT
-    # =========================================================================
-
-    def add_fairness_audit(self, X, y_true, y_pred, y_prob,
-                           sensitive_features: Dict[str, Any],
-                           labels: List[str] = None):
-        """
-        Add fairness and bias audit for model predictions across sensitive groups.
-
-        Args:
-            X: Feature DataFrame
-            y_true: True labels
-            y_pred: Predicted labels
-            y_prob: Predicted probabilities
-            sensitive_features: Dict mapping feature_name -> column data or column name in X
-            labels: Class labels
-        """
-        try:
-            y_true_arr = np.asarray(y_true)
-            y_pred_arr = np.asarray(y_pred)
-            y_prob_arr = np.asarray(y_prob) if y_prob is not None else None
-
-            content = f"""
-# Fairness & Bias Audit
-
-Evaluating model fairness across sensitive demographic features using multiple
-fairness criteria and the 80% rule (disparate impact ratio > 0.8).
-
-"""
-
-            all_metrics = {}
-
-            for feat_name, feat_data in sensitive_features.items():
-                # Resolve feature data
-                if isinstance(feat_data, str) and hasattr(X, 'columns') and feat_data in X.columns:
-                    groups = np.asarray(X[feat_data])
-                elif hasattr(feat_data, '__len__'):
-                    groups = np.asarray(feat_data)
-                else:
-                    continue
-
-                # Compute fairness metrics per group
-                metrics = self._compute_fairness_metrics(y_true_arr, y_pred_arr, y_prob_arr, groups)
-
-                if not metrics:
-                    continue
-
-                all_metrics[feat_name] = metrics
-
-                # Build table for this feature
-                content += f"""## {feat_name}
-
-| Group | Pos Rate | TPR | FPR | PPV | Disparate Impact |
-|-------|----------|-----|-----|-----|-----------------|
-"""
-                # Calculate reference group (largest group)
-                group_names = list(metrics.keys())
-                ref_group = max(group_names, key=lambda g: metrics[g]['n'])
-                ref_pos_rate = metrics[ref_group]['positive_rate']
-
-                for group, m in sorted(metrics.items(), key=lambda x: -x[1]['n']):
-                    di = m['positive_rate'] / ref_pos_rate if ref_pos_rate > 0 else 0
-                    content += (f"| {group} (n={m['n']}) | {m['positive_rate']:.3f} | "
-                               f"{m['tpr']:.3f} | {m['fpr']:.3f} | {m['ppv']:.3f} | {di:.3f} |\n")
-
-                # Pass/Fail based on 80% rule
-                all_di = []
-                for group, m in metrics.items():
-                    di = m['positive_rate'] / ref_pos_rate if ref_pos_rate > 0 else 0
-                    all_di.append(di)
-
-                min_di = min(all_di) if all_di else 0
-                passes_80 = min_di >= 0.8
-
-                content += f"""
-**Disparate Impact Assessment:** {'PASS' if passes_80 else 'FAIL'} (min ratio: {min_di:.3f}, threshold: 0.80)
-
-"""
-
-            # Create radar chart for first feature
-            if all_metrics:
-                first_feat = list(all_metrics.keys())[0]
-                fig_path = self._create_fairness_radar_chart(all_metrics[first_feat], first_feat)
-
-                if fig_path:
-                    content += f"""## Fairness Radar Chart ({first_feat})
-
-![Fairness Radar]({fig_path})
-
-"""
-
-            # Mitigation recommendations
-            content += """## Mitigation Recommendations
-
-- **Pre-processing:** Re-sample or re-weight training data to achieve demographic parity
-- **In-processing:** Add fairness constraints to the model objective function
-- **Post-processing:** Adjust decision thresholds per group to equalize outcome rates
-- **Monitoring:** Continuously track fairness metrics in production
-
----
-"""
-            self._content.append(content)
-
-            self._store_section_data('fairness_audit', 'Fairness & Bias Audit', {
-                'metrics': {k: {gk: {mk: mv for mk, mv in gv.items()}
-                               for gk, gv in v.items()} for k, v in all_metrics.items()},
-            }, [{'type': 'radar', 'path': fig_path}] if all_metrics else [])
-
-        except Exception as e:
-            logger.warning(f"Fairness audit failed: {e}")
-
-    def _compute_fairness_metrics(self, y_true, y_pred, y_prob, groups) -> Dict:
-        """Compute fairness metrics per group: demographic parity, equalized odds, predictive parity."""
-        unique_groups = np.unique(groups)
-        if len(unique_groups) < 2:
-            return {}
-
-        metrics = {}
-        for group in unique_groups:
-            mask = groups == group
-            n = mask.sum()
-            if n < 5:
-                continue
-
-            yt = y_true[mask]
-            yp = y_pred[mask]
-
-            positive_rate = yp.mean()
-
-            # TPR (sensitivity)
-            pos_mask = yt == 1
-            tpr = yp[pos_mask].mean() if pos_mask.sum() > 0 else 0.0
-
-            # FPR
-            neg_mask = yt == 0
-            fpr = yp[neg_mask].mean() if neg_mask.sum() > 0 else 0.0
-
-            # PPV (precision)
-            pred_pos_mask = yp == 1
-            ppv = yt[pred_pos_mask].mean() if pred_pos_mask.sum() > 0 else 0.0
-
-            metrics[str(group)] = {
-                'n': int(n),
-                'positive_rate': float(positive_rate),
-                'tpr': float(tpr),
-                'fpr': float(fpr),
-                'ppv': float(ppv),
-            }
-
-        return metrics
-
-    def _create_fairness_radar_chart(self, metrics_per_group: Dict, feature_name: str) -> str:
-        """Create radar/spider chart showing fairness metrics per group."""
-        try:
-            import matplotlib.pyplot as plt
-
-            metric_names = ['Pos Rate', 'TPR', 'FPR', 'PPV']
-            n_metrics = len(metric_names)
-            angles = np.linspace(0, 2 * np.pi, n_metrics, endpoint=False).tolist()
-            angles += angles[:1]  # Close the polygon
-
-            fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-
-            colors = self.theme['chart_palette']
-
-            for i, (group, m) in enumerate(metrics_per_group.items()):
-                values = [m['positive_rate'], m['tpr'], m['fpr'], m['ppv']]
-                values += values[:1]  # Close
-
-                color = colors[i % len(colors)]
-                ax.plot(angles, values, 'o-', linewidth=2, label=f'{group} (n={m["n"]})',
-                       color=color)
-                ax.fill(angles, values, alpha=0.15, color=color)
-
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(metric_names, fontsize=10)
-            ax.set_ylim(0, 1)
-            ax.set_title(f'Fairness Metrics: {feature_name}', fontsize=14,
-                        fontweight='bold', color=self.theme['primary'], pad=20)
-            ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1), fontsize=9)
-
-            plt.tight_layout()
-            path = self.figures_dir / f'fairness_radar_{feature_name[:20].replace(" ", "_")}.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return f'figures/{path.name}'
-        except Exception as e:
-            logger.debug(f"Failed to create fairness radar chart: {e}")
-            return ""
-
-    # =========================================================================
     # REGRESSION ANALYSIS (Phase 9)
     # =========================================================================
 
@@ -5273,8 +4003,9 @@ fairness criteria and the 80% rule (disparate impact ratio > 0.8).
             from sklearn.metrics import (mean_absolute_error, mean_squared_error,
                                          r2_score, mean_absolute_percentage_error)
 
-            y_true_arr = np.asarray(y_true, dtype=float)
-            y_pred_arr = np.asarray(y_pred, dtype=float)
+            preds = self._make_predictions(y_true, y_pred)
+            y_true_arr = preds.y_true.astype(float)
+            y_pred_arr = preds.y_pred.astype(float)
             residuals = y_true_arr - y_pred_arr
 
             # Calculate metrics
@@ -5283,7 +4014,9 @@ fairness criteria and the 80% rule (disparate impact ratio > 0.8).
             rmse = np.sqrt(mean_squared_error(y_true_arr, y_pred_arr))
             try:
                 mape = mean_absolute_percentage_error(y_true_arr, y_pred_arr) * 100
-            except:
+            except Exception as e:
+                if hasattr(self, '_warnings'):
+                    self._record_internal_warning('MAPEComputation', 'sklearn MAPE failed, using manual', e)
                 mape = np.mean(np.abs((y_true_arr - y_pred_arr) / (y_true_arr + 1e-10))) * 100
 
             # Adjusted R²
@@ -5334,10 +4067,13 @@ Comprehensive evaluation of regression model performance including residual diag
 ---
 """
             self._content.append(content)
-            self._store_section_data('regression', 'Regression Analysis', {'r2': r2, 'rmse': rmse})
+            self._store_section_data('regression', 'Regression Analysis', {
+                'r2': r2, 'rmse': rmse,
+                'is_heteroscedastic': hetero_result.get('is_heteroscedastic', False),
+            })
 
         except Exception as e:
-            logger.warning(f"Regression analysis failed: {e}")
+            self._record_section_failure('Regression Analysis', e)
 
     def _detect_heteroscedasticity(self, y_pred, residuals) -> Dict:
         """Perform Breusch-Pagan test for heteroscedasticity."""
@@ -5364,7 +4100,9 @@ Comprehensive evaluation of regression model performance including residual diag
                 'result': 'Heteroscedastic' if is_heteroscedastic else 'Homoscedastic',
                 'is_heteroscedastic': is_heteroscedastic,
             }
-        except Exception:
+        except Exception as e:
+            if hasattr(self, '_warnings'):
+                self._record_internal_warning('Heteroscedasticity', 'Breusch-Pagan test failed', e)
             return {
                 'statistic': 'N/A',
                 'p_value': 'N/A',
@@ -5372,99 +4110,35 @@ Comprehensive evaluation of regression model performance including residual diag
                 'is_heteroscedastic': False,
             }
 
-    def _create_regression_charts(self, y_true, y_pred, residuals) -> str:
-        """Create 2x2 regression diagnostic plots."""
-        try:
-            import matplotlib.pyplot as plt
-            from scipy import stats as scipy_stats
-
-            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-            # 1. Predicted vs Actual
-            ax1 = axes[0, 0]
-            ax1.scatter(y_true, y_pred, alpha=0.5, s=20, color=self.theme['accent'])
-            min_val = min(y_true.min(), y_pred.min())
-            max_val = max(y_true.max(), y_pred.max())
-            ax1.plot([min_val, max_val], [min_val, max_val], 'k--', linewidth=1.5, label='Perfect')
-            ax1.set_xlabel('Actual', fontsize=11)
-            ax1.set_ylabel('Predicted', fontsize=11)
-            ax1.set_title('Predicted vs Actual', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax1.legend()
-
-            # 2. Residual Plot
-            ax2 = axes[0, 1]
-            ax2.scatter(y_pred, residuals, alpha=0.5, s=20, color=self.theme['success'])
-            ax2.axhline(0, color='k', linestyle='--', linewidth=1.5)
-            ax2.set_xlabel('Predicted', fontsize=11)
-            ax2.set_ylabel('Residuals', fontsize=11)
-            ax2.set_title('Residual Plot', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # 3. Q-Q Plot
-            ax3 = axes[1, 0]
-            sorted_residuals = np.sort(residuals)
-            n = len(sorted_residuals)
-            theoretical_quantiles = scipy_stats.norm.ppf(np.linspace(0.01, 0.99, n))
-            standardized_residuals = (sorted_residuals - sorted_residuals.mean()) / sorted_residuals.std()
-
-            ax3.scatter(theoretical_quantiles, standardized_residuals[:len(theoretical_quantiles)],
-                       alpha=0.5, s=20, color=self.theme['warning'])
-            lim = max(abs(theoretical_quantiles.min()), abs(theoretical_quantiles.max()))
-            ax3.plot([-lim, lim], [-lim, lim], 'k--', linewidth=1.5)
-            ax3.set_xlabel('Theoretical Quantiles', fontsize=11)
-            ax3.set_ylabel('Standardized Residuals', fontsize=11)
-            ax3.set_title('Q-Q Plot', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            # 4. Residual Histogram
-            ax4 = axes[1, 1]
-            ax4.hist(residuals, bins=40, color=self.theme['accent'], alpha=0.7,
-                    edgecolor='white', density=True)
-
-            # Overlay normal distribution
-            x_range = np.linspace(residuals.min(), residuals.max(), 100)
-            normal_pdf = scipy_stats.norm.pdf(x_range, residuals.mean(), residuals.std())
-            ax4.plot(x_range, normal_pdf, color=self.theme['danger'], linewidth=2, label='Normal')
-
-            ax4.set_xlabel('Residual Value', fontsize=11)
-            ax4.set_ylabel('Density', fontsize=11)
-            ax4.set_title('Residual Distribution', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax4.legend()
-
-            plt.tight_layout()
-            path = self.figures_dir / 'regression_diagnostics.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-            return 'figures/regression_diagnostics.png'
-        except Exception as e:
-            logger.debug(f"Failed to create regression charts: {e}")
-            return ""
-
     def generate(self, filename: str = None) -> Optional[str]:
         """Generate the PDF report using Pandoc + LaTeX."""
+        try:
+            if not filename:
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"ml_report_{timestamp}.pdf"
 
-        if not filename:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"ml_report_{timestamp}.pdf"
+            pdf_path = self.output_dir / filename
 
-        pdf_path = self.output_dir / filename
+            # Build markdown content
+            markdown = self._build_markdown()
 
-        # Build markdown content
-        markdown = self._build_markdown()
+            # Save markdown temporarily
+            md_path = self.output_dir / f"{filename.replace('.pdf', '')}.md"
+            with open(md_path, 'w', encoding='utf-8') as f:
+                f.write(markdown)
 
-        # Save markdown temporarily
-        md_path = self.output_dir / f"{filename.replace('.pdf', '')}.md"
-        with open(md_path, 'w', encoding='utf-8') as f:
-            f.write(markdown)
+            # Try pandoc conversion
+            success = self._convert_with_pandoc(md_path, pdf_path)
 
-        # Try pandoc conversion
-        success = self._convert_with_pandoc(md_path, pdf_path)
-
-        if success and pdf_path.exists():
-            logger.info(f"Report generated: {pdf_path}")
-            return str(pdf_path)
-        else:
-            # Fallback to basic reportlab
-            logger.warning("Pandoc failed, using fallback PDF generator")
-            return self._fallback_pdf_generation(markdown, pdf_path)
+            if success and pdf_path.exists():
+                logger.info(f"Report generated: {pdf_path}")
+                return str(pdf_path)
+            else:
+                # Fallback to basic reportlab
+                logger.warning("Pandoc failed, using fallback PDF generator")
+                return self._fallback_pdf_generation(markdown, pdf_path)
+        finally:
+            self.restore_plot_style()
 
     # =========================================================================
     # INTERACTIVE HTML REPORT GENERATION
@@ -5495,8 +4169,10 @@ Comprehensive evaluation of regression model performance including residual diag
             return str(html_path)
 
         except Exception as e:
-            logger.error(f"HTML report generation failed: {e}")
+            self._record_section_failure('HTML Report Generation', e)
             return None
+        finally:
+            self.restore_plot_style()
 
     def generate_all(self, filename_base: str = None) -> Dict[str, Optional[str]]:
         """
@@ -5936,184 +4612,6 @@ window.addEventListener('scroll', () => {{
 
         return '\n'.join(scripts)
 
-    def _create_plotly_chart(self, chart_type: str, section_data: Dict, chart_id: str) -> str:
-        """Map chart types to Plotly.js graph objects. Returns JS code string or empty."""
-        try:
-            data = section_data.get('data', {})
-            title = section_data.get('title', '')
-            t = self.theme
-
-            if chart_type == 'bar' and 'results' in data:
-                # Cross-dataset or benchmarking bar chart
-                results = data['results']
-                names = list(results.keys())
-                values = [results[n].get('score', 0) for n in names]
-
-                return f"""
-Plotly.newPlot('{chart_id}', [{{
-    x: {names},
-    y: {values},
-    type: 'bar',
-    marker: {{color: '{t["accent"]}'}},
-}}], {{
-    title: '{title}',
-    yaxis: {{title: 'Score'}},
-    paper_bgcolor: '{t["chart_bg"]}',
-    plot_bgcolor: 'white',
-}});"""
-
-            elif chart_type == 'heatmap' and 'drift_results' in data:
-                # Drift heatmap
-                results = data['drift_results']
-                features = [r['feature'][:20] for r in results[:20]]
-                psi = [r['psi'] for r in results[:20]]
-                ks = [r['ks_stat'] for r in results[:20]]
-
-                return f"""
-Plotly.newPlot('{chart_id}', [{{
-    z: [{psi}, {ks}],
-    x: {features},
-    y: ['PSI', 'KS Stat'],
-    type: 'heatmap',
-    colorscale: 'RdYlGn_r',
-}}], {{
-    title: '{title}',
-    paper_bgcolor: '{t["chart_bg"]}',
-}});"""
-
-            elif chart_type == 'radar' and 'metrics' in data:
-                # Fairness radar
-                metrics = data['metrics']
-                if metrics:
-                    first_feat = list(metrics.keys())[0]
-                    groups = metrics[first_feat]
-                    traces = []
-                    categories = ['Pos Rate', 'TPR', 'FPR', 'PPV']
-
-                    for group_name, m in groups.items():
-                        vals = [m['positive_rate'], m['tpr'], m['fpr'], m['ppv']]
-                        traces.append(f"""{{
-    type: 'scatterpolar',
-    r: {vals + [vals[0]]},
-    theta: {categories + [categories[0]]},
-    fill: 'toself',
-    name: '{group_name}',
-}}""")
-
-                    return f"""
-Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
-    title: '{title}',
-    polar: {{radialaxis: {{visible: true, range: [0, 1]}}}},
-    paper_bgcolor: '{t["chart_bg"]}',
-}});"""
-
-            elif chart_type == 'line' and 'training_history' in data:
-                # Training curves
-                history = data.get('training_history', {})
-                if history:
-                    loss = history.get('loss', [])
-                    val_loss = history.get('val_loss', [])
-                    epochs = list(range(1, len(loss) + 1))
-
-                    traces = [f"""{{
-    x: {epochs},
-    y: {loss},
-    mode: 'lines',
-    name: 'Training Loss',
-    line: {{color: '{t["accent"]}'}},
-}}"""]
-                    if val_loss:
-                        traces.append(f"""{{
-    x: {list(range(1, len(val_loss) + 1))},
-    y: {val_loss},
-    mode: 'lines',
-    name: 'Validation Loss',
-    line: {{color: '{t["danger"]}'}},
-}}""")
-
-                    return f"""
-Plotly.newPlot('{chart_id}', [{','.join(traces)}], {{
-    title: '{title}',
-    xaxis: {{title: 'Epoch'}},
-    yaxis: {{title: 'Loss'}},
-    paper_bgcolor: '{t["chart_bg"]}',
-    plot_bgcolor: 'white',
-}});"""
-
-            elif chart_type == 'confusion_heatmap' and 'cm' in data:
-                # Confusion matrix heatmap
-                cm = data['cm']
-                labels = data.get('labels', [f'Class {i}' for i in range(len(cm))])
-                n = len(cm)
-                # Build annotation text
-                annotations = []
-                for i in range(n):
-                    for j in range(n):
-                        annotations.append(f"""{{
-    x: {j}, y: {i}, text: '{cm[i][j]}',
-    font: {{color: '{'white' if cm[i][j] > max(max(row) for row in cm) / 2 else 'black'}'}},
-    showarrow: false,
-}}""")
-                return f"""
-Plotly.newPlot('{chart_id}', [{{
-    z: {cm},
-    x: {labels},
-    y: {labels},
-    type: 'heatmap',
-    colorscale: 'Blues',
-    showscale: true,
-}}], {{
-    title: '{title}',
-    xaxis: {{title: 'Predicted'}},
-    yaxis: {{title: 'Actual', autorange: 'reversed'}},
-    annotations: [{','.join(annotations)}],
-    paper_bgcolor: '{t["chart_bg"]}',
-}});"""
-
-            elif chart_type == 'importance_bar':
-                # Feature importance horizontal bar chart
-                importance = data.get('mean_shap') or data.get('importance') or data.get('importance_values')
-                if importance and isinstance(importance, dict):
-                    sorted_items = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:15]
-                    names = [item[0] for item in sorted_items][::-1]
-                    values = [round(item[1], 4) for item in sorted_items][::-1]
-                    return f"""
-Plotly.newPlot('{chart_id}', [{{
-    y: {names},
-    x: {values},
-    type: 'bar',
-    orientation: 'h',
-    marker: {{color: '{t["accent"]}'}},
-}}], {{
-    title: '{title}',
-    xaxis: {{title: 'Importance'}},
-    margin: {{l: 200}},
-    paper_bgcolor: '{t["chart_bg"]}',
-    plot_bgcolor: 'white',
-}});"""
-
-        except Exception as e:
-            logger.debug(f"Plotly chart generation failed: {e}")
-
-        return ""
-
-    def _image_to_base64(self, image_path: str) -> str:
-        """Convert image file to base64 data URI for self-contained HTML."""
-        try:
-            import base64
-            full_path = self.output_dir / image_path
-            if full_path.exists():
-                with open(full_path, 'rb') as f:
-                    data = base64.b64encode(f.read()).decode('utf-8')
-                return f'data:image/png;base64,{data}'
-        except Exception:
-            pass
-        return image_path
-
-    def _hex_to_rgb(self, hex_color: str) -> str:
-        """Convert hex color to LaTeX RGB format."""
-        h = hex_color.lstrip('#')
-        return f"{int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)}"
 
     def _build_markdown(self) -> str:
         """Build the full markdown document with theme-aware LaTeX formatting."""
@@ -6203,6 +4701,96 @@ header-includes:
 
         # Combine all content
         body = "\n".join(self._content)
+
+        # Append Environment & Reproducibility section
+        env = self._metadata.get('environment', {})
+        if env:
+            libs = env.get('libraries', {})
+            env_md = f"""
+# Environment & Reproducibility
+
+## Report Generator
+
+| Property | Value |
+|----------|-------|
+| Report Version | {env.get('report_version', 'N/A')} |
+| Generated At | {env.get('timestamp', 'N/A')} |
+
+## System
+
+| Property | Value |
+|----------|-------|
+| Python Version | {env.get('python_version', 'N/A').split(chr(10))[0]} |
+| Platform | {env.get('platform', 'N/A')} |
+| Machine | {env.get('machine', 'N/A')} |
+
+## Library Versions
+
+| Library | Version |
+|---------|---------|
+"""
+            for lib_name, lib_ver in libs.items():
+                env_md += f"| {lib_name} | {lib_ver} |\n"
+
+            env_md += "\n---\n"
+            body += env_md
+
+            self._store_section_data('environment', 'Environment & Reproducibility', {
+                'report_version': env.get('report_version'),
+                'python_version': env.get('python_version', '').split('\n')[0],
+                'platform': env.get('platform'),
+                'libraries': libs,
+            })
+
+        # Append report health summary if there were failures or warnings
+        health = self.get_report_health()
+        has_issues = self._failed_sections or self._failed_charts or health['total_warnings'] > 0
+        if has_issues:
+            health_md = f"""
+# Report Health Summary
+
+| Metric | Value |
+|--------|-------|
+| Total Sections Attempted | {health['total_sections']} |
+| Succeeded | {health['succeeded']} |
+| Failed Sections | {health['failed']} |
+| Failed Charts | {health['total_charts_failed']} |
+| Warnings | {health['total_warnings']} |
+
+"""
+            if health['failed_sections']:
+                health_md += """## Failed Sections
+
+| Section | Error Type | Error Message |
+|---------|-----------|---------------|
+"""
+                for fs in health['failed_sections']:
+                    health_md += f"| {fs['section']} | {fs['error_type']} | {fs['error_message'][:80]} |\n"
+                health_md += "\n"
+
+            if health['failed_charts']:
+                health_md += """## Failed Charts
+
+| Chart | Error Type | Error Message |
+|-------|-----------|---------------|
+"""
+                for fc in health['failed_charts']:
+                    health_md += f"| {fc['chart']} | {fc['error_type']} | {fc['error_message'][:80]} |\n"
+                health_md += "\n"
+
+            if health['warnings']:
+                health_md += """## Warnings
+
+| Component | Message | Error Type |
+|-----------|---------|-----------|
+"""
+                for w in health['warnings']:
+                    err_type = w.get('error_type') or ''
+                    health_md += f"| {w['component']} | {w['message'][:80]} | {err_type} |\n"
+                health_md += "\n"
+
+            health_md += "---\n"
+            body += health_md
 
         return title_page + toc + body
 
@@ -6572,210 +5160,8 @@ header-includes:
                 logger.error(f"Minimal fallback PDF also failed: {e2}")
                 return None
 
-    def _create_importance_chart(self, sorted_importance: List[Tuple[str, float]]) -> str:
-        """Create feature importance bar chart."""
-        try:
-            import matplotlib.pyplot as plt
 
-            features = [x[0][:25] for x in sorted_importance]
-            values = [x[1] for x in sorted_importance]
 
-            fig, ax = plt.subplots(figsize=(10, max(6, len(features) * 0.35)))
 
-            colors = plt.cm.Blues(np.linspace(0.4, 0.9, len(features)))[::-1]
-            bars = ax.barh(range(len(features)), values[::-1], color=colors)
 
-            ax.set_yticks(range(len(features)))
-            ax.set_yticklabels(features[::-1], fontsize=9)
-            ax.set_xlabel('Importance', fontsize=11)
-            ax.set_title('Feature Importance', fontsize=14, fontweight='bold', color=self.theme['primary'])
 
-            # Add value labels
-            for bar, val in zip(bars, values[::-1]):
-                ax.text(val + 0.001, bar.get_y() + bar.get_height()/2,
-                       f'{val:.3f}', va='center', fontsize=8)
-
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-
-            plt.tight_layout()
-
-            path = self.figures_dir / 'feature_importance.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/feature_importance.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create importance chart: {e}")
-            return ""
-
-    def _create_benchmark_chart(self, sorted_models: List[Tuple[str, Dict]]) -> str:
-        """Create model benchmarking chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            models = [x[0] for x in sorted_models]
-            scores = [x[1].get('test_score', x[1].get('cv_score', 0)) for x in sorted_models]
-
-            fig, ax = plt.subplots(figsize=(10, 6))
-
-            colors = plt.cm.RdYlGn(np.linspace(0.3, 0.9, len(models)))
-            bars = ax.barh(range(len(models)), scores, color=colors)
-
-            ax.set_yticks(range(len(models)))
-            ax.set_yticklabels(models, fontsize=10)
-            ax.set_xlabel('Test Score', fontsize=11)
-            ax.set_title('Model Comparison', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.set_xlim(0, 1)
-
-            for bar, score in zip(bars, scores):
-                ax.text(score + 0.01, bar.get_y() + bar.get_height()/2,
-                       f'{score:.4f}', va='center', fontsize=9)
-
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.axvline(x=0.5, color='gray', linestyle='--', alpha=0.5, label='Random')
-
-            plt.tight_layout()
-
-            path = self.figures_dir / 'model_benchmark.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/model_benchmark.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create benchmark chart: {e}")
-            return ""
-
-    def _create_confusion_matrix_chart(self, cm, labels: List[str] = None) -> str:
-        """Create confusion matrix heatmap."""
-        try:
-            import matplotlib.pyplot as plt
-            import seaborn as sns
-
-            fig, ax = plt.subplots(figsize=(8, 6))
-
-            sns.heatmap(cm, annot=True, fmt='d', cmap=self.theme['chart_cmap'],
-                       xticklabels=labels or ['0', '1'],
-                       yticklabels=labels or ['0', '1'],
-                       ax=ax, annot_kws={'size': 14})
-
-            ax.set_xlabel('Predicted', fontsize=11)
-            ax.set_ylabel('Actual', fontsize=11)
-            ax.set_title('Confusion Matrix', fontsize=14, fontweight='bold', color=self.theme['primary'])
-
-            plt.tight_layout()
-
-            path = self.figures_dir / 'confusion_matrix.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/confusion_matrix.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create confusion matrix: {e}")
-            return ""
-
-    def _create_roc_chart(self, fpr, tpr, roc_auc: float) -> str:
-        """Create ROC curve chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, ax = plt.subplots(figsize=(8, 6))
-
-            ax.plot(fpr, tpr, color=self.theme['accent'], lw=2,
-                   label=f'ROC curve (AUC = {roc_auc:.3f})')
-            ax.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--', label='Random')
-
-            ax.fill_between(fpr, tpr, alpha=0.3, color=self.theme['accent'])
-
-            ax.set_xlim([0.0, 1.0])
-            ax.set_ylim([0.0, 1.05])
-            ax.set_xlabel('False Positive Rate', fontsize=11)
-            ax.set_ylabel('True Positive Rate', fontsize=11)
-            ax.set_title('ROC Curve', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.legend(loc='lower right')
-            ax.grid(True, alpha=0.3)
-
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-
-            plt.tight_layout()
-
-            path = self.figures_dir / 'roc_curve.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/roc_curve.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create ROC chart: {e}")
-            return ""
-
-    def _create_pr_chart(self, precision, recall, avg_precision: float) -> str:
-        """Create precision-recall curve chart."""
-        try:
-            import matplotlib.pyplot as plt
-
-            fig, ax = plt.subplots(figsize=(8, 6))
-
-            ax.plot(recall, precision, color=self.theme['success'], lw=2,
-                   label=f'PR curve (AP = {avg_precision:.3f})')
-
-            ax.fill_between(recall, precision, alpha=0.3, color=self.theme['success'])
-
-            ax.set_xlim([0.0, 1.0])
-            ax.set_ylim([0.0, 1.05])
-            ax.set_xlabel('Recall', fontsize=11)
-            ax.set_ylabel('Precision', fontsize=11)
-            ax.set_title('Precision-Recall Curve', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            ax.legend(loc='lower left')
-            ax.grid(True, alpha=0.3)
-
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-
-            plt.tight_layout()
-
-            path = self.figures_dir / 'pr_curve.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/pr_curve.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create PR chart: {e}")
-            return ""
-
-    def _create_shap_chart(self, shap_values, feature_names, X_sample) -> str:
-        """Create SHAP summary plot."""
-        try:
-            import matplotlib.pyplot as plt
-            import shap
-
-            # Extract values for binary classification (use positive class)
-            plot_values = shap_values
-            if hasattr(shap_values, 'values'):
-                vals = shap_values.values
-                if len(vals.shape) == 3:
-                    plot_values = vals[:, :, 1]
-                else:
-                    plot_values = vals
-
-            fig, ax = plt.subplots(figsize=(10, 8))
-            shap.summary_plot(plot_values, X_sample, feature_names=feature_names,
-                            show=False, max_display=15)
-            plt.title('SHAP Feature Impact', fontsize=14, fontweight='bold', color=self.theme['primary'])
-            plt.tight_layout()
-
-            path = self.figures_dir / 'shap_summary.png'
-            plt.savefig(path, dpi=300, bbox_inches='tight', facecolor=self.theme['chart_bg'])
-            plt.close()
-
-            return 'figures/shap_summary.png'
-
-        except Exception as e:
-            logger.warning(f"Failed to create SHAP chart: {e}")
-            return ""

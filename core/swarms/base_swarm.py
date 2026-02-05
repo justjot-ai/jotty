@@ -49,697 +49,51 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-
 # =============================================================================
-# ENUMS AND TYPES
-# =============================================================================
-
-class AgentRole(Enum):
-    """Roles in the self-improving loop."""
-    EXPERT = "expert"          # Evaluates against gold standard
-    REVIEWER = "reviewer"      # Reviews agent performance
-    PLANNER = "planner"        # Plans task execution
-    ACTOR = "actor"            # Executes tasks
-    ORCHESTRATOR = "orchestrator"  # Coordinates agents
-
-
-class EvaluationResult(Enum):
-    """Evaluation outcomes."""
-    EXCELLENT = "excellent"    # Exceeds gold standard
-    GOOD = "good"              # Meets gold standard
-    ACCEPTABLE = "acceptable"  # Minor issues
-    NEEDS_IMPROVEMENT = "needs_improvement"
-    FAILED = "failed"
-
-
-class ImprovementType(Enum):
-    """Types of improvements suggested."""
-    PROMPT_REFINEMENT = "prompt_refinement"
-    PARAMETER_TUNING = "parameter_tuning"
-    WORKFLOW_CHANGE = "workflow_change"
-    AGENT_REPLACEMENT = "agent_replacement"
-    TRAINING_DATA = "training_data"
-
-
-# =============================================================================
-# DATA CLASSES
+# RE-EXPORTS FROM EXTRACTED MODULES
 # =============================================================================
 
-@dataclass
-class GoldStandard:
-    """Gold standard for evaluation."""
-    id: str
-    domain: str
-    task_type: str
-    input_data: Dict[str, Any]
-    expected_output: Dict[str, Any]
-    evaluation_criteria: Dict[str, float]  # criterion -> weight
-    created_at: datetime = field(default_factory=datetime.now)
-    version: int = 1
-
-
-@dataclass
-class Evaluation:
-    """Result of expert evaluation."""
-    gold_standard_id: str
-    actual_output: Dict[str, Any]
-    scores: Dict[str, float]  # criterion -> score (0-1)
-    overall_score: float
-    result: EvaluationResult
-    feedback: List[str]
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class ImprovementSuggestion:
-    """Suggestion from reviewer for improvement."""
-    agent_role: AgentRole
-    improvement_type: ImprovementType
-    description: str
-    priority: int  # 1-5, 5 being highest
-    expected_impact: float  # 0-1
-    implementation_details: Dict[str, Any]
-    based_on_evaluations: List[str]  # evaluation IDs
-
-
-@dataclass
-class AgentConfig:
-    """Configuration for an agent."""
-    role: AgentRole
-    name: str
-    model: str = "sonnet"
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    system_prompt: str = ""
-    tools: List[str] = field(default_factory=list)
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    version: int = 1
-
-
-@dataclass
-class ExecutionTrace:
-    """Trace of agent execution for learning."""
-    agent_name: str
-    agent_role: AgentRole
-    input_data: Dict[str, Any]
-    output_data: Dict[str, Any]
-    execution_time: float
-    success: bool
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class SwarmConfig:
-    """Base configuration for all swarms."""
-    name: str = "BaseSwarm"
-    domain: str = "general"
-    version: str = "1.0.0"
-    enable_self_improvement: bool = True
-    enable_learning: bool = True
-    parallel_execution: bool = True
-    max_retries: int = 3
-    timeout_seconds: int = 300
-    gold_standard_path: Optional[str] = None
-    improvement_threshold: float = 0.7  # Below this triggers improvement
-    output_dir: str = field(default_factory=lambda: str(Path.home() / "jotty" / "swarm_outputs"))
-
-
-@dataclass
-class SwarmResult:
-    """Base result from any swarm."""
-    success: bool
-    swarm_name: str
-    domain: str
-    output: Dict[str, Any]
-    execution_time: float
-    agent_traces: List[ExecutionTrace] = field(default_factory=list)
-    evaluation: Optional[Evaluation] = None
-    improvements: List[ImprovementSuggestion] = field(default_factory=list)
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-# =============================================================================
-# DSPy SIGNATURES FOR SELF-IMPROVING LOOP
-# =============================================================================
-
-class ExpertEvaluationSignature(dspy.Signature):
-    """Evaluate output against gold standard.
-
-    You are an EXPERT EVALUATOR. Compare actual output against expected output
-    using the provided evaluation criteria. Be STRICT but FAIR.
-
-    Score each criterion from 0.0 to 1.0:
-    - 1.0: Perfect match or exceeds expectations
-    - 0.8: Minor deviations, still excellent
-    - 0.6: Acceptable with some issues
-    - 0.4: Significant gaps
-    - 0.2: Major problems
-    - 0.0: Complete failure
-
-    Provide specific, actionable feedback.
-    """
-    gold_standard: str = dspy.InputField(desc="JSON of expected output and criteria")
-    actual_output: str = dspy.InputField(desc="JSON of actual output to evaluate")
-    context: str = dspy.InputField(desc="Additional context about the task")
-
-    scores: str = dspy.OutputField(desc="JSON dict of criterion -> score (0.0-1.0)")
-    overall_score: float = dspy.OutputField(desc="Weighted overall score 0.0-1.0")
-    result: str = dspy.OutputField(desc="EXCELLENT, GOOD, ACCEPTABLE, NEEDS_IMPROVEMENT, or FAILED")
-    feedback: str = dspy.OutputField(desc="Specific feedback items separated by |")
-
-
-class ReviewerAnalysisSignature(dspy.Signature):
-    """Analyze evaluations and suggest improvements.
-
-    You are a SENIOR REVIEWER analyzing patterns in agent performance.
-    Based on multiple evaluations, identify systematic issues and suggest
-    concrete improvements.
-
-    Focus on:
-    1. Recurring failure patterns
-    2. Prompt engineering improvements
-    3. Workflow optimizations
-    4. Parameter tuning opportunities
-    """
-    evaluations: str = dspy.InputField(desc="JSON list of recent evaluations")
-    agent_configs: str = dspy.InputField(desc="JSON of current agent configurations")
-    improvement_history: str = dspy.InputField(desc="JSON of past improvements and their outcomes")
-
-    analysis: str = dspy.OutputField(desc="Analysis of patterns and issues")
-    suggestions: str = dspy.OutputField(desc="JSON list of ImprovementSuggestion objects")
-    priority_actions: str = dspy.OutputField(desc="Top 3 priority actions separated by |")
-
-
-class PlannerOptimizationSignature(dspy.Signature):
-    """Optimize task planning based on feedback.
-
-    You are a PLANNING EXPERT. Given improvement suggestions and past performance,
-    optimize how tasks should be broken down and sequenced.
-
-    Consider:
-    1. Task granularity
-    2. Dependency ordering
-    3. Parallel execution opportunities
-    4. Error recovery strategies
-    """
-    task_description: str = dspy.InputField(desc="Description of the task to plan")
-    improvement_suggestions: str = dspy.InputField(desc="JSON of relevant improvements")
-    past_plans: str = dspy.InputField(desc="JSON of similar past plans and their success rates")
-
-    optimized_plan: str = dspy.OutputField(desc="JSON of optimized task breakdown")
-    rationale: str = dspy.OutputField(desc="Explanation of planning decisions")
-    risk_mitigations: str = dspy.OutputField(desc="Identified risks and mitigations separated by |")
-
-
-class ActorExecutionSignature(dspy.Signature):
-    """Execute a task with self-awareness of improvement areas.
-
-    You are an EXPERT ACTOR. Execute the task while being mindful of
-    past feedback and improvement suggestions.
-
-    Apply learnings from:
-    1. Previous evaluation feedback
-    2. Reviewer suggestions
-    3. Quality standards
-    """
-    task: str = dspy.InputField(desc="Task to execute")
-    context: str = dspy.InputField(desc="Execution context and requirements")
-    learnings: str = dspy.InputField(desc="Relevant learnings from past executions")
-
-    output: str = dspy.OutputField(desc="Task output")
-    confidence: float = dspy.OutputField(desc="Confidence in output 0.0-1.0")
-    applied_learnings: str = dspy.OutputField(desc="Which learnings were applied, separated by |")
-
-
-# =============================================================================
-# GOLD STANDARD DATABASE
-# =============================================================================
-
-class GoldStandardDB:
-    """
-    Database for storing and retrieving gold standards.
-
-    Supports:
-    - JSON file storage
-    - In-memory caching
-    - Version tracking
-    - Domain filtering
-    """
-
-    def __init__(self, path: Optional[str] = None):
-        self.path = Path(path) if path else Path.home() / "jotty" / "gold_standards"
-        self.path.mkdir(parents=True, exist_ok=True)
-        self._cache: Dict[str, GoldStandard] = {}
-        self._load_cache()
-
-    def _load_cache(self):
-        """Load all gold standards into cache."""
-        for file in self.path.glob("*.json"):
-            try:
-                with open(file, 'r') as f:
-                    data = json.load(f)
-                    gs = GoldStandard(
-                        id=data['id'],
-                        domain=data['domain'],
-                        task_type=data['task_type'],
-                        input_data=data['input_data'],
-                        expected_output=data['expected_output'],
-                        evaluation_criteria=data['evaluation_criteria'],
-                        created_at=datetime.fromisoformat(data.get('created_at', datetime.now().isoformat())),
-                        version=data.get('version', 1)
-                    )
-                    self._cache[gs.id] = gs
-            except Exception as e:
-                logger.warning(f"Failed to load gold standard from {file}: {e}")
-
-    def add(self, gold_standard: GoldStandard) -> str:
-        """Add a gold standard to the database."""
-        # Generate ID if not provided
-        if not gold_standard.id:
-            content = json.dumps({
-                'domain': gold_standard.domain,
-                'task_type': gold_standard.task_type,
-                'input_data': gold_standard.input_data
-            }, sort_keys=True)
-            gold_standard.id = hashlib.md5(content.encode()).hexdigest()[:12]
-
-        # Save to file
-        file_path = self.path / f"{gold_standard.id}.json"
-        with open(file_path, 'w') as f:
-            json.dump({
-                'id': gold_standard.id,
-                'domain': gold_standard.domain,
-                'task_type': gold_standard.task_type,
-                'input_data': gold_standard.input_data,
-                'expected_output': gold_standard.expected_output,
-                'evaluation_criteria': gold_standard.evaluation_criteria,
-                'created_at': gold_standard.created_at.isoformat(),
-                'version': gold_standard.version
-            }, f, indent=2)
-
-        self._cache[gold_standard.id] = gold_standard
-        return gold_standard.id
-
-    def get(self, id: str) -> Optional[GoldStandard]:
-        """Get a gold standard by ID."""
-        return self._cache.get(id)
-
-    def find_by_domain(self, domain: str) -> List[GoldStandard]:
-        """Find all gold standards for a domain."""
-        return [gs for gs in self._cache.values() if gs.domain == domain]
-
-    def find_similar(self, task_type: str, input_data: Dict[str, Any]) -> Optional[GoldStandard]:
-        """Find the most similar gold standard for evaluation."""
-        candidates = [gs for gs in self._cache.values() if gs.task_type == task_type]
-        if not candidates:
-            return None
-        # Simple similarity: prefer exact task_type match
-        return candidates[0]
-
-    def list_all(self) -> List[GoldStandard]:
-        """List all gold standards."""
-        return list(self._cache.values())
-
-
-# =============================================================================
-# IMPROVEMENT HISTORY
-# =============================================================================
-
-class ImprovementHistory:
-    """
-    Tracks improvement suggestions and their outcomes.
-
-    Used for:
-    - Learning what improvements work
-    - Avoiding repeated failed improvements
-    - Measuring improvement velocity
-    """
-
-    def __init__(self, path: Optional[str] = None):
-        self.path = Path(path) if path else Path.home() / "jotty" / "improvements"
-        self.path.mkdir(parents=True, exist_ok=True)
-        self.history: List[Dict[str, Any]] = []
-        self._load_history()
-
-    def _load_history(self):
-        """Load improvement history."""
-        history_file = self.path / "history.json"
-        if history_file.exists():
-            with open(history_file, 'r') as f:
-                self.history = json.load(f)
-
-    def _save_history(self):
-        """Save improvement history."""
-        history_file = self.path / "history.json"
-        with open(history_file, 'w') as f:
-            json.dump(self.history, f, indent=2, default=str)
-
-    def record_suggestion(self, suggestion: ImprovementSuggestion) -> str:
-        """Record an improvement suggestion."""
-        entry = {
-            'id': hashlib.md5(f"{suggestion.agent_role.value}:{suggestion.description}:{datetime.now()}".encode()).hexdigest()[:12],
-            'suggestion': asdict(suggestion),
-            'status': 'pending',
-            'created_at': datetime.now().isoformat(),
-            'applied_at': None,
-            'outcome': None,
-            'impact_measured': None
-        }
-        self.history.append(entry)
-        self._save_history()
-        return entry['id']
-
-    def mark_applied(self, suggestion_id: str):
-        """Mark a suggestion as applied."""
-        for entry in self.history:
-            if entry['id'] == suggestion_id:
-                entry['status'] = 'applied'
-                entry['applied_at'] = datetime.now().isoformat()
-                break
-        self._save_history()
-
-    def record_outcome(self, suggestion_id: str, success: bool, impact: float, notes: str = ""):
-        """Record the outcome of an applied improvement."""
-        for entry in self.history:
-            if entry['id'] == suggestion_id:
-                entry['status'] = 'completed'
-                entry['outcome'] = 'success' if success else 'failure'
-                entry['impact_measured'] = impact
-                entry['notes'] = notes
-                break
-        self._save_history()
-
-    def get_successful_improvements(self, agent_role: Optional[AgentRole] = None) -> List[Dict]:
-        """Get successful improvements, optionally filtered by role."""
-        successful = [e for e in self.history if e.get('outcome') == 'success']
-        if agent_role:
-            successful = [e for e in successful if e['suggestion']['agent_role'] == agent_role.value]
-        return successful
-
-    def get_pending_suggestions(self) -> List[Dict]:
-        """Get pending suggestions."""
-        return [e for e in self.history if e['status'] == 'pending']
-
-
-class EvaluationHistory:
-    """Persistent evaluation tracking across sessions.
-    Follows same pattern as ImprovementHistory."""
-
-    def __init__(self, path=None):
-        self.path = Path(path) if path else Path.home() / "jotty" / "evaluations"
-        self.path.mkdir(parents=True, exist_ok=True)
-        self.evaluations: List[Dict[str, Any]] = []
-        self._load()
-
-    def _load(self):
-        history_file = self.path / "evaluations.json"
-        if history_file.exists():
-            with open(history_file, 'r') as f:
-                self.evaluations = json.load(f)
-
-    def _save(self):
-        history_file = self.path / "evaluations.json"
-        with open(history_file, 'w') as f:
-            json.dump(self.evaluations[-200:], f, indent=2, default=str)
-
-    def record(self, evaluation) -> None:
-        entry = {
-            'timestamp': datetime.now().isoformat(),
-            'overall_score': evaluation.overall_score if hasattr(evaluation, 'overall_score') else 0,
-            'status': evaluation.status if hasattr(evaluation, 'status') else 'unknown',
-            'scores': evaluation.dimension_scores if hasattr(evaluation, 'dimension_scores') else {},
-            'feedback': evaluation.feedback if hasattr(evaluation, 'feedback') else '',
-        }
-        self.evaluations.append(entry)
-        self._save()
-
-    def get_recent(self, n=10) -> List[Dict]:
-        return self.evaluations[-n:]
-
-    def get_average_score(self, n=10) -> float:
-        recent = self.get_recent(n)
-        if not recent:
-            return 0.0
-        return sum(e.get('overall_score', 0) for e in recent) / len(recent)
-
-    def get_failures(self, n=20) -> List[Dict]:
-        """Get recent failures for failure recovery analysis."""
-        return [e for e in self.evaluations[-n:] if e.get('overall_score', 1.0) < 0.5]
-
-
-# =============================================================================
-# SELF-IMPROVING AGENTS
-# =============================================================================
-
-class ExpertAgent:
-    """
-    Expert Agent - Evaluates outputs against gold standards.
-
-    The Expert is the quality gatekeeper. It:
-    1. Compares actual output to expected output
-    2. Scores each evaluation criterion
-    3. Provides specific feedback
-    4. Determines if improvement is needed
-    """
-
-    def __init__(self, config: AgentConfig, gold_db: GoldStandardDB):
-        self.config = config
-        self.gold_db = gold_db
-        self._evaluator = dspy.ChainOfThought(ExpertEvaluationSignature)
-
-    async def evaluate(
-        self,
-        gold_standard_id: str,
-        actual_output: Dict[str, Any],
-        context: str = ""
-    ) -> Evaluation:
-        """Evaluate output against gold standard."""
-        gold_standard = self.gold_db.get(gold_standard_id)
-        if not gold_standard:
-            raise ValueError(f"Gold standard not found: {gold_standard_id}")
-
-        try:
-            result = self._evaluator(
-                gold_standard=json.dumps({
-                    'expected_output': gold_standard.expected_output,
-                    'criteria': gold_standard.evaluation_criteria
-                }),
-                actual_output=json.dumps(actual_output),
-                context=context
-            )
-
-            # Parse scores
-            try:
-                scores = json.loads(result.scores)
-            except:
-                scores = {}
-
-            # Parse result enum
-            result_enum = EvaluationResult.NEEDS_IMPROVEMENT
-            result_str = str(result.result).upper().replace(' ', '_')
-            for er in EvaluationResult:
-                if er.value.upper() == result_str:
-                    result_enum = er
-                    break
-
-            # Parse feedback
-            feedback = [f.strip() for f in str(result.feedback).split('|') if f.strip()]
-
-            return Evaluation(
-                gold_standard_id=gold_standard_id,
-                actual_output=actual_output,
-                scores=scores,
-                overall_score=float(result.overall_score) if result.overall_score else 0.0,
-                result=result_enum,
-                feedback=feedback
-            )
-
-        except Exception as e:
-            logger.error(f"Expert evaluation failed: {e}")
-            return Evaluation(
-                gold_standard_id=gold_standard_id,
-                actual_output=actual_output,
-                scores={},
-                overall_score=0.0,
-                result=EvaluationResult.FAILED,
-                feedback=[f"Evaluation error: {str(e)}"]
-            )
-
-
-class ReviewerAgent:
-    """
-    Reviewer Agent - Analyzes patterns and suggests improvements.
-
-    The Reviewer is the strategist. It:
-    1. Analyzes multiple evaluations for patterns
-    2. Identifies systematic issues
-    3. Suggests concrete improvements
-    4. Prioritizes based on impact
-    """
-
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
-        self.history = history
-        self._analyzer = dspy.ChainOfThought(ReviewerAnalysisSignature)
-
-    async def analyze_and_suggest(
-        self,
-        evaluations: List[Evaluation],
-        agent_configs: Dict[AgentRole, AgentConfig]
-    ) -> List[ImprovementSuggestion]:
-        """Analyze evaluations and suggest improvements."""
-        if not evaluations:
-            return []
-
-        try:
-            # Get improvement history
-            past_improvements = self.history.get_successful_improvements()
-
-            result = self._analyzer(
-                evaluations=json.dumps([asdict(e) for e in evaluations], default=str),
-                agent_configs=json.dumps({k.value: asdict(v) for k, v in agent_configs.items()}, default=str),
-                improvement_history=json.dumps(past_improvements, default=str)
-            )
-
-            # Parse suggestions
-            try:
-                suggestions_data = json.loads(result.suggestions)
-            except:
-                suggestions_data = []
-
-            suggestions = []
-            for s in suggestions_data:
-                try:
-                    suggestions.append(ImprovementSuggestion(
-                        agent_role=AgentRole(s.get('agent_role', 'actor')),
-                        improvement_type=ImprovementType(s.get('improvement_type', 'prompt_refinement')),
-                        description=s.get('description', ''),
-                        priority=int(s.get('priority', 3)),
-                        expected_impact=float(s.get('expected_impact', 0.5)),
-                        implementation_details=s.get('implementation_details', {}),
-                        based_on_evaluations=[e.gold_standard_id for e in evaluations]
-                    ))
-                except Exception as e:
-                    logger.debug(f"Failed to parse suggestion: {e}")
-
-            return suggestions
-
-        except Exception as e:
-            logger.error(f"Reviewer analysis failed: {e}")
-            return []
-
-
-class PlannerAgent:
-    """
-    Planner Agent - Plans task execution with optimization.
-
-    The Planner is the architect. It:
-    1. Breaks down tasks into subtasks
-    2. Optimizes based on past performance
-    3. Identifies parallelization opportunities
-    4. Plans error recovery
-    """
-
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
-        self.history = history
-        self._optimizer = dspy.ChainOfThought(PlannerOptimizationSignature)
-
-    async def create_plan(
-        self,
-        task_description: str,
-        relevant_improvements: List[ImprovementSuggestion] = None,
-        past_plans: List[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Create an optimized execution plan."""
-        try:
-            result = self._optimizer(
-                task_description=task_description,
-                improvement_suggestions=json.dumps(
-                    [asdict(s) for s in (relevant_improvements or [])],
-                    default=str
-                ),
-                past_plans=json.dumps(past_plans or [], default=str)
-            )
-
-            # Parse plan
-            try:
-                plan = json.loads(result.optimized_plan)
-            except:
-                plan = {'tasks': [{'name': 'execute', 'description': task_description}]}
-
-            # Parse risk mitigations
-            risks = [r.strip() for r in str(result.risk_mitigations).split('|') if r.strip()]
-
-            return {
-                'plan': plan,
-                'rationale': str(result.rationale),
-                'risks': risks
-            }
-
-        except Exception as e:
-            logger.error(f"Planner failed: {e}")
-            return {
-                'plan': {'tasks': [{'name': 'execute', 'description': task_description}]},
-                'rationale': 'Fallback plan due to error',
-                'risks': [str(e)]
-            }
-
-
-class ActorAgent:
-    """
-    Actor Agent - Executes tasks with learned improvements.
-
-    The Actor is the executor. It:
-    1. Executes individual tasks
-    2. Applies learnings from past feedback
-    3. Adapts based on improvement suggestions
-    4. Reports confidence levels
-    """
-
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
-        self.history = history
-        self._executor = dspy.ChainOfThought(ActorExecutionSignature)
-
-    async def execute(
-        self,
-        task: str,
-        context: Dict[str, Any],
-        learnings: List[str] = None
-    ) -> Tuple[Dict[str, Any], float, List[str]]:
-        """Execute a task and return output, confidence, and applied learnings."""
-        try:
-            # Get relevant successful improvements
-            successful = self.history.get_successful_improvements(AgentRole.ACTOR)
-            all_learnings = (learnings or []) + [
-                s['suggestion']['description'] for s in successful[:5]
-            ]
-
-            result = self._executor(
-                task=task,
-                context=json.dumps(context, default=str),
-                learnings="\n".join(all_learnings) if all_learnings else "No prior learnings"
-            )
-
-            # Parse output
-            try:
-                output = json.loads(result.output)
-            except:
-                output = {'result': str(result.output)}
-
-            confidence = float(result.confidence) if result.confidence else 0.5
-            applied = [l.strip() for l in str(result.applied_learnings).split('|') if l.strip()]
-
-            return output, confidence, applied
-
-        except Exception as e:
-            logger.error(f"Actor execution failed: {e}")
-            return {'error': str(e)}, 0.0, []
-
+from .swarm_types import (
+    AgentRole,
+    EvaluationResult,
+    ImprovementType,
+    GoldStandard,
+    Evaluation,
+    ImprovementSuggestion,
+    AgentConfig,
+    ExecutionTrace,
+    SwarmConfig,
+    SwarmResult,
+)
+
+from .swarm_signatures import (
+    ExpertEvaluationSignature,
+    ReviewerAnalysisSignature,
+    PlannerOptimizationSignature,
+    ActorExecutionSignature,
+    AuditorVerificationSignature,
+    LearnerExtractionSignature,
+)
+
+from .evaluation import (
+    GoldStandardDB,
+    ImprovementHistory,
+    EvaluationHistory,
+)
+
+from .improvement_agents import (
+    ExpertAgent,
+    ReviewerAgent,
+    PlannerAgent,
+    ActorAgent,
+    AuditorAgent,
+    LearnerAgent,
+)
+
+from .registry import (
+    SwarmRegistry,
+    register_swarm,
+)
 
 # =============================================================================
 # BASE SWARM CLASS
@@ -766,7 +120,7 @@ class BaseSwarm(ABC):
         self._memory = None
         self._context = None
         self._bus = None
-        self._learner = None
+        self._td_learner = None
 
         # Self-improvement components
         self._gold_db = None
@@ -775,6 +129,8 @@ class BaseSwarm(ABC):
         self._reviewer = None
         self._planner = None
         self._actor = None
+        self._auditor = None
+        self._learner = None
 
         # Agent0 curriculum integration (SwarmIntelligence)
         self._swarm_intelligence = None
@@ -814,7 +170,7 @@ class BaseSwarm(ABC):
             self._memory = resources.memory
             self._context = resources.context
             self._bus = resources.bus
-            self._learner = resources.learner
+            self._td_learner = resources.learner
 
             logger.info("✅ Shared swarm resources initialized")
         except Exception as e:
@@ -865,6 +221,20 @@ class BaseSwarm(ABC):
         self._reviewer = ReviewerAgent(reviewer_config, self._improvement_history)
         self._planner = PlannerAgent(planner_config, self._improvement_history)
         self._actor = ActorAgent(actor_config, self._improvement_history)
+
+        # Auditor and Learner agents
+        auditor_config = AgentConfig(
+            role=AgentRole.AUDITOR,
+            name=f"{self.config.name}_auditor",
+            system_prompt="You are an auditor verifying evaluation quality."
+        )
+        learner_config = AgentConfig(
+            role=AgentRole.LEARNER,
+            name=f"{self.config.name}_learner",
+            system_prompt="You are a learner extracting patterns from excellent executions."
+        )
+        self._auditor = AuditorAgent(auditor_config)
+        self._learner = LearnerAgent(learner_config)
 
         logger.info("✅ Self-improvement loop initialized")
 
@@ -1043,13 +413,15 @@ class BaseSwarm(ABC):
             if si.agent_profiles:
                 morph_scores = si.morph_scorer.compute_all_scores(si.agent_profiles)
                 for agent_name, scores in morph_scores.items():
+                    profile = si.agent_profiles.get(agent_name)
                     learned_context['agent_scores'][agent_name] = {
                         'rcs': scores.rcs,
                         'rds': scores.rds,
                         'tras': scores.tras,
                         'consistency': scores.rcs_components.get('consistency', 0.5),
                         'focus': scores.rcs_components.get('focus', 0.5),
-                        'specialization': scores.rcs_components.get('specialization_clarity', 0.5),
+                        'specialization': scores.rcs_components.get('specialization', 0.5),
+                        'total_tasks': profile.total_tasks if profile else 0,
                     }
 
             # 4. Analyze tool success rates via ToolManager
@@ -1154,69 +526,30 @@ class BaseSwarm(ABC):
         return learned_context
 
     async def _run_auto_warmup(self, num_episodes: int = 3) -> Dict:
-        """
-        Lightweight bootstrap on first ever run.
-
-        Generates curriculum tasks and seeds tool_success_rates + agent profiles
-        with conservative initial data (60% success baseline). This is NOT real
-        execution — just curriculum bootstrapping to avoid cold-start.
-
-        Args:
-            num_episodes: Number of seed episodes to generate
-
-        Returns:
-            Dict with warmup statistics
-        """
+        """Cold-start init. No fake data — first real executions build baselines."""
         si = self._swarm_intelligence
         if not si:
-            return {'seeded': 0}
+            return {'seeded': 0, 'mode': 'cold_start'}
 
         swarm_name = self.config.name or 'base_swarm'
         si.register_agent(swarm_name)
 
-        seeded = 0
-        import time as _time
+        # Mark cold-start so agents know there is no history
+        si.collective_memory.append({
+            'agent': swarm_name, 'task_type': 'cold_start',
+            'success': True, 'execution_time': 0.0,
+            'context': {'cold_start': True},
+            'timestamp': __import__('time').time()
+        })
 
-        for i in range(num_episodes):
-            # Generate a curriculum task
-            task = si.curriculum_generator.generate_training_task(
-                profiles=si.agent_profiles,
-                target_agent=swarm_name
-            )
-
-            # Simulate conservative results (60% success rate)
-            simulated_success = (i % 3) != 2  # 2 out of 3 succeed
-            simulated_tools = [f"tool_{task.task_type}"]
-            simulated_time = 5.0 + (i * 2.0)
-
-            # Send as executor feedback to seed the rates
-            si.receive_executor_feedback(
-                task_id=f"warmup_{swarm_name}_{i}_{int(_time.time())}",
-                success=simulated_success,
-                tools_used=simulated_tools,
-                execution_time=simulated_time,
-                task_type=task.task_type
-            )
-
-            # Record task result for agent profile seeding
-            si.record_task_result(
-                agent_name=swarm_name,
-                task_type=task.task_type,
-                success=simulated_success,
-                execution_time=simulated_time
-            )
-
-            seeded += 1
-
-        # Save seeded state
         try:
             save_path = self._get_intelligence_save_path()
             si.save(save_path)
-        except Exception as e:
-            logger.debug(f"Failed to save warmup state: {e}")
+        except Exception:
+            pass
 
-        logger.info(f"Auto-warmup: seeded {seeded} episodes for {swarm_name}")
-        return {'seeded': seeded, 'swarm': swarm_name}
+        logger.info(f"Cold-start for {swarm_name}: real executions will build baselines")
+        return {'seeded': 0, 'swarm': swarm_name, 'mode': 'cold_start'}
 
     def _build_learned_context_string(self, agent_name: str = None) -> str:
         """
@@ -1245,9 +578,9 @@ class BaseSwarm(ABC):
         # Tool performance summary
         tool_parts = []
         for tool_info in ctx.get('strong_tools', []):
-            tool_parts.append(f"{tool_info['tool']} {tool_info['success_rate']:.0%} RELIABLE")
+            tool_parts.append(f"{tool_info.get('tool', '?')} {tool_info.get('success_rate', 0):.0%} RELIABLE")
         for tool_info in ctx.get('weak_tools', []):
-            tool_parts.append(f"{tool_info['tool']} {tool_info['success_rate']:.0%} WEAK")
+            tool_parts.append(f"{tool_info.get('tool', '?')} {tool_info.get('success_rate', 0):.0%} WEAK")
 
         if tool_parts:
             lines.append(f"Tool Performance: {', '.join(tool_parts)}")
@@ -1260,31 +593,34 @@ class BaseSwarm(ABC):
             rcs = agent_data.get('rcs', 0)
             consistency = agent_data.get('consistency', 0.5)
             focus = agent_data.get('focus', 0.5)
-            # Tiered competence feedback — always push for higher
-            if rcs >= 0.85:
-                agent_notes.append(
-                    f"Competence {rcs:.2f} — excellent, maintain this standard"
-                )
-            elif rcs >= 0.6:
-                agent_notes.append(
-                    f"Competence {rcs:.2f} — good but target >0.85, push harder on quality"
-                )
-            elif rcs >= 0.4:
-                agent_notes.append(
-                    f"Competence {rcs:.2f} — needs improvement, aim for >0.6"
-                )
-            elif rcs > 0:
-                agent_notes.append(
-                    f"Competence {rcs:.2f} — critical, significant quality issues"
-                )
-            # Focus feedback
-            if focus >= 0.85:
-                agent_notes.append("Focus is excellent — stay specialized")
-            elif focus >= 0.6:
-                agent_notes.append(f"Focus {focus:.2f} — good but tighten specialization")
-            elif focus > 0 and focus < 0.4:
-                agent_notes.append(f"Focus {focus:.2f} — too scattered, narrow your scope")
-            # Consistency warnings
+            total_tasks = agent_data.get('total_tasks', 0)
+            # Competence and focus feedback require enough history to be meaningful
+            if total_tasks >= 2:
+                # Tiered competence feedback — always push for higher
+                if rcs >= 0.85:
+                    agent_notes.append(
+                        f"Competence {rcs:.2f} — excellent, maintain this standard"
+                    )
+                elif rcs >= 0.6:
+                    agent_notes.append(
+                        f"Competence {rcs:.2f} — good but target >0.85, push harder on quality"
+                    )
+                elif rcs >= 0.4:
+                    agent_notes.append(
+                        f"Competence {rcs:.2f} — needs improvement, aim for >0.6"
+                    )
+                elif rcs > 0:
+                    agent_notes.append(
+                        f"Competence {rcs:.2f} — critical, significant quality issues"
+                    )
+                # Focus feedback
+                if focus >= 0.85:
+                    agent_notes.append("Focus is excellent — stay specialized")
+                elif focus >= 0.6:
+                    agent_notes.append(f"Focus {focus:.2f} — good but tighten specialization")
+                elif focus > 0 and focus < 0.4:
+                    agent_notes.append(f"Focus {focus:.2f} — too scattered, narrow your scope")
+            # Consistency warnings stay unguarded (always useful even for new agents)
             if consistency < 0.5:
                 agent_notes.append(
                     f"Consistency {consistency:.2f} — outputs vary too much, "
@@ -1586,10 +922,24 @@ class BaseSwarm(ABC):
             'prompt_snippet': text[text.find('Action:'):text.find('Action:') + 150] if 'Action:' in text else '(empty)',
         }
 
+        # === Pathway 6: new_agent_no_misleading_rcs ===
+        instance._learned_context['agent_scores'] = {
+            'BrandNewAgent': {
+                'rcs': 0.5, 'rds': 0.5, 'tras': 0.5,
+                'consistency': 0.5, 'focus': 0.5, 'specialization': 0.5,
+                'total_tasks': 0,
+            }
+        }
+        text = instance._build_learned_context_string(agent_name='BrandNewAgent')
+        results['new_agent_no_misleading_rcs'] = {
+            'triggered': 'needs improvement' not in text,
+            'prompt_snippet': text[:200] if text else '(no misleading feedback — correct)',
+        }
+
         # Summary
         all_passed = all(r['triggered'] for r in results.values())
         results['_summary'] = {
-            'total': 5,
+            'total': 6,
             'passed': sum(1 for r in results.values() if isinstance(r, dict) and r.get('triggered')),
             'all_passed': all_passed,
         }
@@ -1612,6 +962,9 @@ class BaseSwarm(ABC):
         si = self._swarm_intelligence
         swarm_name = self.config.name or 'base_swarm'
         tool_rates = si.curriculum_generator._tool_success_rates
+
+        # Auto-populate registry from tracked tool rates
+        si.tool_manager.auto_register_from_rates(tool_rates)
 
         analysis = si.tool_manager.analyze_tools(tool_rates, swarm_name)
 
@@ -1699,21 +1052,21 @@ class BaseSwarm(ABC):
         try:
             from ..foundation.data_structures import MemoryLevel
 
-            # Query for expert improvements at all levels (PROCEDURAL, META, SEMANTIC)
-            memory_entries = self._memory.retrieve(
-                query=f"expert agent improvements domain {domain} patterns best practices",
+            # Primary: domain-scoped retrieval (key-prefix filtering)
+            memory_entries = self._memory.retrieve_by_domain(
+                domain=domain,
                 goal=f"expert_{domain}_improvements",
                 budget_tokens=5000,
                 levels=[MemoryLevel.PROCEDURAL, MemoryLevel.META, MemoryLevel.SEMANTIC]
             )
 
             if not memory_entries:
-                # Also try broader search without domain filter
-                memory_entries = self._memory.retrieve(
-                    query=f"expert improvements learned patterns {swarm_name}",
+                # Fallback: context-aware retrieval prioritizing wisdom (META > SEMANTIC)
+                memory_entries = self._memory.retrieve_for_context(
+                    query=f"expert improvements for {swarm_name}",
                     goal=f"expert_{domain}_improvements",
+                    context_type="planning",
                     budget_tokens=3000,
-                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.META]
                 )
 
             improvements = []
@@ -1874,6 +1227,24 @@ class BaseSwarm(ABC):
         except Exception as e:
             logger.debug(f"Failed to store execution improvement: {e}")
 
+    def _curate_gold_standard(self, task_type, input_data, output_data, evaluation):
+        """Auto-curate gold standard from execution scoring >= 0.9."""
+        if not self._gold_db:
+            return
+        existing = self._gold_db.find_similar(task_type, input_data)
+        if existing and existing.version >= self.config.gold_standard_max_version:
+            return  # Don't over-accumulate
+        criteria = evaluation.scores if evaluation.scores else {'overall': 1.0}
+        gold = GoldStandard(
+            id="", domain=self.config.domain, task_type=task_type,
+            input_data=input_data, expected_output=output_data,
+            evaluation_criteria=criteria,
+            version=(existing.version + 1) if existing else 1
+        )
+        gs_id = self._gold_db.add(gold)
+        logger.info(f"Auto-curated gold standard {gs_id} for {task_type} "
+                    f"(score={evaluation.overall_score:.2f})")
+
     async def _post_execute_learning(
         self,
         success: bool,
@@ -1944,6 +1315,89 @@ class BaseSwarm(ABC):
                         )
                 except Exception as eval_err:
                     logger.debug(f"Evaluation skipped: {eval_err}")
+
+            # 4a. Audit evaluation quality (non-blocking)
+            if evaluation and self._auditor and output_data:
+                try:
+                    audit_result = await self._auditor.audit_evaluation(
+                        evaluation={'scores': evaluation.scores,
+                                    'overall_score': evaluation.overall_score,
+                                    'result': evaluation.result.value,
+                                    'feedback': evaluation.feedback},
+                        output_data=output_data,
+                        context=json.dumps({'task_type': task_type})
+                    )
+                    if not audit_result.get('passed', True):
+                        logger.warning(
+                            f"Audit failed for evaluation: {audit_result.get('reasoning', 'unknown')}"
+                        )
+                except Exception:
+                    pass  # Non-blocking
+
+            # 4b. Record iteration in benchmarks (always, not just when evaluation exists)
+            if si:
+                try:
+                    score = evaluation.overall_score if evaluation else (1.0 if success else 0.0)
+                    si.benchmarks.record_iteration(
+                        iteration_id=f"{task_type}_{int(__import__('time').time())}",
+                        task_type=task_type,
+                        score=score,
+                        execution_time=execution_time,
+                        success=success
+                    )
+                except Exception:
+                    pass
+
+            # 4c. Auto-curate gold standard from excellent outputs
+            if (evaluation and evaluation.overall_score >= 0.9 and
+                evaluation.result in (EvaluationResult.EXCELLENT, EvaluationResult.GOOD) and
+                self._gold_db and output_data and input_data):
+                try:
+                    self._curate_gold_standard(task_type, input_data, output_data, evaluation)
+                except Exception:
+                    pass
+
+            # 4d. Extract learnings from excellent executions
+            if (evaluation and evaluation.overall_score >= 0.9 and
+                self._learner and output_data and input_data):
+                try:
+                    learnings = await self._learner.extract_learnings(
+                        input_data=input_data,
+                        output_data=output_data,
+                        evaluation={'scores': evaluation.scores,
+                                    'overall_score': evaluation.overall_score,
+                                    'feedback': evaluation.feedback},
+                        domain=self.config.domain
+                    )
+                    if learnings and self._improvement_history:
+                        now = datetime.now().isoformat()
+                        for learning in learnings:
+                            suggestion = ImprovementSuggestion(
+                                agent_role=AgentRole.ACTOR,
+                                improvement_type=ImprovementType.TRAINING_DATA,
+                                description=learning,
+                                priority=3,
+                                expected_impact=0.5,
+                                implementation_details={'source': 'learner_extraction'},
+                                based_on_evaluations=[evaluation.gold_standard_id]
+                            )
+                            sid = hashlib.md5(
+                                f"{suggestion.agent_role.value}:{suggestion.description}:{now}".encode()
+                            ).hexdigest()[:12]
+                            self._improvement_history.history.append({
+                                'id': sid,
+                                'suggestion': asdict(suggestion),
+                                'status': 'completed',
+                                'created_at': now,
+                                'applied_at': now,
+                                'outcome': 'success',
+                                'impact_measured': 0.5,
+                                'notes': 'Auto-extracted from excellent execution',
+                            })
+                        self._improvement_history._save_history()
+                        logger.info(f"Extracted {len(learnings)} learnings from excellent execution")
+                except Exception:
+                    pass
 
             # 5. Run improvement cycle if evaluation below threshold
             if evaluation and evaluation.overall_score < self.config.improvement_threshold:
@@ -2016,6 +1470,8 @@ class BaseSwarm(ABC):
             AgentRole.REVIEWER: self._reviewer.config if self._reviewer else None,
             AgentRole.PLANNER: self._planner.config if self._planner else None,
             AgentRole.ACTOR: self._actor.config if self._actor else None,
+            AgentRole.AUDITOR: self._auditor.config if self._auditor else None,
+            AgentRole.LEARNER: self._learner.config if self._learner else None,
         }
         agent_configs = {k: v for k, v in agent_configs.items() if v}
 
@@ -2053,15 +1509,9 @@ class BaseSwarm(ABC):
         )
         self._traces.append(trace)
 
-        # Agent0: Automatically send feedback when trace is recorded
-        task_type = agent_role.value if agent_role else 'unknown'
-        self._send_executor_feedback(
-            task_type=task_type,
-            success=success,
-            tools_used=tools_used or [],
-            execution_time=execution_time,
-            error_type=type(error).__name__ if error and not isinstance(error, str) else None
-        )
+        # Agent0: Per-phase swarm-level feedback removed — swarm-level recording
+        # is handled once by _post_execute_learning() at end of execute().
+        # Only per-agent recording happens here (below).
 
         # MorphAgent: Update agent profile for per-agent tracking
         swarm_name = self.config.name or 'base_swarm'
@@ -2171,54 +1621,6 @@ class BaseSwarm(ABC):
             self._improvement_history.record_outcome(suggestion_id, success, impact, notes)
 
 
-# =============================================================================
-# SWARM REGISTRY
-# =============================================================================
-
-class SwarmRegistry:
-    """Registry for all available swarms."""
-
-    _swarms: Dict[str, Type[BaseSwarm]] = {}
-
-    @classmethod
-    def register(cls, name: str, swarm_class: Type[BaseSwarm]):
-        """Register a swarm class."""
-        cls._swarms[name] = swarm_class
-
-    @classmethod
-    def get(cls, name: str) -> Optional[Type[BaseSwarm]]:
-        """Get a swarm class by name."""
-        return cls._swarms.get(name)
-
-    @classmethod
-    def list_all(cls) -> List[str]:
-        """List all registered swarms."""
-        return list(cls._swarms.keys())
-
-    @classmethod
-    def create(cls, name: str, config: SwarmConfig = None) -> Optional[BaseSwarm]:
-        """Create a swarm instance by name."""
-        swarm_class = cls.get(name)
-        if not swarm_class:
-            return None
-
-        if config is None:
-            config = SwarmConfig(name=name, domain=name)
-
-        return swarm_class(config)
-
-
-# =============================================================================
-# CONVENIENCE DECORATOR
-# =============================================================================
-
-def register_swarm(name: str):
-    """Decorator to register a swarm class."""
-    def decorator(cls):
-        SwarmRegistry.register(name, cls)
-        return cls
-    return decorator
-
 
 # =============================================================================
 # EXPORTS
@@ -2244,6 +1646,8 @@ __all__ = [
     'ReviewerAnalysisSignature',
     'PlannerOptimizationSignature',
     'ActorExecutionSignature',
+    'AuditorVerificationSignature',
+    'LearnerExtractionSignature',
 
     # Core classes
     'GoldStandardDB',
@@ -2252,6 +1656,8 @@ __all__ = [
     'ReviewerAgent',
     'PlannerAgent',
     'ActorAgent',
+    'AuditorAgent',
+    'LearnerAgent',
     'BaseSwarm',
     'SwarmRegistry',
     'register_swarm',

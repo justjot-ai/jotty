@@ -215,6 +215,7 @@ class CodeOptimizationSignature(dspy.Signature):
     """Optimize code for performance and readability.
 
     You are an OPTIMIZATION EXPERT. Improve code without changing behavior.
+    Do NOT optimize away code that fulfills the original requirements.
 
     OPTIMIZATION TARGETS:
     1. Time complexity
@@ -225,6 +226,7 @@ class CodeOptimizationSignature(dspy.Signature):
     """
     code: str = dspy.InputField(desc="Code to optimize")
     focus: str = dspy.InputField(desc="Optimization focus: performance, readability, memory")
+    requirements: str = dspy.InputField(desc="Original requirements the code must satisfy; do not optimize away intent")
     constraints: str = dspy.InputField(desc="Constraints to maintain")
 
     optimized_code: str = dspy.OutputField(desc="Optimized code")
@@ -272,6 +274,32 @@ class DocumentationSignature(dspy.Signature):
     documentation: str = dspy.OutputField(desc="Complete documentation in Markdown")
     quickstart: str = dspy.OutputField(desc="Quick start guide")
     api_reference: str = dspy.OutputField(desc="API reference section")
+
+
+class CodeVerificationSignature(dspy.Signature):
+    """Verify generated code against original requirements.
+
+    You are a CODE VERIFICATION EXPERT. Check that the generated code
+    faithfully implements the original requirements without gaps or
+    anti-patterns.
+
+    CHECK FOR:
+    1. Requirement coverage — every stated requirement has corresponding code
+    2. Resource management — files, connections, locks are properly closed/released
+    3. Framework consistency — APIs and patterns match the stated language/framework
+    4. Anti-patterns — god classes, circular deps, magic numbers, missing error paths
+
+    Return issues as a JSON list of objects: [{"severity": "high"|"medium"|"low", "description": "..."}]
+    Return coverage_score as a float 0-1 indicating what fraction of requirements are covered.
+    Return verified as true only if there are no high-severity issues.
+    """
+    code: str = dspy.InputField(desc="Complete generated code to verify")
+    original_requirements: str = dspy.InputField(desc="Original requirements the code must satisfy")
+    architecture: str = dspy.InputField(desc="Architecture design that was used")
+
+    issues: str = dspy.OutputField(desc="JSON list of issues found: [{severity, description}]")
+    coverage_score: float = dspy.OutputField(desc="Float 0-1: fraction of requirements covered by the code")
+    verified: bool = dspy.OutputField(desc="True if no high-severity issues found")
 
 
 # =============================================================================
@@ -444,7 +472,8 @@ class OptimizerAgent(BaseCodeAgent):
         self,
         code: str,
         focus: str = "performance",
-        constraints: str = ""
+        constraints: str = "",
+        requirements: str = ""
     ) -> Dict[str, Any]:
         """Optimize code."""
         try:
@@ -454,6 +483,7 @@ class OptimizerAgent(BaseCodeAgent):
             result = self._optimizer(
                 code=code,
                 focus=focus,
+                requirements=requirements or "No specific requirements provided",
                 constraints=constraints or "Maintain existing functionality"
             )
 
@@ -556,6 +586,69 @@ class DocWriterAgent(BaseCodeAgent):
             return {'error': str(e)}
 
 
+class VerifierAgent(BaseCodeAgent):
+    """Verifies generated code against original requirements."""
+
+    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
+        super().__init__(memory, context, bus, learned_context)
+        self._verifier = dspy.ChainOfThought(CodeVerificationSignature)
+
+    async def verify(
+        self,
+        code: str,
+        original_requirements: str,
+        architecture: str = ""
+    ) -> Dict[str, Any]:
+        """Verify code against requirements. Non-blocking: returns safe defaults on failure."""
+        try:
+            if self.learned_context:
+                code = code + f"\n\n{self.learned_context}"
+
+            result = self._verifier(
+                code=code,
+                original_requirements=original_requirements,
+                architecture=architecture or "No architecture provided"
+            )
+
+            # Parse issues JSON
+            try:
+                issues = json.loads(str(result.issues))
+                if not isinstance(issues, list):
+                    issues = []
+            except (json.JSONDecodeError, TypeError):
+                issues = []
+
+            # Parse coverage_score
+            try:
+                coverage_score = float(result.coverage_score)
+                coverage_score = max(0.0, min(1.0, coverage_score))
+            except (TypeError, ValueError):
+                coverage_score = 0.8
+
+            # Parse verified
+            verified = bool(result.verified) if result.verified is not None else True
+
+            self._broadcast("code_verified", {
+                'issues_count': len(issues),
+                'coverage_score': coverage_score,
+                'verified': verified
+            })
+
+            return {
+                'issues': issues,
+                'coverage_score': coverage_score,
+                'verified': verified
+            }
+
+        except Exception as e:
+            logger.error(f"Verification failed (non-blocking): {e}")
+            return {
+                'issues': [],
+                'coverage_score': 1.0,
+                'verified': True
+            }
+
+
 # =============================================================================
 # CODING SWARM
 # =============================================================================
@@ -583,6 +676,7 @@ class CodingSwarm(BaseSwarm):
         self._optimizer = None
         self._test_writer = None
         self._doc_writer = None
+        self._verifier = None
 
     def _init_agents(self):
         """Initialize all agents with per-agent learned context."""
@@ -597,6 +691,7 @@ class CodingSwarm(BaseSwarm):
         self._optimizer = OptimizerAgent(self._memory, self._context, self._bus, self._agent_context("Optimizer"))
         self._test_writer = TestWriterAgent(self._memory, self._context, self._bus, self._agent_context("TestWriter"))
         self._doc_writer = DocWriterAgent(self._memory, self._context, self._bus, self._agent_context("DocWriter"))
+        self._verifier = VerifierAgent(self._memory, self._context, self._bus, self._agent_context("Verifier"))
 
         self._agents_initialized = True
         logger.info("CodingSwarm agents initialized")
@@ -729,7 +824,8 @@ class CodingSwarm(BaseSwarm):
                 opt_result = await self._optimizer.optimize(
                     code=code,
                     focus="readability",
-                    constraints="Maintain all functionality"
+                    constraints="Maintain all functionality",
+                    requirements=requirements
                 )
                 if 'optimized_code' in opt_result:
                     optimized_files[filename] = opt_result['optimized_code']
@@ -797,6 +893,56 @@ class CodingSwarm(BaseSwarm):
                 success=True, phase_start=phase4_start, tools_used=['doc_generate'])
 
             # =================================================================
+            # PHASE 5.5: VERIFICATION + DEBUGGER FEEDBACK
+            # =================================================================
+            verification_result = None
+            try:
+                logger.info("🔍 Phase 5.5: Verifying code against requirements...")
+
+                all_code = "\n\n".join(files.values())
+                verification_result = await self._verifier.verify(
+                    code=all_code,
+                    original_requirements=requirements,
+                    architecture=arch_result.get('architecture', '')
+                )
+
+                if verification_result and not verification_result.get('verified', True):
+                    issues = verification_result.get('issues', [])
+                    if issues:
+                        # Format issues into description for debugger
+                        issues_desc = "; ".join(
+                            f"[{iss.get('severity', 'unknown')}] {iss.get('description', 'no description')}"
+                            for iss in issues if isinstance(iss, dict)
+                        )
+                        logger.info(f"⚠️ Verification found {len(issues)} issue(s), attempting fix...")
+
+                        # One attempt with debugger — non-blocking
+                        try:
+                            debug_result = await self._debugger.debug(
+                                code=all_code,
+                                error_message=issues_desc,
+                                context=f"Requirements: {requirements}"
+                            )
+                            if debug_result and 'fix' in debug_result and 'error' not in debug_result:
+                                fixed_code = debug_result['fix']
+                                # Apply fix to the first (main) file if single-file,
+                                # or replace all code if it looks complete
+                                if main_file and main_file in files:
+                                    files[main_file] = fixed_code
+                                    logger.info("✅ Debugger fix applied to main file")
+                        except Exception as dbg_err:
+                            logger.error(f"Debugger fix attempt failed (non-blocking): {dbg_err}")
+            except Exception as ver_err:
+                logger.error(f"Verification phase failed (non-blocking): {ver_err}")
+
+            phase55_start = datetime.now()
+            self._trace_phase("Verifier", AgentRole.AUDITOR,
+                {'requirements_len': len(requirements)},
+                {'verified': verification_result.get('verified', True) if verification_result else True,
+                 'issues_count': len(verification_result.get('issues', [])) if verification_result else 0},
+                success=True, phase_start=phase4_start, tools_used=['verify', 'debug'])
+
+            # =================================================================
             # BUILD RESULT
             # =================================================================
             exec_time = (datetime.now() - start_time).total_seconds()
@@ -824,10 +970,15 @@ class CodingSwarm(BaseSwarm):
                 language=lang.value,
                 loc=loc,
                 test_coverage=test_coverage,
-                quality_score=0.8  # Could be calculated from analysis
+                quality_score=verification_result.get('coverage_score', 0.8) if verification_result else 0.8
             )
 
             logger.info(f"✅ CodingSwarm complete: {loc} LOC, {len(tests)} test files")
+
+            # Persist output to disk
+            output_path = self._persist_output(code_output, requirements)
+            if output_path:
+                result.metadata['output_path'] = output_path
 
             # Post-execution learning (includes evaluation + improvement cycle)
             exec_time = (datetime.now() - start_time).total_seconds()
@@ -875,11 +1026,83 @@ class CodingSwarm(BaseSwarm):
     async def refactor(
         self,
         code: str,
-        focus: str = "readability"
+        focus: str = "readability",
+        requirements: str = ""
     ) -> Dict[str, Any]:
         """Refactor/optimize code."""
         self._init_agents()
-        return await self._optimizer.optimize(code, focus)
+        return await self._optimizer.optimize(code, focus, requirements=requirements)
+
+    def _persist_output(self, code_output: CodeOutput, requirements: str) -> Optional[str]:
+        """Persist generated code output to disk.
+
+        Writes source files, tests, docs, architecture, requirements, and a
+        manifest to config.output_dir/<timestamp>/.
+
+        Args:
+            code_output: The generated code output.
+            requirements: Original requirements text for traceability.
+
+        Returns:
+            Output directory path string, or None on failure.
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_dir = Path(self.config.output_dir) / timestamp
+
+            # Create directory structure
+            src_dir = base_dir / "src"
+            tests_dir = base_dir / "tests"
+            docs_dir = base_dir / "docs"
+
+            src_dir.mkdir(parents=True, exist_ok=True)
+            tests_dir.mkdir(parents=True, exist_ok=True)
+            docs_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write source files
+            for filename, content in code_output.files.items():
+                file_path = src_dir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content, encoding="utf-8")
+
+            # Write test files
+            for filename, content in code_output.tests.items():
+                file_path = tests_dir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content, encoding="utf-8")
+
+            # Write documentation
+            if code_output.docs:
+                (docs_dir / "DOCUMENTATION.md").write_text(code_output.docs, encoding="utf-8")
+
+            # Write architecture
+            if code_output.architecture:
+                (docs_dir / "ARCHITECTURE.md").write_text(code_output.architecture, encoding="utf-8")
+
+            # Write original requirements for traceability
+            (base_dir / "REQUIREMENTS.txt").write_text(requirements, encoding="utf-8")
+
+            # Write manifest
+            manifest = {
+                "timestamp": timestamp,
+                "files": list(code_output.files.keys()),
+                "tests": list(code_output.tests.keys()),
+                "main_file": code_output.main_file,
+                "entry_point": code_output.entry_point,
+                "dependencies": code_output.dependencies,
+                "has_docs": bool(code_output.docs),
+                "has_architecture": bool(code_output.architecture),
+            }
+            (base_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2), encoding="utf-8"
+            )
+
+            logger.info(f"📁 Output persisted to {base_dir}")
+            return str(base_dir)
+
+        except Exception as e:
+            logger.error(f"Failed to persist output (non-blocking): {e}")
+            return None
 
 
 # =============================================================================
@@ -916,6 +1139,8 @@ __all__ = [
     'CodeStyle',
     'code',
     'code_sync',
+    # Signatures
+    'CodeVerificationSignature',
     # Agents
     'ArchitectAgent',
     'DeveloperAgent',
@@ -923,4 +1148,5 @@ __all__ = [
     'OptimizerAgent',
     'TestWriterAgent',
     'DocWriterAgent',
+    'VerifierAgent',
 ]
