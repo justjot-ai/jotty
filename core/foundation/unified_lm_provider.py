@@ -344,8 +344,119 @@ class UnifiedLMProvider:
             return lm
         except Exception as e:
             print(f"⚠️  OpenCode failed: {e}", file=__import__('sys').stderr)
-        
+
         raise RuntimeError("No available LM providers found")
+
+    @staticmethod
+    def get_available_providers() -> Dict[str, Any]:
+        """
+        Get all available providers and their configurations.
+
+        Returns:
+            Dict with provider info for API consumption:
+            {
+                'providers': {
+                    'anthropic': {'available': True, 'models': [...], 'default': '...'},
+                    ...
+                },
+                'model_aliases': {...},
+                'recommended': 'provider_name'
+            }
+        """
+        import shutil
+
+        providers = {}
+
+        # API providers
+        api_providers = {
+            'anthropic': {
+                'env_key': 'ANTHROPIC_API_KEY',
+                'models': ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-haiku-20241022'],
+                'default': 'claude-sonnet-4-20250514',
+                'aliases': {'sonnet': 'claude-sonnet-4-20250514', 'opus': 'claude-opus-4-20250514', 'haiku': 'claude-3-5-haiku-20241022'},
+            },
+            'openai': {
+                'env_key': 'OPENAI_API_KEY',
+                'models': ['gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+                'default': 'gpt-4o',
+                'aliases': {'gpt4': 'gpt-4-turbo', 'gpt4o': 'gpt-4o'},
+            },
+            'google': {
+                'env_key': 'GOOGLE_API_KEY',
+                'models': ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+                'default': 'gemini-2.0-flash-exp',
+                'aliases': {},
+            },
+            'groq': {
+                'env_key': 'GROQ_API_KEY',
+                'models': ['llama-3.1-8b-instant', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
+                'default': 'llama-3.1-8b-instant',
+                'aliases': {},
+            },
+            'openrouter': {
+                'env_key': 'OPENROUTER_API_KEY',
+                'models': ['meta-llama/llama-3.3-70b-instruct:free', 'anthropic/claude-3.5-sonnet'],
+                'default': 'meta-llama/llama-3.3-70b-instruct:free',
+                'aliases': {},
+            },
+        }
+
+        for name, config in api_providers.items():
+            has_key = bool(os.getenv(config['env_key']))
+            providers[name] = {
+                'type': 'api',
+                'available': has_key,
+                'models': config['models'],
+                'default': config['default'],
+                'aliases': config.get('aliases', {}),
+                'requires': config['env_key'],
+            }
+
+        # CLI providers
+        claude_available = bool(shutil.which('claude'))
+        providers['claude-cli'] = {
+            'type': 'cli',
+            'available': claude_available,
+            'models': ['sonnet', 'opus', 'haiku'],
+            'default': 'sonnet',
+            'aliases': {},
+            'requires': 'claude CLI installed',
+        }
+
+        cursor_available = os.path.exists('/usr/local/bin/cursor-agent')
+        providers['cursor-cli'] = {
+            'type': 'cli',
+            'available': cursor_available,
+            'models': ['composer-1'],
+            'default': 'composer-1',
+            'aliases': {},
+            'requires': 'cursor-agent installed',
+        }
+
+        # OpenCode (always available via remote)
+        providers['opencode'] = {
+            'type': 'remote',
+            'available': True,
+            'models': ['glm-4', 'default'],
+            'default': 'default',
+            'aliases': {},
+            'requires': None,
+            'note': 'Free GLM model via remote execution',
+        }
+
+        # Determine recommended provider
+        recommended = None
+        priority = ['claude-cli', 'anthropic', 'openai', 'groq', 'openrouter', 'opencode']
+        for p in priority:
+            if providers.get(p, {}).get('available'):
+                recommended = p
+                break
+
+        return {
+            'providers': providers,
+            'recommended': recommended,
+            'total_available': sum(1 for p in providers.values() if p.get('available')),
+        }
 
 
 # Convenience function

@@ -2,15 +2,15 @@
 Expert Templates - Factory Functions for Domain Experts
 ========================================================
 
-Phase 8: Expert system integration with SingleAgentOrchestrator.
+Factory functions for creating domain expert instances.
 
-Expert agents are just SingleAgentOrchestrator instances with:
-- enable_gold_standard_learning=True
-- domain-specific prompts
-- gold standard examples
-- domain validators
+Expert agents are BaseExpert subclasses with:
+- Domain-specific DSPy signatures
+- Gold standard training data
+- Domain validators
+- Improvement persistence via HierarchicalMemory
 
-This module provides factory functions for common expert types.
+This module provides convenience factory functions for common expert types.
 """
 
 import logging
@@ -19,8 +19,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Import after defining functions to avoid circular imports
-from ..orchestration import SingleAgentOrchestrator
 from ..foundation import JottyConfig
 import dspy
 
@@ -31,76 +29,43 @@ import dspy
 
 def create_mermaid_expert(
     config: JottyConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None
-) -> SingleAgentOrchestrator:
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory=None,
+    improvements: Optional[List[Dict[str, Any]]] = None
+):
     """
     Create Mermaid diagram generation expert.
 
     Args:
         config: Jotty configuration (optional, uses defaults)
-        gold_standards: Custom gold standard examples (optional, loads defaults)
+        gold_standards: Custom gold standard examples (optional, uses defaults)
+        memory: Optional HierarchicalMemory instance
+        improvements: Optional list of learned improvements
 
     Returns:
-        SingleAgentOrchestrator configured as Mermaid expert
+        MermaidExpertAgent instance
 
     Example:
-        >>> expert = create_mermaid_expert(config=JottyConfig())
-        >>> result = await expert.arun(
-        ...     question="Generate sequence diagram for user login"
-        ... )
+        >>> expert = create_mermaid_expert()
+        >>> result = await expert.generate(task="Generate sequence diagram for user login")
     """
-    from .domain_validators import MermaidValidator
-    from .training_data_loader import TrainingDataLoader
+    from .mermaid_expert import MermaidExpertAgent
+    from .expert_agent import ExpertAgentConfig
 
-    config = config or JottyConfig()
-
-    # Load default gold standards if not provided
-    if gold_standards is None:
-        try:
-            loader = TrainingDataLoader(domain="mermaid")
-            gold_standards = loader.load_from_github_repo(
-                repo_url="https://github.com/mermaid-js/mermaid",
-                path="packages/mermaid/src/diagrams/",
-                file_pattern="*.spec.js",
-                max_files=50
-            )
-            logger.info(f"Loaded {len(gold_standards)} Mermaid gold standards from GitHub")
-        except Exception as e:
-            logger.warning(f"Failed to load Mermaid gold standards: {e}")
-            gold_standards = []
-
-    # Create validator
-    validator = MermaidValidator()
-
-    # Mermaid signature
-    class MermaidSignature(dspy.Signature):
-        """Generate valid Mermaid diagram code."""
-        description: str = dspy.InputField(desc="Description of the diagram to generate")
-        diagram_type: str = dspy.InputField(desc="Type of diagram (flowchart, sequence, class, etc.)")
-        mermaid_code: str = dspy.OutputField(desc="Valid Mermaid diagram code")
-
-    return SingleAgentOrchestrator(
-        agent=dspy.ChainOfThought(MermaidSignature),
-        architect_prompts=[
-            str(Path(__file__).parent / "prompts" / "mermaid" / "planning.md"),
-            str(Path(__file__).parent / "prompts" / "mermaid" / "diagram_types.md")
-        ],
-        auditor_prompts=[
-            str(Path(__file__).parent / "prompts" / "mermaid" / "validation.md"),
-            str(Path(__file__).parent / "prompts" / "mermaid" / "syntax_check.md")
-        ],
-        architect_tools=[],
-        auditor_tools=[],
-        config=config,
-
-        # 🎓 Expert features (Phase 8)
-        enable_gold_standard_learning=True,
-        gold_standards=gold_standards,
-        validation_cases=validator.get_test_cases() if hasattr(validator, 'get_test_cases') else [],
+    expert_config = ExpertAgentConfig(
+        name="mermaid_expert",
         domain="mermaid",
-        domain_validator=validator.validate,
+        description="Expert agent for generating perfect Mermaid diagrams",
+        training_gold_standards=gold_standards,
         max_training_iterations=5,
-        min_validation_score=1.0
+        min_validation_score=1.0,
+        use_memory_storage=memory is not None,
+    )
+
+    return MermaidExpertAgent(
+        config=expert_config,
+        memory=memory,
+        improvements=improvements,
     )
 
 
@@ -110,76 +75,43 @@ def create_mermaid_expert(
 
 def create_plantuml_expert(
     config: JottyConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None
-) -> SingleAgentOrchestrator:
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory=None,
+    improvements: Optional[List[Dict[str, Any]]] = None
+):
     """
     Create PlantUML diagram generation expert.
 
     Args:
         config: Jotty configuration (optional, uses defaults)
-        gold_standards: Custom gold standard examples (optional, loads defaults)
+        gold_standards: Custom gold standard examples (optional, uses defaults)
+        memory: Optional HierarchicalMemory instance
+        improvements: Optional list of learned improvements
 
     Returns:
-        SingleAgentOrchestrator configured as PlantUML expert
+        PlantUMLExpertAgent instance
 
     Example:
-        >>> expert = create_plantuml_expert(config=JottyConfig())
-        >>> result = await expert.arun(
-        ...     question="Generate UML class diagram for e-commerce system"
-        ... )
+        >>> expert = create_plantuml_expert()
+        >>> result = await expert.generate(task="Generate UML class diagram for e-commerce")
     """
-    from .domain_validators import PlantUMLValidator
-    from .training_data_loader import TrainingDataLoader
+    from .plantuml_expert import PlantUMLExpertAgent
+    from .expert_agent import ExpertAgentConfig
 
-    config = config or JottyConfig()
-
-    # Load default gold standards if not provided
-    if gold_standards is None:
-        try:
-            loader = TrainingDataLoader(domain="plantuml")
-            gold_standards = loader.load_from_github_repo(
-                repo_url="https://github.com/plantuml/plantuml",
-                path="test/",
-                file_pattern="*.puml",
-                max_files=50
-            )
-            logger.info(f"Loaded {len(gold_standards)} PlantUML gold standards from GitHub")
-        except Exception as e:
-            logger.warning(f"Failed to load PlantUML gold standards: {e}")
-            gold_standards = []
-
-    # Create validator
-    validator = PlantUMLValidator()
-
-    # PlantUML signature
-    class PlantUMLSignature(dspy.Signature):
-        """Generate valid PlantUML diagram code."""
-        description: str = dspy.InputField(desc="Description of the UML diagram to generate")
-        diagram_type: str = dspy.InputField(desc="Type of UML diagram (class, sequence, activity, etc.)")
-        plantuml_code: str = dspy.OutputField(desc="Valid PlantUML code")
-
-    return SingleAgentOrchestrator(
-        agent=dspy.ChainOfThought(PlantUMLSignature),
-        architect_prompts=[
-            str(Path(__file__).parent / "prompts" / "plantuml" / "planning.md"),
-            str(Path(__file__).parent / "prompts" / "plantuml" / "uml_types.md")
-        ],
-        auditor_prompts=[
-            str(Path(__file__).parent / "prompts" / "plantuml" / "validation.md"),
-            str(Path(__file__).parent / "prompts" / "plantuml" / "syntax_check.md")
-        ],
-        architect_tools=[],
-        auditor_tools=[],
-        config=config,
-
-        # 🎓 Expert features (Phase 8)
-        enable_gold_standard_learning=True,
-        gold_standards=gold_standards,
-        validation_cases=validator.get_test_cases() if hasattr(validator, 'get_test_cases') else [],
+    expert_config = ExpertAgentConfig(
+        name="plantuml_expert",
         domain="plantuml",
-        domain_validator=validator.validate,
+        description="Expert agent for generating perfect PlantUML diagrams",
+        training_gold_standards=gold_standards,
         max_training_iterations=5,
-        min_validation_score=1.0
+        min_validation_score=1.0,
+        use_memory_storage=memory is not None,
+    )
+
+    return PlantUMLExpertAgent(
+        config=expert_config,
+        memory=memory,
+        improvements=improvements,
     )
 
 
@@ -190,71 +122,67 @@ def create_plantuml_expert(
 def create_sql_expert(
     config: JottyConfig = None,
     gold_standards: Optional[List[Dict[str, Any]]] = None,
-    dialect: str = "postgresql"
-) -> SingleAgentOrchestrator:
+    dialect: str = "postgresql",
+    memory=None,
+    improvements: Optional[List[Dict[str, Any]]] = None
+):
     """
     Create SQL query generation expert.
 
     Args:
         config: Jotty configuration (optional, uses defaults)
-        gold_standards: Custom gold standard examples (optional, loads defaults)
+        gold_standards: Custom gold standard examples (optional)
         dialect: SQL dialect (postgresql, mysql, sqlite, etc.)
+        memory: Optional HierarchicalMemory instance
+        improvements: Optional list of learned improvements
 
     Returns:
-        SingleAgentOrchestrator configured as SQL expert
+        ExpertAgent configured for SQL generation
 
     Example:
-        >>> expert = create_sql_expert(config=JottyConfig(), dialect="postgresql")
-        >>> result = await expert.arun(
-        ...     question="Get top 10 customers by revenue in Q4 2023",
-        ...     schema=database_schema
+        >>> expert = create_sql_expert(dialect="postgresql")
+        >>> result = await expert.generate(
+        ...     task="Get top 10 customers by revenue in Q4 2023",
+        ...     context={"schema": database_schema}
         ... )
     """
-    from .domain_validators import SQLValidator
-
-    config = config or JottyConfig()
-
-    # Load default gold standards if not provided
-    if gold_standards is None:
-        # In a real implementation, load from SQL examples database
-        # For now, use empty list (can be populated later)
-        gold_standards = []
-        logger.info("SQL expert: No gold standards provided, using empty list")
-
-    # Create validator
-    validator = SQLValidator(dialect=dialect)
+    from .expert_agent import ExpertAgent, ExpertAgentConfig
 
     # SQL signature
-    class SQLSignature(dspy.Signature):
-        """Generate valid SQL query."""
-        question: str = dspy.InputField(desc="Natural language question")
-        schema: str = dspy.InputField(desc="Database schema (tables, columns, relationships)")
+    class SQLGenerationSignature(dspy.Signature):
+        """Generate valid SQL query for the given question and schema."""
+        task: str = dspy.InputField(desc="Natural language question")
+        learned_improvements: str = dspy.InputField(desc="Previously learned patterns", default="")
         sql_query: str = dspy.OutputField(desc="Valid SQL query")
-        explanation: str = dspy.OutputField(desc="Explanation of the query logic")
 
-    return SingleAgentOrchestrator(
-        agent=dspy.ChainOfThought(SQLSignature),
-        architect_prompts=[
-            str(Path(__file__).parent / "prompts" / "sql" / "planning.md"),
-            str(Path(__file__).parent / "prompts" / "sql" / f"{dialect}_dialect.md")
-        ],
-        auditor_prompts=[
-            str(Path(__file__).parent / "prompts" / "sql" / "validation.md"),
-            str(Path(__file__).parent / "prompts" / "sql" / "syntax_check.md")
-        ],
-        architect_tools=[],
-        auditor_tools=[],
-        config=config,
+    def create_sql_agent(improvements=None):
+        return dspy.ChainOfThought(SQLGenerationSignature)
 
-        # 🎓 Expert features (Phase 8)
-        enable_gold_standard_learning=True,
-        gold_standards=gold_standards,
-        validation_cases=validator.get_test_cases() if hasattr(validator, 'get_test_cases') else [],
+    def create_sql_teacher():
+        class SQLTeacherSignature(dspy.Signature):
+            """Provide the correct SQL query."""
+            task: str = dspy.InputField(desc="Task description")
+            gold_standard: str = dspy.InputField(desc="The correct SQL query")
+            student_output: str = dspy.InputField(desc="What the student generated")
+            output: str = dspy.OutputField(desc="The correct SQL query")
+        return dspy.Predict(SQLTeacherSignature)
+
+    expert_config = ExpertAgentConfig(
+        name=f"sql_{dialect}_expert",
         domain=f"sql_{dialect}",
-        domain_validator=validator.validate,
+        description=f"Expert agent for generating valid {dialect} SQL queries",
+        training_gold_standards=gold_standards or [],
         max_training_iterations=5,
-        min_validation_score=1.0
+        min_validation_score=1.0,
+        agent_module=create_sql_agent,
+        teacher_module=create_sql_teacher,
+        use_memory_storage=memory is not None,
     )
+
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return ExpertAgent(config=expert_config, memory=memory)
 
 
 # =============================================================================
@@ -263,64 +191,43 @@ def create_sql_expert(
 
 def create_latex_math_expert(
     config: JottyConfig = None,
-    gold_standards: Optional[List[Dict[str, Any]]] = None
-) -> SingleAgentOrchestrator:
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory=None,
+    improvements: Optional[List[Dict[str, Any]]] = None
+):
     """
     Create LaTeX mathematical notation expert.
 
     Args:
         config: Jotty configuration (optional, uses defaults)
-        gold_standards: Custom gold standard examples (optional, loads defaults)
+        gold_standards: Custom gold standard examples (optional, uses defaults)
+        memory: Optional HierarchicalMemory instance
+        improvements: Optional list of learned improvements
 
     Returns:
-        SingleAgentOrchestrator configured as LaTeX math expert
+        MathLaTeXExpertAgent instance
 
     Example:
-        >>> expert = create_latex_math_expert(config=JottyConfig())
-        >>> result = await expert.arun(
-        ...     question="Express the quadratic formula in LaTeX"
-        ... )
+        >>> expert = create_latex_math_expert()
+        >>> result = await expert.generate(task="Express the quadratic formula in LaTeX")
     """
-    from .domain_validators import LatexValidator
+    from .math_latex_expert import MathLaTeXExpertAgent
+    from .expert_agent import ExpertAgentConfig
 
-    config = config or JottyConfig()
-
-    # Load default gold standards if not provided
-    if gold_standards is None:
-        gold_standards = []
-        logger.info("LaTeX math expert: No gold standards provided, using empty list")
-
-    # Create validator
-    validator = LatexValidator()
-
-    # LaTeX signature
-    class LatexMathSignature(dspy.Signature):
-        """Generate valid LaTeX mathematical notation."""
-        description: str = dspy.InputField(desc="Description of the mathematical expression")
-        latex_code: str = dspy.OutputField(desc="Valid LaTeX math code")
-
-    return SingleAgentOrchestrator(
-        agent=dspy.ChainOfThought(LatexMathSignature),
-        architect_prompts=[
-            str(Path(__file__).parent / "prompts" / "latex" / "planning.md"),
-            str(Path(__file__).parent / "prompts" / "latex" / "math_symbols.md")
-        ],
-        auditor_prompts=[
-            str(Path(__file__).parent / "prompts" / "latex" / "validation.md"),
-            str(Path(__file__).parent / "prompts" / "latex" / "syntax_check.md")
-        ],
-        architect_tools=[],
-        auditor_tools=[],
-        config=config,
-
-        # 🎓 Expert features (Phase 8)
-        enable_gold_standard_learning=True,
-        gold_standards=gold_standards,
-        validation_cases=validator.get_test_cases() if hasattr(validator, 'get_test_cases') else [],
-        domain="latex_math",
-        domain_validator=validator.validate,
+    expert_config = ExpertAgentConfig(
+        name="math_latex_expert",
+        domain="math_latex",
+        description="Expert agent for generating perfect Math LaTeX expressions",
+        training_gold_standards=gold_standards,
         max_training_iterations=5,
-        min_validation_score=1.0
+        min_validation_score=1.0,
+        use_memory_storage=memory is not None,
+    )
+
+    return MathLaTeXExpertAgent(
+        config=expert_config,
+        memory=memory,
+        improvements=improvements,
     )
 
 
@@ -330,14 +237,13 @@ def create_latex_math_expert(
 
 def create_custom_expert(
     domain: str,
-    agent: dspy.Module,
-    architect_prompts: List[str],
-    auditor_prompts: List[str],
-    gold_standards: List[Dict[str, Any]],
-    domain_validator: Any,
-    config: JottyConfig = None,
+    agent=None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    description: str = "",
+    memory=None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
     **kwargs
-) -> SingleAgentOrchestrator:
+):
     """
     Create a custom expert for any domain.
 
@@ -346,46 +252,42 @@ def create_custom_expert(
 
     Args:
         domain: Domain name (e.g., "json", "yaml", "regex")
-        agent: DSPy module/agent
-        architect_prompts: List of architect prompt file paths
-        auditor_prompts: List of auditor prompt file paths
+        agent: Optional DSPy module/agent (callable that returns an agent)
         gold_standards: Gold standard examples
-        domain_validator: Validation function
-        config: Jotty configuration (optional)
-        **kwargs: Additional kwargs passed to SingleAgentOrchestrator
+        description: Human-readable description
+        memory: Optional HierarchicalMemory instance
+        improvements: Optional list of learned improvements
+        **kwargs: Additional kwargs passed to ExpertAgentConfig
 
     Returns:
-        SingleAgentOrchestrator configured as custom expert
+        ExpertAgent configured for the custom domain
 
     Example:
         >>> expert = create_custom_expert(
         ...     domain="json",
-        ...     agent=dspy.ChainOfThought("input -> json_output"),
-        ...     architect_prompts=["prompts/json/planning.md"],
-        ...     auditor_prompts=["prompts/json/validation.md"],
+        ...     description="Expert for generating valid JSON",
         ...     gold_standards=json_examples,
-        ...     domain_validator=json_validator.validate
         ... )
     """
-    config = config or JottyConfig()
+    from .expert_agent import ExpertAgent, ExpertAgentConfig
 
-    return SingleAgentOrchestrator(
-        agent=agent,
-        architect_prompts=architect_prompts,
-        auditor_prompts=auditor_prompts,
-        architect_tools=kwargs.get('architect_tools', []),
-        auditor_tools=kwargs.get('auditor_tools', []),
-        config=config,
-
-        # 🎓 Expert features (Phase 8)
-        enable_gold_standard_learning=True,
-        gold_standards=gold_standards,
-        validation_cases=kwargs.get('validation_cases', []),
+    expert_config = ExpertAgentConfig(
+        name=f"{domain}_expert",
         domain=domain,
-        domain_validator=domain_validator,
+        description=description or f"Expert agent for {domain}",
+        training_gold_standards=gold_standards or [],
         max_training_iterations=kwargs.get('max_training_iterations', 5),
-        min_validation_score=kwargs.get('min_validation_score', 1.0)
+        min_validation_score=kwargs.get('min_validation_score', 1.0),
+        agent_module=agent,
+        teacher_module=kwargs.get('teacher_module'),
+        evaluation_function=kwargs.get('evaluation_function'),
+        use_memory_storage=memory is not None,
     )
+
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        return ExpertAgent(config=expert_config, memory=memory)
 
 
 # =============================================================================

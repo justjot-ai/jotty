@@ -160,13 +160,24 @@ class TemplateRegistry:
         try:
             from .swarm_ml import SwarmML
             cls.register(SwarmML, "ml")
+            cls.register(SwarmML, "swarmml")
         except ImportError as e:
             logger.warning(f"Could not load SwarmML: {e}")
+
+        # SwarmMLComprehensive - Learning-enhanced ML
+        try:
+            from .swarm_ml_comprehensive import SwarmMLComprehensive
+            cls.register(SwarmMLComprehensive, "ml_comprehensive")
+            cls.register(SwarmMLComprehensive, "ml_learning")
+            cls.register(SwarmMLComprehensive, "swarmmlcomprehensive")
+        except ImportError as e:
+            logger.warning(f"Could not load SwarmMLComprehensive: {e}")
 
         # SwarmLean - Claude Code-like simple execution
         try:
             from .swarm_lean import SwarmLean
             cls.register(SwarmLean, "lean")
+            cls.register(SwarmLean, "swarmlean")
         except ImportError as e:
             logger.warning(f"Could not load SwarmLean: {e}")
 

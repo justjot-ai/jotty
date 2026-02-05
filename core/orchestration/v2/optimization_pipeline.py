@@ -521,12 +521,14 @@ class OptimizationPipeline:
                 evaluation_result = {"score": 0.0, "status": "ERROR", "error": "invalid_evaluation_result"}
             
             # Prepare teacher inputs - use gold_standard directly
+            eval_feedback = evaluation_result.get("feedback", "") or evaluation_result.get("status", "INCORRECT")
             teacher_context = {
                 **context,
                 "task": task,
                 "description": context.get("description", task),
                 "student_output": str(student_output),
-                "gold_standard": str(gold_standard)  # Pass gold_standard for teacher to return
+                "gold_standard": str(gold_standard),  # Pass gold_standard for teacher to return
+                "evaluation_feedback": str(eval_feedback)
             }
             
             teacher_inputs = self._prepare_agent_inputs(teacher_agent, teacher_context, {})
@@ -816,6 +818,19 @@ class OptimizationPipeline:
                         self._write_thinking_log(
                             f"✓ Optimization complete! Evaluation passed {self.consecutive_passes} times consecutively."
                         )
+                        # Record the successful iteration before breaking
+                        iteration_result = IterationResult(
+                            iteration=self.iteration_count,
+                            success=True,
+                            evaluation_score=eval_score,
+                            evaluation_status=eval_status,
+                            output=output,
+                            metadata={
+                                "pipeline_result": pipeline_result,
+                                "evaluation_result": evaluation_result
+                            }
+                        )
+                        self.all_iterations.append(iteration_result)
                         break
                 else:
                     self.consecutive_passes = 0

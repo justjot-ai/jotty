@@ -4,11 +4,11 @@ Expert Agents Module
 Provides specialized, pre-trained agents that use OptimizationPipeline
 to ensure reliable, correct outputs for specific domains.
 
-🆕 Phase 8: Expert templates - Use SingleAgentOrchestrator with gold standard learning
-Recommended: Use expert_templates factory functions instead of ExpertAgent class
+Expert templates provide factory functions for creating domain experts.
+Recommended: Use expert_templates factory functions for quick setup.
 """
 
-# 🆕 Phase 8: Expert Templates (Recommended)
+# Expert Templates (Recommended)
 from .expert_templates import (
     create_mermaid_expert,
     create_plantuml_expert,
@@ -17,7 +17,7 @@ from .expert_templates import (
     create_custom_expert
 )
 
-# ⚠️ Deprecated: Old ExpertAgent class (backward compatibility)
+# ExpertAgent classes
 from .expert_agent import ExpertAgent, ExpertAgentConfig
 from .mermaid_expert import MermaidExpertAgent
 from .pipeline_expert import PipelineExpertAgent

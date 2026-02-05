@@ -56,10 +56,11 @@ class AgentRunner:
         learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
         transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
         swarm_terminal=None,  # SwarmTerminal for intelligent command execution
+        swarm_intelligence=None,  # SwarmIntelligence for curriculum feedback (Agent0)
     ):
         """
         Initialize AgentRunner.
-        
+
         Args:
             agent: The agent to execute (AutoAgent or DSPy module)
             config: AgentRunner configuration
@@ -67,11 +68,12 @@ class AgentRunner:
             task_board: Shared TaskBoard (optional)
             swarm_memory: Shared SwarmMemory (optional)
             swarm_state_manager: SwarmStateManager for state tracking (optional)
+            swarm_intelligence: SwarmIntelligence for curriculum feedback (optional)
         """
         self.agent = agent
         self.config = config
         self.agent_name = config.agent_name
-        
+
         # Shared components (V2)
         self.task_planner = task_planner
         self.task_board = task_board
@@ -79,6 +81,7 @@ class AgentRunner:
         self.swarm_state_manager = swarm_state_manager
         self.learning_manager = learning_manager
         self.transfer_learning = transfer_learning
+        self.swarm_intelligence = swarm_intelligence  # Agent0: Curriculum feedback
 
         # SwarmTerminal for intelligent command execution and auto-fix
         self.swarm_terminal = swarm_terminal
@@ -554,7 +557,31 @@ class AgentRunner:
                         decision_timing=0.5,
                         temporal_weight=1.0
                     )
-            
+
+            # Agent0: Send executor feedback to SwarmIntelligence for curriculum adaptation
+            if self.swarm_intelligence:
+                try:
+                    # Extract tools used from agent contributions
+                    all_tools_used = []
+                    for contrib in agent_contributions.values():
+                        if hasattr(contrib, 'tools_used'):
+                            all_tools_used.extend(contrib.tools_used)
+
+                    # Get task type from current tracking
+                    detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+
+                    self.swarm_intelligence.receive_executor_feedback(
+                        task_id=f"{self.agent_name}_{int(time.time())}",
+                        success=success,
+                        tools_used=all_tools_used,
+                        execution_time=duration,
+                        error_type=None,
+                        task_type=detected_task_type
+                    )
+                    logger.debug(f"Executor feedback sent: success={success}, tools={all_tools_used[:3]}")
+                except Exception as fb_err:
+                    logger.debug(f"Executor feedback skipped: {fb_err}")
+
             return EpisodeResult(
                 output=agent_output,
                 success=success,
@@ -630,13 +657,30 @@ class AgentRunner:
 
             # Return failed EpisodeResult with correct structure
             duration = time.time() - start_time
+
+            # Agent0: Send executor feedback for failed execution
+            if self.swarm_intelligence:
+                try:
+                    detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                    self.swarm_intelligence.receive_executor_feedback(
+                        task_id=f"{self.agent_name}_{int(time.time())}",
+                        success=False,
+                        tools_used=[],  # No tools tracked in error case
+                        execution_time=duration,
+                        error_type=error_type,
+                        task_type=detected_task_type
+                    )
+                    logger.debug(f"Executor feedback sent: success=False, error_type={error_type}")
+                except Exception as fb_err:
+                    logger.debug(f"Executor feedback skipped: {fb_err}")
+
             return EpisodeResult(
                 output=None,
                 success=False,
                 trajectory=[{'step': 0, 'action': 'error', 'error': error_str, 'fix_applied': fix_applied}],
                 tagged_outputs=[],
                 episode=0,
-                execution_time=time.time() - start_time,
+                execution_time=duration,
                 architect_results=architect_results if 'architect_results' in locals() else [],
                 auditor_results=[],
                 agent_contributions={},

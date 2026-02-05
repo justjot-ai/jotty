@@ -4,7 +4,10 @@ Search → Summarize → PDF → Telegram (Generic Pipeline Version)
 Demonstrates generic Source → Processor → Sink pipeline pattern.
 Uses declarative pipeline configuration.
 """
-from core.registry.pipeline_skill import create_pipeline_skill, StepType
+try:
+    from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
+except ImportError:
+    from core.registry.pipeline_skill import create_pipeline_skill, StepType
 
 # Define pipeline declaratively
 PIPELINE_CONFIG = [

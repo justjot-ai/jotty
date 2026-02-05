@@ -609,6 +609,12 @@ class AgentSpecialization(Enum):
     VALIDATOR = "validator"    # Good at validation/checking
     PLANNER = "planner"        # Good at planning/decomposition
     EXECUTOR = "executor"      # Good at execution/action
+    # Match real AgentRole task types from _record_trace()
+    ACTOR = "actor"            # Action/execution specialist
+    EXPERT = "expert"          # Domain knowledge specialist
+    REVIEWER = "reviewer"      # Quality/review specialist
+    ORCHESTRATOR = "orchestrator"  # Coordination specialist
+    RESEARCHER = "researcher"  # Research/learning specialist
 
 
 @dataclass
@@ -681,6 +687,22 @@ class AgentProfile:
                 'validation': AgentSpecialization.VALIDATOR,
                 'planning': AgentSpecialization.PLANNER,
                 'filtering': AgentSpecialization.EXECUTOR,
+                # Real task types from _record_trace() AgentRole values
+                'actor': AgentSpecialization.ACTOR,
+                'expert': AgentSpecialization.EXPERT,
+                'planner': AgentSpecialization.PLANNER,
+                'reviewer': AgentSpecialization.REVIEWER,
+                'orchestrator': AgentSpecialization.ORCHESTRATOR,
+                # Domain-specific task types from swarms
+                'paper_learning': AgentSpecialization.RESEARCHER,
+                'code_generation': AgentSpecialization.EXECUTOR,
+                'test_generation': AgentSpecialization.VALIDATOR,
+                'fundamental_analysis': AgentSpecialization.ANALYZER,
+                'data_analysis': AgentSpecialization.ANALYZER,
+                'devops': AgentSpecialization.EXECUTOR,
+                'code_review': AgentSpecialization.REVIEWER,
+                'idea_writing': AgentSpecialization.EXPERT,
+                'swarm_learning': AgentSpecialization.RESEARCHER,
             }
             self.specialization = specialization_map.get(best_type, AgentSpecialization.GENERALIST)
 
@@ -1367,7 +1389,7 @@ class SyntheticTask:
 
 class CurriculumGenerator:
     """
-    DrZero-inspired self-curriculum generator.
+    DrZero + Agent0 inspired self-curriculum generator.
 
     Generates progressively harder tasks to train agents without external data.
 
@@ -1377,11 +1399,20 @@ class CurriculumGenerator:
     3. WEAKNESS TARGETING: Focus on low-success task types
     4. DIVERSITY: Ensure coverage of all task types
 
+    Agent0 enhancements (arXiv:2511.16043):
+    5. TOOL-AWARE TASKS: Tasks designed for tool usage
+    6. MEMORY-INFORMED: Query memory for weakness patterns
+    7. EXECUTOR FEEDBACK: Closed-loop curriculum adaptation
+
     This enables AUTONOMOUS SKILL IMPROVEMENT without user intervention.
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, state_manager=None, memory_system=None):
         self.config = config
+
+        # Agent0: Connect to existing infrastructure (DRY - don't duplicate)
+        self._state_manager = state_manager  # SwarmStateManager for tool stats
+        self._memory_system = memory_system  # HierarchicalMemory for context
 
         # Task type templates (domain-agnostic)
         self.task_templates: Dict[str, List[str]] = {
@@ -1428,7 +1459,36 @@ class CurriculumGenerator:
         self.total_generated = 0
         self.tasks_by_difficulty: Dict[str, int] = defaultdict(int)
 
-        logger.info("CurriculumGenerator initialized (DrZero-inspired self-curriculum)")
+        # Agent0: Tool-aware task templates (uses existing tools, doesn't duplicate)
+        self.tool_task_templates: Dict[str, Dict[str, Any]] = {
+            'search_analyze': {
+                'description': "Search for {topic} and analyze the results",
+                'tools_hint': ['search', 'web_search', 'grep'],
+                'complexity': 'chain',
+            },
+            'read_transform': {
+                'description': "Read {source} and transform to {format}",
+                'tools_hint': ['read', 'file_read', 'converter'],
+                'complexity': 'chain',
+            },
+            'execute_validate': {
+                'description': "Execute {command} and validate output matches {criteria}",
+                'tools_hint': ['bash', 'execute', 'validate'],
+                'complexity': 'chain',
+            },
+            'multi_source': {
+                'description': "Gather information from multiple sources about {topic}",
+                'tools_hint': ['search', 'read', 'fetch'],
+                'complexity': 'parallel',
+            },
+        }
+
+        # Agent0: Track tool success rates from executor feedback
+        self._tool_success_rates: Dict[str, Tuple[int, int]] = {}  # tool -> (success, total)
+        self._executor_feedback_history: List[Dict] = []
+        self._max_feedback_history = 100
+
+        logger.info("CurriculumGenerator initialized (DrZero + Agent0 self-curriculum)")
 
     def generate_training_task(
         self,
@@ -1624,23 +1684,425 @@ class CurriculumGenerator:
             'difficulty_by_type': dict(self.difficulty_by_type),
             'tasks_by_difficulty': dict(self.tasks_by_difficulty),
             'recent_task_types': [t.task_type for t in self.generated_tasks[-10:]],
+            'tool_success_rates': dict(self._tool_success_rates),
+            'feedback_count': len(self._executor_feedback_history),
         }
 
+    # =========================================================================
+    # Agent0 Enhancements: Tool-awareness & Memory Integration
+    # =========================================================================
+
+    def connect_state_manager(self, state_manager):
+        """
+        Connect to SwarmStateManager for tool success tracking.
+
+        DRY: Uses existing AgentStateTracker.tool_usage instead of duplicating.
+        """
+        self._state_manager = state_manager
+        logger.debug("CurriculumGenerator connected to SwarmStateManager")
+
+    def connect_memory(self, memory_system):
+        """
+        Connect to memory system for weakness detection.
+
+        DRY: Uses existing HierarchicalMemory/SimpleBrain.
+        """
+        self._memory_system = memory_system
+        logger.debug("CurriculumGenerator connected to memory system")
+
+    def receive_executor_feedback(
+        self,
+        task_id: str,
+        success: bool,
+        tools_used: List[str],
+        execution_time: float = 0.0,
+        error_type: str = None
+    ):
+        """
+        Agent0: Receive feedback from executor to adapt curriculum.
+
+        Closes the loop: Executor performance → Curriculum adaptation.
+        """
+        feedback = {
+            'task_id': task_id,
+            'success': success,
+            'tools_used': tools_used,
+            'execution_time': execution_time,
+            'error_type': error_type,
+            'timestamp': time.time(),
+        }
+
+        self._executor_feedback_history.append(feedback)
+        if len(self._executor_feedback_history) > self._max_feedback_history:
+            self._executor_feedback_history = self._executor_feedback_history[-self._max_feedback_history:]
+
+        # Update tool success rates
+        for tool in tools_used:
+            current = self._tool_success_rates.get(tool, (0, 0))
+            if success:
+                self._tool_success_rates[tool] = (current[0] + 1, current[1] + 1)
+            else:
+                self._tool_success_rates[tool] = (current[0], current[1] + 1)
+
+        logger.debug(f"Received executor feedback: success={success}, tools={tools_used}")
+
+    def _sync_tool_stats_from_state_manager(self):
+        """
+        Sync tool success rates from AgentStateTracker.
+
+        DRY: Pulls from existing infrastructure instead of maintaining duplicate state.
+        """
+        if not self._state_manager:
+            return
+
+        try:
+            # Get all agent trackers from state manager
+            if hasattr(self._state_manager, 'agent_trackers'):
+                for agent_name, tracker in self._state_manager.agent_trackers.items():
+                    state = tracker.get_state()
+                    tool_usage = state.get('tool_usage', {})
+
+                    for tool, count in tool_usage.get('successful', {}).items():
+                        current = self._tool_success_rates.get(tool, (0, 0))
+                        # Merge counts (avoid duplicates by using max)
+                        self._tool_success_rates[tool] = (
+                            max(current[0], count),
+                            max(current[1], count + tool_usage.get('failed', {}).get(tool, 0))
+                        )
+        except Exception as e:
+            logger.debug(f"Could not sync tool stats: {e}")
+
+    def _query_memory_for_weaknesses(self, target_agent: str = None) -> List[str]:
+        """
+        Agent0: Query memory for patterns where agent struggled.
+
+        DRY: Uses existing memory.recall() or memory.query() API.
+        """
+        if not self._memory_system:
+            return []
+
+        weaknesses = []
+        try:
+            # Query for error patterns
+            query = f"errors failures mistakes {target_agent or 'agent'}"
+
+            if hasattr(self._memory_system, 'recall'):
+                results = self._memory_system.recall(query, top_k=5)
+                if results:
+                    weaknesses = [str(r)[:100] for r in results[:3]]
+
+            elif hasattr(self._memory_system, 'query'):
+                results = self._memory_system.query(query, limit=5)
+                if results:
+                    weaknesses = [r.get('content', '')[:100] for r in results[:3]]
+
+        except Exception as e:
+            logger.debug(f"Could not query memory for weaknesses: {e}")
+
+        return weaknesses
+
+    def generate_tool_aware_task(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        target_agent: Optional[str] = None,
+        prefer_weak_tools: bool = True
+    ) -> SyntheticTask:
+        """
+        Agent0: Generate a task designed for tool usage.
+
+        Uses existing SyntheticTask with tool hints in metadata (DRY - no new class).
+        """
+        import random
+
+        # Sync tool stats from state manager
+        self._sync_tool_stats_from_state_manager()
+
+        # Find tools with low success rate (weaknesses)
+        weak_tools = []
+        if prefer_weak_tools:
+            for tool, (success, total) in self._tool_success_rates.items():
+                if total > 0 and success / total < 0.6:
+                    weak_tools.append(tool)
+
+        # Select template - prefer ones using weak tools
+        template_name, template = self._select_tool_template(weak_tools)
+
+        # Query memory for additional context
+        memory_hints = self._query_memory_for_weaknesses(target_agent)
+
+        # Calculate difficulty based on tool complexity
+        complexity_difficulty = {
+            'single': 0.3,
+            'chain': 0.5,
+            'parallel': 0.7,
+            'conditional': 0.8,
+        }
+        base_difficulty = complexity_difficulty.get(template.get('complexity', 'single'), 0.4)
+
+        # Adjust based on executor feedback
+        recent_success_rate = self._get_recent_success_rate()
+        difficulty = min(1.0, base_difficulty + (recent_success_rate - 0.5) * 0.2)
+
+        # Generate description
+        placeholders = self._generate_placeholders(difficulty)
+        try:
+            description = template['description'].format(**placeholders)
+        except KeyError:
+            description = template['description']
+
+        # Create task with tool hints in metadata
+        task = SyntheticTask(
+            task_id=f"tool_curriculum_{self.total_generated}_{int(time.time())}",
+            task_type=template_name,
+            description=description,
+            difficulty=difficulty,
+            target_agent=target_agent,
+            metadata={
+                'curriculum_round': self.total_generated,
+                'tool_aware': True,
+                'tools_hint': template.get('tools_hint', []),
+                'complexity': template.get('complexity', 'single'),
+                'weak_tools_targeted': weak_tools[:3],
+                'memory_context': memory_hints[0] if memory_hints else None,
+            }
+        )
+
+        self.generated_tasks.append(task)
+        self.total_generated += 1
+
+        logger.debug(f"Generated tool-aware task: {template_name}, difficulty={difficulty:.2f}")
+        return task
+
+    def _select_tool_template(self, weak_tools: List[str]) -> Tuple[str, Dict]:
+        """Select template preferring ones that use weak tools."""
+        import random
+
+        # Score templates by weak tool overlap
+        scored = []
+        for name, template in self.tool_task_templates.items():
+            tools_hint = template.get('tools_hint', [])
+            overlap = len(set(weak_tools) & set(tools_hint))
+            scored.append((name, template, overlap))
+
+        # Sort by overlap (descending)
+        scored.sort(key=lambda x: x[2], reverse=True)
+
+        # 20% exploration - pick random
+        if random.random() < 0.2:
+            name, template, _ = random.choice(scored)
+        else:
+            name, template, _ = scored[0]
+
+        return name, template
+
+    def _get_recent_success_rate(self) -> float:
+        """Get success rate from recent executor feedback."""
+        recent = self._executor_feedback_history[-20:]
+        if not recent:
+            return 0.5
+        return sum(1 for f in recent if f['success']) / len(recent)
+
     def to_dict(self) -> Dict:
-        """Serialize for persistence."""
+        """Serialize for persistence - includes full learning history."""
+        # Convert tool_success_rates tuples to lists for JSON
+        serializable_rates = {}
+        for tool, rate in self._tool_success_rates.items():
+            if isinstance(rate, tuple):
+                serializable_rates[tool] = list(rate)
+            else:
+                serializable_rates[tool] = rate
+
         return {
             'difficulty_by_type': dict(self.difficulty_by_type),
             'total_generated': self.total_generated,
             'tasks_by_difficulty': dict(self.tasks_by_difficulty),
+            'tool_success_rates': serializable_rates,
+            'feedback_history': self._executor_feedback_history[-100:],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, config=None) -> 'CurriculumGenerator':
-        """Deserialize from persistence."""
-        instance = cls(config)
+    def from_dict(cls, data: Dict, config=None, state_manager=None, memory_system=None) -> 'CurriculumGenerator':
+        """Deserialize from persistence - restores full learning state."""
+        instance = cls(config, state_manager=state_manager, memory_system=memory_system)
         instance.difficulty_by_type = defaultdict(lambda: 0.3, data.get('difficulty_by_type', {}))
         instance.total_generated = data.get('total_generated', 0)
         instance.tasks_by_difficulty = defaultdict(int, data.get('tasks_by_difficulty', {}))
+
+        # Restore tool_success_rates (convert lists back to tuples)
+        raw_rates = data.get('tool_success_rates', {})
+        for tool, rate in raw_rates.items():
+            if isinstance(rate, list) and len(rate) == 2:
+                instance._tool_success_rates[tool] = (rate[0], rate[1])
+            else:
+                instance._tool_success_rates[tool] = rate
+
+        # Restore feedback history
+        instance._executor_feedback_history = data.get('feedback_history', [])
+
+        return instance
+
+
+# =============================================================================
+# TOOL MANAGER (Agent0 Dynamic Tool Management)
+# =============================================================================
+
+class ToolManager:
+    """
+    Dynamic tool management based on Agent0 learned performance.
+
+    Bridges CurriculumGenerator._tool_success_rates with runtime tool selection.
+    Tracks per-swarm tool additions/removals and suggests replacements for
+    consistently failing tools.
+    """
+
+    FAILURE_THRESHOLD = 0.6   # Below 60% success = failing tool
+    MIN_SAMPLES = 3           # Need 3+ uses before judging
+
+    def __init__(self):
+        self._tool_assignments: Dict[str, List[str]] = {}    # swarm_name → [added tools]
+        self._deactivated_tools: Dict[str, List[str]] = {}   # swarm_name → [removed tools]
+
+    def analyze_tools(self, tool_success_rates: Dict[str, Tuple[int, int]], swarm_name: str) -> Dict[str, Any]:
+        """
+        Classify tools as weak/strong based on Agent0 success rates.
+
+        Args:
+            tool_success_rates: Dict of tool_name → (successes, total_uses)
+            swarm_name: Name of the swarm being analyzed
+
+        Returns:
+            Dict with weak_tools, strong_tools, suggested_removals, replacements
+        """
+        weak_tools = []
+        strong_tools = []
+        suggested_removals = []
+        replacements = {}
+
+        for tool, rate_data in tool_success_rates.items():
+            if isinstance(rate_data, (list, tuple)) and len(rate_data) == 2:
+                successes, total = rate_data
+            else:
+                continue
+
+            if total < self.MIN_SAMPLES:
+                continue
+
+            success_rate = successes / total if total > 0 else 0.0
+
+            if success_rate < self.FAILURE_THRESHOLD:
+                weak_tools.append({
+                    'tool': tool,
+                    'success_rate': success_rate,
+                    'successes': successes,
+                    'total': total
+                })
+                suggested_removals.append(tool)
+                tool_replacements = self.find_replacements(tool)
+                if tool_replacements:
+                    replacements[tool] = tool_replacements
+            else:
+                strong_tools.append({
+                    'tool': tool,
+                    'success_rate': success_rate,
+                    'successes': successes,
+                    'total': total
+                })
+
+        return {
+            'weak_tools': weak_tools,
+            'strong_tools': strong_tools,
+            'suggested_removals': suggested_removals,
+            'replacements': replacements,
+            'swarm_name': swarm_name
+        }
+
+    def find_replacements(self, failing_tool: str) -> List[Dict[str, str]]:
+        """
+        Search for replacement tools by keyword matching on tool name.
+
+        Args:
+            failing_tool: Name of the tool that is performing poorly
+
+        Returns:
+            List of dicts with name, description, reason for each candidate
+        """
+        replacements = []
+        keywords = failing_tool.lower().replace('_', ' ').split()
+
+        # Built-in tool categories that could serve as replacements
+        tool_alternatives = {
+            'fetch': ['web_search', 'api_query', 'scrape'],
+            'search': ['grep', 'web_search', 'semantic_search'],
+            'generate': ['create', 'synthesize', 'compose'],
+            'analyze': ['evaluate', 'inspect', 'assess'],
+            'extract': ['parse', 'mine', 'collect'],
+            'validate': ['verify', 'check', 'confirm'],
+            'transform': ['convert', 'normalize', 'reshape'],
+        }
+
+        for keyword in keywords:
+            if keyword in tool_alternatives:
+                for alt in tool_alternatives[keyword]:
+                    replacements.append({
+                        'name': alt,
+                        'description': f"Alternative for {failing_tool} (keyword: {keyword})",
+                        'reason': f"{failing_tool} below {self.FAILURE_THRESHOLD*100:.0f}% success"
+                    })
+
+        return replacements
+
+    def get_active_tools(self, swarm_name: str, defaults: List[str] = None) -> List[str]:
+        """
+        Return merged tool list: defaults + dynamic additions - deactivated.
+
+        Args:
+            swarm_name: Name of the swarm
+            defaults: Default tool list for this swarm
+
+        Returns:
+            Active tool list after applying additions and removals
+        """
+        active = set(defaults or [])
+        active.update(self._tool_assignments.get(swarm_name, []))
+        active -= set(self._deactivated_tools.get(swarm_name, []))
+        return list(active)
+
+    def update_assignments(self, swarm_name: str, add: List[str] = None, remove: List[str] = None):
+        """
+        Track tool additions/removals per swarm.
+
+        Args:
+            swarm_name: Name of the swarm
+            add: Tools to add to this swarm's active set
+            remove: Tools to deactivate for this swarm
+        """
+        if add:
+            if swarm_name not in self._tool_assignments:
+                self._tool_assignments[swarm_name] = []
+            for tool in add:
+                if tool not in self._tool_assignments[swarm_name]:
+                    self._tool_assignments[swarm_name].append(tool)
+
+        if remove:
+            if swarm_name not in self._deactivated_tools:
+                self._deactivated_tools[swarm_name] = []
+            for tool in remove:
+                if tool not in self._deactivated_tools[swarm_name]:
+                    self._deactivated_tools[swarm_name].append(tool)
+
+    def to_dict(self) -> Dict:
+        """Serialize tool assignments and deactivations for persistence."""
+        return {
+            'tool_assignments': dict(self._tool_assignments),
+            'deactivated_tools': dict(self._deactivated_tools)
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'ToolManager':
+        """Restore ToolManager from persisted data."""
+        instance = cls()
+        instance._tool_assignments = data.get('tool_assignments', {})
+        instance._deactivated_tools = data.get('deactivated_tools', {})
         return instance
 
 
@@ -1699,10 +2161,105 @@ class SwarmIntelligence:
         # MorphAgent-inspired scorer (RCS/RDS/TRAS)
         self.morph_scorer = MorphScorer(config)
 
+        # Agent0: Dynamic tool management
+        self.tool_manager = ToolManager()
+
         # Track swarm-level MorphAgent scores over time
         self.morph_score_history: List[Dict[str, Any]] = []
 
+        # Training mode configuration (Agent0 inspired)
+        self._training_mode = False
+        self._memory_system = None
+
         logger.info("SwarmIntelligence initialized (DrZero curriculum + MorphAgent scoring)")
+
+    def enable_training_mode(self, enabled: bool = True, memory_system=None):
+        """
+        Enable/disable curriculum-based training mode.
+
+        Agent0 insight: Training mode generates tasks that target agent weaknesses.
+
+        Args:
+            enabled: Whether training mode is active
+            memory_system: Optional HierarchicalMemory for context-aware tasks
+        """
+        self._training_mode = enabled
+
+        if memory_system:
+            self._memory_system = memory_system
+            self.curriculum_generator.connect_memory(memory_system)
+
+        logger.info(f"Training mode {'enabled' if enabled else 'disabled'}")
+
+    def get_training_task(self, target_agent: str = None, tool_aware: bool = True) -> Optional[SyntheticTask]:
+        """
+        Get a curriculum-generated training task.
+
+        Agent0: Uses tool-aware generation when tool_aware=True.
+
+        Args:
+            target_agent: Optionally target specific agent's weaknesses
+            tool_aware: Use tool-aware task generation (Agent0 style)
+
+        Returns:
+            SyntheticTask or None if training mode disabled
+        """
+        if not self._training_mode:
+            return None
+
+        if tool_aware:
+            return self.curriculum_generator.generate_tool_aware_task(
+                profiles=self.agent_profiles,
+                target_agent=target_agent,
+                prefer_weak_tools=True
+            )
+        else:
+            return self.curriculum_generator.generate_training_task(
+                profiles=self.agent_profiles,
+                target_agent=target_agent
+            )
+
+    def receive_executor_feedback(
+        self,
+        task_id: str,
+        success: bool,
+        tools_used: List[str],
+        execution_time: float = 0.0,
+        error_type: str = None,
+        task_type: str = None
+    ):
+        """
+        Receive feedback from executor after task completion.
+
+        Agent0 closed-loop: Executor feedback → Curriculum adaptation.
+
+        Args:
+            task_id: Task identifier
+            success: Whether task succeeded
+            tools_used: List of tools used during execution
+            execution_time: Time taken to execute
+            error_type: Type of error if failed
+            task_type: Type of task (for curriculum update)
+        """
+        # Forward to curriculum generator
+        self.curriculum_generator.receive_executor_feedback(
+            task_id=task_id,
+            success=success,
+            tools_used=tools_used,
+            execution_time=execution_time,
+            error_type=error_type
+        )
+
+        # Update curriculum difficulty if this was a synthetic task
+        if task_type:
+            task = SyntheticTask(
+                task_id=task_id,
+                task_type=task_type,
+                description="",
+                difficulty=0.5,
+                target_agent=None
+            )
+            self.curriculum_generator.update_from_result(task, success, execution_time)
 
     # =========================================================================
     # EMERGENT SPECIALIZATION
@@ -2474,6 +3031,7 @@ class SwarmIntelligence:
             'benchmarks': self.benchmarks.to_dict(),  # Persist benchmark data
             'curriculum': self.curriculum_generator.to_dict(),  # DrZero curriculum state
             'morph_score_history': self.morph_score_history[-50:],  # MorphAgent score history
+            'tool_manager': self.tool_manager.to_dict(),  # Agent0 tool management state
         }
 
         from pathlib import Path
@@ -2529,6 +3087,10 @@ class SwarmIntelligence:
             if 'morph_score_history' in data:
                 self.morph_score_history = data['morph_score_history']
 
+            # Load Agent0 tool manager state
+            if 'tool_manager' in data:
+                self.tool_manager = ToolManager.from_dict(data['tool_manager'])
+
             logger.info(f"Loaded swarm intelligence: {len(self.agent_profiles)} profiles, {len(self.stigmergy.signals)} stigmergy signals, curriculum tasks={self.curriculum_generator.total_generated}")
             return True
 
@@ -2559,4 +3121,6 @@ __all__ = [
     # MorphAgent-inspired scoring
     'MorphScorer',
     'MorphScores',
+    # Agent0 tool management
+    'ToolManager',
 ]
