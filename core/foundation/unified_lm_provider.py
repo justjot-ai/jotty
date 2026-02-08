@@ -13,11 +13,14 @@ All providers accessible through single DSPy LM interface.
 Automatically injects current date/time context to all LLM calls.
 """
 import os
+import logging
 from datetime import datetime
 import dspy
 from dspy.clients.base_lm import BaseLM
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_context() -> str:
@@ -281,10 +284,10 @@ class UnifiedLMProvider:
                 # Wrap with context injection
                 lm = ContextAwareLM(raw_lm)
                 dspy.configure(lm=lm)
-                print("✅ DSPy configured with JottyClaudeProvider", file=__import__('sys').stderr)
+                logger.debug("DSPy configured with JottyClaudeProvider")
                 return lm
         except Exception as e:
-            print(f"⚠️  JottyClaudeProvider failed: {e}", file=__import__('sys').stderr)
+            logger.debug(f"JottyClaudeProvider not available: {e}")
 
         # 2. API providers (fallback if CLI not available)
         # Check for API keys and use native DSPy support
@@ -301,10 +304,10 @@ class UnifiedLMProvider:
                 try:
                     lm = UnifiedLMProvider.create_lm(provider_name, model=default_model)
                     dspy.configure(lm=lm)
-                    print(f"✅ DSPy configured with {provider_name} API (native)", file=__import__('sys').stderr)
+                    logger.debug(f"DSPy configured with {provider_name} API")
                     return lm
                 except Exception as e:
-                    print(f"⚠️  {provider_name} API failed: {e}", file=__import__('sys').stderr)
+                    logger.debug(f"{provider_name} API not available: {e}")
                     continue
         
         # 3. Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
@@ -317,10 +320,10 @@ class UnifiedLMProvider:
                 # Wrap with context injection
                 lm = ContextAwareLM(raw_lm)
                 dspy.configure(lm=lm)
-                print("✅ DSPy configured with DirectClaudeCLI", file=__import__('sys').stderr)
+                logger.debug("DSPy configured with DirectClaudeCLI")
                 return lm
             except Exception as e:
-                print(f"⚠️  DirectClaudeCLI failed: {e}", file=__import__('sys').stderr)
+                logger.debug(f"DirectClaudeCLI not available: {e}")
 
         # Cursor CLI (composer-1 model, no on-demand needed)
         if os.path.exists('/usr/local/bin/cursor-agent'):
@@ -329,10 +332,10 @@ class UnifiedLMProvider:
                 raw_lm = CursorCLILM(model="composer-1")
                 lm = ContextAwareLM(raw_lm)
                 dspy.configure(lm=lm)
-                print("✅ DSPy configured with Cursor CLI (direct, composer-1)", file=__import__('sys').stderr)
+                logger.debug("DSPy configured with Cursor CLI")
                 return lm
             except Exception as e:
-                print(f"⚠️  Cursor CLI failed: {e}", file=__import__('sys').stderr)
+                logger.debug(f"Cursor CLI not available: {e}")
 
         # 3. OpenCode (GLM via remote execution for ARM64)
         try:
@@ -340,7 +343,7 @@ class UnifiedLMProvider:
             raw_lm = OpenCodeLM(model="glm-4")  # Free GLM model
             lm = ContextAwareLM(raw_lm)
             dspy.configure(lm=lm)
-            print("✅ DSPy configured with OpenCode GLM (remote)", file=__import__('sys').stderr)
+            logger.debug("DSPy configured with OpenCode GLM")
             return lm
         except Exception as e:
             print(f"⚠️  OpenCode failed: {e}", file=__import__('sys').stderr)

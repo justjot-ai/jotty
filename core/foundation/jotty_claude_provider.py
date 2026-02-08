@@ -106,7 +106,7 @@ class JottyClaudeProvider:
             self._ensure_server_running()
 
         self._initialized = True
-        logger.info(f"✅ JottyClaudeProvider initialized (port={port}, model={model})")
+        logger.debug(f"JottyClaudeProvider initialized (port={port}, model={model})")
 
     def _is_server_running(self) -> bool:
         """Check if wrapper server is running."""

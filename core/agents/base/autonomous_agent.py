@@ -265,10 +265,25 @@ class AutonomousAgent(BaseAgent):
         _status("Plan ready", f"{len(steps)} steps")
 
         if not steps:
+            # No skills needed - fallback to direct LLM response
+            _status("Generating", "direct LLM response")
+            llm_response = await self._fallback_llm_response(task)
+            if llm_response:
+                return {
+                    "success": True,
+                    "task": task,
+                    "task_type": task_type,
+                    "skills_used": ["claude-cli-llm"],
+                    "steps_executed": 1,
+                    "outputs": {"llm_response": llm_response},
+                    "final_output": llm_response,
+                    "errors": [],
+                    "execution_time": time.time() - start_time,
+                }
             return {
                 "success": False,
                 "task": task,
-                "error": "No valid execution plan created",
+                "error": "Could not generate response",
                 "skills_used": [],
                 "steps_executed": 0,
                 "outputs": {},
@@ -328,6 +343,45 @@ class AutonomousAgent(BaseAgent):
             "errors": errors,
             "execution_time": time.time() - start_time,
         }
+
+    async def _fallback_llm_response(self, task: str) -> Optional[str]:
+        """
+        Generate direct LLM response when no skills are needed.
+
+        Used for simple conversational queries where no execution plan
+        is required - the LLM can respond directly.
+
+        Args:
+            task: The user's query/task
+
+        Returns:
+            LLM response string or None if generation fails
+        """
+        try:
+            # Try using the claude-cli-llm skill first
+            if self.skills_registry:
+                skill = self.skills_registry.get_skill('claude-cli-llm')
+                if skill and skill.tools:
+                    llm_tool = skill.tools.get('claude_cli_llm_tool') or skill.tools.get('generate_text_tool')
+                    if llm_tool:
+                        result = llm_tool({'prompt': task})
+                        if isinstance(result, dict):
+                            return result.get('response') or result.get('content') or result.get('text')
+                        return str(result) if result else None
+
+            # Fallback to direct DSPy call
+            import dspy
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+                lm = dspy.settings.lm
+                response = lm(prompt=task)
+                if isinstance(response, list):
+                    return response[0] if response else None
+                return str(response)
+
+        except Exception as e:
+            logger.warning(f"Fallback LLM response failed: {e}")
+
+        return None
 
     def _infer_task_type(self, task: str) -> str:
         """

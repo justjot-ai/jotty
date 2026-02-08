@@ -189,42 +189,74 @@ Test the SDK client with real-time event visualization.
             # Create client
             client = Jotty().use_local()
 
-            # Engaging status messages (only show these, hide technical ones)
+            # Engaging status messages mapped from AutoAgent stages
             _status_messages = {
-                'Searching': '🔍 Searching the web...',
-                'Analyzing': '🧠 Analyzing...',
-                'Generating': '✍️ Crafting response...',
+                # AutoAgent stages
+                'AutoAgent': '🤖 Starting agent...',
+                'Analyzing': '🧠 Analyzing task...',
+                'Discovering': '🔍 Finding skills...',
+                'Selecting': '🎯 Selecting best approach...',
+                'Planning': '📋 Planning steps...',
+                'Generating': '✍️ Generating content...',
                 'Processing': '💭 Processing...',
-                'Retrying': '🔄 Refining response...',
-                'Thinking': '💭 Thinking...',
-                'Reading': '📖 Reading file...',
+                # Skill execution
+                'Step': '⚡ Executing step...',
+                'Searching': '🔍 Searching...',
+                'Researching': '📚 Researching...',
+                'Writing': '✍️ Writing...',
+                'Creating': '🔨 Creating...',
+                # Other
+                'Retrying': '🔄 Retrying...',
+                'Replanning': '🔄 Adapting...',
+                'Ensemble': '🧩 Multi-perspective analysis...',
             }
-            # Technical statuses to hide from user
-            _hidden_statuses = {'Decision', 'Generated', 'Preparing', 'step'}
             _last_status = [None]
+            _last_print_time = [0]
 
             # Event callback for status updates
             def chat_event_callback(event):
+                import time
+                import sys
                 event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
 
-                # Handle thinking events - show engaging messages only
+                # Handle thinking events - show progress
                 if event_type == 'thinking' and event.data and isinstance(event.data, dict):
                     status = event.data.get('status', '')
+                    detail = event.data.get('message', '')
 
-                    # Skip technical/internal status messages
-                    if status in _hidden_statuses or '=' in status:
+                    # Skip very frequent updates (throttle to every 0.3s)
+                    now = time.time()
+                    if now - _last_print_time[0] < 0.3 and status == _last_status[0]:
                         return
 
-                    # Show engaging message for known statuses
-                    if status in _status_messages:
-                        msg = _status_messages[status]
-                        if _last_status[0] != status:
-                            _last_status[0] = status
-                            print(f"\033[90m  {msg}\033[0m")
-                    elif 'search' in status.lower():
-                        if _last_status[0] != 'search':
-                            _last_status[0] = 'search'
-                            print(f"\033[90m  🔍 Searching the web...\033[0m")
+                    # Map to user-friendly message
+                    msg = None
+                    for key, friendly in _status_messages.items():
+                        if key.lower() in status.lower():
+                            msg = friendly
+                            break
+
+                    # Show step progress with detail
+                    if status.startswith('Step '):
+                        msg = f"⚡ {status}"
+                        if detail:
+                            msg += f": {detail[:40]}"
+
+                    if msg and _last_status[0] != f"{status}:{detail}":
+                        _last_status[0] = f"{status}:{detail}"
+                        _last_print_time[0] = now
+                        print(f"\033[90m  {msg}\033[0m", flush=True)
+                    return
+
+                # Handle planning event
+                if event_type == 'planning':
+                    print(f"\033[90m  📋 Planning execution...\033[0m", flush=True)
+                    return
+
+                # Handle skill events
+                if event_type == 'skill_start' and event.data:
+                    skill = event.data.get('skill', 'skill')
+                    print(f"\033[90m  🔧 Using {skill}...\033[0m", flush=True)
                     return
 
                 # Only show other events if _show_events is enabled
@@ -232,14 +264,12 @@ Test the SDK client with real-time event visualization.
                     return
 
                 if event_type == 'error':
-                    icon = self._event_icons.get(event_type, "→")
-                    error_msg = ""
+                    error_msg = "Something went wrong"
                     if event.data and isinstance(event.data, dict):
-                        error_msg = event.data.get('error', '')
-                        # Don't show raw tracebacks
-                        if 'Traceback' in error_msg or 'File "/' in error_msg:
-                            error_msg = "An error occurred. Please try again."
-                    print(f"  {icon} {error_msg}")
+                        raw_error = event.data.get('error', '')
+                        if raw_error and 'Traceback' not in raw_error:
+                            error_msg = raw_error[:80]
+                    print(f"\033[91m  ❌ {error_msg}\033[0m", flush=True)
 
             for event_type in SDKEventType:
                 client.on(event_type, chat_event_callback)
@@ -422,32 +452,154 @@ Test the SDK client with real-time event visualization.
         except Exception as e:
             return CommandResult.fail(str(e))
 
+    def _format_research_result(self, cli, result: dict) -> str:
+        """Format research/skill result as a nice user-friendly message."""
+        import os
+        lines = []
+
+        # Check for research report results (various field names)
+        pdf_path = result.get('pdf_path') or result.get('pdf') or result.get('output_path')
+        md_path = result.get('md_path') or result.get('markdown_path')
+
+        # Detect research result by presence of key fields
+        is_research = pdf_path or 'ticker' in result or 'rating' in result
+
+        if is_research:
+            # Extract info with fallbacks
+            ticker = result.get('ticker') or result.get('symbol') or ''
+            company = result.get('company_name') or result.get('company') or result.get('name') or ''
+            rating = result.get('rating') or result.get('recommendation') or ''
+            current = result.get('current_price') or result.get('price') or 0
+            target = result.get('target_price') or result.get('target') or 0
+            upside = result.get('upside') or result.get('potential') or 0
+
+            # Extract ticker from path if not provided
+            if not ticker and pdf_path:
+                filename = os.path.basename(pdf_path)
+                # Handle formats like "Paytm_research_..." or "PAYTM_research_..."
+                parts = filename.split('_')
+                if parts:
+                    ticker = parts[0].upper()
+
+            # Header with nice formatting
+            if company and ticker:
+                lines.append(f"📊 **{company}** ({ticker})")
+            elif company:
+                lines.append(f"📊 **{company}**")
+            elif ticker:
+                lines.append(f"📊 **Research Report: {ticker}**")
+            else:
+                lines.append("📊 **Research Report Complete**")
+            lines.append("")
+
+            # Rating with color emoji
+            if rating:
+                rating_upper = str(rating).upper()
+                rating_emoji = {'BUY': '🟢', 'STRONG BUY': '🟢', 'HOLD': '🟡',
+                               'NEUTRAL': '🟡', 'SELL': '🔴', 'STRONG SELL': '🔴'}.get(rating_upper, '⚪')
+                lines.append(f"  {rating_emoji} Rating: **{rating}**")
+
+            # Price info in a clean format
+            if current:
+                lines.append(f"  💰 Current: ₹{float(current):,.2f}")
+            if target:
+                lines.append(f"  🎯 Target: ₹{float(target):,.2f}")
+            if upside:
+                upside_val = float(upside)
+                upside_emoji = '📈' if upside_val > 0 else '📉'
+                lines.append(f"  {upside_emoji} Upside: {upside_val:.1f}%")
+
+            # Files section
+            charts = result.get('chart_files', []) or result.get('charts', [])
+            if pdf_path or md_path or charts:
+                lines.append("")
+                lines.append("📁 **Files:**")
+
+            if pdf_path:
+                lines.append(f"  📄 PDF: {pdf_path}")
+            if md_path:
+                lines.append(f"  📝 MD:  {md_path}")
+            if charts:
+                for chart in charts[:3]:  # Show first 3
+                    lines.append(f"  📊 Chart: {chart}")
+
+            # Telegram status
+            if result.get('telegram_sent'):
+                lines.append("")
+                lines.append("✅ Sent to Telegram")
+
+            # Data sources
+            sources = result.get('data_sources', []) or result.get('sources', [])
+            if sources:
+                lines.append("")
+                lines.append(f"*Sources: {', '.join(sources)}*")
+
+            return "\n".join(lines)
+
+        # Generic dict result - format nicely
+        if isinstance(result, dict):
+            # Check for success with content
+            if result.get('success') and 'content' in result:
+                return str(result['content'])
+            # Try to extract meaningful content
+            for key in ['response', 'output', 'result', 'content', 'text', 'message']:
+                if key in result and result[key]:
+                    return str(result[key])
+            # If dict has success=True but only paths, format as completion message
+            if result.get('success'):
+                return "✅ Task completed successfully."
+
+        return str(result)
+
     async def _process_chat_message(self, cli, client, message: str, history: list):
-        """Process a single chat message and update history."""
+        """Process a single chat message with status updates."""
+        import sys
+
         # Add user message to history
         history.append({"role": "user", "content": message})
 
         start = datetime.now()
-        response = await client.chat(message, history=history[:-1])  # Send history without current message
-        elapsed = (datetime.now() - start).total_seconds()
 
-        if response.success:
-            content = str(response.content or "No response")
-            # Add assistant response to history
-            history.append({"role": "assistant", "content": content})
+        # Progress is shown via event callback (chat_event_callback)
+        # Just show initial indicator
+        print("\033[90m  🚀 Starting...\033[0m")
 
-            # Display response with nice formatting
-            print()
-            print("\033[94mjotty>\033[0m ", end="")
-            cli.renderer.markdown(content)
-            print(f"\033[90m({elapsed:.1f}s)\033[0m\n")
-        else:
-            # Show friendly message, not raw error
-            content = response.content or "I couldn't process that request. Please try again."
-            print()
-            print("\033[94mjotty>\033[0m ", end="")
-            print(f"\033[93m{content}\033[0m")
-            print()
+        try:
+            response = await client.chat(message, history=history[:-1])
+            elapsed = (datetime.now() - start).total_seconds()
+
+            if response.success and response.content:
+                content = response.content
+
+                # Format structured results (research reports, etc.)
+                if isinstance(content, dict):
+                    formatted = self._format_research_result(cli, content)
+                elif isinstance(content, str) and content.startswith('{'):
+                    # Try to parse JSON string
+                    try:
+                        import json
+                        parsed = json.loads(content.replace("'", '"'))
+                        formatted = self._format_research_result(cli, parsed)
+                    except:
+                        formatted = content
+                else:
+                    formatted = str(content)
+
+                history.append({"role": "assistant", "content": formatted})
+
+                # Display response
+                print()
+                print("\033[94mjotty>\033[0m")
+                cli.renderer.markdown(formatted)
+                print(f"\n\033[90m({elapsed:.1f}s)\033[0m\n")
+            else:
+                error = response.error or "No response received"
+                print()
+                print(f"\033[94mjotty>\033[0m \033[93m{error}\033[0m")
+                print(f"\033[90m({elapsed:.1f}s)\033[0m\n")
+
+        except Exception as e:
+            print(f"\n\033[91mError: {e}\033[0m\n")
 
     async def _test_workflow(self, cli, goal: str) -> CommandResult:
         """Test workflow mode."""

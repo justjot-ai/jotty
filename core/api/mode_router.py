@@ -130,19 +130,6 @@ class ModeRouter:
 
         self._initialized = True
 
-    def _get_chat_executor(self, context: Optional[ExecutionContext] = None):
-        """Get UnifiedExecutor for chat mode (handles both native tool calling and DSPy fallback)."""
-        def status_callback(status: str, message: str):
-            if context:
-                context.emit_event(SDKEventType.THINKING, {"status": status, "message": message})
-
-        try:
-            from ..orchestration.v2.unified_executor import UnifiedExecutor
-            return UnifiedExecutor(status_callback=status_callback)
-        except Exception as e:
-            logger.warning(f"UnifiedExecutor not available: {e}")
-            return None
-
     def _get_auto_agent(self, context: Optional[ExecutionContext] = None):
         """Get or create AutoAgent."""
         try:
@@ -236,38 +223,17 @@ class ModeRouter:
         message: str,
         context: ExecutionContext
     ) -> RouteResult:
-        """Handle chat mode request using LeanExecutor (DSPy) or UnifiedExecutor."""
-        # Status updates are emitted by UnifiedExecutor via status_callback
-        # Don't emit the raw message here as it may contain history context
+        """
+        Handle chat mode - all requests go through AutoAgent.
 
-        executor = self._get_chat_executor(context)
-        if executor is None:
-            return RouteResult(
-                success=False,
-                content=None,
-                mode=ExecutionMode.CHAT,
-                error="No chat executor available"
-            )
+        AutoAgent automatically handles:
+        - Simple conversational queries (falls back to direct LLM)
+        - Complex multi-step tasks (uses skill discovery and execution)
 
-        try:
-            result = await executor.execute(message)
-
-            return RouteResult(
-                success=result.success,
-                content=result.content,
-                mode=ExecutionMode.CHAT,
-                skills_used=getattr(result, 'skills_used', []),
-                metadata={"output_format": getattr(result, 'output_format', 'text')},
-            )
-
-        except Exception as e:
-            logger.error(f"Chat execution error: {e}", exc_info=True)
-            return RouteResult(
-                success=False,
-                content=None,
-                mode=ExecutionMode.CHAT,
-                error=str(e)
-            )
+        No hardcoded routing - the swarm system decides what to do.
+        """
+        # All chat requests go through AutoAgent for unified handling
+        return await self._handle_workflow(message, context)
 
     async def _handle_workflow(
         self,
@@ -286,8 +252,12 @@ class ModeRouter:
                 error="AutoAgent not available"
             )
 
+        # Status callback to emit events during execution
+        def status_callback(stage: str, detail: str = ""):
+            context.emit_event(SDKEventType.THINKING, {"status": stage, "message": detail})
+
         try:
-            result = await agent.execute(goal)
+            result = await agent.execute(goal, status_callback=status_callback)
 
             return RouteResult(
                 success=result.success,

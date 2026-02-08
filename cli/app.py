@@ -65,6 +65,13 @@ class JottyCLI:
 
         if debug:
             logging.basicConfig(level=logging.DEBUG)
+        else:
+            # Suppress noisy loggers in non-debug mode
+            logging.basicConfig(level=logging.WARNING)
+            # Only show errors from internal components
+            for noisy_logger in ['dspy', 'httpx', 'anthropic', 'openai', 'urllib3',
+                                  'weasyprint', 'fontTools', 'PIL']:
+                logging.getLogger(noisy_logger).setLevel(logging.ERROR)
 
         # UI Renderer
         self.renderer = RichRenderer(

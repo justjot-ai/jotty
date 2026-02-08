@@ -957,7 +957,7 @@ class UnifiedExecutor:
         else:
             self.provider_name, self.llm_provider = auto_detect_provider()
 
-        logger.info(f"UnifiedExecutor initialized with provider: {self.provider_name}")
+        logger.debug(f"UnifiedExecutor initialized with provider: {self.provider_name}")
 
         # Initialize tool generator
         self.tool_generator = UnifiedToolGenerator()

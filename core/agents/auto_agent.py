@@ -379,8 +379,8 @@ Provide:
         # Get task type enum for result
         task_type_enum = self._infer_task_type_enum(task)
 
-        # Call base class execution
-        result = await super()._execute_impl(task=enriched_task, **kwargs)
+        # Call base class execution - pass status_callback back
+        result = await super()._execute_impl(task=enriched_task, status_callback=status_callback, **kwargs)
 
         # Convert to ExecutionResult
         execution_time = (datetime.now() - start_time).total_seconds()
