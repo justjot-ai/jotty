@@ -28,6 +28,8 @@ class SkillInfo:
     env_vars: List[str] = field(default_factory=list)
     requires_cli: List[str] = field(default_factory=list)
     is_discovered: bool = False  # True if auto-discovered (not in manifest)
+    skill_type: str = "base"  # "base", "derived", or "composite"
+    base_skills: List[str] = field(default_factory=list)  # Skills this depends on
 
 
 @dataclass
@@ -136,6 +138,23 @@ class SkillsManifest:
                     self.skills[skill_name].env_vars = meta.get('env_vars', [])
                     self.skills[skill_name].requires_cli = meta.get('requires_cli', [])
 
+            # Load skill type classifications
+            for type_name, type_skills in data.get('skill_types', {}).items():
+                if type_name in ('base', 'derived', 'composite'):
+                    for entry in (type_skills or []):
+                        if isinstance(entry, str):
+                            skill_name = entry
+                            base_skills_list = []
+                        elif isinstance(entry, dict):
+                            skill_name = entry.get('name', '')
+                            base_skills_list = entry.get('base_skills', [])
+                        else:
+                            continue
+
+                        if skill_name in self.skills:
+                            self.skills[skill_name].skill_type = type_name
+                            self.skills[skill_name].base_skills = base_skills_list
+
             logger.info(f"Loaded manifest: {len(self.categories)} categories, {len(self.skills)} skills")
 
         except Exception as e:
@@ -217,6 +236,18 @@ class SkillsManifest:
     def get_uncategorized_skills(self) -> List[SkillInfo]:
         """Get skills that are not yet categorized."""
         return [s for s in self.skills.values() if s.is_discovered or s.category == "uncategorized"]
+
+    def get_skills_by_type(self, skill_type: str) -> List[SkillInfo]:
+        """Get all skills of a specific type (base, derived, composite)."""
+        return [s for s in self.skills.values() if s.skill_type == skill_type]
+
+    def get_type_summary(self) -> Dict[str, int]:
+        """Get count of skills by type."""
+        counts = {"base": 0, "derived": 0, "composite": 0}
+        for skill in self.skills.values():
+            if skill.skill_type in counts:
+                counts[skill.skill_type] += 1
+        return counts
 
     def search_skills(self, query: str) -> List[SkillInfo]:
         """Search skills by name, category, or tag."""

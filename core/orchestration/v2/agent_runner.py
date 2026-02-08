@@ -1,7 +1,7 @@
 """
 V2 AgentRunner - Executes a single agent with validation and learning
 
-Extracted from SingleAgentOrchestrator for reuse in unified Conductor.
+Extracted from SingleAgentOrchestrator for reuse in SwarmManager.
 """
 
 import asyncio

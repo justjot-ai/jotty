@@ -42,7 +42,7 @@ class MetadataProvider(Protocol):
         )
         
         # Pass to JOTTY (works for ANY provider!)
-        swarm = Conductor(
+        swarm = SwarmManager(
             actors=[...],
             metadata_provider=provider,  # Generic interface
             config=config

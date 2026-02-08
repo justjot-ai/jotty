@@ -62,6 +62,7 @@ from .unified_registry import (
 from .skills_registry import (
     SkillsRegistry,
     SkillDefinition,
+    SkillType,
     ToolMetadata,
     get_skills_registry,
 )
@@ -133,6 +134,7 @@ __all__ = [
     # Skills Registry (Backend/Hands)
     'SkillsRegistry',
     'SkillDefinition',
+    'SkillType',
     'ToolMetadata',
     'get_skills_registry',
 

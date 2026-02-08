@@ -1,28 +1,13 @@
 """
-JOTTY: SYnergistic Neural Agent Processing & Self-organizing Execution
-=========================================================================
+JOTTY Core - Alias Facade for Framework Components
+====================================================
 
-Brain-Inspired Orchestration for LLM Agent Swarms
-
-This is the main entry point for the JOTTY framework (evolved from Jotty).
-
-JOTTY Terminology:
-- SwarmManager = Main orchestrator (was SwarmManager)
-- JottyCore = Core execution engine 
-- Architect = Pre-execution planner 
-- Auditor = Post-execution validator 
-- Cortex = Hierarchical memory (was HierarchicalMemory)
-- Axon = Agent communication channel (was AgentSlack)
-- Roadmap = Task planning with state tracking (was MarkovianTODO)
-
-Scientific Foundations:
-- Reinforcement Learning: TD(λ), Q-Learning, Policy Exploration
-- Game Theory: Shapley Values, Nash Equilibrium, Coalition Formation
-- Neuroscience: Hippocampal Memory, Sharp Wave Ripple, Cortical Hierarchy
-- Information Theory: Shannon Entropy, Surprise, Compression
-- Multi-Agent Systems: MARL, Swarm Coordination, Predictive Cooperation
-
-# ✅ GENERIC: No domain-specific logic (no SQL, no domain-specific, no tool-specific code)
+Maps brain-inspired terminology to actual implementations:
+- SwarmManager: Main orchestrator
+- JottyCore: Alias for SwarmManager
+- Cortex: HierarchicalMemory
+- Axon: SmartAgentSlack (agent communication)
+- Roadmap: MarkovianTODO (task planning)
 """
 
 import logging
@@ -109,14 +94,14 @@ from .context.context_gradient import (
 # JOTTY CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def create_conductor(
+def create_swarm_manager(
     agents: List[AgentConfig],
     config: Optional[JottyConfig] = None,
     metadata_provider: Any = None,
     **kwargs
 ) -> SwarmManager:
     """
-    Create a new JOTTY SwarmManager (orchestrator) for agent swarms.
+    Create a new SwarmManager (orchestrator) for agent swarms.
     
     Args:
         agents: List of AgentConfig defining the agents in the swarm
@@ -129,8 +114,8 @@ def create_conductor(
     
     Example:
         ```python
-        from jotty import create_conductor, AgentConfig
-        
+        from core import create_swarm_manager, AgentConfig
+
         agents = [
             AgentConfig(
                 name="MyAgent",
@@ -139,19 +124,23 @@ def create_conductor(
                 auditor_prompts=["Validate the output"]
             )
         ]
-        
-        conductor = create_conductor(agents)
-        result = conductor.run(goal="Do something")
+
+        manager = create_swarm_manager(agents)
+        result = manager.run(goal="Do something")
         ```
     """
     if config is None:
         config = JottyConfig()
 
     return SwarmManager(
-        agents=agents,  # SwarmManager expects 'agents' parameter
+        agents=agents,
         config=config,
         **kwargs
     )
+
+
+# Backward compatibility alias
+create_conductor = create_swarm_manager
 
 
 def create_cortex(config: Optional[JottyConfig] = None) -> Cortex:
@@ -330,7 +319,8 @@ __all__ = [
     "useChatFormatter",
     
     # Convenience functions
-    "create_conductor",
+    "create_swarm_manager",
+    "create_conductor",  # Backward compat alias
     "create_cortex",
     "create_axon",
     "create_roadmap",

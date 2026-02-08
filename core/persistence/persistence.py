@@ -467,7 +467,7 @@ class Vault:
     
     def save_all(self, conductor):
         """
-        Save complete JOTTY Conductor state.
+        Save complete JOTTY SwarmManager state.
         
         NO HARDCODING: Saves all components that exist on the object.
         """

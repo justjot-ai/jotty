@@ -27,6 +27,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
+from enum import Enum
 import importlib.util
 
 # Load environment variables from .env file
@@ -42,6 +43,32 @@ except ImportError:
     pass  # python-dotenv not available, fall back to os.getenv
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# SKILL TYPE ENUM
+# =============================================================================
+
+class SkillType(Enum):
+    """
+    Classification of skills by their composition pattern.
+
+    BASE:      Fundamental atomic skill. Does one thing, no dependency on other skills.
+               Examples: web-search, calculator, telegram-sender, file-operations
+
+    DERIVED:   Extends a single base skill for a specific domain.
+               Has ONE primary base skill it specializes.
+               Examples: stock-research (derives from web-search),
+                         investing-commodities (derives from web-scraper)
+
+    COMPOSITE: Combines 2+ base or derived skills in a workflow.
+               Supports sequential, parallel, or mixed execution.
+               Examples: search-summarize-pdf-telegram (web-search + claude-cli-llm +
+                         document-converter + telegram-sender)
+    """
+    BASE = "base"
+    DERIVED = "derived"
+    COMPOSITE = "composite"
 
 
 # =============================================================================
@@ -273,6 +300,10 @@ class SkillDefinition:
         is_composite: bool = False,
         combines: Optional[List[str]] = None,
         use_when: Optional[str] = None,
+        # Skill type classification (base/derived/composite)
+        skill_type: Optional[SkillType] = None,
+        base_skills: Optional[List[str]] = None,
+        execution_mode: Optional[str] = None,
     ):
         self.name = name
         self.description = description
@@ -293,9 +324,39 @@ class SkillDefinition:
         # combines: List of atomic skills this composite replaces (hint to LLM)
         # use_when: Natural language hint for when to use this skill
         self.capabilities = capabilities or []
-        self.is_composite = is_composite
         self.combines = combines or []
         self.use_when = use_when or ""
+
+        # Skill type classification
+        # skill_type: BASE | DERIVED | COMPOSITE (see SkillType enum)
+        # base_skills: List of skills this depends on (for derived: 1 skill, for composite: 2+)
+        # execution_mode: For composite skills - "sequential", "parallel", or "mixed"
+        self.base_skills = base_skills or []
+        self.execution_mode = execution_mode or ""
+
+        # Resolve skill_type: explicit > inferred from is_composite > default BASE
+        if skill_type is not None:
+            self.skill_type = skill_type
+        elif is_composite:
+            self.skill_type = SkillType.COMPOSITE
+        else:
+            self.skill_type = SkillType.BASE
+
+        # Backward compat: is_composite is now derived from skill_type
+        # but can still be set explicitly for legacy SKILL.md files
+        self._is_composite_override = is_composite
+
+    @property
+    def is_composite(self) -> bool:
+        """Whether this is a composite skill (backward-compatible property)."""
+        return self.skill_type == SkillType.COMPOSITE or self._is_composite_override
+
+    @is_composite.setter
+    def is_composite(self, value: bool):
+        """Setter for backward compatibility."""
+        self._is_composite_override = value
+        if value and self.skill_type == SkillType.BASE:
+            self.skill_type = SkillType.COMPOSITE
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -352,10 +413,16 @@ class SkillDefinition:
             # Capability-based discovery fields
             'capabilities': self.capabilities,
             'is_composite': self.is_composite,
+            # Skill type classification
+            'skill_type': self.skill_type.value,
+            'base_skills': self.base_skills,
         }
-        # Only include composite hints if this is a composite skill
-        if self.is_composite:
+        # Only include composite/derived hints when relevant
+        if self.skill_type == SkillType.COMPOSITE:
             result['combines'] = self.combines
+            result['use_when'] = self.use_when
+            result['execution_mode'] = self.execution_mode
+        elif self.skill_type == SkillType.DERIVED:
             result['use_when'] = self.use_when
         return result
 
@@ -517,6 +584,16 @@ class SkillsRegistry:
                     return {}
             return loader
 
+        # Resolve SkillType from parsed metadata
+        parsed_type = skill_metadata.get('skill_type')
+        resolved_skill_type = None
+        if parsed_type == 'base':
+            resolved_skill_type = SkillType.BASE
+        elif parsed_type == 'derived':
+            resolved_skill_type = SkillType.DERIVED
+        elif parsed_type == 'composite':
+            resolved_skill_type = SkillType.COMPOSITE
+
         return SkillDefinition(
             name=skill_name,
             description=skill_metadata['description'] or f"Skill: {skill_name}",
@@ -527,16 +604,23 @@ class SkillsRegistry:
             is_composite=skill_metadata['is_composite'],
             combines=skill_metadata['combines'],
             use_when=skill_metadata['use_when'],
+            # Skill type classification
+            skill_type=resolved_skill_type,
+            base_skills=skill_metadata['base_skills'],
+            execution_mode=skill_metadata.get('execution_mode', ''),
         )
 
     def _parse_skill_metadata(self, skill_md: Path) -> Dict[str, Any]:
         """
-        Parse SKILL.md for comprehensive metadata including capability fields.
+        Parse SKILL.md for comprehensive metadata including type and capability fields.
 
         Extracts:
         - description: What the skill does
+        - skill_type: "base", "derived", or "composite" (SkillType enum value)
+        - base_skills: List of skills this depends on (for derived/composite)
+        - execution_mode: "sequential", "parallel", "mixed" (for composite)
         - capabilities: List of capabilities (e.g., ["data-fetch", "communicate"])
-        - is_composite: Whether this combines multiple atomic skills
+        - is_composite: Whether this combines multiple atomic skills (legacy compat)
         - combines: List of atomic skills this replaces (for composites)
         - use_when: Natural language hint for when to use this skill
 
@@ -545,6 +629,16 @@ class SkillsRegistry:
         # Skill Name
 
         Description text here.
+
+        ## Type
+        base
+
+        ## Base Skills
+        - web-search
+        - claude-cli-llm
+
+        ## Execution
+        sequential
 
         ## Capabilities
         - data-fetch
@@ -557,6 +651,9 @@ class SkillsRegistry:
         """
         metadata = {
             'description': '',
+            'skill_type': None,  # None = not specified, will be inferred
+            'base_skills': [],
+            'execution_mode': '',
             'capabilities': [],
             'is_composite': False,
             'combines': [],
@@ -588,6 +685,17 @@ class SkillsRegistry:
                 if stripped.lower() in ["## description", "**description**", "description:"]:
                     current_section = 'description'
                     continue
+                elif stripped.lower() in ["## type", "**type**", "type:"]:
+                    current_section = 'type'
+                    continue
+                elif stripped.lower() in ["## base skills", "**base skills**", "base skills:",
+                                          "## base skill", "**base skill**", "base skill:"]:
+                    current_section = 'base_skills'
+                    continue
+                elif stripped.lower() in ["## execution", "**execution**", "execution:",
+                                          "## execution mode", "**execution mode**"]:
+                    current_section = 'execution'
+                    continue
                 elif stripped.lower() in ["## capabilities", "**capabilities**", "capabilities:"]:
                     current_section = 'capabilities'
                     continue
@@ -605,6 +713,23 @@ class SkillsRegistry:
                         metadata['description'] += " " + stripped
                     else:
                         metadata['description'] = stripped
+
+                elif current_section == 'type' and stripped:
+                    type_val = stripped.lower().strip()
+                    if type_val in ('base', 'derived', 'composite'):
+                        metadata['skill_type'] = type_val
+                        if type_val == 'composite':
+                            metadata['is_composite'] = True
+
+                elif current_section == 'base_skills' and stripped.startswith("-"):
+                    skill_ref = stripped[1:].strip()
+                    if skill_ref:
+                        metadata['base_skills'].append(skill_ref)
+
+                elif current_section == 'execution' and stripped:
+                    mode_val = stripped.lower().strip()
+                    if mode_val in ('sequential', 'parallel', 'mixed'):
+                        metadata['execution_mode'] = mode_val
 
                 elif current_section == 'capabilities' and stripped.startswith("-"):
                     cap = stripped[1:].strip().lower()
@@ -624,6 +749,16 @@ class SkillsRegistry:
 
             # Truncate description
             metadata['description'] = metadata['description'][:500]
+
+            # Infer skill_type from combines/base_skills if not explicitly set
+            if metadata['skill_type'] is None:
+                if metadata['is_composite'] or len(metadata['combines']) >= 2:
+                    metadata['skill_type'] = 'composite'
+                elif len(metadata['base_skills']) == 1:
+                    metadata['skill_type'] = 'derived'
+                elif len(metadata['base_skills']) >= 2:
+                    metadata['skill_type'] = 'composite'
+                # else: leave as None, will default to BASE
 
         except Exception as e:
             logger.debug(f"Could not parse {skill_md}: {e}")
@@ -986,13 +1121,61 @@ class SkillsRegistry:
                 "metadata": skill.metadata,
                 "capabilities": skill.capabilities,
                 "is_composite": skill.is_composite,
+                "skill_type": skill.skill_type.value,
+                "base_skills": skill.base_skills,
             }
-            # Add composite hints for composite skills
-            if skill.is_composite:
+            # Add composite/derived hints
+            if skill.skill_type == SkillType.COMPOSITE:
                 skill_dict["combines"] = skill.combines
+                skill_dict["use_when"] = skill.use_when
+                skill_dict["execution_mode"] = skill.execution_mode
+            elif skill.skill_type == SkillType.DERIVED:
                 skill_dict["use_when"] = skill.use_when
             skills.append(skill_dict)
         return skills
+
+    def list_skills_by_type(
+        self,
+        skill_type: SkillType,
+        max_skills: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        List skills filtered by type.
+
+        Args:
+            skill_type: SkillType.BASE, SkillType.DERIVED, or SkillType.COMPOSITE
+            max_skills: Maximum skills to return (0 = no limit)
+
+        Returns:
+            List of skill dicts matching the type
+        """
+        results = []
+        for skill in self.loaded_skills.values():
+            if skill.skill_type == skill_type:
+                tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+                skill_dict = {
+                    "name": skill.name,
+                    "description": skill.description,
+                    "tools": tool_names,
+                    "capabilities": skill.capabilities,
+                    "skill_type": skill.skill_type.value,
+                    "base_skills": skill.base_skills,
+                }
+                if skill.skill_type == SkillType.COMPOSITE:
+                    skill_dict["combines"] = skill.combines
+                    skill_dict["execution_mode"] = skill.execution_mode
+                results.append(skill_dict)
+
+                if max_skills and len(results) >= max_skills:
+                    break
+        return results
+
+    def get_skill_type_summary(self) -> Dict[str, int]:
+        """Get a count of skills by type."""
+        counts = {t.value: 0 for t in SkillType}
+        for skill in self.loaded_skills.values():
+            counts[skill.skill_type.value] += 1
+        return counts
 
     def filter_skills_by_capabilities(
         self,
@@ -1044,11 +1227,15 @@ class SkillsRegistry:
                     "metadata": skill.metadata,
                     "capabilities": skill.capabilities,
                     "is_composite": skill.is_composite,
+                    "skill_type": skill.skill_type.value,
+                    "base_skills": skill.base_skills,
                     "_match_score": score,
                     "_matched_capabilities": list(matching_caps),
                 }
-                if skill.is_composite:
+                if skill.skill_type == SkillType.COMPOSITE:
                     skill_dict["combines"] = skill.combines
+                    skill_dict["use_when"] = skill.use_when
+                elif skill.skill_type == SkillType.DERIVED:
                     skill_dict["use_when"] = skill.use_when
                 scored_skills.append((score, skill_dict))
 

@@ -165,6 +165,221 @@ categories:
     skills:
       - oauth-automation
 
+# =============================================================================
+# SKILL TYPE CLASSIFICATION
+# =============================================================================
+# base:      Fundamental atomic skills - standalone capabilities
+# derived:   Extends ONE base skill for a specific domain
+# composite: Combines 2+ base/derived skills in a workflow
+#
+# For derived/composite, base_skills lists the skills they depend on.
+# For composite, execution_mode can be: sequential, parallel, mixed
+
+skill_types:
+  base:
+    - algorithmic-art
+    - arxiv-downloader
+    - browser-automation
+    - calculator
+    - claude-cli-llm
+    - database-tools
+    - discord
+    - document-converter
+    - docx-tools
+    - file-operations
+    - gemini
+    - gif-creator
+    - github
+    - http-client
+    - image-enhancer
+    - image-generator
+    - internal-comms
+    - latex-generator
+    - mindmap-generator
+    - notion
+    - obsidian
+    - openai-image-gen
+    - openai-whisper-api
+    - pdf-tools
+    - pptx-editor
+    - process-manager
+    - remarkable-sender
+    - remarkable-upload
+    - shell-exec
+    - slack
+    - spotify
+    - summarize
+    - telegram-sender
+    - terminal-session
+    - text-chunker
+    - text-utils
+    - time-converter
+    - trello
+    - video-downloader
+    - voice
+    - weather-checker
+    - web-scraper
+    - web-search
+    - whatsapp
+    - xlsx-tools
+    - youtube-downloader
+    - oauth-automation
+    - data-profiler
+    - data-validator
+    - mcp-justjot
+
+  derived:
+    - name: auto-sklearn
+      base_skills: [claude-cli-llm]
+    - name: automl
+      base_skills: [claude-cli-llm]
+    - name: artifacts-builder
+      base_skills: [file-operations]
+    - name: brand-guidelines
+      base_skills: [image-generator]
+    - name: canvas-design
+      base_skills: [image-generator]
+    - name: changelog-generator
+      base_skills: [github]
+    - name: clustering
+      base_skills: [data-profiler]
+    - name: competitive-ads-extractor
+      base_skills: [web-search]
+    - name: content-repurposer
+      base_skills: [claude-cli-llm]
+    - name: content-research-writer
+      base_skills: [web-search]
+    - name: dimensionality-reduction
+      base_skills: [data-profiler]
+    - name: domain-name-brainstormer
+      base_skills: [web-search]
+    - name: ensemble-builder
+      base_skills: [automl]
+    - name: feature-engineer
+      base_skills: [data-profiler]
+    - name: feature-tools
+      base_skills: [data-profiler]
+    - name: file-organizer
+      base_skills: [file-operations]
+    - name: financial-visualization
+      base_skills: [image-generator]
+    - name: hyperopt
+      base_skills: [automl]
+    - name: investing-commodities
+      base_skills: [web-scraper]
+    - name: invoice-organizer
+      base_skills: [file-operations]
+    - name: justjot-converters
+      base_skills: [document-converter]
+    - name: justjot-mcp-http
+      base_skills: [mcp-justjot]
+    - name: last30days-claude-cli
+      base_skills: [claude-cli-llm]
+    - name: lead-research-assistant
+      base_skills: [web-search]
+    - name: mcp-builder
+      base_skills: [file-operations]
+    - name: mcp-justjot-mcp-client
+      base_skills: [mcp-justjot]
+    - name: meeting-insights-analyzer
+      base_skills: [claude-cli-llm]
+    - name: model-metrics
+      base_skills: [data-profiler]
+    - name: multi-source-aggregator
+      base_skills: [web-search]
+    - name: notebooklm-pdf
+      base_skills: [pdf-tools]
+    - name: presenton
+      base_skills: [pptx-editor]
+    - name: pycaret
+      base_skills: [automl]
+    - name: raffle-winner-picker
+      base_skills: [calculator]
+    - name: screener-financials
+      base_skills: [web-scraper]
+    - name: shap-explainer
+      base_skills: [data-profiler]
+    - name: skill-composer
+      base_skills: [file-operations]
+    - name: skill-creator
+      base_skills: [file-operations]
+    - name: skill-discovery
+      base_skills: [file-operations]
+    - name: slide-generator
+      base_skills: [pptx-editor]
+    - name: statistical-tests
+      base_skills: [data-profiler]
+    - name: test-skill-validation
+      base_skills: [file-operations]
+    - name: theme-factory
+      base_skills: [image-generator]
+    - name: time-series
+      base_skills: [data-profiler]
+    - name: webapp-testing
+      base_skills: [browser-automation]
+
+  composite:
+    - name: content-branding-pipeline
+      base_skills: [claude-cli-llm, brand-guidelines]
+    - name: content-pipeline
+      base_skills: [web-search, document-converter]
+    - name: dev-workflow
+      base_skills: [github, shell-exec, file-operations]
+    - name: investing-commodities-to-telegram
+      base_skills: [investing-commodities, telegram-sender]
+    - name: last30days-to-epub-telegram
+      base_skills: [last30days-claude-cli, document-converter, telegram-sender]
+    - name: last30days-to-pdf-remarkable
+      base_skills: [last30days-claude-cli, document-converter, remarkable-sender]
+    - name: last30days-to-pdf-telegram
+      base_skills: [last30days-claude-cli, document-converter, telegram-sender]
+    - name: lida-to-justjot
+      base_skills: [image-generator, mcp-justjot]
+    - name: media-production-pipeline
+      base_skills: [image-generator, voice, video-downloader]
+    - name: meeting-intelligence-pipeline
+      base_skills: [voice, claude-cli-llm, notion]
+    - name: notion-knowledge-capture
+      base_skills: [web-search, notion]
+    - name: notion-knowledge-pipeline
+      base_skills: [web-search, claude-cli-llm, notion]
+    - name: notion-meeting-intelligence
+      base_skills: [voice, claude-cli-llm, notion]
+    - name: notion-research-documentation
+      base_skills: [web-search, notion]
+    - name: notion-spec-to-implementation
+      base_skills: [notion, file-operations]
+    - name: product-launch-pipeline
+      base_skills: [web-search, claude-cli-llm, slack, telegram-sender]
+    - name: reddit-trending-to-justjot
+      base_skills: [web-scraper, mcp-justjot]
+    - name: research-to-notion
+      base_skills: [web-search, notion]
+    - name: research-to-pdf
+      base_skills: [web-search, claude-cli-llm, document-converter]
+    - name: screener-to-pdf-telegram
+      base_skills: [screener-financials, document-converter, telegram-sender]
+    - name: search-summarize-pdf-telegram
+      base_skills: [web-search, claude-cli-llm, document-converter, telegram-sender]
+    - name: search-summarize-pdf-telegram-v2
+      base_skills: [web-search, claude-cli-llm, document-converter, telegram-sender]
+    - name: search-to-justjot-idea
+      base_skills: [web-search, mcp-justjot]
+    - name: slack-gif-creator
+      base_skills: [gif-creator, slack]
+    - name: stock-research-comprehensive
+      base_skills: [web-search, claude-cli-llm, document-converter, telegram-sender]
+    - name: stock-research-deep
+      base_skills: [web-search, claude-cli-llm, document-converter, telegram-sender]
+    - name: transformer-paper-pipeline
+      base_skills: [arxiv-downloader, document-converter]
+    - name: trending-topics-to-ideas
+      base_skills: [web-search, mcp-justjot]
+    - name: v2v-to-pdf-telegram-remarkable
+      base_skills: [voice, document-converter, telegram-sender, remarkable-sender]
+    - name: v2v-trending-search
+      base_skills: [voice, web-search]
+
 # Tags for cross-cutting concerns (skills can have multiple tags)
 tags:
   telegram:

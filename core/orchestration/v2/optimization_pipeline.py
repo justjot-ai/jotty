@@ -127,7 +127,7 @@ class OptimizationPipeline:
             agents: List of AgentConfig defining the agent pipeline
             config: OptimizationConfig with pipeline settings
             jotty_config: Optional JottyConfig for Jotty components
-            conductor: Optional Conductor instance for agent orchestration
+            conductor: Optional SwarmManager instance for agent orchestration
         """
         self.agents = agents
         self.config = config
@@ -232,7 +232,7 @@ class OptimizationPipeline:
         
         # If conductor is available, use it for orchestration
         if self.conductor:
-            self._write_thinking_log("Using Jotty Conductor for agent orchestration")
+            self._write_thinking_log("Using SwarmManager for agent orchestration")
             try:
                 result = await self.conductor.arun(
                     goal=task,
@@ -255,8 +255,8 @@ class OptimizationPipeline:
                 else:
                     return {"output": result, "success": True}
             except Exception as e:
-                logger.error(f"Conductor execution failed: {e}")
-                self._write_thinking_log(f"Conductor execution failed: {e}")
+                logger.error(f"SwarmManager execution failed: {e}")
+                self._write_thinking_log(f"SwarmManager execution failed: {e}")
                 raise
         
         # Otherwise, run agents sequentially

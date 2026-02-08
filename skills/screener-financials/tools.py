@@ -356,7 +356,8 @@ def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - company_name (str, required): Company name or screener.in code
-            - data_type (str, optional): 'all', 'pl', 'balance_sheet', 'cash_flow', 'ratios'
+            - data_type (str, optional): 'all', 'pl', 'balance_sheet', 'cash_flow', 'ratios',
+                'shareholding', 'quarterly', 'peers', 'structured_ratios'
             - period (str, optional): 'annual' or 'quarterly', default: 'annual'
             - format (str, optional): 'json', 'markdown', 'csv', default: 'json'
             - use_proxy (bool, optional): Use proxy rotation, default: True
@@ -440,6 +441,26 @@ def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             ratios = _extract_ratios(soup)
             financial_data['data']['ratios'] = ratios
         
+        # Extract Structured Ratios (parsed floats with normalized keys)
+        if data_type in ['all', 'structured_ratios']:
+            structured = _extract_structured_ratios(soup)
+            financial_data['data']['structured_ratios'] = structured
+        
+        # Extract Shareholding Pattern
+        if data_type in ['all', 'shareholding']:
+            shareholding = _extract_shareholding(soup)
+            financial_data['data']['shareholding'] = shareholding
+        
+        # Extract Quarterly Results
+        if data_type in ['all', 'quarterly']:
+            quarterly = _extract_quarterly_results(soup)
+            financial_data['data']['quarterly_results'] = quarterly
+        
+        # Extract Peer Companies
+        if data_type in ['all', 'peers']:
+            peers = _extract_peers(soup)
+            financial_data['data']['peers'] = peers
+        
         # Convert to requested format
         if output_format == 'markdown':
             financial_data['formatted'] = _format_as_markdown(financial_data)
@@ -457,6 +478,183 @@ def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'success': False,
             'error': f'Error fetching financials: {str(e)}'
         }
+
+
+def _parse_float_value(value: str) -> Optional[float]:
+    """Safely parse a float value, handling Cr/L suffixes."""
+    if not value:
+        return None
+    try:
+        value = value.strip().replace(',', '').replace('%', '').replace('₹', '')
+        multiplier = 1
+        if value.endswith('Cr'):
+            value = value[:-2]
+            multiplier = 10000000  # 1 crore
+        elif value.endswith('L'):
+            value = value[:-1]
+            multiplier = 100000  # 1 lakh
+        return float(value) * multiplier
+    except (ValueError, TypeError):
+        return None
+
+
+def _extract_shareholding(soup: BeautifulSoup) -> Dict[str, Any]:
+    """Extract shareholding pattern from screener.in HTML."""
+    shareholding = {}
+    try:
+        sh_section = soup.find('section', id='shareholding')
+        if not sh_section:
+            return shareholding
+
+        table = sh_section.find('table')
+        if not table:
+            return shareholding
+
+        rows = table.find_all('tr')
+        for row in rows:
+            cells = row.find_all(['td', 'th'])
+            if len(cells) >= 2:
+                name = cells[0].get_text(strip=True).lower()
+                # Get the latest value (last non-empty column)
+                values = [c.get_text(strip=True) for c in cells[1:]]
+                latest_value = None
+                for v in reversed(values):
+                    if v and v != '-':
+                        latest_value = v.replace('%', '').strip()
+                        break
+
+                if latest_value:
+                    if 'promoter' in name:
+                        shareholding['promoter'] = _parse_float_value(latest_value)
+                    elif 'fii' in name or 'foreign' in name:
+                        shareholding['fii'] = _parse_float_value(latest_value)
+                    elif 'dii' in name or 'domestic' in name:
+                        shareholding['dii'] = _parse_float_value(latest_value)
+                    elif 'public' in name:
+                        shareholding['public'] = _parse_float_value(latest_value)
+    except Exception as e:
+        logger.debug(f"Shareholding extraction error: {e}")
+    return shareholding
+
+
+def _extract_quarterly_results(soup: BeautifulSoup) -> List[Dict[str, Any]]:
+    """Extract quarterly results from screener.in HTML."""
+    results = []
+    try:
+        qr_section = soup.find('section', id='quarters')
+        if not qr_section:
+            return results
+
+        table = qr_section.find('table')
+        if not table:
+            return results
+
+        # Get headers (quarter names)
+        headers = []
+        header_row = table.find('thead')
+        if header_row:
+            ths = header_row.find_all('th')
+            headers = [th.get_text(strip=True) for th in ths]
+
+        tbody = table.find('tbody')
+        if not tbody:
+            return results
+
+        rows = tbody.find_all('tr')
+        for row in rows[:5]:  # Key metrics only
+            cells = row.find_all(['td', 'th'])
+            if len(cells) >= 2:
+                metric = cells[0].get_text(strip=True)
+                values = [_parse_float_value(c.get_text(strip=True).replace(',', ''))
+                          for c in cells[1:]]
+
+                if metric.lower() in ['sales', 'revenue', 'net profit', 'operating profit', 'eps']:
+                    for i, val in enumerate(values[:4]):
+                        if len(results) <= i:
+                            results.append({'quarter': headers[i + 1] if i + 1 < len(headers) else f'Q{i + 1}'})
+                        results[i][metric.lower().replace(' ', '_')] = val
+
+    except Exception as e:
+        logger.debug(f"Quarterly results extraction error: {e}")
+    return results[:4]
+
+
+def _extract_peers(soup: BeautifulSoup) -> List[str]:
+    """Extract peer company tickers from screener.in HTML."""
+    peers = []
+    try:
+        peer_section = soup.find('section', id='peers')
+        if not peer_section:
+            return peers
+
+        links = peer_section.find_all('a', href=True)
+        for link in links:
+            href = link.get('href', '')
+            if '/company/' in href:
+                parts = href.strip('/').split('/')
+                if len(parts) >= 2:
+                    peer_ticker = parts[-1].upper()
+                    if peer_ticker and peer_ticker not in peers:
+                        peers.append(peer_ticker)
+    except Exception as e:
+        logger.debug(f"Peers extraction error: {e}")
+    return peers[:10]
+
+
+def _extract_structured_ratios(soup: BeautifulSoup) -> Dict[str, Any]:
+    """Extract financial ratios as parsed floats with normalized keys.
+
+    Returns dict like: {pe_ratio: 25.3, pb_ratio: 3.5, roce: 18.2, ...}
+    """
+    ratios: Dict[str, Any] = {}
+    try:
+        # Pattern 1: ul.flex-list items
+        ratio_lists = soup.find_all('ul', class_='flex-list')
+        for ul in ratio_lists:
+            items = ul.find_all('li')
+            for item in items:
+                name_elem = item.find('span', class_='name')
+                value_elem = item.find('span', class_='number')
+                if name_elem and value_elem:
+                    name = name_elem.get_text(strip=True).lower()
+                    value = value_elem.get_text(strip=True)
+                    value = value.replace(',', '').replace('%', '').replace('₹', '').strip()
+
+                    if 'p/e' in name or 'pe' in name:
+                        ratios['pe_ratio'] = _parse_float_value(value)
+                    elif 'p/b' in name or 'pb' in name:
+                        ratios['pb_ratio'] = _parse_float_value(value)
+                    elif 'roce' in name:
+                        ratios['roce'] = _parse_float_value(value)
+                    elif 'roe' in name:
+                        ratios['roe'] = _parse_float_value(value)
+                    elif 'debt' in name and 'equity' in name:
+                        ratios['debt_equity'] = _parse_float_value(value)
+                    elif 'market cap' in name:
+                        ratios['market_cap'] = _parse_float_value(value)
+                    elif 'current price' in name or 'stock' in name:
+                        ratios['current_price'] = _parse_float_value(value)
+                    elif 'book value' in name:
+                        ratios['book_value'] = _parse_float_value(value)
+                    elif 'dividend yield' in name:
+                        ratios['dividend_yield'] = _parse_float_value(value)
+
+        # Pattern 2: top-ratios section (fallback)
+        top_ratios = soup.find('div', id='top-ratios')
+        if top_ratios:
+            spans = top_ratios.find_all('span')
+            for i in range(0, len(spans) - 1, 2):
+                name = spans[i].get_text(strip=True).lower()
+                value = spans[i + 1].get_text(strip=True)
+                value = value.replace(',', '').replace('%', '').replace('₹', '').strip()
+
+                if 'pe' in name and 'pe_ratio' not in ratios:
+                    ratios['pe_ratio'] = _parse_float_value(value)
+                elif 'roce' in name and 'roce' not in ratios:
+                    ratios['roce'] = _parse_float_value(value)
+    except Exception as e:
+        logger.debug(f"Structured ratio extraction error: {e}")
+    return ratios
 
 
 def _extract_pl_data(soup: BeautifulSoup) -> Dict[str, Any]:

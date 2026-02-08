@@ -1,19 +1,13 @@
 """
-JOTTY v1.0 Core Module - Brain-Inspired Multi-Agent Orchestration
-=====================================================================
+JOTTY Core Module - Multi-Agent AI Framework
+=============================================
 
-Evolved from Jotty v6.1 with complete naming overhaul.
-
-JOTTY Terminology:
-- Conductor = Main orchestrator (was Conductor)
-- JottyCore = Core execution engine 
-- Architect = Pre-execution planner 
-- Auditor = Post-execution validator 
-- Cortex = Hierarchical memory (was HierarchicalMemory)
-- Axon = Agent communication channel (was AgentSlack)
-- Roadmap = Task planning (was MarkovianTODO)
-
-All old names remain available for backward compatibility.
+V2 Architecture (SwarmManager-based):
+- SwarmManager: Main orchestrator
+- JottyCore: Alias for SwarmManager (backward compat)
+- Cortex: Hierarchical memory (HierarchicalMemory)
+- Axon: Agent communication channel
+- Roadmap: Task planning (MarkovianTODO)
 """
 
 # =============================================================================
@@ -115,7 +109,8 @@ from .jotty import (
     ContextUpdate,
     
     # Convenience Functions
-    create_conductor,
+    create_swarm_manager,
+    create_conductor,  # Backward compat alias
     create_cortex,
     create_axon,
     create_roadmap,

@@ -54,8 +54,8 @@ class JottyAPI:
             conductor: Optional pre-configured conductor (if None, creates one)
         """
         if conductor is None:
-            from ..jotty import create_conductor
-            self.conductor = create_conductor(agents, config)
+            from ..jotty import create_swarm_manager
+            self.conductor = create_swarm_manager(agents, config)
         else:
             self.conductor = conductor
         
