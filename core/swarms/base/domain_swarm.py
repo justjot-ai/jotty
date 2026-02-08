@@ -106,12 +106,7 @@ class DomainSwarm(BaseSwarm):
 
             for attr_name, spec in self.AGENT_TEAM:
                 try:
-                    agent = spec.agent_class(
-                        self._memory,
-                        self._context,
-                        self._bus,
-                        self._agent_context(spec.display_name)
-                    )
+                    agent = self._create_agent(spec)
                     setattr(self, attr_name, agent)
                     agent_instances[attr_name] = agent
                     logger.debug(f"Initialized {spec.display_name} -> {attr_name}")
@@ -124,6 +119,48 @@ class DomainSwarm(BaseSwarm):
 
         self._agents_initialized = True
         logger.info(f"{self.__class__.__name__} agents initialized")
+
+    def _create_agent(self, spec: 'AgentSpec'):
+        """
+        Create an agent instance with dynamic parameter binding.
+
+        Inspects the agent's __init__ signature and only passes
+        parameters that it accepts. This allows old agents to work
+        without modification while new agents can opt-in to features
+        like learned_context.
+        """
+        import inspect
+
+        # Available parameters to pass
+        available_params = {
+            'memory': self._memory,
+            'context': self._context,
+            'bus': self._bus,
+            'learned_context': self._agent_context(spec.display_name),
+        }
+
+        # Inspect agent's __init__ signature
+        try:
+            sig = inspect.signature(spec.agent_class.__init__)
+            param_names = set(sig.parameters.keys()) - {'self'}
+        except (ValueError, TypeError):
+            # Fallback: try positional args (memory, context, bus)
+            param_names = {'memory', 'context', 'bus'}
+
+        # Check if agent accepts **kwargs
+        accepts_kwargs = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        ) if 'sig' in dir() else False
+
+        # Build kwargs with only accepted parameters
+        kwargs = {}
+        for name, value in available_params.items():
+            if name in param_names or accepts_kwargs:
+                kwargs[name] = value
+
+        # Create agent with matched parameters
+        return spec.agent_class(**kwargs)
 
     def get_agents(self) -> Dict[str, Any]:
         """

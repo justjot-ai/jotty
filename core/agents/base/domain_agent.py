@@ -70,28 +70,34 @@ class DomainAgent(BaseAgent):
 
     def __init__(
         self,
-        signature: Type,
+        signature: Optional[Type] = None,
         config: DomainAgentConfig = None,
     ):
         """
-        Initialize DomainAgent with a DSPy signature.
+        Initialize DomainAgent with an optional DSPy signature.
+
+        When signature is None, the agent relies on skill-based fallback
+        for execution (via SkillPlanExecutor).
 
         Args:
-            signature: DSPy Signature class defining inputs and outputs
+            signature: DSPy Signature class defining inputs and outputs, or None
             config: Optional configuration
         """
+        sig_name = signature.__name__ if signature is not None else "NoSignature"
         config = config or DomainAgentConfig(
-            name=f"DomainAgent[{signature.__name__}]"
+            name=f"DomainAgent[{sig_name}]"
         )
         super().__init__(config)
 
         self.signature = signature
         self._module = None
+        self._skill_executor = None
 
         # Auto-extract field names from signature
         self._input_fields: List[str] = []
         self._output_fields: List[str] = []
-        self._extract_fields()
+        if self.signature is not None:
+            self._extract_fields()
 
     def _extract_fields(self):
         """Extract input and output field names from the signature."""
@@ -171,6 +177,11 @@ class DomainAgent(BaseAgent):
         """
         Execute the DSPy signature with the provided inputs.
 
+        Falls back to skill-based planning when:
+        - self._module is None (no signature or initialization failed)
+        - Required input fields are not present in kwargs
+        - DSPy execution fails
+
         Args:
             **kwargs: Input field values matching the signature
 
@@ -179,18 +190,36 @@ class DomainAgent(BaseAgent):
         """
         config: DomainAgentConfig = self.config
 
+        # Fast path: no module means immediate fallback
+        if self._module is None:
+            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            if task:
+                logger.info(f"No DSPy module available, falling back to skill execution for: {task[:80]}")
+                return await self._execute_with_skills(task, **kwargs)
+            # No module and no task — nothing we can do
+            return {"error": "No DSPy module and no task provided", "success": False}
+
         # Filter inputs to only include signature input fields
         inputs = {
             k: v for k, v in kwargs.items()
             if k in self._input_fields
         }
 
-        # Validate required inputs
+        # Check if required inputs are present — fallback if not
         missing = [f for f in self._input_fields if f not in inputs]
+        if missing and not inputs:
+            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            if task:
+                logger.info(
+                    f"Missing all input fields {missing}, "
+                    f"falling back to skill execution for: {task[:80]}"
+                )
+                return await self._execute_with_skills(task, **kwargs)
+
         if missing:
             logger.warning(f"Missing input fields: {missing}")
 
-        # Execute with timeout
+        # Primary path: execute DSPy signature
         try:
             result = await asyncio.wait_for(
                 asyncio.to_thread(self._module, **inputs),
@@ -218,6 +247,86 @@ class DomainAgent(BaseAgent):
             raise TimeoutError(
                 f"DSPy execution timed out after {config.timeout}s"
             )
+        except Exception as e:
+            # DSPy execution failed — attempt skill fallback
+            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            if task:
+                logger.warning(
+                    f"DSPy execution failed ({e}), "
+                    f"falling back to skill execution for: {task[:80]}"
+                )
+                return await self._execute_with_skills(task, **kwargs)
+            raise
+
+    # =========================================================================
+    # SKILL-BASED FALLBACK
+    # =========================================================================
+
+    async def _execute_with_skills(self, task: str, **kwargs) -> Dict[str, Any]:
+        """
+        Execute a task using skill discovery and planning.
+
+        Lazy-creates a SkillPlanExecutor and delegates the full pipeline:
+        discover skills -> select -> plan -> execute steps.
+
+        Args:
+            task: Task description
+            **kwargs: Additional arguments (status_callback, etc.)
+
+        Returns:
+            Dict with execution results
+        """
+        if self._skill_executor is None:
+            if self.skills_registry is None:
+                return {
+                    "success": False,
+                    "error": "Skills registry not available for fallback execution",
+                }
+            from .skill_plan_executor import SkillPlanExecutor
+            self._skill_executor = SkillPlanExecutor(
+                skills_registry=self.skills_registry,
+            )
+
+        # Discover skills using BaseAgent.discover_skills()
+        discovered = self.discover_skills(task)
+        if not discovered:
+            return {
+                "success": False,
+                "error": f"No skills discovered for task: {task[:100]}",
+                "task": task,
+            }
+
+        status_callback = kwargs.get('status_callback')
+        return await self._skill_executor.plan_and_execute(
+            task=task,
+            discovered_skills=discovered,
+            status_callback=status_callback,
+        )
+
+    def _build_task_from_kwargs(self, kwargs: Dict[str, Any]) -> str:
+        """
+        Build a task description string from keyword arguments.
+
+        Used when 'task' is not explicitly provided but other kwargs
+        contain useful context for skill-based execution.
+
+        Args:
+            kwargs: Keyword arguments to extract task from
+
+        Returns:
+            Task description string, or empty string
+        """
+        # Try common task-like keys
+        for key in ('query', 'prompt', 'question', 'description', 'text', 'input'):
+            value = kwargs.get(key)
+            if value and isinstance(value, str):
+                return value
+        # Last resort: concatenate all string values
+        parts = [
+            f"{k}: {v}" for k, v in kwargs.items()
+            if isinstance(v, str) and v and k not in ('status_callback',)
+        ]
+        return "; ".join(parts) if parts else ""
 
     @property
     def input_fields(self) -> List[str]:

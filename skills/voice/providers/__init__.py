@@ -7,7 +7,29 @@ Auto-selects based on availability and configuration.
 """
 
 from typing import Optional, AsyncIterator
-from ..config import get_config
+
+# Import config with fallback for standalone loading
+try:
+    from ..config import get_config
+except ImportError:
+    try:
+        import importlib.util
+        from pathlib import Path
+        config_path = Path(__file__).parent.parent / 'config.py'
+        if config_path.exists():
+            spec = importlib.util.spec_from_file_location("voice_config", config_path)
+            config_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(config_module)
+            get_config = config_module.get_config
+    except Exception:
+        # Provide a minimal fallback config
+        class MinimalConfig:
+            has_elevenlabs = False
+            has_local_piper = False
+            has_whisper_api = False
+            has_local_whisper = False
+        def get_config():
+            return MinimalConfig()
 
 
 class VoiceProviderBase:

@@ -9,8 +9,8 @@ import os
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from ..queue.task_queue import TaskQueue
-from ..queue.task import Task, TaskStatus
+from ..job_queue.task_queue import TaskQueue
+from ..job_queue.task import Task, TaskStatus
 from .agent_spawner import AgentSpawner
 from .deployment_hook import DeploymentHook
 

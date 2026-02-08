@@ -229,25 +229,32 @@ class EDASignature(dspy.Signature):
 
 
 class StatisticalAnalysisSignature(dspy.Signature):
-    """Perform statistical analysis.
+    """Perform statistical analysis on provided data.
 
-    You are a STATISTICIAN. Conduct rigorous analysis:
-    1. Descriptive statistics
-    2. Distribution analysis
-    3. Correlation analysis
-    4. Hypothesis testing
+    You are a STATISTICIAN. ALWAYS provide structured analysis output.
+
+    IMPORTANT: If data is provided as text (raw_text field), extract the numerical
+    values and perform analysis on them. Never ask for more information - analyze
+    what is given.
+
+    Conduct rigorous analysis:
+    1. Descriptive statistics (mean, median, std, min, max, etc.)
+    2. Distribution analysis (skewness, normality)
+    3. Correlation analysis (relationships between variables)
+    4. Hypothesis testing (trends, comparisons)
     5. Confidence intervals
 
-    Apply appropriate tests for the data types.
+    Apply appropriate tests for the data types. Always output valid JSON/structured data.
     """
-    data_summary: str = dspy.InputField(desc="Data summary")
-    columns_of_interest: str = dspy.InputField(desc="Columns to analyze")
+    data_summary: str = dspy.InputField(desc="Data summary JSON - may include raw_text field with text data to extract values from")
+    columns_of_interest: str = dspy.InputField(desc="Columns to analyze (or 'text' for text data)")
     analysis_goals: str = dspy.InputField(desc="Statistical analysis goals")
 
-    descriptive: str = dspy.OutputField(desc="Descriptive statistics JSON")
-    distributions: str = dspy.OutputField(desc="Distribution analysis results")
-    correlations: str = dspy.OutputField(desc="Correlation matrix summary")
-    hypothesis_tests: str = dspy.OutputField(desc="Recommended tests and results, separated by |")
+    reasoning: str = dspy.OutputField(desc="Brief reasoning about the analysis approach")
+    descriptive: str = dspy.OutputField(desc="Descriptive statistics as JSON object with keys like mean, median, std, min, max, sum, count")
+    distributions: str = dspy.OutputField(desc="Distribution analysis: normal/skewed/uniform and key observations")
+    correlations: str = dspy.OutputField(desc="Correlation summary: positive/negative/none and relationships found")
+    hypothesis_tests: str = dspy.OutputField(desc="Statistical tests results, separated by | (e.g., 'trend: increasing | best: Q4 | growth: 15%')")
 
 
 class InsightGenerationSignature(dspy.Signature):
@@ -465,14 +472,15 @@ class StatisticalAgent(BaseDataAgent):
             context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
             result = self._analyst(
                 data_summary=data_summary,
-                columns_of_interest=json.dumps(columns),
+                columns_of_interest=json.dumps(columns) if columns else '["text"]',
                 analysis_goals=goals + context_suffix
             )
 
             try:
                 descriptive = json.loads(result.descriptive)
             except:
-                descriptive = {}
+                # If not valid JSON, create a simple dict
+                descriptive = {'raw': str(result.descriptive)}
 
             hypothesis_tests = [h.strip() for h in str(result.hypothesis_tests).split('|') if h.strip()]
 
@@ -481,6 +489,7 @@ class StatisticalAgent(BaseDataAgent):
             })
 
             return {
+                'reasoning': str(getattr(result, 'reasoning', '')),
                 'descriptive': descriptive,
                 'distributions': str(result.distributions),
                 'correlations': str(result.correlations),
@@ -489,7 +498,7 @@ class StatisticalAgent(BaseDataAgent):
 
         except Exception as e:
             logger.error(f"Statistical analysis failed: {e}")
-            return {'error': str(e)}
+            return {'error': str(e), 'descriptive': {}, 'distributions': '', 'correlations': '', 'hypothesis_tests': []}
 
 
 class InsightAgent(BaseDataAgent):
@@ -716,6 +725,18 @@ class DataAnalysisSwarm(DomainSwarm):
             data_summary = data
             sample_data = data.get('sample', [])
             column_info = data.get('columns', {})
+        elif isinstance(data, str):
+            # Handle text/string data - pass directly for LLM analysis
+            # The LLM can extract structured data from natural language
+            data_summary = {
+                'type': 'text_data',
+                'description': 'Data provided as text/natural language',
+                'raw_text': data[:2000],  # Limit to avoid context overflow
+                'shape': [1, 1],  # Treat as single text block
+            }
+            sample_data = [{'text': data[:500]}]
+            column_info = {'text': 'string'}
+            logger.info("📝 Received text data - will extract structured info via LLM")
         else:
             # Assume pandas DataFrame
             try:
@@ -730,13 +751,27 @@ class DataAnalysisSwarm(DomainSwarm):
                     sample_data = data.head(10).to_dict('records')
                     column_info = {col: str(dtype) for col, dtype in data.dtypes.items()}
                 else:
-                    data_summary = {'error': 'Unknown data type'}
-                    sample_data = []
-                    column_info = {}
-            except:
-                data_summary = {'error': 'Could not process data'}
-                sample_data = []
-                column_info = {}
+                    # Fallback: convert to string representation
+                    data_str = str(data)
+                    data_summary = {
+                        'type': 'unknown_converted',
+                        'description': f'Data of type {type(data).__name__} converted to text',
+                        'raw_text': data_str[:2000],
+                        'shape': [1, 1],
+                    }
+                    sample_data = [{'text': data_str[:500]}]
+                    column_info = {'text': 'string'}
+            except Exception as e:
+                # Last resort: treat as text
+                data_str = str(data)
+                data_summary = {
+                    'type': 'fallback_text',
+                    'description': f'Could not process data: {e}',
+                    'raw_text': data_str[:2000],
+                    'shape': [1, 1],
+                }
+                sample_data = [{'text': data_str[:500]}]
+                column_info = {'text': 'string'}
 
         config = self.config
 

@@ -183,45 +183,36 @@ class TaskTypeInferenceSignature(dspy.Signature):
 
 
 class ExecutionPlanningSignature(dspy.Signature):
-    """Create executable plan with PRODUCTION-QUALITY, WORLD-CLASS code.
+    """Create an executable plan using the available skills.
 
-    YOU ARE A SENIOR ENGINEER AT A TOP TECH COMPANY.
-    Generate code that would pass a rigorous code review.
+    CRITICAL: You MUST use skills from the available_skills list.
+    Each step MUST have a valid skill_name from available_skills.
 
-    QUALITY STANDARDS:
-    1. ARCHITECTURE: Clean separation of concerns, dependency injection, interfaces
-    2. TYPE SAFETY: Full type hints, dataclasses/Pydantic models, enums for constants
-    3. ERROR HANDLING: Graceful degradation, informative errors, logging
-    4. UI/UX EXCELLENCE:
-       - Terminal: Use 'rich' library for panels, tables, progress, live updates
-       - Colors: Consistent theme, accessibility-friendly contrast
-       - Interaction: Keyboard shortcuts, vim keybindings, smooth animations
-    5. DOCUMENTATION: Docstrings, usage examples, inline comments for complex logic
-    6. TESTABILITY: Pure functions, mockable dependencies, clear interfaces
+    SKILL SELECTION RULES:
+    1. ONLY use skill_name values that exist in available_skills JSON
+    2. For web research: use "web-search" skill
+    3. For file creation: use "file-operations" skill
+    4. For charts/visualization: use "chart-creator" or "mindmap-generator"
+    5. For data analysis: use appropriate data skills
+    6. If no exact skill match, use the closest available skill
 
-    CONSOLIDATION REQUIREMENT:
-    - If task mentions multiple similar apps (Jira, Asana, Any.do, Trello, etc.)
-    - Create ONE UNIFIED app combining the BEST features of all
-    - NOT separate implementations - a single comprehensive solution
+    STEP FORMAT (REQUIRED):
+    Each step must have:
+    - skill_name: EXACT name from available_skills (e.g., "web-search", "file-operations")
+    - tool_name: Tool from that skill's tools list
+    - params: Parameters required by the tool
+    - description: What this step accomplishes
 
-    CODE COMPLETENESS:
-    - Generate FULL, COMPLETE, WORKING code (300-500+ lines for apps)
-    - NO placeholders, NO truncation, NO "..." or "[code here]"
-    - Include ALL imports, ALL classes, ALL methods, main() entry point
+    EXAMPLE STEPS:
+    {"skill_name": "web-search", "tool_name": "tavily_search_tool", "params": {"query": "..."}, "description": "Search for..."}
+    {"skill_name": "file-operations", "tool_name": "write_file_tool", "params": {"path": "...", "content": "..."}, "description": "Create..."}
 
-    EXAMPLE OUTPUT QUALITY (for task management app):
-    - Rich terminal UI with panels, tables, and colors
-    - Kanban board view + List view + Calendar view
-    - Keyboard navigation (j/k/h/l for vim users)
-    - Data persistence with JSON/SQLite
-    - Undo/redo support
-    - Search and filtering
-    - Export to multiple formats
+    FALLBACK: If a needed capability doesn't exist, use "web-search" for research or "file-operations" for creation.
     """
 
     task_description: str = dspy.InputField(desc="Task to accomplish")
     task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
-    available_skills: str = dspy.InputField(desc="JSON array of skills with tools and their required params")
+    available_skills: str = dspy.InputField(desc="JSON array of available skills. ONLY use skill_name values from this list!")
     previous_outputs: str = dspy.InputField(desc="JSON dict of outputs from previous steps")
     max_steps: int = dspy.InputField(desc="Maximum number of steps")
 
@@ -915,9 +906,11 @@ class AgenticPlanner:
             logger.debug(f"   Skills count: {len(skills)}")
 
             # Call execution planner with retry and context compression
+            # Handle both enum and string task_type
+            task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
             planner_kwargs = {
                 'task_description': abstracted_task,
-                'task_type': task_type.value,
+                'task_type': task_type_str,
                 'available_skills': skills_json,
                 'previous_outputs': outputs_json,
                 'max_steps': max_steps,
@@ -1142,13 +1135,42 @@ JSON:"""
                             logger.info(f"Skill name normalized: '{skill_name}' -> '{matched}'")
                             skill_name = matched
 
-                    # VALIDATION: Skip steps without valid skill_name
-                    if not skill_name or skill_name not in available_skill_names:
-                        desc = str(get_val(step_data, 'description', f'Step {i+1}'))[:50]
-                        logger.warning(f"Skipping step {i+1}: '{desc}' - skill='{skill_name}' not in available skills")
-                        continue
-
+                    # FALLBACK: If no valid skill_name, infer from description or use default
                     description = get_val(step_data, 'description', f'Step {i+1}')
+                    if not skill_name or skill_name not in available_skill_names:
+                        desc_lower = str(description).lower()
+
+                        # Try to infer skill from description keywords
+                        inferred_skill = None
+                        if any(w in desc_lower for w in ['search', 'find', 'lookup', 'research', 'web', 'news', 'fetch data']):
+                            inferred_skill = 'web-search'
+                        elif any(w in desc_lower for w in ['create', 'write', 'generate', 'save', 'file', 'report']):
+                            inferred_skill = 'file-operations'
+                        elif any(w in desc_lower for w in ['chart', 'graph', 'plot', 'visualiz']):
+                            inferred_skill = 'chart-creator'
+                        elif any(w in desc_lower for w in ['mindmap', 'diagram', 'map']):
+                            inferred_skill = 'mindmap-generator'
+                        elif any(w in desc_lower for w in ['analyz', 'compar', 'evaluat']):
+                            inferred_skill = 'web-search'  # Use search for analysis tasks
+
+                        # Use inferred skill if available
+                        if inferred_skill and inferred_skill in available_skill_names:
+                            logger.info(f"Step {i+1}: Inferred skill '{inferred_skill}' from description")
+                            skill_name = inferred_skill
+                        elif 'web-search' in available_skill_names:
+                            logger.info(f"Step {i+1}: Using fallback skill 'web-search'")
+                            skill_name = 'web-search'
+                        elif 'file-operations' in available_skill_names:
+                            logger.info(f"Step {i+1}: Using fallback skill 'file-operations'")
+                            skill_name = 'file-operations'
+                        elif available_skill_names:
+                            # Use first available skill as last resort
+                            skill_name = list(available_skill_names)[0]
+                            logger.info(f"Step {i+1}: Using first available skill '{skill_name}'")
+                        else:
+                            desc = str(description)[:50]
+                            logger.warning(f"Skipping step {i+1}: '{desc}' - no skills available")
+                            continue
 
                     # Infer tool_name from skill if empty
                     if not tool_name:

@@ -970,7 +970,17 @@ async def _generate_table(
     format: str
 ) -> tuple:
     """Generate a specific table type."""
-    
+
+    # Normalize table type names (handle LLM variations)
+    table_type_aliases = {
+        'financials': 'financial_statements',
+        'valuation': 'valuation_metrics',
+        'ratios': 'key_ratios',
+        'metrics': 'valuation_metrics',
+        'statements': 'financial_statements',
+    }
+    table_type = table_type_aliases.get(table_type, table_type)
+
     if table_type == 'financial_statements':
         financial_data = extracted_data.get('financial_statements', {})
         revenue_data = financial_data.get('revenue', {})
@@ -1053,8 +1063,39 @@ async def _generate_table(
         
         description = f"Key financial ratios including ROE, ROA, debt-to-equity, and profitability metrics."
     
+    elif table_type == 'peer_comparison':
+        # Peer comparison table
+        valuation = extracted_data.get('valuation_metrics', {})
+        ratios = extracted_data.get('key_ratios', {})
+
+        if format == 'markdown':
+            table_lines = [
+                f"### Peer Comparison - {company_name} ({ticker})\n",
+                "| Metric | {ticker} | Sector Avg | Industry Avg |",
+                "|--------|----------|------------|--------------|",
+            ]
+
+            # Add available metrics with placeholder peer data
+            if valuation.get('pe_ratio'):
+                table_lines.append(f"| P/E Ratio | {valuation['pe_ratio']:.2f} | - | - |")
+            if valuation.get('pb_ratio'):
+                table_lines.append(f"| P/B Ratio | {valuation['pb_ratio']:.2f} | - | - |")
+            if ratios.get('roe'):
+                table_lines.append(f"| ROE (%) | {ratios['roe']:.2f} | - | - |")
+            if ratios.get('profit_margin'):
+                table_lines.append(f"| Profit Margin (%) | {ratios['profit_margin']:.2f} | - | - |")
+
+            if len(table_lines) <= 3:
+                table_lines.append("| No data available | - | - | - |")
+
+            table_content = "\n".join(table_lines)
+        else:
+            table_content = f"Peer comparison data for {company_name}"
+
+        description = f"Comparison of {company_name} metrics against sector and industry averages."
+
     else:
         table_content = f"Table type '{table_type}' not yet implemented"
         description = f"Placeholder table for {table_type}"
-    
+
     return table_content, description

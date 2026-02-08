@@ -56,6 +56,11 @@ from .validation_agent import (
     create_validation_agent,
 )
 
+# Skill plan executor for reusable planning/execution
+from .skill_plan_executor import (
+    SkillPlanExecutor,
+)
+
 # Autonomous agent for open-ended tasks
 from .autonomous_agent import (
     AutonomousAgent,
@@ -87,6 +92,8 @@ __all__ = [
     'SharedScratchpad',
     'AgentMessage',
     'create_validation_agent',
+    # Skill Plan Executor
+    'SkillPlanExecutor',
     # Autonomous
     'AutonomousAgent',
     'AutonomousAgentConfig',

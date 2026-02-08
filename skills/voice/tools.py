@@ -16,9 +16,29 @@ from Jotty.core.utils.async_utils import run_sync
 
 load_jotty_env()
 
-from .providers import get_tts_provider, get_stt_provider
-
 logger = logging.getLogger(__name__)
+
+# Import providers with fallback for standalone loading
+get_tts_provider = None
+get_stt_provider = None
+
+try:
+    from .providers import get_tts_provider, get_stt_provider
+except ImportError:
+    try:
+        # Fallback: load providers package directly when loaded standalone
+        import importlib.util
+        from pathlib import Path
+
+        providers_init = Path(__file__).parent / 'providers' / '__init__.py'
+        if providers_init.exists():
+            spec = importlib.util.spec_from_file_location("voice_providers", providers_init)
+            providers_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(providers_module)
+            get_tts_provider = getattr(providers_module, 'get_tts_provider', None)
+            get_stt_provider = getattr(providers_module, 'get_stt_provider', None)
+    except Exception as e:
+        logger.warning(f"Could not load voice providers: {e}")
 
 # Store active streams for stream_voice_tool
 _active_streams: Dict[str, Any] = {}

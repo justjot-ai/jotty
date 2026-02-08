@@ -16,16 +16,42 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Import Jotty's web search tool
+search_web_tool = None
+fetch_webpage_tool = None
+
 try:
-    import sys
-    from pathlib import Path as PathLib
-    jotty_root = PathLib(__file__).parent.parent.parent
-    sys.path.insert(0, str(jotty_root / 'skills' / 'web-search'))
-    from tools import search_web_tool, fetch_webpage_tool
-except ImportError:
+    # Method 1: Try registry-based import
+    from Jotty.core.registry.skills_registry import get_skills_registry
+    registry = get_skills_registry()
+    if registry:
+        web_skill = registry.get_skill('web-search')
+        if web_skill and hasattr(web_skill, 'tools'):
+            search_web_tool = web_skill.tools.get('search_web_tool')
+            fetch_webpage_tool = web_skill.tools.get('fetch_webpage_tool')
+            if search_web_tool:
+                logger.info("Loaded web-search tools from registry")
+except Exception as e:
+    logger.debug(f"Registry import failed: {e}")
+
+if not search_web_tool:
+    try:
+        # Method 2: Direct file import
+        import importlib.util
+        from pathlib import Path as PathLib
+        web_tools_path = PathLib(__file__).parent.parent / 'web-search' / 'tools.py'
+        if web_tools_path.exists():
+            spec = importlib.util.spec_from_file_location("web_search_tools", web_tools_path)
+            web_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(web_module)
+            search_web_tool = getattr(web_module, 'search_web_tool', None)
+            fetch_webpage_tool = getattr(web_module, 'fetch_webpage_tool', None)
+            if search_web_tool:
+                logger.info("Loaded web-search tools via importlib")
+    except Exception as e:
+        logger.debug(f"Importlib import failed: {e}")
+
+if not search_web_tool:
     logger.warning("Could not import web-search tools, will use fallback")
-    search_web_tool = None
-    fetch_webpage_tool = None
 
 
 async def last30days_claude_cli(params: Dict[str, Any]) -> Dict[str, Any]:

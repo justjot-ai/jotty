@@ -139,12 +139,16 @@ class ResearchDataFetcher:
             'NYKAA', 'POLICYBAZAAR', 'PHONEPE', 'RAZORPAY', 'ZERODHA', 'CRED'
         }
 
-        # Check if it's a known US ticker or has US-style format
-        is_indian_ticker = ticker_upper in INDIAN_TICKERS or exchange.upper() in ('NSE', 'BSE', 'INDIA')
+        # Check if it's a known US ticker FIRST (takes priority over default exchange)
         is_us_ticker = (
-            not is_indian_ticker and (
-                ticker_upper in US_TICKERS or
-                exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+            ticker_upper in US_TICKERS or
+            exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+        )
+        # Only treat as Indian if explicitly Indian AND not a known US ticker
+        is_indian_ticker = (
+            not is_us_ticker and (
+                ticker_upper in INDIAN_TICKERS or
+                exchange.upper() in ('NSE', 'BSE', 'INDIA')
             )
         )
 

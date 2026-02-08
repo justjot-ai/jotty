@@ -46,7 +46,7 @@ class AgentConfig:
     enable_memory: bool = True
     enable_context: bool = True
     enable_monitoring: bool = True
-    enable_skills: bool = False
+    enable_skills: bool = True
     system_prompt: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
 
@@ -496,6 +496,85 @@ class BaseAgent(ABC):
         except Exception as e:
             logger.warning(f"Failed to get compressed context: {e}")
             return ""
+
+    # =========================================================================
+    # SKILL DISCOVERY
+    # =========================================================================
+
+    def discover_skills(self, task: str, max_results: int = 15) -> List[Dict[str, Any]]:
+        """
+        Discover relevant skills for a task using lightweight keyword matching.
+
+        This is the fast path — no LLM calls. Uses stop-word filtering with
+        name match (+3 score) and description match (+1 score).
+
+        Available to ALL agents via BaseAgent inheritance.
+
+        Args:
+            task: Task description to match against
+            max_results: Maximum number of skills to return
+
+        Returns:
+            List of skill dicts with name, description, category, tools,
+            relevance_score — sorted by relevance descending
+        """
+        if self.skills_registry is None:
+            logger.debug("Skills registry not available for discovery")
+            return []
+
+        task_lower = task.lower()
+
+        stop_words = {
+            'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is',
+            'to', 'of', 'in', 'on', 'a', 'an',
+        }
+        task_words = [
+            w for w in task_lower.split()
+            if len(w) > 2 and w not in stop_words
+        ]
+
+        skills = []
+
+        for skill_name, skill_def in self.skills_registry.loaded_skills.items():
+            skill_name_lower = skill_name.lower()
+            desc = getattr(skill_def, 'description', '') or ''
+            desc_lower = desc.lower()
+
+            score = 0
+            for word in task_words:
+                if word in skill_name_lower:
+                    score += 3
+                if word in desc_lower:
+                    score += 1
+
+            if score > 0:
+                tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
+                skills.append({
+                    'name': skill_name,
+                    'description': desc or skill_name,
+                    'category': getattr(skill_def, 'category', 'general'),
+                    'tools': tools,
+                    'relevance_score': score,
+                })
+
+        skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+
+        # If no keyword matches, return first N available skills as fallback
+        if not skills:
+            for skill_name, skill_def in list(
+                self.skills_registry.loaded_skills.items()
+            )[:max_results]:
+                desc = getattr(skill_def, 'description', '') or ''
+                tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
+                skills.append({
+                    'name': skill_name,
+                    'description': desc or skill_name,
+                    'category': getattr(skill_def, 'category', 'general'),
+                    'tools': tools,
+                    'relevance_score': 0,
+                })
+
+        return skills[:max_results]
 
     # =========================================================================
     # METRICS

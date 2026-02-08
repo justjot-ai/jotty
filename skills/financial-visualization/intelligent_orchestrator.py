@@ -143,19 +143,22 @@ class IntelligentVisualizationOrchestrator:
         
         # Determine recommended chart types
         recommended_charts = []
-        for chart_type, config in sorted(self.chart_priority_map.items(), 
+        for chart_type, config in sorted(self.chart_priority_map.items(),
                                          key=lambda x: x[1]['priority'], reverse=True):
             requirements = config['requires']
             can_generate = True
             for req in requirements:
-                category, metric = req.split('.')
+                # Handle both 'category.metric' and 'category' formats
+                if '.' in req:
+                    category, metric = req.split('.', 1)
+                else:
+                    category, metric = req, None
                 if category not in extracted_data:
                     can_generate = False
                     break
-                if metric != category:  # If specific metric required
-                    if not extracted_data[category].get(metric):
-                        can_generate = False
-                        break
+                if metric and not extracted_data[category].get(metric):
+                    can_generate = False
+                    break
             
             if can_generate:
                 recommended_charts.append(chart_type)
