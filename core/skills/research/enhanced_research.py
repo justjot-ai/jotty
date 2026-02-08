@@ -22,6 +22,15 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+def get_currency_info(exchange: str) -> Dict[str, str]:
+    """Get currency symbol and formatting based on exchange."""
+    us_exchanges = {'US', 'NYSE', 'NASDAQ', 'AMEX'}
+    if exchange.upper() in us_exchanges:
+        return {'symbol': '$', 'suffix': '', 'unit': 'B', 'divisor': 1e9}
+    else:
+        return {'symbol': '₹', 'suffix': ' Cr', 'unit': 'Cr', 'divisor': 1e7}
+
+
 async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate world-class broker-grade research report.
@@ -59,11 +68,27 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
 
         company_name = params.get('company_name', ticker)
 
-        # Auto-detect exchange for US stocks
+        # Auto-detect exchange for US stocks (comprehensive list)
         US_TICKERS = {
-            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA',
-            'JPM', 'V', 'JNJ', 'WMT', 'PG', 'MA', 'UNH', 'HD', 'DIS', 'PYPL',
-            'BAC', 'ADBE', 'NFLX', 'CRM', 'INTC', 'AMD', 'CSCO', 'PEP', 'KO'
+            # FAANG+
+            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'NFLX',
+            # Major tech
+            'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC',
+            'CRM', 'ADBE', 'ORCL', 'IBM', 'CSCO', 'PYPL', 'SQ', 'SHOP', 'NOW',
+            # Finance
+            'JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'USB', 'PNC', 'V', 'MA', 'AXP',
+            # Consumer
+            'WMT', 'HD', 'COST', 'TGT', 'LOW', 'NKE', 'SBUX', 'MCD', 'DIS', 'CMCSA',
+            # Healthcare
+            'JNJ', 'UNH', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT', 'BMY', 'AMGN',
+            # Industrial
+            'CAT', 'DE', 'BA', 'HON', 'UPS', 'GE', 'MMM', 'LMT', 'RTX',
+            # Consumer staples
+            'PG', 'KO', 'PEP', 'PM', 'MO', 'CL', 'EL',
+            # Energy
+            'XOM', 'CVX', 'COP', 'SLB', 'EOG',
+            # Other major
+            'BRK.A', 'BRK.B', 'UBER', 'ABNB', 'COIN', 'SNOW', 'PLTR', 'RBLX',
         }
         default_exchange = 'US' if ticker in US_TICKERS else 'NSE'
         exchange = params.get('exchange', default_exchange)
@@ -153,7 +178,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections = []
 
         # 1. Cover Page (Enhanced)
-        cover = _generate_enhanced_cover_page(snapshot, investment_thesis, key_risks, analyst_data)
+        cover = _generate_enhanced_cover_page(snapshot, investment_thesis, key_risks, analyst_data, exchange)
         report_sections.append(cover)
 
         # 2. Table of Contents (Enhanced)
@@ -161,11 +186,11 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections.append(toc)
 
         # 3. Executive Summary
-        exec_summary = _generate_executive_summary(snapshot, company_data, analyst_data, dcf_result)
+        exec_summary = _generate_executive_summary(snapshot, company_data, analyst_data, dcf_result, exchange)
         report_sections.append(exec_summary)
 
         # 4. Company Overview
-        company_overview = _generate_company_overview(company_data)
+        company_overview = _generate_company_overview(company_data, exchange)
         report_sections.append(company_overview)
 
         # 4.5 Recent News & Developments (from web search)
@@ -175,21 +200,21 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
 
         # 5. Industry Analysis (NEW)
         industry_section = IndustryAnalyzer.get_industry_analysis(
-            company_data.get('sector', ''), company_data
+            company_data.get('sector', ''), company_data, exchange
         )
         report_sections.append(industry_section)
 
         # 6. Financial Analysis
-        financial_section = _generate_financial_section(financials, formatter, company_data)
+        financial_section = _generate_financial_section(financials, formatter, company_data, exchange)
         report_sections.append(financial_section)
 
         # 7. Earnings Projections (NEW)
-        earnings_section = EarningsProjector.generate_projections(company_data, dcf_model)
+        earnings_section = EarningsProjector.generate_projections(company_data, dcf_model, exchange)
         report_sections.append(earnings_section)
 
         # 8. Valuation Section
         valuation_section = template.generate_valuation_section(
-            dcf_calc, dcf_result, peer_comparison, ticker, snapshot.current_price
+            dcf_calc, dcf_result, peer_comparison, ticker, snapshot.current_price, exchange
         )
         report_sections.append(valuation_section)
 
@@ -200,7 +225,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
             analyst_data.get('target_mean', 0),
             company_data
         )
-        scenario_section = ScenarioAnalyzer.format_scenario_table(scenarios, snapshot.current_price)
+        scenario_section = ScenarioAnalyzer.format_scenario_table(scenarios, snapshot.current_price, exchange)
         report_sections.append(scenario_section)
 
         # 10. Catalysts Section (NEW)
@@ -210,7 +235,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
 
         # 11. Technical Analysis
         if company_data.get('price_history'):
-            tech_section = _generate_technical_section(company_data)
+            tech_section = _generate_technical_section(company_data, exchange)
             report_sections.append(tech_section)
 
         # 12. Shareholding Pattern
@@ -222,7 +247,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections.append(risk_section)
 
         # 14. Recommendation
-        recommendation = _generate_recommendation(snapshot, dcf_result, analyst_data)
+        recommendation = _generate_recommendation(snapshot, dcf_result, analyst_data, exchange)
         report_sections.append(recommendation)
 
         # 15. Disclaimer
@@ -267,7 +292,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
             prices = company_data.get('price_history', [])
             if prices and len(prices) >= 20:
                 price_chart = PriceChartGenerator.create_price_chart(
-                    prices, [], ticker, str(output_path)
+                    prices, [], ticker, str(output_path), exchange
                 )
                 if price_chart:
                     chart_files.append(price_chart)
@@ -292,7 +317,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         # Send to Telegram if requested
         telegram_sent = False
         if send_telegram and pdf_path:
-            telegram_sent = await _send_to_telegram(pdf_path, ticker, snapshot)
+            telegram_sent = await _send_to_telegram(pdf_path, ticker, snapshot, exchange)
 
         return {
             'success': True,
@@ -481,8 +506,14 @@ def _generate_key_risks(data: Dict[str, Any], snapshot: 'CompanySnapshot') -> Li
 
 
 def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str],
-                                    risks: List[str], analyst: Dict[str, Any]) -> str:
+                                    risks: List[str], analyst: Dict[str, Any],
+                                    exchange: str = 'NSE') -> str:
     """Generate world-class cover page with large rating badge."""
+    # Get currency based on exchange
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
+    unit = curr['unit']
+
     rating_emoji = {"BUY": "🟢", "HOLD": "🟡", "SELL": "🔴"}.get(snapshot.rating.upper(), "⚪")
     upside = snapshot.upside
     upside_str = f"+{upside:.1f}%" if upside > 0 else f"{upside:.1f}%"
@@ -500,7 +531,7 @@ def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str]
     return f"""
 # {snapshot.company_name}
 
-### {snapshot.ticker} | {rating_emoji} **{snapshot.rating}** | Target: ₹{snapshot.target_price:,.0f} | Upside: {upside_str}
+### {snapshot.ticker} | {rating_emoji} **{snapshot.rating}** | Target: {sym}{snapshot.target_price:,.0f} | Upside: {upside_str}
 
 **Sector:** {snapshot.sector} | **Industry:** {snapshot.industry}
 
@@ -510,8 +541,8 @@ def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str]
 
 | **Valuation Metrics** | Value | **Return Metrics** | Value |
 |----------------------|------:|-------------------|------:|
-| Current Price | ₹{snapshot.current_price:,.2f} | ROE | {snapshot.roe:.1f}% |
-| Market Cap | ₹{snapshot.market_cap:,.0f} Cr | ROCE | {snapshot.roce:.1f}% |
+| Current Price | {sym}{snapshot.current_price:,.2f} | ROE | {snapshot.roe:.1f}% |
+| Market Cap | {sym}{snapshot.market_cap:,.0f} {unit} | ROCE | {snapshot.roce:.1f}% |
 | P/E (TTM) | {snapshot.pe_ratio:.1f}x | Dividend Yield | {snapshot.dividend_yield:.1f}% |
 | P/B Ratio | {snapshot.pb_ratio:.1f}x | Beta | {snapshot.beta:.2f} |
 | EV/EBITDA | {snapshot.ev_ebitda:.1f}x | P/E (Forward) | {snapshot.pe_forward:.1f}x |
@@ -520,7 +551,7 @@ def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str]
 
 | Low | Current | High | Position |
 |----:|--------:|-----:|---------:|
-| ₹{snapshot.week_52_low:,.0f} | ₹{snapshot.current_price:,.2f} | ₹{snapshot.week_52_high:,.0f} | {position:.0f}% |
+| {sym}{snapshot.week_52_low:,.0f} | {sym}{snapshot.current_price:,.2f} | {sym}{snapshot.week_52_high:,.0f} | {position:.0f}% |
 
 ### Shareholding Pattern
 
@@ -540,7 +571,7 @@ def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str]
 
 ---
 
-**Analyst Coverage:** {analyst.get('num_analysts', 0)} analysts | **Consensus Target:** ₹{analyst.get('target_mean', 0):,.0f}
+**Analyst Coverage:** {analyst.get('num_analysts', 0)} analysts | **Consensus Target:** {sym}{analyst.get('target_mean', 0):,.0f}
 
 **Report Date:** {datetime.now().strftime('%B %d, %Y')} | **Analyst:** Jotty Research
 
@@ -578,30 +609,34 @@ def _generate_toc(report_type: str) -> str:
 
 
 def _generate_executive_summary(snapshot: 'CompanySnapshot', data: Dict[str, Any],
-                                  analyst: Dict[str, Any], dcf: Dict[str, float]) -> str:
+                                  analyst: Dict[str, Any], dcf: Dict[str, float],
+                                  exchange: str = 'NSE') -> str:
     """Generate executive summary section."""
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
+    unit = curr['unit']
     upside_str = f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
 
     return f"""
 ## Executive Summary
 
 We initiate coverage on **{snapshot.company_name} ({snapshot.ticker})** with a **{snapshot.rating}** rating
-and a 12-month target price of **₹{snapshot.target_price:,.0f}**, implying an upside of **{upside_str}**
-from the current market price of ₹{snapshot.current_price:,.2f}.
+and a 12-month target price of **{sym}{snapshot.target_price:,.0f}**, implying an upside of **{upside_str}**
+from the current market price of {sym}{snapshot.current_price:,.2f}.
 
 ### Investment Highlights
 
 | Metric | Value | Assessment |
 |--------|------:|------------|
-| Market Cap | ₹{snapshot.market_cap:,.0f} Cr | {'Large Cap' if snapshot.market_cap > 50000 else 'Mid Cap' if snapshot.market_cap > 10000 else 'Small Cap'} |
+| Market Cap | {sym}{snapshot.market_cap:,.0f} {unit} | {'Large Cap' if snapshot.market_cap > 50000 else 'Mid Cap' if snapshot.market_cap > 10000 else 'Small Cap'} |
 | P/E Ratio | {snapshot.pe_ratio:.1f}x | {'Premium' if snapshot.pe_ratio > 30 else 'Fair' if snapshot.pe_ratio > 15 else 'Attractive'} |
 | ROE | {snapshot.roe:.1f}% | {'Excellent' if snapshot.roe > 20 else 'Good' if snapshot.roe > 15 else 'Average'} |
 | Dividend Yield | {snapshot.dividend_yield:.1f}% | {'High' if snapshot.dividend_yield > 2 else 'Moderate' if snapshot.dividend_yield > 1 else 'Low'} |
 
 ### Valuation Summary
 
-- **DCF Implied Price:** ₹{dcf.get('implied_price', 0):,.0f}
-- **Analyst Consensus Target:** ₹{analyst.get('target_mean', 0):,.0f}
+- **DCF Implied Price:** {sym}{dcf.get('implied_price', 0):,.0f}
+- **Analyst Consensus Target:** {sym}{analyst.get('target_mean', 0):,.0f}
 - **Analyst Coverage:** {analyst.get('num_analysts', 0)} analysts
 
 ### Near-Term Catalysts
@@ -613,8 +648,12 @@ from the current market price of ₹{snapshot.current_price:,.2f}.
 """
 
 
-def _generate_company_overview(data: Dict[str, Any]) -> str:
+def _generate_company_overview(data: Dict[str, Any], exchange: str = 'NSE') -> str:
     """Generate company overview section."""
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
+    unit = curr['unit']
+    divisor = curr['divisor']
     return f"""
 ## Company Overview
 
@@ -629,10 +668,10 @@ specifically within the **{data.get('industry', 'N/A')}** industry.
 |--------|------:|
 | Sector | {data.get('sector', 'N/A')} |
 | Industry | {data.get('industry', 'N/A')} |
-| Market Cap | ₹{data.get('market_cap', 0)/1e7:,.0f} Cr |
-| Enterprise Value | ₹{data.get('enterprise_value', 0)/1e7:,.0f} Cr |
-| Revenue (TTM) | ₹{data.get('revenue', 0)/1e7:,.0f} Cr |
-| EBITDA (TTM) | ₹{data.get('ebitda', 0)/1e7:,.0f} Cr |
+| Market Cap | {sym}{data.get('market_cap', 0)/divisor:,.0f} {unit} |
+| Enterprise Value | {sym}{data.get('enterprise_value', 0)/divisor:,.0f} {unit} |
+| Revenue (TTM) | {sym}{data.get('revenue', 0)/divisor:,.0f} {unit} |
+| EBITDA (TTM) | {sym}{data.get('ebitda', 0)/divisor:,.0f} {unit} |
 | Employees | {data.get('employees', 'N/A')} |
 """
 
@@ -678,15 +717,21 @@ def _generate_news_section(data: Dict[str, Any], ticker: str) -> str:
 
 def _generate_financial_section(financials: 'FinancialStatements',
                                   formatter: 'FinancialTablesFormatter',
-                                  data: Dict[str, Any]) -> str:
+                                  data: Dict[str, Any],
+                                  exchange: str = 'NSE') -> str:
     """Generate financial analysis section."""
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
+    unit = curr['unit']
+    divisor = curr['divisor']
+
     section = """
 ## Financial Analysis
 
 ### Income Statement Summary
 
 """
-    section += formatter.create_income_statement_table(financials)
+    section += formatter.create_income_statement_table(financials, exchange)
 
     section += "\n\n### Key Financial Ratios\n\n"
     section += formatter.create_ratio_table(financials)
@@ -698,10 +743,10 @@ def _generate_financial_section(financials: 'FinancialStatements',
 
 | Metric | Value |
 |--------|------:|
-| Revenue | ₹{data.get('revenue', 0)/1e7:,.0f} Cr |
-| EBITDA | ₹{data.get('ebitda', 0)/1e7:,.0f} Cr |
-| Net Income | ₹{data.get('net_income', 0)/1e7:,.0f} Cr |
-| EPS | ₹{data.get('eps', 0):.2f} |
+| Revenue | {sym}{data.get('revenue', 0)/divisor:,.0f} {unit} |
+| EBITDA | {sym}{data.get('ebitda', 0)/divisor:,.0f} {unit} |
+| Net Income | {sym}{data.get('net_income', 0)/divisor:,.0f} {unit} |
+| EPS | {sym}{data.get('eps', 0):.2f} |
 | EBITDA Margin | {data.get('ebitda_margin', 0):.1f}% |
 | Net Margin | {data.get('profit_margin', 0):.1f}% |
 | ROE | {data.get('roe', 0):.1f}% |
@@ -711,8 +756,11 @@ def _generate_financial_section(financials: 'FinancialStatements',
     return section
 
 
-def _generate_technical_section(data: Dict[str, Any]) -> str:
+def _generate_technical_section(data: Dict[str, Any], exchange: str = 'NSE') -> str:
     """Generate technical analysis section."""
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
+
     prices = data.get('price_history', [])
     if not prices:
         return ""
@@ -736,9 +784,9 @@ def _generate_technical_section(data: Dict[str, Any]) -> str:
 
 | Metric | Value |
 |--------|------:|
-| Current Price | ₹{current:,.2f} |
-| 52-Week High | ₹{high_52w:,.2f} |
-| 52-Week Low | ₹{low_52w:,.2f} |
+| Current Price | {sym}{current:,.2f} |
+| 52-Week High | {sym}{high_52w:,.2f} |
+| 52-Week Low | {sym}{low_52w:,.2f} |
 | % from 52W High | {((current - high_52w) / high_52w * 100) if high_52w else 0:.1f}% |
 | % from 52W Low | {((current - low_52w) / low_52w * 100) if low_52w else 0:.1f}% |
 
@@ -746,18 +794,18 @@ def _generate_technical_section(data: Dict[str, Any]) -> str:
 
 | Moving Average | Value | Signal |
 |---------------|------:|--------|
-| 20-Day SMA | ₹{sma_20:,.2f} | {'Above' if current > sma_20 else 'Below'} |
-| 50-Day SMA | ₹{sma_50:,.2f} | {'Above' if current > sma_50 else 'Below'} |
-| 200-Day SMA | ₹{sma_200:,.2f} | {'Above' if current > sma_200 else 'Below'} |
+| 20-Day SMA | {sym}{sma_20:,.2f} | {'Above' if current > sma_20 else 'Below'} |
+| 50-Day SMA | {sym}{sma_50:,.2f} | {'Above' if current > sma_50 else 'Below'} |
+| 200-Day SMA | {sym}{sma_200:,.2f} | {'Above' if current > sma_200 else 'Below'} |
 
 **Overall Trend:** {trend}
 
 ### Support & Resistance
 
-- **Immediate Support:** ₹{low_52w + (current - low_52w) * 0.3:,.0f}
-- **Strong Support:** ₹{low_52w:,.0f} (52-week low)
-- **Immediate Resistance:** ₹{current + (high_52w - current) * 0.3:,.0f}
-- **Strong Resistance:** ₹{high_52w:,.0f} (52-week high)
+- **Immediate Support:** {sym}{low_52w + (current - low_52w) * 0.3:,.0f}
+- **Strong Support:** {sym}{low_52w:,.0f} (52-week low)
+- **Immediate Resistance:** {sym}{current + (high_52w - current) * 0.3:,.0f}
+- **Strong Resistance:** {sym}{high_52w:,.0f} (52-week high)
 """
 
 
@@ -812,8 +860,10 @@ def _generate_risk_section(risks: List[str], data: Dict[str, Any]) -> str:
 
 
 def _generate_recommendation(snapshot: 'CompanySnapshot', dcf: Dict[str, float],
-                               analyst: Dict[str, Any]) -> str:
+                               analyst: Dict[str, Any], exchange: str = 'NSE') -> str:
     """Generate investment recommendation section."""
+    curr = get_currency_info(exchange)
+    sym = curr['symbol']
     upside_str = f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
 
     return f"""
@@ -821,18 +871,18 @@ def _generate_recommendation(snapshot: 'CompanySnapshot', dcf: Dict[str, float],
 
 ### Rating: {snapshot.rating}
 
-### Target Price: ₹{snapshot.target_price:,.0f}
+### Target Price: {sym}{snapshot.target_price:,.0f}
 
 | Valuation Method | Implied Price |
 |-----------------|-------------:|
-| DCF Value | ₹{dcf.get('implied_price', 0):,.0f} |
-| Analyst Consensus | ₹{analyst.get('target_mean', 0):,.0f} |
-| **Our Target** | **₹{snapshot.target_price:,.0f}** |
+| DCF Value | {sym}{dcf.get('implied_price', 0):,.0f} |
+| Analyst Consensus | {sym}{analyst.get('target_mean', 0):,.0f} |
+| **Our Target** | **{sym}{snapshot.target_price:,.0f}** |
 
 ### Upside/Downside
 
-- Current Price: ₹{snapshot.current_price:,.2f}
-- Target Price: ₹{snapshot.target_price:,.0f}
+- Current Price: {sym}{snapshot.current_price:,.2f}
+- Target Price: {sym}{snapshot.target_price:,.0f}
 - **Potential Return: {upside_str}**
 
 ### Investment Horizon
@@ -933,9 +983,13 @@ async def _convert_to_pdf(
         return None
 
 
-async def _send_to_telegram(pdf_path: str, ticker: str, snapshot: 'CompanySnapshot') -> bool:
+async def _send_to_telegram(pdf_path: str, ticker: str, snapshot: 'CompanySnapshot',
+                            exchange: str = 'NSE') -> bool:
     """Send report to Telegram."""
     try:
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
+
         from Jotty.core.registry.skills_registry import get_skills_registry
         registry = get_skills_registry()
         registry.init()
@@ -946,7 +1000,7 @@ async def _send_to_telegram(pdf_path: str, ticker: str, snapshot: 'CompanySnapsh
             if send_tool:
                 caption = (
                     f"📊 {snapshot.company_name} ({ticker}) Research Report\n\n"
-                    f"Rating: {snapshot.rating} | Target: ₹{snapshot.target_price:,.0f}\n"
+                    f"Rating: {snapshot.rating} | Target: {sym}{snapshot.target_price:,.0f}\n"
                     f"Upside: {'+' if snapshot.upside > 0 else ''}{snapshot.upside:.1f}%"
                 )
 

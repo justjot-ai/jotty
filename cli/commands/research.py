@@ -3,7 +3,7 @@ Research Command
 ================
 
 /research - Intelligent research with LLM synthesis.
-Uses LeanExecutor for smart analysis and output formatting.
+Uses UnifiedExecutor for smart analysis and output formatting.
 """
 
 import logging
@@ -22,7 +22,7 @@ class ResearchCommand(BaseCommand):
     """
     /research - Intelligent research with LLM synthesis.
 
-    Uses LeanExecutor to:
+    Uses UnifiedExecutor to:
     1. Search for recent information
     2. Synthesize findings with LLM
     3. Output in requested format (text, pdf, docx, slides, telegram)
@@ -35,7 +35,7 @@ class ResearchCommand(BaseCommand):
     category = "research"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
-        """Execute research command using LeanExecutor."""
+        """Execute research command using UnifiedExecutor."""
 
         if not args.positional:
             cli.renderer.error("Topic required")
@@ -99,14 +99,8 @@ class ResearchCommand(BaseCommand):
         cli.renderer.info(f"Output: {output_format}")
 
         try:
-            # Use LeanExecutor for intelligent research
-            from core.orchestration.v2.lean_executor import LeanExecutor
-
-            # Ensure LLM is configured
-            import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                from core.foundation.unified_lm_provider import configure_dspy_lm
-                configure_dspy_lm()
+            # Use UnifiedExecutor for intelligent research (auto-detects provider)
+            from core.orchestration.v2.unified_executor import UnifiedExecutor
 
             # Check if renderer supports async status (Telegram)
             has_async_status = hasattr(cli.renderer, 'send_status_async')
@@ -125,9 +119,9 @@ class ResearchCommand(BaseCommand):
 
             # Use async callback if available (Telegram), else sync (CLI)
             if has_async_status:
-                executor = LeanExecutor(status_callback=async_status_callback)
+                executor = UnifiedExecutor(status_callback=async_status_callback)
             else:
-                executor = LeanExecutor(status_callback=sync_status_callback)
+                executor = UnifiedExecutor(status_callback=sync_status_callback)
 
             result = await executor.execute(task)
 

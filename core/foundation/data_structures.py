@@ -58,6 +58,16 @@ from .types import (
     ValidationResult,
     # Workflow types
     RichObservation,
+    # SDK types
+    ExecutionMode,
+    ChannelType,
+    SDKEventType,
+    ResponseFormat,
+    ExecutionContext,
+    SDKEvent,
+    SDKSession,
+    SDKResponse,
+    SDKRequest,
 )
 
 # Re-export everything for backward compatibility
@@ -89,6 +99,16 @@ __all__ = [
     'ValidationResult',
     # Workflow types
     'RichObservation',
+    # SDK types
+    'ExecutionMode',
+    'ChannelType',
+    'SDKEventType',
+    'ResponseFormat',
+    'ExecutionContext',
+    'SDKEvent',
+    'SDKSession',
+    'SDKResponse',
+    'SDKRequest',
     # Configuration
     'SwarmConfig',
     'JottyConfig',  # Backward compatibility alias

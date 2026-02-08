@@ -38,6 +38,7 @@ from .task_queue import TaskCommand
 from .supervisor_cmd import SupervisorCommand
 from .swimlane import SwimlaneCommand
 from .backtest_report import BacktestReportCommand, BatchBacktestReportCommand
+from .sdk_cmd import SDKCommand
 
 __all__ = [
     "BaseCommand",
@@ -77,6 +78,7 @@ __all__ = [
     "SwimlaneCommand",
     "BacktestReportCommand",
     "BatchBacktestReportCommand",
+    "SDKCommand",
 ]
 
 
@@ -117,6 +119,7 @@ def register_all_commands(registry: CommandRegistry):
         SwimlaneCommand(),
         BacktestReportCommand(),
         BatchBacktestReportCommand(),
+        SDKCommand(),
     ]
 
     for cmd in commands:

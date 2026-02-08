@@ -93,7 +93,7 @@ from .v2 import (
     create_unified_executor,
     UnifiedToolGenerator,
     ToolDefinition,
-    # Legacy executor
+    # Deprecated executor (use UnifiedExecutor)
     LeanExecutor,
 )
 
@@ -163,6 +163,6 @@ __all__ = [
     'create_unified_executor',
     'UnifiedToolGenerator',
     'ToolDefinition',
-    # Legacy executor
+    # Deprecated executor (use UnifiedExecutor)
     'LeanExecutor',
 ]

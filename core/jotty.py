@@ -146,11 +146,10 @@ def create_conductor(
     """
     if config is None:
         config = JottyConfig()
-    
+
     return SwarmManager(
-        actors=agents,  # Still uses 'actors' internally for now
+        agents=agents,  # SwarmManager expects 'agents' parameter
         config=config,
-        metadata_provider=metadata_provider,
         **kwargs
     )
 

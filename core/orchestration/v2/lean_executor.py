@@ -82,40 +82,48 @@ TRANSFORM_SKILLS = {
 # =============================================================================
 
 class TaskAnalysisSignature(dspy.Signature):
-    """Analyze what a task needs. YOU HAVE WEB SEARCH AND FILE READ CAPABILITIES.
+    """Analyze what a task needs. YOU HAVE FULL WEB SEARCH CAPABILITY.
 
-    IMPORTANT: You CAN search the web! If you set is_web_search=True, a real web search
-    will be performed and the results will be given to you to answer the question.
+    CRITICAL: You have REAL-TIME WEB SEARCH. When is_web_search=True, an actual search
+    is performed and CURRENT data is retrieved. DO NOT say you can't access real-time info.
 
-    Decide:
-    1. Does this need CURRENT info? → Set is_web_search=True (search WILL happen)
-    2. Does this need to read a file? → Set is_file_read=True
-    3. What output format does the user want?
+    SET is_web_search=True for ANY of these:
+    - Weather (current, today, forecast) - ALWAYS search
+    - News, headlines, updates - ALWAYS search
+    - Stock prices, crypto, market data - ALWAYS search
+    - Current events, politics, sports scores - ALWAYS search
+    - Latest, recent, new, today, now - ALWAYS search
+    - Anything that could change day-to-day - SEARCH
+
+    SET is_web_search=False ONLY for:
+    - Timeless concepts (math, physics, history facts)
+    - Your own knowledge (programming, explanations)
+    - Creative writing, coding help
 
     Examples:
-    - "Explain transformers" → is_web_search=False (you know this)
-    - "What's the latest news on AI" → is_web_search=True (need CURRENT info)
-    - "Today's weather in NYC" → is_web_search=True (need CURRENT info)
-    - "Recent developments in X" → is_web_search=True (need CURRENT info)
-    - "Summarize this file: /path" → is_file_read=True
+    - "weather in mumbai" → is_web_search=True (CURRENT weather needed)
+    - "explain transformers" → is_web_search=False (concept, you know this)
+    - "latest AI news" → is_web_search=True (CURRENT news)
+    - "python list comprehension" → is_web_search=False (programming concept)
+    - "stock price of AAPL" → is_web_search=True (CURRENT price)
     """
 
     task: str = dspy.InputField(desc="User's task/request")
 
     is_web_search: bool = dspy.OutputField(
-        desc="Set True to trigger web search for CURRENT info (news, prices, weather, today, recent, latest). YOU HAVE THIS CAPABILITY - use it!"
+        desc="TRUE for weather, news, prices, current events, latest/recent info. You HAVE this capability. FALSE only for timeless concepts/explanations."
     )
     is_file_read: bool = dspy.OutputField(
-        desc="Set True if task requires reading a local file path. False otherwise."
+        desc="True if task mentions reading a specific file path. False otherwise."
     )
     output_format: str = dspy.OutputField(
-        desc="How to deliver output: 'text' (DEFAULT - display inline), 'checklist' (DOCX), 'docx', 'pdf', 'slides' (PowerPoint PPTX), 'slides_pdf' (slides as PDF), 'file', 'telegram', 'justjot' (save as idea to JustJot.ai). Use 'slides' for presentations, 'justjot' for JustJot ideas."
+        desc="How to deliver: 'text' (default), 'checklist' (DOCX), 'docx', 'pdf', 'slides', 'slides_pdf', 'file', 'telegram', 'justjot'"
     )
     output_path_hint: str = dspy.OutputField(
-        desc="If output is file/docx/pdf/checklist, suggest filename. Otherwise 'none'"
+        desc="Suggested filename for file outputs, or 'none'"
     )
     reasoning: str = dspy.OutputField(
-        desc="Brief explanation of your decision"
+        desc="Brief explanation of decision"
     )
 
 

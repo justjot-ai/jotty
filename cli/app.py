@@ -481,7 +481,7 @@ class JottyCLI:
 
                 sys.stdout.flush()  # Force flush for real-time output
 
-            # LEAN MODE: All queries go through LeanExecutor
+            # LEAN MODE: All queries go through UnifiedExecutor
             # LLM intelligently decides: needs_external_data, output_format, etc.
             # Single agent, no ensemble, no multi-agent decomposition
             # This is what actually works well!
@@ -497,7 +497,7 @@ class JottyCLI:
             self.renderer.newline()
 
             if result.success:
-                # Show steps taken if available (LeanExecutor)
+                # Show steps taken if available (UnifiedExecutor)
                 steps = getattr(result, 'steps_taken', None)
                 if steps:
                     self.renderer.success(f"Completed in {elapsed:.1f}s ({len(steps)} steps: {' → '.join(steps)})")
@@ -635,20 +635,11 @@ class JottyCLI:
         Returns:
             ExecutionResult with content and output path
         """
-        # Import LeanExecutor
+        # Import UnifiedExecutor
         try:
-            from ..core.orchestration.v2.lean_executor import LeanExecutor, ExecutionResult
+            from ..core.orchestration.v2.unified_executor import UnifiedExecutor, ExecutionResult
         except ImportError:
-            from Jotty.core.orchestration.v2.lean_executor import LeanExecutor, ExecutionResult
-
-        # Ensure DSPy LM is configured
-        import dspy
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            # Configure from swarm manager's provider
-            swarm = await self.get_swarm_manager()
-            lm = swarm.swarm_provider_gateway.get_lm()
-            if lm:
-                dspy.configure(lm=lm)
+            from Jotty.core.orchestration.v2.unified_executor import UnifiedExecutor, ExecutionResult
 
         # Clean task: Remove any accumulated context pollution
         clean_task = self._clean_task_for_lean_execution(task)
@@ -672,8 +663,8 @@ class JottyCLI:
             sys.stdout.flush()
             streaming_content.append(chunk)
 
-        # Execute with LeanExecutor + streaming
-        executor = LeanExecutor(
+        # Execute with UnifiedExecutor + streaming (auto-detects provider)
+        executor = UnifiedExecutor(
             status_callback=status_callback,
             stream_callback=stream_callback
         )

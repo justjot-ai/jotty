@@ -23,13 +23,13 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# WEB SEARCH - LLM decides when to search via LeanExecutor
+# WEB SEARCH - LLM decides when to search via UnifiedExecutor
 # =============================================================================
-# The LeanExecutor uses DSPy TaskAnalysisSignature where the LLM decides:
-#   - needs_external_data: bool (True if current info needed)
-#   - input_type: "web_search" | "file_read" | "none"
+# The UnifiedExecutor uses native LLM tool calling where the LLM decides:
+#   - Whether to call web_search, file_read, or other input tools
+#   - What output format to use (docx, pdf, telegram, etc.)
 # This is the AI-native way - no regex keyword matching.
-# See: core/orchestration/v2/lean_executor.py
+# See: core/orchestration/v2/unified_executor.py
 
 
 class JottyAPI:
@@ -83,12 +83,9 @@ class JottyAPI:
         return False
 
     def _get_executor(self, status_callback=None, stream_callback=None):
-        """Get LeanExecutor with callbacks."""
-        # Ensure LM is configured before creating executor
-        self._ensure_lm_configured()
-
-        from ..core.orchestration.v2.lean_executor import LeanExecutor
-        return LeanExecutor(
+        """Get UnifiedExecutor with callbacks (auto-detects provider)."""
+        from ..core.orchestration.v2.unified_executor import UnifiedExecutor
+        return UnifiedExecutor(
             status_callback=status_callback,
             stream_callback=stream_callback
         )
@@ -341,8 +338,8 @@ class JottyAPI:
                         logger.error(f"Failed to extract document text: {e}")
 
         # Build message content with attachments context
-        # NOTE: Web search is handled by LeanExecutor via LLM decision (not regex)
-        # The LLM decides needs_external_data=True when it needs current info
+        # NOTE: Web search is handled by UnifiedExecutor via LLM tool calling (not regex)
+        # The LLM uses web_search tool when it needs current info
         full_message = message
         context_parts = []
 

@@ -1209,10 +1209,11 @@ JSON:"""
                                 break
 
                     # Handle params - from dict, Pydantic model, or fallback
-                    # Check multiple aliases including 'inputs' which LLMs often use
+                    # Check multiple aliases including 'inputs' and 'tool_parameters' which LLMs often use
                     step_params = (
                         get_val(step_data, 'params') or
                         get_val(step_data, 'parameters') or
+                        get_val(step_data, 'tool_parameters') or  # LLM often uses this instead of 'params'
                         get_val(step_data, 'inputs') or  # LLM often uses 'inputs' instead of 'params'
                         get_val(step_data, 'tool_input') or
                         {}

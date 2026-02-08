@@ -3,7 +3,7 @@ Telegram Bot Handler
 ====================
 
 Main Telegram bot logic for Jotty.
-Processes messages through LeanExecutor and maintains sessions.
+Processes messages through UnifiedExecutor and maintains sessions.
 Supports CLI slash commands via shared CommandRegistry.
 """
 
@@ -25,7 +25,7 @@ class TelegramBotHandler:
     Telegram bot handler for Jotty.
 
     Uses python-telegram-bot library for Telegram integration.
-    Processes messages through the shared LeanExecutor backend.
+    Processes messages through the shared UnifiedExecutor backend.
     """
 
     def __init__(
@@ -146,22 +146,10 @@ class TelegramBotHandler:
         return self._skills_registry
 
     def _get_executor(self):
-        """Get or create LeanExecutor instance."""
-        import dspy
-
-        # ALWAYS ensure LM is configured before execution (not just creation)
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            logger.warning("DSPy LM not set, reconfiguring...")
-            self._lm_configured = False
-            self._ensure_lm_configured()
-
-        # Verify LM is actually set
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            raise RuntimeError("Failed to configure LLM. Please check your API keys or Claude CLI installation.")
-
+        """Get or create UnifiedExecutor instance (auto-detects provider)."""
         if self._executor is None:
-            from core.orchestration.v2.lean_executor import LeanExecutor
-            self._executor = LeanExecutor(
+            from core.orchestration.v2.unified_executor import UnifiedExecutor
+            self._executor = UnifiedExecutor(
                 status_callback=self._handle_status
             )
         return self._executor
@@ -414,7 +402,7 @@ class TelegramBotHandler:
         )
 
     async def _handle_message(self, update, context):
-        """Handle incoming text messages - routes to CLI commands or LeanExecutor."""
+        """Handle incoming text messages - routes to CLI commands or UnifiedExecutor."""
         from .renderer import TelegramRenderer
         InterfaceType = self._get_interface_type()
 
@@ -458,8 +446,8 @@ class TelegramBotHandler:
                 result = await self._handle_cli_command(text, update, session, InterfaceType)
                 return
 
-            # Natural language - process through LeanExecutor with streaming
-            from core.orchestration.v2.lean_executor import LeanExecutor
+            # Natural language - process through UnifiedExecutor with streaming
+            from core.orchestration.v2.unified_executor import UnifiedExecutor
 
             # Send initial message for streaming updates
             stream_msg = await update.message.reply_text("⏳ Thinking...")
@@ -490,17 +478,11 @@ class TelegramBotHandler:
                 """Status callback for executor."""
                 logger.info(f"Status: {stage} - {detail}")
 
-            # Create executor with streaming
-            executor = LeanExecutor(
+            # Create executor with streaming (auto-detects provider)
+            executor = UnifiedExecutor(
                 status_callback=status_callback,
                 stream_callback=lambda chunk: asyncio.create_task(stream_callback(chunk))
             )
-
-            # Ensure LM is configured
-            import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                self._lm_configured = False
-                self._ensure_lm_configured()
 
             # Execute task
             result = await executor.execute(text)

@@ -21,6 +21,17 @@ import os
 
 logger = logging.getLogger(__name__)
 
+
+def safe_num(value, default: float = 0) -> float:
+    """Safely convert value to number, handling None and invalid types."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
 try:
     import numpy as np
     NUMPY_AVAILABLE = True

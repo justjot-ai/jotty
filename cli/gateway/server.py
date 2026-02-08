@@ -38,6 +38,8 @@ except ImportError:
 
 from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent
 from .trust import TrustManager
+from .responders import get_responder_registry, ChannelResponderRegistry
+from .responders import ResponseEvent as ResponderResponseEvent
 
 
 class UnifiedGateway:
@@ -76,33 +78,11 @@ class UnifiedGateway:
         self._setup_responders()
 
     def _setup_responders(self):
-        """Setup response handlers for each channel."""
-        # Telegram responder
-        async def telegram_responder(response: ResponseEvent):
-            from skills.telegram_sender.tools import send_telegram_message_tool
-            await send_telegram_message_tool({
-                "chat_id": response.channel_id,
-                "message": response.content
-            })
+        """Setup response handlers for each channel using the responder registry."""
+        # Get the responder registry (uses registry-based skill discovery)
+        responder_registry = get_responder_registry()
 
-        # Slack responder
-        async def slack_responder(response: ResponseEvent):
-            from skills.slack.tools import send_message_tool
-            send_message_tool({
-                "channel": response.channel_id,
-                "text": response.content,
-                "thread_ts": response.reply_to
-            })
-
-        # Discord responder
-        async def discord_responder(response: ResponseEvent):
-            from skills.discord.tools import send_message_tool
-            await send_message_tool({
-                "channel_id": response.channel_id,
-                "content": response.content
-            })
-
-        # WebSocket responder
+        # WebSocket responder needs access to _websocket_clients, so we keep it custom
         async def websocket_responder(response: ResponseEvent):
             message = json.dumps({
                 "type": "response",
@@ -116,13 +96,42 @@ class UnifiedGateway:
                 except Exception:
                     self._websocket_clients.discard(ws)
 
-        # WhatsApp responder
+        # Create wrapper responders that use the registry
+        async def telegram_responder(response: ResponseEvent):
+            resp_event = ResponderResponseEvent(
+                channel=ChannelType.TELEGRAM,
+                channel_id=response.channel_id,
+                content=response.content,
+                reply_to=response.reply_to
+            )
+            await responder_registry.send(resp_event)
+
+        async def slack_responder(response: ResponseEvent):
+            resp_event = ResponderResponseEvent(
+                channel=ChannelType.SLACK,
+                channel_id=response.channel_id,
+                content=response.content,
+                reply_to=response.reply_to
+            )
+            await responder_registry.send(resp_event)
+
+        async def discord_responder(response: ResponseEvent):
+            resp_event = ResponderResponseEvent(
+                channel=ChannelType.DISCORD,
+                channel_id=response.channel_id,
+                content=response.content,
+                reply_to=response.reply_to
+            )
+            await responder_registry.send(resp_event)
+
         async def whatsapp_responder(response: ResponseEvent):
-            from skills.whatsapp.tools import send_whatsapp_message_tool
-            await send_whatsapp_message_tool({
-                "to": response.channel_id,
-                "message": response.content
-            })
+            resp_event = ResponderResponseEvent(
+                channel=ChannelType.WHATSAPP,
+                channel_id=response.channel_id,
+                content=response.content,
+                reply_to=response.reply_to
+            )
+            await responder_registry.send(resp_event)
 
         self.router.register_responder(ChannelType.TELEGRAM, telegram_responder)
         self.router.register_responder(ChannelType.SLACK, slack_responder)

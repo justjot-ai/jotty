@@ -21,6 +21,22 @@ import base64
 
 logger = logging.getLogger(__name__)
 
+
+def safe_num(value: Any, default: float = 0) -> float:
+    """Safely convert value to number, handling None and invalid types."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_get_num(d: Dict, key: str, default: float = 0) -> float:
+    """Safely get numeric value from dict, handling None values."""
+    return safe_num(d.get(key), default)
+
+
 # Try importing visualization libraries
 try:
     import matplotlib
@@ -794,15 +810,15 @@ async def _generate_chart(
             values_normalized = []
             
             metric_mapping = {
-                'roe': ('ROE', ratios.get('roe', 0), 25),  # Normalize to 0-25%
-                'roa': ('ROA', ratios.get('roa', 0), 15),  # Normalize to 0-15%
-                'profit_margin': ('Profit Margin', ratios.get('profit_margin', 0), 30),
-                'pe_ratio': ('P/E Ratio', valuation.get('pe_ratio', 0), 50),  # Normalize
-                'pb_ratio': ('P/B Ratio', valuation.get('pb_ratio', 0), 10),
+                'roe': ('ROE', ratios.get('roe') or 0, 25),  # Normalize to 0-25%
+                'roa': ('ROA', ratios.get('roa') or 0, 15),  # Normalize to 0-15%
+                'profit_margin': ('Profit Margin', ratios.get('profit_margin') or 0, 30),
+                'pe_ratio': ('P/E Ratio', valuation.get('pe_ratio') or 0, 50),  # Normalize
+                'pb_ratio': ('P/B Ratio', valuation.get('pb_ratio') or 0, 10),
             }
-            
+
             for key, (label, value, max_val) in metric_mapping.items():
-                if value > 0:
+                if value is not None and value > 0:
                     categories.append(label)
                     values_normalized.append(min(value / max_val * 100, 100))  # Cap at 100
             
@@ -839,14 +855,14 @@ async def _generate_chart(
         financial_data = extracted_data.get('financial_statements', {})
         
         health_metrics = {
-            'Liquidity': ratios.get('current_ratio', 0),
-            'Profitability': ratios.get('profit_margin', 0),
-            'Efficiency': ratios.get('roa', 0),
-            'Leverage': 100 - min(ratios.get('debt_to_equity', 0) * 20, 100) if ratios.get('debt_to_equity') else 50,
-            'Growth': extracted_data.get('growth_metrics', {}).get('revenue_growth_yoy', 0)
+            'Liquidity': ratios.get('current_ratio') or 0,
+            'Profitability': ratios.get('profit_margin') or 0,
+            'Efficiency': ratios.get('roa') or 0,
+            'Leverage': 100 - min((ratios.get('debt_to_equity') or 0) * 20, 100) if ratios.get('debt_to_equity') else 50,
+            'Growth': extracted_data.get('growth_metrics', {}).get('revenue_growth_yoy') or 0
         }
-        
-        if any(v > 0 for v in health_metrics.values()):
+
+        if any(v is not None and v > 0 for v in health_metrics.values()):
             categories = list(health_metrics.keys())
             values = [health_metrics[k] for k in categories]
             

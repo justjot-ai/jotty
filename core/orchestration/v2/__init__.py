@@ -117,11 +117,11 @@ from .sandbox_manager import SandboxManager, TrustLevel, SandboxType, SandboxRes
 # Auto Provider Discovery
 from .auto_provider_discovery import AutoProviderDiscovery, DiscoveryResult
 
-# Unified Executor (LeanExecutor + ChatAssistant V2 combined)
+# Unified Executor (primary executor — replaces LeanExecutor)
 from .unified_executor import UnifiedExecutor, ExecutionResult, ToolResult, StreamEvent, create_unified_executor
 from .tool_generator import UnifiedToolGenerator, ToolDefinition
 
-# LeanExecutor (legacy, still available)
+# LeanExecutor (deprecated — use UnifiedExecutor instead)
 from .lean_executor import LeanExecutor, ExecutionResult as LeanExecutionResult
 
 # SwarmLearner (extracted from v1 conductor for v2 independence)
@@ -177,7 +177,7 @@ __all__ = [
     # Auto Provider Discovery
     'AutoProviderDiscovery',
     'DiscoveryResult',
-    # Unified Executor (LeanExecutor + ChatAssistant V2)
+    # Unified Executor (primary executor)
     'UnifiedExecutor',
     'ExecutionResult',
     'ToolResult',
@@ -185,7 +185,7 @@ __all__ = [
     'create_unified_executor',
     'UnifiedToolGenerator',
     'ToolDefinition',
-    # LeanExecutor (legacy)
+    # LeanExecutor (deprecated — use UnifiedExecutor)
     'LeanExecutor',
     'LeanExecutionResult',
     # SwarmLearner (online prompt learning)

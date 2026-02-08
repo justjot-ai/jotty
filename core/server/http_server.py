@@ -272,7 +272,7 @@ class JottyHTTPServer:
                 ]
             })
 
-        # Unified Executor endpoints (LeanExecutor + ChatAssistant V2 combined)
+        # Unified Executor endpoints
         @self.app.route('/api/chat/unified/stream', methods=['POST'])
         def unified_chat_stream():
             """Stream unified chat response with native tool calling (SSE)."""
@@ -613,7 +613,7 @@ class JottyHTTPServer:
         """
         Handle unified chat streaming request using UnifiedExecutor.
 
-        This endpoint combines LeanExecutor + ChatAssistant V2 capabilities:
+        This endpoint uses the UnifiedExecutor with capabilities:
         - Native Claude tool calling
         - Web search, file read, output tools
         - A2UI visualization support (70+ section types)
@@ -721,7 +721,7 @@ class JottyHTTPServer:
         """
         Handle unified chat execution request (non-streaming).
 
-        This endpoint combines LeanExecutor + ChatAssistant V2 capabilities:
+        This endpoint uses the UnifiedExecutor with capabilities:
         - Native Claude tool calling
         - Web search, file read, output tools
         - A2UI visualization support (70+ section types)

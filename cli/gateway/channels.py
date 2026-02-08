@@ -4,6 +4,11 @@ Channel Router
 
 Routes messages between external channels (Telegram, Slack, Discord)
 and Jotty agents.
+
+Integrates with:
+- PersistentSessionManager for cross-channel session persistence
+- ExecutionContext for unified context passing
+- ChannelResponderRegistry for registry-based responses
 """
 
 import asyncio
@@ -15,6 +20,18 @@ from typing import Dict, Any, Optional, Callable, List
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+# Import SDK types for ExecutionContext
+try:
+    from ...core.foundation.types.sdk_types import (
+        ExecutionContext,
+        ExecutionMode,
+        ChannelType as SDKChannelType,
+        ResponseFormat,
+    )
+    SDK_TYPES_AVAILABLE = True
+except ImportError:
+    SDK_TYPES_AVAILABLE = False
 
 
 class ChannelType(Enum):
@@ -76,19 +93,36 @@ class ChannelRouter:
 
     Features:
     - Multi-channel support (Telegram, Slack, Discord, WhatsApp)
-    - Session management per user/channel
+    - Persistent session management (survives restarts)
+    - Cross-channel user linking
+    - ExecutionContext integration
     - Agent routing based on channel/user
     - Message queue for async processing
     """
 
-    def __init__(self):
+    def __init__(self, use_persistent_sessions: bool = True):
         self._handlers: Dict[ChannelType, Callable] = {}
         self._responders: Dict[ChannelType, Callable] = {}
         self._message_queue: asyncio.Queue = asyncio.Queue()
-        self._sessions: Dict[str, Dict[str, Any]] = {}  # channel:user -> session
         self._cli = None
         self._running = False
         self._trust_manager = None
+
+        # Use persistent sessions by default
+        self._use_persistent_sessions = use_persistent_sessions
+        self._session_manager = None
+        self._legacy_sessions: Dict[str, Dict[str, Any]] = {}  # Fallback
+
+    def _get_session_manager(self):
+        """Get persistent session manager (lazy init)."""
+        if self._session_manager is None and self._use_persistent_sessions:
+            try:
+                from .sessions import get_session_manager
+                self._session_manager = get_session_manager()
+            except ImportError:
+                logger.warning("Persistent sessions not available, using legacy")
+                self._use_persistent_sessions = False
+        return self._session_manager
 
     def set_trust_manager(self, trust_manager):
         """Set trust manager for message authorization."""
@@ -144,36 +178,87 @@ class ChannelRouter:
                 if event.content.strip().isdigit() and len(event.content.strip()) == 6:
                     return trust_result["response"]
 
-        # Get or create session
-        session_key = f"{event.channel.value}:{event.channel_id}:{event.user_id}"
-        if session_key not in self._sessions:
-            self._sessions[session_key] = {
-                "created": datetime.now().isoformat(),
-                "message_count": 0,
-                "context": []
-            }
+        # Get or create session (persistent or legacy)
+        session_manager = self._get_session_manager()
+        session_data = None
+        sdk_session = None
 
-        session = self._sessions[session_key]
-        session["message_count"] += 1
-        session["last_message"] = datetime.now().isoformat()
+        if session_manager:
+            # Use persistent sessions
+            try:
+                # Map local ChannelType to SDK ChannelType
+                sdk_channel = SDKChannelType(event.channel.value) if SDK_TYPES_AVAILABLE else None
+                sdk_session = await session_manager.get_or_create(
+                    user_id=event.user_id,
+                    channel=sdk_channel,
+                    channel_id=event.channel_id,
+                    user_name=event.user_name
+                )
+                # Add message to session history
+                sdk_session.add_message("user", event.content, {
+                    "channel": event.channel.value,
+                    "message_id": event.message_id
+                })
+                session_data = {"context": sdk_session.get_history(10)}
+            except Exception as e:
+                logger.warning(f"Persistent session error: {e}, using legacy")
 
-        # Add to context (keep last 10 messages)
-        session["context"].append({
-            "role": "user",
-            "content": event.content,
-            "timestamp": event.timestamp.isoformat()
-        })
-        session["context"] = session["context"][-10:]
+        if session_data is None:
+            # Fallback to legacy in-memory sessions
+            session_key = f"{event.channel.value}:{event.channel_id}:{event.user_id}"
+            if session_key not in self._legacy_sessions:
+                self._legacy_sessions[session_key] = {
+                    "created": datetime.now().isoformat(),
+                    "message_count": 0,
+                    "context": []
+                }
+
+            session_data = self._legacy_sessions[session_key]
+            session_data["message_count"] = session_data.get("message_count", 0) + 1
+            session_data["last_message"] = datetime.now().isoformat()
+
+            # Add to context (keep last 10 messages)
+            session_data["context"].append({
+                "role": "user",
+                "content": event.content,
+                "timestamp": event.timestamp.isoformat()
+            })
+            session_data["context"] = session_data["context"][-10:]
+
+        # Create ExecutionContext if SDK types available
+        exec_context = None
+        if SDK_TYPES_AVAILABLE:
+            try:
+                exec_context = ExecutionContext(
+                    mode=ExecutionMode.CHAT,
+                    channel=SDKChannelType(event.channel.value),
+                    session_id=sdk_session.session_id if sdk_session else event.session_id,
+                    user_id=event.user_id,
+                    user_name=event.user_name,
+                    channel_id=event.channel_id,
+                    message_id=event.message_id,
+                    reply_to=event.reply_to,
+                    raw_data=event.raw_data,
+                )
+            except Exception as e:
+                logger.debug(f"Could not create ExecutionContext: {e}")
 
         # Process with Jotty
-        response_text = await self._process_with_jotty(event, session)
+        response_text = await self._process_with_jotty(event, session_data, exec_context)
 
-        # Add response to context
-        session["context"].append({
-            "role": "assistant",
-            "content": response_text,
-            "timestamp": datetime.now().isoformat()
-        })
+        # Add response to session
+        if sdk_session:
+            sdk_session.add_message("assistant", response_text)
+            try:
+                await session_manager.save(sdk_session)
+            except Exception as e:
+                logger.warning(f"Failed to save session: {e}")
+        elif session_data:
+            session_data["context"].append({
+                "role": "assistant",
+                "content": response_text,
+                "timestamp": datetime.now().isoformat()
+            })
 
         # Send response back
         await self._send_response(ResponseEvent(
@@ -185,12 +270,32 @@ class ChannelRouter:
 
         return response_text
 
-    async def _process_with_jotty(self, event: MessageEvent, session: Dict) -> str:
-        """Process message with Jotty CLI."""
+    async def _process_with_jotty(
+        self,
+        event: MessageEvent,
+        session: Dict,
+        context: Optional[Any] = None
+    ) -> str:
+        """
+        Process message with Jotty CLI.
+
+        Args:
+            event: The incoming message event
+            session: Session data with history
+            context: Optional ExecutionContext for enhanced processing
+        """
         try:
             if self._cli:
-                # Run message through Jotty
-                result = await self._cli.run_once(event.content)
+                # Run message through Jotty with context if available
+                if context and hasattr(self._cli, 'run_once_with_context'):
+                    result = await self._cli.run_once_with_context(
+                        event.content,
+                        context=context,
+                        history=session.get("context", [])
+                    )
+                else:
+                    result = await self._cli.run_once(event.content)
+
                 if hasattr(result, 'output'):
                     return result.output or str(result)
                 return str(result)
@@ -214,23 +319,70 @@ class ChannelRouter:
 
     def get_session(self, channel: ChannelType, channel_id: str, user_id: str) -> Optional[Dict]:
         """Get session for a user/channel."""
+        # Try persistent session manager first
+        session_manager = self._get_session_manager()
+        if session_manager:
+            session = session_manager.get_cached(user_id)
+            if session:
+                return {"context": session.get_history(10)}
+
+        # Fallback to legacy
         session_key = f"{channel.value}:{channel_id}:{user_id}"
-        return self._sessions.get(session_key)
+        return self._legacy_sessions.get(session_key)
+
+    async def get_session_async(self, channel: ChannelType, channel_id: str, user_id: str) -> Optional[Dict]:
+        """Get session for a user/channel (async version for persistent lookup)."""
+        session_manager = self._get_session_manager()
+        if session_manager:
+            try:
+                sdk_channel = SDKChannelType(channel.value) if SDK_TYPES_AVAILABLE else None
+                session = await session_manager.find_by_channel(sdk_channel, channel_id)
+                if session:
+                    return {"context": session.get_history(10), "session": session}
+            except Exception as e:
+                logger.debug(f"Async session lookup failed: {e}")
+
+        # Fallback to sync method
+        return self.get_session(channel, channel_id, user_id)
 
     def clear_session(self, channel: ChannelType, channel_id: str, user_id: str):
         """Clear session for a user/channel."""
+        # Clear from persistent manager
+        session_manager = self._get_session_manager()
+        if session_manager:
+            # Schedule async deletion
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                loop.create_task(session_manager.delete(user_id))
+            except Exception:
+                pass
+
+        # Clear from legacy
         session_key = f"{channel.value}:{channel_id}:{user_id}"
-        if session_key in self._sessions:
-            del self._sessions[session_key]
+        if session_key in self._legacy_sessions:
+            del self._legacy_sessions[session_key]
 
     @property
     def active_sessions(self) -> int:
-        return len(self._sessions)
+        """Get count of active sessions."""
+        session_manager = self._get_session_manager()
+        if session_manager:
+            return len(session_manager.list_active()) + len(self._legacy_sessions)
+        return len(self._legacy_sessions)
 
     @property
     def stats(self) -> Dict[str, Any]:
-        return {
+        """Get router statistics."""
+        stats = {
             "active_sessions": self.active_sessions,
-            "handlers": list(self._handlers.keys()),
-            "responders": list(self._responders.keys())
+            "handlers": [h.value for h in self._handlers.keys()],
+            "responders": [r.value for r in self._responders.keys()],
+            "persistent_sessions_enabled": self._use_persistent_sessions,
         }
+
+        session_manager = self._get_session_manager()
+        if session_manager:
+            stats["session_manager"] = session_manager.stats
+
+        return stats

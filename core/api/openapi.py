@@ -59,6 +59,14 @@ def generate_openapi_spec(
                 "description": "Agent management endpoints"
             },
             {
+                "name": "Skills",
+                "description": "Skill discovery and execution endpoints"
+            },
+            {
+                "name": "Sessions",
+                "description": "Session management endpoints"
+            },
+            {
                 "name": "Health",
                 "description": "Health check endpoints"
             }
@@ -329,6 +337,247 @@ def generate_openapi_spec(
                             "BearerAuth": []
                         }
                     ]
+                }
+            },
+            "/api/agent/{name}": {
+                "post": {
+                    "tags": ["Agents"],
+                    "summary": "Execute task with specific agent",
+                    "description": "Execute a task using a specific agent",
+                    "operationId": "executeAgent",
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "Agent name"
+                        }
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentExecuteRequest"
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Agent execution result",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SDKResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                }
+            },
+            "/api/skills": {
+                "get": {
+                    "tags": ["Skills"],
+                    "summary": "List available skills",
+                    "description": "Get a list of all available skills",
+                    "operationId": "listSkills",
+                    "responses": {
+                        "200": {
+                            "description": "List of skills",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SkillsResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                }
+            },
+            "/api/skill/{name}": {
+                "post": {
+                    "tags": ["Skills"],
+                    "summary": "Execute a skill",
+                    "description": "Execute a specific skill with parameters",
+                    "operationId": "executeSkill",
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "Skill name"
+                        }
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": True
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Skill execution result",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SDKResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                },
+                "get": {
+                    "tags": ["Skills"],
+                    "summary": "Get skill info",
+                    "description": "Get information about a specific skill",
+                    "operationId": "getSkillInfo",
+                    "parameters": [
+                        {
+                            "name": "name",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "Skill name"
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Skill information",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SkillInfo"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                }
+            },
+            "/api/session/{user_id}": {
+                "get": {
+                    "tags": ["Sessions"],
+                    "summary": "Get user session",
+                    "description": "Get session data for a user",
+                    "operationId": "getSession",
+                    "parameters": [
+                        {
+                            "name": "user_id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "User identifier"
+                        }
+                    ],
+                    "responses": {
+                        "200": {
+                            "description": "Session data",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SDKSession"
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Session not found",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/ErrorResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                },
+                "put": {
+                    "tags": ["Sessions"],
+                    "summary": "Update user session",
+                    "description": "Update or create session data for a user",
+                    "operationId": "updateSession",
+                    "parameters": [
+                        {
+                            "name": "user_id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "User identifier"
+                        }
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SDKSession"
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Session updated",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SDKSession"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
+                },
+                "delete": {
+                    "tags": ["Sessions"],
+                    "summary": "Delete user session",
+                    "description": "Delete session data for a user",
+                    "operationId": "deleteSession",
+                    "parameters": [
+                        {
+                            "name": "user_id",
+                            "in": "path",
+                            "required": True,
+                            "schema": {
+                                "type": "string"
+                            },
+                            "description": "User identifier"
+                        }
+                    ],
+                    "responses": {
+                        "204": {
+                            "description": "Session deleted"
+                        }
+                    },
+                    "security": [{"BearerAuth": []}]
                 }
             }
         },
@@ -625,6 +874,271 @@ def generate_openapi_spec(
                         }
                     },
                     "required": ["success", "error"]
+                },
+                "SDKResponse": {
+                    "type": "object",
+                    "description": "Standardized SDK response format",
+                    "properties": {
+                        "success": {
+                            "type": "boolean",
+                            "example": True
+                        },
+                        "content": {
+                            "description": "Response content (any type)",
+                            "nullable": True
+                        },
+                        "response_format": {
+                            "type": "string",
+                            "enum": ["text", "markdown", "json", "html", "a2ui"],
+                            "default": "text"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["chat", "workflow", "agent", "skill", "stream"],
+                            "nullable": True
+                        },
+                        "request_id": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "execution_time": {
+                            "type": "number",
+                            "format": "float",
+                            "example": 1.25
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "skills_used": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "agents_used": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "steps_executed": {
+                            "type": "integer",
+                            "example": 3
+                        },
+                        "error": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "error_code": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "metadata": {
+                            "type": "object",
+                            "additionalProperties": True
+                        }
+                    },
+                    "required": ["success"]
+                },
+                "SDKSession": {
+                    "type": "object",
+                    "description": "Persistent session for cross-channel user tracking",
+                    "properties": {
+                        "session_id": {
+                            "type": "string",
+                            "example": "sess_abc123"
+                        },
+                        "user_id": {
+                            "type": "string",
+                            "example": "user_123"
+                        },
+                        "channels": {
+                            "type": "object",
+                            "description": "Channel type to channel ID mapping",
+                            "additionalProperties": {"type": "string"}
+                        },
+                        "primary_channel": {
+                            "type": "string",
+                            "enum": ["cli", "web", "sdk", "telegram", "slack", "discord", "whatsapp", "websocket", "http"],
+                            "nullable": True
+                        },
+                        "messages": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/ChatMessage"
+                            }
+                        },
+                        "max_history": {
+                            "type": "integer",
+                            "default": 50
+                        },
+                        "user_name": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "preferences": {
+                            "type": "object",
+                            "additionalProperties": True
+                        },
+                        "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "last_active": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "metadata": {
+                            "type": "object",
+                            "additionalProperties": True
+                        }
+                    },
+                    "required": ["session_id", "user_id"]
+                },
+                "SDKEvent": {
+                    "type": "object",
+                    "description": "Event emitted during SDK execution",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["start", "complete", "error", "thinking", "planning", "skill_start", "skill_progress", "skill_complete", "stream", "delta", "agent_start", "agent_complete", "memory_recall", "memory_store"]
+                        },
+                        "data": {
+                            "description": "Event-specific data",
+                            "nullable": True
+                        },
+                        "context_id": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    "required": ["type"]
+                },
+                "ExecutionContext": {
+                    "type": "object",
+                    "description": "Unified context for request execution",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "enum": ["chat", "workflow", "agent", "skill", "stream"]
+                        },
+                        "channel": {
+                            "type": "string",
+                            "enum": ["cli", "web", "sdk", "telegram", "slack", "discord", "whatsapp", "websocket", "http", "custom"]
+                        },
+                        "session_id": {
+                            "type": "string"
+                        },
+                        "user_id": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "user_name": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "request_id": {
+                            "type": "string"
+                        },
+                        "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "channel_id": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "message_id": {
+                            "type": "string",
+                            "nullable": True
+                        },
+                        "timeout": {
+                            "type": "number",
+                            "default": 300.0
+                        },
+                        "max_steps": {
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "streaming": {
+                            "type": "boolean",
+                            "default": False
+                        },
+                        "response_format": {
+                            "type": "string",
+                            "enum": ["text", "markdown", "json", "html", "a2ui"],
+                            "default": "markdown"
+                        },
+                        "metadata": {
+                            "type": "object",
+                            "additionalProperties": True
+                        }
+                    },
+                    "required": ["mode", "channel"]
+                },
+                "SkillsResponse": {
+                    "type": "object",
+                    "properties": {
+                        "success": {
+                            "type": "boolean",
+                            "example": True
+                        },
+                        "skills": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "count": {
+                            "type": "integer",
+                            "example": 126
+                        }
+                    },
+                    "required": ["success", "skills"]
+                },
+                "SkillInfo": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "example": "web-search"
+                        },
+                        "description": {
+                            "type": "string",
+                            "example": "Search the web for information"
+                        },
+                        "category": {
+                            "type": "string",
+                            "example": "input",
+                            "nullable": True
+                        },
+                        "tools": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "parameters": {
+                            "type": "object",
+                            "additionalProperties": True
+                        }
+                    },
+                    "required": ["name"]
+                },
+                "AgentExecuteRequest": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "string",
+                            "description": "Task for the agent to execute"
+                        },
+                        "context": {
+                            "type": "object",
+                            "additionalProperties": True
+                        }
+                    },
+                    "required": ["task"]
                 }
             }
         }

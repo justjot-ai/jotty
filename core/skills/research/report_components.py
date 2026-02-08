@@ -21,6 +21,40 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# CURRENCY HELPERS
+# =============================================================================
+
+def get_currency_info(exchange: str = 'NSE') -> Dict[str, Any]:
+    """Get currency symbol and formatting based on exchange.
+
+    Args:
+        exchange: Stock exchange code (US, NYSE, NASDAQ, AMEX for USD; NSE, BSE for INR)
+
+    Returns:
+        Dict with 'symbol', 'suffix', 'unit', 'divisor', and 'unit_large' keys
+    """
+    us_exchanges = {'US', 'NYSE', 'NASDAQ', 'AMEX'}
+    if exchange.upper() in us_exchanges:
+        return {
+            'symbol': '$',
+            'suffix': '',
+            'unit': 'B',
+            'unit_large': 'B',
+            'divisor': 1e9,
+            'label': 'USD'
+        }
+    else:
+        return {
+            'symbol': '₹',
+            'suffix': ' Cr',
+            'unit': 'Cr',
+            'unit_large': 'Lakh Cr',
+            'divisor': 1e7,
+            'label': 'INR'
+        }
+
+
+# =============================================================================
 # DATA CLASSES
 # =============================================================================
 
@@ -188,10 +222,13 @@ class FinancialTablesFormatter:
         sign = "+" if growth > 0 else ""
         return f"{sign}{growth:.1f}%"
 
-    def create_income_statement_table(self, data: FinancialStatements) -> str:
+    def create_income_statement_table(self, data: FinancialStatements, exchange: str = 'NSE') -> str:
         """Create formatted income statement table."""
         if not data.years:
             return "No income statement data available."
+
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
 
         # Header row
         header = "| Particulars | " + " | ".join(data.years) + " | CAGR |"
@@ -222,7 +259,7 @@ class FinancialTablesFormatter:
 
         # EPS
         if data.eps:
-            eps_row = "| EPS (₹) | " + " | ".join([f"{v:.2f}" for v in data.eps])
+            eps_row = f"| EPS ({sym}) | " + " | ".join([f"{v:.2f}" for v in data.eps])
             cagr = self._calculate_cagr(data.eps)
             eps_row += f" | {self.format_percentage(cagr)} |"
             rows.append(eps_row)
@@ -413,8 +450,11 @@ class DCFCalculator:
                           columns=[f"TG {g}%" for g in growth_range])
         return df
 
-    def format_sensitivity_table(self, df: pd.DataFrame) -> str:
+    def format_sensitivity_table(self, df: pd.DataFrame, exchange: str = 'NSE') -> str:
         """Format sensitivity matrix as markdown table."""
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
+
         lines = ["### Sensitivity Analysis: WACC vs Terminal Growth", ""]
 
         # Header
@@ -424,26 +464,30 @@ class DCFCalculator:
         lines.extend([header, separator])
 
         for idx, row in df.iterrows():
-            row_str = f"| **{idx}** | " + " | ".join([f"₹{v:,.0f}" for v in row.values]) + " |"
+            row_str = f"| **{idx}** | " + " | ".join([f"{sym}{v:,.0f}" for v in row.values]) + " |"
             lines.append(row_str)
 
         return "\n".join(lines)
 
-    def format_dcf_summary(self, result: Dict[str, float]) -> str:
+    def format_dcf_summary(self, result: Dict[str, float], exchange: str = 'NSE') -> str:
         """Format DCF results as markdown."""
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
+        unit = curr['unit']
+
         return f"""
 ### DCF Valuation Summary
 
 | Component | Value |
 |-----------|------:|
-| PV of Projected FCF | ₹{result.get('total_pv_fcf', 0):,.0f} Cr |
-| Terminal Value (Gordon) | ₹{result.get('terminal_value_gordon', 0):,.0f} Cr |
-| Terminal Value (Exit Multiple) | ₹{result.get('terminal_value_multiple', 0):,.0f} Cr |
-| **Enterprise Value** | **₹{result.get('enterprise_value', 0):,.0f} Cr** |
+| PV of Projected FCF | {sym}{result.get('total_pv_fcf', 0):,.0f} {unit} |
+| Terminal Value (Gordon) | {sym}{result.get('terminal_value_gordon', 0):,.0f} {unit} |
+| Terminal Value (Exit Multiple) | {sym}{result.get('terminal_value_multiple', 0):,.0f} {unit} |
+| **Enterprise Value** | **{sym}{result.get('enterprise_value', 0):,.0f} {unit}** |
 | Less: Net Debt | - |
-| **Equity Value** | **₹{result.get('equity_value', 0):,.0f} Cr** |
+| **Equity Value** | **{sym}{result.get('equity_value', 0):,.0f} {unit}** |
 | Shares Outstanding | - |
-| **Implied Share Price** | **₹{result.get('implied_price', 0):,.0f}** |
+| **Implied Share Price** | **{sym}{result.get('implied_price', 0):,.0f}** |
 
 **Key Assumptions:**
 - WACC: {result.get('wacc', 0):.1f}%
@@ -565,7 +609,8 @@ class ChartGenerator:
     @staticmethod
     def create_football_field_ascii(valuations: Dict[str, Tuple[float, float, float]],
                                      current_price: float,
-                                     width: int = 50) -> str:
+                                     width: int = 50,
+                                     exchange: str = 'NSE') -> str:
         """
         Create ASCII football field chart.
 
@@ -573,9 +618,13 @@ class ChartGenerator:
             valuations: Dict of method -> (low, mid, high)
             current_price: Current stock price
             width: Chart width
+            exchange: Stock exchange for currency formatting
         """
         if not valuations:
             return ""
+
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
 
         # Find overall range
         all_vals = []
@@ -610,14 +659,14 @@ class ChartGenerator:
             if 0 <= mid_pos < width:
                 bar[mid_pos] = "●"
 
-            lines.append(f"{method:>12} |{''.join(bar)}| ₹{low:,.0f} - ₹{high:,.0f}")
+            lines.append(f"{method:>12} |{''.join(bar)}| {sym}{low:,.0f} - {sym}{high:,.0f}")
 
         # Add current price marker
         price_pos = int((current_price - min_val) / range_val * width)
         marker = [" "] * width
         if 0 <= price_pos < width:
             marker[price_pos] = "▼"
-        lines.append(f"{'CMP':>12} |{''.join(marker)}| ₹{current_price:,.0f}")
+        lines.append(f"{'CMP':>12} |{''.join(marker)}| {sym}{current_price:,.0f}")
 
         lines.append("```")
         return "\n".join(lines)
@@ -826,8 +875,12 @@ class ScenarioAnalyzer:
         return scenarios
 
     @staticmethod
-    def format_scenario_table(scenarios: Dict[str, Dict[str, Any]], current_price: float) -> str:
+    def format_scenario_table(scenarios: Dict[str, Dict[str, Any]], current_price: float,
+                               exchange: str = 'NSE') -> str:
         """Format scenarios as markdown."""
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
+
         # Guard against zero/None current_price
         if not current_price or current_price <= 0:
             current_price = 100.0  # Default placeholder
@@ -844,13 +897,13 @@ class ScenarioAnalyzer:
             s = scenarios[key]
             label = 'BULL' if key == 'bull' else 'BASE' if key == 'base' else 'BEAR'
             upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
-            output += f"| **{label}** | {s['probability']}% | ₹{s['target']:,.0f} | {upside_str} | {s['revenue_growth']:.1f}% | {s['pe_multiple']:.1f}x |\n"
+            output += f"| **{label}** | {s['probability']}% | {sym}{s['target']:,.0f} | {upside_str} | {s['revenue_growth']:.1f}% | {s['pe_multiple']:.1f}x |\n"
 
         # Probability-weighted target
         weighted_target = sum(s['probability'] * s['target'] / 100 for s in scenarios.values())
         weighted_upside = ((weighted_target / current_price) - 1) * 100
         upside_str = f"+{weighted_upside:.1f}%" if weighted_upside > 0 else f"{weighted_upside:.1f}%"
-        output += f"| **Weighted Avg** | 100% | **₹{weighted_target:,.0f}** | **{upside_str}** | - | - |\n"
+        output += f"| **Weighted Avg** | 100% | **{sym}{weighted_target:,.0f}** | **{upside_str}** | - | - |\n"
 
         output += """
 
@@ -860,7 +913,7 @@ class ScenarioAnalyzer:
 
 """
         s = scenarios['bull']
-        output += f"**Target Price:** ₹{s['target']:,.0f} | **Upside:** +{s['upside']:.1f}%\n\n"
+        output += f"**Target Price:** {sym}{s['target']:,.0f} | **Upside:** +{s['upside']:.1f}%\n\n"
         output += "**Key Assumptions:**\n\n"
         for driver in s['key_drivers']:
             output += f"- {driver}\n"
@@ -874,7 +927,7 @@ class ScenarioAnalyzer:
 """
         s = scenarios['base']
         upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
-        output += f"**Target Price:** ₹{s['target']:,.0f} | **Upside:** {upside_str}\n\n"
+        output += f"**Target Price:** {sym}{s['target']:,.0f} | **Upside:** {upside_str}\n\n"
         output += "**Key Assumptions:**\n\n"
         for driver in s['key_drivers']:
             output += f"- {driver}\n"
@@ -888,7 +941,7 @@ class ScenarioAnalyzer:
 """
         s = scenarios['bear']
         upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
-        output += f"**Target Price:** ₹{s['target']:,.0f} | **Downside:** {upside_str}\n\n"
+        output += f"**Target Price:** {sym}{s['target']:,.0f} | **Downside:** {upside_str}\n\n"
         output += "**Key Assumptions:**\n\n"
         for driver in s['key_drivers']:
             output += f"- {driver}\n"
@@ -979,7 +1032,52 @@ class CatalystsGenerator:
 class IndustryAnalyzer:
     """Generate industry analysis section."""
 
-    INDUSTRY_DATA = {
+    # US Industry Data
+    US_INDUSTRY_DATA = {
+        'Technology': {
+            'market_size': '$5+ Trillion',
+            'growth_rate': '8-12%',
+            'key_players': 'Apple, Microsoft, Google, Amazon, Meta, Nvidia',
+            'drivers': ['AI revolution', 'Cloud computing', 'Digital transformation', 'Enterprise software'],
+            'challenges': ['Antitrust regulation', 'Talent competition', 'Valuation concerns'],
+            'outlook': 'Positive - AI/ML driving next wave of growth'
+        },
+        'Financial Services': {
+            'market_size': '$4+ Trillion',
+            'growth_rate': '5-8%',
+            'key_players': 'JPMorgan, Bank of America, Wells Fargo, Goldman Sachs',
+            'drivers': ['Interest rate environment', 'Wealth management', 'Digital banking', 'Capital markets'],
+            'challenges': ['Regulatory scrutiny', 'Fintech disruption', 'Credit quality'],
+            'outlook': 'Positive - Benefiting from higher rates and capital markets activity'
+        },
+        'Energy': {
+            'market_size': '$3+ Trillion',
+            'growth_rate': '3-6%',
+            'key_players': 'ExxonMobil, Chevron, ConocoPhillips, Schlumberger',
+            'drivers': ['Energy security', 'LNG exports', 'Renewable transition', 'Upstream investment'],
+            'challenges': ['Commodity volatility', 'ESG pressure', 'Transition risks'],
+            'outlook': 'Neutral - Balancing traditional energy with clean transition'
+        },
+        'Consumer Discretionary': {
+            'market_size': '$2+ Trillion',
+            'growth_rate': '4-7%',
+            'key_players': 'Amazon, Tesla, Home Depot, Nike, McDonald\'s',
+            'drivers': ['E-commerce growth', 'Consumer spending', 'Innovation', 'Brand strength'],
+            'challenges': ['Inflation impact', 'Supply chain', 'Consumer sentiment'],
+            'outlook': 'Positive - Resilient consumer spending'
+        },
+        'Healthcare': {
+            'market_size': '$4+ Trillion',
+            'growth_rate': '6-9%',
+            'key_players': 'Johnson & Johnson, UnitedHealth, Pfizer, Eli Lilly, Merck',
+            'drivers': ['Aging population', 'Biotech innovation', 'Drug pricing reform', 'Healthcare access'],
+            'challenges': ['Patent cliffs', 'Regulatory approval', 'Drug pricing'],
+            'outlook': 'Positive - Innovation pipeline and demographic tailwinds'
+        }
+    }
+
+    # India Industry Data
+    INDIA_INDUSTRY_DATA = {
         'Technology': {
             'market_size': '₹15+ Lakh Cr',
             'growth_rate': '12-15%',
@@ -1023,16 +1121,21 @@ class IndustryAnalyzer:
     }
 
     @staticmethod
-    def get_industry_analysis(sector: str, company_data: Dict[str, Any]) -> str:
+    def get_industry_analysis(sector: str, company_data: Dict[str, Any], exchange: str = 'NSE') -> str:
         """Generate industry analysis section."""
+        # Select industry data based on exchange
+        is_us = exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+        industry_db = IndustryAnalyzer.US_INDUSTRY_DATA if is_us else IndustryAnalyzer.INDIA_INDUSTRY_DATA
+
         # Find matching sector
         industry_info = None
-        for key, data in IndustryAnalyzer.INDUSTRY_DATA.items():
+        for key, data in industry_db.items():
             if key.lower() in sector.lower() or sector.lower() in key.lower():
                 industry_info = data
                 break
 
         if not industry_info:
+            curr = get_currency_info(exchange)
             industry_info = {
                 'market_size': 'Data not available',
                 'growth_rate': 'Industry average',
@@ -1085,14 +1188,20 @@ class EarningsProjector:
     @staticmethod
     def generate_projections(
         company_data: Dict[str, Any],
-        dcf_model: 'DCFModel'
+        dcf_model: 'DCFModel',
+        exchange: str = 'NSE'
     ) -> str:
         """Generate forward earnings estimates table."""
+        curr = get_currency_info(exchange)
+        sym = curr['symbol']
+        unit = curr['unit']
+        divisor = curr['divisor']
+
         current_year = datetime.now().year
 
-        # Get base metrics
-        revenue = company_data.get('revenue', 0) / 1e7  # Convert to Cr
-        ebitda = company_data.get('ebitda', 0) / 1e7
+        # Get base metrics - use exchange-appropriate divisor
+        revenue = company_data.get('revenue', 0) / divisor
+        ebitda = company_data.get('ebitda', 0) / divisor
         eps = company_data.get('eps', 0)
         growth = company_data.get('revenue_growth', 10) / 100
 
@@ -1125,11 +1234,11 @@ class EarningsProjector:
 """
         # Revenue
         rev_cagr = ((rev_proj[-1] / revenue) ** (1/3) - 1) * 100 if revenue > 0 else 0
-        output += f"| **Revenue (₹ Cr)** | {rev_proj[0]:,.0f} | {rev_proj[1]:,.0f} | {rev_proj[2]:,.0f} | {rev_cagr:.1f}% |\n"
+        output += f"| **Revenue ({sym} {unit})** | {rev_proj[0]:,.0f} | {rev_proj[1]:,.0f} | {rev_proj[2]:,.0f} | {rev_cagr:.1f}% |\n"
 
         # EBITDA
         ebitda_cagr = ((ebitda_proj[-1] / ebitda) ** (1/3) - 1) * 100 if ebitda > 0 else 0
-        output += f"| **EBITDA (₹ Cr)** | {ebitda_proj[0]:,.0f} | {ebitda_proj[1]:,.0f} | {ebitda_proj[2]:,.0f} | {ebitda_cagr:.1f}% |\n"
+        output += f"| **EBITDA ({sym} {unit})** | {ebitda_proj[0]:,.0f} | {ebitda_proj[1]:,.0f} | {ebitda_proj[2]:,.0f} | {ebitda_cagr:.1f}% |\n"
 
         # EBITDA Margin
         margins = [e/r*100 if r > 0 else 0 for e, r in zip(ebitda_proj, rev_proj)]
@@ -1137,7 +1246,7 @@ class EarningsProjector:
 
         # EPS
         eps_cagr = ((eps_proj[-1] / eps) ** (1/3) - 1) * 100 if eps > 0 else 0
-        output += f"| **EPS (₹)** | {eps_proj[0]:.2f} | {eps_proj[1]:.2f} | {eps_proj[2]:.2f} | {eps_cagr:.1f}% |\n"
+        output += f"| **EPS ({sym})** | {eps_proj[0]:.2f} | {eps_proj[1]:.2f} | {eps_proj[2]:.2f} | {eps_cagr:.1f}% |\n"
 
         # Implied P/E at target
         cmp = company_data.get('current_price', 0)
@@ -1164,7 +1273,8 @@ class PriceChartGenerator:
         prices: List[float],
         dates: List[str],
         ticker: str,
-        output_dir: str
+        output_dir: str,
+        exchange: str = 'NSE'
     ) -> Optional[str]:
         """Generate price chart with moving averages."""
         try:
@@ -1172,6 +1282,9 @@ class PriceChartGenerator:
             import matplotlib.dates as mdates
             from datetime import datetime as dt
             import numpy as np
+
+            curr = get_currency_info(exchange)
+            sym = curr['symbol']
 
             if len(prices) < 20:
                 return None
@@ -1204,7 +1317,7 @@ class PriceChartGenerator:
 
             ax1.set_title(f'{ticker} - Price Chart with Moving Averages',
                          fontsize=14, fontweight='bold', color='#1a365d')
-            ax1.set_ylabel('Price (₹)', fontsize=10)
+            ax1.set_ylabel(f'Price ({sym})', fontsize=10)
             ax1.legend(loc='upper left', fontsize=8)
             ax1.grid(True, alpha=0.3)
 
@@ -1316,7 +1429,8 @@ class ReportTemplate:
                                     dcf_result: Dict[str, float],
                                     peer_data: PeerComparison,
                                     target_company: str,
-                                    current_price: float) -> str:
+                                    current_price: float,
+                                    exchange: str = 'NSE') -> str:
         """Generate complete valuation section."""
 
         section = """
@@ -1331,7 +1445,7 @@ We employ multiple valuation methodologies to arrive at our target price:
 
 """
         # DCF Summary
-        section += dcf_calc.format_dcf_summary(dcf_result)
+        section += dcf_calc.format_dcf_summary(dcf_result, exchange)
         section += "\n"
 
         # Sensitivity Matrix
@@ -1339,7 +1453,7 @@ We employ multiple valuation methodologies to arrive at our target price:
             shares_outstanding=1.0,  # Placeholder
             net_debt=0.0
         )
-        section += dcf_calc.format_sensitivity_table(sensitivity_df)
+        section += dcf_calc.format_sensitivity_table(sensitivity_df, exchange)
         section += "\n"
 
         # Peer Comparison
@@ -1356,6 +1470,6 @@ We employ multiple valuation methodologies to arrive at our target price:
             "EV/EBITDA": (current_price * 0.85, current_price * 1.05, current_price * 1.25),
         }
         section += "\n"
-        section += self.chart_generator.create_football_field_ascii(valuations, current_price)
+        section += self.chart_generator.create_football_field_ascii(valuations, current_price, exchange=exchange)
 
         return section

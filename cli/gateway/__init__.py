@@ -5,6 +5,12 @@ Jotty Unified Gateway
 WebSocket gateway for receiving messages from multiple channels
 (Telegram, Slack, Discord, WhatsApp) and routing to Jotty agents.
 
+Features:
+- Multi-channel support (Telegram, Slack, Discord, WhatsApp, WebSocket, HTTP)
+- Persistent sessions across channels and restarts
+- ExecutionContext integration for unified processing
+- Registry-based channel responders (no hardcoded imports)
+
 Inspired by OpenClaw's unified inbox architecture.
 
 Usage (jotty.justjot.ai):
@@ -13,9 +19,26 @@ Usage (jotty.justjot.ai):
 """
 
 from .server import UnifiedGateway, start_gateway
-from .channels import ChannelRouter, MessageEvent, ChannelType
+from .channels import ChannelRouter, MessageEvent, ChannelType, ResponseEvent
+from .responders import ChannelResponderRegistry, get_responder_registry
+from .sessions import PersistentSessionManager, get_session_manager
 
-__all__ = ["UnifiedGateway", "start_gateway", "ChannelRouter", "MessageEvent", "ChannelType"]
+__all__ = [
+    # Server
+    "UnifiedGateway",
+    "start_gateway",
+    # Channels
+    "ChannelRouter",
+    "MessageEvent",
+    "ResponseEvent",
+    "ChannelType",
+    # Responders
+    "ChannelResponderRegistry",
+    "get_responder_registry",
+    # Sessions
+    "PersistentSessionManager",
+    "get_session_manager",
+]
 
 
 def main():

@@ -58,6 +58,18 @@ from .workflow_types import (
     RichObservation,
 )
 
+from .sdk_types import (
+    ExecutionMode,
+    ChannelType,
+    SDKEventType,
+    ResponseFormat,
+    ExecutionContext,
+    SDKEvent,
+    SDKSession,
+    SDKResponse,
+    SDKRequest,
+)
+
 __all__ = [
     # Enums
     'MemoryLevel',
@@ -86,4 +98,14 @@ __all__ = [
     'ValidationResult',
     # Workflow types
     'RichObservation',
+    # SDK types
+    'ExecutionMode',
+    'ChannelType',
+    'SDKEventType',
+    'ResponseFormat',
+    'ExecutionContext',
+    'SDKEvent',
+    'SDKSession',
+    'SDKResponse',
+    'SDKRequest',
 ]

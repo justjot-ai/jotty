@@ -55,6 +55,33 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# DSPy Signatures (for JottyClaudeProvider fallback)
+# =============================================================================
+
+def _get_dspy_signatures():
+    """Lazy import DSPy signatures to avoid import errors when DSPy not configured."""
+    import dspy
+
+    class TaskAnalysisSignature(dspy.Signature):
+        """Analyze task requirements. You have web search capability."""
+        task: str = dspy.InputField(desc="User's task/request")
+        is_web_search: bool = dspy.OutputField(desc="TRUE for weather/news/prices/current events. FALSE for concepts/coding.")
+        is_file_read: bool = dspy.OutputField(desc="True if task mentions a file path.")
+        output_format: str = dspy.OutputField(desc="'text', 'docx', 'pdf', 'slides', 'telegram', 'justjot'")
+        output_path_hint: str = dspy.OutputField(desc="Suggested filename or 'none'")
+        reasoning: str = dspy.OutputField(desc="Brief explanation")
+
+    class ContentGenerationSignature(dspy.Signature):
+        """Generate content using provided context."""
+        task: str = dspy.InputField(desc="User's request")
+        context: str = dspy.InputField(desc="Data from web search/file. Use this as primary source.")
+        output_format: str = dspy.InputField(desc="Desired format")
+        content: str = dspy.OutputField(desc="Generated content")
+
+    return TaskAnalysisSignature, ContentGenerationSignature
+
+
+# =============================================================================
 # Data Structures
 # =============================================================================
 
@@ -759,11 +786,26 @@ def create_provider(
 
 def auto_detect_provider() -> tuple:
     """
-    Auto-detect available provider based on environment variables.
+    Auto-detect available provider based on environment variables or CLI providers.
+
+    Priority order:
+    1. JottyClaudeProvider (CLI-based, most reliable)
+    2. API key providers (anthropic, openai, openrouter, groq, google)
 
     Returns:
         Tuple of (provider_name, LLMProvider instance)
     """
+    # 1. Try JottyClaudeProvider first (uses Claude CLI, most reliable)
+    try:
+        from ...foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
+        if is_claude_available():
+            provider = JottyClaudeProvider(auto_start=True)
+            # Return a wrapper that uses JottyClaudeProvider
+            return 'jotty-claude', JottyClaudeProviderAdapter(provider)
+    except Exception as e:
+        logger.debug(f"JottyClaudeProvider not available: {e}")
+
+    # 2. Check API key providers
     providers_to_check = [
         ('anthropic', 'ANTHROPIC_API_KEY'),
         ('openai', 'OPENAI_API_KEY'),
@@ -780,7 +822,72 @@ def auto_detect_provider() -> tuple:
                 logger.warning(f"Failed to initialize {provider_name}: {e}")
                 continue
 
-    raise RuntimeError("No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY")
+    raise RuntimeError("No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, or install Claude CLI")
+
+
+class JottyClaudeProviderAdapter:
+    """Adapter to use JottyClaudeProvider with UnifiedExecutor's provider interface."""
+
+    def __init__(self, jotty_provider):
+        self.jotty_provider = jotty_provider
+        self._lm = None
+
+    def _get_lm(self):
+        """Get or create DSPy LM from JottyClaudeProvider."""
+        if self._lm is None:
+            self._lm = self.jotty_provider.configure_dspy()
+        return self._lm
+
+    def call(self, messages: list, tools: list = None, **kwargs) -> dict:
+        """Make LLM call using JottyClaudeProvider."""
+        # Convert messages to prompt for DSPy
+        lm = self._get_lm()
+
+        # Format messages for the LM
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role == 'system':
+                prompt_parts.insert(0, f"System: {content}")
+            elif role == 'user':
+                prompt_parts.append(f"User: {content}")
+            elif role == 'assistant':
+                prompt_parts.append(f"Assistant: {content}")
+
+        prompt = "\n\n".join(prompt_parts)
+
+        # Add tool instructions if provided (handles both Claude and OpenAI format)
+        if tools:
+            tool_desc_parts = []
+            for t in tools:
+                # Handle Claude format (name at top level) or OpenAI format (function.name)
+                if 'function' in t:
+                    name = t['function'].get('name', 'unknown')
+                    desc = t['function'].get('description', '')
+                else:
+                    name = t.get('name', 'unknown')
+                    desc = t.get('description', '')
+                tool_desc_parts.append(f"- {name}: {desc}")
+            tool_desc = "\n".join(tool_desc_parts)
+            prompt += f"\n\nAvailable tools:\n{tool_desc}\n\nRespond with tool calls in JSON format if needed."
+
+        # Call LM
+        try:
+            response = lm(prompt=prompt)
+            if isinstance(response, list) and response:
+                content = response[0] if isinstance(response[0], str) else str(response[0])
+            else:
+                content = str(response)
+
+            return {
+                'content': content,
+                'tool_calls': [],  # JottyClaudeProvider doesn't support native tool calls yet
+                'stop_reason': 'end_turn'
+            }
+        except Exception as e:
+            logger.error(f"JottyClaudeProvider call failed: {e}")
+            raise
 
 
 # =============================================================================
@@ -977,6 +1084,253 @@ The user has requested {section_name} visualization format. You MUST:
             except Exception as e:
                 logger.debug(f"Stream callback error: {e}")
 
+    def _detect_web_search_needed(self, task: str) -> bool:
+        """Keyword-based detection for when web search is needed."""
+        task_lower = task.lower()
+
+        # Keywords that ALWAYS need web search
+        web_search_keywords = [
+            'weather', 'temperature', 'forecast',
+            'news', 'headlines', 'latest', 'recent', 'today', 'current',
+            'stock price', 'market', 'crypto', 'bitcoin', 'price of',
+            'search for', 'search the web', 'web search', 'look up', 'find out',
+            'what is happening', 'what happened', 'score', 'results',
+            'trending', 'update', 'live',
+        ]
+
+        for keyword in web_search_keywords:
+            if keyword in task_lower:
+                return True
+        return False
+
+    def _extract_content_from_error(self, error_msg: str) -> Optional[str]:
+        """Try to extract usable content from a DSPy parsing error."""
+        import re
+        # DSPy errors often contain the raw LLM response which has good content
+        # Pattern: "LM Response: {...content...}"
+        match = re.search(r'LM Response:\s*\{?\s*(.+?)\s*\}?\s*\n\nExpected', error_msg, re.DOTALL)
+        if match:
+            content = match.group(1).strip()
+            # Clean up escape sequences
+            content = content.replace('\\n', '\n').replace('\\"', '"')
+            if len(content) > 50:  # Only use if substantial
+                return content
+        return None
+
+    async def _execute_dspy(
+        self,
+        task: str,
+        history: Optional[List[Dict[str, Any]]] = None
+    ) -> ExecutionResult:
+        """
+        Execute task using DSPy signatures (for JottyClaudeProvider).
+
+        This is used when native tool calling isn't available.
+        Uses DSPy's ChainOfThought for task analysis and content generation.
+        """
+        import dspy
+        TaskAnalysisSignature, ContentGenerationSignature = _get_dspy_signatures()
+
+        steps = []
+        tool_results = []
+        max_retries = 2
+
+        try:
+            # Step 1: Keyword-based detection FIRST (override LLM decision)
+            force_web_search = self._detect_web_search_needed(task)
+            logger.info(f"Keyword detection: force_web_search={force_web_search} for task: {task[:50]}")
+
+            # Step 2: Analyze task using DSPy (for output format, etc.)
+            self._status("Analyzing", "understanding task requirements")
+            steps.append("analyze")
+
+            # Try analysis with retry
+            analysis = None
+            for attempt in range(max_retries):
+                try:
+                    analyzer = dspy.ChainOfThought(TaskAnalysisSignature)
+                    analysis = analyzer(task=task)
+                    break
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        logger.debug(f"Analysis attempt {attempt + 1} failed, retrying...")
+                        continue
+                    # On final failure, use defaults
+                    logger.warning(f"Analysis failed, using defaults: {e}")
+                    analysis = None
+
+            # Use keyword detection OR LLM decision (keyword takes priority)
+            if analysis:
+                is_web_search = force_web_search or bool(getattr(analysis, 'is_web_search', False))
+                is_file_read = bool(getattr(analysis, 'is_file_read', False)) if not force_web_search else False
+                output_format = str(getattr(analysis, 'output_format', 'text')).lower().strip()
+            else:
+                is_web_search = force_web_search
+                is_file_read = False
+                output_format = 'markdown'
+
+            self._status("Processing", "preparing response")
+
+            # Step 2: Get external data if needed
+            context = "none"
+
+            if is_web_search:
+                self._status("Searching", "gathering external information")
+                steps.append("web_search")
+                context = await self._do_web_search_dspy(task)
+                tool_results.append(ToolResult(
+                    tool_name="web_search",
+                    success=context != "Web search unavailable",
+                    result={"context": context[:500] + "..." if len(context) > 500 else context}
+                ))
+
+            elif is_file_read:
+                self._status("Reading", "loading file content")
+                steps.append("file_read")
+                context = await self._do_file_read_dspy(task)
+
+            # Step 3: Generate content using DSPy with retry
+            self._status("Generating", "creating content")
+            steps.append("generate")
+
+            content = None
+            last_error = None
+
+            for attempt in range(max_retries):
+                try:
+                    generator = dspy.ChainOfThought(ContentGenerationSignature)
+                    generation = generator(task=task, context=context, output_format=output_format)
+                    content = str(generation.content)
+                    break
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e)
+
+                    # Try to extract content from parsing error
+                    if "AdapterParseError" in error_str or "failed to parse" in error_str.lower():
+                        extracted = self._extract_content_from_error(error_str)
+                        if extracted:
+                            logger.info("Extracted content from parsing error response")
+                            content = extracted
+                            break
+
+                    if attempt < max_retries - 1:
+                        self._status("Retrying", "regenerating response")
+                        logger.debug(f"Generation attempt {attempt + 1} failed, retrying...")
+                        continue
+
+            if content:
+                return ExecutionResult(
+                    success=True,
+                    content=content,
+                    tool_results=tool_results,
+                    output_format=output_format,
+                    steps_taken=steps
+                )
+            else:
+                # Friendly error message, no tracebacks
+                logger.error(f"DSPy execution failed after retries: {last_error}")
+                return ExecutionResult(
+                    success=False,
+                    content="I encountered an issue generating the response. Please try again.",
+                    error="Generation failed after retries",
+                    steps_taken=steps,
+                    tool_results=tool_results
+                )
+
+        except Exception as e:
+            # Log full error for debugging, but return friendly message
+            logger.error(f"DSPy execution failed: {e}", exc_info=True)
+            return ExecutionResult(
+                success=False,
+                content="I encountered an unexpected issue. Please try again.",
+                error="Execution error",
+                steps_taken=steps,
+                tool_results=tool_results
+            )
+
+    def _extract_search_query(self, task: str) -> str:
+        """Extract search query from task, handling conversation context."""
+        import re
+
+        # If task contains "Current request:", extract just that
+        if "Current request:" in task:
+            match = re.search(r'Current request:\s*(.+?)(?:\n|$)', task, re.DOTALL)
+            if match:
+                query = match.group(1).strip()
+                # Check if we need context from conversation (e.g., "next week" without location)
+                if any(word in query.lower() for word in ['next', 'more', 'also', 'it', 'that', 'there']):
+                    # Extract location/topic from conversation context
+                    context_match = re.search(r'(?:weather|forecast|temperature).*?(?:in|for|at)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\n|$)', task, re.IGNORECASE)
+                    if context_match:
+                        location = context_match.group(1).strip()
+                        query = f"{query} {location}"
+                return query[:200]
+
+        # Remove common prefixes
+        query = task
+        prefixes = ["search for", "find", "look up", "what is", "what's", "tell me about"]
+        for prefix in prefixes:
+            if query.lower().startswith(prefix):
+                query = query[len(prefix):].strip()
+                break
+
+        return query[:200]
+
+    async def _do_web_search_dspy(self, task: str) -> str:
+        """Execute web search for DSPy execution path."""
+        try:
+            from ...registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            registry.init()
+
+            skill = registry.get_skill('web-search')
+            if not skill:
+                return "Web search skill not found"
+
+            search_tool = skill.tools.get('search_web_tool')
+            if not search_tool:
+                return "Search tool not found"
+
+            # Extract search query intelligently
+            query = self._extract_search_query(task)
+            logger.info(f"Web search query: {query}")
+            result = search_tool({'query': query, 'max_results': 10})
+
+            if result.get('success'):
+                results = result.get('results', [])
+                if not results:
+                    return "No search results found"
+
+                from datetime import datetime
+                now = datetime.now().strftime('%Y-%m-%d %H:%M')
+                context_parts = [f"=== WEB SEARCH RESULTS (Retrieved: {now}) ===\n"]
+                for i, r in enumerate(results[:8], 1):
+                    title = r.get('title', 'Untitled')
+                    snippet = r.get('snippet', '')
+                    url = r.get('url', '')
+                    context_parts.append(f"[{i}] {title}\n{snippet}\nSource: {url}\n")
+                context_parts.append("=== END OF SEARCH RESULTS ===")
+                return "\n".join(context_parts)
+            else:
+                return f"Search failed: {result.get('error', 'unknown')}"
+        except Exception as e:
+            return f"Search error: {e}"
+
+    async def _do_file_read_dspy(self, task: str) -> str:
+        """Read file content for DSPy execution path."""
+        import re
+        path_match = re.search(r'[\'"]?(/[^\s\'"]+|[A-Za-z]:\\[^\s\'"]+)[\'"]?', task)
+        if not path_match:
+            return "No file path found in task"
+
+        file_path = path_match.group(1)
+        try:
+            with open(file_path, 'r') as f:
+                return f.read()
+        except Exception as e:
+            return f"File read error: {e}"
+
     async def execute(
         self,
         task: str,
@@ -992,6 +1346,9 @@ The user has requested {section_name} visualization format. You MUST:
         Returns:
             ExecutionResult with content, tool results, and sections
         """
+        # If using JottyClaudeProvider (DSPy-based), use DSPy execution path
+        if self.provider_name == 'jotty-claude':
+            return await self._execute_dspy(task, history)
         steps = []
         tool_results = []
         sections = []

@@ -446,14 +446,33 @@ class SkillPlanExecutor:
                 errors.append(f"Step {i + 1}: {error_msg}")
                 _status(f"Step {i + 1}", f"failed: {error_msg}")
 
-                # Replan on failure
+                # Replan on failure with intelligent skill exclusion
                 if (self._enable_replanning and
                         replan_count < self._max_replans and
                         not step.optional):
 
-                    if any(kw in error_msg.lower() for kw in
-                           ['not found', '404', 'invalid', 'delisted']):
+                    # Exclude skill for permanent/structural errors
+                    exclusion_keywords = [
+                        'not found', '404', 'invalid', 'delisted',
+                        'not implemented', 'unsupported', 'deprecated',
+                        'permission denied', 'unauthorized', 'forbidden',
+                        'module not found', 'import error', 'no module',
+                    ]
+                    if any(kw in error_msg.lower() for kw in exclusion_keywords):
                         self._excluded_skills.add(step.skill_name)
+                        logger.info(f"🚫 Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
+
+                    # For transient errors, retry once before replanning
+                    transient_keywords = ['timeout', 'connection', 'rate limit', 'retry']
+                    if any(kw in error_msg.lower() for kw in transient_keywords) and replan_count == 0:
+                        _status(f"Step {i + 1}", "retrying after transient error")
+                        await asyncio.sleep(2)  # Brief backoff
+                        retry_result = await self._execute_step(step, i, outputs)
+                        if retry_result.get('success'):
+                            outputs[step.output_key or f'step_{i}'] = retry_result
+                            skills_used.append(step.skill_name)
+                            _status(f"Step {i + 1}", "retry succeeded")
+                            continue
 
                     _status("Replanning", "adapting to failure")
                     new_steps = await self.create_plan(
