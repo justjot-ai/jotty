@@ -14,6 +14,12 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("clustering")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +37,8 @@ async def cluster_kmeans_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cluster labels and metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Clustering] Running K-Means...")
 
     data = params.get('data')
@@ -122,6 +130,8 @@ async def cluster_dbscan_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cluster labels and metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.neighbors import NearestNeighbors
 
     logger.info("[Clustering] Running DBSCAN...")
@@ -202,6 +212,8 @@ async def cluster_hierarchical_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cluster labels and dendrogram data
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from scipy.cluster.hierarchy import dendrogram, linkage as scipy_linkage
 
     logger.info("[Clustering] Running Hierarchical clustering...")
@@ -271,6 +283,8 @@ async def cluster_gmm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cluster labels and probabilities
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Clustering] Running Gaussian Mixture Model...")
 
     data = params.get('data')
@@ -346,6 +360,8 @@ async def cluster_evaluate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with clustering evaluation metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, homogeneity_score
 
     logger.info("[Clustering] Evaluating clustering quality...")

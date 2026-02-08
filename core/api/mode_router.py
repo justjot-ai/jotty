@@ -82,7 +82,7 @@ class ModeRouter:
     Unified router for all execution modes.
 
     Routes requests to:
-    - LeanExecutor (DSPy-based) or UnifiedExecutor for CHAT mode
+    - UnifiedExecutor (native LLM tool calling) for CHAT mode
     - AutoAgent for WORKFLOW mode
     - Direct skill/agent for SKILL/AGENT modes
 

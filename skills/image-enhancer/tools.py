@@ -11,6 +11,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("image-enhancer")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -38,6 +44,8 @@ async def enhance_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with enhanced image path and improvements
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     image_path = params.get('image_path', '')
     output_path = params.get('output_path', None)
     target_resolution = params.get('target_resolution', '2x')

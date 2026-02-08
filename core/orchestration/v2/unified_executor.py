@@ -1,5 +1,5 @@
 """
-UnifiedExecutor - World-Class Executor Combining LeanExecutor + ChatAssistant V2
+UnifiedExecutor - Native LLM Tool-Calling Executor
 =================================================================================
 
 Uses native LLM tool calling for ALL decisions:
@@ -896,7 +896,7 @@ class JottyClaudeProviderAdapter:
 
 class UnifiedExecutor:
     """
-    World-class unified executor combining LeanExecutor + ChatAssistant V2.
+    Unified executor using native LLM tool calling for all decisions.
 
     Uses native LLM tool calling for ALL decisions:
     - Input decisions (web search, file read)

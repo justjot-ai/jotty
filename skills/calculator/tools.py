@@ -10,6 +10,8 @@ from typing import Dict, Any
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 # Safe evaluation context with math functions
 SAFE_MATH = {
     '__builtins__': {},
@@ -24,6 +26,10 @@ SAFE_MATH = {
 }
 
 # Unit conversion tables
+
+# Status emitter for progress updates
+status = SkillStatus("calculator")
+
 LENGTH_TO_METERS = {
     'km': 1000, 'm': 1, 'cm': 0.01, 'mm': 0.001,
     'miles': 1609.34, 'yards': 0.9144, 'feet': 0.3048, 'inches': 0.0254
@@ -49,6 +55,8 @@ def calculate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, result, expression
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     expression = params['expression']
 
     try:
@@ -84,6 +92,8 @@ def convert_units_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, result, from_unit, to_unit, value
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         value = float(params['value'])
     except ValueError:

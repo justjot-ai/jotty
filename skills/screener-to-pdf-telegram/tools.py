@@ -15,13 +15,19 @@ from typing import Dict, Any, List
 from datetime import datetime
 import json
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("screener-to-pdf-telegram")
+
+
 logger = logging.getLogger(__name__)
 
 
 async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Complete workflow: Screener.in → Analysis → PDF → Telegram
-    
+
     Args:
         params: Dictionary containing:
             - symbols (str or list, required): Company symbol(s) - e.g., "RELIANCE" or ["RELIANCE", "TCS"]
@@ -31,10 +37,11 @@ async def screener_analyze_pdf_telegram_tool(params: Dict[str, Any]) -> Dict[str
             - output_dir (str, optional): Output directory, default: './output'
             - title (str, optional): Custom PDF title
             - use_proxy (bool, optional): Use proxy for screener.in, default: True
-    
+
     Returns:
         Dictionary with workflow results
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

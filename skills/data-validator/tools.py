@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("data-validator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +33,8 @@ async def validate_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with validation results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DataValidator] Validating schema...")
 
     data = params.get('data')
@@ -111,6 +119,8 @@ async def validate_quality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with quality scores and issues
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DataValidator] Checking data quality...")
 
     data = params.get('data')
@@ -204,6 +214,8 @@ async def validate_drift_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with drift detection results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from scipy import stats
 
     logger.info("[DataValidator] Detecting distribution drift...")
@@ -301,6 +313,8 @@ async def validate_constraints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with constraint validation results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DataValidator] Validating constraints...")
 
     data = params.get('data')
@@ -409,6 +423,8 @@ async def validate_completeness_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with completeness metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DataValidator] Checking completeness...")
 
     data = params.get('data')

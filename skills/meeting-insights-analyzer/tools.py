@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("meeting-insights-analyzer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def analyze_meeting_insights_tool(params: Dict[str, Any]) -> Dict[str, Any
     Returns:
         Dictionary with insights, statistics, recommendations
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     transcript_files = params.get('transcript_files', [])
     user_name = params.get('user_name', '')
     analysis_types = params.get('analysis_types', ['all'])

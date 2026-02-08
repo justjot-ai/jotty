@@ -17,9 +17,13 @@ from Jotty.core.utils.api_client import BaseAPIClient
 from Jotty.core.utils.tool_helpers import (
     tool_response, tool_error, async_tool_wrapper
 )
+from Jotty.core.utils.skill_status import SkillStatus
 
 # Load environment variables
 load_jotty_env()
+
+# Status emitter for progress updates
+status = SkillStatus("telegram-sender")
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +89,8 @@ async def send_telegram_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, chat_id
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -99,6 +105,7 @@ async def send_telegram_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         payload['parse_mode'] = params['parse_mode']
 
     logger.info(f"Sending Telegram message to chat {client.chat_id}")
+    status.emit("Sending", f"📤 Sending message to Telegram...")
     result = client._make_request('sendMessage', json_data=payload)
 
     if result.get('success'):
@@ -126,6 +133,8 @@ async def send_telegram_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, chat_id, file_name, file_size
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path_obj = Path(params['file_path'])
     if not file_path_obj.exists():
         return tool_error(f'File not found: {params["file_path"]}')
@@ -159,6 +168,7 @@ async def send_telegram_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 data['parse_mode'] = params['parse_mode']
 
         logger.info(f"Sending file to Telegram: {file_path_obj.name}")
+        status.emit("Sending", f"📤 Sending {file_path_obj.name} to Telegram...")
         response = requests.post(url, files=files, data=data, timeout=120)
 
     if response.status_code == 200:

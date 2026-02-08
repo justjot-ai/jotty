@@ -11,9 +11,15 @@ import uuid
 import logging
 from typing import Dict, Any, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Try to import pexpect
+
+# Status emitter for progress updates
+status = SkillStatus("terminal-session")
+
 PEXPECT_AVAILABLE = False
 try:
     import pexpect
@@ -143,6 +149,8 @@ def terminal_create_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - shell (str): Shell being used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PEXPECT_AVAILABLE:
         return {
             'success': False,
@@ -179,6 +187,8 @@ def terminal_execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - exit_code (int): Exit code (0 for success)
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PEXPECT_AVAILABLE:
         return {'success': False, 'error': 'pexpect not installed'}
 
@@ -219,6 +229,8 @@ def terminal_ssh_connect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - session_id (str): Session ID for subsequent commands
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PEXPECT_AVAILABLE:
         return {'success': False, 'error': 'pexpect not installed'}
 
@@ -311,6 +323,8 @@ def terminal_expect_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - before (str): Text before match
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PEXPECT_AVAILABLE:
         return {'success': False, 'error': 'pexpect not installed'}
 
@@ -361,6 +375,8 @@ def terminal_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether send succeeded
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PEXPECT_AVAILABLE:
         return {'success': False, 'error': 'pexpect not installed'}
 
@@ -404,6 +420,8 @@ def terminal_close_session_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether close succeeded
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         session_id = params.get('session_id')
         if not session_id:
@@ -434,6 +452,8 @@ def terminal_list_sessions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - sessions (list): List of session info dicts
             - count (int): Number of active sessions
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         manager = TerminalSessionManager.get_instance()
         sessions = manager.list_sessions()

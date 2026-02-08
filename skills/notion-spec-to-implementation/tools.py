@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notion-spec-to-implementation")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def create_implementation_plan_tool(params: Dict[str, Any]) -> Dict[str, A
     Returns:
         Dictionary with plan page and tasks
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     spec_page_id = params.get('spec_page_id', '')
     plan_type = params.get('plan_type', 'standard')
     output_database_id = params.get('output_database_id', None)

@@ -7,6 +7,12 @@ import os
 import logging
 from typing import Dict, Any, List, Optional, Union
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("xlsx-tools")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,6 +69,8 @@ def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - row_count (int): Number of rows
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -131,6 +139,8 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - row_count (int): Number of rows written
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -206,6 +216,8 @@ def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of sheets
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -253,6 +265,8 @@ def add_sheet_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -335,6 +349,8 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -404,6 +420,8 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
@@ -484,6 +502,8 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error

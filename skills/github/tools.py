@@ -13,6 +13,12 @@ from typing import Dict, Any, List
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("github")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,6 +98,8 @@ def list_prs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, prs list, count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['pr', 'list', '--json',
             'number,title,state,author,createdAt,updatedAt,url,headRefName,baseRefName,labels,isDraft']
 
@@ -131,6 +139,8 @@ def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, pr object
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     fields = ['number', 'title', 'body', 'state', 'author', 'createdAt', 'updatedAt',
               'closedAt', 'mergedAt', 'url', 'headRefName', 'baseRefName', 'labels',
               'isDraft', 'mergeable', 'reviewDecision', 'additions', 'deletions',
@@ -177,6 +187,8 @@ def create_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, pr object, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['pr', 'create', '--title', params['title']]
 
     if params.get('body'):
@@ -227,6 +239,8 @@ def list_issues_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, issues list, count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['issue', 'list', '--json',
             'number,title,state,author,createdAt,updatedAt,url,labels,assignees,milestone,body']
 
@@ -267,6 +281,8 @@ def create_issue_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, issue object, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['issue', 'create', '--title', params['title']]
 
     if params.get('body'):
@@ -310,6 +326,8 @@ def get_repo_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, repo object
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['repo', 'view', '--json',
             'name,owner,description,url,homepageUrl,defaultBranchRef,isPrivate,isFork,'
             'stargazerCount,forkCount,watchers,issues,pullRequests,createdAt,updatedAt,'
@@ -339,6 +357,8 @@ def list_workflows_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, workflows list, count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['workflow', 'list', '--json', 'id,name,state,path']
 
     _add_repo_arg(args, params.get('repo'))
@@ -368,6 +388,8 @@ def run_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message, output
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     args = ['workflow', 'run', str(params['workflow'])]
 
     _add_repo_arg(args, params.get('repo'))

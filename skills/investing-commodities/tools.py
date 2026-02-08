@@ -10,6 +10,12 @@ from datetime import datetime
 import logging
 import json
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("investing-commodities")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - timestamp (str): Fetch timestamp
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         category = params.get('category', 'all').lower()
         output_format = params.get('format', 'markdown')

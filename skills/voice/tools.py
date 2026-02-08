@@ -14,6 +14,8 @@ from Jotty.core.utils.env_loader import load_jotty_env
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.utils.async_utils import run_sync
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 load_jotty_env()
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,10 @@ except ImportError:
         logger.warning(f"Could not load voice providers: {e}")
 
 # Store active streams for stream_voice_tool
+
+# Status emitter for progress updates
+status = SkillStatus("voice")
+
 _active_streams: Dict[str, Any] = {}
 
 
@@ -58,6 +64,7 @@ def voice_to_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, text, language, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
     provider_name = params.get('provider', 'auto')
     language = params.get('language')
 
@@ -80,6 +87,7 @@ def text_to_voice_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, audio data/path, format, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
     provider_name = params.get('provider', 'auto')
     voice_id = params.get('voice_id')
     output_path = params.get('output_path')
@@ -103,6 +111,7 @@ def stream_voice_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, stream_id, format, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
     text = params['text']
     provider_name = params.get('provider', 'auto')
     voice_id = params.get('voice_id')
@@ -141,6 +150,8 @@ def get_stream_chunk_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, chunk (base64), done flag
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import base64
     import asyncio
 
@@ -175,6 +186,8 @@ def close_stream_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     stream_id = params['stream_id']
     if stream_id in _active_streams:
         del _active_streams[stream_id]

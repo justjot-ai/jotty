@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("auto-sklearn")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +35,8 @@ async def autosklearn_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models, ensemble info, and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import autosklearn.classification
     except ImportError:
@@ -112,6 +120,8 @@ async def autosklearn_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import autosklearn.regression
     except ImportError:
@@ -178,6 +188,8 @@ async def autosklearn_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with ensemble composition and statistics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[AutoSklearn] Extracting ensemble info...")
 
     model = params.get('model')
@@ -230,6 +242,8 @@ async def autosklearn_predict_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with predictions
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[AutoSklearn] Generating predictions...")
 
     model = params.get('model')

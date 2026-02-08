@@ -117,15 +117,15 @@ from .sandbox_manager import SandboxManager, TrustLevel, SandboxType, SandboxRes
 # Auto Provider Discovery
 from .auto_provider_discovery import AutoProviderDiscovery, DiscoveryResult
 
-# Unified Executor (primary executor — replaces LeanExecutor)
+# Unified Executor (native LLM tool-calling execution)
 from .unified_executor import UnifiedExecutor, ExecutionResult, ToolResult, StreamEvent, create_unified_executor
 from .tool_generator import UnifiedToolGenerator, ToolDefinition
 
-# LeanExecutor (deprecated — use UnifiedExecutor instead)
-from .lean_executor import LeanExecutor, ExecutionResult as LeanExecutionResult
-
 # SwarmLearner (extracted from v1 conductor for v2 independence)
 from .swarm_learner import SwarmLearner, SwarmLearnerSignature
+
+# SwarmLearningPipeline (extracted from SwarmManager)
+from .learning_pipeline import SwarmLearningPipeline
 
 # OptimizationPipeline (moved from v1)
 from .optimization_pipeline import (
@@ -185,12 +185,11 @@ __all__ = [
     'create_unified_executor',
     'UnifiedToolGenerator',
     'ToolDefinition',
-    # LeanExecutor (deprecated — use UnifiedExecutor)
-    'LeanExecutor',
-    'LeanExecutionResult',
     # SwarmLearner (online prompt learning)
     'SwarmLearner',
     'SwarmLearnerSignature',
+    # SwarmLearningPipeline (extracted learning)
+    'SwarmLearningPipeline',
     # OptimizationPipeline
     'OptimizationPipeline',
     'OptimizationConfig',

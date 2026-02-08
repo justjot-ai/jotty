@@ -501,7 +501,7 @@ class BaseAgent(ABC):
     # SKILL DISCOVERY
     # =========================================================================
 
-    def discover_skills(self, task: str, max_results: int = 15) -> List[Dict[str, Any]]:
+    def discover_skills(self, task: str, max_results: int = 50) -> List[Dict[str, Any]]:
         """
         Discover relevant skills for a task using lightweight keyword matching.
 
@@ -533,6 +533,12 @@ class BaseAgent(ABC):
             if len(w) > 2 and w not in stop_words
         ]
 
+        # Simple stemming: also try without trailing 's' for plural matching
+        task_words_stemmed = set(task_words)
+        for w in task_words:
+            if w.endswith('s') and len(w) > 3:
+                task_words_stemmed.add(w[:-1])  # "slides" -> "slide"
+
         skills = []
 
         for skill_name, skill_def in self.skills_registry.loaded_skills.items():
@@ -541,7 +547,7 @@ class BaseAgent(ABC):
             desc_lower = desc.lower()
 
             score = 0
-            for word in task_words:
+            for word in task_words_stemmed:
                 if word in skill_name_lower:
                     score += 3
                 if word in desc_lower:
@@ -559,22 +565,28 @@ class BaseAgent(ABC):
 
         skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
 
-        # If no keyword matches, return first N available skills as fallback
-        if not skills:
-            for skill_name, skill_def in list(
-                self.skills_registry.loaded_skills.items()
-            )[:max_results]:
-                desc = getattr(skill_def, 'description', '') or ''
-                tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
-                skills.append({
-                    'name': skill_name,
-                    'description': desc or skill_name,
-                    'category': getattr(skill_def, 'category', 'general'),
-                    'tools': tools,
-                    'relevance_score': 0,
-                })
+        # Include ALL matched skills, then pad with unmatched skills up to max_results
+        # This ensures LLM sees diverse options, not just keyword matches
+        matched_skills = skills
+        matched_names = {s['name'] for s in matched_skills}
 
-        return skills[:max_results]
+        # Add unmatched skills to give LLM more options
+        if len(matched_skills) < max_results:
+            for skill_name, skill_def in self.skills_registry.loaded_skills.items():
+                if skill_name not in matched_names:
+                    desc = getattr(skill_def, 'description', '') or ''
+                    tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
+                    matched_skills.append({
+                        'name': skill_name,
+                        'description': desc or skill_name,
+                        'category': getattr(skill_def, 'category', 'general'),
+                        'tools': tools,
+                        'relevance_score': 0,
+                    })
+                if len(matched_skills) >= max_results:
+                    break
+
+        return matched_skills[:max_results]
 
     # =========================================================================
     # METRICS

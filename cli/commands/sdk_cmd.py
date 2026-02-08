@@ -60,6 +60,12 @@ class SDKCommand(BaseCommand):
         cli: "JottyCLI"
     ) -> CommandResult:
         """Execute SDK test command."""
+        # Suppress noisy loggers and internal error tracebacks
+        for noisy in ['weasyprint', 'fontTools', 'PIL', 'httpx', 'urllib3',
+                      'Jotty.core.agents.agentic_planner', 'Jotty.core.agents',
+                      'dspy', 'pydantic']:
+            logging.getLogger(noisy).setLevel(logging.CRITICAL)
+
         if not args.positional:
             return self._show_help(cli)
 
@@ -520,19 +526,14 @@ Test the SDK client with real-time event visualization.
                 upside_emoji = '📈' if upside_val > 0 else '📉'
                 lines.append(f"  {upside_emoji} Upside: {upside_val:.1f}%")
 
-            # Files section
-            charts = result.get('chart_files', []) or result.get('charts', [])
-            if pdf_path or md_path or charts:
+            # Files section (PDF and MD only, no charts)
+            if pdf_path or md_path:
                 lines.append("")
                 lines.append("📁 **Files:**")
-
-            if pdf_path:
-                lines.append(f"  📄 PDF: {pdf_path}")
-            if md_path:
-                lines.append(f"  📝 MD:  {md_path}")
-            if charts:
-                for chart in charts[:3]:  # Show first 3
-                    lines.append(f"  📊 Chart: {chart}")
+                if pdf_path:
+                    lines.append(f"  📄 PDF: {pdf_path}")
+                if md_path:
+                    lines.append(f"  📝 MD: {md_path}")
 
             # Telegram status
             if result.get('telegram_sent'):
@@ -556,9 +557,19 @@ Test the SDK client with real-time event visualization.
             for key in ['response', 'output', 'result', 'content', 'text', 'message']:
                 if key in result and result[key]:
                     return str(result[key])
+            # Check for errors first - don't show success if there were errors
+            errors = result.get('errors', [])
+            if errors:
+                error_msg = errors[0] if isinstance(errors[0], str) else str(errors[0])
+                return f"❌ Task failed: {error_msg}"
+
             # If dict has success=True but only paths, format as completion message
             if result.get('success'):
                 return "✅ Task completed successfully."
+
+            # If stopped early, show that
+            if result.get('stopped_early'):
+                return "⚠️ Task stopped early due to errors."
 
         return str(result)
 

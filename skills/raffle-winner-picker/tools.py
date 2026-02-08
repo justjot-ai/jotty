@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("raffle-winner-picker")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -38,6 +44,8 @@ async def pick_raffle_winner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with winners, selection method, timestamp
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     source = params.get('source', '')
     num_winners = params.get('num_winners', 1)
     exclude = params.get('exclude', [])

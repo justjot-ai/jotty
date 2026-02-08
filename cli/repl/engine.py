@@ -22,6 +22,7 @@ except ImportError:
 
 from .history import HistoryManager
 from .completer import CommandCompleter, SimpleCompleter
+from ..ui.renderer import FooterHints, REPLState
 
 if TYPE_CHECKING:
     from ..commands.base import CommandRegistry
@@ -72,6 +73,9 @@ class REPLEngine:
         else:
             self.completer = SimpleCompleter(command_registry)
 
+        # Footer hints
+        self._footer_hints = FooterHints()
+
         # Prompt session
         self._session: Optional["PromptSession"] = None
         self._running = False
@@ -91,6 +95,10 @@ class REPLEngine:
             "completion-menu.meta.completion.current": "bg:ansicyan ansiblack",
         })
 
+        # Bottom toolbar callback
+        def _bottom_toolbar():
+            return HTML(self._footer_hints.get_toolbar_text())
+
         # Create session
         session = PromptSession(
             history=self.history.get_prompt_toolkit_history(),
@@ -100,6 +108,7 @@ class REPLEngine:
             vi_mode=self.vi_mode,
             enable_history_search=True,
             complete_while_typing=True,
+            bottom_toolbar=_bottom_toolbar,
         )
 
         return session
@@ -203,6 +212,15 @@ class REPLEngine:
     def set_prompt(self, text: str):
         """Set prompt text."""
         self.prompt_text = text
+
+    def set_repl_state(self, state: REPLState):
+        """
+        Set the REPL state to update footer hints.
+
+        Args:
+            state: New REPL state (INPUT, EXECUTING, REVIEWING, EXPORTING)
+        """
+        self._footer_hints.state = state
 
     def get_input_sync(self, prompt: str = None) -> str:
         """

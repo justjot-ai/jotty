@@ -6,6 +6,9 @@ Send messages and files to Telegram channels/chats.
 
 This skill sends text messages and files (PDFs, images, etc.) to Telegram using the Telegram Bot API.
 
+## Capabilities
+- communicate
+
 ## Features
 
 - Send text messages

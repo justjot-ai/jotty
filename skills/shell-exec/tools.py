@@ -16,6 +16,12 @@ from typing import Dict, Any
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("shell-exec")
+
+
 
 @tool_wrapper(required_params=['command'])
 def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -34,6 +40,8 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, stdout, stderr, exit_code, command
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     timeout = params.get('timeout', 30)
     working_directory = params.get('working_directory')
     use_shell = params.get('shell', True)
@@ -81,6 +89,8 @@ def execute_script_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, output, exit_code
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     timeout = params.get('timeout', 30)
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:

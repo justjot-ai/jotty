@@ -19,6 +19,12 @@ import os
 import io
 import base64
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("financial-visualization")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,6 +117,8 @@ async def extract_financial_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with extracted_data, confidence_scores, success status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     research_content = params.get('research_content', '')
     data_types = params.get('data_types', [
         'financial_statements', 'valuation_metrics', 'key_ratios', 
@@ -312,7 +320,7 @@ If data is not available, use null. Return ONLY the JSON, no other text."""
 async def generate_intelligent_charts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Intelligently generate financial charts with AI-powered selection, analysis, and insights.
-    
+
     This is the "best of AI" version - it:
     1. Analyzes data completeness
     2. Selects optimal chart types
@@ -320,7 +328,7 @@ async def generate_intelligent_charts_tool(params: Dict[str, Any]) -> Dict[str, 
     4. Generates forecasts
     5. Creates contextual narratives
     6. Provides section placements
-    
+
     Args:
         params:
             - ticker (str): Stock ticker
@@ -330,10 +338,11 @@ async def generate_intelligent_charts_tool(params: Dict[str, Any]) -> Dict[str, 
             - enable_intelligence (bool, optional): Enable intelligent features (default: True)
             - output_dir (str, optional): Output directory
             - format (str): Chart format ('png', 'svg', 'pdf')
-    
+
     Returns:
         Dictionary with charts, insights, narratives, anomalies, forecasts, section placements
     """
+    status.set_callback(params.pop('_status_callback', None))
     # Import intelligent orchestrator - handle both relative and absolute imports
     try:
         # Try absolute import first (works when skill is loaded dynamically)
@@ -470,6 +479,8 @@ async def generate_financial_charts_tool(params: Dict[str, Any]) -> Dict[str, An
     Returns:
         Dictionary with charts list, descriptions, success status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     ticker = params.get('ticker', '')
     company_name = params.get('company_name', '')
     research_data = params.get('research_data', {})
@@ -930,6 +941,8 @@ async def generate_financial_tables_tool(params: Dict[str, Any]) -> Dict[str, An
     Returns:
         Dictionary with tables dict, descriptions, success status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     ticker = params.get('ticker', '')
     company_name = params.get('company_name', '')
     research_data = params.get('research_data', {})

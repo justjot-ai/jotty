@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("shap-explainer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +34,8 @@ async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with SHAP values and feature importance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import shap
 
     logger.info("[SHAP] Generating explanations...")
@@ -100,6 +108,8 @@ async def shap_importance_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with feature importance ranking
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import shap
 
     logger.info("[SHAP] Calculating feature importance...")
@@ -167,6 +177,8 @@ async def shap_local_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with local explanation for the instance(s)
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import shap
 
     logger.info("[SHAP] Generating local explanation...")
@@ -251,6 +263,8 @@ async def shap_interaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with interaction values
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import shap
 
     logger.info("[SHAP] Computing interaction values...")

@@ -11,6 +11,12 @@ from typing import Dict, Any, Optional
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("youtube-downloader")
+
+
 
 def _extract_video_id(url: str) -> Optional[str]:
     """Extract YouTube video ID from URL."""
@@ -49,6 +55,8 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, video_id, title, output_path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     video_id = _extract_video_id(params['video_url'])
     if not video_id:
         return tool_error(f'Invalid YouTube URL: {params["video_url"]}')
@@ -82,6 +90,8 @@ def download_youtube_playlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, playlist_id, videos_processed, output_paths
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     playlist_id = _extract_playlist_id(params['playlist_url'])
     if not playlist_id:
         return tool_error(f'Invalid playlist URL: {params["playlist_url"]}')

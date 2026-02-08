@@ -9,6 +9,12 @@ import logging
 import math
 from typing import Dict, Any, List, Tuple
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("gif-creator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,6 +72,8 @@ def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file_path, and frame_count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
@@ -144,6 +152,8 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and file_path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
@@ -287,6 +297,8 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and file_path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
@@ -427,6 +439,8 @@ def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file_path, and new dimensions
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
@@ -533,6 +547,8 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file sizes, and reduction percentage
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
@@ -637,6 +653,8 @@ def extract_frames_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, frame count, and list of frame paths
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
         return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}

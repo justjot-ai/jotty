@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Brand Colors
@@ -25,6 +27,10 @@ BRAND_COLORS = {
 }
 
 # Typography
+
+# Status emitter for progress updates
+status = SkillStatus("brand-guidelines")
+
 BRAND_FONTS = {
     'heading': 'Poppins',  # Fallback: Arial
     'body': 'Lora'  # Fallback: Georgia
@@ -63,6 +69,8 @@ async def apply_brand_styling_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with styled output path and applied styles
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     input_file = params.get('input_file', '')
     output_file = params.get('output_file', None)
     file_type = params.get('file_type', None)

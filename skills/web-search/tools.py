@@ -15,6 +15,8 @@ from typing import Dict, Any, List
 from Jotty.core.utils.env_loader import load_jotty_env, get_env
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 load_jotty_env()
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,10 @@ SERPER_API_KEY = get_env("SERPER_API_KEY")
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
 # Try to load duckduckgo-search library
+
+# Status emitter for progress updates
+status = SkillStatus("web-search")
+
 DDG_AVAILABLE = False
 DDGS = None
 try:
@@ -161,9 +167,15 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, results, count, query, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     query = params['query']
     max_results = min(params.get('max_results', 10), 20)
     provider_pref = params.get('provider', 'auto')
+
+    # Show search query (truncated)
+    query_display = query[:50] + "..." if len(query) > 50 else query
+    status.emit("Searching", f"🔍 {query_display}")
 
     # Priority 1: Serper API
     if SERPER_API_KEY and provider_pref in ('auto', 'serper'):
@@ -211,7 +223,12 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, url, title, content, length
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     url = params['url']
+    # Show URL being fetched (truncated)
+    url_display = url[:60] + "..." if len(url) > 60 else url
+    status.emit("Fetching", f"🌐 {url_display}")
 
     if '{' in url or '${' in url:
         return tool_error(f'URL contains unresolved template variables: {url}')
@@ -276,6 +293,8 @@ def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, query, results, count, scraped_count, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     query = params['query']
     num_results = params.get('num_results', 5)
     scrape_top = params.get('scrape_top', 3)

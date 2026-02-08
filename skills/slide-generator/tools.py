@@ -8,6 +8,12 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("slide-generator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +32,8 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, file_path, slide_count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from reportlab.lib.pagesizes import landscape, A4
         from reportlab.lib.colors import HexColor
@@ -39,6 +47,8 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if not title or not slides_data:
         return {'success': False, 'error': 'title and slides parameters are required'}
+
+    status.emit("Creating", f"📊 Creating PDF slides: {title[:40]}...")
 
     subtitle = params.get('subtitle', '')
     template = params.get('template', 'dark')
@@ -189,6 +199,8 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Number of slides created
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from pptx import Presentation
         from pptx.util import Inches, Pt
@@ -208,6 +220,28 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if not slides_data:
         return {'success': False, 'error': 'slides parameter is required (list of slide dicts)'}
+
+    # Handle case where slides_data is a string (JSON) instead of list
+    if isinstance(slides_data, str):
+        try:
+            import json
+            slides_data = json.loads(slides_data)
+        except json.JSONDecodeError:
+            return {'success': False, 'error': 'slides parameter must be a list of slide dicts, got string'}
+
+    # Validate each slide is a dict with title and bullets
+    validated_slides = []
+    for i, slide in enumerate(slides_data):
+        if isinstance(slide, str):
+            # Convert string slide to proper format
+            validated_slides.append({'title': f'Slide {i+1}', 'bullets': [slide]})
+        elif isinstance(slide, dict):
+            validated_slides.append(slide)
+        else:
+            validated_slides.append({'title': f'Slide {i+1}', 'bullets': [str(slide)]})
+    slides_data = validated_slides
+
+    status.emit("Creating", f"📊 Creating PowerPoint: {title[:40]}...")
 
     subtitle = params.get('subtitle', '')
     author = params.get('author', 'Jotty Slide Generator')
@@ -417,6 +451,8 @@ async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, A
             - slide_count (int): Number of slides
             - telegram_sent (bool): Whether sent to Telegram
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import inspect
     import json
 
@@ -428,6 +464,8 @@ async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, A
     template = params.get('template', 'dark')
     send_telegram = params.get('send_telegram', True)
     export_as = params.get('export_as', 'pptx').lower()  # 'pptx', 'pdf', or 'both'
+
+    status.emit("Generating", f"🧠 Generating slide content for: {topic[:40]}...")
 
     try:
         try:
@@ -502,6 +540,19 @@ Return ONLY the JSON, nothing else."""
         except json.JSONDecodeError as e:
             return {'success': False, 'error': f'Failed to parse AI response as JSON: {e}', 'raw_response': text[:500]}
 
+        # Validate parsed structure
+        if not isinstance(slide_data, dict):
+            return {'success': False, 'error': f'AI response is not a dict: {type(slide_data).__name__}', 'raw_response': text[:500]}
+
+        slides = slide_data.get('slides', [])
+        if not isinstance(slides, list):
+            return {'success': False, 'error': f'slides field is not a list: {type(slides).__name__}', 'raw_response': text[:500]}
+
+        if not slides:
+            return {'success': False, 'error': 'AI generated empty slides list', 'raw_response': text[:500]}
+
+        status.emit("Creating", f"📊 Building {len(slides)} slides...")
+
         # Generate PPTX
         pptx_result = generate_slides_tool({
             'title': slide_data.get('title', topic),
@@ -542,6 +593,7 @@ Return ONLY the JSON, nothing else."""
         # Send to Telegram
         telegram_sent = False
         if send_telegram and telegram_skill:
+            status.emit("Sending", "📤 Sending to Telegram...")
             send_tool = telegram_skill.tools.get('send_telegram_file_tool')
             if send_tool:
                 file_type = "PDF" if telegram_file.endswith('.pdf') else "PPTX"

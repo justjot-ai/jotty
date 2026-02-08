@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("internal-comms")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +35,8 @@ async def write_internal_comm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with generated communication
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     comm_type = params.get('comm_type', '')
     content = params.get('content', {})
     output_format = params.get('format', 'markdown')

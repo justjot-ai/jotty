@@ -11,6 +11,12 @@ import inspect
 import logging
 from typing import Dict, Any, List, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("search-to-justjot-idea")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +50,8 @@ async def search_and_create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - sections (int): Number of sections created
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         topic = params.get('topic')
         if not topic:

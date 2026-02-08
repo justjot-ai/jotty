@@ -13,7 +13,13 @@ from urllib.parse import urljoin, urlparse
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 # Browser-like headers
+
+# Status emitter for progress updates
+status = SkillStatus("web-scraper")
+
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
 
@@ -159,6 +165,8 @@ def scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, url, title, content, pages_scraped
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     url = params['url']
     follow_links = params.get('follow_links', False)
     max_pages = params.get('max_pages', 10)

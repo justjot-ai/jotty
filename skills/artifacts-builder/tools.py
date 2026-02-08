@@ -13,6 +13,10 @@ from datetime import datetime
 import os
 import subprocess
 
+# Status emitter for progress updates
+status = SkillStatus("artifacts-builder")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +34,8 @@ async def init_artifact_project_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with project path and files created
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     project_name = params.get('project_name', '')
     output_directory = params.get('output_directory', '.')
     include_shadcn = params.get('include_shadcn', True)
@@ -201,6 +207,8 @@ body {
         vite_content = '''import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 export default defineConfig({
   plugins: [react()],
 });
@@ -284,6 +292,8 @@ async def bundle_artifact_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with bundle path and file size
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     project_path = params.get('project_path', '')
     output_file = params.get('output_file', 'bundle.html')
     

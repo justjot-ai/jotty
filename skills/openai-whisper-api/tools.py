@@ -7,12 +7,18 @@ import os
 import logging
 from typing import Dict, Any
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Supported audio formats
 SUPPORTED_FORMATS = {'mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm'}
 
 # OpenAI API endpoints
+
+# Status emitter for progress updates
+status = SkillStatus("openai-whisper-api")
+
 TRANSCRIPTION_ENDPOINT = "https://api.openai.com/v1/audio/transcriptions"
 TRANSLATION_ENDPOINT = "https://api.openai.com/v1/audio/translations"
 
@@ -244,6 +250,8 @@ def transcribe_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - response_format (str): Format used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = _get_client()
 
     file_path = params.get('file_path')
@@ -280,6 +288,8 @@ def translate_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - target_language (str): Always 'en' for translations
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = _get_client()
 
     file_path = params.get('file_path')

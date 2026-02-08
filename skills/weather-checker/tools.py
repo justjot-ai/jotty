@@ -1,17 +1,25 @@
 import requests
 from typing import Dict, Any
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("weather-checker")
+
+
 
 def check_weather_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Check current weather for a location using wttr.in API.
-    
+
     Args:
-        params: Dictionary containing 'location' key
-        
+        - location (str, required): The city or location name (e.g., "London", "Delhi", "New York")
+
     Returns:
-        Dictionary with weather information or error details
+        Dictionary with weather information including temperature, humidity, wind speed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         location = params.get('location')
         if not location:
@@ -19,7 +27,8 @@ def check_weather_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 'success': False,
                 'error': 'Location parameter is required'
             }
-        
+
+        status.emit("Fetching", f"🌤️ Getting weather for {location}...")
         url = f'https://wttr.in/{location}?format=j1'
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -68,13 +77,16 @@ def check_weather_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 def get_weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get weather forecast for a location using wttr.in API.
-    
+
     Args:
-        params: Dictionary containing 'location' and optional 'days' (1-3)
-        
+        - location (str, required): The city or location name (e.g., "London", "Delhi")
+        - days (int, optional): Number of forecast days (1-3, default: 3)
+
     Returns:
-        Dictionary with forecast information or error details
+        Dictionary with forecast information including daily temperatures
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         location = params.get('location')
         if not location:

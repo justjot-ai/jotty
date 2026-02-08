@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import tempfile
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("oauth-automation")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +41,8 @@ async def oauth_login_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - authenticated (bool): Whether authenticated
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Check if Playwright is available
         try:

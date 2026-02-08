@@ -11,6 +11,10 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+# Status emitter for progress updates
+status = SkillStatus("mcp-builder")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +32,8 @@ async def create_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with created files and paths
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     server_name = params.get('server_name', '')
     language = params.get('language', 'python')
     output_directory = params.get('output_directory', '.')
@@ -201,6 +207,8 @@ async def _create_node_server(server_path: Path, server_name: str, include_examp
     server_content = '''import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 const server = new Server({
   name: "mcp-server",
   version: "1.0.0",
@@ -297,6 +305,8 @@ async def validate_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with validation results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     server_path = params.get('server_path', '')
     
     if not server_path:

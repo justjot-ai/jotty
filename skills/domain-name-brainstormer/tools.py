@@ -12,6 +12,12 @@ import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("domain-name-brainstormer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def brainstorm_domains_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with suggestions, recommendations, availability info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     project_description = params.get('project_description', '')
     keywords = params.get('keywords', [])
     preferred_tlds = params.get('preferred_tlds', ['.com', '.io', '.dev', '.ai', '.app'])

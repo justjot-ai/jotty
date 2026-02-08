@@ -9,7 +9,13 @@ from typing import Dict, Any
 from pathlib import Path
 import sys
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 # Add parent directory to path to import other skills
+
+# Status emitter for progress updates
+status = SkillStatus("investing-commodities-to-telegram")
+
 current_dir = Path(__file__).parent
 jotty_root = current_dir.parent.parent
 sys.path.insert(0, str(jotty_root))
@@ -41,6 +47,8 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
             - telegram_message_id (int, optional): Telegram message ID if sent
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         registry = get_skills_registry()
         if not registry.initialized:

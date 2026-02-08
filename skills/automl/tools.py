@@ -13,6 +13,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("automl")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def automl_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best_model, best_score, all_scores, feature_importance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.model_selection import cross_val_score, StratifiedKFold
     from sklearn.preprocessing import LabelEncoder, StandardScaler
     from sklearn.ensemble import (
@@ -156,6 +164,8 @@ async def automl_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - top_k: Number of top models to ensemble (default: 5)
             - method: 'voting' or 'stacking' (default: 'voting')
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.model_selection import cross_val_score, StratifiedKFold
     from sklearn.ensemble import VotingClassifier, StackingClassifier
     from sklearn.linear_model import LogisticRegression
@@ -235,6 +245,8 @@ async def automl_evaluate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - test_data: Test DataFrame or path
             - target: Target column (if available)
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.preprocessing import LabelEncoder, StandardScaler
     from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 

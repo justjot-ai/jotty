@@ -11,6 +11,12 @@ from typing import Dict, Any, Optional, List, Generator
 from pathlib import Path
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("justjot-mcp-http")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -222,6 +228,8 @@ async def list_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with ideas list
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('list_ideas', params)
     
@@ -255,6 +263,8 @@ async def create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with created idea ID
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('create_idea', params)
     
@@ -282,6 +292,8 @@ async def get_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with idea data
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('get_idea', params)
     
@@ -313,6 +325,8 @@ async def update_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with update result
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('update_idea', params)
     
@@ -340,6 +354,8 @@ async def delete_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with deletion result
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('delete_idea', params)
     
@@ -367,6 +383,8 @@ async def get_ideas_by_tag_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with ideas list
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client = get_client()
     result = client.call_tool('get_ideas_by_tag', params)
     

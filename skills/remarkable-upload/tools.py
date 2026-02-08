@@ -5,6 +5,12 @@ import hashlib
 import platform
 import requests
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("remarkable-upload")
+
+
 
 def upload_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -25,6 +31,8 @@ def upload_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - path (str): Path on device
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         pdf_path = params.get('pdf_path')
         if not pdf_path:
@@ -103,6 +111,8 @@ def register_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - message (str): Status message
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         one_time_code = params.get('one_time_code')
         if not one_time_code:
@@ -174,6 +184,8 @@ def check_remarkable_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - connected (bool): Whether currently connected
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         config_file = Path.home() / '.md2pages' / 'remarkable_config.json'
         

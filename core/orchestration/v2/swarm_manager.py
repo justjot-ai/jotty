@@ -47,21 +47,11 @@ from .swarm_terminal import SwarmTerminal
 from .swarm_provider_gateway import SwarmProviderGateway
 # State Management (V1 capabilities integrated)
 from .swarm_state_manager import SwarmStateManager
-# V2 Learning Pipeline (RL operations)
-from .rl_learning_manager import LearningManager
-from ...learning.predictive_marl import (
-    LLMTrajectoryPredictor, DivergenceMemory,
-    CooperativeCreditAssigner, ActualTrajectory
-)
-from ...memory.consolidation_engine import (
-    BrainStateMachine, BrainModeConfig, AgentAbstractor
-)
-from ...agents.axon import SmartAgentSlack
+# V2 Learning Pipeline (extracted to SwarmLearningPipeline)
+from .learning_pipeline import SwarmLearningPipeline
+from ...learning.predictive_marl import ActualTrajectory
 from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
-from .swarm_learner import SwarmLearner
-from ...learning.transfer_learning import TransferableLearningStore
-from .swarm_intelligence import SwarmIntelligence, SyntheticTask, CurriculumGenerator
-from ...foundation.robust_parsing import AdaptiveWeightGroup
+from .swarm_intelligence import SyntheticTask, CurriculumGenerator
 # MAS Learning - Persistent learning across sessions
 from .mas_learning import MASLearning, get_mas_learning
 
@@ -285,23 +275,46 @@ class SwarmManager:
         )
         logger.info("📊 SwarmStateManager initialized (swarm + agent-level tracking)")
 
-        # Initialize V1 learning pipeline
-        self._init_learning_pipeline()
+        # Learning Pipeline (extracted from SwarmManager)
+        self.learning = SwarmLearningPipeline(self.config)
+
+        # Expose learning components for backward compat (used by AgentRunner, callers, etc.)
+        self.learning_manager = self.learning.learning_manager
+        self.transfer_learning = self.learning.transfer_learning
+        self.swarm_intelligence = self.learning.swarm_intelligence
+        self.credit_weights = self.learning.credit_weights
+        self.trajectory_predictor = self.learning.trajectory_predictor
+        self.divergence_memory = self.learning.divergence_memory
+        self.cooperative_credit = self.learning.cooperative_credit
+        self.brain_state = self.learning.brain_state
+        self.agent_abstractor = self.learning.agent_abstractor
+        self.swarm_learner = self.learning.swarm_learner
+        self.agent_slack = self.learning.agent_slack
+        self.feedback_channel = self.learning.feedback_channel
+        self.episode_count = 0
+        logger.info("Learning pipeline initialized (SwarmLearningPipeline)")
+
+        # Skill Provider Registry (lazy loaded)
+        self.provider_registry = None
+        if _load_providers():
+            self._init_provider_registry()
+        # Caching for autonomous_setup
+        self._setup_cache = {}
 
         # MAS Learning - DRY: delegates to existing components
         workspace_path = getattr(self.config, 'base_path', None)
         self.mas_learning = MASLearning(
             config=self.config,
             workspace_path=workspace_path,
-            swarm_intelligence=self.swarm_intelligence,  # DELEGATE
-            learning_manager=self.learning_manager,      # DELEGATE
-            transfer_learning=self.transfer_learning     # DELEGATE
+            swarm_intelligence=self.swarm_intelligence,
+            learning_manager=self.learning_manager,
+            transfer_learning=self.transfer_learning,
         )
         self.mas_learning.integrate_with_terminal(self.swarm_terminal)
-        logger.info("🧠 MASLearning initialized (DRY: delegates to SwarmIntelligence/LearningManager)")
+        logger.info("🧠 MASLearning initialized")
 
-        # Auto-load previous learnings (makes it truly self-learning across sessions)
-        self._auto_load_learnings()
+        # Auto-load previous learnings
+        self.learning.auto_load()
 
         # Create AgentRunners for each agent
         self.runners: Dict[str, AgentRunner] = {}
@@ -324,7 +337,8 @@ class SwarmManager:
                 swarm_state_manager=self.swarm_state_manager,
                 learning_manager=self.learning_manager,
                 transfer_learning=self.transfer_learning,
-                swarm_terminal=self.swarm_terminal  # Shared intelligent terminal
+                swarm_terminal=self.swarm_terminal,  # Shared intelligent terminal
+                swarm_intelligence=self.swarm_intelligence,  # Curriculum feedback (Agent0)
             )
 
             self.runners[agent_config.name] = runner
@@ -350,63 +364,7 @@ class SwarmManager:
         if self.lotus:
             logger.info("   🌸 LOTUS optimization enabled (cascade, cache, adaptive validation)")
     
-    def _init_learning_pipeline(self):
-        """Initialize V1 learning pipeline components for swarm-level learning."""
-        # Core learning manager (wraps Q-learner)
-        self.learning_manager = LearningManager(self.config)
-
-        # Trajectory prediction (MARL)
-        self.trajectory_predictor = None
-        try:
-            self.trajectory_predictor = LLMTrajectoryPredictor(self.config, horizon=5)
-        except Exception as e:
-            logger.warning(f"Trajectory predictor unavailable: {e}")
-
-        # Divergence memory for storing prediction errors
-        self.divergence_memory = DivergenceMemory(self.config)
-
-        # Cooperative credit assignment
-        self.cooperative_credit = CooperativeCreditAssigner(self.config)
-
-        # Brain state machine for consolidation
-        brain_config = BrainModeConfig()
-        self.brain_state = BrainStateMachine(brain_config)
-
-        # Agent abstractor for scalable role tracking
-        self.agent_abstractor = AgentAbstractor(brain_config)
-
-        # Inter-agent communication
-        self.agent_slack = SmartAgentSlack(enable_cooperation=True)
-        self.feedback_channel = FeedbackChannel()
-
-        # Swarm learner for prompt evolution
-        self.swarm_learner = SwarmLearner(self.config)
-
-        # Transferable learning (cross-swarm, cross-goal)
-        self.transfer_learning = TransferableLearningStore(self.config)
-
-        # Swarm intelligence (emergent specialization, consensus, routing)
-        self.swarm_intelligence = SwarmIntelligence(self.config)
-
-        # A-Team v8.0: Adaptive credit assignment weights (replaces hardcoded 0.3/0.4/0.3)
-        self.credit_weights = AdaptiveWeightGroup({
-            'base_reward': 0.3,
-            'cooperation_bonus': 0.4,
-            'predictability_bonus': 0.3
-        })
-
-        # A-Team v8.0: Skill Provider Registry (browser-use, openhands, agent-s, etc.)
-        self.provider_registry = None
-        if _load_providers():
-            self._init_provider_registry()
-
-        # Caching for autonomous_setup
-        self._setup_cache = {}
-
-        # Episode counter
-        self.episode_count = 0
-
-        logger.info("V1 learning pipeline initialized")
+    # _init_learning_pipeline removed — now handled by SwarmLearningPipeline
 
     def _init_lotus_optimization(self):
         """
@@ -814,189 +772,31 @@ class SwarmManager:
             'remediation': 'Auto-remediation attempted'
         }
 
-    def _get_learning_path(self) -> Path:
-        """Get default path for learning persistence."""
-        base = getattr(self.config, 'base_path', None)
-        if base:
-            return Path(base) / 'swarm_learnings.json'
-        return Path.home() / '.jotty' / 'swarm_learnings.json'
-
-    def _get_transfer_learning_path(self) -> Path:
-        """Get path for transferable learning persistence."""
-        base = getattr(self.config, 'base_path', None)
-        if base:
-            return Path(base) / 'transfer_learnings.json'
-        return Path.home() / '.jotty' / 'transfer_learnings.json'
-
-    def _get_swarm_intelligence_path(self) -> Path:
-        """Get path for swarm intelligence persistence."""
-        base = getattr(self.config, 'base_path', None)
-        if base:
-            return Path(base) / 'swarm_intelligence.json'
-        return Path.home() / '.jotty' / 'swarm_intelligence.json'
-
-    def _get_credit_weights_path(self) -> Path:
-        """Get path for adaptive credit weights persistence."""
-        base = getattr(self.config, 'base_path', None)
-        if base:
-            return Path(base) / 'credit_weights.json'
-        return Path.home() / '.jotty' / 'credit_weights.json'
+    # =========================================================================
+    # Learning delegation (SwarmLearningPipeline handles persistence & hooks)
+    # =========================================================================
 
     def _auto_load_learnings(self):
-        """Auto-load previous learnings at startup (makes swarm truly self-learning)."""
-        # Load Q-learner state
-        learning_path = self._get_learning_path()
-        if learning_path.exists():
+        """Delegate to SwarmLearningPipeline."""
+        self.learning.auto_load()
+        # Sync credit_weights reference after load (may have been replaced)
+        self.credit_weights = self.learning.credit_weights
+        # Log MAS stats
+        if hasattr(self, 'mas_learning') and self.mas_learning:
             try:
-                self.learning_manager.q_learner.load_state(str(learning_path))
-                q_summary = self.learning_manager.get_q_table_summary()
-                logger.info(f"Auto-loaded {q_summary['size']} Q-entries from {learning_path}")
-            except Exception as e:
-                logger.debug(f"Could not auto-load Q-learnings: {e}")
-
-        # Load transferable learnings (cross-swarm, cross-goal)
-        transfer_path = self._get_transfer_learning_path()
-        if self.transfer_learning.load(str(transfer_path)):
-            logger.info(f"Auto-loaded transferable learnings from {transfer_path}")
-
-        # Load swarm intelligence (specializations, routing)
-        si_path = self._get_swarm_intelligence_path()
-        if self.swarm_intelligence.load(str(si_path)):
-            specs = self.swarm_intelligence.get_specialization_summary()
-            logger.info(f"Auto-loaded swarm intelligence: {len(specs)} agent profiles")
-
-        # Load adaptive credit weights (A-Team v8.0: real learned weights)
-        credit_path = self._get_credit_weights_path()
-        if credit_path.exists():
-            try:
-                import json
-                with open(credit_path, 'r') as f:
-                    credit_data = json.load(f)
-                self.credit_weights = AdaptiveWeightGroup.from_dict(credit_data)
-                logger.info(f"Auto-loaded credit weights: {self.credit_weights}")
-            except Exception as e:
-                logger.debug(f"Could not auto-load credit weights: {e}")
-
-        # Log MAS Learning statistics (DRY: agents tracked via SwarmIntelligence)
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            stats = self.mas_learning.get_statistics()
-            logger.info(f"MAS Learning ready: {stats['fix_database']['total_fixes']} fixes, "
-                       f"{stats['sessions']['total_sessions']} sessions")
-
-    def load_relevant_learnings(self, task_description: str, agent_types: List[str] = None) -> Dict[str, Any]:
-        """
-        Load learnings relevant to the current task.
-
-        This is the key method for smart learning selection:
-        - Matches task topics to past sessions
-        - Suggests best agents for the task
-        - Provides relevant fixes and strategies
-
-        Args:
-            task_description: Description of the current task
-            agent_types: Agent types that will be used (optional)
-
-        Returns:
-            Dict with relevant learnings
-        """
-        if not hasattr(self, 'mas_learning') or not self.mas_learning:
-            return {}
-
-        return self.mas_learning.load_relevant_learnings(
-            task_description=task_description,
-            agent_types=agent_types or [a.name for a in self.agents]
-        )
-
-    def record_agent_result(
-        self,
-        agent_name: str,
-        task_type: str,
-        success: bool,
-        time_taken: float,
-        output_quality: float = 0.0
-    ):
-        """Record an agent's task result for learning."""
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            self.mas_learning.record_agent_task(
-                agent_type=agent_name,
-                task_type=task_type,
-                success=success,
-                time_taken=time_taken,
-                output_quality=output_quality
-            )
-
-    def record_session_result(
-        self,
-        task_description: str,
-        agent_performances: Dict[str, Dict[str, Any]],
-        total_time: float,
-        success: bool,
-        fixes_applied: List[Dict[str, Any]] = None,
-        stigmergy_signals: int = 0
-    ):
-        """Record session results for future learning."""
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            self.mas_learning.record_session(
-                task_description=task_description,
-                agent_performances=agent_performances,
-                fixes_applied=fixes_applied or [],
-                stigmergy_signals=stigmergy_signals,
-                total_time=total_time,
-                success=success
-            )
+                stats = self.mas_learning.get_statistics()
+                logger.info(f"MAS Learning ready: {stats['fix_database']['total_fixes']} fixes, "
+                           f"{stats['sessions']['total_sessions']} sessions")
+            except Exception:
+                pass
 
     def _auto_save_learnings(self):
-        """Auto-save learnings after execution (persists across sessions)."""
-        # Save Q-learner state
-        learning_path = self._get_learning_path()
-        try:
-            learning_path.parent.mkdir(parents=True, exist_ok=True)
-            self.learning_manager.q_learner.save_state(str(learning_path))
-        except Exception as e:
-            logger.debug(f"Could not auto-save Q-learnings: {e}")
-
-        # Save transferable learnings
-        transfer_path = self._get_transfer_learning_path()
-        try:
-            self.transfer_learning.save(str(transfer_path))
-        except Exception as e:
-            logger.debug(f"Could not auto-save transfer learnings: {e}")
-
-        # Save swarm intelligence
-        si_path = self._get_swarm_intelligence_path()
-        try:
-            self.swarm_intelligence.save(str(si_path))
-        except Exception as e:
-            logger.debug(f"Could not auto-save swarm intelligence: {e}")
-
-        # Save adaptive credit weights (A-Team v8.0: real learned weights)
-        credit_path = self._get_credit_weights_path()
-        try:
-            import json
-            credit_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(credit_path, 'w') as f:
-                json.dump(self.credit_weights.to_dict(), f, indent=2)
-        except Exception as e:
-            logger.debug(f"Could not auto-save credit weights: {e}")
-
-        # Save provider registry learnings (A-Team v8.0: which provider works best)
-        if self.provider_registry:
-            provider_path = self._get_provider_registry_path()
-            try:
-                self.provider_registry.save_state(str(provider_path))
-            except Exception as e:
-                logger.debug(f"Could not auto-save provider learnings: {e}")
-
-        # Save MAS Learning (fix database, agent performance, sessions)
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            try:
-                # Sync fixes from SwarmTerminal before saving
-                self.mas_learning.sync_from_terminal(self.swarm_terminal)
-                # Save all MAS learnings
-                self.mas_learning.save_all()
-            except Exception as e:
-                logger.debug(f"Could not auto-save MAS learnings: {e}")
-
+        """Delegate to SwarmLearningPipeline."""
+        self.learning.auto_save(
+            mas_learning=getattr(self, 'mas_learning', None),
+            swarm_terminal=getattr(self, 'swarm_terminal', None),
+            provider_registry=getattr(self, 'provider_registry', None),
+        )
         # Save HierarchicalMemory persistence
         if hasattr(self, 'memory_persistence') and self.memory_persistence:
             try:
@@ -1004,66 +804,52 @@ class SwarmManager:
             except Exception as e:
                 logger.debug(f"Could not auto-save memory: {e}")
 
-    def get_transferable_context(self, query: str, agent: str = None) -> str:
-        """
-        Get transferable learnings as context for an agent.
+    def load_relevant_learnings(self, task_description: str, agent_types: List[str] = None) -> Dict[str, Any]:
+        """Load learnings relevant to the current task."""
+        if not hasattr(self, 'mas_learning') or not self.mas_learning:
+            return {}
+        return self.mas_learning.load_relevant_learnings(
+            task_description=task_description,
+            agent_types=agent_types or [a.name for a in self.agents],
+        )
 
-        This provides learnings that transfer across:
-        - Different agent combinations
-        - Different goals/queries (via semantic similarity)
-        - Different domains (via abstract patterns)
-        """
-        return self.transfer_learning.format_context_for_agent(query, agent)
+    def record_agent_result(self, agent_name: str, task_type: str, success: bool,
+                            time_taken: float, output_quality: float = 0.0):
+        """Record an agent's task result for learning."""
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            self.mas_learning.record_agent_task(
+                agent_type=agent_name, task_type=task_type,
+                success=success, time_taken=time_taken, output_quality=output_quality,
+            )
+
+    def record_session_result(self, task_description: str,
+                              agent_performances: Dict[str, Dict[str, Any]],
+                              total_time: float, success: bool,
+                              fixes_applied: List[Dict[str, Any]] = None,
+                              stigmergy_signals: int = 0):
+        """Record session results for future learning."""
+        if hasattr(self, 'mas_learning') and self.mas_learning:
+            self.mas_learning.record_session(
+                task_description=task_description, agent_performances=agent_performances,
+                fixes_applied=fixes_applied or [], stigmergy_signals=stigmergy_signals,
+                total_time=total_time, success=success,
+            )
+
+    def get_transferable_context(self, query: str, agent: str = None) -> str:
+        """Get transferable learnings as context for an agent."""
+        return self.learning.get_transferable_context(query, agent)
 
     def get_swarm_wisdom(self, query: str) -> str:
-        """
-        Get collective swarm wisdom for a task.
-
-        Combines:
-        - Transferable learnings (patterns, role advice)
-        - Swarm intelligence (specializations, routing)
-        """
-        task_type = self.transfer_learning.extractor.extract_task_type(query)
-
-        # Get transferable context
-        transfer_ctx = self.transfer_learning.format_context_for_agent(query)
-
-        # Get swarm intelligence context
-        swarm_ctx = self.swarm_intelligence.format_swarm_context(query, task_type)
-
-        return f"{transfer_ctx}\n\n{swarm_ctx}"
+        """Get collective swarm wisdom for a task."""
+        return self.learning.get_swarm_wisdom(query)
 
     def get_agent_specializations(self) -> Dict[str, str]:
         """Get current specializations of all agents."""
-        return self.swarm_intelligence.get_specialization_summary()
+        return self.learning.get_agent_specializations()
 
     def get_best_agent_for_task(self, query: str) -> Optional[str]:
-        """
-        Recommend the best agent for a task using swarm intelligence.
-
-        Uses:
-        - Emergent specialization tracking
-        - Historical success rates
-        - Trust scores
-        - Transfer learning role profiles
-        """
-        task_type = self.transfer_learning.extractor.extract_task_type(query)
-        available = [a.name for a in self.agents]
-
-        # Primary: Use swarm intelligence routing
-        best = self.swarm_intelligence.get_best_agent_for_task(task_type, available)
-        if best:
-            return best
-
-        # Fallback: Use transfer learning role profiles
-        best_role = self.transfer_learning.get_best_role_for_task(task_type)
-        if best_role:
-            for agent_config in self.agents:
-                agent_role = self.transfer_learning.extractor.extract_role(agent_config.name)
-                if agent_role == best_role:
-                    return agent_config.name
-
-        return available[0] if available else None
+        """Recommend the best agent for a task."""
+        return self.learning.get_best_agent_for_task(query)
 
     def _register_agents_with_axon(self):
         """Register all agents with SmartAgentSlack for inter-agent messaging."""
@@ -1384,17 +1170,14 @@ For component-specific help:
         Run task execution with full autonomy.
 
         Supports zero-config: natural language goal → autonomous execution.
+        For simple tool-calling tasks, use UnifiedExecutor directly instead.
 
         Args:
             goal: Task goal/description (natural language supported)
             skip_autonomous_setup: If True, skip research/install/configure (fast mode)
             status_callback: Optional callback(stage, detail) for progress updates
             ensemble: Enable prompt ensembling for multi-perspective analysis
-            ensemble_strategy: Strategy for ensembling:
-                - 'self_consistency': Same prompt, N samples, synthesis
-                - 'multi_perspective': Different expert personas (default)
-                - 'gsa': Generative Self-Aggregation
-                - 'debate': Multi-round argumentation
+            ensemble_strategy: Strategy for ensembling
             **kwargs: Additional arguments
 
         Returns:
@@ -2369,176 +2152,23 @@ Provide a structured synthesis with:
         return False
 
     def _post_episode_learning(self, result: EpisodeResult, goal: str):
-        """
-        Post-episode learning: swarm learner, brain consolidation, NeuroChunk tiering.
-
-        Called at end of both single-agent and multi-agent execution.
-        """
-        self.episode_count += 1
-
-        # 1. SwarmLearner: record episode, conditionally update prompts
-        try:
-            trajectory = result.trajectory or []
-            insights = []
-            if hasattr(result, 'tagged_outputs') and result.tagged_outputs:
-                insights = [str(t) for t in result.tagged_outputs[:5]]
-            self.swarm_learner.record_episode(trajectory, result.success, insights)
-
-            if self.swarm_learner.should_update_prompts():
-                for prompt_path in self.architect_prompts:
-                    try:
-                        with open(prompt_path, 'r') as f:
-                            current = f.read()
-                        updated, changes = self.swarm_learner.update_prompt(prompt_path, current)
-                        if changes:
-                            logger.info(f"Prompt '{prompt_path}' evolved with {len(changes)} changes")
-                    except Exception as e:
-                        logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
-        except Exception as e:
-            logger.debug(f"SwarmLearner recording skipped: {e}")
-
-        # 2. Brain consolidation: process experience
-        try:
-            experience = {
-                'content': str(result.output)[:500] if result.output else '',
-                'context': {'goal': goal, 'episode': self.episode_count},
-                'reward': 1.0 if result.success else 0.0,
-                'agent': 'swarm',
-            }
-            # Use asyncio to run the async consolidation in a fire-and-forget manner
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.ensure_future(self.brain_state.process_experience(experience))
-            else:
-                loop.run_until_complete(self.brain_state.process_experience(experience))
-        except Exception as e:
-            logger.debug(f"Brain consolidation skipped: {e}")
-
-        # 3. NeuroChunk tiering: promote/demote memories
-        try:
-            episode_reward = 1.0 if result.success else 0.0
-            self.learning_manager.promote_demote_memories(episode_reward)
-            self.learning_manager.prune_tier3()
-        except Exception as e:
-            logger.debug(f"NeuroChunk tiering skipped: {e}")
-
-        # 4. Agent abstractor: update per-agent stats
-        try:
-            if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                for agent_name, contrib in result.agent_contributions.items():
-                    success = getattr(contrib, 'decision_correct', result.success)
-                    self.agent_abstractor.update_agent(agent_name, success)
-            else:
-                # Single agent case
-                agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
-                self.agent_abstractor.update_agent(agent_name, result.success)
-        except Exception as e:
-            logger.debug(f"Agent abstractor update skipped: {e}")
-
-        # 5. Record into transferable learning store
-        try:
-            query = goal[:200] if goal else ''
-            agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
-            self.transfer_learning.record_experience(
-                query=query,
-                agent=agent_name,
-                action=goal[:100],
-                reward=episode_reward,
-                success=result.success,
-                error=str(getattr(result, 'error', None) or ''),
-                context={'episode': self.episode_count}
-            )
-        except Exception as e:
-            logger.debug(f"Transfer learning record skipped: {e}")
-
-        # 6. Record into swarm intelligence (emergent specialization)
-        try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            execution_time = getattr(result, 'execution_time', 0.0)
-            agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
-            self.swarm_intelligence.record_task_result(
-                agent_name=agent_name,
-                task_type=task_type,
-                success=result.success,
-                execution_time=execution_time,
-                context={'goal': goal[:100], 'episode': self.episode_count}
-            )
-        except Exception as e:
-            logger.debug(f"Swarm intelligence record skipped: {e}")
-
-        # 7. MAS Learning: Record agent performance and session
-        try:
-            if hasattr(self, 'mas_learning') and self.mas_learning:
-                task_type = self.transfer_learning.extractor.extract_task_type(goal) if hasattr(self, 'transfer_learning') else 'general'
-                execution_time = getattr(result, 'execution_time', 0.0)
-
-                # Record individual agent performance
-                if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                    agent_performances = {}
-                    for agent_name, contrib in result.agent_contributions.items():
-                        success = getattr(contrib, 'decision_correct', result.success)
-                        agent_time = getattr(contrib, 'execution_time', execution_time / len(result.agent_contributions))
-                        self.mas_learning.record_agent_task(
-                            agent_type=agent_name,
-                            task_type=task_type,
-                            success=success,
-                            time_taken=agent_time
-                        )
-                        agent_performances[agent_name] = {
-                            'success': success,
-                            'success_rate': 1.0 if success else 0.0,
-                            'avg_time': agent_time
-                        }
-                else:
-                    agent_name = getattr(result, 'agent_name', self.agents[0].name if self.agents else 'unknown')
-                    self.mas_learning.record_agent_task(
-                        agent_type=agent_name,
-                        task_type=task_type,
-                        success=result.success,
-                        time_taken=execution_time
-                    )
-                    agent_performances = {
-                        agent_name: {
-                            'success': result.success,
-                            'success_rate': 1.0 if result.success else 0.0,
-                            'avg_time': execution_time
-                        }
-                    }
-
-                # Record session
-                stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self, 'swarm_intelligence') else 0
-                self.mas_learning.record_session(
-                    task_description=goal,
-                    agent_performances=agent_performances,
-                    fixes_applied=getattr(self.swarm_terminal, '_fix_history', []) if hasattr(self, 'swarm_terminal') else [],
-                    stigmergy_signals=stigmergy_signals,
-                    total_time=execution_time,
-                    success=result.success
-                )
-        except Exception as e:
-            logger.debug(f"MAS Learning record skipped: {e}")
-
-        logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
+        """Delegate to SwarmLearningPipeline."""
+        self.learning.post_episode(
+            result=result,
+            goal=goal,
+            agents=self.agents,
+            architect_prompts=self.architect_prompts,
+            mas_learning=getattr(self, 'mas_learning', None),
+            swarm_terminal=getattr(self, 'swarm_terminal', None),
+        )
+        self.episode_count = self.learning.episode_count
 
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
-        """
-        Learn from execution result (DRY: reuse workflow learner).
-        
-        Args:
-            result: Execution result
-            agent_config: Agent configuration
-        """
-        if not result.success:
-            return
-        
-        metadata = getattr(agent_config, 'metadata', {}) or {}
-        self.swarm_workflow_learner.learn_from_execution(
-            task_type=metadata.get('task_type', 'unknown'),
-            operations=metadata.get('operations', []),
-            tools_used=metadata.get('integrations', []),
-            success=True,
-            execution_time=getattr(result, 'duration', 0.0),
-            metadata={'agent': agent_config.name}
+        """Delegate to SwarmLearningPipeline."""
+        self.learning.learn_from_result(
+            result=result,
+            agent_config=agent_config,
+            workflow_learner=self.swarm_workflow_learner,
         )
     
     async def autonomous_setup(self, goal: str, status_callback=None):

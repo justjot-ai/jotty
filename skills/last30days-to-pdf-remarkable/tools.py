@@ -15,6 +15,12 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("last30days-to-pdf-remarkable")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -104,6 +110,8 @@ async def last30days_to_pdf_remarkable_tool(params: Dict[str, Any]) -> Dict[str,
             - remarkable_sent (bool): Whether sent to reMarkable
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

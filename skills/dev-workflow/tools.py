@@ -14,6 +14,12 @@ import inspect
 from typing import Dict, Any
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("dev-workflow")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +43,8 @@ async def dev_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with changelog, skill info, and test results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

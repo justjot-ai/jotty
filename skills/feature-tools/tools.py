@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("feature-tools")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with engineered features DataFrame
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import featuretools as ft
 
     logger.info("[FeatureTools] Starting Deep Feature Synthesis...")
@@ -125,6 +133,8 @@ async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dict with transformed DataFrame
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import featuretools as ft
     from featuretools.primitives import get_transform_primitives, get_aggregation_primitives
 
@@ -190,6 +200,8 @@ async def featuretools_normalize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with EntitySet and normalized dataframes
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import featuretools as ft
 
     logger.info("[FeatureTools] Normalizing data...")
@@ -252,6 +264,8 @@ async def featuretools_interesting_tool(params: Dict[str, Any]) -> Dict[str, Any
     Returns:
         Dict with interesting features ranked by correlation
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[FeatureTools] Finding interesting features...")
 
     feature_matrix = params.get('feature_matrix')

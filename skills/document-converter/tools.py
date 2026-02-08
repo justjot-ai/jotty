@@ -3,18 +3,24 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import shutil
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("document-converter")
+
+
 
 def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to PDF format using Pandoc.
-    
-    IMPORTANT: Pandoc can convert FROM markdown, HTML, DOCX, EPUB, LaTeX, etc. 
-    but CANNOT convert FROM PDF. Always use the original source file (markdown/HTML/DOCX) 
+
+    IMPORTANT: Pandoc can convert FROM markdown, HTML, DOCX, EPUB, LaTeX, etc.
+    but CANNOT convert FROM PDF. Always use the original source file (markdown/HTML/DOCX)
     as input, not a PDF file.
-    
-    Supported input formats: markdown (.md), HTML (.html), DOCX (.docx), EPUB (.epub), 
+
+    Supported input formats: markdown (.md), HTML (.html), DOCX (.docx), EPUB (.epub),
     LaTeX (.tex), reStructuredText (.rst), Textile, MediaWiki, etc.
-    
+
     Args:
         params: Dictionary containing:
             - input_file (str, required): Path to input file (markdown, HTML, DOCX, etc. - NOT PDF)
@@ -22,13 +28,16 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - page_size (str, optional): Page size (a4, a5, a6, letter, remarkable), default: 'a4'
             - title (str, optional): Document title
             - author (str, optional): Document author
-    
+
     Returns:
         Dictionary with:
             - success (bool): Whether conversion succeeded
             - output_path (str): Path to generated PDF
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+    status.emit("Converting", "📄 Converting to PDF...")
+
     try:
         input_file = params.get('input_file')
         if not input_file:
@@ -157,6 +166,8 @@ def convert_to_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_path (str): Path to generated EPUB
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         input_file = params.get('input_file')
         if not input_file:
@@ -239,6 +250,8 @@ def convert_to_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_path (str): Path to generated DOCX
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         input_file = params.get('input_file')
         if not input_file:
@@ -326,6 +339,8 @@ def convert_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_path (str): Path to generated HTML
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         input_file = params.get('input_file')
         if not input_file:
@@ -407,6 +422,8 @@ def convert_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_path (str): Path to generated Markdown
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         input_file = params.get('input_file')
         if not input_file:

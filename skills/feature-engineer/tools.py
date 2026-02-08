@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("feature-engineer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +32,8 @@ async def feature_engineer_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with engineered DataFrame and list of new features
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[FeatureEngineer] Starting feature engineering...")
 
     data = params.get('data')
@@ -176,6 +184,8 @@ async def feature_select_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with selected features
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.preprocessing import LabelEncoder
 

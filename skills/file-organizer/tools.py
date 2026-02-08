@@ -14,6 +14,12 @@ from datetime import datetime, timedelta
 import os
 import shutil
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("file-organizer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +40,8 @@ async def organize_files_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with changes, duplicates, statistics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     target_dir = params.get('target_directory', '')
     strategy = params.get('organization_strategy', 'auto')
     find_duplicates = params.get('find_duplicates', True)

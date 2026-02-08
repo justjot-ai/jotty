@@ -99,7 +99,7 @@ class ResearchCommand(BaseCommand):
         cli.renderer.info(f"Output: {output_format}")
 
         try:
-            # Use UnifiedExecutor for intelligent research (auto-detects provider)
+            # Execute via UnifiedExecutor directly (peer to SwarmManager, not child)
             from core.orchestration.v2.unified_executor import UnifiedExecutor
 
             # Check if renderer supports async status (Telegram)
@@ -118,11 +118,9 @@ class ResearchCommand(BaseCommand):
                 cli.renderer.status(f"{stage}: {detail}" if detail else stage)
 
             # Use async callback if available (Telegram), else sync (CLI)
-            if has_async_status:
-                executor = UnifiedExecutor(status_callback=async_status_callback)
-            else:
-                executor = UnifiedExecutor(status_callback=sync_status_callback)
+            status_cb = async_status_callback if has_async_status else sync_status_callback
 
+            executor = UnifiedExecutor(status_callback=status_cb)
             result = await executor.execute(task)
 
             # Clear status message after completion (Telegram)

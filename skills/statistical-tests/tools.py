@@ -11,6 +11,12 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("statistical-tests")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def ttest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with t-statistic, p-value, and interpretation
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Running t-test...")
 
     sample1 = params.get('sample1')
@@ -106,6 +114,8 @@ async def anova_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with F-statistic, p-value, and post-hoc results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Running ANOVA...")
 
     groups = params.get('groups')
@@ -203,6 +213,8 @@ async def chisquare_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with chi-square statistic, p-value, and interpretation
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Running Chi-square test...")
 
     observed = params.get('observed')
@@ -270,6 +282,8 @@ async def normality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with test results and recommendation
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Testing normality...")
 
     data = params.get('data')
@@ -353,6 +367,8 @@ async def correlation_test_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with correlation coefficient, p-value, and confidence interval
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Testing correlation...")
 
     x = params.get('x')
@@ -436,6 +452,8 @@ async def mannwhitney_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with U statistic, p-value, and effect size
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Stats] Running Mann-Whitney U test...")
 
     sample1 = np.array(params.get('sample1'))

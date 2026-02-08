@@ -5,9 +5,86 @@ CLI Configuration Schema
 Pydantic-based configuration for Jotty CLI.
 """
 
+import os
+from enum import Enum
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from pathlib import Path
+
+
+class ColorDepth(Enum):
+    """Terminal color depth levels."""
+    DUMB = "dumb"
+    BASIC_16 = "16"
+    EXTENDED_256 = "256"
+    TRUE_COLOR = "truecolor"
+
+
+class TerminalDetector:
+    """Detects terminal capabilities by sniffing environment variables."""
+
+    @classmethod
+    def detect_color_depth(cls) -> ColorDepth:
+        """
+        Detect terminal color depth from environment.
+
+        Checks $COLORTERM, $TERM, $TERM_PROGRAM, $WT_SESSION.
+
+        Returns:
+            ColorDepth enum value
+        """
+        # Check for dumb terminal
+        term = os.environ.get("TERM", "")
+        if term == "dumb" or os.environ.get("NO_COLOR"):
+            return ColorDepth.DUMB
+
+        # True-color detection
+        colorterm = os.environ.get("COLORTERM", "").lower()
+        if colorterm in ("truecolor", "24bit"):
+            return ColorDepth.TRUE_COLOR
+
+        # Windows Terminal always supports true color
+        if os.environ.get("WT_SESSION"):
+            return ColorDepth.TRUE_COLOR
+
+        # Known true-color terminals
+        term_program = os.environ.get("TERM_PROGRAM", "").lower()
+        truecolor_programs = ("iterm.app", "hyper", "wezterm", "alacritty", "kitty", "ghostty")
+        if term_program in truecolor_programs:
+            return ColorDepth.TRUE_COLOR
+
+        # 256-color detection
+        if "256color" in term:
+            return ColorDepth.EXTENDED_256
+
+        # Default to basic 16 colors
+        return ColorDepth.BASIC_16
+
+    @classmethod
+    def supports_animations(cls) -> bool:
+        """Check if terminal likely supports smooth animations."""
+        depth = cls.detect_color_depth()
+        if depth in (ColorDepth.DUMB, ColorDepth.BASIC_16):
+            return False
+        # CI environments typically don't support animations
+        ci_vars = ("CI", "GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_URL", "TRAVIS")
+        if any(os.environ.get(v) for v in ci_vars):
+            return False
+        return True
+
+    @classmethod
+    def is_headless(cls) -> bool:
+        """Check if running in a headless environment (no display)."""
+        if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
+            return False
+        # macOS always has a display server
+        import sys
+        if sys.platform == "darwin":
+            return False
+        # Windows always has a display
+        if sys.platform == "win32":
+            return False
+        return True
 
 
 @dataclass
@@ -47,6 +124,10 @@ class UIConfig:
     enable_progress: bool = True
     enable_spinner: bool = True
     max_width: int = 120
+    color_depth: Optional[str] = None  # Auto-detected if None
+    enable_animations: bool = True
+    enable_notifications: bool = True
+    notification_threshold: int = 10  # seconds before notifying
 
 
 @dataclass
@@ -140,6 +221,10 @@ class CLIConfig:
                 "enable_progress": self.ui.enable_progress,
                 "enable_spinner": self.ui.enable_spinner,
                 "max_width": self.ui.max_width,
+                "color_depth": self.ui.color_depth,
+                "enable_animations": self.ui.enable_animations,
+                "enable_notifications": self.ui.enable_notifications,
+                "notification_threshold": self.ui.notification_threshold,
             },
             "features": {
                 "git_integration": self.features.git_integration,
@@ -212,6 +297,10 @@ class CLIConfig:
                 enable_progress=u.get("enable_progress", True),
                 enable_spinner=u.get("enable_spinner", True),
                 max_width=u.get("max_width", 120),
+                color_depth=u.get("color_depth"),
+                enable_animations=u.get("enable_animations", True),
+                enable_notifications=u.get("enable_notifications", True),
+                notification_threshold=u.get("notification_threshold", 10),
             )
 
         if "features" in data:

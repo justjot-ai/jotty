@@ -8,6 +8,12 @@ import logging
 import requests
 from typing import Dict, Any, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("trello")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -152,6 +158,8 @@ def list_boards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - board_count (int): Number of boards returned
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     request_params = {
         'filter': params.get('filter', 'all'),
         'fields': params.get('fields', 'name,desc,url,closed,starred,idOrganization')
@@ -197,6 +205,8 @@ def get_board_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - labels (list, optional): List of board labels
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     board_id = params.get('board_id')
     if not board_id:
         return {'success': False, 'error': 'board_id parameter is required'}
@@ -284,6 +294,8 @@ def list_cards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - card_count (int): Number of cards returned
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     list_id = params.get('list_id')
     board_id = params.get('board_id')
 
@@ -344,6 +356,8 @@ def create_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url (str): URL of the created card
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     list_id = params.get('list_id')
     name = params.get('name')
 
@@ -420,6 +434,8 @@ def update_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - card (dict): Updated card object
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     card_id = params.get('card_id')
     if not card_id:
         return {'success': False, 'error': 'card_id parameter is required'}
@@ -492,6 +508,8 @@ def add_comment_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - comment (dict): Full comment object
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     card_id = params.get('card_id')
     text = params.get('text')
 

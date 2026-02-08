@@ -13,13 +13,19 @@ import logging
 from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("skill-composer")
+
+
 logger = logging.getLogger(__name__)
 
 
 async def compose_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Compose multiple skills into a workflow.
-    
+
     Args:
         params: Dictionary containing:
             - workflow (list, required): List of workflow steps
@@ -29,10 +35,11 @@ async def compose_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 - Conditional: {"type": "conditional", "condition": {...}, "then": [...], "else": [...]}
                 - Loop: {"type": "loop", "count": 3, "skill": "skill1"}
                 - Single: {"type": "single", "skill": "skill1", "params": {...}}
-    
+
     Returns:
         Dictionary with execution results
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

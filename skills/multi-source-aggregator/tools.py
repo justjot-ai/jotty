@@ -17,6 +17,12 @@ Customizable for:
 import logging
 from typing import Dict, Any, List
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("multi-source-aggregator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +43,8 @@ async def aggregate_sources_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with aggregated data and output file path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

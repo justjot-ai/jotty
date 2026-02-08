@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("stock-research-comprehensive")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +47,8 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
     Returns:
         Dictionary with research results and file paths
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Check if enhanced mode is enabled (default: True)
         enhanced = params.get('enhanced', True)
@@ -107,7 +115,8 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         target_pages = params.get('target_pages', 10)
         
         logger.info(f"🔍 Starting comprehensive research for {company_name} ({ticker})")
-        
+        status.emit("Starting", f"🔍 Researching {company_name} ({ticker})...")
+
         # Initialize registry
         registry = get_skills_registry()
         registry.init()
@@ -179,6 +188,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         
         # Run all searches in parallel
         logger.info(f"🔍 Running {len(search_queries)} parallel searches...")
+        status.emit("Searching", f"🔍 Running {len(search_queries)} web searches...")
         search_tasks = [
             run_search(query, aspect_name) 
             for aspect_name, query in search_queries.items()
@@ -196,9 +206,10 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         
         # Step 2: Combine research using Claude CLI
         logger.info("🤖 Step 2: Synthesizing comprehensive research with Claude...")
-        
+
         # Calculate total results for logging
         total_results = sum(r.get('count', 0) for r in research_data.values())
+        status.emit("Analyzing", f"🧠 Analyzing {total_results} results...")
         total_snippets = sum(min(len(r.get('results', [])), 5) for r in research_data.values())
         logger.info(f"📊 Total research data: {total_results} results, sending top {total_snippets} snippets to Claude")
         
@@ -447,6 +458,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         
         # Step 3: Write markdown file
         logger.info("📝 Step 3: Writing markdown file...")
+        status.emit("Writing", "📝 Creating markdown report...")
         
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -479,6 +491,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         
         # Step 4: Convert to PDF
         logger.info("📄 Step 4: Converting to PDF...")
+        status.emit("Converting", "📄 Generating PDF...")
         
         pdf_filename = f"{safe_ticker}_research_{timestamp}.pdf"
         pdf_path = output_path / pdf_filename
@@ -521,6 +534,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         telegram_sent = False
         if send_telegram and telegram_skill:
             logger.info("📱 Step 5: Sending to Telegram...")
+            status.emit("Sending", "📤 Sending to Telegram...")
             
             send_tool = telegram_skill.tools.get('send_telegram_file_tool')
             if send_tool:

@@ -10,6 +10,12 @@ import os
 import json
 from typing import Dict, Any, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("mcp-justjot-mcp-client")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,6 +69,8 @@ async def _call_mcp_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str,
 
 async def list_ideas_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """List all ideas using MCP client."""
+    status.set_callback(params.pop('_status_callback', None))
+
     result = await _call_mcp_tool("list_ideas", params)
     
     if result.get('success'):
@@ -79,6 +87,8 @@ async def list_ideas_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new idea using MCP client."""
+    status.set_callback(params.pop('_status_callback', None))
+
     title = params.get('title')
     if not title:
         return {
@@ -152,6 +162,8 @@ async def create_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def get_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Get idea by ID using MCP client."""
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -174,6 +186,8 @@ async def get_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def update_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Update idea using MCP client."""
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -201,6 +215,8 @@ async def update_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def delete_idea_mcp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Delete idea using MCP client."""
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {

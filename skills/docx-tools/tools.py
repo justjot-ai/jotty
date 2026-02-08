@@ -9,9 +9,15 @@ import logging
 import re
 from typing import Dict, Any, List, Optional, Tuple
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Professional color scheme (RGB values)
+
+# Status emitter for progress updates
+status = SkillStatus("docx-tools")
+
 COLORS = {
     'primary': (41, 65, 114),      # Deep blue - headers
     'secondary': (89, 89, 89),     # Dark gray - text
@@ -40,6 +46,8 @@ def read_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - tables (list): List of tables (if include_tables is True)
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
     except ImportError:
@@ -115,6 +123,8 @@ def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to created document
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
         from docx.shared import Inches, Pt
@@ -298,6 +308,8 @@ def create_professional_checklist_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dictionary with success status and file path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
         from docx.shared import Inches, Pt, RGBColor
@@ -719,6 +731,8 @@ def add_paragraph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified document
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
     except ImportError:
@@ -786,6 +800,8 @@ def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - cols (int): Number of columns
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
         from docx.shared import Inches
@@ -872,6 +888,8 @@ def add_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to the image that was added
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
         from docx.shared import Inches
@@ -934,6 +952,8 @@ def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - replacements (int): Number of replacements made
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
     except ImportError:
@@ -1013,6 +1033,8 @@ def get_styles_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - character_styles (list): List of character style names
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from docx import Document
         from docx.enum.style import WD_STYLE_TYPE

@@ -1,6 +1,12 @@
 from typing import Dict, Any, List
 import re
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("content-repurposer")
+
+
 
 def repurpose_content_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -22,6 +28,8 @@ def repurpose_content_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - outputs (dict): Repurposed content for each format
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         content = params.get('content')
         if not content:

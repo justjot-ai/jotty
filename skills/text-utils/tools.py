@@ -4,6 +4,12 @@ import html
 import re
 from typing import Dict, Any
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("text-utils")
+
+
 
 def encode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -20,6 +26,8 @@ def encode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - encoded (str): Encoded text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         encoding = params.get('encoding', '').lower()
@@ -81,6 +89,8 @@ def decode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - decoded (str): Decoded text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         encoding = params.get('encoding', '').lower()
@@ -142,6 +152,8 @@ def format_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - formatted (str): Formatted text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         format_type = params.get('format', '').lower()
@@ -209,6 +221,8 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - extracted (str): Extracted text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         content = params.get('content')
         format_type = params.get('format', '').lower()
@@ -298,6 +312,8 @@ def count_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count_type (str): Type of count performed
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         count_type = params.get('count_type', 'words').lower()
@@ -364,6 +380,8 @@ def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - replacements (int): Number of replacements made
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         find = params.get('find')

@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("competitive-ads-extractor")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def extract_competitive_ads_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dictionary with ads, insights, analysis
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     competitor_name = params.get('competitor_name', '')
     platforms = params.get('platforms', ['facebook', 'google'])
     max_ads = params.get('max_ads', 20)

@@ -11,9 +11,15 @@ import logging
 from typing import Dict, Any, List, Optional
 from urllib.parse import quote_plus
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Connection pool cache
+
+# Status emitter for progress updates
+status = SkillStatus("database-tools")
+
 _engines: Dict[str, Any] = {}
 
 
@@ -129,6 +135,8 @@ def connect_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and connection info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import text
 
@@ -193,6 +201,8 @@ def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with query results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import text
 
@@ -265,6 +275,8 @@ def list_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with list of tables
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import inspect
 
@@ -316,6 +328,8 @@ def describe_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with table schema
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import inspect
 
@@ -404,6 +418,8 @@ def natural_language_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with generated SQL and optional results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.llm import generate
 
@@ -553,6 +569,8 @@ def insert_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with insert status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import text
 
@@ -626,6 +644,8 @@ def get_database_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with database info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from sqlalchemy import inspect, text
 

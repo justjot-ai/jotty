@@ -12,6 +12,12 @@ from datetime import datetime
 import os
 import math
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("slack-gif-creator")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -41,6 +47,8 @@ async def create_slack_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with GIF path and validation results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     description = params.get('description', '')
     gif_type = params.get('gif_type', 'message')
     output_path = params.get('output_path', None)

@@ -23,9 +23,10 @@ class CompositeStep:
     provider_name: str
     category: SkillCategory
     task: str
-    depends_on: List[str] = None  # Step IDs this depends on
+    depends_on: Optional[List[str]] = None  # Step IDs this depends on
     step_id: str = ""
-    result: ProviderResult = None
+    optional: bool = False
+    result: Optional[ProviderResult] = None
 
 
 class ResearchAndAnalyzeProvider(SkillProvider):
@@ -188,44 +189,58 @@ class AutomateWorkflowProvider(SkillProvider):
         return [SkillCategory.TERMINAL, SkillCategory.BROWSER]
 
     async def execute(self, task: str, context: Dict[str, Any] = None) -> ProviderResult:
-        """Execute multi-step automation workflow."""
+        """Execute multi-step automation workflow with dependency awareness."""
         start_time = time.time()
         context = context or {}
 
         try:
-            # Parse task into steps
+            # Parse task into CompositeStep objects
             steps = self._parse_workflow(task)
-            results = []
+            results: Dict[str, Dict] = {}  # step_id -> result dict
 
             for i, step in enumerate(steps):
-                logger.info(f"⚙️  Step {i+1}/{len(steps)}: {step['action'][:30]}...")
+                logger.info(f"⚙️  Step {i+1}/{len(steps)}: {step.task[:30]}...")
+
+                # Check dependency satisfaction
+                if step.depends_on:
+                    deps_met = all(
+                        dep_id in results and results[dep_id].get('success', False)
+                        for dep_id in step.depends_on
+                    )
+                    if not deps_met:
+                        logger.warning(f"Skipping step '{step.step_id}': unmet dependencies {step.depends_on}")
+                        if not step.optional:
+                            break
+                        continue
 
                 if self._registry:
                     step_result = await self._registry.execute(
-                        step['category'],
-                        step['action'],
-                        {**context, 'step': i, 'previous_results': results},
+                        step.category,
+                        step.task,
+                        {**context, 'step': i, 'previous_results': list(results.values())},
                     )
-                    results.append({
+                    result_dict = {
                         'step': i + 1,
-                        'action': step['action'],
+                        'step_id': step.step_id,
+                        'action': step.task,
                         'success': step_result.success,
                         'output': step_result.output,
-                    })
+                    }
+                    results[step.step_id] = result_dict
 
                     # Stop on failure unless marked as optional
-                    if not step_result.success and not step.get('optional', False):
+                    if not step_result.success and not step.optional:
                         break
 
             execution_time = time.time() - start_time
 
-            all_success = all(r['success'] for r in results)
+            all_success = all(r['success'] for r in results.values()) if results else False
 
             return ProviderResult(
                 success=all_success,
                 output={
                     'workflow': task,
-                    'steps': results,
+                    'steps': list(results.values()),
                     'total_steps': len(steps),
                     'completed_steps': len(results),
                 },
@@ -243,38 +258,53 @@ class AutomateWorkflowProvider(SkillProvider):
                 provider_name=self.name,
             )
 
-    def _parse_workflow(self, task: str) -> List[Dict]:
-        """Parse task into workflow steps."""
-        steps = []
-        task_lower = task.lower()
+    def _parse_workflow(self, task: str) -> List[CompositeStep]:
+        """Parse task into CompositeStep objects with dependency tracking."""
+        steps: List[CompositeStep] = []
 
-        # Simple parsing - look for conjunctions
-        parts = task.replace(' then ', ', ').replace(' and ', ', ').split(',')
-
+        # Split on ' then ' first (preserves order/dependency), then ', '
+        parts = task.replace(' then ', '\x00').split('\x00')
+        expanded = []
         for part in parts:
-            part = part.strip()
-            if not part:
-                continue
+            expanded.extend(p.strip() for p in part.split(',') if p.strip())
+
+        prev_step_id: Optional[str] = None
+        for idx, part in enumerate(expanded):
+            part_lower = part.lower()
 
             # Determine category
-            if any(kw in part for kw in ['browse', 'open url', 'website', 'search']):
+            if any(kw in part_lower for kw in ['browse', 'open url', 'website', 'search']):
                 category = SkillCategory.BROWSER
-            elif any(kw in part for kw in ['click', 'type', 'screenshot', 'gui']):
+            elif any(kw in part_lower for kw in ['click', 'type', 'screenshot', 'gui']):
                 category = SkillCategory.COMPUTER_USE
-            elif any(kw in part for kw in ['run', 'execute', 'command', 'git', 'pip']):
+            elif any(kw in part_lower for kw in ['run', 'execute', 'command', 'git', 'pip']):
                 category = SkillCategory.TERMINAL
-            elif any(kw in part for kw in ['analyze', 'process', 'code']):
+            elif any(kw in part_lower for kw in ['analyze', 'process', 'code']):
                 category = SkillCategory.CODE_EXECUTION
             else:
                 category = SkillCategory.TERMINAL  # Default
 
-            steps.append({
-                'action': part,
-                'category': category,
-                'optional': 'optional' in part,
-            })
+            step_id = f"step_{idx}"
+            step = CompositeStep(
+                provider_name=self.name,
+                category=category,
+                task=part,
+                step_id=step_id,
+                depends_on=[prev_step_id] if prev_step_id else None,
+                optional='optional' in part_lower,
+            )
+            steps.append(step)
+            prev_step_id = step_id
 
-        return steps if steps else [{'action': task, 'category': SkillCategory.TERMINAL}]
+        if not steps:
+            steps = [CompositeStep(
+                provider_name=self.name,
+                category=SkillCategory.TERMINAL,
+                task=task,
+                step_id="step_0",
+            )]
+
+        return steps
 
 
 class FullStackAgentProvider(SkillProvider):
@@ -379,9 +409,10 @@ class FullStackAgentProvider(SkillProvider):
             )
 
     def _analyze_task(self, task: str) -> List[SkillCategory]:
-        """Analyze task to determine required categories."""
+        """Analyze task to determine required categories (deduplicated)."""
         task_lower = task.lower()
-        categories = []
+        seen: set = set()
+        categories: List[SkillCategory] = []
 
         # Check for category keywords
         category_keywords = {
@@ -395,7 +426,8 @@ class FullStackAgentProvider(SkillProvider):
         }
 
         for category, keywords in category_keywords.items():
-            if any(kw in task_lower for kw in keywords):
+            if category not in seen and any(kw in task_lower for kw in keywords):
+                seen.add(category)
                 categories.append(category)
 
         # Default to web search + code if nothing detected

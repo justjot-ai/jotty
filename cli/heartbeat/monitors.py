@@ -6,6 +6,8 @@ Background monitors for proactive features:
 - Email monitoring for urgent messages
 - Calendar reminders
 - File change detection
+- Clipboard watching
+- AI marker detection
 - Custom watchers
 """
 
@@ -13,10 +15,14 @@ import asyncio
 import logging
 import json
 import hashlib
+import re
+import subprocess
+import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Callable
-from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, Callable, Tuple
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +84,15 @@ class CalendarMonitor:
         return MonitorResult(has_update=False)
 
 
+@dataclass
+class AIMarker:
+    """An AI directive marker found in a file."""
+    path: str
+    line_number: int
+    marker_type: str  # "execute" or "query"
+    content: str
+
+
 class FileMonitor:
     """
     Monitor files/directories for changes.
@@ -86,7 +101,13 @@ class FileMonitor:
     - Specific files
     - Directories for new files
     - File content changes
+    - AI marker directives (# AI! and # AI?)
     """
+
+    # Regex for AI markers: # AI! (execute) and # AI? (query)
+    AI_MARKER_PATTERN = re.compile(
+        r'#\s*AI([!?])\s*(.*)', re.IGNORECASE
+    )
 
     def __init__(self, cli=None):
         self._cli = cli
@@ -111,6 +132,43 @@ class FileMonitor:
             return hashlib.md5(path.read_bytes()).hexdigest()
         except Exception:
             return ""
+
+    def check_ai_markers(self, path: str) -> List[AIMarker]:
+        """
+        Scan a file for AI directive markers.
+
+        Looks for:
+        - # AI! <instruction>  — execute directive
+        - # AI? <question>     — query directive
+
+        Args:
+            path: File path to scan
+
+        Returns:
+            List of AIMarker instances found
+        """
+        markers = []
+        try:
+            path_obj = Path(path)
+            if not path_obj.exists() or not path_obj.is_file():
+                return markers
+
+            with open(path_obj, 'r', errors='replace') as f:
+                for line_num, line in enumerate(f, start=1):
+                    match = self.AI_MARKER_PATTERN.search(line)
+                    if match:
+                        marker_char = match.group(1)
+                        content = match.group(2).strip()
+                        marker_type = "execute" if marker_char == "!" else "query"
+                        markers.append(AIMarker(
+                            path=str(path_obj),
+                            line_number=line_num,
+                            marker_type=marker_type,
+                            content=content,
+                        ))
+        except Exception as e:
+            logger.debug(f"AI marker scan failed for {path}: {e}")
+        return markers
 
     async def check(self) -> MonitorResult:
         """Check for file changes."""
@@ -145,6 +203,43 @@ class FileMonitor:
             )
 
         return MonitorResult(has_update=False)
+
+    async def check_with_markers(self) -> MonitorResult:
+        """
+        Enhanced check that returns file changes alongside AI markers.
+
+        Returns markers found in modified files for routing to the CLI handler.
+        """
+        result = await self.check()
+        markers = []
+
+        # Scan modified files for AI markers
+        for path_str in self._watched_paths:
+            path = Path(path_str)
+            if path.exists():
+                file_markers = self.check_ai_markers(path_str)
+                markers.extend(file_markers)
+
+        if markers:
+            marker_data = result.data or {}
+            marker_data["ai_markers"] = [
+                {
+                    "path": m.path,
+                    "line": m.line_number,
+                    "type": m.marker_type,
+                    "content": m.content,
+                }
+                for m in markers
+            ]
+            return MonitorResult(
+                has_update=True,
+                title=result.title or "AI Markers Detected",
+                message=result.message or f"{len(markers)} AI marker(s) found",
+                priority="high" if any(m.marker_type == "execute" for m in markers) else "normal",
+                data=marker_data,
+            )
+
+        return result
 
 
 class InboxMonitor:
@@ -237,3 +332,134 @@ class WebMonitor:
             )
 
         return MonitorResult(has_update=False)
+
+
+class ClipboardWatcher:
+    """
+    Daemon thread that polls the system clipboard for changes.
+
+    Tries pyperclip, then falls back to xclip/xsel/pbcopy.
+    Graceful no-op on headless/CI environments.
+    """
+
+    POLL_INTERVAL = 0.5  # seconds
+
+    def __init__(self):
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._callbacks: List[Callable[[str], None]] = []
+        self.last_clipboard_content: str = ""
+        self._read_fn: Optional[Callable[[], str]] = None
+        self._setup_reader()
+
+    def _setup_reader(self):
+        """Detect available clipboard reader."""
+        # Try pyperclip
+        try:
+            import pyperclip
+            pyperclip.paste()  # Test access
+            self._read_fn = pyperclip.paste
+            return
+        except Exception:
+            pass
+
+        # Try xclip
+        try:
+            result = subprocess.run(
+                ["xclip", "-selection", "clipboard", "-o"],
+                capture_output=True, text=True, timeout=2,
+            )
+            if result.returncode == 0:
+                self._read_fn = self._read_xclip
+                return
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+        # Try xsel
+        try:
+            result = subprocess.run(
+                ["xsel", "--clipboard", "--output"],
+                capture_output=True, text=True, timeout=2,
+            )
+            if result.returncode == 0:
+                self._read_fn = self._read_xsel
+                return
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+        # Try pbpaste (macOS)
+        try:
+            result = subprocess.run(
+                ["pbpaste"],
+                capture_output=True, text=True, timeout=2,
+            )
+            if result.returncode == 0:
+                self._read_fn = self._read_pbpaste
+                return
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+        logger.debug("No clipboard reader available")
+
+    def _read_xclip(self) -> str:
+        result = subprocess.run(
+            ["xclip", "-selection", "clipboard", "-o"],
+            capture_output=True, text=True, timeout=2,
+        )
+        return result.stdout if result.returncode == 0 else ""
+
+    def _read_xsel(self) -> str:
+        result = subprocess.run(
+            ["xsel", "--clipboard", "--output"],
+            capture_output=True, text=True, timeout=2,
+        )
+        return result.stdout if result.returncode == 0 else ""
+
+    def _read_pbpaste(self) -> str:
+        result = subprocess.run(
+            ["pbpaste"],
+            capture_output=True, text=True, timeout=2,
+        )
+        return result.stdout if result.returncode == 0 else ""
+
+    def on_change(self, callback: Callable[[str], None]):
+        """Register a callback for clipboard changes."""
+        self._callbacks.append(callback)
+
+    def start(self):
+        """Start the clipboard watcher daemon thread."""
+        if not self._read_fn:
+            return  # No clipboard reader available
+
+        # Seed with current content
+        try:
+            self.last_clipboard_content = self._read_fn()
+        except Exception:
+            self.last_clipboard_content = ""
+
+        self._running = True
+        self._thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        """Stop the clipboard watcher."""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=2.0)
+            self._thread = None
+
+    def _poll_loop(self):
+        """Background polling loop."""
+        while self._running:
+            try:
+                current = self._read_fn()
+                if current and current != self.last_clipboard_content:
+                    self.last_clipboard_content = current
+                    for cb in self._callbacks:
+                        try:
+                            cb(current)
+                        except Exception as e:
+                            logger.debug(f"Clipboard callback error: {e}")
+            except Exception:
+                pass  # Silently handle clipboard read failures
+            time.sleep(self.POLL_INTERVAL)

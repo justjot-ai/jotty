@@ -3,6 +3,12 @@ import tempfile
 from typing import Dict, Any, Optional
 import logging
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("image-generator")
+
+
 logger = logging.getLogger(__name__)
 
 def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -31,6 +37,7 @@ def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
             - model_used (str): Model identifier used
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         import torch
         from diffusers import (
@@ -172,6 +179,8 @@ def list_available_models_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Always True
             - models (list): List of available models with details
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     models = [
         {
             "key": "sdxl",
@@ -216,6 +225,8 @@ def validate_image_params_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - warnings (list): List of warnings or suggestions
             - error (str, optional): Error message if validation failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     warnings = []
     validated = params.copy()
     

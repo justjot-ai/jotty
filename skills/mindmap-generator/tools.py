@@ -1,6 +1,12 @@
 from typing import Dict, Any
 import re
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("mindmap-generator")
+
+
 
 def generate_mindmap_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -25,6 +31,8 @@ def generate_mindmap_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_format (str): Output format
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         content = params.get('content')
         if not content:

@@ -8,6 +8,12 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("pptx-editor")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,6 +94,8 @@ def read_pptx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Total number of slides
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     include_notes = params.get('include_notes', False)
 
@@ -131,6 +139,8 @@ def get_slide_layouts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - layouts (list): List of layout dicts with index and name
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
 
     try:
@@ -178,6 +188,8 @@ def add_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Total slides after addition
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     layout_index = params.get('layout_index', 1)
     title = params.get('title', '')
@@ -286,6 +298,8 @@ def update_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_index (int): Index of updated slide
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     slide_index = params.get('slide_index')
     title = params.get('title')
@@ -368,6 +382,8 @@ def delete_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Total slides after deletion
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     slide_index = params.get('slide_index')
 
@@ -422,6 +438,8 @@ def reorder_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Total number of slides
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     new_order = params.get('new_order')
 
@@ -490,6 +508,8 @@ def add_image_to_slide_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to added image
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     slide_index = params.get('slide_index')
     image_path = params.get('image_path')
@@ -566,6 +586,8 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - total_characters (int): Total character count
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
 
     try:

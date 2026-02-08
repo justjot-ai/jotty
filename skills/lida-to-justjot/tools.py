@@ -20,6 +20,12 @@ from pathlib import Path
 
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("lida-to-justjot")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -576,6 +582,8 @@ async def visualize_to_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, idea_id, and details
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     # Extract parameters
     data = params.get('data')
     question = params.get('question')
@@ -624,6 +632,8 @@ async def create_dashboard_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and details
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     data = params.get('data')
     request = params.get('request')
 
@@ -674,6 +684,7 @@ async def create_custom_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             ]
         })
     """
+    status.set_callback(params.pop('_status_callback', None))
     title = params.get('title')
     sections = params.get('sections')
 
@@ -700,6 +711,8 @@ def get_section_types_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with available section types and their info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     skill = _get_skill()
     types = skill.get_available_section_types()
 
@@ -726,6 +739,8 @@ def get_section_context_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with context string for LLM prompts
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     skill = _get_skill()
     context = skill.get_section_types_context()
 

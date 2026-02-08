@@ -12,9 +12,15 @@ from datetime import datetime
 import os
 import json
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Check for yt-dlp or youtube-dl
+
+# Status emitter for progress updates
+status = SkillStatus("video-downloader")
+
 try:
     import yt_dlp
     YT_DLP_AVAILABLE = True
@@ -46,6 +52,8 @@ async def download_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with download results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     video_url = params.get('video_url', '')
     output_path = params.get('output_path', None)
     quality = params.get('quality', 'best')

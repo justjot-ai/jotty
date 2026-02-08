@@ -9,6 +9,12 @@ import requests
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("summarize")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -379,6 +385,8 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - style (str): Output style used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         if not text:
@@ -421,6 +429,8 @@ def summarize_url_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - title (str): Page title
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         url = params.get('url')
         if not url:
@@ -490,6 +500,8 @@ def summarize_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_type (str): Detected file type
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         file_path = params.get('file_path')
         if not file_path:
@@ -562,6 +574,8 @@ def extract_key_points_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - max_points (int): Maximum points requested
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         if not text:

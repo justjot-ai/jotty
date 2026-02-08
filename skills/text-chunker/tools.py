@@ -1,6 +1,12 @@
 from typing import Dict, Any, List, Optional
 import re
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("text-chunker")
+
+
 
 def chunk_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -24,6 +30,8 @@ def chunk_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of chunks
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         text = params.get('text')
         if not text:

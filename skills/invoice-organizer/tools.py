@@ -15,6 +15,12 @@ from datetime import datetime
 import os
 import shutil
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("invoice-organizer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +40,8 @@ async def organize_invoices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with processed invoices, CSV path, statistics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     invoice_dir = params.get('invoice_directory', '')
     strategy = params.get('organization_strategy', 'by_date')
     output_dir = params.get('output_directory', 'organized_invoices')

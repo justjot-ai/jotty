@@ -6,6 +6,15 @@ Demonstrates generic Source → Processor → Sink pipeline pattern using declar
 
 This skill uses the generic pipeline framework (`core/registry/pipeline_skill.py`) to define workflows declaratively as arrays of source/processor/sink steps.
 
+## Capabilities
+- research
+- document
+- communicate
+
+## Composite
+Combines: web-search, claude-cli-llm, document-converter, telegram-sender
+Use when: User wants to research a topic, create a PDF summary, and send it via Telegram
+
 ## Architecture
 
 Uses `PipelineSkill` class which supports:

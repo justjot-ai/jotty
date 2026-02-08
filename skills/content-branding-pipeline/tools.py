@@ -15,6 +15,12 @@ import inspect
 from typing import Dict, Any
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("content-branding-pipeline")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +44,8 @@ async def content_branding_pipeline_tool(params: Dict[str, Any]) -> Dict[str, An
     Returns:
         Dictionary with domains, artifact path, brand applied, theme applied
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

@@ -7,6 +7,12 @@ Uses the SkillsManifest for categorization and metadata.
 import logging
 from typing import Dict, Any, List, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("skill-discovery")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +28,8 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether operation succeeded
             - categories (list): List of category info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 
@@ -63,6 +71,8 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether operation succeeded
             - skills (list): List of skill info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 
@@ -119,6 +129,8 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with skill details and available tools
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
         try:
@@ -183,6 +195,8 @@ def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with skill summary
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 
@@ -215,6 +229,8 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with refresh status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 
@@ -247,6 +263,8 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with operation status
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 
@@ -291,6 +309,8 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with recommended skills
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         from Jotty.core.registry.skills_manifest import get_skills_manifest
 

@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("latex-generator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -386,6 +392,8 @@ def generate_latex_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - pdf_file (str, optional): Path to generated PDF if compiled
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         title = params.get('title')
         if not title:

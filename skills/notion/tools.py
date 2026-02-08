@@ -8,6 +8,12 @@ import logging
 import requests
 from typing import Dict, Any, Optional, List
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notion")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -131,6 +137,7 @@ def search_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - next_cursor (str): Cursor for next page
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
     query = params.get('query')
     if not query:
         return {'success': False, 'error': 'query parameter is required'}
@@ -186,6 +193,8 @@ def get_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - content (list, optional): List of content blocks
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     page_id = params.get('page_id')
     if not page_id:
         return {'success': False, 'error': 'page_id parameter is required'}
@@ -248,6 +257,7 @@ def create_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - page (dict): Full page object
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
     parent_id = params.get('parent_id')
     title = params.get('title')
 
@@ -332,6 +342,8 @@ def update_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - page (dict): Updated page object
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     page_id = params.get('page_id')
     if not page_id:
         return {'success': False, 'error': 'page_id parameter is required'}

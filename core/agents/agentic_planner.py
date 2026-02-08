@@ -43,6 +43,8 @@ if PYDANTIC_AVAILABLE:
         depends_on: List[int] = Field(default_factory=list, description="Indices of steps this depends on")
         output_key: str = Field(default="", description="Key to store output under")
         optional: bool = Field(default=False, description="Whether step is optional")
+        verification: str = Field(default="", description="How to confirm this step succeeded")
+        fallback_skill: str = Field(default="", description="Alternative skill if this one fails")
 
         class Config:
             extra = "allow"  # Allow extra fields from LLM
@@ -75,7 +77,7 @@ if PYDANTIC_AVAILABLE:
                 if not tool:
                     # Extract from action like "use write_file_tool to..."
                     action = data.get('action', '')
-                    if action:
+                    if action and isinstance(action, str):
                         import re
                         tool_match = re.search(r'\b([a-z_]+_tool)\b', action)
                         if tool_match:
@@ -182,33 +184,73 @@ class TaskTypeInferenceSignature(dspy.Signature):
     )
 
 
+class CapabilityInferenceSignature(dspy.Signature):
+    """Infer what capabilities are needed to complete a task.
+
+    You are a CAPABILITY CLASSIFIER. Analyze the task and output what types of
+    capabilities are needed to complete it.
+
+    AVAILABLE CAPABILITIES:
+    - data-fetch: Get data from external sources (weather, stocks, web, APIs)
+    - research: Search and gather information from the web
+    - analyze: Process, analyze, or compute data
+    - visualize: Create charts, graphs, slides, diagrams
+    - document: Create documents, PDFs, reports
+    - communicate: Send messages via telegram, slack, email, etc.
+    - file-ops: Read, write, or manipulate files
+    - code: Write or execute code
+    - media: Generate or process images, audio, video
+
+    EXAMPLES:
+    - "Delhi weather" → ["data-fetch"]
+    - "Research AI trends and create PDF" → ["research", "document"]
+    - "Stock analysis with charts on telegram" → ["data-fetch", "analyze", "visualize", "communicate"]
+    - "Send meeting notes to slack" → ["communicate"]
+
+    Output 1-4 capabilities that best match the task requirements.
+    """
+    task_description: str = dspy.InputField(desc="The task to analyze")
+
+    capabilities: str = dspy.OutputField(
+        desc='JSON array of capabilities needed, e.g., ["data-fetch", "communicate"]. Max 4 items.'
+    )
+    reasoning: str = dspy.OutputField(
+        desc="Brief explanation of why these capabilities are needed"
+    )
+
+
 class ExecutionPlanningSignature(dspy.Signature):
-    """Create an executable plan using the available skills.
+    """Create an executable plan using the available skills. Audience: senior engineer.
 
-    CRITICAL: You MUST use skills from the available_skills list.
-    Each step MUST have a valid skill_name from available_skills.
+    You will be penalized for wrong skill names, empty params, or generic tool names.
 
-    SKILL SELECTION RULES:
-    1. ONLY use skill_name values that exist in available_skills JSON
-    2. For web research: use "web-search" skill
-    3. For file creation: use "file-operations" skill
-    4. For charts/visualization: use "chart-creator" or "mindmap-generator"
-    5. For data analysis: use appropriate data skills
-    6. If no exact skill match, use the closest available skill
+    PHASE 1 - UNDERSTAND (Plan-and-Solve):
+    Parse the task_description. Extract all variables (names, locations, topics, quantities).
+    Identify constraints (output format, delivery channel, dependencies).
 
-    STEP FORMAT (REQUIRED):
-    Each step must have:
+    PHASE 2 - EVALUATE (Tree of Thoughts):
+    Consider 2-3 possible approaches using available_skills. Assess feasibility of each.
+    Choose the approach that covers ALL requirements with fewest steps.
+
+    PHASE 3 - PLAN (ReAct):
+    For each step, reason about: What could go wrong? What does this step need from prior steps?
+    Each step MUST have:
     - skill_name: EXACT name from available_skills (e.g., "web-search", "file-operations")
-    - tool_name: EXACT tool name from that skill's "tools" array - COPY IT EXACTLY, do NOT use generic names like "use_skill"
-    - params: Parameters required by the tool
+    - tool_name: EXACT tool name from that skill's "tools" array - COPY IT EXACTLY, never use generic names like "use_skill"
+    - params: EXTRACT actual values from task_description! ("Delhi weather" → {"location": "Delhi"})
     - description: What this step accomplishes
+    - verification: How to confirm this step succeeded (e.g., "output contains weather data")
+    - fallback_skill: Alternative skill if this one fails (e.g., "http-client")
 
-    EXAMPLE STEPS:
-    {"skill_name": "web-search", "tool_name": "tavily_search_tool", "params": {"query": "..."}, "description": "Search for..."}
-    {"skill_name": "file-operations", "tool_name": "write_file_tool", "params": {"path": "...", "content": "..."}, "description": "Create..."}
-    {"skill_name": "research-to-pdf", "tool_name": "research_to_pdf_tool", "params": {"topic": "..."}, "description": "Research and create PDF..."}
+    PHASE 4 - VERIFY (Self-Refine):
+    Before outputting, self-check: Are all dependencies satisfied? Any missing steps?
+    Are params populated (not empty)? Does every skill_name exist in available_skills?
 
-    NEVER use generic tool names like "use_skill", "execute", "run", "call" - always use the EXACT tool name from the skill's tools array.
+    PARAMETER EXTRACTION (CRITICAL - you will be penalized for empty params):
+    - "Delhi weather" → params: {"location": "Delhi"}
+    - "research on Tesla" → params: {"query": "Tesla", "topic": "Tesla"}
+    - "Paytm stock" → params: {"ticker": "PAYTM", "company_name": "Paytm"}
+    - "slides about AI" → params: {"topic": "AI"}
 
     FALLBACK: If a needed capability doesn't exist, use "web-search" for research or "file-operations" for creation.
     """
@@ -228,47 +270,39 @@ class ExecutionPlanningSignature(dspy.Signature):
         execution_plan: List[dict] = dspy.OutputField(
             desc='Steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "..."}'
         )
-    reasoning: str = dspy.OutputField(desc="Brief explanation of the plan")
+    reasoning: str = dspy.OutputField(desc="Brief explanation of the plan including why alternative approaches were rejected")
     estimated_complexity: str = dspy.OutputField(desc="simple, medium, or complex")
 
 
 class SkillSelectionSignature(dspy.Signature):
-    """Select the BEST skills needed to complete the task.
+    """Select the BEST skills needed to complete the task. Audience: senior engineer.
 
-    You are a SKILL SELECTOR. Analyze the task description to identify required capabilities.
+    You will be penalized for selecting wrong or irrelevant skills.
 
-    CRITICAL: GENERATION vs RESEARCH distinction:
-    - GENERATION tasks: User wants LLM to CREATE content from its knowledge
-    - RESEARCH tasks: User wants to FIND/SEARCH for external information
+    PHASE 1 - DECOMPOSE (Plan-and-Solve):
+    Break the task into sub-requirements:
+    - SUBJECT: What to research/create (e.g., "Paytm", "AI trends")
+    - ACTION: What to do (research, create, compare, analyze)
+    - OUTPUT FORMAT: What to produce (pdf, document, chart, slides)
+    - DELIVERY: Where to send (telegram, email, slack)
 
-    CRITICAL MATCHING RULES (in priority order):
-    1. "checklist" / "todo" / "list of steps" / "compliance list" → GENERATION task
-       → Use claude-cli-llm (LLM generates the checklist from knowledge)
-       → Do NOT use research-to-pdf (that searches web, creates research reports)
+    PHASE 2 - MATCH:
+    For each sub-requirement, find the best skill from available_skills.
+    COMPOSITE SKILLS: Some skills have is_composite=true with a "combines" field.
+    - PREFER composites over chaining atomic skills - they are optimized and tested
+    - Example: "weather" + "telegram" → prefer "weather-to-telegram" composite
+    CRITICAL distinctions:
+    - GENERATION tasks ("create", "write", "draft", "checklist") → LLM + file skills
+    - RESEARCH tasks ("research", "search", "find") → search/research skills
+    - "convert" / "transform" → converter skills
+    - "send to X" / "share via X" → include messaging/delivery skills
 
-    2. "create" / "generate" / "write" / "draft" content → GENERATION task
-       → Use claude-cli-llm for content generation
-       → Use docx-tools or file-operations for saving to file
-
-    3. "research" / "search" / "find" / "look up" / "what's new" → RESEARCH task
-       → Use web-search, research-to-pdf, last30days-claude-cli
-
-    4. "convert" / "transform" format → use document-converter
-
-    COMMON MISTAKES TO AVOID:
-    - "Create checklist for X framework" = GENERATION (LLM knows frameworks)
-      → Use claude-cli-llm, NOT research-to-pdf
-    - "Research latest news about X" = RESEARCH (needs web search)
-      → Use research-to-pdf or web-search
-    - "Create report about X" = Usually GENERATION unless "research" is mentioned
-      → Use claude-cli-llm
-
-    Guidelines:
-    1. Default to GENERATION (claude-cli-llm) unless task explicitly mentions search/research/find
-    2. Match task verbs to skill capabilities
-    3. Prefer simpler skills over complex multi-step skills
+    PHASE 3 - VERIFY (Self-Refine):
+    Does this skill set cover ALL requirements? Any gaps?
+    Is there a composite skill that replaces 2+ individual skills?
 
     You are NOT executing anything. You are ONLY selecting which skills are needed.
+    Provide per-skill justification in reasoning.
     """
     task_description: str = dspy.InputField(desc="The task to analyze - identify ALL required capabilities")
     available_skills: str = dspy.InputField(
@@ -282,11 +316,49 @@ class SkillSelectionSignature(dspy.Signature):
         desc='Return ONLY a JSON array like ["skill-name-1", "skill-name-2"]. No markdown, no explanation, just the JSON array.'
     )
     reasoning: str = dspy.OutputField(
-        desc="Explain what capabilities the task needs and which skill provides each"
+        desc="Per-skill justification: which sub-requirement each skill satisfies and why alternatives were not chosen"
     )
     skill_priorities: str = dspy.OutputField(
         desc="JSON dict mapping skill names to priority (0.0-1.0). Higher = execute earlier. Order by logical workflow."
     )
+
+
+class ReflectivePlanningSignature(dspy.Signature):
+    """Replan after failure using Reflexion-style analysis. Audience: senior engineer.
+
+    You will be penalized for repeating the same failed approach or ignoring completed work.
+
+    STEP 1 - REFLECT:
+    Analyze WHY each failed step failed. Categorize: wrong skill? bad params? missing dependency? service down?
+
+    STEP 2 - ADAPT:
+    Do NOT retry the same skill/tool combination that failed structurally.
+    Use excluded_skills to avoid blacklisted skills entirely.
+    Preserve outputs from completed_outputs - do NOT redo successful work.
+
+    STEP 3 - REPLAN:
+    Create a corrected plan that routes around the failures.
+    Each step MUST have: skill_name, tool_name, params, description, verification, fallback_skill.
+    Only plan the REMAINING work - completed steps should not be repeated.
+    """
+    task_description: str = dspy.InputField(desc="Original task to accomplish")
+    task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
+    available_skills: str = dspy.InputField(desc="JSON array of available skills (excluding blacklisted ones)")
+    failed_steps: str = dspy.InputField(desc="JSON array of failed steps with error details: [{skill_name, tool_name, error, params}]")
+    completed_outputs: str = dspy.InputField(desc="JSON dict of outputs from successfully completed steps")
+    excluded_skills: str = dspy.InputField(desc="JSON array of skill names to NEVER use (blacklisted due to structural failures)")
+    max_steps: int = dspy.InputField(desc="Maximum number of remaining steps")
+
+    if PYDANTIC_AVAILABLE:
+        corrected_plan: List[ExecutionStepSchema] = dspy.OutputField(
+            desc="List of corrected execution steps that avoid previous failures"
+        )
+    else:
+        corrected_plan: List[dict] = dspy.OutputField(
+            desc='Corrected steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "...", "verification": "...", "fallback_skill": "..."}'
+        )
+    reflection: str = dspy.OutputField(desc="Analysis of WHY each step failed and what to do differently")
+    reasoning: str = dspy.OutputField(desc="Explanation of the corrected plan and how it avoids previous failures")
 
 
 # =============================================================================
@@ -332,18 +404,24 @@ class AgenticPlanner:
         if not DSPY_AVAILABLE:
             raise RuntimeError("DSPy required for AgenticPlanner")
 
-        # Use Predict for execution planning with JSON output enforcement via prompt
-        self.execution_planner = dspy.Predict(ExecutionPlanningSignature)
+        # Use ChainOfThought for execution planning (research: Plan-and-Solve benefits from explicit reasoning)
+        self.execution_planner = dspy.ChainOfThought(ExecutionPlanningSignature)
         self._use_typed_predictor = False
+
+        # Reflective planner for replanning after failures (Reflexion-style)
+        self.reflective_planner = dspy.ChainOfThought(ReflectivePlanningSignature)
 
         self.task_type_inferrer = dspy.ChainOfThought(TaskTypeInferenceSignature)
         self.skill_selector = dspy.ChainOfThought(SkillSelectionSignature)
+        self.capability_inferrer = dspy.Predict(CapabilityInferenceSignature)
 
         # Store signatures for JSON schema extraction
         self._signatures = {
             'task_type': TaskTypeInferenceSignature,
             'execution': ExecutionPlanningSignature,
             'skill_selection': SkillSelectionSignature,
+            'capability': CapabilityInferenceSignature,
+            'reflective': ReflectivePlanningSignature,
         }
 
         # Context compression for handling context length errors
@@ -586,6 +664,89 @@ class AgenticPlanner:
             # This ensures we always try to do something useful
             return TaskType.ANALYSIS, f"Ambiguous task - defaulting to analysis", 0.4
 
+    def infer_capabilities(self, task: str) -> tuple[List[str], str]:
+        """
+        Infer required capabilities from task description.
+
+        Uses fast LLM to determine what capabilities (data-fetch, communicate,
+        visualize, etc.) are needed to complete the task.
+
+        Args:
+            task: Task description
+
+        Returns:
+            (capabilities, reasoning) - List of capability strings and explanation
+        """
+        # Default capabilities based on common patterns
+        default_capabilities = ["analyze"]
+
+        try:
+            import dspy
+
+            # Clean task for inference
+            task_for_inference = self._abstract_task_for_planning(task)
+
+            # Use fast LM for quick classification
+            result = self._call_with_retry(
+                module=self.capability_inferrer,
+                kwargs={'task_description': task_for_inference},
+                max_retries=2,
+                lm=self._fast_lm
+            )
+
+            # Parse capabilities from result
+            capabilities_str = str(result.capabilities).strip()
+
+            # Try to parse as JSON
+            try:
+                if capabilities_str.startswith('['):
+                    capabilities = json.loads(capabilities_str)
+                else:
+                    # Extract from text like "data-fetch, communicate"
+                    capabilities = [c.strip().lower() for c in capabilities_str.replace('"', '').replace('[', '').replace(']', '').split(',')]
+            except json.JSONDecodeError:
+                # Fallback: extract known capabilities from text
+                known_caps = ['data-fetch', 'research', 'analyze', 'visualize', 'document', 'communicate', 'file-ops', 'code', 'media']
+                capabilities = [c for c in known_caps if c in capabilities_str.lower()]
+
+            # Validate and clean
+            capabilities = [c.strip().lower() for c in capabilities if c.strip()][:4]
+
+            if not capabilities:
+                capabilities = default_capabilities
+
+            reasoning = str(result.reasoning).strip() if result.reasoning else "Inferred from task"
+
+            logger.info(f"🎯 Capabilities inferred: {capabilities}")
+            return capabilities, reasoning
+
+        except Exception as e:
+            logger.warning(f"Capability inference failed: {e}, using keyword fallback")
+
+            # Keyword-based fallback
+            task_lower = task.lower()
+            capabilities = []
+
+            if any(w in task_lower for w in ['weather', 'stock', 'price', 'data', 'fetch', 'get']):
+                capabilities.append('data-fetch')
+            if any(w in task_lower for w in ['research', 'search', 'find', 'look up']):
+                capabilities.append('research')
+            if any(w in task_lower for w in ['chart', 'graph', 'slide', 'visual', 'diagram']):
+                capabilities.append('visualize')
+            if any(w in task_lower for w in ['pdf', 'report', 'document']):
+                capabilities.append('document')
+            if any(w in task_lower for w in ['telegram', 'slack', 'email', 'send', 'notify']):
+                capabilities.append('communicate')
+            if any(w in task_lower for w in ['file', 'save', 'write', 'read']):
+                capabilities.append('file-ops')
+            if any(w in task_lower for w in ['analyze', 'calculate', 'compute']):
+                capabilities.append('analyze')
+
+            if not capabilities:
+                capabilities = default_capabilities
+
+            return capabilities, "Keyword-based fallback"
+
     # Skills that depend on external services that may be unreliable
     # These are deprioritized in skill selection to prefer more reliable alternatives
     DEPRIORITIZED_SKILLS = {
@@ -603,10 +764,16 @@ class AgenticPlanner:
         self,
         task: str,
         available_skills: List[Dict[str, Any]],
-        max_skills: int = 8
+        max_skills: int = 8,
+        use_capability_filter: bool = True
     ) -> tuple[List[Dict[str, Any]], str]:
         """
-        Select best skills for task using LLM semantic matching.
+        Select best skills for task using capability filtering + LLM semantic matching.
+
+        Flow:
+        1. Infer required capabilities from task (fast LLM call)
+        2. Filter skills by capabilities (126 → ~10-20)
+        3. LLM selects best from filtered set
 
         Falls back to using first available skills if LLM fails.
         Deprioritizes skills that depend on unreliable external services.
@@ -615,6 +782,7 @@ class AgenticPlanner:
             task: Task description
             available_skills: List of available skills
             max_skills: Maximum skills to select
+            use_capability_filter: Whether to filter by capabilities first (default: True)
 
         Returns:
             (selected_skills, reasoning)
@@ -622,7 +790,29 @@ class AgenticPlanner:
         if not available_skills:
             return [], "No skills available"
 
-        # Filter out deprioritized skills (move to end of list)
+        original_count = len(available_skills)
+
+        # Step 1: Filter by capabilities (if enabled)
+        if use_capability_filter and len(available_skills) > 15:
+            try:
+                capabilities, cap_reasoning = self.infer_capabilities(task)
+                logger.info(f"🎯 Inferred capabilities: {capabilities}")
+
+                # Filter skills by capabilities
+                capability_filtered = [
+                    s for s in available_skills
+                    if self._skill_matches_capabilities(s, capabilities)
+                ]
+
+                if capability_filtered:
+                    logger.info(f"📉 Capability filter: {original_count} → {len(capability_filtered)} skills")
+                    available_skills = capability_filtered
+                else:
+                    logger.debug("Capability filter returned 0 skills, using all")
+            except Exception as e:
+                logger.debug(f"Capability filtering failed: {e}, using all skills")
+
+        # Step 2: Filter out deprioritized skills (move to end of list)
         reliable_skills = [s for s in available_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
         deprioritized = [s for s in available_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
         available_skills = reliable_skills + deprioritized  # Reliable first
@@ -635,14 +825,25 @@ class AgenticPlanner:
 
         # Try LLM selection
         try:
-            skills_json = json.dumps([
-                {
+            # Format skills with composite hints for LLM
+            formatted_skills = []
+            for s in available_skills[:50]:
+                skill_dict = {
                     'name': s.get('name', ''),
                     'description': s.get('description', ''),
-                    'tools': s.get('tools', [])
+                    'tools': s.get('tools', []),
                 }
-                for s in available_skills[:50]
-            ], indent=2)
+                # Add composite hints if this is a composite skill
+                if s.get('is_composite'):
+                    skill_dict['is_composite'] = True
+                    if s.get('combines'):
+                        skill_dict['combines'] = s.get('combines')
+                        skill_dict['hint'] = f"Use instead of chaining: {', '.join(s.get('combines', []))}"
+                    if s.get('use_when'):
+                        skill_dict['use_when'] = s.get('use_when')
+                formatted_skills.append(skill_dict)
+
+            skills_json = json.dumps(formatted_skills, indent=2)
 
             import dspy
 
@@ -774,6 +975,50 @@ class AgenticPlanner:
         logger.info(f"Selected {len(selected_skills)} skills: {[s.get('name') for s in selected_skills]}")
         return selected_skills, reasoning
 
+    def _skill_matches_capabilities(
+        self,
+        skill: Dict[str, Any],
+        required_capabilities: List[str]
+    ) -> bool:
+        """
+        Check if a skill matches any of the required capabilities.
+
+        A skill matches if:
+        1. It has capabilities defined and at least one matches, OR
+        2. It has no capabilities defined (legacy skill - include by default), OR
+        3. It's a composite that combines skills matching the capabilities
+
+        Args:
+            skill: Skill dict with 'capabilities', 'is_composite', 'combines' fields
+            required_capabilities: List of required capability strings
+
+        Returns:
+            True if skill should be included
+        """
+        if not required_capabilities:
+            return True
+
+        required_set = set(c.lower() for c in required_capabilities)
+
+        # Check skill's own capabilities
+        skill_caps = skill.get('capabilities', [])
+        if skill_caps:
+            skill_caps_set = set(c.lower() for c in skill_caps)
+            if required_set & skill_caps_set:
+                return True
+
+        # Legacy skills without capabilities - include by default but with lower priority
+        if not skill_caps:
+            return True
+
+        # For composites, check if combined skills would match
+        if skill.get('is_composite') and skill.get('combines'):
+            # Include composite if it combines relevant skills
+            # This is a heuristic - the composite might cover the needed capabilities
+            return True
+
+        return False
+
     def _enrich_skills_with_tools(self, selected_skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Enrich skill dicts with tool names and descriptions from registry."""
         try:
@@ -845,15 +1090,18 @@ class AgenticPlanner:
             # CRITICAL: Include parameter schemas so LLM knows what parameters each tool needs
             formatted_skills = []
             for s in skills:
+                skill_name = s.get('name', '')
                 skill_dict = {
-                    'name': s.get('name', ''),
+                    'name': skill_name,
                     'description': s.get('description', ''),
                     'tools': []
                 }
-                
-                # Get tool names
+
+                # Get tool names from the skill dict
                 # Tools can be: list of strings, list of dicts, or dict
                 tools_raw = s.get('tools', [])
+                logger.debug(f"Skill '{skill_name}' tools_raw type: {type(tools_raw)}, value: {tools_raw}")
+
                 if isinstance(tools_raw, dict):
                     tool_names = list(tools_raw.keys())
                 elif isinstance(tools_raw, list):
@@ -861,34 +1109,48 @@ class AgenticPlanner:
                     tool_names = [t.get('name') if isinstance(t, dict) else t for t in tools_raw]
                 else:
                     tool_names = []
-                
+
+                logger.debug(f"Skill '{skill_name}' extracted tool_names: {tool_names}")
+
                 # Enrich with tool schemas from registry
                 try:
                     from ..registry.skills_registry import get_skills_registry
                     registry = get_skills_registry()
                     if registry:
-                        skill_obj = registry.get_skill(skill_dict['name'])
+                        skill_obj = registry.get_skill(skill_name)
                         if skill_obj and hasattr(skill_obj, 'tools') and skill_obj.tools:
+                            # If tool_names is empty, get from skill object directly
+                            if not tool_names:
+                                tool_names = list(skill_obj.tools.keys())
+                                logger.debug(f"Got tool_names from registry: {tool_names}")
+
                             for tool_name in tool_names:
                                 tool_func = skill_obj.tools.get(tool_name)
                                 if tool_func:
                                     # Extract parameter schema from docstring
                                     tool_schema = self._extract_tool_schema(tool_func, tool_name)
                                     skill_dict['tools'].append(tool_schema)
+                                    logger.debug(f"Extracted schema for {tool_name}: {tool_schema.get('parameters', [])}")
                                 else:
                                     # Fallback: just name if tool not found
                                     skill_dict['tools'].append({'name': tool_name})
+                                    logger.debug(f"Tool {tool_name} not found in skill object")
                         else:
                             # Fallback: just names if registry lookup fails
                             skill_dict['tools'] = [{'name': name} for name in tool_names]
+                            logger.debug(f"Skill object not found or has no tools for '{skill_name}'")
                     else:
                         skill_dict['tools'] = [{'name': name} for name in tool_names]
+                        logger.debug("Registry not available")
                 except Exception as e:
-                    logger.debug(f"Could not enrich tool schemas for {skill_dict['name']}: {e}")
+                    logger.warning(f"Could not enrich tool schemas for {skill_name}: {e}")
                     # Fallback: just names
                     skill_dict['tools'] = [{'name': name} for name in tool_names]
-                
+
                 formatted_skills.append(skill_dict)
+
+            # Log the final skills JSON being sent to LLM
+            logger.info(f"📋 Formatted {len(formatted_skills)} skills with tool schemas for LLM")
             
             skills_json = json.dumps(formatted_skills, indent=2)
             
@@ -1051,234 +1313,19 @@ JSON:"""
                     logger.error(f"   Raw response (first 300 chars): {plan_str[:300]}")
                     plan_data = []
 
-            # Ensure it's a list
-            if plan_data and not isinstance(plan_data, list):
-                plan_data = [plan_data]
-            
-            # Convert to ExecutionStep objects
-            # Handle both LLM's preferred field names and our standard names
-            ExecutionStep = _get_execution_step()
-            steps = []
+            # Parse raw plan into ExecutionStep objects using reusable method
+            steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, max_steps)
 
-            # Build tool-to-skill mapping for inferring skill from tool name
-            tool_to_skill = {}
-            for s in skills:
-                skill_name_map = s.get('name', '')
-                for t in s.get('tools', []):
-                    t_name = t.get('name') if isinstance(t, dict) else t
-                    if t_name:
-                        tool_to_skill[t_name] = skill_name_map
-
-            # Build available skill names set for validation
-            available_skill_names = {s.get('name', '') for s in skills if s.get('name')}
-            logger.info(f"📋 Available skills for validation: {sorted(available_skill_names)}")
-
-            # Helper to get value from dict or Pydantic model
-            def get_val(obj, key, default=''):
-                if isinstance(obj, dict):
-                    return obj.get(key, default)
-                return getattr(obj, key, default)
-
-            # Helper for fuzzy skill matching (LLM might return slightly different names)
-            def find_matching_skill(name: str) -> str:
-                """Find matching skill using exact match, contains match, or prefix match."""
-                if not name:
-                    return ''
-                name_lower = name.lower().strip()
-                # Exact match first
-                if name_lower in {s.lower() for s in available_skill_names}:
-                    for s in available_skill_names:
-                        if s.lower() == name_lower:
-                            return s
-                # Contains match (e.g., "file" matches "file-operations")
-                for s in available_skill_names:
-                    if name_lower in s.lower() or s.lower() in name_lower:
-                        logger.debug(f"Fuzzy matched '{name}' -> '{s}'")
-                        return s
-                # Word overlap match (e.g., "file_operations" matches "file-operations")
-                name_words = set(name_lower.replace('-', '_').replace(' ', '_').split('_'))
-                for s in available_skill_names:
-                    skill_words = set(s.lower().replace('-', '_').split('_'))
-                    if name_words & skill_words:  # Any word overlap
-                        logger.debug(f"Word overlap matched '{name}' -> '{s}'")
-                        return s
-                return ''
-
-            for i, step_data in enumerate(plan_data[:max_steps]):
-                try:
-                    logger.debug(f"Processing step {i+1}: {step_data}")
-
-                    # Handle both dict and Pydantic model objects
-                    # Also handle LLM's field name variations
-                    skill_name = get_val(step_data, 'skill_name') or get_val(step_data, 'skill', '')
-                    tool_name = get_val(step_data, 'tool_name') or get_val(step_data, 'tool', '') or get_val(step_data, 'action', '')
-
-                    # Infer skill from tool if skill is empty
-                    if not skill_name and tool_name:
-                        skill_name = tool_to_skill.get(tool_name, '')
-
-                    # Infer skill from available skills if only one selected
-                    # LLM often omits skill_name when there's an obvious single choice
-                    if not skill_name and len(available_skill_names) == 1:
-                        skill_name = list(available_skill_names)[0]
-                        logger.info(f"Auto-inferred skill_name='{skill_name}' (only one skill available)")
-                    elif not skill_name and len(available_skill_names) <= 3:
-                        # With few skills, infer from task keywords
-                        desc = str(get_val(step_data, 'description', task)).lower()
-                        for candidate in available_skill_names:
-                            if candidate.replace('-', ' ') in desc or any(w in desc for w in candidate.split('-')):
-                                skill_name = candidate
-                                logger.info(f"Inferred skill_name='{skill_name}' from description match")
-                                break
-
-                    # Try fuzzy matching if exact skill not found
-                    if skill_name and skill_name not in available_skill_names:
-                        matched = find_matching_skill(skill_name)
-                        if matched:
-                            logger.info(f"Skill name normalized: '{skill_name}' -> '{matched}'")
-                            skill_name = matched
-
-                    # FALLBACK: If no valid skill_name, infer from description or use default
-                    description = get_val(step_data, 'description', f'Step {i+1}')
-                    if not skill_name or skill_name not in available_skill_names:
-                        desc_lower = str(description).lower()
-
-                        # Try to infer skill from description keywords
-                        inferred_skill = None
-                        if any(w in desc_lower for w in ['search', 'find', 'lookup', 'research', 'web', 'news', 'fetch data']):
-                            inferred_skill = 'web-search'
-                        elif any(w in desc_lower for w in ['create', 'write', 'generate', 'save', 'file', 'report']):
-                            inferred_skill = 'file-operations'
-                        elif any(w in desc_lower for w in ['chart', 'graph', 'plot', 'visualiz']):
-                            inferred_skill = 'chart-creator'
-                        elif any(w in desc_lower for w in ['mindmap', 'diagram', 'map']):
-                            inferred_skill = 'mindmap-generator'
-                        elif any(w in desc_lower for w in ['analyz', 'compar', 'evaluat']):
-                            inferred_skill = 'web-search'  # Use search for analysis tasks
-
-                        # Use inferred skill if available
-                        if inferred_skill and inferred_skill in available_skill_names:
-                            logger.info(f"Step {i+1}: Inferred skill '{inferred_skill}' from description")
-                            skill_name = inferred_skill
-                        elif 'web-search' in available_skill_names:
-                            logger.info(f"Step {i+1}: Using fallback skill 'web-search'")
-                            skill_name = 'web-search'
-                        elif 'file-operations' in available_skill_names:
-                            logger.info(f"Step {i+1}: Using fallback skill 'file-operations'")
-                            skill_name = 'file-operations'
-                        elif available_skill_names:
-                            # Use first available skill as last resort
-                            skill_name = list(available_skill_names)[0]
-                            logger.info(f"Step {i+1}: Using first available skill '{skill_name}'")
-                        else:
-                            desc = str(description)[:50]
-                            logger.warning(f"Skipping step {i+1}: '{desc}' - no skills available")
-                            continue
-
-                    # Infer tool_name from skill if empty
-                    if not tool_name:
-                        for s in skills:
-                            if s.get('name') == skill_name:
-                                skill_tools = s.get('tools', [])
-                                if skill_tools:
-                                    tool_names = [t.get('name') if isinstance(t, dict) else t for t in skill_tools]
-                                    desc_lower = description.lower()
-                                    task_lower = task.lower()
-
-                                    # For file-operations, select tool based on task keywords
-                                    if skill_name == 'file-operations':
-                                        # Check for directory operations FIRST (before file operations)
-                                        if any(w in desc_lower for w in ['directory', 'folder', 'mkdir']):
-                                            if 'create_directory_tool' in tool_names:
-                                                tool_name = 'create_directory_tool'
-                                        # File creation (must have file extension or explicit file reference)
-                                        elif any(w in task_lower or w in desc_lower for w in ['create', 'write', 'generate', 'make']):
-                                            # Only use write_file_tool if description mentions a file (has extension)
-                                            if any(ext in desc_lower for ext in ['.py', '.js', '.ts', '.json', '.md', '.txt', '.html', '.css', 'file']):
-                                                if 'write_file_tool' in tool_names:
-                                                    tool_name = 'write_file_tool'
-                                            elif 'write_file_tool' in tool_names:
-                                                tool_name = 'write_file_tool'
-                                        elif any(w in task_lower or w in desc_lower for w in ['read', 'load', 'get']):
-                                            if 'read_file_tool' in tool_names:
-                                                tool_name = 'read_file_tool'
-
-                                    # Fallback to first tool if no specific match
-                                    if not tool_name:
-                                        first_tool = skill_tools[0]
-                                        tool_name = first_tool.get('name') if isinstance(first_tool, dict) else first_tool
-
-                                    logger.debug(f"Inferred tool_name='{tool_name}' from skill '{skill_name}'")
-                                break
-
-                    # Handle params - from dict, Pydantic model, or fallback
-                    # Check multiple aliases including 'inputs' and 'tool_parameters' which LLMs often use
-                    step_params = (
-                        get_val(step_data, 'params') or
-                        get_val(step_data, 'parameters') or
-                        get_val(step_data, 'tool_parameters') or  # LLM often uses this instead of 'params'
-                        get_val(step_data, 'inputs') or  # LLM often uses 'inputs' instead of 'params'
-                        get_val(step_data, 'tool_input') or
-                        {}
-                    )
-                    if isinstance(step_params, str):
-                        step_params = {}
-
-                    if not step_params:
-                        # Build params from skill schema
-                        # Use step description for filename extraction (not full task)
-                        prev_output = f'step_{i-1}' if i > 0 else None
-                        # For file operations, use FULL TASK to extract file path (e.g., "save as /tmp/file.html")
-                        # then use description for content generation hints
-                        param_source = task if tool_name in ['write_file_tool', 'read_file_tool'] else task
-                        step_params = self._build_skill_params(skill_name, param_source, prev_output, tool_name)
-                        logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
-
-                    step = ExecutionStep(
-                        skill_name=skill_name,
-                        tool_name=tool_name,
-                        params=step_params,
-                        description=description,
-                        depends_on=get_val(step_data, 'depends_on', []),
-                        output_key=get_val(step_data, 'output_key', f'step_{i}'),
-                        optional=get_val(step_data, 'optional', False)
-                    )
-                    steps.append(step)
-                except Exception as e:
-                    logger.warning(f"Failed to create step {i+1}: {e}")
-                    continue
-
-            # Validate: Ensure we have at least one step
-            is_fallback_plan = False
-            if not steps or len(steps) == 0:
+            # Determine reasoning
+            if not steps:
+                # Try fallback plan
                 logger.warning("Execution plan resulted in 0 steps, using fallback plan")
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                ExecutionStep = _get_execution_step()
-                steps = []
-                for i, step_data in enumerate(fallback_plan_data[:max_steps]):
-                    try:
-                        step = ExecutionStep(
-                            skill_name=step_data.get('skill_name', ''),
-                            tool_name=step_data.get('tool_name', ''),
-                            params=step_data.get('params', {}),
-                            description=step_data.get('description', f'Step {i+1}'),
-                            depends_on=step_data.get('depends_on', []),
-                            output_key=step_data.get('output_key', f'step_{i}'),
-                            optional=step_data.get('optional', False)
-                        )
-                        steps.append(step)
-                    except Exception as e:
-                        logger.warning(f"Failed to create fallback step {i+1}: {e}")
-                        continue
+                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
                 reasoning = f"Fallback plan created: {len(steps)} steps"
-                is_fallback_plan = True
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
 
-            # DISABLED: Skill expansion logic
-            # Trust the LLM's plan - if it only needs 1 step, that's correct
-            # The old logic would add unnecessary steps for all selected skills
-            # even when they weren't needed for the task
             used_skills = {step.skill_name for step in steps}
             if len(steps) > 0:
                 logger.info(f"📋 Plan uses {len(used_skills)} skills: {used_skills}")
@@ -1287,114 +1334,531 @@ JSON:"""
             logger.debug(f"   Reasoning: {reasoning}")
             if hasattr(result, 'estimated_complexity'):
                 logger.debug(f"   Complexity: {result.estimated_complexity}")
-            
+
             return steps, reasoning
-            
+
         except Exception as e:
             logger.error(f"Execution planning failed: {e}", exc_info=True)
-            # Try fallback plan when LLM fails
             logger.warning("Attempting fallback plan due to execution planning failure")
             try:
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
                 logger.info(f"🔧 Fallback plan generated {len(fallback_plan_data)} steps: {fallback_plan_data}")
-                
+
                 if not fallback_plan_data:
                     logger.error("Fallback plan returned empty list!")
                     return [], f"Planning failed: {e}"
-                
-                ExecutionStep = _get_execution_step()
-                steps = []
-                for i, step_data in enumerate(fallback_plan_data[:max_steps]):
-                    try:
-                        step = ExecutionStep(
-                            skill_name=step_data.get('skill_name', ''),
-                            tool_name=step_data.get('tool_name', ''),
-                            params=step_data.get('params', {}),
-                            description=step_data.get('description', f'Step {i+1}'),
-                            depends_on=step_data.get('depends_on', []),
-                            output_key=step_data.get('output_key', f'step_{i}'),
-                            optional=step_data.get('optional', False)
-                        )
-                        steps.append(step)
-                        logger.debug(f"✅ Created fallback step {i+1}: {step.skill_name}.{step.tool_name}")
-                    except Exception as step_e:
-                        logger.warning(f"Failed to create fallback step {i+1}: {step_e}")
-                        logger.debug(f"   Step data: {step_data}")
-                        continue
-                
+
+                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+
                 if steps:
                     logger.info(f"✅ Fallback plan created: {len(steps)} steps")
                     return steps, f"Fallback plan (planning failed: {str(e)[:100]})"
                 else:
-                    logger.error(f"❌ Fallback plan created {len(fallback_plan_data)} steps but 0 were converted to ExecutionStep objects")
+                    logger.error(f"❌ Fallback plan generated steps but 0 were converted to ExecutionStep objects")
             except Exception as fallback_e:
                 logger.error(f"Fallback plan also failed: {fallback_e}", exc_info=True)
-            
+
             return [], f"Planning failed: {e}"
+
+    def _parse_plan_to_steps(
+        self,
+        raw_plan,
+        skills: List[Dict[str, Any]],
+        task: str,
+        task_type=None,
+        max_steps: int = 10,
+    ) -> list:
+        """
+        Parse raw plan data (list, Pydantic models, dicts, or string) into ExecutionStep objects.
+
+        Reusable across plan_execution() and replan_with_reflection().
+        Handles LLM field name variations, fuzzy skill matching, tool inference,
+        and param building. Wires verification/fallback_skill fields.
+
+        Args:
+            raw_plan: Raw plan from DSPy (list of dicts/Pydantic models, or string, or None)
+            skills: Available skills list
+            task: Original task description
+            task_type: Task type (for fallback plan, optional)
+            max_steps: Maximum steps to parse
+
+        Returns:
+            List of ExecutionStep objects
+        """
+        # --- Phase 1: Normalize raw_plan to plan_data (list of dicts) ---
+        plan_data = None
+
+        if isinstance(raw_plan, list):
+            plan_data = raw_plan
+            logger.info(f"   Plan data is list: {len(plan_data)} steps")
+        elif not raw_plan:
+            plan_data = []
+        else:
+            import re
+            plan_str = str(raw_plan).strip()
+
+            # Method 1: Direct JSON parse
+            if plan_str.startswith('['):
+                try:
+                    plan_data = json.loads(plan_str)
+                    logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
+                except json.JSONDecodeError:
+                    pass
+
+            # Method 2: Extract from markdown code block
+            if plan_data is None and '```' in plan_str:
+                json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
+                if json_match:
+                    try:
+                        plan_data = json.loads(json_match.group(1).strip())
+                        logger.info(f"   Extracted from code block: {len(plan_data)} steps")
+                    except json.JSONDecodeError:
+                        pass
+
+            # Method 3: Find JSON array anywhere in text
+            if plan_data is None:
+                array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
+                if array_match:
+                    try:
+                        plan_data = json.loads(array_match.group(0))
+                        logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
+                    except json.JSONDecodeError:
+                        pass
+
+            # Method 4: Use _extract_plan_from_text helper
+            if plan_data is None:
+                plan_data = self._extract_plan_from_text(str(raw_plan))
+                if plan_data:
+                    logger.info(f"   Extracted via helper: {len(plan_data)} steps")
+
+            if plan_data is None:
+                logger.error(f"Could not parse plan. Raw (first 300 chars): {plan_str[:300]}")
+                plan_data = []
+
+        # Ensure list
+        if plan_data and not isinstance(plan_data, list):
+            plan_data = [plan_data]
+
+        if not plan_data:
+            return []
+
+        # --- Phase 2: Convert plan_data to ExecutionStep objects ---
+        ExecutionStep = _get_execution_step()
+        steps = []
+
+        # Build tool-to-skill mapping
+        tool_to_skill = {}
+        for s in skills:
+            skill_name_map = s.get('name', '')
+            for t in s.get('tools', []):
+                t_name = t.get('name') if isinstance(t, dict) else t
+                if t_name:
+                    tool_to_skill[t_name] = skill_name_map
+
+        available_skill_names = {s.get('name', '') for s in skills if s.get('name')}
+        logger.info(f"📋 Available skills for validation: {sorted(available_skill_names)}")
+
+        def get_val(obj, key, default=''):
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        def find_matching_skill(name: str) -> str:
+            """Find matching skill using exact, contains, or word-overlap match."""
+            if not name:
+                return ''
+            name_lower = name.lower().strip()
+            if name_lower in {s.lower() for s in available_skill_names}:
+                for s in available_skill_names:
+                    if s.lower() == name_lower:
+                        return s
+            for s in available_skill_names:
+                if name_lower in s.lower() or s.lower() in name_lower:
+                    logger.debug(f"Fuzzy matched '{name}' -> '{s}'")
+                    return s
+            name_words = set(name_lower.replace('-', '_').replace(' ', '_').split('_'))
+            for s in available_skill_names:
+                skill_words = set(s.lower().replace('-', '_').split('_'))
+                if name_words & skill_words:
+                    logger.debug(f"Word overlap matched '{name}' -> '{s}'")
+                    return s
+            return ''
+
+        for i, step_data in enumerate(plan_data[:max_steps]):
+            try:
+                logger.debug(f"Processing step {i+1}: {step_data}")
+
+                skill_name = get_val(step_data, 'skill_name') or get_val(step_data, 'skill', '')
+                tool_name = get_val(step_data, 'tool_name') or get_val(step_data, 'tool', '') or get_val(step_data, 'action', '')
+
+                # Infer skill from tool if skill is empty
+                if not skill_name and tool_name:
+                    skill_name = tool_to_skill.get(tool_name, '')
+
+                # Infer skill from available skills if only one selected
+                if not skill_name and len(available_skill_names) == 1:
+                    skill_name = list(available_skill_names)[0]
+                    logger.info(f"Auto-inferred skill_name='{skill_name}' (only one skill available)")
+                elif not skill_name and len(available_skill_names) <= 3:
+                    desc = str(get_val(step_data, 'description', task)).lower()
+                    for candidate in available_skill_names:
+                        if candidate.replace('-', ' ') in desc or any(w in desc for w in candidate.split('-')):
+                            skill_name = candidate
+                            logger.info(f"Inferred skill_name='{skill_name}' from description match")
+                            break
+
+                # Try fuzzy matching if exact skill not found
+                if skill_name and skill_name not in available_skill_names:
+                    matched = find_matching_skill(skill_name)
+                    if matched:
+                        logger.info(f"Skill name normalized: '{skill_name}' -> '{matched}'")
+                        skill_name = matched
+
+                # FALLBACK: Infer from description or use default
+                description = get_val(step_data, 'description', f'Step {i+1}')
+                if not skill_name or skill_name not in available_skill_names:
+                    desc_lower = str(description).lower()
+
+                    inferred_skill = None
+                    if any(w in desc_lower for w in ['search', 'find', 'lookup', 'research', 'web', 'news', 'fetch data']):
+                        inferred_skill = 'web-search'
+                    elif any(w in desc_lower for w in ['create', 'write', 'generate', 'save', 'file', 'report']):
+                        inferred_skill = 'file-operations'
+                    elif any(w in desc_lower for w in ['chart', 'graph', 'plot', 'visualiz']):
+                        inferred_skill = 'chart-creator'
+                    elif any(w in desc_lower for w in ['mindmap', 'diagram', 'map']):
+                        inferred_skill = 'mindmap-generator'
+                    elif any(w in desc_lower for w in ['analyz', 'compar', 'evaluat']):
+                        inferred_skill = 'web-search'
+
+                    if inferred_skill and inferred_skill in available_skill_names:
+                        logger.info(f"Step {i+1}: Inferred skill '{inferred_skill}' from description")
+                        skill_name = inferred_skill
+                    elif 'web-search' in available_skill_names:
+                        skill_name = 'web-search'
+                    elif 'file-operations' in available_skill_names:
+                        skill_name = 'file-operations'
+                    elif available_skill_names:
+                        skill_name = list(available_skill_names)[0]
+                    else:
+                        logger.warning(f"Skipping step {i+1}: '{str(description)[:50]}' - no skills available")
+                        continue
+
+                # Infer tool_name from skill if empty
+                if not tool_name:
+                    for s in skills:
+                        if s.get('name') == skill_name:
+                            skill_tools = s.get('tools', [])
+                            if skill_tools:
+                                tool_names_list = [t.get('name') if isinstance(t, dict) else t for t in skill_tools]
+                                desc_lower = description.lower()
+                                task_lower = task.lower()
+
+                                if skill_name == 'file-operations':
+                                    if any(w in desc_lower for w in ['directory', 'folder', 'mkdir']):
+                                        if 'create_directory_tool' in tool_names_list:
+                                            tool_name = 'create_directory_tool'
+                                    elif any(w in task_lower or w in desc_lower for w in ['create', 'write', 'generate', 'make']):
+                                        if any(ext in desc_lower for ext in ['.py', '.js', '.ts', '.json', '.md', '.txt', '.html', '.css', 'file']):
+                                            if 'write_file_tool' in tool_names_list:
+                                                tool_name = 'write_file_tool'
+                                        elif 'write_file_tool' in tool_names_list:
+                                            tool_name = 'write_file_tool'
+                                    elif any(w in task_lower or w in desc_lower for w in ['read', 'load', 'get']):
+                                        if 'read_file_tool' in tool_names_list:
+                                            tool_name = 'read_file_tool'
+
+                                if not tool_name:
+                                    first_tool = skill_tools[0]
+                                    tool_name = first_tool.get('name') if isinstance(first_tool, dict) else first_tool
+
+                                logger.debug(f"Inferred tool_name='{tool_name}' from skill '{skill_name}'")
+                            break
+
+                # Handle params
+                step_params = (
+                    get_val(step_data, 'params') or
+                    get_val(step_data, 'parameters') or
+                    get_val(step_data, 'tool_parameters') or
+                    get_val(step_data, 'inputs') or
+                    get_val(step_data, 'tool_input') or
+                    {}
+                )
+                if isinstance(step_params, str):
+                    step_params = {}
+
+                if not step_params:
+                    prev_output = f'step_{i-1}' if i > 0 else None
+                    param_source = task if tool_name in ['write_file_tool', 'read_file_tool'] else task
+                    step_params = self._build_skill_params(skill_name, param_source, prev_output, tool_name)
+                    logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
+
+                # Extract verification and fallback_skill (research-backed fields)
+                verification = get_val(step_data, 'verification', '')
+                fallback_skill = get_val(step_data, 'fallback_skill', '')
+
+                step = ExecutionStep(
+                    skill_name=skill_name,
+                    tool_name=tool_name,
+                    params=step_params,
+                    description=description,
+                    depends_on=get_val(step_data, 'depends_on', []),
+                    output_key=get_val(step_data, 'output_key', f'step_{i}'),
+                    optional=get_val(step_data, 'optional', False),
+                    verification=verification,
+                    fallback_skill=fallback_skill,
+                )
+                steps.append(step)
+            except Exception as e:
+                logger.warning(f"Failed to create step {i+1}: {e}")
+                continue
+
+        return steps
+
+    def replan_with_reflection(
+        self,
+        task: str,
+        task_type,
+        skills: List[Dict[str, Any]],
+        failed_steps: List[Dict[str, Any]],
+        completed_outputs: Optional[Dict[str, Any]] = None,
+        excluded_skills: Optional[List[str]] = None,
+        max_steps: int = 10,
+    ) -> tuple:
+        """
+        Replan after failure using Reflexion-style analysis.
+
+        Filters excluded skills, formats failure context, calls reflective_planner,
+        and parses the result using _parse_plan_to_steps.
+
+        Args:
+            task: Original task description
+            task_type: Task type (enum or string)
+            skills: Available skills
+            failed_steps: List of dicts with {skill_name, tool_name, error, params}
+            completed_outputs: Outputs from successful steps
+            excluded_skills: Skills to blacklist
+            max_steps: Maximum remaining steps
+
+        Returns:
+            (steps, reflection, reasoning) - steps is list of ExecutionStep,
+            reflection is failure analysis, reasoning is plan explanation
+        """
+        excluded_set = set(excluded_skills or [])
+
+        # Filter excluded skills from available set
+        filtered_skills = [s for s in skills if s.get('name') not in excluded_set]
+
+        # Format inputs for reflective planner
+        abstracted_task = self._abstract_task_for_planning(task)
+        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+
+        formatted_skills = []
+        for s in filtered_skills:
+            formatted_skills.append({
+                'name': s.get('name', ''),
+                'description': s.get('description', ''),
+                'tools': s.get('tools', []),
+            })
+        skills_json = json.dumps(formatted_skills, indent=2)
+        failed_json = json.dumps(failed_steps, default=str)
+        outputs_json = json.dumps(completed_outputs or {}, default=str)
+        excluded_json = json.dumps(list(excluded_set))
+
+        try:
+            result = self._call_with_retry(
+                module=self.reflective_planner,
+                kwargs={
+                    'task_description': abstracted_task,
+                    'task_type': task_type_str,
+                    'available_skills': skills_json,
+                    'failed_steps': failed_json,
+                    'completed_outputs': outputs_json,
+                    'excluded_skills': excluded_json,
+                    'max_steps': max_steps,
+                },
+                compressible_fields=['available_skills', 'completed_outputs'],
+                max_retries=self._max_compression_retries,
+            )
+
+            raw_plan = getattr(result, 'corrected_plan', None)
+            reflection = str(getattr(result, 'reflection', ''))
+            reasoning = str(getattr(result, 'reasoning', ''))
+
+            logger.info(f"🔄 Reflective replanning: reflection='{reflection[:100]}...'")
+
+            steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
+
+            if steps:
+                logger.info(f"🔄 Reflective replan produced {len(steps)} new steps")
+                return steps, reflection, reasoning
+
+        except Exception as e:
+            logger.warning(f"Reflective replanning failed: {e}, falling back to regular replanning")
+
+        # Fallback to regular plan_execution if reflection fails
+        try:
+            steps, reasoning = self.plan_execution(
+                task=task,
+                task_type=task_type,
+                skills=filtered_skills,
+                previous_outputs=completed_outputs,
+                max_steps=max_steps,
+            )
+            return steps, "Fallback: regular replanning (reflection failed)", reasoning
+        except Exception as e:
+            logger.error(f"Fallback replanning also failed: {e}")
+            return [], f"All replanning failed: {e}", ""
 
     def _extract_tool_schema(self, tool_func, tool_name: str) -> Dict[str, Any]:
         """
         Extract parameter schema from tool function docstring.
-        
+
+        Handles multiple docstring formats:
+        1. Google style with 'containing' pattern: params: Dictionary containing 'location' key
+        2. Dash-prefixed: - location (str, required): The location
+        3. Indented Google style: location: The location to check
+
         Args:
             tool_func: The tool function
             tool_name: Name of the tool
-            
+
         Returns:
             Dictionary with tool name, parameters, and description
         """
+        import re
+
         schema = {
             'name': tool_name,
             'parameters': [],
             'description': ''
         }
-        
+
         if not tool_func or not hasattr(tool_func, '__doc__') or not tool_func.__doc__:
             return schema
-        
+
         docstring = tool_func.__doc__
         lines = docstring.split('\n')
-        
-        # Extract description (first line)
-        schema['description'] = lines[0].strip() if lines else ''
-        
-        # Extract parameters from Args section
-        in_args = False
+
+        # Extract description (first non-empty line)
         for line in lines:
-            line = line.strip()
-            
+            stripped = line.strip()
+            if stripped:
+                schema['description'] = stripped
+                break
+
+        # Pattern 1: Extract from "Dictionary containing 'X' key" pattern
+        # This is common in Jotty skills: params: Dictionary containing 'location' key
+        containing_patterns = [
+            r"containing\s+'(\w+)'\s+key",  # containing 'location' key
+            r"containing\s+'(\w+)'",         # containing 'location'
+            r"with\s+'(\w+)'\s+key",         # with 'location' key
+            r'"(\w+)"\s+key',                # "location" key
+        ]
+
+        for pattern in containing_patterns:
+            matches = re.findall(pattern, docstring, re.IGNORECASE)
+            for param_name in matches:
+                if param_name not in [p['name'] for p in schema['parameters']]:
+                    schema['parameters'].append({
+                        'name': param_name,
+                        'type': 'str',
+                        'required': True,
+                        'description': f'The {param_name} parameter'
+                    })
+
+        # Pattern 2: Parse Args section (Google style and dash-prefixed)
+        in_args = False
+        current_param = None
+
+        for line in lines:
+            stripped = line.strip()
+
             if 'Args:' in line or 'Parameters:' in line:
                 in_args = True
                 continue
-            
-            if in_args and line.startswith('-'):
-                # Parse: "- path (str, required): Path to the file"
-                parts = line[1:].strip().split(':', 1)
-                if len(parts) == 2:
-                    param_def = parts[0].strip()
-                    desc = parts[1].strip()
-                    
-                    # Parse "path (str, required)" or "path (str, optional)"
-                    param_name = param_def.split('(')[0].strip() if '(' in param_def else param_def.strip()
-                    
-                    if '(' in param_def:
-                        type_info = param_def.split('(')[1].split(')')[0]
-                        param_type = type_info.split(',')[0].strip()
-                        required = 'required' in type_info.lower()
-                    else:
-                        param_type = 'str'
-                        required = True  # Default to required if not specified
-                    
+
+            if in_args:
+                # End of Args section
+                if stripped.startswith('Returns:') or stripped.startswith('Raises:') or (stripped.startswith('##') or stripped == ''):
+                    if stripped.startswith('Returns:') or stripped.startswith('Raises:'):
+                        break
+                    if stripped == '' and current_param is None:
+                        continue  # Empty line before parameters
+
+                # Dash-prefixed: - location (str, required): Description
+                if stripped.startswith('-'):
+                    parts = stripped[1:].strip().split(':', 1)
+                    if len(parts) == 2:
+                        param_def = parts[0].strip()
+                        desc = parts[1].strip()
+
+                        param_name = param_def.split('(')[0].strip() if '(' in param_def else param_def.strip()
+
+                        if param_name and param_name not in ['params', 'kwargs', 'args']:
+                            if '(' in param_def:
+                                type_info = param_def.split('(')[1].split(')')[0]
+                                param_type = type_info.split(',')[0].strip()
+                                required = 'required' in type_info.lower() or 'optional' not in type_info.lower()
+                            else:
+                                param_type = 'str'
+                                required = True
+
+                            if param_name not in [p['name'] for p in schema['parameters']]:
+                                schema['parameters'].append({
+                                    'name': param_name,
+                                    'type': param_type,
+                                    'required': required,
+                                    'description': desc
+                                })
+
+                # Indented Google style: location (str): The location to check
+                # Or: location: The location to check
+                elif ':' in stripped and not stripped.startswith('#'):
+                    parts = stripped.split(':', 1)
+                    if len(parts) == 2:
+                        param_def = parts[0].strip()
+                        desc = parts[1].strip()
+
+                        # Extract parameter name (before any type annotation in parentheses)
+                        param_name = param_def.split('(')[0].strip() if '(' in param_def else param_def.strip()
+
+                        # Skip generic 'params' dictionary entry - we handle it via containing pattern
+                        if param_name and param_name not in ['params', 'kwargs', 'args', 'self']:
+                            if '(' in param_def:
+                                type_info = param_def.split('(')[1].split(')')[0]
+                                param_type = type_info.split(',')[0].strip()
+                                required = 'optional' not in type_info.lower()
+                            else:
+                                param_type = 'str'
+                                required = True
+
+                            if param_name not in [p['name'] for p in schema['parameters']]:
+                                schema['parameters'].append({
+                                    'name': param_name,
+                                    'type': param_type,
+                                    'required': required,
+                                    'description': desc
+                                })
+
+        # Pattern 3: Look for common parameter patterns in the description
+        # e.g., "requires a 'topic' parameter" or "the location parameter"
+        param_mention_patterns = [
+            r"'(\w+)'\s+(?:parameter|argument|key)",
+            r"(\w+)\s+(?:parameter|argument|key)\s+(?:is|must be|should be)",
+        ]
+
+        for pattern in param_mention_patterns:
+            matches = re.findall(pattern, docstring, re.IGNORECASE)
+            for param_name in matches:
+                if param_name.lower() not in ['the', 'a', 'an', 'this'] and param_name not in [p['name'] for p in schema['parameters']]:
                     schema['parameters'].append({
                         'name': param_name,
-                        'type': param_type,
-                        'required': required,
-                        'description': desc
+                        'type': 'str',
+                        'required': True,
+                        'description': f'The {param_name} parameter'
                     })
-            
-            elif in_args and ('Returns:' in line or 'Raises:' in line):
-                break
-        
+
         return schema
     
     def _abstract_task_for_planning(self, task: str) -> str:

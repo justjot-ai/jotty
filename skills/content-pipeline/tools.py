@@ -10,6 +10,8 @@ import logging
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Import validation utilities
@@ -48,6 +50,10 @@ SINK_DOCUMENT_SCHEMA = {
 }
 
 # Lazy import JustJot components
+
+# Status emitter for progress updates
+status = SkillStatus("content-pipeline")
+
 _JUSTJOT_IMPORTED = False
 _ContentPipeline = None
 _Document = None
@@ -529,6 +535,8 @@ def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - history (list): Pipeline execution history
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         try:
@@ -591,6 +599,8 @@ def run_source_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - document (dict): Generated document (serialized)
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         try:
@@ -636,6 +646,8 @@ def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - document (dict): Processed document (serialized)
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         try:
@@ -686,6 +698,8 @@ def sink_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_paths (list): Generated file paths
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         try:

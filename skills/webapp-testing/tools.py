@@ -11,6 +11,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("webapp-testing")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -37,6 +43,8 @@ async def test_webapp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with test results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     app_url = params.get('app_url', '')
     test_type = params.get('test_type', 'full')
     actions = params.get('actions', [])

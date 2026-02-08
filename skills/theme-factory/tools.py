@@ -11,9 +11,15 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Theme definitions
+
+# Status emitter for progress updates
+status = SkillStatus("theme-factory")
+
 THEMES = {
     'ocean_depths': {
         'name': 'Ocean Depths',
@@ -200,6 +206,8 @@ async def apply_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with theme details and output path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     theme_name = params.get('theme_name', '')
     artifact_path = params.get('artifact_path', '')
     artifact_type = params.get('artifact_type', 'auto')

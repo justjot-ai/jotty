@@ -4,6 +4,12 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import xml.etree.ElementTree as ET
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("arxiv-downloader")
+
+
 
 def download_arxiv_paper_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -27,6 +33,8 @@ def download_arxiv_paper_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_path (str): Path to downloaded files
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         arxiv_input = params.get('arxiv_id')
         if not arxiv_input:
@@ -108,6 +116,8 @@ def search_arxiv_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of results
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         query = params.get('query')
         if not query:

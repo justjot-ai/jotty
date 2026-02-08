@@ -10,6 +10,12 @@ import json
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("pdf-tools")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -431,6 +437,8 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, extracted text content by page
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     if not file_path:
         return {'success': False, 'error': 'file_path parameter is required'}
@@ -461,6 +469,8 @@ def extract_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, extracted tables
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     if not file_path:
         return {'success': False, 'error': 'file_path parameter is required'}
@@ -493,6 +503,8 @@ def merge_pdfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output path, file count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_paths = params.get('file_paths')
     output_path = params.get('output_path')
 
@@ -528,6 +540,7 @@ def split_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output files list
     """
+    status.set_callback(params.pop('_status_callback', None))
     file_path = params.get('file_path')
     pages = params.get('pages')
     output_dir = params.get('output_dir')
@@ -559,6 +572,8 @@ def get_metadata_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, page count, file size, metadata
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     if not file_path:
         return {'success': False, 'error': 'file_path parameter is required'}
@@ -588,6 +603,8 @@ def rotate_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output path, rotation info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path = params.get('file_path')
     rotation = params.get('rotation')
 
@@ -634,6 +651,8 @@ def create_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         - **bold** and *italic* text
         - --- or *** for page breaks
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     content = params.get('content')
     output_path = params.get('output_path')
 

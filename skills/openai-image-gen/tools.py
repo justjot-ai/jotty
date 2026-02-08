@@ -10,9 +10,15 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Constants
+
+# Status emitter for progress updates
+status = SkillStatus("openai-image-gen")
+
 OPENAI_API_BASE = "https://api.openai.com/v1"
 DEFAULT_OUTPUT_DIR = os.path.expanduser("~/jotty/images")
 
@@ -136,6 +142,8 @@ def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - revised_prompt (str): The revised prompt used by DALL-E 3
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     prompt = params.get("prompt")
     if not prompt:
         return {"success": False, "error": "Missing required parameter: prompt"}
@@ -227,6 +235,8 @@ def edit_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_paths (list): Paths to the edited images
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     image_path = params.get("image_path")
     if not image_path:
         return {"success": False, "error": "Missing required parameter: image_path"}
@@ -320,6 +330,8 @@ def create_variation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_paths (list): Paths to the variation images
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     image_path = params.get("image_path")
     if not image_path:
         return {"success": False, "error": "Missing required parameter: image_path"}

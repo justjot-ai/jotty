@@ -13,6 +13,12 @@ from datetime import datetime
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("file-operations")
+
+
 
 @tool_wrapper(required_params=['path'])
 def read_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -27,6 +33,8 @@ def read_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, content, path, size
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     encoding = params.get('encoding', 'utf-8')
     file_path = Path(params['path'])
 
@@ -37,6 +45,7 @@ def read_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f'Path is not a file: {params["path"]}')
 
     try:
+        status.emit("Reading", f"📄 Reading {file_path.name}...")
         content = file_path.read_text(encoding=encoding)
         return tool_response(content=content, path=str(file_path), size=len(content))
     except UnicodeDecodeError as e:
@@ -58,9 +67,12 @@ def write_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, path, bytes_written
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     encoding = params.get('encoding', 'utf-8')
     file_path = Path(params['path'])
 
+    status.emit("Writing", f"📝 Writing {file_path.name}...")
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(params['content'], encoding=encoding)
 
@@ -84,6 +96,8 @@ def list_directory_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, items, count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     recursive = params.get('recursive', False)
     include_hidden = params.get('include_hidden', False)
 
@@ -130,6 +144,8 @@ def create_directory_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     parents = params.get('parents', True)
     dir_path = Path(params['path'])
 
@@ -156,6 +172,8 @@ def delete_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     recursive = params.get('recursive', False)
     item_path = Path(params['path'])
 
@@ -190,12 +208,15 @@ def search_files_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, matches, count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     recursive = params.get('recursive', True)
     dir_path = Path(params['directory'])
 
     if not dir_path.exists() or not dir_path.is_dir():
         return tool_error(f'Invalid directory: {params["directory"]}')
 
+    status.emit("Searching", f"🔍 Searching for {params['pattern']}...")
     if recursive:
         search_path = dir_path / '**' / params['pattern']
         matches = [str(p) for p in glob.glob(str(search_path), recursive=True) if Path(p).is_file()]
@@ -218,6 +239,8 @@ def get_file_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, exists, type, size, modified, path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     item_path = Path(params['path'])
 
     if not item_path.exists():

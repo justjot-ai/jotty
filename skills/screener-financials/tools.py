@@ -14,6 +14,8 @@ from urllib.parse import quote, urljoin
 import json
 import logging
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +27,10 @@ FREE_PROXY_SOURCES = [
 ]
 
 # User agents for rotation
+
+# Status emitter for progress updates
+status = SkillStatus("screener-financials")
+
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -253,6 +259,8 @@ def search_company_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with search results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         query = params.get('query')
         if not query:
@@ -357,6 +365,8 @@ def get_company_financials_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with financial data
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         company_name = params.get('company_name')
         if not company_name:
@@ -659,6 +669,8 @@ def get_company_ratios_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with ratios
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         company_name = params.get('company_name')
         if not company_name:

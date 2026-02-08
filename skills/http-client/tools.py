@@ -10,6 +10,12 @@ from typing import Dict, Any
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("http-client")
+
+
 
 def _parse_response_body(response: requests.Response) -> tuple:
     """Parse response body, returning (body, body_type) tuple."""
@@ -70,6 +76,8 @@ def http_get_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, status_code, headers, body, body_type, url
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     return _make_http_request('GET', params['url'], params)
 
 
@@ -89,6 +97,8 @@ def http_post_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, status_code, headers, body, body_type, url
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     return _make_http_request('POST', params['url'], params)
 
 
@@ -109,6 +119,8 @@ def http_request_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, method, status_code, headers, body, body_type, url
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     method = params['method'].upper()
 
     if method not in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']:

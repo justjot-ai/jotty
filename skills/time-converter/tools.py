@@ -2,6 +2,12 @@ from datetime import datetime
 import pytz
 from typing import Dict, Any, Optional, List
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("time-converter")
+
+
 
 def convert_timezone_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -18,6 +24,8 @@ def convert_timezone_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with 'success', 'result' or 'error'
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         time_str = params.get('time')
         from_tz = params.get('from_timezone', 'UTC')
@@ -83,6 +91,8 @@ def format_time_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with 'success', 'result' or 'error'
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         time_str = params.get('time')
         output_format = params.get('output_format', '%Y-%m-%d %H:%M:%S')
@@ -131,6 +141,8 @@ def get_current_time_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with 'success', 'result' or 'error'
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         timezone_str = params.get('timezone', 'UTC')
         format_str = params.get('format', '%Y-%m-%d %H:%M:%S %Z')
@@ -166,6 +178,8 @@ def list_timezones_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with 'success', 'result' or 'error'
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         region = params.get('region')
         all_timezones = pytz.all_timezones
@@ -209,6 +223,8 @@ def calculate_time_difference_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with 'success', 'result' or 'error'
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         time1_str = params.get('time1')
         time2_str = params.get('time2')

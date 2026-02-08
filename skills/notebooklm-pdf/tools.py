@@ -16,6 +16,12 @@ import tempfile
 import logging
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notebooklm-pdf")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,6 +71,8 @@ async def notebooklm_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - notebook_id (str, optional): NotebookLM notebook ID
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Get content from file or direct input
         content = params.get('content')

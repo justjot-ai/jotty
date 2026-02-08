@@ -2,6 +2,12 @@ import psutil
 import os
 from typing import Dict, Any, List
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("process-manager")
+
+
 
 def list_processes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -20,6 +26,8 @@ def list_processes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of processes found
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         filter_pattern = params.get('filter', '').lower()
         user_filter = params.get('user')
@@ -86,6 +94,8 @@ def get_process_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - memory_percent (float): Memory usage percentage
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         pid = params.get('pid')
         
@@ -161,6 +171,8 @@ def kill_process_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - method (str): Termination method used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         pid = params.get('pid')
         force = params.get('force', False)

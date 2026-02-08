@@ -12,6 +12,10 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+# Status emitter for progress updates
+status = SkillStatus("skill-creator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +34,8 @@ async def create_skill_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with created files and paths
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     skill_name = params.get('skill_name', '')
     description = params.get('description', '')
     output_directory = params.get('output_directory', 'skills')
@@ -118,6 +124,8 @@ import asyncio
 import logging
 from typing import Dict, Any
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -133,6 +141,8 @@ async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     param1 = params.get('param1')
     
     if not param1:
@@ -199,6 +209,8 @@ async def validate_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with validation results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     skill_path = params.get('skill_path', '')
     
     if not skill_path:

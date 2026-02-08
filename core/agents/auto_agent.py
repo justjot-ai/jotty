@@ -321,6 +321,11 @@ Provide:
         """
         Execute a task automatically.
 
+        Routes through BaseAgent infrastructure for hooks and metrics
+        while keeping AutonomousAgent's internal replanning as the retry
+        mechanism (BaseAgent retry is NOT used here — autonomous agents
+        handle failure via replanning, not blind retry).
+
         Args:
             task: Task description (can be minimal like "RNN vs CNN")
             status_callback: Optional callback(stage, detail) for progress updates
@@ -330,7 +335,9 @@ Provide:
         Returns:
             ExecutionResult with outputs and status
         """
+        import time as _time
         start_time = datetime.now()
+        wall_start = _time.time()
 
         # Extract status callback for streaming progress
         status_callback = kwargs.pop('status_callback', None)
@@ -348,6 +355,12 @@ Provide:
 
         # Ensure initialized
         self._ensure_initialized()
+
+        # Run pre-execution hooks (from BaseAgent)
+        try:
+            await self._run_pre_hooks(task=task, **kwargs)
+        except Exception as e:
+            logger.warning(f"Pre-hook failed: {e}")
 
         # Auto-detect ensemble for certain task types
         if ensemble is None:
@@ -379,8 +392,19 @@ Provide:
         # Get task type enum for result
         task_type_enum = self._infer_task_type_enum(task)
 
-        # Call base class execution - pass status_callback back
-        result = await super()._execute_impl(task=enriched_task, status_callback=status_callback, **kwargs)
+        # Execute via AutonomousAgent._execute_impl (handles its own replanning)
+        try:
+            result = await super()._execute_impl(task=enriched_task, status_callback=status_callback, **kwargs)
+        except Exception as e:
+            logger.error(f"AutoAgent execution failed: {e}")
+            result = {
+                'success': False,
+                'errors': [str(e)],
+                'skills_used': [],
+                'steps_executed': 0,
+                'outputs': {},
+                'final_output': None,
+            }
 
         # Convert to ExecutionResult
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -388,8 +412,10 @@ Provide:
         # Clean task for display
         display_task = _clean_for_display(task)
 
-        return ExecutionResult(
-            success=result.get('success', False),
+        is_success = result.get('success', False)
+
+        exec_result = ExecutionResult(
+            success=is_success,
             task=display_task,
             task_type=task_type_enum,
             skills_used=result.get('skills_used', []),
@@ -399,6 +425,30 @@ Provide:
             errors=result.get('errors', []),
             execution_time=execution_time
         )
+
+        # Update BaseAgent metrics
+        wall_time = _time.time() - wall_start
+        self._metrics["total_executions"] += 1
+        self._metrics["total_execution_time"] += wall_time
+        if is_success:
+            self._metrics["successful_executions"] += 1
+        else:
+            self._metrics["failed_executions"] += 1
+
+        # Run post-execution hooks (from BaseAgent)
+        try:
+            from .base.base_agent import AgentResult
+            agent_result = AgentResult(
+                success=is_success,
+                output=result,
+                agent_name=self.config.name,
+                execution_time=wall_time,
+            )
+            await self._run_post_hooks(agent_result, task=task, **kwargs)
+        except Exception as e:
+            logger.warning(f"Post-hook failed: {e}")
+
+        return exec_result
 
     async def execute_and_send(
         self,

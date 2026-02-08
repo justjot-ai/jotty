@@ -16,6 +16,8 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from collections import Counter
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +26,10 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Default perspectives for multi-perspective ensembling
+
+# Status emitter for progress updates
+status = SkillStatus("claude-cli-llm")
+
 DEFAULT_PERSPECTIVES = [
     {
         "name": "analytical",
@@ -75,6 +81,8 @@ def ensemble_prompt_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - confidence (float): Confidence in synthesized answer (0-1)
             - strategy (str): Strategy used
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import dspy
 
@@ -628,12 +636,16 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - summary (str): Summarized text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import dspy
 
         content = params.get('content')
         if not content:
             return {'success': False, 'error': 'content parameter is required'}
+
+        status.emit("Summarizing", "🧠 Summarizing text...")
 
         # Build prompt
         custom_prompt = params.get('prompt', 'Summarize the following content in a clear and concise way:')
@@ -681,12 +693,16 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - text (str): Generated text
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import dspy
 
         prompt = params.get('prompt')
         if not prompt:
             return {'success': False, 'error': 'prompt parameter is required'}
+
+        status.emit("Generating", "🧠 Generating text...")
 
         # Use DSPy's configured LM
         lm = dspy.settings.lm
@@ -732,6 +748,8 @@ def claude_cli_llm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - response (str): Generated/synthesized response
             - ensemble_used (bool): Whether ensembling was used
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import dspy
 

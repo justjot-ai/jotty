@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("lead-research-assistant")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +40,8 @@ async def research_leads_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with leads list, summary, output file path
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     product_description = params.get('product_description', '')
     industry = params.get('industry', '')
     location = params.get('location', '')

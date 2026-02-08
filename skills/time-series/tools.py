@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("time-series")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +33,8 @@ async def timeseries_decompose_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with trend, seasonal, and residual components
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from statsmodels.tsa.seasonal import seasonal_decompose
 
     logger.info("[TimeSeries] Decomposing time series...")
@@ -83,6 +91,8 @@ async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with forecasts and confidence intervals
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from statsmodels.tsa.arima.model import ARIMA
     from statsmodels.tsa.stattools import adfuller
 
@@ -159,6 +169,8 @@ async def timeseries_features_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with extracted features
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from scipy import stats
 
     logger.info("[TimeSeries] Extracting time series features...")
@@ -238,6 +250,8 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with anomaly indices and values
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[TimeSeries] Detecting anomalies...")
 
     data = params.get('data')
@@ -320,6 +334,8 @@ async def timeseries_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cross-validation scores
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.model_selection import TimeSeriesSplit
     from sklearn.metrics import mean_squared_error, mean_absolute_error
 

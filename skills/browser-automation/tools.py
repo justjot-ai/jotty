@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -40,6 +42,10 @@ except ImportError:
     logger.warning("Playwright not installed. Run: pip install playwright && playwright install chromium")
 
 # Try to import Selenium
+
+# Status emitter for progress updates
+status = SkillStatus("browser-automation")
+
 SELENIUM_AVAILABLE = False
 try:
     from selenium import webdriver
@@ -319,6 +325,8 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - backend (str): Which backend was used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     url = params.get('url')
     if not url:
         return {'success': False, 'error': 'url parameter is required'}
@@ -404,6 +412,8 @@ async def browser_screenshot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - height (int): Image height
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -481,6 +491,8 @@ async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url_after (str): URL after submission
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -582,6 +594,8 @@ async def browser_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url_after (str): URL after click
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -655,6 +669,8 @@ async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - data (dict): Extracted data by name
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -736,6 +752,8 @@ async def browser_execute_js_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - result: Return value from script
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -788,6 +806,8 @@ async def browser_wait_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - found (bool): Whether element was found
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -833,6 +853,8 @@ async def browser_close_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with:
             - success (bool): Whether close succeeded
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         session = await BrowserSession.get_instance()
         await session.close()
@@ -860,6 +882,8 @@ async def browser_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - size_bytes (int): PDF file size
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not PLAYWRIGHT_AVAILABLE:
         return {'success': False, 'error': 'Playwright not installed'}
 
@@ -925,6 +949,8 @@ def browser_connect_cdp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - title (str): Page title if test_navigate provided
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not SELENIUM_AVAILABLE:
         return {
             'success': False,
@@ -970,6 +996,8 @@ def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with:
             - success (bool): Whether close succeeded
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         session = SeleniumBrowserSession.get_instance()
         session.close()

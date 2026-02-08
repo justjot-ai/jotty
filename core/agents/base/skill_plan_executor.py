@@ -151,6 +151,70 @@ class SkillPlanExecutor:
             logger.error(f"Planning failed: {e}")
             return []
 
+    async def create_reflective_plan(
+        self,
+        task: str,
+        task_type: str,
+        skills: List[Dict[str, Any]],
+        failed_steps: List[Dict[str, Any]],
+        completed_outputs: Optional[Dict[str, Any]] = None,
+        max_steps: int = 0,
+    ) -> tuple:
+        """
+        Create a reflective replan after step failure.
+
+        Uses AgenticPlanner.replan_with_reflection() if available,
+        otherwise falls back to regular plan_execution().
+
+        Args:
+            task: Original task description
+            task_type: Task type string
+            skills: Available skills
+            failed_steps: List of dicts with {skill_name, tool_name, error, params}
+            completed_outputs: Outputs from successful steps
+            max_steps: Maximum remaining steps (0 = use self._max_steps)
+
+        Returns:
+            (steps, reflection, reasoning)
+        """
+        remaining_steps = max_steps or self._max_steps
+
+        if self.planner is None:
+            logger.warning("No planner available for reflective replanning")
+            return [], "No planner available", ""
+
+        # Use reflective replanning if planner supports it
+        if hasattr(self.planner, 'replan_with_reflection'):
+            try:
+                excluded = list(self._excluded_skills)
+                steps, reflection, reasoning = self.planner.replan_with_reflection(
+                    task=task,
+                    task_type=task_type,
+                    skills=skills,
+                    failed_steps=failed_steps,
+                    completed_outputs=completed_outputs,
+                    excluded_skills=excluded,
+                    max_steps=remaining_steps,
+                )
+                logger.info(f"Reflective replan: {len(steps)} steps, reflection: {reflection[:80]}")
+                return steps, reflection, reasoning
+            except Exception as e:
+                logger.warning(f"Reflective replanning failed: {e}, falling back")
+
+        # Fallback to regular plan_execution
+        try:
+            steps, reasoning = self.planner.plan_execution(
+                task=task,
+                task_type=task_type,
+                skills=skills,
+                previous_outputs=completed_outputs,
+                max_steps=remaining_steps,
+            )
+            return steps, "Regular replanning (no reflection)", reasoning
+        except Exception as e:
+            logger.error(f"Fallback replanning failed: {e}")
+            return [], f"Replanning failed: {e}", ""
+
     # =========================================================================
     # STEP EXECUTION
     # =========================================================================
@@ -190,11 +254,13 @@ class SkillPlanExecutor:
                 'error': f'Skill not found: {step.skill_name}',
             }
 
-        # If skill extends BaseSkill, set the status callback for live updates
+        # If skill is a BaseSkill instance (class-based skill), set the status callback
+        # Note: get_skill() returns SkillDefinition; check the underlying object if present
         try:
             from ...registry.skills_registry import BaseSkill
-            if isinstance(skill, BaseSkill):
-                skill.set_status_callback(status_callback)
+            underlying = getattr(skill, '_skill_instance', None)
+            if isinstance(underlying, BaseSkill):
+                underlying.set_status_callback(status_callback)
         except ImportError:
             pass
 
@@ -223,10 +289,6 @@ class SkillPlanExecutor:
             }
 
         resolved_params = self.resolve_params(step.params, outputs)
-
-        # Pass status callback to skill via params (skills can optionally use it)
-        if status_callback:
-            resolved_params['_status_callback'] = status_callback
 
         # Emit status based on skill type
         skill_status_map = {
@@ -492,7 +554,7 @@ class SkillPlanExecutor:
         for i, step in enumerate(steps):
             _status(
                 f"Step {i + 1}/{len(steps)}",
-                f"{step.skill_name}: {step.description[:50]}",
+                f"{step.skill_name}: {step.description[:100]}",
             )
 
             result = await self.execute_step(step, outputs, status_callback)
@@ -527,21 +589,29 @@ class SkillPlanExecutor:
                     if any(kw in error_msg.lower() for kw in transient_keywords) and replan_count == 0:
                         _status(f"Step {i + 1}", "retrying after transient error")
                         await asyncio.sleep(2)  # Brief backoff
-                        retry_result = await self._execute_step(step, i, outputs)
+                        retry_result = await self.execute_step(step, outputs, status_callback)
                         if retry_result.get('success'):
                             outputs[step.output_key or f'step_{i}'] = retry_result
                             skills_used.append(step.skill_name)
                             _status(f"Step {i + 1}", "retry succeeded")
                             continue
 
-                    _status("Replanning", "adapting to failure")
-                    new_steps = await self.create_plan(
-                        task, task_type, skills, outputs
+                    _status("Replanning", "adapting to failure with reflection")
+                    failed_step_info = {
+                        'skill_name': step.skill_name,
+                        'tool_name': step.tool_name,
+                        'error': error_msg,
+                        'params': step.params,
+                    }
+                    new_steps, reflection, _ = await self.create_reflective_plan(
+                        task, task_type, skills,
+                        [failed_step_info], outputs,
+                        max_steps=self._max_steps - (i + 1),
                     )
                     if new_steps:
                         steps = steps[:i + 1] + new_steps
                         replan_count += 1
-                        _status("Replanned", f"{len(new_steps)} new steps")
+                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:60]})")
 
         final_output = list(outputs.values())[-1] if outputs else None
 

@@ -12,6 +12,12 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("dimensionality-reduction")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +34,8 @@ async def pca_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with transformed data and explained variance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DimReduction] Running PCA...")
 
     data = params.get('data')
@@ -93,6 +101,8 @@ async def tsne_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with 2D/3D embedding
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.manifold import TSNE
 
     logger.info("[DimReduction] Running t-SNE...")
@@ -154,6 +164,8 @@ async def umap_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with UMAP embedding
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import umap
     except ImportError:
@@ -214,6 +226,8 @@ async def variance_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with variance analysis
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DimReduction] Analyzing variance...")
 
     data = params.get('data')
@@ -271,6 +285,8 @@ async def svd_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with SVD results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.decomposition import TruncatedSVD
 
     logger.info("[DimReduction] Running Truncated SVD...")

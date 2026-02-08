@@ -19,6 +19,12 @@ from pathlib import Path
 import tempfile
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("simple-pdf-generator")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +45,8 @@ async def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with PDF file path and metadata
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

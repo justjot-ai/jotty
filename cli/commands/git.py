@@ -20,7 +20,7 @@ class GitCommand(BaseCommand):
     name = "git"
     aliases = []
     description = "Git integration for repository operations"
-    usage = "/git [status|log|diff|branch|commit|push|pull|stash|checkout]"
+    usage = "/git [status|log|diff|branch|commit|push|pull|stash|checkout|undo|auto-commit]"
     category = "tools"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -59,6 +59,11 @@ class GitCommand(BaseCommand):
             return await self._git_checkout(cli, branch, args.flags)
         elif subcommand == "fetch":
             return await self._git_fetch(cli)
+        elif subcommand == "undo":
+            return await self._git_undo(cli)
+        elif subcommand == "auto-commit":
+            message = " ".join(args.positional[1:]) if len(args.positional) > 1 else None
+            return await self._git_auto_commit(cli, message)
         else:
             return await self._git_status(cli)
 
@@ -372,7 +377,92 @@ class GitCommand(BaseCommand):
 
         return CommandResult.ok()
 
+    async def _git_undo(self, cli: "JottyCLI") -> CommandResult:
+        """Soft reset the last [AI]-tagged commit with confirmation."""
+        # Get last commit message
+        success, stdout, stderr = self._run_git(["log", "-1", "--oneline"])
+        if not success:
+            cli.renderer.error(f"Git error: {stderr}")
+            return CommandResult.fail(stderr)
+
+        commit_msg = stdout.strip()
+        if not commit_msg:
+            cli.renderer.warning("No commits to undo")
+            return CommandResult.fail("No commits")
+
+        # Check if it's an AI commit
+        if "[AI]" not in commit_msg:
+            cli.renderer.warning(f"Last commit is not AI-tagged: {commit_msg}")
+            cli.renderer.info("Only [AI]-tagged commits can be undone with /git undo")
+            return CommandResult.fail("Not an AI commit")
+
+        # Confirmation
+        cli.renderer.warning(f"Will soft-reset: {commit_msg}")
+        try:
+            confirm = input("  Confirm undo? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return CommandResult.ok()
+
+        if confirm != "y":
+            cli.renderer.info("Undo cancelled")
+            return CommandResult.ok()
+
+        # Soft reset (keeps changes staged)
+        success, stdout, stderr = self._run_git(["reset", "--soft", "HEAD~1"])
+        if not success:
+            cli.renderer.error(f"Undo failed: {stderr}")
+            return CommandResult.fail(stderr)
+
+        cli.renderer.success(f"Undone: {commit_msg}")
+        cli.renderer.info("Changes are still staged. Modify and re-commit as needed.")
+        return CommandResult.ok(data={"undone": commit_msg})
+
+    async def _git_auto_commit(self, cli: "JottyCLI", message: str = None) -> CommandResult:
+        """Stage all changes and commit with [AI] prefix and Jotty AI author."""
+        # Check for changes
+        success, stdout, stderr = self._run_git(["status", "--porcelain"])
+        if not success:
+            cli.renderer.error(f"Git error: {stderr}")
+            return CommandResult.fail(stderr)
+
+        if not stdout.strip():
+            cli.renderer.warning("No changes to commit")
+            return CommandResult.fail("Nothing to commit")
+
+        # Stage all
+        success, _, stderr = self._run_git(["add", "-A"])
+        if not success:
+            cli.renderer.error(f"Failed to stage: {stderr}")
+            return CommandResult.fail(stderr)
+
+        # Build commit message
+        if not message:
+            # Count changes for auto-message
+            lines = [l for l in stdout.strip().split("\n") if l.strip()]
+            message = f"Auto-commit {len(lines)} change(s)"
+
+        full_message = f"[AI] {message}"
+
+        # Commit with Jotty AI author
+        success, stdout, stderr = self._run_git([
+            "commit", "-m", full_message,
+            "--author", "Jotty AI <jotty@ai.local>",
+        ])
+
+        if not success:
+            if "nothing to commit" in (stderr + stdout).lower():
+                cli.renderer.warning("Nothing to commit")
+            else:
+                cli.renderer.error(f"Commit failed: {stderr}")
+            return CommandResult.fail(stderr or "Commit failed")
+
+        cli.renderer.success(f"Committed: {full_message}")
+        return CommandResult.ok(data={"message": full_message})
+
     def get_completions(self, partial: str) -> list:
         """Get subcommand completions."""
-        subcommands = ["status", "log", "diff", "branch", "commit", "push", "pull", "stash", "checkout", "fetch"]
+        subcommands = [
+            "status", "log", "diff", "branch", "commit", "push", "pull",
+            "stash", "checkout", "fetch", "undo", "auto-commit",
+        ]
         return [s for s in subcommands if s.startswith(partial)]

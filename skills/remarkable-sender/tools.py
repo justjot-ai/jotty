@@ -9,6 +9,12 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("remarkable-sender")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +34,8 @@ async def send_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether upload succeeded
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         file_path = params.get('file_path')
         if not file_path:

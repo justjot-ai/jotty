@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("changelog-generator")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -39,6 +45,8 @@ async def generate_changelog_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with changelog content, output path, stats
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     repo_path = params.get('repo_path', os.getcwd())
     since = params.get('since', 'last-release')
     until = params.get('until', 'HEAD')

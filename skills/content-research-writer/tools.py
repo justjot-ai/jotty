@@ -13,6 +13,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("content-research-writer")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +41,8 @@ async def write_content_with_research_tool(params: Dict[str, Any]) -> Dict[str, 
     Returns:
         Dictionary with outline, research, feedback, etc.
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     topic = params.get('topic', '')
     content_type = params.get('content_type', 'article')
     target_audience = params.get('target_audience', 'general audience')

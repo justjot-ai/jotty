@@ -29,7 +29,13 @@ from Jotty.core.utils.tool_helpers import (
 )
 from Jotty.core.utils.async_utils import run_sync
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 # Load environment variables
+
+# Status emitter for progress updates
+status = SkillStatus("whatsapp")
+
 load_jotty_env()
 
 logger = logging.getLogger(__name__)
@@ -120,6 +126,8 @@ async def send_whatsapp_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -165,6 +173,8 @@ async def send_whatsapp_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not params.get("image_url") and not params.get("image_path"):
         return tool_error("image_url or image_path is required")
 
@@ -222,6 +232,8 @@ async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     if not params.get("document_url") and not params.get("document_path"):
         return tool_error("document_url or document_path is required")
 
@@ -283,6 +295,8 @@ async def send_whatsapp_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to, template
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -335,6 +349,8 @@ async def send_whatsapp_location_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -383,6 +399,8 @@ async def mark_message_read_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -413,6 +431,7 @@ async def send_whatsapp_media_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         from .providers import get_provider
 
@@ -452,6 +471,7 @@ async def get_whatsapp_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, connected, phone, name, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         from .providers import get_provider
 

@@ -10,6 +10,8 @@ import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Import validation utilities
@@ -25,6 +27,10 @@ SUMMARY_TYPES = ['short', 'medium', 'comprehensive', 'study_guide']
 EMAIL_PROVIDERS = ['gmail', 'outlook', 'yahoo', 'custom']
 
 # Lazy import tracking
+
+# Status emitter for progress updates
+status = SkillStatus("justjot-converters")
+
 _JUSTJOT_PATH_ADDED = False
 
 
@@ -68,6 +74,7 @@ def arxiv_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, output_path, title, error
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         # Validate parameters
         validator = ParamValidator(params)
@@ -148,6 +155,7 @@ def youtube_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, output_path, title, author, duration, error
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         # Validate parameters
         validator = ParamValidator(params)
@@ -308,6 +316,8 @@ def send_to_kindle_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, kindle_email, error
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         validator = ParamValidator(params)
@@ -421,6 +431,8 @@ def kindle_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with configured, kindle_email, smtp_email, provider
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         _ensure_justjot_path()
 
@@ -462,6 +474,8 @@ def sync_to_remarkable_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, document_name, error
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         validator = ParamValidator(params)
@@ -521,6 +535,8 @@ def remarkable_register_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message, error
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         # Validate parameters
         validator = ParamValidator(params)
@@ -564,6 +580,8 @@ def remarkable_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with registered, rmapy_installed, config_file
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         _ensure_justjot_path()
 

@@ -14,6 +14,12 @@ import inspect
 from typing import Dict, Any
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("research-to-notion")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +43,8 @@ async def research_to_notion_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with research results, content, and Notion page info
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

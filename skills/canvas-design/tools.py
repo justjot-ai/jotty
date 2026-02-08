@@ -13,6 +13,12 @@ from datetime import datetime
 import os
 import random
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("canvas-design")
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -46,6 +52,8 @@ async def create_design_artwork_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with artwork path and design philosophy
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     design_brief = params.get('design_brief', '')
     output_format = params.get('output_format', 'png')
     dimensions = params.get('dimensions', (1920, 1080))

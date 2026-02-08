@@ -10,6 +10,12 @@ from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("data-profiler")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +31,8 @@ async def profile_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with shape, dtypes, missing, stats, correlations, recommendations
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[DataProfiler] Generating data profile...")
 
     data = params.get('data')
@@ -145,6 +153,8 @@ async def detect_outliers_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with outliers per column and indices
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from scipy import stats
 
     data = params.get('data')
@@ -217,6 +227,8 @@ async def analyze_correlations_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with correlation matrix and feature importance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     data = params.get('data')
     if isinstance(data, str):
         data = pd.read_csv(data)

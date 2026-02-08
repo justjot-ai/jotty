@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notion-meeting-intelligence")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +38,8 @@ async def prepare_meeting_materials_tool(params: Dict[str, Any]) -> Dict[str, An
     Returns:
         Dictionary with created pages and context
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     meeting_topic = params.get('meeting_topic', '')
     meeting_type = params.get('meeting_type', 'status_update')
     attendees = params.get('attendees', [])

@@ -15,9 +15,13 @@ from Jotty.core.utils.api_client import BaseAPIClient
 from Jotty.core.utils.tool_helpers import (
     tool_response, tool_error, tool_wrapper
 )
+from Jotty.core.utils.skill_status import SkillStatus
 
 # Load environment variables
 load_jotty_env()
+
+# Status emitter for progress updates
+status = SkillStatus("slack")
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +63,8 @@ def send_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, channel, ts, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -102,6 +108,8 @@ def list_channels_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, channels list, channel_count, response_metadata
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -157,6 +165,8 @@ def read_messages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, messages list, message_count, has_more
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -211,6 +221,8 @@ def add_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, channel, timestamp, reaction
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -254,6 +266,8 @@ def upload_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, file object
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     file_path_obj = Path(params['file_path'])
     if not file_path_obj.exists():
         return tool_error(f'File not found: {params["file_path"]}')
@@ -308,6 +322,8 @@ def get_user_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, user object
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error

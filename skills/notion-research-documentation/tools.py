@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notion-research-documentation")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +36,8 @@ async def research_and_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with documentation page and sources
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     research_topic = params.get('research_topic', '')
     output_format = params.get('output_format', 'summary')
     search_queries = params.get('search_queries', [])

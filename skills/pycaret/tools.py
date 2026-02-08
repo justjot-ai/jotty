@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("pycaret")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +34,8 @@ async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models, scores, and comparison results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from pycaret.classification import setup, compare_models, pull, get_config
 
     logger.info("[PyCaret] Starting AutoML classification...")
@@ -98,6 +106,8 @@ async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models, scores, and comparison results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from pycaret.regression import setup, compare_models, pull
 
     logger.info("[PyCaret] Starting AutoML regression...")
@@ -167,6 +177,8 @@ async def pycaret_tune_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with tuned model and best parameters
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[PyCaret] Tuning model...")
 
     data = params.get('data')
@@ -234,6 +246,8 @@ async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with ensemble model and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[PyCaret] Creating ensemble...")
 
     data = params.get('data')
@@ -300,6 +314,8 @@ async def pycaret_predict_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with predictions
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[PyCaret] Generating predictions...")
 
     model = params.get('model')

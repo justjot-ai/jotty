@@ -10,9 +10,15 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # API Configuration
+
+# Status emitter for progress updates
+status = SkillStatus("gemini")
+
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 DEFAULT_MODEL = "gemini-1.5-flash"
 SUPPORTED_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
@@ -222,6 +228,8 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - model (str): Model used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         prompt = params.get('prompt')
         if not prompt:
@@ -303,6 +311,8 @@ def generate_with_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to the processed image
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         prompt = params.get('prompt')
         if not prompt:
@@ -398,6 +408,8 @@ def chat_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - message_count (int): Number of messages in conversation
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         messages = params.get('messages')
         if not messages:
@@ -484,6 +496,8 @@ def list_models_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Always True
             - models (list): List of available models with details
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     models = [
         {
             "key": "gemini-1.5-flash",

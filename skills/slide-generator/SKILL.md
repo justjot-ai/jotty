@@ -3,6 +3,10 @@
 ## Description
 Generates actual PowerPoint (.pptx) slides using python-pptx. Creates professional presentations with proper slide layouts, not just markdown documents.
 
+## Capabilities
+- visualize
+- document
+
 ## Tools
 
 ### generate_slides_tool

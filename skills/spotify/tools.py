@@ -12,6 +12,12 @@ from Jotty.core.utils.env_loader import load_jotty_env
 from Jotty.core.utils.api_client import BaseAPIClient
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("spotify")
+
+
 load_jotty_env()
 
 logger = logging.getLogger(__name__)
@@ -64,6 +70,8 @@ def search_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, type, items, total, query
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     search_type = params.get('type', 'track')
     valid_types = ['track', 'album', 'artist', 'playlist']
     if search_type not in valid_types:
@@ -135,6 +143,8 @@ def get_current_playback_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, is_playing, track, device, progress_ms
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -184,6 +194,8 @@ def play_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message, uri
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -224,6 +236,8 @@ def pause_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -252,6 +266,8 @@ def next_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -280,6 +296,8 @@ def previous_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -309,6 +327,8 @@ def get_playlists_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, playlists, total, offset, limit
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error
@@ -361,6 +381,8 @@ def add_to_playlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message, snapshot_id, playlist_id, uri
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     client, error = _get_client(params)
     if error:
         return error

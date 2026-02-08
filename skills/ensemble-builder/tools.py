@@ -12,6 +12,12 @@ import pandas as pd
 from sklearn.model_selection import cross_val_predict, KFold, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, mean_squared_error, r2_score
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("ensemble-builder")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +37,8 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with stacking ensemble and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.linear_model import LogisticRegression, Ridge
     from sklearn.ensemble import StackingClassifier, StackingRegressor
 
@@ -129,6 +137,8 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with blending ensemble and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.linear_model import LogisticRegression, Ridge
     from sklearn.model_selection import train_test_split
 
@@ -228,6 +238,8 @@ async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with voting ensemble and performance
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.ensemble import VotingClassifier, VotingRegressor
 
     logger.info("[Ensemble] Creating voting ensemble...")
@@ -312,6 +324,8 @@ async def ensemble_weighted_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with optimal weights and ensemble predictions
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from scipy.optimize import minimize
 
     logger.info("[Ensemble] Creating weighted ensemble...")
@@ -388,6 +402,8 @@ async def ensemble_diversity_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with diversity metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Ensemble] Analyzing model diversity...")
 
     predictions = params.get('predictions', {})

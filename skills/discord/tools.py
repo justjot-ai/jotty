@@ -16,9 +16,13 @@ from Jotty.core.utils.api_client import BaseAPIClient
 from Jotty.core.utils.tool_helpers import (
     tool_response, tool_error, require_params, tool_wrapper
 )
+from Jotty.core.utils.skill_status import SkillStatus
 
 # Load environment variables
 load_jotty_env()
+
+# Status emitter for progress updates
+status = SkillStatus("discord")
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,8 @@ def send_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, id, channel_id, content, author, timestamp
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     channel_id = params.get('channel_id')
     content = params.get('content')
 
@@ -127,6 +133,8 @@ def list_channels_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, channels list, channel_count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     guild_id = params['guild_id']
 
     client, error = _get_client(params)
@@ -176,6 +184,8 @@ def read_messages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, messages list, message_count
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     channel_id = params['channel_id']
 
     client, error = _get_client(params)
@@ -237,6 +247,8 @@ def add_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, channel_id, message_id, emoji
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     channel_id = params['channel_id']
     message_id = params['message_id']
     emoji = params['emoji']
@@ -276,6 +288,8 @@ def get_user_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, user object
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     user_id = params['user_id']
 
     client, error = _get_client(params)
@@ -324,6 +338,8 @@ def create_thread_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, id, name, parent_id, owner_id, type
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     channel_id = params['channel_id']
     name = params['name']
     message_id = params.get('message_id')

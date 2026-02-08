@@ -12,7 +12,7 @@ from typing import Optional, Any
 
 from .config.loader import ConfigLoader
 from .config.schema import CLIConfig
-from .ui.renderer import RichRenderer
+from .ui.renderer import RichRenderer, MarkdownStreamRenderer, DesktopNotifier, REPLState
 from .repl.engine import REPLEngine, SimpleREPL
 from .repl.session import SessionManager
 from .repl.history import HistoryManager
@@ -110,6 +110,8 @@ class JottyCLI:
         # Lazy-initialized components
         self._swarm_manager = None
         self._skills_registry = None
+        self._notifier = None
+        self._clipboard_watcher = None
 
         logger.info("JottyCLI initialized")
 
@@ -402,6 +404,10 @@ class JottyCLI:
         self.session.add_message("user", text)
         start_time = time.time()
 
+        # Set REPL state to executing
+        if hasattr(self.repl, 'set_repl_state'):
+            self.repl.set_repl_state(REPLState.EXECUTING)
+
         try:
             swarm = await self.get_swarm_manager()
 
@@ -611,53 +617,55 @@ class JottyCLI:
                 if error_msg:
                     self.renderer.panel(error_msg, title="Error Details", style="red")
 
+            # Desktop notification for long tasks
+            if self.config.ui.enable_notifications:
+                try:
+                    notifier = self._get_notifier()
+                    status = "completed" if result.success else "failed"
+                    notifier.notify(
+                        title=f"Jotty - Task {status}",
+                        message=text[:80],
+                        elapsed=elapsed,
+                    )
+                except Exception:
+                    pass
+
         except Exception as e:
             self.renderer.error(f"Error: {e}")
             self.session.add_message("assistant", f"Error: {e}")
             if self.config.debug:
                 import traceback
                 traceback.print_exc()
+        finally:
+            # Restore REPL state to input
+            if hasattr(self.repl, 'set_repl_state'):
+                self.repl.set_repl_state(REPLState.INPUT)
 
         return True
 
     async def _execute_lean_mode(self, task: str, status_callback=None) -> Any:
         """
-        Execute task in lean mode - Clean LLM-first architecture.
+        Execute task via UnifiedExecutor - native LLM tool calling.
 
-        Philosophy:
-        - LLM is the BRAIN, not a skill
-        - Skills are I/O TOOLS that work ON LLM content
-        - No hardcoded rules, intelligent decisions
-
-        Flow:
-        1. ANALYZE: LLM decides what's needed (external data? output format?)
-        2. INPUT: If needed, use input skills (web-search, file-read)
-        3. GENERATE: LLM creates content (always happens) - WITH STREAMING
-        4. OUTPUT: If needed, use output skills (docx, pdf, telegram)
+        The LLM decides what tools to call: web search, file read, save docx, etc.
 
         Args:
             task: Task description
             status_callback: Optional progress callback
 
         Returns:
-            ExecutionResult with content and output path
+            Result with content and output path
         """
-        # Import UnifiedExecutor
-        try:
-            from ..core.orchestration.v2.unified_executor import UnifiedExecutor, ExecutionResult
-        except ImportError:
-            from Jotty.core.orchestration.v2.unified_executor import UnifiedExecutor, ExecutionResult
-
         # Clean task: Remove any accumulated context pollution
         clean_task = self._clean_task_for_lean_execution(task)
 
         # Streaming callback - shows content as it's generated
         streaming_content = []
         stream_started = False
+        md_stream = MarkdownStreamRenderer(self.renderer.console)
 
         def stream_callback(chunk: str):
             nonlocal stream_started
-            import sys
 
             if not stream_started:
                 # Start streaming output section
@@ -665,23 +673,22 @@ class JottyCLI:
                 self.renderer.newline()
                 self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
-            # Print chunk without newline, flush immediately
-            sys.stdout.write(chunk)
-            sys.stdout.flush()
+            # Feed to markdown stream renderer for incremental rendering
+            md_stream.feed(chunk)
             streaming_content.append(chunk)
 
-        # Execute with UnifiedExecutor + streaming (auto-detects provider)
+        # Execute via UnifiedExecutor directly (peer to SwarmManager, not child)
+        from core.orchestration.v2.unified_executor import UnifiedExecutor
         executor = UnifiedExecutor(
             status_callback=status_callback,
-            stream_callback=stream_callback
+            stream_callback=stream_callback,
         )
         result = await executor.execute(clean_task)
 
-        # End streaming section if started
+        # Flush remaining markdown buffer and end streaming section
         if stream_started:
-            import sys
-            sys.stdout.write('\n')
-            sys.stdout.flush()
+            md_stream.flush()
+            self.renderer.newline()
             self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
         # Convert to EpisodeResult-like object for compatibility
@@ -1333,6 +1340,26 @@ class JottyCLI:
                     break
         except Exception as e:
             logger.debug(f"Auto-resume failed: {e}")
+
+    def _get_notifier(self) -> DesktopNotifier:
+        """Get or create DesktopNotifier (lazy initialization)."""
+        if self._notifier is None:
+            self._notifier = DesktopNotifier(
+                threshold_seconds=self.config.ui.notification_threshold,
+            )
+        return self._notifier
+
+    def _init_clipboard_watcher(self):
+        """Lazy-init clipboard watcher (graceful no-op on headless/CI)."""
+        if self._clipboard_watcher is not None:
+            return self._clipboard_watcher
+        try:
+            from .heartbeat.monitors import ClipboardWatcher
+            self._clipboard_watcher = ClipboardWatcher()
+            self._clipboard_watcher.start()
+        except Exception:
+            self._clipboard_watcher = None
+        return self._clipboard_watcher
 
     def _show_welcome(self):
         """Show welcome banner."""

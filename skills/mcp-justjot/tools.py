@@ -10,10 +10,16 @@ import os
 from typing import Dict, Any, Optional
 import requests
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Default JustJot.ai API URL
 # Priority: JUSTJOT_API_URL > NEXT_PUBLIC_API_URL > JUSTJOT_BASE_URL > cmd.dev > localhost
+
+# Status emitter for progress updates
+status = SkillStatus("mcp-justjot")
+
 def _get_api_url() -> str:
     """Get JustJot.ai API URL with fallback priority."""
     # Check environment variables in priority order
@@ -131,6 +137,8 @@ async def list_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - ideas (list): List of ideas
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     query_params = {}
     if params.get('full'):
         query_params['full'] = 'true'
@@ -166,6 +174,8 @@ async def create_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - idea (dict): Created idea
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     title = params.get('title')
     if not title:
         return {
@@ -219,6 +229,8 @@ async def get_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - idea (dict): Idea data
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -255,6 +267,8 @@ async def update_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - idea (dict): Updated idea
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -297,6 +311,8 @@ async def delete_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether operation succeeded
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -321,6 +337,8 @@ async def delete_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """List all templates."""
+    status.set_callback(params.pop('_status_callback', None))
+
     result = _call_justjot_api('GET', '/api/templates')
     
     if result.get('success'):
@@ -336,6 +354,8 @@ async def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def get_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Get template by ID or name."""
+    status.set_callback(params.pop('_status_callback', None))
+
     template_id = params.get('template_id') or params.get('id') or params.get('name')
     if not template_id:
         return {
@@ -369,6 +389,8 @@ async def add_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - type (str, required): Section type
             - content (str, optional): Section content
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     if not idea_id:
         return {
@@ -395,6 +417,8 @@ async def add_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def update_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Update section in idea."""
+    status.set_callback(params.pop('_status_callback', None))
+
     idea_id = params.get('idea_id') or params.get('id')
     section_index = params.get('section_index') or params.get('index')
     
@@ -430,6 +454,8 @@ async def update_section_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 async def list_tags_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """List all tags."""
+    status.set_callback(params.pop('_status_callback', None))
+
     result = _call_justjot_api('GET', '/api/tags')
     
     if result.get('success'):

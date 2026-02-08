@@ -12,6 +12,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("notion-knowledge-capture")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +38,8 @@ async def capture_knowledge_to_notion_tool(params: Dict[str, Any]) -> Dict[str, 
     Returns:
         Dictionary with created page details
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     content = params.get('content', '')
     content_type = params.get('content_type', 'concept')
     title = params.get('title', None)

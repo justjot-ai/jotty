@@ -5,7 +5,16 @@ Rich Renderer for Jotty CLI
 Main rendering class using Rich library.
 """
 
-from typing import Any, Optional, List, Dict
+import math
+import os
+import re
+import subprocess
+import sys
+import threading
+import time
+from contextlib import contextmanager
+from enum import Enum
+from typing import Any, Optional, List, Dict, Iterator
 from pathlib import Path
 
 try:
@@ -23,6 +32,347 @@ except ImportError:
 from .themes import Theme, get_theme
 from .progress import ProgressManager
 from .tables import TableRenderer
+from ..config.schema import ColorDepth, TerminalDetector
+
+
+class ShimmerEffect:
+    """
+    Cosine wave animation across characters for loading indicators.
+
+    True-color ANSI rendering with bold/dim fallback for 16/256-color terminals.
+    Runs as a background daemon thread at ~20 FPS with a 2s period and 5-char band.
+    """
+
+    FPS = 20
+    PERIOD = 2.0  # seconds for full wave cycle
+    BAND_WIDTH = 5  # characters wide for the shimmer band
+
+    def __init__(self, color_depth: ColorDepth = None):
+        self._color_depth = color_depth or TerminalDetector.detect_color_depth()
+        self._message = ""
+        self._running = False
+        self._thread: Optional[threading.Thread] = None
+        self._lock = threading.Lock()
+
+    def start(self, message: str = "Working..."):
+        """Start the shimmer animation."""
+        self._message = message
+        self._running = True
+        self._thread = threading.Thread(target=self._animate, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        """Stop the shimmer animation and clear the line."""
+        self._running = False
+        if self._thread:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+        # Clear the animation line
+        sys.stdout.write("\r" + " " * (len(self._message) + 20) + "\r")
+        sys.stdout.flush()
+
+    def update(self, message: str):
+        """Update the shimmer message."""
+        with self._lock:
+            self._message = message
+
+    def _animate(self):
+        """Background animation loop."""
+        frame = 0
+        interval = 1.0 / self.FPS
+        while self._running:
+            with self._lock:
+                msg = self._message
+            rendered = self._render_frame(msg, frame)
+            sys.stdout.write(f"\r{rendered}")
+            sys.stdout.flush()
+            frame += 1
+            time.sleep(interval)
+
+    def _render_frame(self, message: str, frame: int) -> str:
+        """Render a single frame of the shimmer effect."""
+        t = frame / self.FPS
+        phase = (t % self.PERIOD) / self.PERIOD * 2 * math.pi
+
+        if self._color_depth == ColorDepth.TRUE_COLOR:
+            return self._render_truecolor(message, phase)
+        return self._render_fallback(message, phase)
+
+    def _render_truecolor(self, message: str, phase: float) -> str:
+        """Render with true-color ANSI codes."""
+        chars = []
+        for i, ch in enumerate(message):
+            # Cosine wave: brightness varies per character position
+            wave = (math.cos(phase - i * 2 * math.pi / self.BAND_WIDTH) + 1) / 2
+            # Interpolate brightness: dim (120) to bright (255)
+            brightness = int(120 + wave * 135)
+            chars.append(f"\033[38;2;{brightness};{brightness};{brightness}m{ch}")
+        chars.append("\033[0m")
+        return "".join(chars)
+
+    def _render_fallback(self, message: str, phase: float) -> str:
+        """Render with bold/dim fallback for 16/256-color terminals."""
+        chars = []
+        for i, ch in enumerate(message):
+            wave = (math.cos(phase - i * 2 * math.pi / self.BAND_WIDTH) + 1) / 2
+            if wave > 0.7:
+                chars.append(f"\033[1m{ch}\033[0m")  # Bold
+            elif wave < 0.3:
+                chars.append(f"\033[2m{ch}\033[0m")  # Dim
+            else:
+                chars.append(ch)
+        return "".join(chars)
+
+
+class MarkdownStreamRenderer:
+    """
+    Incremental markdown renderer that buffers chunks and renders complete blocks.
+
+    Detects fenced code blocks, paragraphs (double newline), and headers
+    across chunk boundaries. Renders complete blocks via Rich Markdown.
+    """
+
+    def __init__(self, console: "Console" = None):
+        self._console = console
+        self._buffer = ""
+        self._in_code_block = False
+        self._code_fence_pattern = re.compile(r'^```')
+        self._rendered_up_to = 0
+
+    def feed(self, chunk: str):
+        """
+        Feed a new chunk of text into the stream renderer.
+
+        Args:
+            chunk: Partial markdown text to buffer
+        """
+        self._buffer += chunk
+        self._try_render()
+
+    def _try_render(self):
+        """Attempt to render complete blocks from the buffer."""
+        remaining = self._buffer[self._rendered_up_to:]
+
+        while remaining:
+            # Track code fence toggles
+            if self._in_code_block:
+                # Look for closing fence
+                close_idx = remaining.find("\n```")
+                if close_idx == -1:
+                    break  # Wait for more data
+                # Include the closing fence line
+                end_of_fence = remaining.find("\n", close_idx + 1)
+                if end_of_fence == -1:
+                    end_of_fence = close_idx + 4  # Just ```
+                else:
+                    end_of_fence += 1  # Include newline
+                block = remaining[:end_of_fence]
+                self._render_block(block)
+                self._rendered_up_to += end_of_fence
+                remaining = remaining[end_of_fence:]
+                self._in_code_block = False
+                continue
+
+            # Check for code fence opening
+            fence_match = self._code_fence_pattern.search(remaining)
+            if fence_match and (fence_match.start() == 0 or remaining[fence_match.start() - 1] == "\n"):
+                # Render any text before the fence
+                if fence_match.start() > 0:
+                    pre_text = remaining[:fence_match.start()]
+                    if pre_text.strip():
+                        self._render_block(pre_text)
+                    self._rendered_up_to += fence_match.start()
+                    remaining = remaining[fence_match.start():]
+                self._in_code_block = True
+                continue
+
+            # Look for paragraph break (double newline)
+            para_break = remaining.find("\n\n")
+            if para_break != -1:
+                block = remaining[:para_break + 2]
+                if block.strip():
+                    self._render_block(block)
+                self._rendered_up_to += para_break + 2
+                remaining = remaining[para_break + 2:]
+                continue
+
+            # No complete block found, wait for more data
+            break
+
+    def _render_block(self, block: str):
+        """Render a complete markdown block."""
+        block = block.strip()
+        if not block:
+            return
+        if self._console and RICH_AVAILABLE:
+            try:
+                md = Markdown(block)
+                self._console.print(md)
+            except Exception:
+                self._console.print(block)
+        else:
+            print(block)
+
+    def flush(self):
+        """Render any remaining buffer content."""
+        remaining = self._buffer[self._rendered_up_to:]
+        if remaining.strip():
+            self._render_block(remaining)
+        self._buffer = ""
+        self._rendered_up_to = 0
+        self._in_code_block = False
+
+
+class REPLState(Enum):
+    """REPL interaction states for footer hints."""
+    INPUT = "input"
+    EXECUTING = "executing"
+    REVIEWING = "reviewing"
+    EXPORTING = "exporting"
+
+
+class FooterHints:
+    """
+    Context-aware footer toolbar hints for prompt_toolkit.
+
+    Shows relevant keyboard shortcuts based on current REPL state.
+    """
+
+    HINTS = {
+        REPLState.INPUT: [
+            ("Tab", "complete"),
+            ("Ctrl+R", "history"),
+            ("Ctrl+C", "cancel"),
+            ("/help", "commands"),
+        ],
+        REPLState.EXECUTING: [
+            ("Ctrl+C", "abort"),
+        ],
+        REPLState.REVIEWING: [
+            ("c", "copy"),
+            ("d", "docx"),
+            ("p", "pdf"),
+            ("m", "markdown"),
+            ("Enter", "done"),
+        ],
+        REPLState.EXPORTING: [
+            ("1-3", "choose format"),
+            ("s", "skip"),
+        ],
+    }
+
+    def __init__(self):
+        self._state = REPLState.INPUT
+
+    @property
+    def state(self) -> REPLState:
+        return self._state
+
+    @state.setter
+    def state(self, value: REPLState):
+        self._state = value
+
+    def get_toolbar_text(self) -> str:
+        """
+        Get formatted toolbar text for the current state.
+
+        Returns:
+            HTML-formatted string for prompt_toolkit bottom_toolbar
+        """
+        hints = self.HINTS.get(self._state, [])
+        parts = []
+        for key, desc in hints:
+            parts.append(f"<b>{key}</b>:{desc}")
+        text = "  ".join(parts)
+        # Truncate if needed (prompt_toolkit handles width, but be safe)
+        if len(text) > 200:
+            text = text[:197] + "..."
+        return text
+
+    def get_rich_text(self, max_width: int = 80) -> str:
+        """
+        Get Rich-formatted toolbar text.
+
+        Args:
+            max_width: Terminal width for truncation
+
+        Returns:
+            Rich markup string
+        """
+        hints = self.HINTS.get(self._state, [])
+        parts = []
+        for key, desc in hints:
+            parts.append(f"[bold]{key}[/bold]:{desc}")
+        text = "  ".join(parts)
+        if len(text) > max_width:
+            text = text[:max_width - 3] + "..."
+        return f"[dim]{text}[/dim]"
+
+
+class DesktopNotifier:
+    """
+    Platform-aware desktop notification sender.
+
+    Supports macOS (osascript), Linux (notify-send), Windows (plyer).
+    Only notifies if task took longer than a configurable threshold.
+    """
+
+    def __init__(self, threshold_seconds: int = 10):
+        self._threshold = threshold_seconds
+        self._platform = sys.platform
+
+    def notify(self, title: str, message: str, elapsed: float = 0):
+        """
+        Send a desktop notification if elapsed time exceeds threshold.
+
+        Args:
+            title: Notification title
+            message: Notification body
+            elapsed: Task duration in seconds
+        """
+        if elapsed < self._threshold:
+            return
+
+        try:
+            if self._platform == "darwin":
+                self._notify_macos(title, message)
+            elif self._platform == "linux":
+                self._notify_linux(title, message)
+            elif self._platform == "win32":
+                self._notify_windows(title, message)
+        except Exception:
+            pass  # Silently fail - notifications are non-critical
+
+    def _notify_macos(self, title: str, message: str):
+        """Send notification via osascript on macOS."""
+        safe_title = title.replace('"', '\\"')
+        safe_message = message.replace('"', '\\"')
+        script = f'display notification "{safe_message}" with title "{safe_title}"'
+        subprocess.Popen(
+            ["osascript", "-e", script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def _notify_linux(self, title: str, message: str):
+        """Send notification via notify-send on Linux."""
+        subprocess.Popen(
+            ["notify-send", title, message],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def _notify_windows(self, title: str, message: str):
+        """Send notification via plyer on Windows."""
+        try:
+            from plyer import notification as plyer_notification
+            plyer_notification.notify(
+                title=title,
+                message=message,
+                timeout=5,
+            )
+        except ImportError:
+            pass  # plyer not installed
 
 
 class RichRenderer:
@@ -519,6 +869,38 @@ Multi-Agent AI Assistant v{version}
             self._console.clear()
         else:
             print("\033[2J\033[H", end="")
+
+    @contextmanager
+    def shimmer(self, message: str = "Working...") -> Iterator[ShimmerEffect]:
+        """
+        Context manager for shimmer animation.
+
+        Falls back to Rich spinner if not true-color or if Live display is active.
+
+        Args:
+            message: Status message to animate
+
+        Yields:
+            ShimmerEffect instance (or None when using fallback)
+        """
+        color_depth = TerminalDetector.detect_color_depth()
+        use_shimmer = (
+            color_depth == ColorDepth.TRUE_COLOR
+            and TerminalDetector.supports_animations()
+            and not (self.progress._active_spinner or self.progress._active_progress)
+        )
+
+        if use_shimmer:
+            effect = ShimmerEffect(color_depth)
+            effect.start(message)
+            try:
+                yield effect
+            finally:
+                effect.stop()
+        else:
+            # Fall back to Rich spinner
+            with self.progress.spinner(message) as spinner:
+                yield spinner
 
     # =========================================================================
     # Claude Code-style Output Methods

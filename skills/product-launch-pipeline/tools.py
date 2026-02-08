@@ -14,6 +14,12 @@ import logging
 import inspect
 from typing import Dict, Any
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("product-launch-pipeline")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +46,8 @@ async def product_launch_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dictionary with domains, leads, competitor analysis, and content
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry

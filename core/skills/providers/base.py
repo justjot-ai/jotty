@@ -851,56 +851,51 @@ class JottyDefaultProvider(SkillProvider):
     async def _handle_web_search(self, task: str, context: Dict) -> ProviderResult:
         """Handle web search tasks using built-in search."""
         return ProviderResult(
-            success=True,
-            output={
-                "message": "Web search executed via Jotty default",
-                "task": task,
-            },
+            success=False,
+            output=None,
+            error="No matching skill found for web search; install a web-search skill",
             category=SkillCategory.WEB_SEARCH,
+            retryable=True,
         )
 
     async def _handle_file_ops(self, task: str, context: Dict) -> ProviderResult:
         """Handle file operation tasks."""
         return ProviderResult(
-            success=True,
-            output={
-                "message": "File operation executed via Jotty default",
-                "task": task,
-            },
+            success=False,
+            output=None,
+            error="No matching skill found for file operations; install a file-operations skill",
             category=SkillCategory.FILE_OPERATIONS,
+            retryable=True,
         )
 
     async def _handle_data_extraction(self, task: str, context: Dict) -> ProviderResult:
         """Handle data extraction tasks."""
         return ProviderResult(
-            success=True,
-            output={
-                "message": "Data extraction executed via Jotty default",
-                "task": task,
-            },
+            success=False,
+            output=None,
+            error="No matching skill found for data extraction; install a data-extraction skill",
             category=SkillCategory.DATA_EXTRACTION,
+            retryable=True,
         )
 
     async def _handle_terminal(self, task: str, context: Dict) -> ProviderResult:
         """Handle terminal/shell tasks."""
         return ProviderResult(
-            success=True,
-            output={
-                "message": "Terminal command queued via Jotty default",
-                "task": task,
-            },
+            success=False,
+            output=None,
+            error="No matching skill found for terminal execution; install a shell-exec skill",
             category=SkillCategory.TERMINAL,
+            retryable=True,
         )
 
     async def _handle_code_execution(self, task: str, context: Dict) -> ProviderResult:
         """Handle code execution tasks."""
         return ProviderResult(
-            success=True,
-            output={
-                "message": "Code execution queued via Jotty default",
-                "task": task,
-            },
+            success=False,
+            output=None,
+            error="No matching skill found for code execution; install a code-execution skill",
             category=SkillCategory.CODE_EXECUTION,
+            retryable=True,
         )
 
     def update_skill_score(self, skill_name: str, success: bool, execution_time: float):

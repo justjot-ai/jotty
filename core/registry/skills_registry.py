@@ -268,6 +268,11 @@ class SkillDefinition:
         mcp_enabled: bool = False,
         tags: Optional[List[str]] = None,
         version: str = "1.0.0",
+        # Capability-based discovery fields
+        capabilities: Optional[List[str]] = None,
+        is_composite: bool = False,
+        combines: Optional[List[str]] = None,
+        use_when: Optional[str] = None,
     ):
         self.name = name
         self.description = description
@@ -281,6 +286,16 @@ class SkillDefinition:
         self.mcp_enabled = mcp_enabled
         self.tags = tags or []
         self.version = version
+
+        # Capability-based discovery: enables smart skill filtering
+        # capabilities: What this skill can do (e.g., ["data-fetch", "communicate"])
+        # is_composite: True if this skill combines multiple atomic skills
+        # combines: List of atomic skills this composite replaces (hint to LLM)
+        # use_when: Natural language hint for when to use this skill
+        self.capabilities = capabilities or []
+        self.is_composite = is_composite
+        self.combines = combines or []
+        self.use_when = use_when or ""
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -310,8 +325,13 @@ class SkillDefinition:
         self._tool_metadata[tool_name] = metadata
 
     def list_tools(self) -> List[str]:
-        """List all tool names in this skill."""
+        """List all tool names in this skill (triggers lazy load)."""
         return list(self.tools.keys())
+
+    @property
+    def is_loaded(self) -> bool:
+        """Check if tools have been loaded without triggering lazy loading."""
+        return self._tools is not None
 
     def get_tool(self, tool_name: str) -> Optional[Callable]:
         """Get a specific tool callable."""
@@ -319,7 +339,7 @@ class SkillDefinition:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
-        return {
+        result = {
             'name': self.name,
             'description': self.description,
             'category': self.category,
@@ -329,7 +349,15 @@ class SkillDefinition:
             'tools': self.list_tools(),
             'tool_count': len(self.tools),
             'metadata': self.metadata,
+            # Capability-based discovery fields
+            'capabilities': self.capabilities,
+            'is_composite': self.is_composite,
         }
+        # Only include composite hints if this is a composite skill
+        if self.is_composite:
+            result['combines'] = self.combines
+            result['use_when'] = self.use_when
+        return result
 
     def to_claude_tools(self) -> List[Dict[str, Any]]:
         """Convert all tools to Claude API tool format."""
@@ -406,9 +434,6 @@ class SkillsRegistry:
         # Dependency management
         from .skill_dependency_manager import get_dependency_manager
         self.dependency_manager = get_dependency_manager()
-        
-        # Tool collections
-        self.loaded_collections: Dict[str, Any] = {}  # Store loaded collections
     
     def init(self) -> None:
         """Initialize registry by scanning skill directories for metadata only.
@@ -468,8 +493,8 @@ class SkillsRegistry:
             logger.debug(f"Skipping {skill_name}: no tools.py or scripts/")
             return None
 
-        # Read SKILL.md for metadata (lightweight - just text parsing)
-        description = self._read_skill_description(skill_md)
+        # Parse SKILL.md for full metadata including capabilities
+        skill_metadata = self._parse_skill_metadata(skill_md)
 
         # Create a loader closure that captures the skill directory info
         registry = self  # capture reference for closure
@@ -494,54 +519,121 @@ class SkillsRegistry:
 
         return SkillDefinition(
             name=skill_name,
-            description=description or f"Skill: {skill_name}",
+            description=skill_metadata['description'] or f"Skill: {skill_name}",
             _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
-            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
+            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill},
+            # Capability-based discovery fields
+            capabilities=skill_metadata['capabilities'],
+            is_composite=skill_metadata['is_composite'],
+            combines=skill_metadata['combines'],
+            use_when=skill_metadata['use_when'],
         )
+
+    def _parse_skill_metadata(self, skill_md: Path) -> Dict[str, Any]:
+        """
+        Parse SKILL.md for comprehensive metadata including capability fields.
+
+        Extracts:
+        - description: What the skill does
+        - capabilities: List of capabilities (e.g., ["data-fetch", "communicate"])
+        - is_composite: Whether this combines multiple atomic skills
+        - combines: List of atomic skills this replaces (for composites)
+        - use_when: Natural language hint for when to use this skill
+
+        SKILL.md format:
+        ```
+        # Skill Name
+
+        Description text here.
+
+        ## Capabilities
+        - data-fetch
+        - communicate
+
+        ## Composite
+        Combines: weather-checker, telegram-sender
+        Use when: User wants weather sent to Telegram
+        ```
+        """
+        metadata = {
+            'description': '',
+            'capabilities': [],
+            'is_composite': False,
+            'combines': [],
+            'use_when': '',
+        }
+
+        if not skill_md.exists():
+            return metadata
+
+        try:
+            content = skill_md.read_text()
+            lines = content.split("\n")
+
+            title = ""
+            current_section = None
+
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+
+                # Get title from first heading
+                if line.startswith("# ") and not title:
+                    title = line[2:].strip()
+                    # Check if next line is description
+                    if i + 1 < len(lines) and lines[i + 1].strip() and not lines[i + 1].startswith("#"):
+                        metadata['description'] = lines[i + 1].strip()
+                    continue
+
+                # Detect section headers
+                if stripped.lower() in ["## description", "**description**", "description:"]:
+                    current_section = 'description'
+                    continue
+                elif stripped.lower() in ["## capabilities", "**capabilities**", "capabilities:"]:
+                    current_section = 'capabilities'
+                    continue
+                elif stripped.lower() in ["## composite", "**composite**", "composite:"]:
+                    current_section = 'composite'
+                    metadata['is_composite'] = True
+                    continue
+                elif stripped.startswith("##") or stripped.startswith("**"):
+                    current_section = None  # End of relevant sections
+                    continue
+
+                # Parse section content
+                if current_section == 'description' and stripped:
+                    if metadata['description']:
+                        metadata['description'] += " " + stripped
+                    else:
+                        metadata['description'] = stripped
+
+                elif current_section == 'capabilities' and stripped.startswith("-"):
+                    cap = stripped[1:].strip().lower()
+                    if cap:
+                        metadata['capabilities'].append(cap)
+
+                elif current_section == 'composite':
+                    if stripped.lower().startswith("combines:"):
+                        combines_str = stripped[9:].strip()
+                        metadata['combines'] = [s.strip() for s in combines_str.split(",") if s.strip()]
+                    elif stripped.lower().startswith("use when:"):
+                        metadata['use_when'] = stripped[9:].strip()
+
+            # Fallback description to title
+            if not metadata['description']:
+                metadata['description'] = title
+
+            # Truncate description
+            metadata['description'] = metadata['description'][:500]
+
+        except Exception as e:
+            logger.debug(f"Could not parse {skill_md}: {e}")
+
+        return metadata
 
     def _read_skill_description(self, skill_md: Path) -> str:
         """Read description from SKILL.md (lightweight metadata parsing)."""
-        description = ""
-        title = ""
-        if skill_md.exists():
-            try:
-                content = skill_md.read_text()
-                lines = content.split("\n")
-                in_description = False
-
-                for i, line in enumerate(lines):
-                    # Get title from first heading
-                    if line.startswith("# ") and not title:
-                        title = line[2:].strip()
-                        # Also check if next line is a one-liner description
-                        if i + 1 < len(lines) and lines[i + 1].strip() and not lines[i + 1].startswith("#"):
-                            description = lines[i + 1].strip()
-                        continue
-
-                    # Look for ## Description section
-                    if line.strip().lower() in ["## description", "**description**", "description:"]:
-                        in_description = True
-                        continue
-
-                    # Collect description content (until next heading or empty lines)
-                    if in_description:
-                        if line.startswith("#") or line.startswith("##"):
-                            break  # Stop at next section
-                        if line.strip():
-                            if description:
-                                description += " " + line.strip()
-                            else:
-                                description = line.strip()
-                        elif description:
-                            break  # Stop at empty line after content
-
-                # Fallback to title if no description found
-                if not description:
-                    description = title
-
-            except Exception as e:
-                logger.debug(f"Could not read {skill_md}: {e}")
-        return description[:500] if description else ""  # Limit length
+        metadata = self._parse_skill_metadata(skill_md)
+        return metadata['description']
 
     def load_all_skills(self) -> Dict[str, Callable]:
         """
@@ -867,22 +959,105 @@ class SkillsRegistry:
         
         return metadata
     
-    def list_skills(self) -> List[Dict[str, Any]]:
-        """List all registered skills.
+    def list_skills(self, include_composites: bool = True) -> List[Dict[str, Any]]:
+        """List all registered skills without triggering lazy loading.
 
-        Returns tool names if tools are already loaded, otherwise
-        triggers lazy load to provide accurate tool lists.
+        Args:
+            include_composites: If False, only return atomic skills (default: True)
+
+        Returns skill metadata. Tool names are only included if tools
+        have already been loaded; otherwise returns an empty list for
+        the 'tools' key to avoid forcing all skills to import.
         """
-        return [
-            {
+        skills = []
+        for skill in self.loaded_skills.values():
+            # Filter composites if requested
+            if not include_composites and skill.is_composite:
+                continue
+
+            # Only list tool names if already loaded — avoids triggering
+            # lazy import of all 126+ skills' tools.py modules
+            tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+
+            skill_dict = {
                 "name": skill.name,
                 "description": skill.description,
-                "tools": list(skill.tools.keys()),
+                "tools": tool_names,
                 "metadata": skill.metadata,
+                "capabilities": skill.capabilities,
+                "is_composite": skill.is_composite,
             }
-            for skill in self.loaded_skills.values()
-        ]
-    
+            # Add composite hints for composite skills
+            if skill.is_composite:
+                skill_dict["combines"] = skill.combines
+                skill_dict["use_when"] = skill.use_when
+            skills.append(skill_dict)
+        return skills
+
+    def filter_skills_by_capabilities(
+        self,
+        required_capabilities: List[str],
+        include_composites: bool = True,
+        max_skills: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Filter skills by required capabilities.
+
+        Returns skills that match ANY of the required capabilities,
+        sorted by relevance (more matching capabilities = higher priority).
+
+        Args:
+            required_capabilities: List of capabilities needed (e.g., ["data-fetch", "communicate"])
+            include_composites: Whether to include composite skills (default: True)
+            max_skills: Maximum number of skills to return (default: 20)
+
+        Returns:
+            List of skill dicts sorted by relevance
+        """
+        if not required_capabilities:
+            return self.list_skills(include_composites)[:max_skills]
+
+        required_set = set(c.lower() for c in required_capabilities)
+        scored_skills = []
+
+        for skill in self.loaded_skills.values():
+            # Filter composites if requested
+            if not include_composites and skill.is_composite:
+                continue
+
+            # Calculate match score
+            skill_caps = set(c.lower() for c in skill.capabilities)
+            matching_caps = required_set & skill_caps
+            score = len(matching_caps)
+
+            # Skills with no capabilities defined get a low default score
+            # (they might still be relevant)
+            if not skill.capabilities:
+                score = 0.1
+
+            if score > 0:
+                tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+                skill_dict = {
+                    "name": skill.name,
+                    "description": skill.description,
+                    "tools": tool_names,
+                    "metadata": skill.metadata,
+                    "capabilities": skill.capabilities,
+                    "is_composite": skill.is_composite,
+                    "_match_score": score,
+                    "_matched_capabilities": list(matching_caps),
+                }
+                if skill.is_composite:
+                    skill_dict["combines"] = skill.combines
+                    skill_dict["use_when"] = skill.use_when
+                scored_skills.append((score, skill_dict))
+
+        # Sort by score (descending) - higher score = more matching capabilities
+        scored_skills.sort(key=lambda x: -x[0])
+
+        # Return top skills
+        return [s[1] for s in scored_skills[:max_skills]]
+
     def get_skill(self, name: str) -> Optional[SkillDefinition]:
         """Get a specific skill by name."""
         return self.loaded_skills.get(name)

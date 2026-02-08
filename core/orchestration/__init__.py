@@ -2,7 +2,7 @@
 Orchestration Layer - V2 Multi-Agent Coordination
 ==================================================
 
-V2 is the ONLY implementation. All v1 code archived to _v1_archive/.
+V2 is the ONLY implementation.
 
 Usage:
     from core.orchestration import SwarmManager
@@ -93,8 +93,6 @@ from .v2 import (
     create_unified_executor,
     UnifiedToolGenerator,
     ToolDefinition,
-    # Deprecated executor (use UnifiedExecutor)
-    LeanExecutor,
 )
 
 __all__ = [
@@ -163,6 +161,4 @@ __all__ = [
     'create_unified_executor',
     'UnifiedToolGenerator',
     'ToolDefinition',
-    # Deprecated executor (use UnifiedExecutor)
-    'LeanExecutor',
 ]

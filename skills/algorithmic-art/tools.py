@@ -5,6 +5,12 @@ import math
 from typing import Dict, Any, List, Tuple, Optional
 import logging
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("algorithmic-art")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -129,6 +135,7 @@ def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to generated image
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         from PIL import Image
         import numpy as np
@@ -207,6 +214,7 @@ def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to generated image
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
     try:
         from PIL import Image, ImageDraw
         import numpy as np
@@ -884,6 +892,8 @@ def list_color_palettes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Always True
             - palettes (list): List of available palette names with colors
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     palettes = []
     for name, colors in ColorPaletteManager.PALETTES.items():
         palettes.append({

@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("obsidian")
+
+
 
 def _get_vault_path(params: Dict[str, Any]) -> str:
     """
@@ -82,6 +88,8 @@ def list_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of notes found
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)
@@ -154,6 +162,8 @@ def read_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - links (list): Wiki-style links found in the note
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)
@@ -243,6 +253,8 @@ def create_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - relative_path (str): Path relative to vault
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)
@@ -343,6 +355,8 @@ def update_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - bytes_written (int): Number of bytes written
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)
@@ -434,6 +448,8 @@ def search_notes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of matching notes
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)
@@ -536,6 +552,8 @@ def get_backlinks_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of backlinks found
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         vault_path = _get_vault_path(params)
         error = _validate_vault(vault_path)

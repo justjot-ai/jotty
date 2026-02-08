@@ -13,7 +13,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
+
+# Status emitter for progress updates
+status = SkillStatus("last30days-claude-cli")
 
 # Import Jotty's web search tool
 search_web_tool = None

@@ -18,6 +18,12 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("model-metrics")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +42,8 @@ async def metrics_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with all classification metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Metrics] Calculating classification metrics...")
 
     y_true = np.array(params.get('y_true'))
@@ -115,6 +123,8 @@ async def metrics_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with all regression metrics
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Metrics] Calculating regression metrics...")
 
     y_true = np.array(params.get('y_true'))
@@ -177,6 +187,8 @@ async def metrics_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cross-validation scores
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Metrics] Running cross-validation...")
 
     model = params.get('model')
@@ -255,6 +267,8 @@ async def metrics_calibration_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with calibration metrics and curve
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     from sklearn.calibration import calibration_curve
 
     logger.info("[Metrics] Analyzing probability calibration...")
@@ -324,6 +338,8 @@ async def metrics_threshold_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with optimal threshold and metrics at that threshold
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     logger.info("[Metrics] Finding optimal threshold...")
 
     y_true = np.array(params.get('y_true'))

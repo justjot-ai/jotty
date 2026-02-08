@@ -11,9 +11,15 @@ import time
 from typing import Dict, Any, Optional
 import os
 
+from Jotty.core.utils.skill_status import SkillStatus
+
 logger = logging.getLogger(__name__)
 
 # Default configuration
+
+# Status emitter for progress updates
+status = SkillStatus("presenton")
+
 DEFAULT_PRESENTON_URL = "http://localhost:5000"
 DEFAULT_CONTAINER_NAME = "presenton"
 DEFAULT_DOCKER_IMAGE = "ghcr.io/presenton/presenton:latest"
@@ -97,6 +103,8 @@ def check_presenton_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - base_url (str): API URL checked
             - error (str, optional): Error message if check failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     container_name = params.get('container_name', DEFAULT_CONTAINER_NAME)
     base_url = params.get('base_url', DEFAULT_PRESENTON_URL)
 
@@ -170,6 +178,8 @@ def start_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url (str): URL to access Presenton
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     container_name = params.get('container_name', DEFAULT_CONTAINER_NAME)
     port = params.get('port', 5000)
     data_dir = params.get('data_dir', os.path.expanduser('~/presenton_data'))
@@ -326,6 +336,8 @@ def stop_presenton_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - removed (bool): Whether container was removed
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     container_name = params.get('container_name', DEFAULT_CONTAINER_NAME)
     remove = params.get('remove', False)
 
@@ -391,6 +403,8 @@ def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - edit_url (str): URL to edit presentation in browser
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     content = params.get('content')
     if not content:
         return {
@@ -484,6 +498,8 @@ def list_templates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - templates (list): List of available templates
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     base_url = params.get('base_url', DEFAULT_PRESENTON_URL)
 
     client = PresentonClient(base_url)
@@ -528,6 +544,8 @@ async def generate_presentation_from_research_tool(params: Dict[str, Any]) -> Di
             - research_summary (str): Summary of research used
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     topic = params.get('topic')
     if not topic:
         return {
@@ -620,6 +638,8 @@ def download_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to downloaded file
             - error (str, optional): Error message if failed
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     try:
         import requests
     except ImportError:

@@ -5,6 +5,8 @@ Command Completer
 Autocomplete for CLI commands.
 """
 
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Iterable
 
 try:
@@ -54,9 +56,11 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         'swarm': ['status', 'reset', 'config'],
         'memory': ['show', 'clear', 'export'],
         'plan': ['--steps', '--output'],
-        'git': ['status', 'commit', 'push', 'pull', 'diff'],
+        'git': ['status', 'commit', 'push', 'pull', 'diff', 'undo', 'auto-commit'],
         'J': ['--tags', '--status'],
     }
+
+    MAX_FILE_COMPLETIONS = 30
 
     def __init__(self, command_registry: "CommandRegistry"):
         """
@@ -68,12 +72,29 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         self.command_registry = command_registry
         self._skill_names: List[str] = []
         self._tool_names: List[str] = []
+        self._code_tokens: List[str] = []
 
     def set_skill_names(self, names: List[str]):
         """Set available skill names for completion."""
         self._skill_names = names
         # Also set as tool names
         self._tool_names = names
+
+    def set_code_tokens(self, tokens: List[str]):
+        """
+        Set recent function/class names from LLM output for code completion.
+
+        Args:
+            tokens: List of code identifiers (function/class names)
+        """
+        # Deduplicate, keep last 100
+        seen = set()
+        unique = []
+        for t in reversed(tokens):
+            if t not in seen and len(t) > 2:
+                seen.add(t)
+                unique.append(t)
+        self._code_tokens = list(reversed(unique[:100]))
 
     def get_completions(
         self,
@@ -217,16 +238,86 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                     display_meta="help"
                 )
 
+    def _complete_file_paths(
+        self,
+        partial: str,
+    ) -> Iterable["Completion"]:
+        """
+        Complete relative file paths.
+
+        Limits to MAX_FILE_COMPLETIONS per directory, skips hidden files.
+
+        Args:
+            partial: Partial file path typed so far
+
+        Yields:
+            Completion objects for matching paths
+        """
+        if not PROMPT_TOOLKIT_AVAILABLE:
+            return
+
+        try:
+            # Determine base directory and prefix
+            path_obj = Path(partial)
+            if partial.endswith(os.sep) or partial.endswith("/"):
+                base_dir = path_obj
+                prefix = ""
+            else:
+                base_dir = path_obj.parent
+                prefix = path_obj.name
+
+            # Resolve relative to cwd
+            if not base_dir.is_absolute():
+                base_dir = Path.cwd() / base_dir
+
+            if not base_dir.is_dir():
+                return
+
+            count = 0
+            for entry in sorted(base_dir.iterdir()):
+                # Skip hidden files
+                if entry.name.startswith("."):
+                    continue
+                if count >= self.MAX_FILE_COMPLETIONS:
+                    break
+                if entry.name.startswith(prefix) or not prefix:
+                    display_name = entry.name
+                    if entry.is_dir():
+                        display_name += "/"
+                    # Calculate replacement
+                    completion_text = display_name
+                    yield Completion(
+                        completion_text,
+                        start_position=-len(prefix) if prefix else 0,
+                        display_meta="dir" if entry.is_dir() else "file",
+                    )
+                    count += 1
+        except (PermissionError, OSError):
+            pass
+
     def _complete_general(
         self,
         text: str,
         word: str
     ) -> Iterable["Completion"]:
-        """General completions."""
+        """General completions: skills, file paths, and code tokens."""
         # Skill names
         for skill in self._skill_names:
             if skill.startswith(word.lower()):
                 yield Completion(skill, start_position=-len(word))
+
+        # File path completions (if word contains path separator or starts with .)
+        if word and (os.sep in word or word.startswith(".") or "/" in word):
+            yield from self._complete_file_paths(word)
+
+        # Code token completions
+        for token in self._code_tokens:
+            if token.startswith(word) and word:
+                yield Completion(
+                    token,
+                    start_position=-len(word),
+                    display_meta="code",
+                )
 
     def _get_command_meta(self, cmd_name: str) -> str:
         """Get command description for display."""

@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from Jotty.core.utils.skill_status import SkillStatus
+
+# Status emitter for progress updates
+status = SkillStatus("hyperopt")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +34,8 @@ async def hyperopt_optimize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best_params, best_score, study_results
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     import optuna
     from sklearn.model_selection import cross_val_score, StratifiedKFold
     from sklearn.preprocessing import LabelEncoder, StandardScaler
@@ -207,6 +215,8 @@ async def hyperopt_multi_model_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with results for each model and overall best
     """
+    status.set_callback(params.pop('_status_callback', None))
+
     model_types = params.get('model_types', ['xgboost', 'lightgbm', 'random_forest'])
     n_trials = params.get('n_trials_per_model', 30)
 

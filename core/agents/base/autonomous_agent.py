@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional
 
 from .base_agent import BaseAgent, AgentConfig, AgentResult
 from .skill_plan_executor import SkillPlanExecutor
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 class AutonomousAgentConfig(AgentConfig):
     """Configuration specific to AutonomousAgent."""
     max_steps: int = 10
-    enable_replanning: bool = True
+    enable_replanning: bool = False  # Disabled: stop immediately on failure
     max_replans: int = 3
     skill_filter: Optional[str] = None
     default_output_skill: Optional[str] = None
@@ -58,6 +58,8 @@ class ExecutionStep:
     depends_on: List[int] = field(default_factory=list)
     output_key: str = ""
     optional: bool = False
+    verification: str = ""
+    fallback_skill: str = ""
 
 
 # =============================================================================
@@ -100,9 +102,6 @@ class AutonomousAgent(BaseAgent):
         self._planner = None
         self._executor = None
 
-        # Execution state
-        self._excluded_skills: Set[str] = set()
-
     def _ensure_initialized(self):
         """Initialize planner, executor, and skills registry."""
         super()._ensure_initialized()
@@ -144,7 +143,8 @@ class AutonomousAgent(BaseAgent):
         Discover relevant skills with autonomous-specific filtering.
 
         Uses BaseAgent.discover_skills() for keyword matching, then applies
-        excluded_skills and category filter on top.
+        excluded_skills (from executor, single source of truth) and category
+        filter on top.
 
         Args:
             task: Task description
@@ -157,11 +157,14 @@ class AutonomousAgent(BaseAgent):
         # Use BaseAgent's keyword-based discovery
         all_skills = self.discover_skills(task)
 
+        # Get exclusions from executor (single source of truth)
+        excluded = self.executor.excluded_skills
+
         # Apply autonomous-specific filters
         filtered = []
         for skill in all_skills:
             # Skip excluded skills
-            if skill['name'] in self._excluded_skills:
+            if skill['name'] in excluded:
                 continue
             # Apply category filter if set
             if config.skill_filter and skill.get('category', 'general') != config.skill_filter:
@@ -240,8 +243,7 @@ class AutonomousAgent(BaseAgent):
                     pass
             logger.info(f"{stage}: {detail}" if detail else stage)
 
-        # Reset excluded skills for new execution
-        self._excluded_skills.clear()
+        # Reset excluded skills for new execution (single source of truth: executor)
         self.executor.clear_exclusions()
 
         # Step 1: Infer task type
@@ -289,14 +291,17 @@ class AutonomousAgent(BaseAgent):
                 "outputs": {},
             }
 
-        # Step 5: Execute steps
+        # Step 5: Execute steps (using while loop to support dynamic step modification)
         outputs = {}
         skills_used = []
         errors = []
         replan_count = 0
+        execution_stopped = False
+        i = 0
 
-        for i, step in enumerate(steps):
-            _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:50]}")
+        while i < len(steps):
+            step = steps[i]
+            _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:100]}")
 
             result = await self._execute_step(step, outputs, status_callback)
 
@@ -304,36 +309,66 @@ class AutonomousAgent(BaseAgent):
                 outputs[step.output_key or f'step_{i}'] = result
                 skills_used.append(step.skill_name)
                 _status(f"Step {i+1}", "completed")
+                i += 1
             else:
                 error_msg = result.get('error', 'Unknown error')
                 errors.append(f"Step {i+1}: {error_msg}")
                 _status(f"Step {i+1}", f"failed: {error_msg}")
 
-                # Try replanning if enabled
-                if (config.enable_replanning and
-                        replan_count < config.max_replans and
-                        not step.optional):
+                # For optional steps, continue without stopping
+                if step.optional:
+                    _status("Continuing", "optional step failed, skipping")
+                    i += 1
+                    continue
 
-                    # Exclude failed skill if domain mismatch
-                    if any(kw in error_msg.lower() for kw in
-                           ['not found', '404', 'invalid', 'delisted']):
-                        self._excluded_skills.add(step.skill_name)
+                # Try reflective replanning before stopping
+                if config.enable_replanning and replan_count < config.max_replans:
+                    _status("Replanning", "adapting to failure with reflection")
+
+                    # Exclude skill for structural failures
+                    exclusion_keywords = [
+                        'not found', '404', 'invalid', 'delisted',
+                        'not implemented', 'unsupported', 'deprecated',
+                        'permission denied', 'unauthorized', 'forbidden',
+                        'module not found', 'import error', 'no module',
+                    ]
+                    if any(kw in error_msg.lower() for kw in exclusion_keywords):
                         self.executor.exclude_skill(step.skill_name)
+                        logger.info(f"Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
 
-                    _status("Replanning", "adapting to failure")
-                    new_steps = await self._create_plan(
-                        task, task_type, skills, outputs
+                    failed_step_info = {
+                        'skill_name': step.skill_name,
+                        'tool_name': step.tool_name,
+                        'error': error_msg,
+                        'params': step.params,
+                    }
+                    new_steps, reflection, _ = await self.executor.create_reflective_plan(
+                        task, task_type, skills,
+                        [failed_step_info], outputs,
+                        max_steps=config.max_steps - (i + 1),
                     )
                     if new_steps:
-                        steps = steps[:i+1] + new_steps
+                        # Splice new steps into remaining execution
+                        steps = steps[:i + 1] + new_steps
                         replan_count += 1
-                        _status("Replanned", f"{len(new_steps)} new steps")
+                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:60]})")
+                        i += 1
+                        continue
+
+                # No replanning possible or replanning produced no steps - stop
+                _status("Stopped", f"execution halted: {error_msg[:80]}")
+                execution_stopped = True
+                break
 
         # Determine final output
         final_output = list(outputs.values())[-1] if outputs else None
 
+        # Success only if no errors occurred (or all errors were from optional steps)
+        # If execution was stopped due to failure, it's not a success
+        is_success = len(outputs) > 0 and not execution_stopped and len(errors) == 0
+
         return {
-            "success": len(outputs) > 0,
+            "success": is_success,
             "task": task,
             "task_type": task_type,
             "skills_used": list(set(skills_used)),
@@ -342,6 +377,7 @@ class AutonomousAgent(BaseAgent):
             "final_output": final_output,
             "errors": errors,
             "execution_time": time.time() - start_time,
+            "stopped_early": execution_stopped,
         }
 
     async def _fallback_llm_response(self, task: str) -> Optional[str]:
