@@ -173,9 +173,10 @@ if DSPY_AVAILABLE:
 
         PHASE 2 - MATCH:
         For each sub-requirement, find the best skill from available_skills.
-        COMPOSITE SKILLS: Some skills have is_composite=true with a "combines" field.
-        - PREFER composites over chaining atomic skills - they are optimized and tested
-        - Example: "weather" + "telegram" -> prefer "weather-to-telegram" composite
+        SKILL TYPES: Each skill has a "skill_type" (base, derived, composite) and "base_skills" list.
+        - PREFER composite skills over chaining base skills - they are pre-built, optimized workflows
+        - PREFER derived skills for domain-specific tasks - they specialize a base skill
+        - Example: "weather" + "telegram" -> prefer "weather-to-telegram" (composite) over chaining base skills
         CRITICAL distinctions:
         - GENERATION tasks ("create", "write", "draft", "checklist") -> LLM + file skills
         - RESEARCH tasks ("research", "search", "find") -> search/research skills

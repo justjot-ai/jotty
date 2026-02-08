@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 import subprocess
+from Jotty.core.utils.skill_status import SkillStatus
 
 # Status emitter for progress updates
 status = SkillStatus("artifacts-builder")

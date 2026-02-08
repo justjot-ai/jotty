@@ -84,19 +84,44 @@ class RunCommand(BaseCommand):
             if result.success:
                 cli.renderer.success(f"Task completed in {elapsed:.1f}s")
 
-                # Extract and display file paths from output
-                output = result.output if hasattr(result, 'output') else str(result)
-
-                # Check for file paths in output (common patterns)
+                # Extract and display file paths + summary from output
+                output = result.output if hasattr(result, 'output') else result
                 file_paths = []
-                if isinstance(output, dict):
+                summary = {}
+
+                # Handle ExecutionResult (from AutoAgent/SwarmManager)
+                if hasattr(output, 'outputs') and hasattr(output, 'skills_used'):
+                    outputs_dict = output.outputs or {}
+                    seen_paths = set()
+                    for step_key, step_result in outputs_dict.items():
+                        if isinstance(step_result, dict):
+                            for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
+                                if key in step_result and step_result[key]:
+                                    path = step_result[key]
+                                    if path not in seen_paths:
+                                        file_paths.append((key.replace('_', ' ').title(), path))
+                                        seen_paths.add(path)
+                            for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
+                                if key in step_result and step_result[key]:
+                                    summary[key] = step_result[key]
+
+                    # Add skills and steps to summary
+                    if output.skills_used:
+                        summary['skills'] = ', '.join(output.skills_used)
+                    if output.steps_executed:
+                        summary['steps'] = output.steps_executed
+
+                elif isinstance(output, dict):
                     for key in ['pdf_path', 'md_path', 'output_path', 'file_path']:
                         if key in output and output[key]:
                             file_paths.append((key.replace('_', ' ').title(), output[key]))
+                    for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
+                        if key in output and output[key]:
+                            summary[key] = output[key]
+
                 elif isinstance(output, str):
-                    # Look for paths in string output
                     import re
-                    path_matches = re.findall(r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv))', output)
+                    path_matches = re.findall(r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg|docx))', output)
                     for match in path_matches:
                         file_paths.append(('Output', match[0]))
 
@@ -107,25 +132,23 @@ class RunCommand(BaseCommand):
                     for label, path in file_paths:
                         cli.renderer.print(f"   {label}: [cyan]{path}[/cyan]")
 
-                # Show brief output summary
-                if output:
+                # Show summary
+                if summary:
                     cli.renderer.newline()
-                    if isinstance(output, dict):
-                        # Show key results from dict
-                        summary_keys = ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']
-                        summary = {k: v for k, v in output.items() if k in summary_keys and v}
-                        if summary:
-                            cli.renderer.panel(
-                                "\n".join([f"• {k}: {v}" for k, v in summary.items()]),
-                                title="Summary",
-                                style="green"
-                            )
-                    else:
-                        # Show first part of string output
-                        output_str = str(output)[:300]
-                        if len(str(output)) > 300:
-                            output_str += "..."
-                        cli.renderer.panel(output_str, title="Output", style="green")
+                    cli.renderer.panel(
+                        "\n".join([f"• {k}: {v}" for k, v in summary.items()]),
+                        title="Summary",
+                        style="green"
+                    )
+                elif not file_paths:
+                    # Fallback: show final_output or string repr (truncated)
+                    final = getattr(output, 'final_output', None) or str(output)
+                    final_str = str(final)[:500]
+                    if len(str(final)) > 500:
+                        final_str += "..."
+                    if final_str.strip():
+                        cli.renderer.newline()
+                        cli.renderer.panel(final_str, title="Output", style="green")
 
                 if verbose and hasattr(result, "trajectory") and result.trajectory:
                     cli.renderer.panel(

@@ -74,22 +74,27 @@ class SkillSelectionMixin:
 
         # Try LLM selection
         try:
-            # Format skills with composite hints for LLM
+            # Format skills with type info for LLM
             formatted_skills = []
             for s in available_skills[:50]:
                 skill_dict = {
                     'name': s.get('name', ''),
                     'description': s.get('description', ''),
                     'tools': s.get('tools', []),
+                    'skill_type': s.get('skill_type', 'base'),
                 }
-                # Add composite hints if this is a composite skill
-                if s.get('is_composite'):
-                    skill_dict['is_composite'] = True
-                    if s.get('combines'):
-                        skill_dict['combines'] = s.get('combines')
-                        skill_dict['hint'] = f"Use instead of chaining: {', '.join(s.get('combines', []))}"
-                    if s.get('use_when'):
-                        skill_dict['use_when'] = s.get('use_when')
+                # Add dependency info for derived/composite skills
+                base_skills = s.get('base_skills', [])
+                if base_skills:
+                    skill_dict['base_skills'] = base_skills
+                if s.get('skill_type') == 'composite':
+                    skill_dict['hint'] = f"Pre-built workflow combining: {', '.join(base_skills)}"
+                    if s.get('execution_mode'):
+                        skill_dict['execution_mode'] = s.get('execution_mode')
+                elif s.get('skill_type') == 'derived':
+                    skill_dict['hint'] = f"Specialized version of: {', '.join(base_skills)}"
+                if s.get('use_when'):
+                    skill_dict['use_when'] = s.get('use_when')
                 formatted_skills.append(skill_dict)
 
             skills_json = json.dumps(formatted_skills, indent=2)
@@ -235,10 +240,10 @@ class SkillSelectionMixin:
         A skill matches if:
         1. It has capabilities defined and at least one matches, OR
         2. It has no capabilities defined (legacy skill - include by default), OR
-        3. It's a composite that combines skills matching the capabilities
+        3. It's a composite/derived skill with base_skills (likely covers multiple capabilities)
 
         Args:
-            skill: Skill dict with 'capabilities', 'is_composite', 'combines' fields
+            skill: Skill dict with 'capabilities', 'skill_type', 'base_skills' fields
             required_capabilities: List of required capability strings
 
         Returns:
@@ -256,14 +261,12 @@ class SkillSelectionMixin:
             if required_set & skill_caps_set:
                 return True
 
-        # Legacy skills without capabilities - include by default but with lower priority
+        # Skills without capabilities - include by default but with lower priority
         if not skill_caps:
             return True
 
-        # For composites, check if combined skills would match
-        if skill.get('is_composite') and skill.get('combines'):
-            # Include composite if it combines relevant skills
-            # This is a heuristic - the composite might cover the needed capabilities
+        # Composite skills with base_skills likely cover multiple capabilities
+        if skill.get('skill_type') == 'composite' and skill.get('base_skills'):
             return True
 
         return False
