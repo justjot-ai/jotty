@@ -77,6 +77,7 @@ class ExecutionResult:
     final_output: Any
     errors: List[str] = field(default_factory=list)
     execution_time: float = 0.0
+    stopped_early: bool = False  # True if execution stopped due to failure
 
 
 class AutoAgent(AutonomousAgent):
@@ -126,7 +127,7 @@ class AutoAgent(AutonomousAgent):
             name="AutoAgent",
             max_steps=max_steps,
             timeout=float(timeout),
-            enable_replanning=True,
+            enable_replanning=False,  # Stop on failure, don't try replanning
             max_replans=3,
             skill_filter=skill_filter,
             default_output_skill=default_output_skill,
@@ -423,7 +424,8 @@ Provide:
             outputs=result.get('outputs', {}),
             final_output=result.get('final_output'),
             errors=result.get('errors', []),
-            execution_time=execution_time
+            execution_time=execution_time,
+            stopped_early=result.get('stopped_early', False),
         )
 
         # Update BaseAgent metrics

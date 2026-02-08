@@ -52,6 +52,8 @@ class RouteResult:
     agents_used: List[str] = None
     steps_executed: int = 0
     error: Optional[str] = None
+    errors: List[str] = None  # Multiple errors from execution
+    stopped_early: bool = False  # True if execution stopped due to failure
     metadata: Dict[str, Any] = None
 
     def __post_init__(self):
@@ -59,6 +61,8 @@ class RouteResult:
             self.skills_used = []
         if self.agents_used is None:
             self.agents_used = []
+        if self.errors is None:
+            self.errors = []
         if self.metadata is None:
             self.metadata = {}
 
@@ -73,6 +77,8 @@ class RouteResult:
             agents_used=self.agents_used,
             steps_executed=self.steps_executed,
             error=self.error,
+            errors=self.errors,
+            stopped_early=self.stopped_early,
             metadata=self.metadata,
         )
 
@@ -259,13 +265,21 @@ class ModeRouter:
         try:
             result = await agent.execute(goal, status_callback=status_callback)
 
+            # Get errors from result (dict or object attribute)
+            errors = result.get('errors', []) if isinstance(result, dict) else getattr(result, 'errors', [])
+            stopped_early = result.get('stopped_early', False) if isinstance(result, dict) else getattr(result, 'stopped_early', False)
+            success = result.get('success', True) if isinstance(result, dict) else getattr(result, 'success', True)
+
             return RouteResult(
-                success=result.success,
-                content=result.final_output,
+                success=success,
+                content=result.get('final_output') if isinstance(result, dict) else getattr(result, 'final_output', result),
                 mode=ExecutionMode.WORKFLOW,
-                skills_used=result.skills_used,
-                steps_executed=result.steps_executed,
-                metadata={"task_type": result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)},
+                skills_used=result.get('skills_used', []) if isinstance(result, dict) else getattr(result, 'skills_used', []),
+                steps_executed=result.get('steps_executed', 0) if isinstance(result, dict) else getattr(result, 'steps_executed', 0),
+                error=errors[0] if errors else None,
+                errors=errors or [],
+                stopped_early=stopped_early,
+                metadata={"task_type": result.get('task_type', 'unknown') if isinstance(result, dict) else getattr(result, 'task_type', 'unknown')},
             )
 
         except Exception as e:
@@ -274,7 +288,9 @@ class ModeRouter:
                 success=False,
                 content=None,
                 mode=ExecutionMode.WORKFLOW,
-                error=str(e)
+                error=str(e),
+                errors=[str(e)],
+                stopped_early=True,
             )
 
     async def _handle_skill(

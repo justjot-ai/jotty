@@ -480,13 +480,25 @@ class Jotty(EventEmitter):
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
+            # Check result success - don't hardcode True
+            is_success = result.get("success", True)
+            errors = result.get("errors", [])
+            stopped_early = result.get("stopped_early", False)
+
+            # If there are errors, it's not a success
+            if errors:
+                is_success = False
+
             return SDKResponse(
-                success=True,
+                success=is_success,
                 content=result.get("content", result),
                 mode=ExecutionMode.CHAT,
                 request_id=context.request_id,
                 execution_time=execution_time,
-                metadata=result.get("metadata", {})
+                metadata=result.get("metadata", {}),
+                errors=errors,
+                stopped_early=stopped_early,
+                error=errors[0] if errors else None,
             )
 
         except Exception as e:
@@ -513,6 +525,8 @@ class Jotty(EventEmitter):
                 "content": result.content,
                 "success": result.success,
                 "metadata": result.metadata or {},
+                "errors": getattr(result, 'errors', []) or [],
+                "stopped_early": getattr(result, 'stopped_early', False),
             }
         except Exception as e:
             # Fallback to ChatAssistant directly
@@ -522,11 +536,13 @@ class Jotty(EventEmitter):
                 result = await assistant.run(goal=message)
                 return {
                     "content": result.get("response", result),
-                    "success": True,
+                    "success": result.get("success", True),
                     "metadata": result.get("metadata", {}),
+                    "errors": result.get("errors", []),
+                    "stopped_early": result.get("stopped_early", False),
                 }
             except Exception as e2:
-                return {"content": None, "success": False, "error": str(e2)}
+                return {"content": None, "success": False, "error": str(e2), "errors": [str(e2)], "stopped_early": True}
 
     async def _remote_chat(
         self,
@@ -578,15 +594,27 @@ class Jotty(EventEmitter):
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
+            # Check result success and propagate errors
+            is_success = result.get("success", True)
+            errors = result.get("errors", [])
+            stopped_early = result.get("stopped_early", False)
+
+            # If there are errors, it's not a success
+            if errors:
+                is_success = False
+
             return SDKResponse(
-                success=result.get("success", True),
+                success=is_success,
                 content=result.get("final_output", result.get("content", result)),
                 mode=ExecutionMode.WORKFLOW,
                 request_id=exec_context.request_id,
                 execution_time=execution_time,
                 skills_used=result.get("skills_used", []),
                 steps_executed=result.get("steps_executed", 0),
-                metadata=result.get("metadata", {})
+                metadata=result.get("metadata", {}),
+                errors=errors,
+                stopped_early=stopped_early,
+                error=errors[0] if errors else None,
             )
 
         except Exception as e:
@@ -611,6 +639,8 @@ class Jotty(EventEmitter):
                 "skills_used": result.skills_used,
                 "steps_executed": result.steps_executed,
                 "metadata": result.metadata or {},
+                "errors": getattr(result, 'errors', []) or [],
+                "stopped_early": getattr(result, 'stopped_early', False),
             }
         except Exception as e:
             logger.warning(f"ModeRouter failed, falling back to AutoAgent: {e}")
@@ -626,6 +656,8 @@ class Jotty(EventEmitter):
                     "skills_used": result.skills_used,
                     "steps_executed": result.steps_executed,
                     "metadata": {},
+                    "errors": getattr(result, 'errors', []) or [],
+                    "stopped_early": getattr(result, 'stopped_early', False),
                 }
             except Exception as e2:
                 logger.error(f"AutoAgent fallback also failed: {e2}")
@@ -850,7 +882,9 @@ class Jotty(EventEmitter):
                     "success": result.success,
                     "content": result.final_output,
                     "skills_used": result.skills_used,
-                    "steps_executed": result.steps_executed
+                    "steps_executed": result.steps_executed,
+                    "errors": getattr(result, 'errors', []) or [],
+                    "stopped_early": getattr(result, 'stopped_early', False),
                 }
             else:
                 client = await self._get_http_client()
@@ -864,14 +898,26 @@ class Jotty(EventEmitter):
             execution_time = (datetime.now() - start_time).total_seconds()
             await self._emit_event(SDKEventType.AGENT_COMPLETE, {"agent": name, "result": result_dict})
 
+            # Propagate errors properly
+            errors = result_dict.get("errors", [])
+            stopped_early = result_dict.get("stopped_early", False)
+            is_success = result_dict.get("success", True)
+
+            # If there are errors, it's not a success
+            if errors:
+                is_success = False
+
             return SDKResponse(
-                success=result_dict.get("success", True),
+                success=is_success,
                 content=result_dict.get("content", result_dict),
                 mode=ExecutionMode.AGENT,
                 execution_time=execution_time,
                 agents_used=[name],
                 skills_used=result_dict.get("skills_used", []),
-                steps_executed=result_dict.get("steps_executed", 0)
+                steps_executed=result_dict.get("steps_executed", 0),
+                errors=errors,
+                stopped_early=stopped_early,
+                error=errors[0] if errors else None,
             )
 
         except Exception as e:

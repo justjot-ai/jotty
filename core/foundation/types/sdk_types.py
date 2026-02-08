@@ -402,6 +402,8 @@ class SDKResponse:
     # Errors
     error: Optional[str] = None
     error_code: Optional[str] = None
+    errors: List[str] = field(default_factory=list)  # Multiple errors from execution
+    stopped_early: bool = False  # True if execution stopped due to failure
 
     # Metadata
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -421,6 +423,8 @@ class SDKResponse:
             "steps_executed": self.steps_executed,
             "error": self.error,
             "error_code": self.error_code,
+            "errors": self.errors,
+            "stopped_early": self.stopped_early,
             "metadata": self.metadata,
         }
 

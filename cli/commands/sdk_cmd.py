@@ -615,9 +615,16 @@ Test the SDK client with real-time event visualization.
                 cli.renderer.markdown(formatted)
                 print(f"\n\033[90m({elapsed:.1f}s)\033[0m\n")
             else:
-                error = response.error or "No response received"
+                # Show error - prioritize errors list, then error field
+                error = None
+                if hasattr(response, 'errors') and response.errors:
+                    error = response.errors[0] if isinstance(response.errors[0], str) else str(response.errors[0])
+                elif response.error:
+                    error = response.error
+                else:
+                    error = "No response received"
                 print()
-                print(f"\033[94mjotty>\033[0m \033[93m{error}\033[0m")
+                print(f"\033[94mjotty>\033[0m \033[91m❌ {error}\033[0m")
                 print(f"\033[90m({elapsed:.1f}s)\033[0m\n")
 
         except Exception as e:
