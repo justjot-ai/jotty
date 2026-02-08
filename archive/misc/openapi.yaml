@@ -1,0 +1,940 @@
+openapi: 3.0.0
+info:
+  title: Stock Market Analysis API
+  description: API for stock screening, backtesting, and market data analysis
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+
+paths:
+  /api/stocks:
+    get:
+      summary: Get stocks with optional filtering
+      description: Retrieve a paginated list of stocks with optional search and sector filtering
+      parameters:
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/SectorFilter'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+      responses:
+        200:
+          description: List of stocks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockListResponse'
+
+  /api/stocks/{symbol}:
+    get:
+      summary: Get stock by symbol
+      description: Retrieve detailed information for a specific stock symbol
+      parameters:
+        - $ref: '#/components/parameters/SymbolPath'
+      responses:
+        200:
+          description: Stock details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stock'
+        404:
+          $ref: '#/components/responses/NotFound'
+
+  /api/stocks/{symbol}/sync:
+    post:
+      summary: Sync stock data from market data provider
+      description: Synchronize stock data from external market data provider
+      parameters:
+        - $ref: '#/components/parameters/SymbolPath'
+      responses:
+        200:
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+
+  /api/stocks/{symbol}/prices:
+    get:
+      summary: Get stock price history
+      description: Retrieve historical price data for a specific stock symbol
+      parameters:
+        - $ref: '#/components/parameters/SymbolPath'
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+      responses:
+        200:
+          description: Stock price history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockPrice'
+
+  /api/screens:
+    get:
+      summary: Get all screens
+      description: Retrieve all available stock screening configurations
+      responses:
+        200:
+          description: List of screens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Screen'
+    post:
+      summary: Create new screen
+      description: Create a new stock screening configuration
+      requestBody:
+        $ref: '#/components/requestBodies/ScreenCreate'
+      responses:
+        201:
+          description: Screen created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Screen'
+
+  /api/screens/{id}:
+    get:
+      summary: Get screen by ID
+      description: Retrieve a specific screen configuration by ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        200:
+          description: Screen details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Screen'
+        404:
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update screen
+      description: Update an existing screen configuration
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        $ref: '#/components/requestBodies/ScreenUpdate'
+      responses:
+        200:
+          description: Screen updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Screen'
+    delete:
+      summary: Delete screen
+      description: Remove a screen configuration
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        200:
+          description: Screen deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /api/screens/{id}/run:
+    post:
+      summary: Run screen
+      description: Execute a screen against current market data
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreenRunRequest'
+      responses:
+        200:
+          description: Screen results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreenRunResponse'
+
+  /api/screens/{id}/results:
+    get:
+      summary: Get screen results
+      description: Retrieve historical results for a specific screen
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/LimitQuery'
+      responses:
+        200:
+          description: Screen results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScreenResult'
+
+  /api/strategies:
+    get:
+      summary: Get all backtest strategies
+      description: Retrieve all available backtesting strategies
+      responses:
+        200:
+          description: List of strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BacktestStrategy'
+    post:
+      summary: Create new backtest strategy
+      description: Create a new backtesting strategy configuration
+      requestBody:
+        $ref: '#/components/requestBodies/BacktestStrategyCreate'
+      responses:
+        201:
+          description: Strategy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestStrategy'
+
+  /api/strategies/{id}:
+    get:
+      summary: Get strategy by ID
+      description: Retrieve a specific strategy configuration by ID
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        200:
+          description: Strategy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestStrategy'
+    put:
+      summary: Update strategy
+      description: Update an existing strategy configuration
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        $ref: '#/components/requestBodies/BacktestStrategyUpdate'
+      responses:
+        200:
+          description: Strategy updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestStrategy'
+    delete:
+      summary: Delete strategy
+      description: Remove a strategy configuration
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        200:
+          description: Strategy deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /api/strategies/{id}/backtest:
+    post:
+      summary: Run backtest for strategy
+      description: Execute a backtesting run for a specific strategy
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        $ref: '#/components/requestBodies/BacktestRun'
+      responses:
+        200:
+          description: Backtest completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestRun'
+
+  /api/backtests/{run_id}:
+    get:
+      summary: Get backtest run details
+      description: Retrieve detailed results from a specific backtest run
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier for the backtest run
+      responses:
+        200:
+          description: Backtest run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestRun'
+
+  /api/backtests/{run_id}/trades:
+    get:
+      summary: Get trades from backtest run
+      description: Retrieve all trades executed during a backtest run
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier for the backtest run
+      responses:
+        200:
+          description: List of trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trade'
+
+  /api/market-data/sync:
+    post:
+      summary: Sync market data for multiple symbols
+      description: Bulk synchronization of market data for multiple stock symbols
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketDataSyncRequest'
+      responses:
+        200:
+          description: Market data sync completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketDataSyncResponse'
+
+  /api/indicators/{symbol}:
+    get:
+      summary: Get technical indicators for symbol
+      description: Calculate and retrieve technical indicators for a specific stock symbol
+      parameters:
+        - $ref: '#/components/parameters/SymbolPath'
+        - name: indicators
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated list of indicators (e.g., SMA,RSI,MACD)
+        - name: period
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+          description: Period for calculations (number of days)
+      responses:
+        200:
+          description: Technical indicators data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndicatorsResponse'
+
+components:
+  # Reusable Parameters
+  parameters:
+    SymbolPath:
+      name: symbol
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Z]{1,5}$'
+      description: Stock symbol (e.g., AAPL, MSFT)
+      
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Unique resource identifier
+      
+    SearchQuery:
+      name: search
+      in: query
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+      description: Search term for symbol or company name
+      
+    SectorFilter:
+      name: sector
+      in: query
+      schema:
+        type: string
+        enum: [Technology, Healthcare, Finance, Energy, Consumer, Industrial, Utilities, Materials, Real Estate, Communication]
+      description: Filter by market sector
+      
+    LimitQuery:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 100
+      description: Maximum number of results to return
+      
+    OffsetQuery:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: Number of results to skip (for pagination)
+      
+    StartDate:
+      name: start_date
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Start date for data range (YYYY-MM-DD)
+      
+    EndDate:
+      name: end_date
+      in: query
+      schema:
+        type: string
+        format: date
+      description: End date for data range (YYYY-MM-DD)
+
+  # Reusable Request Bodies
+  requestBodies:
+    ScreenCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ScreenCreateRequest'
+            
+    ScreenUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ScreenUpdateRequest'
+            
+    BacktestStrategyCreate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BacktestStrategyCreateRequest'
+            
+    BacktestStrategyUpdate:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BacktestStrategyUpdateRequest'
+            
+    BacktestRun:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BacktestRunRequest'
+
+  # Reusable Responses
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # Schema Definitions
+  schemas:
+    # Base Entity Schemas
+    Stock:
+      type: object
+      description: Stock company information and metadata
+      required: [symbol, name, exchange]
+      properties:
+        symbol:
+          type: string
+          description: Stock ticker symbol
+          example: "AAPL"
+        name:
+          type: string
+          description: Company name
+          example: "Apple Inc."
+        exchange:
+          type: string
+          description: Stock exchange
+          example: "NASDAQ"
+        sector:
+          type: string
+          description: Business sector
+          example: "Technology"
+        industry:
+          type: string
+          description: Industry classification
+          example: "Consumer Electronics"
+        market_cap:
+          type: number
+          description: Market capitalization in USD
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    StockPrice:
+      type: object
+      description: Historical stock price data
+      required: [id, symbol, date, open_price, high_price, low_price, close_price, volume]
+      properties:
+        id:
+          type: integer
+          description: Unique price record identifier
+        symbol:
+          type: string
+          description: Stock ticker symbol
+        date:
+          type: string
+          format: date
+          description: Trading date
+        open_price:
+          type: number
+          description: Opening price
+          minimum: 0
+        high_price:
+          type: number
+          description: Highest price during trading day
+          minimum: 0
+        low_price:
+          type: number
+          description: Lowest price during trading day
+          minimum: 0
+        close_price:
+          type: number
+          description: Closing price
+          minimum: 0
+        volume:
+          type: integer
+          description: Trading volume (shares traded)
+          minimum: 0
+        adj_close_price:
+          type: number
+          description: Adjusted closing price (accounts for splits/dividends)
+          minimum: 0
+
+    Screen:
+      type: object
+      description: Stock screening configuration
+      required: [id, name, criteria, created_by, is_active]
+      properties:
+        id:
+          type: integer
+          description: Unique screen identifier
+        name:
+          type: string
+          description: Screen display name
+          maxLength: 255
+        description:
+          type: string
+          description: Screen description and purpose
+        criteria:
+          type: object
+          description: JSON object defining screening criteria
+        created_by:
+          type: string
+          description: User who created the screen
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        is_active:
+          type: boolean
+          description: Whether screen is currently active
+
+    ScreenResult:
+      type: object
+      description: Result from running a stock screen
+      required: [id, screen_id, symbol, run_date]
+      properties:
+        id:
+          type: integer
+          description: Unique result identifier
+        screen_id:
+          type: integer
+          description: Associated screen ID
+        symbol:
+          type: string
+          description: Stock symbol that matched criteria
+        run_date:
+          type: string
+          format: date
+          description: Date when screen was executed
+        score:
+          type: number
+          description: Numerical score for ranking results
+        metadata:
+          type: object
+          description: Additional result metadata
+
+    BacktestStrategy:
+      type: object
+      description: Backtesting strategy configuration
+      required: [id, name, entry_screen_id, parameters]
+      properties:
+        id:
+          type: integer
+          description: Unique strategy identifier
+        name:
+          type: string
+          description: Strategy display name
+          maxLength: 255
+        entry_screen_id:
+          type: integer
+          description: Screen ID for entry conditions
+        exit_screen_id:
+          type: integer
+          description: Screen ID for exit conditions (optional)
+        parameters:
+          type: object
+          description: Strategy parameters and configuration
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    BacktestRun:
+      type: object
+      description: Backtest execution results and metrics
+      required: [id, strategy_id, start_date, end_date, initial_capital]
+      properties:
+        id:
+          type: integer
+          description: Unique backtest run identifier
+        strategy_id:
+          type: integer
+          description: Associated strategy ID
+        start_date:
+          type: string
+          format: date
+          description: Backtest start date
+        end_date:
+          type: string
+          format: date
+          description: Backtest end date
+        initial_capital:
+          type: number
+          description: Starting capital amount
+          minimum: 0.01
+        final_portfolio_value:
+          type: number
+          description: Final portfolio value
+        total_return:
+          type: number
+          description: Total return percentage
+        sharpe_ratio:
+          type: number
+          description: Risk-adjusted return metric
+        max_drawdown:
+          type: number
+          description: Maximum portfolio decline percentage
+        trades_count:
+          type: integer
+          description: Total number of trades executed
+          minimum: 0
+        win_rate:
+          type: number
+          description: Percentage of profitable trades
+          minimum: 0
+          maximum: 100
+        created_at:
+          type: string
+          format: date-time
+          description: Run completion timestamp
+
+    Trade:
+      type: object
+      description: Individual trade executed during backtest
+      required: [id, backtest_run_id, symbol, entry_date, entry_price, quantity, trade_type]
+      properties:
+        id:
+          type: integer
+          description: Unique trade identifier
+        backtest_run_id:
+          type: integer
+          description: Associated backtest run ID
+        symbol:
+          type: string
+          description: Stock symbol traded
+        entry_date:
+          type: string
+          format: date
+          description: Trade entry date
+        exit_date:
+          type: string
+          format: date
+          description: Trade exit date (null if still open)
+        entry_price:
+          type: number
+          description: Entry price per share
+          minimum: 0
+        exit_price:
+          type: number
+          description: Exit price per share (null if still open)
+          minimum: 0
+        quantity:
+          type: integer
+          description: Number of shares traded
+          minimum: 1
+        pnl:
+          type: number
+          description: Profit/loss for the trade
+        trade_type:
+          type: string
+          enum: [LONG, SHORT]
+          description: |
+            Trade direction:
+            - LONG: Buy low, sell high
+            - SHORT: Sell high, buy low
+
+    # Request/Response Schemas
+    StockListResponse:
+      type: object
+      description: Paginated list of stocks
+      required: [stocks, total]
+      properties:
+        stocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+        total:
+          type: integer
+          description: Total number of stocks matching criteria
+          minimum: 0
+
+    SyncResponse:
+      type: object
+      description: Data synchronization result
+      required: [status, records_updated]
+      properties:
+        status:
+          type: string
+          enum: [success, partial, failed]
+          description: Sync operation status
+        records_updated:
+          type: integer
+          description: Number of records updated
+          minimum: 0
+
+    StatusResponse:
+      type: object
+      description: Generic operation status
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+          description: Operation status
+
+    ErrorResponse:
+      type: object
+      description: Error information
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+
+    ScreenCreateRequest:
+      type: object
+      description: Request to create a new screen
+      required: [name, criteria]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Screen name
+        description:
+          type: string
+          description: Optional screen description
+        criteria:
+          type: object
+          description: Screening criteria configuration
+
+    ScreenUpdateRequest:
+      type: object
+      description: Request to update an existing screen
+      required: [name, criteria]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Screen name
+        description:
+          type: string
+          description: Optional screen description
+        criteria:
+          type: object
+          description: Screening criteria configuration
+
+    ScreenRunRequest:
+      type: object
+      description: Request to execute a screen
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date to run screen against (defaults to today)
+
+    ScreenRunResponse:
+      type: object
+      description: Screen execution results
+      required: [results, count]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScreenResult'
+        count:
+          type: integer
+          description: Number of matching stocks
+          minimum: 0
+
+    BacktestStrategyCreateRequest:
+      type: object
+      description: Request to create a new strategy
+      required: [name, entry_screen_id, parameters]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Strategy name
+        entry_screen_id:
+          type: integer
+          description: Screen ID for entry conditions
+        exit_screen_id:
+          type: integer
+          description: Screen ID for exit conditions (optional)
+        parameters:
+          type: object
+          description: Strategy parameters
+
+    BacktestStrategyUpdateRequest:
+      type: object
+      description: Request to update an existing strategy
+      required: [name, entry_screen_id, parameters]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Strategy name
+        entry_screen_id:
+          type: integer
+          description: Screen ID for entry conditions
+        exit_screen_id:
+          type: integer
+          description: Screen ID for exit conditions (optional)
+        parameters:
+          type: object
+          description: Strategy parameters
+
+    BacktestRunRequest:
+      type: object
+      description: Request to execute a backtest
+      required: [start_date, end_date, initial_capital]
+      properties:
+        start_date:
+          type: string
+          format: date
+          description: Backtest start date
+        end_date:
+          type: string
+          format: date
+          description: Backtest end date
+        initial_capital:
+          type: number
+          minimum: 0.01
+          description: Starting capital amount
+
+    MarketDataSyncRequest:
+      type: object
+      description: Request to sync market data for multiple symbols
+      required: [symbols]
+      properties:
+        symbols:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: List of stock symbols to sync
+        start_date:
+          type: string
+          format: date
+          description: Optional start date for sync range
+        end_date:
+          type: string
+          format: date
+          description: Optional end date for sync range
+
+    MarketDataSyncResponse:
+      type: object
+      description: Market data sync results
+      required: [status, symbols_updated]
+      properties:
+        status:
+          type: string
+          enum: [success, partial, failed]
+          description: Sync operation status
+        symbols_updated:
+          type: integer
+          description: Number of symbols successfully updated
+          minimum: 0
+
+    IndicatorsResponse:
+      type: object
+      description: Technical indicators calculation results
+      required: [symbol, data]
+      properties:
+        symbol:
+          type: string
+          description: Stock symbol
+        data:
+          type: object
+          description: Calculated indicator values organized by indicator type

@@ -1,0 +1,1 @@
+# Generated based on architecture design
