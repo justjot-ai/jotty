@@ -3,7 +3,17 @@ Jotty REST API Server
 =====================
 
 HTTP API for n8n integration and external automation.
-Exposes all Jotty CLI commands as REST endpoints.
+Delegates to ModeRouter for actual execution (same path as SDK/Gateway).
+
+Endpoints:
+    /api/health    - Health check
+    /api/run       - Execute natural language tasks (chat/workflow)
+    /api/command   - Execute slash commands (CLI-specific)
+    /api/skills    - List available skills
+    /api/skills/{name} - Execute a specific skill
+    /api/tasks/{id}    - Get async task result
+    /api/commands      - List available CLI commands
+    /docs          - OpenAPI interactive docs (Swagger UI)
 """
 
 import asyncio
@@ -44,13 +54,8 @@ class JottyAPIServer:
     """
     REST API Server for Jotty.
 
-    Exposes endpoints for:
-    - /api/run - Execute natural language tasks
-    - /api/command - Execute slash commands
-    - /api/research - Research topics
-    - /api/ml - Run ML pipelines
-    - /api/skills - List/execute skills
-    - /api/health - Health check
+    Delegates to ModeRouter for all execution (same path as SDK and Gateway).
+    Keeps a JottyCLI instance only for slash-command execution.
 
     For n8n integration, use webhook nodes to call these endpoints.
     """
@@ -59,15 +64,43 @@ class JottyAPIServer:
         self.host = host
         self.port = port
         self._cli = None
+        self._router = None
         self._app = None
         self._task_results: Dict[str, Any] = {}
 
     def _get_cli(self):
-        """Lazy-load JottyCLI."""
+        """Lazy-load JottyCLI (only needed for /api/command)."""
         if self._cli is None:
             from ..app import JottyCLI
             self._cli = JottyCLI()
         return self._cli
+
+    def _get_mode_router(self):
+        """Lazy-load ModeRouter (used for all task/skill execution)."""
+        if self._router is None:
+            # Use absolute imports — works both when run as Jotty.cli.api.server
+            # and when run standalone (background process with sys.path insert)
+            from core.api.mode_router import get_mode_router
+            self._router = get_mode_router()
+        return self._router
+
+    def _make_context(self, mode: str = "chat", **kwargs):
+        """Create an ExecutionContext for ModeRouter calls."""
+        from core.foundation.types.sdk_types import (
+            ExecutionMode, ChannelType, ExecutionContext, ResponseFormat,
+        )
+        mode_map = {
+            "chat": ExecutionMode.CHAT,
+            "workflow": ExecutionMode.WORKFLOW,
+            "skill": ExecutionMode.SKILL,
+            "agent": ExecutionMode.AGENT,
+        }
+        return ExecutionContext(
+            mode=mode_map.get(mode, ExecutionMode.CHAT),
+            channel=ChannelType.HTTP,
+            response_format=ResponseFormat.MARKDOWN,
+            **kwargs,
+        )
 
     def create_app(self) -> "FastAPI":
         """Create FastAPI application."""
@@ -82,7 +115,7 @@ class JottyAPIServer:
             redoc_url="/redoc",
         )
 
-        # CORS for n8n
+        # CORS for n8n and external integrations
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -91,83 +124,101 @@ class JottyAPIServer:
             allow_headers=["*"],
         )
 
-        # Health check
+        # =====================================================================
+        # Health
+        # =====================================================================
+
         @app.get("/api/health")
         async def health():
             return {"status": "healthy", "service": "jotty-api"}
 
-        # Execute task (natural language)
+        # =====================================================================
+        # Task execution (via ModeRouter)
+        # =====================================================================
+
         @app.post("/api/run")
         async def run_task(request: TaskRequest, background_tasks: BackgroundTasks):
-            """Execute a natural language task."""
-            cli = self._get_cli()
-
+            """Execute a natural language task via ModeRouter."""
             if request.async_mode:
-                # Run in background
                 task_id = f"task_{len(self._task_results)}"
                 background_tasks.add_task(
                     self._execute_task_async, task_id, request.task, request.options
                 )
                 return {"task_id": task_id, "status": "processing"}
 
-            # Run synchronously
-            result = await cli.run_once(request.task)
-            return {"success": True, "result": str(result)}
+            router = self._get_mode_router()
+            context = self._make_context("workflow")
+            result = await router.route(request.task, context)
 
-        # Execute command
+            return {
+                "success": result.success,
+                "result": result.content,
+                "skills_used": result.skills_used,
+                "steps_executed": result.steps_executed,
+                "execution_time": result.execution_time,
+                "error": result.error,
+            }
+
+        # =====================================================================
+        # Slash commands (CLI-specific, kept for backward compat)
+        # =====================================================================
+
         @app.post("/api/command")
         async def run_command(request: CommandRequest):
-            """Execute a slash command."""
+            """Execute a slash command (delegates to CLI)."""
             cli = self._get_cli()
             full_cmd = f"/{request.command} {request.args}".strip()
             result = await cli.run_once(full_cmd)
             return {"success": True, "command": request.command, "result": str(result)}
 
-        # Research endpoint
-        @app.post("/api/research")
-        async def research(topic: str, deep: bool = False):
-            """Research a topic."""
-            cli = self._get_cli()
-            flags = "--deep" if deep else ""
-            result = await cli.run_once(f"/research {topic} {flags}")
-            return {"success": True, "topic": topic, "result": str(result)}
+        # =====================================================================
+        # Skills (via ModeRouter)
+        # =====================================================================
 
-        # ML endpoint
-        @app.post("/api/ml")
-        async def run_ml(dataset: str, target: Optional[str] = None, iterations: int = 2):
-            """Run ML pipeline."""
-            cli = self._get_cli()
-            cmd = f"/ml {dataset}"
-            if target:
-                cmd += f" --target {target}"
-            cmd += f" --iterations {iterations}"
-            result = await cli.run_once(cmd)
-            return {"success": True, "dataset": dataset, "result": str(result)}
-
-        # List skills
         @app.get("/api/skills")
         async def list_skills():
-            """List available skills."""
-            cli = self._get_cli()
-            registry = cli.get_skills_registry()
+            """List available skills via registry."""
+            router = self._get_mode_router()
+            router._ensure_initialized()
+            registry = router._registry
+
+            if registry is None:
+                return {"skills": [], "count": 0}
+
             skills = []
-            for name, skill in registry._skills.items():
+            for skill_info in registry.list_skills():
                 skills.append({
-                    "name": name,
-                    "category": getattr(skill, 'category', 'general'),
-                    "description": getattr(skill, 'description', '')[:100]
+                    "name": skill_info.get("name", ""),
+                    "category": skill_info.get("category", "general"),
+                    "description": (skill_info.get("description", "") or "")[:100],
                 })
             return {"skills": skills, "count": len(skills)}
 
-        # Execute skill
         @app.post("/api/skills/{skill_name}")
         async def execute_skill(skill_name: str, params: Dict[str, Any] = {}):
-            """Execute a specific skill."""
-            cli = self._get_cli()
-            result = await cli.run_once(f"/tools {skill_name} {json.dumps(params)}")
-            return {"success": True, "skill": skill_name, "result": str(result)}
+            """Execute a specific skill via ModeRouter."""
+            from core.foundation.types.sdk_types import SDKRequest, ExecutionMode
 
-        # Get task result (for async tasks)
+            router = self._get_mode_router()
+            context = self._make_context("skill")
+            request = SDKRequest(
+                content=json.dumps(params),
+                mode=ExecutionMode.SKILL,
+                skill_name=skill_name,
+            )
+            result = await router.route(request, context)
+
+            return {
+                "success": result.success,
+                "skill": skill_name,
+                "result": result.content,
+                "error": result.error,
+            }
+
+        # =====================================================================
+        # Async task results
+        # =====================================================================
+
         @app.get("/api/tasks/{task_id}")
         async def get_task_result(task_id: str):
             """Get result of async task."""
@@ -175,10 +226,13 @@ class JottyAPIServer:
                 raise HTTPException(status_code=404, detail="Task not found")
             return self._task_results[task_id]
 
-        # List commands
+        # =====================================================================
+        # Commands listing (CLI metadata)
+        # =====================================================================
+
         @app.get("/api/commands")
         async def list_commands():
-            """List available commands."""
+            """List available CLI commands."""
             cli = self._get_cli()
             commands = []
             for name, cmd in cli.command_registry._commands.items():
@@ -188,36 +242,32 @@ class JottyAPIServer:
                         "aliases": cmd.aliases,
                         "description": cmd.description,
                         "usage": cmd.usage,
-                        "category": cmd.category
+                        "category": cmd.category,
                     })
             return {"commands": commands, "count": len(commands)}
-
-        # JustJot integration
-        @app.post("/api/justjot")
-        async def create_idea(title: str, content: str, tags: list = []):
-            """Create idea on JustJot.ai."""
-            cli = self._get_cli()
-            # Store content temporarily
-            cli._output_history = [content]
-            result = await cli.run_once(f"/J --tags {','.join(tags)}")
-            return {"success": True, "result": str(result)}
 
         self._app = app
         return app
 
     async def _execute_task_async(self, task_id: str, task: str, options: dict):
-        """Execute task asynchronously."""
+        """Execute task asynchronously via ModeRouter."""
         try:
-            cli = self._get_cli()
-            result = await cli.run_once(task)
+            router = self._get_mode_router()
+            context = self._make_context("workflow")
+            result = await router.route(task, context)
+
             self._task_results[task_id] = {
                 "status": "completed",
-                "result": str(result)
+                "success": result.success,
+                "result": result.content,
+                "skills_used": result.skills_used,
+                "execution_time": result.execution_time,
+                "error": result.error,
             }
         except Exception as e:
             self._task_results[task_id] = {
                 "status": "failed",
-                "error": str(e)
+                "error": str(e),
             }
 
     def run(self):

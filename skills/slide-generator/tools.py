@@ -578,20 +578,61 @@ Return ONLY the JSON, nothing else."""
         if not result.get('success'):
             return {'success': False, 'error': f"AI generation failed: {result.get('error')}"}
 
-        # Parse JSON response
-        text = result.get('text', '').strip()
+        # Parse JSON response - try multiple field names
+        text = (result.get('text') or result.get('response') or
+                result.get('content') or result.get('output') or '').strip()
 
-        # Clean up response if needed
-        if text.startswith('```'):
-            text = text.split('```')[1]
-            if text.startswith('json'):
-                text = text[4:]
-        text = text.strip()
+        if not text:
+            # Fallback: create basic slides from topic
+            logger.warning(f"Empty AI response, creating basic slides for: {topic}")
+            slide_data = {
+                'title': topic[:60],
+                'subtitle': 'Generated Presentation',
+                'slides': [
+                    {'title': 'Overview', 'bullets': [f'Information about {topic}', 'Key points to cover', 'Summary details']},
+                    {'title': 'Details', 'bullets': ['Main aspects', 'Important considerations', 'Key takeaways']},
+                ]
+            }
+        else:
+            # Clean up response if needed
+            if '```' in text:
+                parts = text.split('```')
+                for part in parts:
+                    part = part.strip()
+                    if part.startswith('json'):
+                        part = part[4:].strip()
+                    if part.startswith('{'):
+                        text = part
+                        break
 
-        try:
-            slide_data = json.loads(text)
-        except json.JSONDecodeError as e:
-            return {'success': False, 'error': f'Failed to parse AI response as JSON: {e}', 'raw_response': text[:500]}
+            # Find JSON object in response
+            if '{' in text:
+                start = text.find('{')
+                # Find matching closing brace
+                depth = 0
+                end = start
+                for i, c in enumerate(text[start:], start):
+                    if c == '{':
+                        depth += 1
+                    elif c == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end = i + 1
+                            break
+                text = text[start:end]
+
+            try:
+                slide_data = json.loads(text)
+            except json.JSONDecodeError as e:
+                # Fallback: create slides from the raw text
+                logger.warning(f"JSON parse failed, creating slides from raw text: {e}")
+                lines = [l.strip() for l in text.split('\n') if l.strip() and not l.startswith('{')][:8]
+                slide_data = {
+                    'title': topic[:60],
+                    'subtitle': 'Generated Presentation',
+                    'slides': [{'title': f'Point {i+1}', 'bullets': [line[:200]]} for i, line in enumerate(lines)]
+                              if lines else [{'title': 'Content', 'bullets': [topic]}]
+                }
 
         # Validate parsed structure
         if not isinstance(slide_data, dict):

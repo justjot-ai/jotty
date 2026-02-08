@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Import SDK types
 try:
-    from ...core.foundation.types.sdk_types import (
+    from core.foundation.types.sdk_types import (
         ChannelType as SDKChannelType,
         ExecutionContext
     )
@@ -96,7 +96,7 @@ class ChannelResponderRegistry:
         try:
             # Try to import from skills dynamically
             # This avoids hardcoded imports
-            from ...core.registry import get_unified_registry
+            from core.registry import get_unified_registry
             registry = get_unified_registry()
 
             # Get the skill

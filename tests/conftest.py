@@ -21,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from core.foundation.data_structures import SwarmConfig, JottyConfig, MemoryLevel, EpisodeResult
     from core.foundation.agent_config import AgentSpec, AgentConfig
-    from core.orchestration.conductor import Conductor
+    from core.orchestration.v2 import SwarmManager as Conductor  # V2 replacement
     from core.memory.cortex import HierarchicalMemory
-    from core.orchestration.roadmap import MarkovianTODO
+    from core.orchestration.v2 import SwarmTaskBoard as MarkovianTODO  # V2 replacement
     JOTTY_AVAILABLE = True
 except ImportError as e:
     print(f"JOTTY import failed: {e}")

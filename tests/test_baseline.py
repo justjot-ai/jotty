@@ -43,10 +43,10 @@ class TestCoreImports:
         from core import AgentConfig, AgentSpec
         assert AgentConfig == AgentSpec
 
-    def test_can_import_conductor(self):
-        """Test Conductor import."""
-        from core import Conductor
-        assert Conductor is not None
+    def test_can_import_swarm_manager(self):
+        """Test SwarmManager import (V2 main orchestrator)."""
+        from core import SwarmManager
+        assert SwarmManager is not None
 
     def test_can_import_jotty_core(self):
         """Test JottyCore import."""

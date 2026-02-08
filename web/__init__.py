@@ -8,7 +8,8 @@ Web UI and API interface for Jotty, providing:
 - LibreChat-style chat interface
 """
 
-from .api import create_app, JottyAPI
+from .api import create_app
+from .jotty_api import JottyAPI
 from .websocket import WebSocketManager
 
 __all__ = [
