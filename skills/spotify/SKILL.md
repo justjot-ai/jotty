@@ -10,6 +10,10 @@ This skill provides tools to search for music, control playback, and manage play
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Features
 
 - Search for tracks, albums, artists, and playlists

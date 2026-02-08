@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - web-search
 
+
+## Capabilities
+- research
+- document
+
 ## Tools
 
 ### `write_content_with_research_tool`

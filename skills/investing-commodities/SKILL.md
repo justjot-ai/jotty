@@ -9,6 +9,10 @@ derived
 ## Base Skills
 - web-scraper
 
+
+## Capabilities
+- data-fetch
+
 ## Tools
 
 ### `get_commodities_prices_tool`

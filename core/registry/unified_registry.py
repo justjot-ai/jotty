@@ -281,31 +281,20 @@ class UnifiedRegistry:
         """
         Discover relevant skills and UI components for a task.
 
-        This is used by agents to find what tools they can use
-        and how to render their output.
+        Delegates skill discovery to SkillsRegistry.discover() which uses
+        keyword + capability scoring with type-aware boosting.
 
         Args:
             task_description: Description of the task
 
         Returns:
-            Dict with 'skills' and 'ui' suggestions
+            Dict with 'skills' (sorted by relevance) and 'ui' suggestions
         """
-        task_lower = task_description.lower()
-
-        # Find relevant skills based on task keywords
-        relevant_skills = []
-        for skill_name in self.list_skills():
-            skill = self._skills.get_skill(skill_name)
-            if skill:
-                # Check skill name, description, and tags
-                if any(keyword in task_lower for keyword in [
-                    skill.name.lower(),
-                    skill.description.lower(),
-                    *[t.lower() for t in skill.tags]
-                ]):
-                    relevant_skills.append(skill.to_dict())
+        # Delegate skill discovery to the single source of truth
+        relevant_skills = self._skills.discover(task_description)
 
         # Find relevant UI components
+        task_lower = task_description.lower()
         relevant_ui = []
         ui_keywords = {
             'chart': ['chart', 'graph', 'visualiz', 'plot'],

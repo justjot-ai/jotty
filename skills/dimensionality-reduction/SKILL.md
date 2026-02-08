@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Principal Component Analysis (PCA)
-- t-SNE visualization
-- UMAP embedding
-- Feature variance analysis
-- Explained variance calculation
+- analyze
 
 ## Tools
 - `pca_reduce_tool`: PCA dimensionality reduction

@@ -7,6 +7,10 @@ Converts documents between various formats: Markdown, PDF, EPUB, DOCX, HTML. Use
 ## Type
 base
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### convert_to_pdf_tool

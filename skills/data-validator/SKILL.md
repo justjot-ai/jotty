@@ -6,13 +6,9 @@
 ## Type
 base
 
+
 ## Capabilities
-- Schema validation
-- Data type checking
-- Missing value analysis
-- Duplicate detection
-- Distribution drift detection
-- Constraint validation
+- analyze
 
 ## Tools
 - `validate_schema_tool`: Validate data against schema

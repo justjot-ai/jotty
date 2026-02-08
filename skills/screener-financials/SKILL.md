@@ -10,6 +10,10 @@ derived
 ## Base Skills
 - web-scraper
 
+
+## Capabilities
+- data-fetch
+
 ## Features
 - Fetch company financials (P&L, Balance Sheet, Cash Flow)
 - Free proxy rotation (automatic)

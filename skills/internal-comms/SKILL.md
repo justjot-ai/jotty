@@ -10,6 +10,10 @@ This skill provides templates and guidelines for writing various types of intern
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Tools
 
 ### `write_internal_comm_tool`

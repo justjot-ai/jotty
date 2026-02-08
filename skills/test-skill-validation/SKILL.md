@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- code
+
 ## Tools
 
 ### `tool_name_tool`

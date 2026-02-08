@@ -11,6 +11,10 @@ Inspired by OpenClaw's voice architecture with automatic provider selection.
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Features
 
 - Text-to-speech (TTS) with multiple voice options

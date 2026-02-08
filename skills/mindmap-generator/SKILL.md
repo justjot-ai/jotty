@@ -7,6 +7,10 @@ Generates visual mindmap diagrams from text content using LLM analysis. Creates 
 ## Type
 base
 
+
+## Capabilities
+- visualize
+
 ## Tools
 
 ### generate_mindmap_tool

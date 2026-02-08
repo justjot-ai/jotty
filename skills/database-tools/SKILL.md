@@ -7,6 +7,10 @@ Multi-database skill using SQLAlchemy with connection pooling, safe parameterize
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+
 ## Supported Databases
 - PostgreSQL
 - MySQL

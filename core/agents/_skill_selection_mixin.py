@@ -1,37 +1,43 @@
-"""AgenticPlanner Skill Selection Mixin - Skill discovery and matching."""
+"""AgenticPlanner Skill Selection Mixin - Single LLM call skill selection."""
 
 import json
 import logging
-import re
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class SkillSelectionMixin:
+    """Skill selection via single LLM call with compact skill catalog."""
+
+    # Skills that depend on unreliable external services - deprioritized
+    DEPRIORITIZED_SKILLS = {
+        'search-to-justjot-idea',
+        'mcp-justjot-mcp-client',
+        'mcp-justjot',
+        'justjot-mcp-http',
+        'notion-research-documentation',
+        'reddit-trending-to-justjot',
+        'notebooklm-pdf',
+        'oauth-automation',
+    }
+
     def select_skills(
         self,
         task: str,
         available_skills: List[Dict[str, Any]],
         max_skills: int = 8,
-        use_capability_filter: bool = True
     ) -> tuple[List[Dict[str, Any]], str]:
         """
-        Select best skills for task using capability filtering + LLM semantic matching.
+        Select best skills for a task via single LLM call.
 
-        Flow:
-        1. Infer required capabilities from task (fast LLM call)
-        2. Filter skills by capabilities (126 → ~10-20)
-        3. LLM selects best from filtered set
-
-        Falls back to using first available skills if LLM fails.
-        Deprioritizes skills that depend on unreliable external services.
+        All 126 skills fit in ~5K tokens compact. No pre-filtering needed.
+        One LLM call sees everything and picks the best match.
 
         Args:
             task: Task description
-            available_skills: List of available skills
+            available_skills: List of skill dicts (from registry)
             max_skills: Maximum skills to select
-            use_capability_filter: Whether to filter by capabilities first (default: True)
 
         Returns:
             (selected_skills, reasoning)
@@ -39,240 +45,169 @@ class SkillSelectionMixin:
         if not available_skills:
             return [], "No skills available"
 
-        original_count = len(available_skills)
-
-        # Step 1: Filter by capabilities (if enabled)
-        if use_capability_filter and len(available_skills) > 15:
-            try:
-                capabilities, cap_reasoning = self.infer_capabilities(task)
-                logger.info(f"🎯 Inferred capabilities: {capabilities}")
-
-                # Filter skills by capabilities
-                capability_filtered = [
-                    s for s in available_skills
-                    if self._skill_matches_capabilities(s, capabilities)
-                ]
-
-                if capability_filtered:
-                    logger.info(f"📉 Capability filter: {original_count} → {len(capability_filtered)} skills")
-                    available_skills = capability_filtered
-                else:
-                    logger.debug("Capability filter returned 0 skills, using all")
-            except Exception as e:
-                logger.debug(f"Capability filtering failed: {e}, using all skills")
-
-        # Step 2: Filter out deprioritized skills (move to end of list)
-        reliable_skills = [s for s in available_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
+        # Move deprioritized skills to end (LLM still sees them but they're last)
+        reliable = [s for s in available_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
         deprioritized = [s for s in available_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
-        available_skills = reliable_skills + deprioritized  # Reliable first
+        ordered_skills = reliable + deprioritized
 
-        if deprioritized:
-            logger.debug(f"Deprioritized {len(deprioritized)} unreliable skills: {[s.get('name') for s in deprioritized]}")
+        # Format ALL skills compactly for the LLM (~5K tokens for 126 skills)
+        formatted = self._format_skills_compact(ordered_skills)
+        skills_json = json.dumps(formatted, separators=(',', ':'))
 
         llm_selected_names = []
         llm_reasoning = ""
+        skill_priorities = {}
 
-        # Try LLM selection
         try:
-            # Format skills with type info for LLM
-            formatted_skills = []
-            for s in available_skills[:50]:
-                skill_dict = {
-                    'name': s.get('name', ''),
-                    'description': s.get('description', ''),
-                    'tools': s.get('tools', []),
-                    'skill_type': s.get('skill_type', 'base'),
-                }
-                # Add dependency info for derived/composite skills
-                base_skills = s.get('base_skills', [])
-                if base_skills:
-                    skill_dict['base_skills'] = base_skills
-                if s.get('skill_type') == 'composite':
-                    skill_dict['hint'] = f"Pre-built workflow combining: {', '.join(base_skills)}"
-                    if s.get('execution_mode'):
-                        skill_dict['execution_mode'] = s.get('execution_mode')
-                elif s.get('skill_type') == 'derived':
-                    skill_dict['hint'] = f"Specialized version of: {', '.join(base_skills)}"
-                if s.get('use_when'):
-                    skill_dict['use_when'] = s.get('use_when')
-                formatted_skills.append(skill_dict)
-
-            skills_json = json.dumps(formatted_skills, indent=2)
-
             import dspy
-
-            # Call skill selector with retry and context compression
-            # Use fast LM (Haiku) for classification - much faster than Sonnet
-            selector_kwargs = {
-                'task_description': task,
-                'available_skills': skills_json,
-                'max_skills': max_skills
-            }
 
             result = self._call_with_retry(
                 module=self.skill_selector,
-                kwargs=selector_kwargs,
+                kwargs={
+                    'task_description': task,
+                    'available_skills': skills_json,
+                    'max_skills': max_skills,
+                },
                 compressible_fields=['available_skills'],
                 max_retries=self._max_compression_retries,
-                lm=self._fast_lm  # Use fast model for skill selection
+                lm=self._fast_lm,
             )
             logger.debug(f"Skill selection using fast model: {self._fast_model}")
 
             # Parse selected skills
-            try:
-                selected_skills_str = str(result.selected_skills).strip()
-                if selected_skills_str.startswith('```'):
-                    import re
-                    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', selected_skills_str, re.DOTALL)
-                    if json_match:
-                        selected_skills_str = json_match.group(1).strip()
-
-                llm_selected_names = json.loads(selected_skills_str)
-                if not isinstance(llm_selected_names, list):
-                    llm_selected_names = [llm_selected_names]
-            except (json.JSONDecodeError, ValueError):
-                llm_selected_names = self._extract_skill_names_from_text(result.selected_skills)
-
-            llm_reasoning = result.reasoning or "LLM semantic matching"
+            llm_selected_names = self._parse_selected_skills(result.selected_skills)
+            llm_reasoning = result.reasoning or "LLM selection"
 
             # Parse skill priorities for ordering
             try:
                 priorities_str = str(result.skill_priorities).strip()
                 if priorities_str.startswith('{'):
                     skill_priorities = json.loads(priorities_str)
-                else:
-                    skill_priorities = {}
             except (json.JSONDecodeError, ValueError):
-                skill_priorities = {}
+                pass
 
             logger.info(f"LLM selected {len(llm_selected_names)} skills: {llm_selected_names}")
-            if skill_priorities:
-                logger.info(f"Skill priorities: {skill_priorities}")
 
         except Exception as e:
             logger.warning(f"LLM selection failed: {e}")
-            skill_priorities = {}
 
         # Build final selection
         if llm_selected_names:
             final_names = list(set(llm_selected_names))[:max_skills]
             reasoning = llm_reasoning
         else:
-            # Smart fallback: match skills based on task keywords
-            task_lower = task.lower()
-            matched_skills = []
+            final_names, reasoning = self._keyword_fallback(task, ordered_skills, max_skills)
 
-            # Priority keyword mappings for common tasks
-            # IMPORTANT: claude-cli-llm should be the default for simple Q&A tasks
-            keyword_skill_map = {
-                ('file', 'create', 'write', 'save'): 'file-operations',
-                ('generate', 'llm', 'text', 'content'): 'claude-cli-llm',
-                ('search', 'web', 'find', 'lookup'): 'web-search',
-                ('terminal', 'shell', 'command', 'run'): 'terminal',
-                ('research', 'report'): 'research-to-pdf',
-                ('image', 'picture', 'photo'): 'image-generator',
-                ('calculate', 'math', 'compute', '+', '-', '*', '/', 'sum', 'add', 'multiply', 'divide'): 'claude-cli-llm',
-                ('what', 'how', 'why', 'explain', 'answer', 'tell', 'help'): 'claude-cli-llm',  # Q&A tasks
+        # Resolve to full skill dicts
+        name_set = set(final_names)
+        selected = [s for s in ordered_skills if s.get('name') in name_set]
+        if not selected and ordered_skills:
+            selected = ordered_skills[:max_skills]
+
+        # Order by LLM priorities
+        selected.sort(key=lambda s: -skill_priorities.get(s.get('name'), 0.5))
+
+        # Enrich with tool names from registry
+        selected = self._enrich_skills_with_tools(selected)
+
+        selected = selected[:max_skills]
+        logger.info(f"Selected {len(selected)} skills: {[s.get('name') for s in selected]}")
+        return selected, reasoning
+
+    def _format_skills_compact(self, skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Format skills compactly for LLM context (~5K tokens for 126 skills).
+
+        Each skill gets: name, short description, type, capabilities, and
+        for composite/derived: base_skills and hint.
+        """
+        formatted = []
+        for s in skills:
+            d = {
+                'name': s.get('name', ''),
+                'description': (s.get('description', '') or '')[:80],
+                'type': s.get('skill_type', 'base'),
+                'caps': s.get('capabilities', []),
             }
 
-            for keywords, skill_name in keyword_skill_map.items():
-                if any(kw in task_lower for kw in keywords):
-                    # Check if this skill is available
-                    for s in available_skills:
-                        if s.get('name') == skill_name:
-                            matched_skills.append(skill_name)
-                            break
+            base_skills = s.get('base_skills', [])
+            skill_type = s.get('skill_type', 'base')
 
-            if matched_skills:
-                final_names = matched_skills[:max_skills]
-                reasoning = f"Keyword-matched fallback: {matched_skills}"
-                logger.info(f"Keyword fallback matched: {matched_skills}")
-            else:
-                # Last resort: prefer claude-cli-llm for general Q&A, then first available
-                final_names = []
-                preferred_fallbacks = ['claude-cli-llm', 'calculator', 'web-search']
-                for preferred in preferred_fallbacks:
-                    for s in available_skills:
-                        if s.get('name') == preferred:
-                            final_names = [preferred]
-                            reasoning = f"Fallback: using {preferred} for general task"
-                            logger.info(f"Fallback to preferred skill: {preferred}")
-                            break
-                    if final_names:
-                        break
+            if skill_type == 'composite' and base_skills:
+                d['combines'] = base_skills
+                if s.get('execution_mode'):
+                    d['exec'] = s['execution_mode']
+            elif skill_type == 'derived' and base_skills:
+                d['extends'] = base_skills[0]
 
-                if not final_names:
-                    # True last resort: use first available skills
-                    final_names = [s.get('name') for s in available_skills[:max_skills]]
-                    reasoning = "Fallback: using first available skills"
+            if s.get('use_when'):
+                d['use_when'] = s['use_when'][:60]
 
-        # Filter to available skills
-        selected_skills = [s for s in available_skills if s.get('name') in final_names]
+            formatted.append(d)
+        return formatted
 
-        if not selected_skills and available_skills:
-            selected_skills = available_skills[:max_skills]
+    def _parse_selected_skills(self, raw) -> List[str]:
+        """Parse LLM output into list of skill names."""
+        import re
 
-        # Order skills by LLM-assigned priorities (no hardcoded flow order)
-        def get_skill_order(skill):
-            # Use LLM priority (higher priority = earlier execution)
-            priority = skill_priorities.get(skill.get('name'), 0.5)
-            return -priority  # Negate so higher priority comes first
+        selected_str = str(raw).strip()
 
-        selected_skills = sorted(selected_skills, key=get_skill_order)
-        logger.info(f"Ordered skills: {[s.get('name') for s in selected_skills]}")
+        # Strip markdown code blocks
+        if selected_str.startswith('```'):
+            match = re.search(r'```(?:json)?\s*\n(.*?)\n```', selected_str, re.DOTALL)
+            if match:
+                selected_str = match.group(1).strip()
 
-        # Enrich skills with tools from registry
-        selected_skills = self._enrich_skills_with_tools(selected_skills)
+        # Try JSON parse
+        try:
+            names = json.loads(selected_str)
+            if isinstance(names, list):
+                return [str(n) for n in names]
+            return [str(names)]
+        except (json.JSONDecodeError, ValueError):
+            pass
 
-        selected_skills = selected_skills[:max_skills]
+        # Fallback: extract quoted strings or skill-name-like patterns
+        names = re.findall(r'"([a-z0-9][a-z0-9-]*)"', selected_str)
+        if not names:
+            names = re.findall(r'\b([a-z][a-z0-9]+-[a-z0-9-]+)\b', selected_str)
+        return names
 
-        logger.info(f"Selected {len(selected_skills)} skills: {[s.get('name') for s in selected_skills]}")
-        return selected_skills, reasoning
+    def _keyword_fallback(
+        self, task: str, skills: List[Dict[str, Any]], max_skills: int
+    ) -> tuple[List[str], str]:
+        """Keyword-based fallback when LLM selection fails."""
+        task_lower = task.lower()
 
-    def _skill_matches_capabilities(
-        self,
-        skill: Dict[str, Any],
-        required_capabilities: List[str]
-    ) -> bool:
-        """
-        Check if a skill matches any of the required capabilities.
+        keyword_map = {
+            ('file', 'create', 'write', 'save'): 'file-operations',
+            ('generate', 'llm', 'text', 'content'): 'claude-cli-llm',
+            ('search', 'web', 'find', 'lookup'): 'web-search',
+            ('terminal', 'shell', 'command', 'run'): 'terminal',
+            ('research', 'report'): 'research-to-pdf',
+            ('image', 'picture', 'photo'): 'image-generator',
+            ('calculate', 'math', 'compute', 'sum', 'add', 'multiply'): 'claude-cli-llm',
+            ('what', 'how', 'why', 'explain', 'answer', 'tell', 'help'): 'claude-cli-llm',
+        }
 
-        A skill matches if:
-        1. It has capabilities defined and at least one matches, OR
-        2. It has no capabilities defined (legacy skill - include by default), OR
-        3. It's a composite/derived skill with base_skills (likely covers multiple capabilities)
+        available_names = {s.get('name') for s in skills}
+        matched = []
+        for keywords, skill_name in keyword_map.items():
+            if skill_name in available_names and any(kw in task_lower for kw in keywords):
+                matched.append(skill_name)
 
-        Args:
-            skill: Skill dict with 'capabilities', 'skill_type', 'base_skills' fields
-            required_capabilities: List of required capability strings
+        if matched:
+            return matched[:max_skills], f"Keyword fallback: {matched}"
 
-        Returns:
-            True if skill should be included
-        """
-        if not required_capabilities:
-            return True
+        # Last resort
+        for preferred in ['claude-cli-llm', 'calculator', 'web-search']:
+            if preferred in available_names:
+                return [preferred], f"Fallback: {preferred}"
 
-        required_set = set(c.lower() for c in required_capabilities)
-
-        # Check skill's own capabilities
-        skill_caps = skill.get('capabilities', [])
-        if skill_caps:
-            skill_caps_set = set(c.lower() for c in skill_caps)
-            if required_set & skill_caps_set:
-                return True
-
-        # Skills without capabilities - include by default but with lower priority
-        if not skill_caps:
-            return True
-
-        # Composite skills with base_skills likely cover multiple capabilities
-        if skill.get('skill_type') == 'composite' and skill.get('base_skills'):
-            return True
-
-        return False
+        return [skills[0].get('name')] if skills else [], "Fallback: first available"
 
     def _enrich_skills_with_tools(self, selected_skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Enrich skill dicts with tool names and descriptions from registry."""
+        """Enrich skill dicts with tool names from registry."""
         try:
             from ..registry.skills_registry import get_skills_registry
             registry = get_skills_registry()
@@ -281,14 +216,10 @@ class SkillSelectionMixin:
 
             enriched = []
             for skill_dict in selected_skills:
-                skill_name = skill_dict.get('name')
-                skill_obj = registry.get_skill(skill_name)
+                skill_obj = registry.get_skill(skill_dict.get('name'))
                 if skill_obj:
                     enriched_skill = skill_dict.copy()
-                    if skill_obj.tools:
-                        enriched_skill['tools'] = list(skill_obj.tools.keys())
-                    else:
-                        enriched_skill['tools'] = []
+                    enriched_skill['tools'] = list(skill_obj.tools.keys()) if skill_obj.tools else []
                     if not enriched_skill.get('description') and skill_obj.description:
                         enriched_skill['description'] = skill_obj.description
                     enriched.append(enriched_skill)
@@ -298,4 +229,3 @@ class SkillSelectionMixin:
         except Exception as e:
             logger.warning(f"Could not enrich skills: {e}")
             return selected_skills
-    

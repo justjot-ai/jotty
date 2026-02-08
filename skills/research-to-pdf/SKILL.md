@@ -29,6 +29,11 @@ sequential
 - **PDF Generation**: Professional PDF with proper formatting
 - **No API keys required**: Uses Jotty's built-in web search and Claude CLI
 
+
+## Capabilities
+- research
+- document
+
 ## Usage
 
 ```python

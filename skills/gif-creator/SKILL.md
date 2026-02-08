@@ -7,6 +7,10 @@ GIF creation toolkit using Pillow. Create animated GIFs from images, text animat
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### create_gif_from_images_tool

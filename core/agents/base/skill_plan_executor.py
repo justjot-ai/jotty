@@ -343,6 +343,7 @@ class SkillPlanExecutor:
         Resolve template variables in parameters.
 
         Supports ${step_key.field}, {step_key.field}, {{step_key}} formats.
+        Also handles aggregation of multiple research outputs.
 
         Args:
             params: Parameters with potential template variables
@@ -368,6 +369,17 @@ class SkillPlanExecutor:
                 pattern2 = r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}'
                 value = re.sub(pattern2, replacer, value)
 
+                # Post-resolution check: if value still contains unresolved
+                # research references, try to aggregate all research outputs
+                if '${research_' in value or '{research_' in value:
+                    aggregated = self._aggregate_research_outputs(outputs)
+                    if aggregated:
+                        value = re.sub(
+                            r'\$\{research_\d+\.results\}',
+                            aggregated,
+                            value,
+                        )
+
                 resolved[key] = value
 
             elif isinstance(value, dict):
@@ -382,6 +394,32 @@ class SkillPlanExecutor:
                 resolved[key] = value
 
         return resolved
+
+    def _aggregate_research_outputs(self, outputs: Dict[str, Any]) -> str:
+        """
+        Aggregate all research_* outputs into a formatted string for synthesis.
+        
+        Used when multiple research steps feed into a synthesis/summary step.
+        """
+        research_parts = []
+        for key in sorted(outputs.keys()):
+            if key.startswith('research_') and isinstance(outputs[key], dict):
+                result = outputs[key]
+                query = result.get('query', key)
+                results_list = result.get('results', [])
+                
+                if results_list:
+                    part = f"\n## Research: {query}\n"
+                    for i, r in enumerate(results_list[:5], 1):
+                        title = r.get('title', 'Untitled') if isinstance(r, dict) else str(r)
+                        snippet = r.get('snippet', '') if isinstance(r, dict) else ''
+                        url = r.get('url', '') if isinstance(r, dict) else ''
+                        part += f"\n### {i}. {title}\n{snippet}\n"
+                        if url:
+                            part += f"Source: {url}\n"
+                    research_parts.append(part)
+        
+        return '\n'.join(research_parts) if research_parts else ''
 
     def resolve_path(self, path: str, outputs: Dict[str, Any]) -> str:
         """

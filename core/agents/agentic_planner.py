@@ -636,6 +636,13 @@ JSON:"""
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
 
+            # Post-plan quality check: decompose composite skills for complex tasks
+            decomposed = self._maybe_decompose_plan(steps, skills, task, task_type)
+            if decomposed is not None:
+                logger.info(f"🔀 Plan decomposed: {len(steps)} steps → {len(decomposed)} steps")
+                steps = decomposed
+                reasoning = f"Decomposed for quality: {reasoning}"
+
             used_skills = {step.skill_name for step in steps}
             if len(steps) > 0:
                 logger.info(f"📋 Plan uses {len(used_skills)} skills: {used_skills}")
@@ -1020,6 +1027,211 @@ JSON:"""
             logger.error(f"Fallback replanning also failed: {e}")
             return [], f"All replanning failed: {e}", ""
 
+    # =========================================================================
+    # POST-PLAN QUALITY CHECK: Decompose composite skills for complex tasks
+    # =========================================================================
+
+    def _maybe_decompose_plan(
+        self,
+        steps: list,
+        skills: List[Dict[str, Any]],
+        task: str,
+        task_type,
+    ) -> Optional[list]:
+        """
+        Check if plan quality can be improved by decomposing composite skills.
+
+        For comparison/research tasks with 1-step composite plans, decompose
+        into granular steps for better quality (separate searches per entity,
+        dedicated synthesis, dedicated formatting).
+
+        Returns:
+            Decomposed steps list, or None if no decomposition needed.
+        """
+        if not steps or len(steps) > 2:
+            # Multi-step plans are already decomposed
+            return None
+
+        task_lower = task.lower()
+
+        # Detect comparison tasks
+        comparison_markers = ['vs', 'versus', 'compare', 'comparison', 'difference between', 'vs.']
+        is_comparison = any(m in task_lower for m in comparison_markers)
+
+        # Detect deep research tasks (multi-entity or requiring depth)
+        research_markers = ['research on', 'deep dive', 'comprehensive', 'detailed analysis']
+        is_deep_research = any(m in task_lower for m in research_markers)
+
+        if not is_comparison and not is_deep_research:
+            return None
+
+        # Check if current plan uses a composite skill
+        composite_skills = {'search-summarize-pdf-telegram', 'search-summarize-pdf-telegram-v2',
+                           'content-research-writer', 'content-pipeline'}
+        uses_composite = any(s.skill_name in composite_skills for s in steps)
+
+        if not uses_composite and len(steps) >= 2:
+            return None  # Already granular enough
+
+        # Extract entities from comparison task (e.g., "Paytm vs PhonePe")
+        entities = self._extract_comparison_entities(task)
+        if not entities:
+            entities = [task]  # Fallback: treat whole task as one entity
+
+        # Build available skill names for reference
+        available = {s.get('name', ''): s for s in skills}
+
+        # Build decomposed plan
+        ExecutionStep = _get_execution_step()
+        decomposed = []
+
+        # Detect delivery channels
+        delivery_skills = []
+        task_wants_pdf = any(w in task_lower for w in ['pdf', 'report', 'document'])
+        task_wants_telegram = 'telegram' in task_lower
+        task_wants_slack = 'slack' in task_lower
+
+        # Step(s): Research each entity separately
+        for i, entity in enumerate(entities[:4]):  # Max 4 entities
+            search_params = {
+                'query': entity.strip(),
+                'max_results': '5',
+            }
+            decomposed.append(ExecutionStep(
+                skill_name='web-search',
+                tool_name='search_web_tool',
+                params=search_params,
+                description=f'Research: {entity.strip()}',
+                output_key=f'research_{i}',
+                depends_on=[],
+            ))
+
+        # Step: Synthesize comparison using LLM
+        # Build content reference from previous steps
+        research_refs = ' '.join(
+            f'${{research_{i}.results}}' for i in range(len(entities[:4]))
+        )
+        entity_names = ' vs '.join(e.strip() for e in entities[:4])
+
+        synth_skill = 'claude-cli-llm' if 'claude-cli-llm' in available else 'summarize'
+        synth_tool = 'generate_text_tool' if synth_skill == 'claude-cli-llm' else 'summarize_text_tool'
+
+        decomposed.append(ExecutionStep(
+            skill_name=synth_skill,
+            tool_name=synth_tool,
+            params={
+                'prompt': (
+                    f'Create a detailed, structured comparison of {entity_names}. '
+                    f'Include: Executive Summary, Feature Comparison Table, '
+                    f'Pricing Comparison, Pros/Cons for each, and Recommendation. '
+                    f'Use the following research data:\n{research_refs}'
+                ),
+                'content': research_refs,
+                'topic': entity_names,
+            },
+            description=f'Synthesize structured comparison: {entity_names}',
+            output_key='synthesis',
+            depends_on=list(range(len(entities[:4]))),
+        ))
+
+        # Step: Generate PDF if requested
+        if task_wants_pdf or task_wants_telegram:
+            pdf_skill = 'simple-pdf-generator' if 'simple-pdf-generator' in available else 'document-converter'
+            pdf_tool = 'generate_pdf_tool' if pdf_skill == 'simple-pdf-generator' else 'convert_to_pdf_tool'
+            decomposed.append(ExecutionStep(
+                skill_name=pdf_skill,
+                tool_name=pdf_tool,
+                params={
+                    'content': '${synthesis.text}',
+                    'title': f'{entity_names} Comparison Report',
+                    'topic': entity_names,
+                },
+                description=f'Generate PDF report: {entity_names}',
+                output_key='pdf_output',
+                depends_on=[len(entities[:4])],  # Depends on synthesis step
+            ))
+
+        # Step: Send via Telegram if requested
+        if task_wants_telegram and 'telegram-sender' in available:
+            decomposed.append(ExecutionStep(
+                skill_name='telegram-sender',
+                tool_name='send_telegram_file_tool',
+                params={
+                    'file_path': '${pdf_output.pdf_path}',
+                    'caption': f'📊 {entity_names} Comparison Report',
+                },
+                description=f'Send comparison report via Telegram',
+                output_key='telegram_send',
+                depends_on=[len(decomposed) - 1],
+                optional=True,
+            ))
+
+        # Step: Send via Slack if requested
+        if task_wants_slack and 'slack' in available:
+            decomposed.append(ExecutionStep(
+                skill_name='slack',
+                tool_name='send_slack_message_tool',
+                params={
+                    'file_path': '${pdf_output.pdf_path}',
+                    'message': f'📊 {entity_names} Comparison Report',
+                },
+                description=f'Send comparison report via Slack',
+                output_key='slack_send',
+                depends_on=[len(decomposed) - 1],
+                optional=True,
+            ))
+
+        logger.info(f"🔀 Decomposed {len(steps)}-step composite plan → {len(decomposed)} granular steps")
+        for i, step in enumerate(decomposed):
+            logger.info(f"   Step {i+1}: {step.skill_name}/{step.tool_name} → {step.output_key}")
+
+        return decomposed
+
+    def _extract_comparison_entities(self, task: str) -> List[str]:
+        """
+        Extract entities being compared from task description.
+
+        Examples:
+            "Compare Paytm vs PhonePe" -> ["Paytm", "PhonePe"]
+            "Research Paytm vs PhonePe vs Razorpay" -> ["Paytm", "PhonePe", "Razorpay"]
+            "difference between React and Vue" -> ["React", "Vue"]
+        """
+        import re
+
+        # Normalize separators
+        task_clean = task
+
+        # Pattern 1: "X vs Y vs Z" or "X vs. Y"
+        vs_match = re.split(r'\b(?:vs\.?|versus)\b', task_clean, flags=re.IGNORECASE)
+        if len(vs_match) >= 2:
+            entities = []
+            for part in vs_match:
+                # Clean each part: remove common prefixes/suffixes
+                part = re.sub(r'^\s*(compare|research|analyze|research on|create|generate|send|make|build)\s+', '', part, flags=re.IGNORECASE)
+                part = re.sub(r'\s*(comparison|report|pdf|document|via telegram|via slack|and send|,.*$)\s*$', '', part, flags=re.IGNORECASE)
+                part = part.strip()
+                if part and len(part) > 1:
+                    entities.append(part)
+            if len(entities) >= 2:
+                return entities
+
+        # Pattern 2: "difference between X and Y"
+        between_match = re.search(
+            r'(?:difference|comparison)\s+between\s+(.+?)\s+and\s+(.+?)(?:\s*[,.]|\s+(?:and|create|generate|send|via))',
+            task_clean, flags=re.IGNORECASE
+        )
+        if between_match:
+            return [between_match.group(1).strip(), between_match.group(2).strip()]
+
+        # Pattern 3: "compare X and Y"
+        compare_match = re.search(
+            r'compare\s+(.+?)\s+and\s+(.+?)(?:\s*[,.]|\s+(?:create|generate|send|via)|$)',
+            task_clean, flags=re.IGNORECASE
+        )
+        if compare_match:
+            return [compare_match.group(1).strip(), compare_match.group(2).strip()]
+
+        return []
 
 
 @dataclass

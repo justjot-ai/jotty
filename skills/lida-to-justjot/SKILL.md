@@ -15,6 +15,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- visualize
+- data-fetch
+
 ## Workflow
 
 1. **Input**: DataFrame + Natural language question

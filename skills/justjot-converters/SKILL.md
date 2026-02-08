@@ -12,6 +12,10 @@ derived
 ## Base Skills
 - document-converter
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### arxiv_to_markdown_tool

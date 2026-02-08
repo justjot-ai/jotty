@@ -13,6 +13,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- data-fetch
+- communicate
+
 ## Tools
 
 ### `commodities_to_telegram_tool`

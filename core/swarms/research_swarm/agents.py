@@ -497,613 +497,95 @@ class TechnicalAnalysisAgent(BaseResearchAgent):
     """
     Technical Analysis Agent with multi-timeframe support.
 
-    Loads NSE data and calculates comprehensive technical indicators using pandas_ta.
-    Supports timeframes: 15minute, 30minute, 60minute, Day, Week
+    Thin wrapper around the ``technical-analysis`` skill.
+    Adds optional LLM-based summarization on top of the pure computation.
     """
-
-    TIMEFRAME_DIRS = {
-        '15minute': '15minuteData',
-        '30minute': '30minuteData',
-        '60minute': '60minuteData',
-        'day': 'DayData',
-        'week': 'WeekData',
-    }
-
-    # Indicator periods by category
-    INDICATOR_CONFIG = {
-        'trend': {
-            'sma': [20, 50, 200],
-            'ema': [9, 21],
-            'wma': [20],
-            'adx': 14,
-            'supertrend': {'length': 10, 'multiplier': 3},
-        },
-        'momentum': {
-            'rsi': 14,
-            'stoch': {'k': 14, 'd': 3, 'smooth_k': 3},
-            'cci': 20,
-            'willr': 14,
-            'mfi': 14,
-            'roc': 12,
-        },
-        'volatility': {
-            'bbands': {'length': 20, 'std': 2},
-            'atr': 14,
-            'kc': {'length': 20, 'scalar': 1.5},
-        },
-        'volume': {
-            'obv': True,
-            'vwap': True,
-            'pvt': True,
-            'ad': True,
-        },
-        'overlap': {
-            'ichimoku': {'tenkan': 9, 'kijun': 26, 'senkou': 52},
-        }
-    }
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None, data_path: str = None):
         super().__init__(memory, context, bus)
         self._llm = llm_module
         self.data_path = data_path or "/var/www/sites/personal/stock_market/common/Data/NSE/"
 
+    def _get_skill_tool(self):
+        """Lazy-load the technical-analysis skill tool."""
+        if not hasattr(self, '_skill_tool'):
+            try:
+                from Jotty.core.registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                registry.init()
+                skill = registry.get_skill('technical-analysis')
+                self._skill_tool = skill.tools.get('technical_analysis_tool') if skill else None
+            except Exception:
+                self._skill_tool = None
+        return self._skill_tool
+
     async def analyze(self, ticker: str, timeframes: List[str] = None) -> Dict[str, Any]:
         """
         Analyze ticker across multiple timeframes.
 
-        Args:
-            ticker: Stock symbol (e.g., 'RELIANCE')
-            timeframes: List of timeframes to analyze (default: ['60minute', 'Day'])
-
-        Returns:
-            Dict with technical signals, support/resistance, trend analysis
+        Delegates all computation to the ``technical-analysis`` skill and
+        optionally enriches the result with an LLM summary.
         """
         timeframes = timeframes or ['60minute', 'Day']
-        result = {
-            'ticker': ticker,
-            'timeframes': {},
-            'signals': {},
-            'support_levels': [],
-            'resistance_levels': [],
-            'trend': 'NEUTRAL',
-            'summary': {}
-        }
 
-        try:
-            import pandas as pd
-            # Try pandas_ta first, fallback to ta library
-            try:
-                import pandas_ta as ta
-                self._use_pandas_ta = True
-            except ImportError:
-                import ta
-                self._use_pandas_ta = False
-                logger.info("Using 'ta' library instead of pandas_ta")
-        except ImportError:
-            logger.warning("No technical analysis library available")
-            return result
+        tool_fn = self._get_skill_tool()
+        if tool_fn is not None:
+            loop = asyncio.get_event_loop()
+            skill_result = await loop.run_in_executor(
+                None, tool_fn, {
+                    'ticker': ticker,
+                    'timeframes': timeframes,
+                    'data_path': self.data_path,
+                },
+            )
+            if skill_result.get('success'):
+                result = skill_result['data']
+                result.setdefault('summary', {})
+            else:
+                result = self._empty_result(ticker)
+        else:
+            logger.warning("technical-analysis skill not available, returning empty result")
+            result = self._empty_result(ticker)
 
-        all_signals = []
-
-        for timeframe in timeframes:
-            try:
-                df = self._load_data(ticker, timeframe.lower())
-                if df is None or df.empty or len(df) < 60:
-                    logger.warning(f"Insufficient data for {ticker} @ {timeframe}")
-                    continue
-
-                # Add all technical indicators
-                df = self._add_all_indicators(df)
-
-                # Generate signals
-                signals = self._generate_signals(df, timeframe)
-                result['timeframes'][timeframe] = {
-                    'last_price': float(df['close'].iloc[-1]) if 'close' in df.columns else 0,
-                    'indicators': self._get_latest_indicators(df),
-                    'signals': signals
-                }
-
-                # Collect signals for overall trend
-                if signals.get('trend_signal'):
-                    all_signals.append(signals['trend_signal'])
-
-                # Extract support/resistance from pivot points
-                if 'pivot' in df.columns:
-                    s1 = df['s1'].iloc[-1] if 's1' in df.columns else None
-                    s2 = df['s2'].iloc[-1] if 's2' in df.columns else None
-                    r1 = df['r1'].iloc[-1] if 'r1' in df.columns else None
-                    r2 = df['r2'].iloc[-1] if 'r2' in df.columns else None
-
-                    if s1 and not pd.isna(s1): result['support_levels'].append(float(s1))
-                    if s2 and not pd.isna(s2): result['support_levels'].append(float(s2))
-                    if r1 and not pd.isna(r1): result['resistance_levels'].append(float(r1))
-                    if r2 and not pd.isna(r2): result['resistance_levels'].append(float(r2))
-
-            except Exception as e:
-                logger.warning(f"Technical analysis error for {ticker} @ {timeframe}: {e}")
-                continue
-
-        # Determine overall trend
-        if all_signals:
-            bullish = sum(1 for s in all_signals if s > 0)
-            bearish = sum(1 for s in all_signals if s < 0)
-            if bullish > bearish:
-                result['trend'] = 'BULLISH'
-            elif bearish > bullish:
-                result['trend'] = 'BEARISH'
-
-        # Deduplicate and sort support/resistance
-        result['support_levels'] = sorted(list(set(result['support_levels'])), reverse=True)[:5]
-        result['resistance_levels'] = sorted(list(set(result['resistance_levels'])))[:5]
-
-        # Generate summary using LLM if available
-        if self._llm and result['timeframes']:
+        # Optional LLM summary (agent-specific, not in skill)
+        if self._llm and result.get('timeframes'):
             try:
                 indicator_summary = json.dumps({
                     tf: data.get('indicators', {})
                     for tf, data in result['timeframes'].items()
                 }, indent=2)[:2000]
-
-                price_data = f"Support: {result['support_levels']}, Resistance: {result['resistance_levels']}"
-
+                price_data = f"Support: {result.get('support_levels', [])}, Resistance: {result.get('resistance_levels', [])}"
                 llm_result = self._llm(
                     ticker=ticker,
                     indicator_summary=indicator_summary,
-                    price_data=price_data
+                    price_data=price_data,
                 )
-
                 result['summary'] = {
                     'trend': str(llm_result.trend),
                     'signal_strength': float(llm_result.signal_strength) if llm_result.signal_strength else 0.5,
-                    'key_observations': [obs.strip() for obs in str(llm_result.key_observations).split('|')]
+                    'key_observations': [obs.strip() for obs in str(llm_result.key_observations).split('|')],
                 }
             except Exception as e:
                 logger.debug(f"LLM technical summary failed: {e}")
 
         self._broadcast("technical_analysis_complete", {
             'ticker': ticker,
-            'trend': result['trend'],
-            'timeframes': list(result['timeframes'].keys())
+            'trend': result.get('trend', 'NEUTRAL'),
+            'timeframes': list(result.get('timeframes', {}).keys()),
         })
-
         return result
 
-    def _load_data(self, ticker: str, timeframe: str) -> 'pd.DataFrame':
-        """Load OHLCV data from NSE data files."""
-        import pandas as pd
-
-        timeframe_dir = self.TIMEFRAME_DIRS.get(timeframe.lower())
-        if not timeframe_dir:
-            logger.warning(f"Unknown timeframe: {timeframe}")
-            return None
-
-        data_dir = Path(self.data_path) / timeframe_dir
-        if not data_dir.exists():
-            logger.warning(f"Data directory not found: {data_dir}")
-            return None
-
-        # Find matching files for the ticker
-        pattern = f"*-{ticker}-*.csv.gz"
-        files = list(data_dir.glob(pattern))
-
-        # Also try without hyphen (for indices like NIFTY 50)
-        if not files:
-            pattern = f"*{ticker}*.csv.gz"
-            files = list(data_dir.glob(pattern))
-
-        if not files:
-            logger.warning(f"No data files found for {ticker} in {data_dir}")
-            return None
-
-        # Sort by year (filename starts with year)
-        files = sorted(files, key=lambda f: f.name)
-
-        # Load recent files (last 2-3 years for daily, last year for intraday)
-        recent_files = files[-3:] if timeframe == 'day' else files[-1:]
-
-        dfs = []
-        for file in recent_files:
-            try:
-                df = pd.read_csv(file, compression='gzip', on_bad_lines='skip')
-                dfs.append(df)
-            except Exception as e:
-                logger.debug(f"Failed to read {file}: {e}")
-
-        if not dfs:
-            return None
-
-        df = pd.concat(dfs, ignore_index=True)
-
-        # Standardize column names (lowercase)
-        df.columns = df.columns.str.lower()
-
-        # Remove duplicate columns (keep first)
-        df = df.loc[:, ~df.columns.duplicated()]
-
-        # Ensure required columns
-        required = ['date', 'open', 'high', 'low', 'close', 'volume']
-        if not all(col in df.columns for col in required):
-            logger.warning(f"Missing required columns in data for {ticker}")
-            return None
-
-        # Parse dates and set index
-        date_col = df['date'].copy()
-        # Handle timezone-aware dates
-        if date_col.dtype == 'object':
-            date_col = pd.to_datetime(date_col, errors='coerce', utc=True)
-            if date_col.dt.tz is not None:
-                date_col = date_col.dt.tz_localize(None)
-        else:
-            date_col = pd.to_datetime(date_col, errors='coerce')
-
-        df['date'] = date_col
-        df = df.dropna(subset=['date'])
-        df = df.set_index('date')
-        df = df.sort_index()
-        df = df[~df.index.duplicated(keep='last')]
-
-        # Convert to float
-        for col in ['open', 'high', 'low', 'close', 'volume']:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        df = df.dropna(subset=['open', 'high', 'low', 'close'])
-
-        # Return recent data
-        return df.tail(500)
-
-    def _add_all_indicators(self, df: 'pd.DataFrame') -> 'pd.DataFrame':
-        """Add all technical indicators using pandas_ta or ta library."""
-        try:
-            if getattr(self, '_use_pandas_ta', True):
-                return self._add_indicators_pandas_ta(df)
-            else:
-                return self._add_indicators_ta(df)
-        except Exception as e:
-            logger.warning(f"Error adding indicators: {e}")
-            return df
-
-    def _add_indicators_pandas_ta(self, df: 'pd.DataFrame') -> 'pd.DataFrame':
-        """Add indicators using pandas_ta library."""
-        import pandas_ta as ta
-
-        try:
-            # Trend Indicators
-            for period in self.INDICATOR_CONFIG['trend']['sma']:
-                df[f'sma_{period}'] = ta.sma(df['close'], length=period)
-
-            for period in self.INDICATOR_CONFIG['trend']['ema']:
-                df[f'ema_{period}'] = ta.ema(df['close'], length=period)
-
-            # ADX
-            adx_df = ta.adx(df['high'], df['low'], df['close'], length=14)
-            if adx_df is not None:
-                df = df.join(adx_df)
-
-            # MACD
-            macd_df = ta.macd(df['close'], fast=12, slow=26, signal=9)
-            if macd_df is not None:
-                df = df.join(macd_df)
-
-            # SuperTrend
-            st_config = self.INDICATOR_CONFIG['trend']['supertrend']
-            st_df = ta.supertrend(df['high'], df['low'], df['close'],
-                                  length=st_config['length'], multiplier=st_config['multiplier'])
-            if st_df is not None:
-                df = df.join(st_df)
-
-            # Momentum Indicators
-            df['rsi'] = ta.rsi(df['close'], length=14)
-
-            stoch_df = ta.stoch(df['high'], df['low'], df['close'], k=14, d=3, smooth_k=3)
-            if stoch_df is not None:
-                df = df.join(stoch_df)
-
-            df['cci'] = ta.cci(df['high'], df['low'], df['close'], length=20)
-            df['willr'] = ta.willr(df['high'], df['low'], df['close'], length=14)
-            df['mfi'] = ta.mfi(df['high'], df['low'], df['close'], df['volume'], length=14)
-            df['roc'] = ta.roc(df['close'], length=12)
-
-            # Volatility Indicators
-            bb_df = ta.bbands(df['close'], length=20, std=2)
-            if bb_df is not None:
-                df = df.join(bb_df)
-
-            df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=14)
-
-            kc_df = ta.kc(df['high'], df['low'], df['close'], length=20, scalar=1.5)
-            if kc_df is not None:
-                df = df.join(kc_df)
-
-            # Volume Indicators
-            df['obv'] = ta.obv(df['close'], df['volume'])
-            df['vwap'] = ta.vwap(df['high'], df['low'], df['close'], df['volume'])
-            df['pvt'] = ta.pvt(df['close'], df['volume'])
-            df['ad'] = ta.ad(df['high'], df['low'], df['close'], df['volume'])
-
-            # Ichimoku Cloud
-            ichi_df = ta.ichimoku(df['high'], df['low'], df['close'], tenkan=9, kijun=26, senkou=52)
-            if ichi_df is not None and len(ichi_df) == 2:
-                df = df.join(ichi_df[0])
-
-            # Pivot Points for support/resistance
-            pivot_df = ta.pivot(df['high'], df['low'], df['close'])
-            if pivot_df is not None:
-                pivot_df.columns = [c.lower().replace('_', '') for c in pivot_df.columns]
-                for col in pivot_df.columns:
-                    df[col] = pivot_df[col]
-
-        except Exception as e:
-            logger.warning(f"Error adding pandas_ta indicators: {e}")
-
-        return df
-
-    def _add_indicators_ta(self, df: 'pd.DataFrame') -> 'pd.DataFrame':
-        """Add indicators using ta library (fallback)."""
-        import ta
-        import numpy as np
-
-        try:
-            # Trend Indicators
-            for period in self.INDICATOR_CONFIG['trend']['sma']:
-                df[f'sma_{period}'] = ta.trend.sma_indicator(df['close'], window=period)
-
-            for period in self.INDICATOR_CONFIG['trend']['ema']:
-                df[f'ema_{period}'] = ta.trend.ema_indicator(df['close'], window=period)
-
-            # ADX
-            adx_indicator = ta.trend.ADXIndicator(df['high'], df['low'], df['close'], window=14)
-            df['ADX_14'] = adx_indicator.adx()
-            df['DMP_14'] = adx_indicator.adx_pos()
-            df['DMN_14'] = adx_indicator.adx_neg()
-
-            # MACD
-            macd_indicator = ta.trend.MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
-            df['MACD_12_26_9'] = macd_indicator.macd()
-            df['MACDs_12_26_9'] = macd_indicator.macd_signal()
-            df['MACDh_12_26_9'] = macd_indicator.macd_diff()
-
-            # RSI
-            df['rsi'] = ta.momentum.rsi(df['close'], window=14)
-
-            # Stochastic
-            stoch = ta.momentum.StochasticOscillator(df['high'], df['low'], df['close'], window=14, smooth_window=3)
-            df['STOCHk_14_3_3'] = stoch.stoch()
-            df['STOCHd_14_3_3'] = stoch.stoch_signal()
-
-            # CCI
-            df['cci'] = ta.trend.cci(df['high'], df['low'], df['close'], window=20)
-
-            # Williams %R
-            df['willr'] = ta.momentum.williams_r(df['high'], df['low'], df['close'], lbp=14)
-
-            # MFI
-            df['mfi'] = ta.volume.money_flow_index(df['high'], df['low'], df['close'], df['volume'], window=14)
-
-            # ROC
-            df['roc'] = ta.momentum.roc(df['close'], window=12)
-
-            # Bollinger Bands
-            bb = ta.volatility.BollingerBands(df['close'], window=20, window_dev=2)
-            df['BBL_20_2.0'] = bb.bollinger_lband()
-            df['BBM_20_2.0'] = bb.bollinger_mavg()
-            df['BBU_20_2.0'] = bb.bollinger_hband()
-
-            # ATR
-            df['atr'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14)
-
-            # Keltner Channels
-            kc = ta.volatility.KeltnerChannel(df['high'], df['low'], df['close'], window=20)
-            df['KCL_20'] = kc.keltner_channel_lband()
-            df['KCM_20'] = kc.keltner_channel_mband()
-            df['KCU_20'] = kc.keltner_channel_hband()
-
-            # Volume Indicators
-            df['obv'] = ta.volume.on_balance_volume(df['close'], df['volume'])
-            df['vwap'] = ta.volume.volume_weighted_average_price(df['high'], df['low'], df['close'], df['volume'])
-            df['ad'] = ta.volume.acc_dist_index(df['high'], df['low'], df['close'], df['volume'])
-
-            # Ichimoku
-            ichimoku = ta.trend.IchimokuIndicator(df['high'], df['low'], window1=9, window2=26, window3=52)
-            df['ITS_9'] = ichimoku.ichimoku_conversion_line()
-            df['IKS_26'] = ichimoku.ichimoku_base_line()
-            df['ISA_9'] = ichimoku.ichimoku_a()
-            df['ISB_26'] = ichimoku.ichimoku_b()
-
-            # Simple pivot points calculation
-            pp = (df['high'].shift(1) + df['low'].shift(1) + df['close'].shift(1)) / 3
-            df['pivot'] = pp
-            df['s1'] = 2 * pp - df['high'].shift(1)
-            df['s2'] = pp - (df['high'].shift(1) - df['low'].shift(1))
-            df['r1'] = 2 * pp - df['low'].shift(1)
-            df['r2'] = pp + (df['high'].shift(1) - df['low'].shift(1))
-
-            # SuperTrend calculation (manual since ta library doesn't have it)
-            atr = df['atr']
-            hl2 = (df['high'] + df['low']) / 2
-            multiplier = 3
-            upper_band = hl2 + (multiplier * atr)
-            lower_band = hl2 - (multiplier * atr)
-
-            supertrend = np.zeros(len(df))
-            supertrend[0] = upper_band.iloc[0]
-
-            for i in range(1, len(df)):
-                if df['close'].iloc[i] > supertrend[i-1]:
-                    supertrend[i] = max(lower_band.iloc[i], supertrend[i-1]) if supertrend[i-1] == lower_band.iloc[i-1] or supertrend[i-1] < lower_band.iloc[i] else lower_band.iloc[i]
-                else:
-                    supertrend[i] = min(upper_band.iloc[i], supertrend[i-1]) if supertrend[i-1] == upper_band.iloc[i-1] or supertrend[i-1] > upper_band.iloc[i] else upper_band.iloc[i]
-
-            df['SUPERT_10_3.0'] = supertrend
-
-        except Exception as e:
-            logger.warning(f"Error adding ta library indicators: {e}")
-
-        return df
-
-    def _generate_signals(self, df: 'pd.DataFrame', timeframe: str) -> Dict[str, Any]:
-        """Generate trading signals from indicators."""
-        signals = {
-            'trend_signal': 0,  # -1 (bearish) to 1 (bullish)
-            'momentum_signal': 0,
-            'volatility_signal': 0,
-            'buy_signals': [],
-            'sell_signals': [],
-            'observations': []
+    @staticmethod
+    def _empty_result(ticker: str) -> Dict[str, Any]:
+        return {
+            'ticker': ticker,
+            'timeframes': {},
+            'signals': {},
+            'support_levels': [],
+            'resistance_levels': [],
+            'trend': 'NEUTRAL',
+            'summary': {},
         }
-
-        if df.empty:
-            return signals
-
-        latest = df.iloc[-1]
-        prev = df.iloc[-2] if len(df) > 1 else latest
-
-        try:
-            # Trend signals
-            trend_score = 0
-
-            # SMA crossover (golden/death cross)
-            if 'sma_50' in df.columns and 'sma_200' in df.columns:
-                if latest['sma_50'] > latest['sma_200']:
-                    trend_score += 1
-                    if prev['sma_50'] <= prev['sma_200']:
-                        signals['buy_signals'].append('Golden Cross (SMA50 > SMA200)')
-                else:
-                    trend_score -= 1
-                    if prev['sma_50'] >= prev['sma_200']:
-                        signals['sell_signals'].append('Death Cross (SMA50 < SMA200)')
-
-            # Price vs SMA200
-            if 'sma_200' in df.columns:
-                if latest['close'] > latest['sma_200']:
-                    trend_score += 0.5
-                else:
-                    trend_score -= 0.5
-
-            # MACD
-            if 'MACD_12_26_9' in df.columns and 'MACDs_12_26_9' in df.columns:
-                if latest['MACD_12_26_9'] > latest['MACDs_12_26_9']:
-                    trend_score += 0.5
-                    if prev['MACD_12_26_9'] <= prev['MACDs_12_26_9']:
-                        signals['buy_signals'].append('MACD Bullish Crossover')
-                else:
-                    trend_score -= 0.5
-                    if prev['MACD_12_26_9'] >= prev['MACDs_12_26_9']:
-                        signals['sell_signals'].append('MACD Bearish Crossover')
-
-            # ADX
-            if 'ADX_14' in df.columns:
-                adx = latest['ADX_14']
-                if adx > 25:
-                    signals['observations'].append(f'Strong trend (ADX={adx:.1f})')
-                elif adx < 20:
-                    signals['observations'].append(f'Weak trend (ADX={adx:.1f})')
-
-            # SuperTrend
-            supert_col = [c for c in df.columns if c.startswith('SUPERT_')]
-            if supert_col:
-                if latest['close'] > latest[supert_col[0]]:
-                    trend_score += 0.5
-                else:
-                    trend_score -= 0.5
-
-            signals['trend_signal'] = max(-1, min(1, trend_score / 3))
-
-            # Momentum signals
-            momentum_score = 0
-
-            # RSI
-            if 'rsi' in df.columns:
-                rsi = latest['rsi']
-                if rsi > 70:
-                    momentum_score -= 1
-                    signals['sell_signals'].append(f'RSI Overbought ({rsi:.1f})')
-                elif rsi < 30:
-                    momentum_score += 1
-                    signals['buy_signals'].append(f'RSI Oversold ({rsi:.1f})')
-                elif rsi > 50:
-                    momentum_score += 0.3
-                else:
-                    momentum_score -= 0.3
-
-            # MFI
-            if 'mfi' in df.columns:
-                mfi = latest['mfi']
-                if mfi > 80:
-                    momentum_score -= 0.5
-                elif mfi < 20:
-                    momentum_score += 0.5
-
-            # Stochastic
-            if 'STOCHk_14_3_3' in df.columns and 'STOCHd_14_3_3' in df.columns:
-                stoch_k = latest['STOCHk_14_3_3']
-                stoch_d = latest['STOCHd_14_3_3']
-                if stoch_k < 20 and stoch_k > stoch_d:
-                    momentum_score += 0.5
-                    signals['buy_signals'].append('Stochastic Bullish (oversold)')
-                elif stoch_k > 80 and stoch_k < stoch_d:
-                    momentum_score -= 0.5
-                    signals['sell_signals'].append('Stochastic Bearish (overbought)')
-
-            signals['momentum_signal'] = max(-1, min(1, momentum_score / 2))
-
-            # Volatility signals
-            if 'BBL_20_2.0' in df.columns and 'BBU_20_2.0' in df.columns:
-                bb_lower = latest['BBL_20_2.0']
-                bb_upper = latest['BBU_20_2.0']
-                bb_mid = latest.get('BBM_20_2.0', (bb_lower + bb_upper) / 2)
-
-                if latest['close'] <= bb_lower:
-                    signals['volatility_signal'] = 1  # Potential bounce
-                    signals['observations'].append('Price at lower Bollinger Band')
-                elif latest['close'] >= bb_upper:
-                    signals['volatility_signal'] = -1  # Potential pullback
-                    signals['observations'].append('Price at upper Bollinger Band')
-
-        except Exception as e:
-            logger.debug(f"Signal generation error: {e}")
-
-        return signals
-
-    def _get_latest_indicators(self, df: 'pd.DataFrame') -> Dict[str, Any]:
-        """Extract latest indicator values."""
-        import pandas as pd
-
-        if df.empty:
-            return {}
-
-        latest = df.iloc[-1]
-        indicators = {}
-
-        indicator_cols = [
-            'rsi', 'mfi', 'cci', 'willr', 'roc', 'atr', 'obv', 'vwap',
-            'sma_20', 'sma_50', 'sma_200', 'ema_9', 'ema_21'
-        ]
-
-        for col in indicator_cols:
-            if col in df.columns and not pd.isna(latest[col]):
-                indicators[col] = round(float(latest[col]), 2)
-
-        # MACD
-        if 'MACD_12_26_9' in df.columns:
-            indicators['macd'] = round(float(latest['MACD_12_26_9']), 2) if not pd.isna(latest['MACD_12_26_9']) else None
-            indicators['macd_signal'] = round(float(latest.get('MACDs_12_26_9', 0)), 2) if not pd.isna(latest.get('MACDs_12_26_9')) else None
-
-        # ADX
-        if 'ADX_14' in df.columns:
-            indicators['adx'] = round(float(latest['ADX_14']), 2) if not pd.isna(latest['ADX_14']) else None
-
-        # Bollinger Bands
-        if 'BBL_20_2.0' in df.columns:
-            indicators['bb_lower'] = round(float(latest['BBL_20_2.0']), 2) if not pd.isna(latest['BBL_20_2.0']) else None
-            indicators['bb_upper'] = round(float(latest['BBU_20_2.0']), 2) if not pd.isna(latest['BBU_20_2.0']) else None
-
-        # Stochastic
-        if 'STOCHk_14_3_3' in df.columns:
-            indicators['stoch_k'] = round(float(latest['STOCHk_14_3_3']), 2) if not pd.isna(latest['STOCHk_14_3_3']) else None
-            indicators['stoch_d'] = round(float(latest.get('STOCHd_14_3_3', 0)), 2) if not pd.isna(latest.get('STOCHd_14_3_3')) else None
-
-        return indicators
 
 
 class EnhancedChartGeneratorAgent(BaseResearchAgent):

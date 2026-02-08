@@ -15,6 +15,10 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+
 ## Workflow
 
 1. **Source**: Search web for topic information

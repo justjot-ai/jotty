@@ -10,6 +10,10 @@ derived
 ## Base Skills
 - claude-cli-llm
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### repurpose_content_tool

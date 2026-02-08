@@ -7,6 +7,10 @@ Comprehensive PDF toolkit for extracting, manipulating, and creating PDF files. 
 ## Type
 base
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### extract_text_tool

@@ -7,6 +7,10 @@ Uploads PDFs to reMarkable cloud for syncing to device. Supports registration, u
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Tools
 
 ### upload_to_remarkable_tool

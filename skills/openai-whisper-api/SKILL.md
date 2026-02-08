@@ -7,6 +7,10 @@ Speech-to-text transcription and translation using OpenAI's Whisper API. Support
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### transcribe_audio_tool

@@ -7,6 +7,10 @@ Provides process management capabilities: list running processes, get process de
 ## Type
 base
 
+
+## Capabilities
+- code
+
 ## Tools
 
 ### list_processes_tool

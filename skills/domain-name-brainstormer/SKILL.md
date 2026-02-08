@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - web-search
 
+
+## Capabilities
+- research
+
 ## Tools
 
 ### `brainstorm_domains_tool`

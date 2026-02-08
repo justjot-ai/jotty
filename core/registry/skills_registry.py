@@ -828,10 +828,78 @@ class SkillsRegistry:
                                 tools[attr_name] = attr
         except Exception as e:
             logger.error(f"Error loading tools from {tools_file}: {e}")
+
+            # Retry once with isolated import (handles missing imports at module level)
+            retry_tools = self._retry_load_with_isolation(tools_file, e)
+            if retry_tools:
+                logger.info(f"✅ Retry succeeded for {tools_file.parent.name}: {len(retry_tools)} tools loaded")
+                return retry_tools
+
+            # Track failed skills for diagnostics
+            if not hasattr(self, '_failed_skills'):
+                self._failed_skills = {}
+            skill_name = tools_file.parent.name
+            self._failed_skills[skill_name] = str(e)
+            logger.warning(f"⚠️ Skill '{skill_name}' failed to load: {e}. "
+                          f"Fix: check imports in {tools_file}")
+
             # Fallback: create mock tools based on file content
             tools = self._create_mock_tools_from_file(tools_file)
         
         return tools
+    
+    def _retry_load_with_isolation(self, tools_file: Path, original_error: Exception) -> Optional[Dict[str, Callable]]:
+        """
+        Retry loading a tools module after attempting to fix common import issues.
+        
+        Common issues:
+        - Missing SkillStatus import → inject it before retrying
+        - Missing optional dependencies → skip gracefully
+        """
+        import sys
+        import importlib.util
+        
+        try:
+            # Read the source to check for common fixable issues
+            source = tools_file.read_text()
+            error_str = str(original_error)
+            
+            # If the error is a NameError for a known symbol, try injecting it
+            if 'SkillStatus' in error_str and 'SkillStatus' not in source.split('import')[-1] if 'import' in source else True:
+                logger.info(f"Retrying {tools_file.parent.name} with SkillStatus injection...")
+                
+                # Load with the missing name pre-injected
+                spec = importlib.util.spec_from_file_location(
+                    f"skill_tools_retry_{tools_file.parent.name}", tools_file
+                )
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    # Pre-inject SkillStatus
+                    try:
+                        from ..utils.skill_status import SkillStatus
+                        module.SkillStatus = SkillStatus
+                    except ImportError:
+                        pass
+                    
+                    spec.loader.exec_module(module)
+                    
+                    tools = {}
+                    for attr_name in dir(module):
+                        if not attr_name.startswith("_"):
+                            attr = getattr(module, attr_name)
+                            if callable(attr):
+                                if hasattr(attr, "execute") or attr_name.endswith("_tool"):
+                                    tools[attr_name] = attr
+                    if tools:
+                        return tools
+        except Exception as retry_e:
+            logger.debug(f"Retry also failed for {tools_file.parent.name}: {retry_e}")
+        
+        return None
+    
+    def get_failed_skills(self) -> Dict[str, str]:
+        """Return dict of skill_name -> error_message for skills that failed to load."""
+        return getattr(self, '_failed_skills', {})
     
     def _create_mock_tools_from_file(self, tools_file: Path) -> Dict[str, Callable]:
         """
@@ -1106,6 +1174,106 @@ class SkillsRegistry:
         for skill in self.loaded_skills.values():
             counts[skill.skill_type.value] += 1
         return counts
+
+    def discover(self, task: str, max_results: int = 50) -> List[Dict[str, Any]]:
+        """
+        Discover relevant skills for a task using keyword + capability scoring.
+
+        This is THE single discovery method. Scores each skill by:
+        - Name keyword match (+3 per word)
+        - Description keyword match (+1 per word)
+        - Capability keyword match (+2 per capability)
+        - Type boost: composite +2, derived +1
+
+        Returns all matched skills sorted by score, padded with unmatched
+        skills up to max_results so the LLM has diverse options.
+
+        Args:
+            task: Task description
+            max_results: Maximum skills to return (default: 50)
+
+        Returns:
+            List of skill dicts sorted by relevance score (descending)
+        """
+        task_lower = task.lower()
+
+        stop_words = {
+            'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is',
+            'to', 'of', 'in', 'on', 'a', 'an',
+        }
+        task_words = set(
+            w for w in task_lower.split()
+            if len(w) > 2 and w not in stop_words
+        )
+        # Simple stemming: "slides" -> "slide"
+        stemmed = set(task_words)
+        for w in task_words:
+            if w.endswith('s') and len(w) > 3:
+                stemmed.add(w[:-1])
+
+        scored = []
+        unmatched = []
+
+        for skill in self.loaded_skills.values():
+            name_lower = skill.name.lower()
+            desc_lower = (skill.description or '').lower()
+
+            score = 0
+            for word in stemmed:
+                if word in name_lower:
+                    score += 3
+                if word in desc_lower:
+                    score += 1
+
+            # Capability match: boost if any capability keyword appears in task
+            for cap in skill.capabilities:
+                if cap.lower() in task_lower:
+                    score += 2
+
+            if score > 0:
+                # Type boost: pre-built workflows and specialized skills are preferred
+                if skill.skill_type == SkillType.COMPOSITE:
+                    score += 2
+                elif skill.skill_type == SkillType.DERIVED:
+                    score += 1
+
+                scored.append((score, skill))
+            else:
+                unmatched.append(skill)
+
+        # Sort matched by score descending
+        scored.sort(key=lambda x: -x[0])
+
+        # Build output: matched first, then unmatched to fill up
+        results = []
+        for score, skill in scored:
+            results.append(self._skill_to_discovery_dict(skill, score))
+
+        for skill in unmatched:
+            if len(results) >= max_results:
+                break
+            results.append(self._skill_to_discovery_dict(skill, 0))
+
+        return results[:max_results]
+
+    def _skill_to_discovery_dict(self, skill: 'SkillDefinition', score: int = 0) -> Dict[str, Any]:
+        """Convert a SkillDefinition to a dict for discovery output."""
+        tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+        d = {
+            'name': skill.name,
+            'description': skill.description or skill.name,
+            'category': skill.category,
+            'tools': tool_names,
+            'skill_type': skill.skill_type.value,
+            'base_skills': skill.base_skills,
+            'capabilities': skill.capabilities,
+            'relevance_score': score,
+        }
+        if skill.skill_type == SkillType.COMPOSITE and skill.execution_mode:
+            d['execution_mode'] = skill.execution_mode
+        if skill.use_when:
+            d['use_when'] = skill.use_when
+        return d
 
     def filter_skills_by_capabilities(
         self,

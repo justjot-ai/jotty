@@ -10,6 +10,11 @@ Comprehensive browser automation supporting navigation, screenshots, form fillin
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+- code
+
 ## Features
 
 - Navigate to URLs with JS rendering

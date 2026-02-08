@@ -7,6 +7,10 @@ Downloads YouTube video transcripts and converts them to markdown/PDF/EPUB. Supp
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### download_youtube_video_tool

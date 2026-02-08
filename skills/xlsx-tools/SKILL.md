@@ -7,6 +7,10 @@ Excel file manipulation toolkit using openpyxl and pandas. Provides tools for re
 ## Type
 base
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### read_excel_tool

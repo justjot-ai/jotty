@@ -6,13 +6,9 @@
 ## Type
 base
 
+
 ## Capabilities
-- Automatic data type detection
-- Missing value analysis
-- Distribution analysis
-- Correlation analysis
-- Outlier detection
-- Data quality scoring
+- analyze
 
 ## Tools
 - `profile_data_tool`: Full data profiling report

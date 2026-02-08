@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- code
+- document
+
 ## Tools
 
 ### `init_artifact_project_tool`

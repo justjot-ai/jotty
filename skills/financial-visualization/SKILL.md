@@ -16,6 +16,11 @@ derived
 ## Base Skills
 - image-generator
 
+
+## Capabilities
+- visualize
+- data-fetch
+
 ## Tools
 
 ### `generate_intelligent_charts_tool` ⭐ **BEST OF AI**

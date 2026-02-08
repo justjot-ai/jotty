@@ -7,6 +7,11 @@ Provides file-based tools for interacting with Obsidian markdown vaults. Support
 ## Type
 base
 
+
+## Capabilities
+- document
+- file-ops
+
 ## Configuration
 Set the default vault path via environment variable:
 ```bash

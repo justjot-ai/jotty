@@ -10,6 +10,7 @@ derived
 ## Base Skills
 - pptx-editor
 
+
 ## Capabilities
 - visualize
 - document

@@ -140,11 +140,11 @@ class AutonomousAgent(BaseAgent):
 
     async def _discover_skills(self, task: str) -> List[Dict[str, Any]]:
         """
-        Discover relevant skills with autonomous-specific filtering.
+        Get all skills with autonomous-specific exclusion filtering.
 
-        Uses BaseAgent.discover_skills() for keyword matching, then applies
+        Gets full skill catalog from BaseAgent.discover_skills(), then applies
         excluded_skills (from executor, single source of truth) and category
-        filter on top.
+        filter. The LLM in select_skills() handles semantic matching.
 
         Args:
             task: Task description
@@ -154,7 +154,7 @@ class AutonomousAgent(BaseAgent):
         """
         config: AutonomousAgentConfig = self.config
 
-        # Use BaseAgent's keyword-based discovery
+        # Get full skill catalog
         all_skills = self.discover_skills(task)
 
         # Get exclusions from executor (single source of truth)
@@ -255,6 +255,13 @@ class AutonomousAgent(BaseAgent):
         _status("Discovering", "finding relevant skills")
         all_skills = await self._discover_skills(task)
         _status("Skills found", f"{len(all_skills)} potential")
+
+        # Report any skills that failed to load (helps debugging)
+        if self.skills_registry and hasattr(self.skills_registry, 'get_failed_skills'):
+            failed = self.skills_registry.get_failed_skills()
+            if failed:
+                _status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
+                logger.warning(f"Failed skills: {failed}")
 
         # Step 3: Select best skills
         _status("Selecting", "choosing best skills")

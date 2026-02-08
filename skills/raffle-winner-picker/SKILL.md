@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - calculator
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### `pick_raffle_winner_tool`

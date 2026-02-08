@@ -19,6 +19,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- document
+- research
+
 ## Tools
 
 ### run_pipeline_tool

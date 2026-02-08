@@ -17,6 +17,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- document
+
 ## Tools
 
 ### `research_and_document_tool`

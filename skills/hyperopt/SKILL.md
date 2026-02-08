@@ -9,11 +9,9 @@ derived
 ## Base Skills
 - automl
 
+
 ## Capabilities
-- Bayesian hyperparameter optimization
-- Multi-objective optimization
-- Pruning of unpromising trials
-- Parallel optimization support
+- analyze
 
 ## Tools
 - `hyperopt_optimize`: Optimize model hyperparameters

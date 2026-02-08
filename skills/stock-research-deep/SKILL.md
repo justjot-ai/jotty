@@ -25,6 +25,13 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- data-fetch
+- document
+- communicate
+
 ## How Deep Research Works
 
 ### Context Intelligence

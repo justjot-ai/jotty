@@ -17,6 +17,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- data-fetch
+
 ## Tools
 
 ### `capture_knowledge_to_notion_tool`

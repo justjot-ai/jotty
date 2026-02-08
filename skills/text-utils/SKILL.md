@@ -7,6 +7,10 @@ Provides text manipulation, encoding/decoding, formatting, and text processing u
 ## Type
 base
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### encode_text_tool

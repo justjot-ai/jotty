@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - image-generator
 
+
+## Capabilities
+- document
+- media
+
 ## Tools
 
 ### `apply_brand_styling_tool`

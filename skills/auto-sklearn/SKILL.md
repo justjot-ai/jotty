@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - claude-cli-llm
 
+
 ## Capabilities
-- Automated algorithm selection
-- Hyperparameter optimization
-- Ensemble construction
-- Meta-learning warmstart
-- Time-based budget control
+- analyze
 
 ## Tools
 - `autosklearn_classify_tool`: AutoML classification

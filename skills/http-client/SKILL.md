@@ -7,6 +7,10 @@ Provides advanced HTTP request capabilities: GET, POST, PUT, DELETE requests wit
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+
 ## Tools
 
 ### http_get_tool

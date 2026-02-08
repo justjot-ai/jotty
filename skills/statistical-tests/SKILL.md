@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- T-tests (one-sample, two-sample, paired)
-- ANOVA (one-way, two-way)
-- Chi-square tests
-- Normality tests
-- Correlation tests
-- Non-parametric tests
+- analyze
 
 ## Tools
 - `ttest_tool`: T-test for mean comparison

@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - file-operations
 
-## Capabilities
 
-- **Sequential execution**: Execute skills one after another (A → B → C)
-- **Parallel execution**: Execute skills simultaneously (A || B || C)
-- **Conditional execution**: Execute based on conditions (if X then A else B)
-- **Loops**: Repeat a skill multiple times
-- **Error handling**: Handle failures gracefully
+## Capabilities
+- code
 
 ## Tools
 

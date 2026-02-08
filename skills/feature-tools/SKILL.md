@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Automated feature generation from relational data
-- Deep feature synthesis (DFS)
-- Feature primitive discovery
-- Entity set management
-- Time-based feature generation
+- analyze
 
 ## Tools
 - `featuretools_dfs_tool`: Deep feature synthesis

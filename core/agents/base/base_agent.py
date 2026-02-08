@@ -501,92 +501,26 @@ class BaseAgent(ABC):
     # SKILL DISCOVERY
     # =========================================================================
 
-    def discover_skills(self, task: str, max_results: int = 50) -> List[Dict[str, Any]]:
+    def discover_skills(self, task: str = "") -> List[Dict[str, Any]]:
         """
-        Discover relevant skills for a task using lightweight keyword matching.
+        Get all skills for LLM selection.
 
-        This is the fast path — no LLM calls. Uses stop-word filtering with
-        name match (+3 score) and description match (+1 score).
-
-        Available to ALL agents via BaseAgent inheritance.
+        Returns the full skill catalog. The LLM sees everything (~5K tokens)
+        and picks the best match. No keyword pre-filtering - the LLM is
+        better at semantic matching than any keyword heuristic.
 
         Args:
-            task: Task description to match against
-            max_results: Maximum number of skills to return
+            task: Unused (kept for backward compatibility). Filtering
+                  is done by the LLM in select_skills().
 
         Returns:
-            List of skill dicts with name, description, category, tools,
-            relevance_score — sorted by relevance descending
+            List of all skill dicts from the registry
         """
         if self.skills_registry is None:
             logger.debug("Skills registry not available for discovery")
             return []
 
-        task_lower = task.lower()
-
-        stop_words = {
-            'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is',
-            'to', 'of', 'in', 'on', 'a', 'an',
-        }
-        task_words = [
-            w for w in task_lower.split()
-            if len(w) > 2 and w not in stop_words
-        ]
-
-        # Simple stemming: also try without trailing 's' for plural matching
-        task_words_stemmed = set(task_words)
-        for w in task_words:
-            if w.endswith('s') and len(w) > 3:
-                task_words_stemmed.add(w[:-1])  # "slides" -> "slide"
-
-        skills = []
-
-        for skill_name, skill_def in self.skills_registry.loaded_skills.items():
-            skill_name_lower = skill_name.lower()
-            desc = getattr(skill_def, 'description', '') or ''
-            desc_lower = desc.lower()
-
-            score = 0
-            for word in task_words_stemmed:
-                if word in skill_name_lower:
-                    score += 3
-                if word in desc_lower:
-                    score += 1
-
-            if score > 0:
-                tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
-                skills.append({
-                    'name': skill_name,
-                    'description': desc or skill_name,
-                    'category': getattr(skill_def, 'category', 'general'),
-                    'tools': tools,
-                    'relevance_score': score,
-                })
-
-        skills.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
-
-        # Include ALL matched skills, then pad with unmatched skills up to max_results
-        # This ensures LLM sees diverse options, not just keyword matches
-        matched_skills = skills
-        matched_names = {s['name'] for s in matched_skills}
-
-        # Add unmatched skills to give LLM more options
-        if len(matched_skills) < max_results:
-            for skill_name, skill_def in self.skills_registry.loaded_skills.items():
-                if skill_name not in matched_names:
-                    desc = getattr(skill_def, 'description', '') or ''
-                    tools = list(skill_def.tools.keys()) if hasattr(skill_def, 'tools') else []
-                    matched_skills.append({
-                        'name': skill_name,
-                        'description': desc or skill_name,
-                        'category': getattr(skill_def, 'category', 'general'),
-                        'tools': tools,
-                        'relevance_score': 0,
-                    })
-                if len(matched_skills) >= max_results:
-                    break
-
-        return matched_skills[:max_results]
+        return self.skills_registry.list_skills()
 
     # =========================================================================
     # METRICS

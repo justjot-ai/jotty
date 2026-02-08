@@ -7,6 +7,11 @@ Downloads and extracts content from arXiv papers. Supports 40+ conference/journa
 ## Type
 base
 
+
+## Capabilities
+- research
+- document
+
 ## Tools
 
 ### download_arxiv_paper_tool

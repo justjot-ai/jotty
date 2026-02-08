@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - pdf-tools
 
+
+## Capabilities
+- document
+
 ## Features
 
 - Upload markdown or text files to NotebookLM

@@ -1,90 +1,28 @@
 """
-Jotty World-Class Swarm Templates
-==================================
+Jotty Swarm Templates
+=====================
 
-Production-grade multi-agent swarms with:
-- LLM-powered analysis (DSPy Chain of Thought)
-- Parallel agent execution
-- Shared resources (memory, context, bus)
-- Self-improving feedback loop
-- Learning from past research
+All swarms are **lazily loaded** — importing ``core.swarms`` does NOT
+trigger heavy dependency chains.  A swarm module is only loaded on
+first attribute access (e.g. ``from core.swarms import CodingSwarm``).
 
 Available Swarms:
------------------
+    ResearchSwarm, FundamentalSwarm, DataAnalysisSwarm,
+    CodingSwarm, TestingSwarm, ReviewSwarm,
+    IdeaWriterSwarm, DevOpsSwarm,
+    ArxivLearningSwarm, LearningSwarm
 
-RESEARCH & ANALYSIS:
-- ResearchSwarm: Comprehensive stock research with sentiment, peers, charts
-- FundamentalSwarm: Financial statement analysis, valuation, investment thesis
-- DataAnalysisSwarm: EDA, statistics, ML recommendations, insights
+Quick usage::
 
-DEVELOPMENT:
-- CodingSwarm: Code generation, architecture, testing, documentation
-- TestingSwarm: Test generation, coverage analysis, quality assessment
-- ReviewSwarm: Code review, security scanning, performance analysis
-
-CONTENT & OPERATIONS:
-- IdeaWriterSwarm: Multi-section content generation with section registry
-- DevOpsSwarm: Infrastructure, CI/CD, containers, security, monitoring
-
-EDUCATION:
-- ArxivLearningSwarm: Paper understanding with progressive, intuitive explanations
-
-META & LEARNING:
-- BaseSwarm: Foundation with self-improving loop (Expert, Reviewer, Planner, Actor)
-- LearningSwarm: Meta-swarm that improves all other swarms
-
-Usage:
-    # Research
-    from core.swarms import ResearchSwarm, research
-    result = await research("Paytm", send_telegram=True)
-
-    # Coding
     from core.swarms import CodingSwarm, code
-    result = await code("Create a REST API for user management")
-
-    # Testing
-    from core.swarms import TestingSwarm, test
-    result = await test(my_code, language="python")
-
-    # Fundamental Analysis
-    from core.swarms import FundamentalSwarm, analyze_fundamentals
-    result = await analyze_fundamentals("RELIANCE")
-
-    # Data Analysis
-    from core.swarms import DataAnalysisSwarm, analyze_data
-    result = await analyze_data(df, question="What drives sales?")
-
-    # Content Writing
-    from core.swarms import IdeaWriterSwarm, write
-    result = await write("The Future of AI")
-
-    # DevOps
-    from core.swarms import DevOpsSwarm, deploy
-    result = await deploy("myapp", cloud="aws")
-
-    # Code Review
-    from core.swarms import ReviewSwarm, review_code
-    result = await review_code(code, language="python")
-
-    # ArXiv Paper Learning
-    from core.swarms import ArxivLearningSwarm, learn_paper
-    result = await learn_paper("1706.03762")  # Attention Is All You Need
-    result = await learn_paper(topic="diffusion models")
-
-    # Meta-Learning
-    from core.swarms import LearningSwarm, improve_swarm
-    result = await improve_swarm("coding")
-
-Sync versions:
-    from core.swarms import research_sync, code_sync, test_sync
-    result = research_sync("TCS")
+    result = await code("Create a REST API")
 """
 
-# =============================================================================
-# BASE SWARM INFRASTRUCTURE
-# =============================================================================
+import importlib as _importlib
 
-# Unified swarm base classes
+# =========================================================================
+# EAGER: Base infrastructure (lightweight, needed everywhere)
+# =========================================================================
 from .base import (
     DomainSwarm,
     AgentTeam,
@@ -95,12 +33,9 @@ from .base import (
 )
 
 from .base_swarm import (
-    # Enums
     AgentRole,
     EvaluationResult,
     ImprovementType,
-
-    # Data classes
     GoldStandard,
     Evaluation,
     ImprovementSuggestion,
@@ -108,14 +43,10 @@ from .base_swarm import (
     ExecutionTrace,
     SwarmConfig,
     SwarmResult,
-
-    # DSPy Signatures
     ExpertEvaluationSignature,
     ReviewerAnalysisSignature,
     PlannerOptimizationSignature,
     ActorExecutionSignature,
-
-    # Core classes
     GoldStandardDB,
     ImprovementHistory,
     ExpertAgent,
@@ -127,548 +58,234 @@ from .base_swarm import (
     register_swarm,
 )
 
-# =============================================================================
-# RESEARCH SWARM
-# =============================================================================
+# =========================================================================
+# LAZY: Swarm modules — loaded on first access via __getattr__
+# =========================================================================
 
-from .research_swarm import (
-    # Main swarm
-    ResearchSwarm,
-    ResearchConfig,
-    ResearchResult,
-    RatingType,
+_LAZY_IMPORTS: dict[str, str] = {
+    # --- research_swarm ---
+    "ResearchSwarm": ".research_swarm",
+    "ResearchConfig": ".research_swarm",
+    "ResearchResult": ".research_swarm",
+    "RatingType": ".research_swarm",
+    "research": ".research_swarm",
+    "research_sync": ".research_swarm",
+    "BaseResearchAgent": ".research_swarm",
+    "DataFetcherAgent": ".research_swarm",
+    "WebSearchAgent": ".research_swarm",
+    "SentimentAgent": ".research_swarm",
+    "LLMAnalysisAgent": ".research_swarm",
+    "PeerComparisonAgent": ".research_swarm",
+    "ChartGeneratorAgent": ".research_swarm",
+    "ReportGeneratorAgent": ".research_swarm",
+    "TechnicalAnalysisAgent": ".research_swarm",
+    "EnhancedChartGeneratorAgent": ".research_swarm",
+    "ScreenerAgent": ".research_swarm",
+    "SocialSentimentAgent": ".research_swarm",
+    "StockAnalysisSignature": ".research_swarm",
+    "SentimentAnalysisSignature": ".research_swarm",
+    "PeerSelectionSignature": ".research_swarm",
+    "SocialSentimentSignature": ".research_swarm",
+    "TechnicalSignalsSignature": ".research_swarm",
+    # --- coding_swarm ---
+    "CodingSwarm": ".coding_swarm",
+    "CodingConfig": ".coding_swarm",
+    "CodingResult": ".coding_swarm",
+    "CodeOutput": ".coding_swarm",
+    "CodeLanguage": ".coding_swarm",
+    "CodeStyle": ".coding_swarm",
+    "code": ".coding_swarm",
+    "code_sync": ".coding_swarm",
+    "ArchitectAgent": ".coding_swarm",
+    "DeveloperAgent": ".coding_swarm",
+    "DebuggerAgent": ".coding_swarm",
+    "OptimizerAgent": ".coding_swarm",
+    "TestWriterAgent": ".coding_swarm",
+    "DocWriterAgent": ".coding_swarm",
+    # --- testing_swarm ---
+    "TestingSwarm": ".testing_swarm",
+    "TestingConfig": ".testing_swarm",
+    "TestingResult": ".testing_swarm",
+    "TestSuite": ".testing_swarm",
+    "TestCase": ".testing_swarm",
+    "CoverageReport": ".testing_swarm",
+    "TestType": ".testing_swarm",
+    "TestFramework": ".testing_swarm",
+    "CoverageTarget": ".testing_swarm",
+    "test": ".testing_swarm",
+    "test_sync": ".testing_swarm",
+    "CodeAnalyzerAgent": ".testing_swarm",
+    "UnitTestAgent": ".testing_swarm",
+    "IntegrationTestAgent": ".testing_swarm",
+    "E2ETestAgent": ".testing_swarm",
+    "CoverageAgent": ".testing_swarm",
+    "QualityAgent": ".testing_swarm",
+    # --- fundamental_swarm ---
+    "FundamentalSwarm": ".fundamental_swarm",
+    "FundamentalConfig": ".fundamental_swarm",
+    "FundamentalResult": ".fundamental_swarm",
+    "FinancialMetrics": ".fundamental_swarm",
+    "ValuationMetrics": ".fundamental_swarm",
+    "QualityMetrics": ".fundamental_swarm",
+    "ValuationResult": ".fundamental_swarm",
+    "InvestmentThesis": ".fundamental_swarm",
+    "ValuationType": ".fundamental_swarm",
+    "InvestmentStyle": ".fundamental_swarm",
+    "RatingScale": ".fundamental_swarm",
+    "analyze_fundamentals": ".fundamental_swarm",
+    "analyze_fundamentals_sync": ".fundamental_swarm",
+    "FinancialStatementAgent": ".fundamental_swarm",
+    "RatioAnalysisAgent": ".fundamental_swarm",
+    "ValuationAgent": ".fundamental_swarm",
+    "QualityEarningsAgent": ".fundamental_swarm",
+    "ManagementAgent": ".fundamental_swarm",
+    "MoatAgent": ".fundamental_swarm",
+    "ThesisAgent": ".fundamental_swarm",
+    # --- idea_writer_swarm ---
+    "IdeaWriterSwarm": ".idea_writer_swarm",
+    "WriterConfig": ".idea_writer_swarm",
+    "WriterResult": ".idea_writer_swarm",
+    "ContentResult": ".idea_writer_swarm",
+    "Section": ".idea_writer_swarm",
+    "Outline": ".idea_writer_swarm",
+    "ContentType": ".idea_writer_swarm",
+    "Tone": ".idea_writer_swarm",
+    "OutputFormat": ".idea_writer_swarm",
+    "write": ".idea_writer_swarm",
+    "write_sync": ".idea_writer_swarm",
+    "SectionRegistry": ".idea_writer_swarm",
+    "SectionWriter": ".idea_writer_swarm",
+    "IntroductionWriter": ".idea_writer_swarm",
+    "BodySectionWriter": ".idea_writer_swarm",
+    "ConclusionWriter": ".idea_writer_swarm",
+    "MarketAnalysisWriter": ".idea_writer_swarm",
+    "CaseStudiesWriter": ".idea_writer_swarm",
+    "TechnicalDeepDiveWriter": ".idea_writer_swarm",
+    "ResearchFindingsWriter": ".idea_writer_swarm",
+    "OutlineAgent": ".idea_writer_swarm",
+    "ResearchAgent": ".idea_writer_swarm",
+    "PolishAgent": ".idea_writer_swarm",
+    # --- data_analysis_swarm ---
+    "DataAnalysisSwarm": ".data_analysis_swarm",
+    "DataAnalysisConfig": ".data_analysis_swarm",
+    "AnalysisResult": ".data_analysis_swarm",
+    "DataProfile": ".data_analysis_swarm",
+    "StatisticalResult": ".data_analysis_swarm",
+    "Insight": ".data_analysis_swarm",
+    "MLRecommendation": ".data_analysis_swarm",
+    "Visualization": ".data_analysis_swarm",
+    "AnalysisType": ".data_analysis_swarm",
+    "DataType": ".data_analysis_swarm",
+    "VisualizationType": ".data_analysis_swarm",
+    "analyze_data": ".data_analysis_swarm",
+    "analyze_data_sync": ".data_analysis_swarm",
+    "DataProfilerAgent": ".data_analysis_swarm",
+    "EDAAgent": ".data_analysis_swarm",
+    "StatisticalAgent": ".data_analysis_swarm",
+    "InsightAgent": ".data_analysis_swarm",
+    "MLRecommenderAgent": ".data_analysis_swarm",
+    "VisualizationAgent": ".data_analysis_swarm",
+    # --- devops_swarm ---
+    "DevOpsSwarm": ".devops_swarm",
+    "DevOpsConfig": ".devops_swarm",
+    "DevOpsResult": ".devops_swarm",
+    "InfrastructureSpec": ".devops_swarm",
+    "PipelineSpec": ".devops_swarm",
+    "ContainerSpec": ".devops_swarm",
+    "SecurityConfig": ".devops_swarm",
+    "MonitoringConfig": ".devops_swarm",
+    "CloudProvider": ".devops_swarm",
+    "IaCTool": ".devops_swarm",
+    "CIProvider": ".devops_swarm",
+    "ContainerPlatform": ".devops_swarm",
+    "deploy": ".devops_swarm",
+    "deploy_sync": ".devops_swarm",
+    "InfrastructureArchitect": ".devops_swarm",
+    "CICDDesigner": ".devops_swarm",
+    "ContainerSpecialist": ".devops_swarm",
+    "SecurityHardener": ".devops_swarm",
+    "MonitoringSpecialist": ".devops_swarm",
+    "IaCGenerator": ".devops_swarm",
+    # --- review_swarm ---
+    "ReviewSwarm": ".review_swarm",
+    "ReviewConfig": ".review_swarm",
+    "ReviewResult": ".review_swarm",
+    "ReviewComment": ".review_swarm",
+    "SecurityFinding": ".review_swarm",
+    "PerformanceFinding": ".review_swarm",
+    "ArchitectureFinding": ".review_swarm",
+    "ReviewType": ".review_swarm",
+    "Severity": ".review_swarm",
+    "ReviewStatus": ".review_swarm",
+    "review_code": ".review_swarm",
+    "review_code_sync": ".review_swarm",
+    "CodeReviewer": ".review_swarm",
+    "SecurityScanner": ".review_swarm",
+    "PerformanceAnalyzer": ".review_swarm",
+    "ArchitectureReviewer": ".review_swarm",
+    "StyleChecker": ".review_swarm",
+    "ReviewSynthesizer": ".review_swarm",
+    # --- arxiv_learning_swarm ---
+    "ArxivLearningSwarm": ".arxiv_learning_swarm",
+    "ArxivLearningConfig": ".arxiv_learning_swarm",
+    "ArxivLearningResult": ".arxiv_learning_swarm",
+    "LearningContent": ".arxiv_learning_swarm",
+    "LearningSection": ".arxiv_learning_swarm",
+    "Concept": ".arxiv_learning_swarm",
+    "PaperInfo": ".arxiv_learning_swarm",
+    "LearningDepth": ".arxiv_learning_swarm",
+    "ContentStyle": ".arxiv_learning_swarm",
+    "AudienceLevel": ".arxiv_learning_swarm",
+    "learn_paper": ".arxiv_learning_swarm",
+    "learn_paper_sync": ".arxiv_learning_swarm",
+    "PaperFetcherAgent": ".arxiv_learning_swarm",
+    "ConceptExtractorAgent": ".arxiv_learning_swarm",
+    "IntuitionBuilderAgent": ".arxiv_learning_swarm",
+    "MathSimplifierAgent": ".arxiv_learning_swarm",
+    "ExampleGeneratorAgent": ".arxiv_learning_swarm",
+    "ProgressiveBuilderAgent": ".arxiv_learning_swarm",
+    "ContentPolisherAgent": ".arxiv_learning_swarm",
+    # --- learning_swarm ---
+    "LearningSwarm": ".learning_swarm",
+    "LearningConfig": ".learning_swarm",
+    "LearningResult": ".learning_swarm",
+    "SwarmPerformance": ".learning_swarm",
+    "OptimizationResult": ".learning_swarm",
+    "LearningMode": ".learning_swarm",
+    "OptimizationType": ".learning_swarm",
+    "improve_swarm": ".learning_swarm",
+    "improve_swarm_sync": ".learning_swarm",
+    "PerformanceEvaluator": ".learning_swarm",
+    "GoldCurator": ".learning_swarm",
+    "PromptOptimizer": ".learning_swarm",
+    "WorkflowOptimizer": ".learning_swarm",
+    "ParameterTuner": ".learning_swarm",
+    "MetaLearner": ".learning_swarm",
+}
 
-    # Convenience functions
-    research,
-    research_sync,
 
-    # Individual agents (for customization)
-    BaseResearchAgent,
-    DataFetcherAgent,
-    WebSearchAgent,
-    SentimentAgent,
-    LLMAnalysisAgent,
-    PeerComparisonAgent,
-    ChartGeneratorAgent,
-    ReportGeneratorAgent,
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, name)
+        globals()[name] = value  # cache for subsequent access
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    # New agents
-    TechnicalAnalysisAgent,
-    EnhancedChartGeneratorAgent,
-    ScreenerAgent,
-    SocialSentimentAgent,
-
-    # DSPy Signatures (for extension)
-    StockAnalysisSignature,
-    SentimentAnalysisSignature,
-    PeerSelectionSignature,
-    SocialSentimentSignature,
-    TechnicalSignalsSignature,
-)
-
-# =============================================================================
-# CODING SWARM
-# =============================================================================
-
-from .coding_swarm import (
-    CodingSwarm,
-    CodingConfig,
-    CodingResult,
-    CodeOutput,
-    CodeLanguage,
-    CodeStyle,
-    code,
-    code_sync,
-    # Agents
-    ArchitectAgent,
-    DeveloperAgent,
-    DebuggerAgent,
-    OptimizerAgent,
-    TestWriterAgent,
-    DocWriterAgent,
-)
-
-# =============================================================================
-# TESTING SWARM
-# =============================================================================
-
-from .testing_swarm import (
-    TestingSwarm,
-    TestingConfig,
-    TestingResult,
-    TestSuite,
-    TestCase,
-    CoverageReport,
-    TestType,
-    TestFramework,
-    CoverageTarget,
-    test,
-    test_sync,
-    # Agents
-    CodeAnalyzerAgent,
-    UnitTestAgent,
-    IntegrationTestAgent,
-    E2ETestAgent,
-    CoverageAgent,
-    QualityAgent,
-)
-
-# =============================================================================
-# FUNDAMENTAL ANALYSIS SWARM
-# =============================================================================
-
-from .fundamental_swarm import (
-    FundamentalSwarm,
-    FundamentalConfig,
-    FundamentalResult,
-    FinancialMetrics,
-    ValuationMetrics,
-    QualityMetrics,
-    ValuationResult,
-    InvestmentThesis,
-    ValuationType,
-    InvestmentStyle,
-    RatingScale,
-    analyze_fundamentals,
-    analyze_fundamentals_sync,
-    # Agents
-    FinancialStatementAgent,
-    RatioAnalysisAgent,
-    ValuationAgent,
-    QualityEarningsAgent,
-    ManagementAgent,
-    MoatAgent,
-    ThesisAgent,
-)
-
-# =============================================================================
-# IDEA WRITER SWARM
-# =============================================================================
-
-from .idea_writer_swarm import (
-    IdeaWriterSwarm,
-    WriterConfig,
-    WriterResult,
-    ContentResult,
-    Section,
-    Outline,
-    ContentType,
-    Tone,
-    OutputFormat,
-    write,
-    write_sync,
-    # Section Registry
-    SectionRegistry,
-    SectionWriter,
-    # Built-in writers
-    IntroductionWriter,
-    BodySectionWriter,
-    ConclusionWriter,
-    MarketAnalysisWriter,
-    CaseStudiesWriter,
-    TechnicalDeepDiveWriter,
-    ResearchFindingsWriter,
-    # Agents
-    OutlineAgent,
-    ResearchAgent,
-    PolishAgent,
-)
-
-# =============================================================================
-# DATA ANALYSIS SWARM
-# =============================================================================
-
-from .data_analysis_swarm import (
-    DataAnalysisSwarm,
-    DataAnalysisConfig,
-    AnalysisResult,
-    DataProfile,
-    StatisticalResult,
-    Insight,
-    MLRecommendation,
-    Visualization,
-    AnalysisType,
-    DataType,
-    VisualizationType,
-    analyze_data,
-    analyze_data_sync,
-    # Agents
-    DataProfilerAgent,
-    EDAAgent,
-    StatisticalAgent,
-    InsightAgent,
-    MLRecommenderAgent,
-    VisualizationAgent,
-)
-
-# =============================================================================
-# DEVOPS SWARM
-# =============================================================================
-
-from .devops_swarm import (
-    DevOpsSwarm,
-    DevOpsConfig,
-    DevOpsResult,
-    InfrastructureSpec,
-    PipelineSpec,
-    ContainerSpec,
-    SecurityConfig,
-    MonitoringConfig,
-    CloudProvider,
-    IaCTool,
-    CIProvider,
-    ContainerPlatform,
-    deploy,
-    deploy_sync,
-    # Agents
-    InfrastructureArchitect,
-    CICDDesigner,
-    ContainerSpecialist,
-    SecurityHardener,
-    MonitoringSpecialist,
-    IaCGenerator,
-)
-
-# =============================================================================
-# REVIEW SWARM
-# =============================================================================
-
-from .review_swarm import (
-    ReviewSwarm,
-    ReviewConfig,
-    ReviewResult,
-    ReviewComment,
-    SecurityFinding,
-    PerformanceFinding,
-    ArchitectureFinding,
-    ReviewType,
-    Severity,
-    ReviewStatus,
-    review_code,
-    review_code_sync,
-    # Agents
-    CodeReviewer,
-    SecurityScanner,
-    PerformanceAnalyzer,
-    ArchitectureReviewer,
-    StyleChecker,
-    ReviewSynthesizer,
-)
-
-# =============================================================================
-# ARXIV LEARNING SWARM
-# =============================================================================
-
-from .arxiv_learning_swarm import (
-    ArxivLearningSwarm,
-    ArxivLearningConfig,
-    ArxivLearningResult,
-    LearningContent,
-    LearningSection,
-    Concept,
-    PaperInfo,
-    LearningDepth,
-    ContentStyle,
-    AudienceLevel,
-    learn_paper,
-    learn_paper_sync,
-    # Agents
-    PaperFetcherAgent,
-    ConceptExtractorAgent,
-    IntuitionBuilderAgent,
-    MathSimplifierAgent,
-    ExampleGeneratorAgent,
-    ProgressiveBuilderAgent,
-    ContentPolisherAgent,
-)
-
-# =============================================================================
-# LEARNING SWARM (META)
-# =============================================================================
-
-from .learning_swarm import (
-    LearningSwarm,
-    LearningConfig,
-    LearningResult,
-    SwarmPerformance,
-    OptimizationResult,
-    LearningMode,
-    OptimizationType,
-    improve_swarm,
-    improve_swarm_sync,
-    # Agents
-    PerformanceEvaluator,
-    GoldCurator,
-    PromptOptimizer,
-    WorkflowOptimizer,
-    ParameterTuner,
-    MetaLearner,
-)
-
-# =============================================================================
-# EXPORTS
-# =============================================================================
 
 __all__ = [
-    # ==========================================================================
-    # BASE INFRASTRUCTURE
-    # ==========================================================================
-    # Enums
-    "AgentRole",
-    "EvaluationResult",
-    "ImprovementType",
-
-    # Data classes
-    "GoldStandard",
-    "Evaluation",
-    "ImprovementSuggestion",
-    "AgentConfig",
-    "ExecutionTrace",
-    "SwarmConfig",
-    "SwarmResult",
-
-    # DSPy Signatures
-    "ExpertEvaluationSignature",
-    "ReviewerAnalysisSignature",
-    "PlannerOptimizationSignature",
-    "ActorExecutionSignature",
-
-    # Core classes
-    "GoldStandardDB",
-    "ImprovementHistory",
-    "ExpertAgent",
-    "ReviewerAgent",
-    "PlannerAgent",
-    "ActorAgent",
-    "BaseSwarm",
-    "SwarmRegistry",
-    "register_swarm",
-
-    # ==========================================================================
-    # RESEARCH SWARM
-    # ==========================================================================
-    "ResearchSwarm",
-    "ResearchConfig",
-    "ResearchResult",
-    "RatingType",
-    "research",
-    "research_sync",
-    "BaseResearchAgent",
-    "DataFetcherAgent",
-    "WebSearchAgent",
-    "SentimentAgent",
-    "LLMAnalysisAgent",
-    "PeerComparisonAgent",
-    "ChartGeneratorAgent",
-    "ReportGeneratorAgent",
-    "TechnicalAnalysisAgent",
-    "EnhancedChartGeneratorAgent",
-    "ScreenerAgent",
-    "SocialSentimentAgent",
-    "StockAnalysisSignature",
-    "SentimentAnalysisSignature",
-    "PeerSelectionSignature",
-    "SocialSentimentSignature",
-    "TechnicalSignalsSignature",
-
-    # ==========================================================================
-    # CODING SWARM
-    # ==========================================================================
-    "CodingSwarm",
-    "CodingConfig",
-    "CodingResult",
-    "CodeOutput",
-    "CodeLanguage",
-    "CodeStyle",
-    "code",
-    "code_sync",
-    "ArchitectAgent",
-    "DeveloperAgent",
-    "DebuggerAgent",
-    "OptimizerAgent",
-    "TestWriterAgent",
-    "DocWriterAgent",
-
-    # ==========================================================================
-    # TESTING SWARM
-    # ==========================================================================
-    "TestingSwarm",
-    "TestingConfig",
-    "TestingResult",
-    "TestSuite",
-    "TestCase",
-    "CoverageReport",
-    "TestType",
-    "TestFramework",
-    "CoverageTarget",
-    "test",
-    "test_sync",
-    "CodeAnalyzerAgent",
-    "UnitTestAgent",
-    "IntegrationTestAgent",
-    "E2ETestAgent",
-    "CoverageAgent",
-    "QualityAgent",
-
-    # ==========================================================================
-    # FUNDAMENTAL SWARM
-    # ==========================================================================
-    "FundamentalSwarm",
-    "FundamentalConfig",
-    "FundamentalResult",
-    "FinancialMetrics",
-    "ValuationMetrics",
-    "QualityMetrics",
-    "ValuationResult",
-    "InvestmentThesis",
-    "ValuationType",
-    "InvestmentStyle",
-    "RatingScale",
-    "analyze_fundamentals",
-    "analyze_fundamentals_sync",
-    "FinancialStatementAgent",
-    "RatioAnalysisAgent",
-    "ValuationAgent",
-    "QualityEarningsAgent",
-    "ManagementAgent",
-    "MoatAgent",
-    "ThesisAgent",
-
-    # ==========================================================================
-    # IDEA WRITER SWARM
-    # ==========================================================================
-    "IdeaWriterSwarm",
-    "WriterConfig",
-    "WriterResult",
-    "ContentResult",
-    "Section",
-    "Outline",
-    "ContentType",
-    "Tone",
-    "OutputFormat",
-    "write",
-    "write_sync",
-    "SectionRegistry",
-    "SectionWriter",
-    "IntroductionWriter",
-    "BodySectionWriter",
-    "ConclusionWriter",
-    "MarketAnalysisWriter",
-    "CaseStudiesWriter",
-    "TechnicalDeepDiveWriter",
-    "ResearchFindingsWriter",
-    "OutlineAgent",
-    "ResearchAgent",
-    "PolishAgent",
-
-    # ==========================================================================
-    # DATA ANALYSIS SWARM
-    # ==========================================================================
-    "DataAnalysisSwarm",
-    "DataAnalysisConfig",
-    "AnalysisResult",
-    "DataProfile",
-    "StatisticalResult",
-    "Insight",
-    "MLRecommendation",
-    "Visualization",
-    "AnalysisType",
-    "DataType",
-    "VisualizationType",
-    "analyze_data",
-    "analyze_data_sync",
-    "DataProfilerAgent",
-    "EDAAgent",
-    "StatisticalAgent",
-    "InsightAgent",
-    "MLRecommenderAgent",
-    "VisualizationAgent",
-
-    # ==========================================================================
-    # DEVOPS SWARM
-    # ==========================================================================
-    "DevOpsSwarm",
-    "DevOpsConfig",
-    "DevOpsResult",
-    "InfrastructureSpec",
-    "PipelineSpec",
-    "ContainerSpec",
-    "SecurityConfig",
-    "MonitoringConfig",
-    "CloudProvider",
-    "IaCTool",
-    "CIProvider",
-    "ContainerPlatform",
-    "deploy",
-    "deploy_sync",
-    "InfrastructureArchitect",
-    "CICDDesigner",
-    "ContainerSpecialist",
-    "SecurityHardener",
-    "MonitoringSpecialist",
-    "IaCGenerator",
-
-    # ==========================================================================
-    # REVIEW SWARM
-    # ==========================================================================
-    "ReviewSwarm",
-    "ReviewConfig",
-    "ReviewResult",
-    "ReviewComment",
-    "SecurityFinding",
-    "PerformanceFinding",
-    "ArchitectureFinding",
-    "ReviewType",
-    "Severity",
-    "ReviewStatus",
-    "review_code",
-    "review_code_sync",
-    "CodeReviewer",
-    "SecurityScanner",
-    "PerformanceAnalyzer",
-    "ArchitectureReviewer",
-    "StyleChecker",
-    "ReviewSynthesizer",
-
-    # ==========================================================================
-    # ARXIV LEARNING SWARM
-    # ==========================================================================
-    "ArxivLearningSwarm",
-    "ArxivLearningConfig",
-    "ArxivLearningResult",
-    "LearningContent",
-    "LearningSection",
-    "Concept",
-    "PaperInfo",
-    "LearningDepth",
-    "ContentStyle",
-    "AudienceLevel",
-    "learn_paper",
-    "learn_paper_sync",
-    "PaperFetcherAgent",
-    "ConceptExtractorAgent",
-    "IntuitionBuilderAgent",
-    "MathSimplifierAgent",
-    "ExampleGeneratorAgent",
-    "ProgressiveBuilderAgent",
-    "ContentPolisherAgent",
-
-    # ==========================================================================
-    # LEARNING SWARM (META)
-    # ==========================================================================
-    "LearningSwarm",
-    "LearningConfig",
-    "LearningResult",
-    "SwarmPerformance",
-    "OptimizationResult",
-    "LearningMode",
-    "OptimizationType",
-    "improve_swarm",
-    "improve_swarm_sync",
-    "PerformanceEvaluator",
-    "GoldCurator",
-    "PromptOptimizer",
-    "WorkflowOptimizer",
-    "ParameterTuner",
-    "MetaLearner",
+    # Base (eager)
+    "DomainSwarm", "AgentTeam", "AgentSpec", "TeamResult",
+    "CoordinationPattern", "MergeStrategy",
+    "AgentRole", "EvaluationResult", "ImprovementType",
+    "GoldStandard", "Evaluation", "ImprovementSuggestion",
+    "AgentConfig", "ExecutionTrace", "SwarmConfig", "SwarmResult",
+    "ExpertEvaluationSignature", "ReviewerAnalysisSignature",
+    "PlannerOptimizationSignature", "ActorExecutionSignature",
+    "GoldStandardDB", "ImprovementHistory",
+    "ExpertAgent", "ReviewerAgent", "PlannerAgent", "ActorAgent",
+    "BaseSwarm", "SwarmRegistry", "register_swarm",
+    # Lazy (all swarm names)
+    *_LAZY_IMPORTS.keys(),
 ]

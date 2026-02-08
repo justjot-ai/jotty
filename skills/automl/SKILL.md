@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - claude-cli-llm
 
+
 ## Capabilities
-- Automatic model selection from 10+ algorithms
-- Cross-validation with stratified folds
-- Ensemble creation (voting, stacking, blending)
-- Feature importance analysis
-- Model comparison and ranking
+- analyze
 
 ## Tools
 - `automl_classify`: Auto-select and train best classifier

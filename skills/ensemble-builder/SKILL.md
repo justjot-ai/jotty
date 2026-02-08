@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - automl
 
+
 ## Capabilities
-- Stacking with meta-learners
-- Blending with holdout
-- Voting (soft and hard)
-- Weighted averaging
-- Model diversity analysis
-- Out-of-fold predictions
+- analyze
 
 ## Tools
 - `ensemble_stack_tool`: Create stacking ensemble

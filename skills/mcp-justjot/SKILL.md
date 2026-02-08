@@ -10,6 +10,10 @@ This skill wraps JustJot.ai MCP (Model Context Protocol) tools, making them avai
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+
 ## Available Tools
 
 ### Ideas Management

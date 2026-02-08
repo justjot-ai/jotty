@@ -7,6 +7,10 @@ Provides essential file system operations: read, write, list directories, create
 ## Type
 base
 
+
+## Capabilities
+- file-ops
+
 ## Tools
 
 ### read_file_tool

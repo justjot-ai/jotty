@@ -17,6 +17,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- media
+- research
+
 ## Features
 
 - Search V2V.ai for trending topics

@@ -10,6 +10,10 @@ Inspired by OpenClaw's approach: prefers Baileys (free, open-source) when availa
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Features
 
 - Send text messages

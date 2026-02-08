@@ -15,6 +15,12 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- data-fetch
+- document
+- communicate
+
 ## Pipeline Flow
 1. **Source**: Fetch financial data from screener.in for company symbol(s)
 2. **Processor**: Synthesize and analyze data using Claude CLI LLM

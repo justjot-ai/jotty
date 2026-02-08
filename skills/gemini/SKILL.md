@@ -12,6 +12,11 @@ Gemini models including gemini-1.5-flash, gemini-1.5-pro, and gemini-2.0-flash.
 ## Type
 base
 
+
+## Capabilities
+- analyze
+- code
+
 ## Usage
 
 ```python

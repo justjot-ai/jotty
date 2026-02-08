@@ -23,6 +23,12 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- document
+- communicate
+
 ## Usage
 
 ```python

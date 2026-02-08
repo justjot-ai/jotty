@@ -7,6 +7,10 @@ Word document toolkit using python-docx for reading, creating, and manipulating 
 ## Type
 base
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### read_docx_tool

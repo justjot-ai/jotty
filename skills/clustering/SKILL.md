@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- K-Means clustering
-- DBSCAN clustering
-- Hierarchical clustering
-- Gaussian Mixture Models
-- Cluster validation metrics
-- Optimal cluster number detection
+- analyze
 
 ## Tools
 - `cluster_kmeans_tool`: K-Means clustering

@@ -19,6 +19,7 @@ composite
 ## Execution
 sequential
 
+
 ## Capabilities
 - research
 - document

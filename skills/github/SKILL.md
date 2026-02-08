@@ -7,6 +7,10 @@ Provides tools for interacting with GitHub repositories using the `gh` CLI. Supp
 ## Type
 base
 
+
+## Capabilities
+- code
+
 ## Prerequisites
 - GitHub CLI (`gh`) must be installed: https://cli.github.com/
 - Must be authenticated: `gh auth login`

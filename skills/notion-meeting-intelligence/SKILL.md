@@ -18,6 +18,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- analyze
+- document
+
 ## Tools
 
 ### `prepare_meeting_materials_tool`

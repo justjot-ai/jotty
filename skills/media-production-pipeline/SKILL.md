@@ -21,6 +21,10 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- media
+
 ## Usage
 
 ```python

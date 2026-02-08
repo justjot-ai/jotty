@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - claude-cli-llm
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### `analyze_meeting_insights_tool`

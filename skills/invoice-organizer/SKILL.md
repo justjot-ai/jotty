@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- document
+- file-ops
+
 ## Tools
 
 ### `organize_invoices_tool`

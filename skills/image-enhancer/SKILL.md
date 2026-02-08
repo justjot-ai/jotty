@@ -10,6 +10,10 @@ This skill takes images and screenshots and makes them look better—sharper, cl
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### `enhance_image_tool`

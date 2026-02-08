@@ -115,7 +115,20 @@ if DSPY_AVAILABLE:
 
         PHASE 2 - EVALUATE (Tree of Thoughts):
         Consider 2-3 possible approaches using available_skills. Assess feasibility of each.
-        Choose the approach that covers ALL requirements with fewest steps.
+        For SIMPLE tasks: Choose the approach with fewest steps that covers ALL requirements.
+        For COMPLEX/COMPARISON tasks: Choose the approach that MAXIMIZES quality — separate
+        research per entity, dedicated synthesis step, dedicated output formatting step.
+        Quality > speed. More steps = better output for complex tasks.
+
+        COMPARISON TASK PATTERN (when task contains "vs", "compare", "versus", "difference"):
+        1. Research Entity A: web-search with targeted query for entity A
+        2. Research Entity B: web-search with targeted query for entity B
+        3. (Optional) Research Entity C: if 3+ entities
+        4. Synthesize: Use claude-cli-llm or summarize to create structured comparison
+           (feature matrix, pricing table, pros/cons, recommendation)
+        5. Format: Generate final output (PDF, slides, etc.)
+        6. Deliver: Send via requested channel (telegram, slack, etc.)
+        This pattern produces MUCH higher quality than using a composite skill that does one generic search.
 
         PHASE 3 - PLAN (ReAct):
         For each step, reason about: What could go wrong? What does this step need from prior steps?
@@ -126,6 +139,8 @@ if DSPY_AVAILABLE:
         - description: What this step accomplishes
         - verification: How to confirm this step succeeded (e.g., "output contains weather data")
         - fallback_skill: Alternative skill if this one fails (e.g., "http-client")
+        - output_key: A unique key for this step's output (e.g., "paytm_research", "comparison_pdf")
+        - depends_on: List of output_keys from previous steps this step needs
 
         PHASE 4 - VERIFY (Self-Refine):
         Before outputting, self-check: Are all dependencies satisfied? Any missing steps?
@@ -160,39 +175,27 @@ if DSPY_AVAILABLE:
 
 
     class SkillSelectionSignature(dspy.Signature):
-        """Select the BEST skills needed to complete the task. Audience: senior engineer.
+        """Select the BEST skills for the task from the full skill catalog.
 
-        You will be penalized for selecting wrong or irrelevant skills.
+        Each skill has: name, description, type (base/derived/composite), caps (capabilities).
+        - "type":"composite" + "combines":[...] = pre-built workflow using multiple skills
+        - "type":"derived" + "extends":"..." = specialized version of a base skill
+        - "type":"base" = atomic building block
 
-        PHASE 1 - DECOMPOSE (Plan-and-Solve):
-        Break the task into sub-requirements:
-        - SUBJECT: What to research/create (e.g., "Paytm", "AI trends")
-        - ACTION: What to do (research, create, compare, analyze)
-        - OUTPUT FORMAT: What to produce (pdf, document, chart, slides)
-        - DELIVERY: Where to send (telegram, email, slack)
+        SELECTION STRATEGY:
+        1. DECOMPOSE the task: subject, action, output format, delivery channel
+        2. For SIMPLE single-step tasks -> prefer a composite skill (one skill does it all)
+           Example: "Delhi weather on telegram" -> "weather-to-telegram" (composite)
+        3. For COMPLEX multi-step tasks -> prefer granular base/derived skills
+           Example: "Compare X vs Y, create PDF, send telegram" -> web-search + claude-cli-llm + document-converter + telegram-sender
+        4. Match "caps" to task needs: research, data-fetch, analyze, visualize, document, communicate, file-ops, code, media
+        5. VERIFY: does the selection cover ALL requirements?
 
-        PHASE 2 - MATCH:
-        For each sub-requirement, find the best skill from available_skills.
-        SKILL TYPES: Each skill has a "skill_type" (base, derived, composite) and "base_skills" list.
-        - PREFER composite skills over chaining base skills - they are pre-built, optimized workflows
-        - PREFER derived skills for domain-specific tasks - they specialize a base skill
-        - Example: "weather" + "telegram" -> prefer "weather-to-telegram" (composite) over chaining base skills
-        CRITICAL distinctions:
-        - GENERATION tasks ("create", "write", "draft", "checklist") -> LLM + file skills
-        - RESEARCH tasks ("research", "search", "find") -> search/research skills
-        - "convert" / "transform" -> converter skills
-        - "send to X" / "share via X" -> include messaging/delivery skills
-
-        PHASE 3 - VERIFY (Self-Refine):
-        Does this skill set cover ALL requirements? Any gaps?
-        Is there a composite skill that replaces 2+ individual skills?
-
-        You are NOT executing anything. You are ONLY selecting which skills are needed.
-        Provide per-skill justification in reasoning.
+        You are selecting skills, NOT executing. Justify each choice.
         """
-        task_description: str = dspy.InputField(desc="The task to analyze - identify ALL required capabilities")
+        task_description: str = dspy.InputField(desc="The task to complete")
         available_skills: str = dspy.InputField(
-            desc="JSON list of all available skills with their descriptions and tools"
+            desc="JSON skill catalog. Each: {name, description, type, caps, combines/extends}"
         )
         max_skills: int = dspy.InputField(
             desc="Maximum number of skills to select"

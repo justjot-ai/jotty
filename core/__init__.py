@@ -8,6 +8,8 @@ V2 Architecture (SwarmManager-based):
 - Cortex: Hierarchical memory (HierarchicalMemory)
 - Axon: Agent communication channel
 - Roadmap: Task planning (MarkovianTODO)
+
+Heavy modules are lazily loaded — ``import core`` is lightweight.
 """
 
 # =============================================================================
@@ -15,114 +17,65 @@ V2 Architecture (SwarmManager-based):
 # =============================================================================
 import os
 import warnings
+import importlib as _importlib
 
-# Suppress Pydantic serialization warnings from LiteLLM
-# These occur due to LiteLLM's response format not matching Pydantic's expected structure
-# Versions are synced (Pydantic 2.12.5, LiteLLM 1.80.16) but warnings may still occur
 os.environ.setdefault('PYDANTIC_WARNINGS', 'none')
 
-# Filter specific Pydantic serialization warnings
-# Multiple patterns to catch all variations
-warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.main',
-    message='.*PydanticSerializationUnexpectedValue.*'
-)
-warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.*',
-    message='.*serialized value may not be as expected.*'
-)
-warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.*',
-    message='.*Expected.*fields but got.*'
-)
-# Catch all Pydantic serializer warnings
-warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    message='.*Pydantic serializer warnings.*'
-)
+warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.main',
+                         message='.*PydanticSerializationUnexpectedValue.*')
+warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.*',
+                         message='.*serialized value may not be as expected.*')
+warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.*',
+                         message='.*Expected.*fields but got.*')
+warnings.filterwarnings('ignore', category=UserWarning,
+                         message='.*Pydantic serializer warnings.*')
 
 # =============================================================================
-# JOTTY v1.0 EXPORTS (New Names)
+# EAGER: Lightweight core exports used by almost everyone
 # =============================================================================
 from .jotty import (
-    # Core Orchestration
     SwarmManager,
     JottyCore,
     SwarmConfig,
-    JottyConfig,  # Backward compatibility
+    JottyConfig,
     AgentSpec,
-    AgentConfig,  # Backward compatibility
-    
-    # Planning & Validation
+    AgentConfig,
     InspectorAgent,
     IterativeAuditor,
-    
-    # Memory
     Cortex,
-    
-    # Communication
     Axon,
-    
-    # Task Management
     Roadmap,
     Checkpoint,
-    
-    # Learning
     TemporalLearner,
     RewardLearner,
-    
-    # Credit Assignment
     ContributionEstimator,
     ImpactEstimator,
-    
-    # Context Management
     ContextSentinel,
     Focus,
     Segmenter,
     Distiller,
-    
-    # Data Flow
     Datastream,
     Blackboard,
     Catalog,
-    
-    # Persistence
     Vault,
     Chronicle,
-    
-    # Cooperation
     CooperationPrinciples,
     NashBargainingSolver,
     CooperationReasoner,
     PredictiveCooperativeAgent,
-    
-    # Context Gradient
     ContextGradient,
     ContextApplier,
     ContextUpdate,
-    
-    # Convenience Functions
     create_swarm_manager,
-    create_conductor,  # Backward compat alias
+    create_conductor,
     create_cortex,
     create_axon,
     create_roadmap,
 )
 
-# =============================================================================
-# BACKWARD COMPATIBILITY: Jotty v6.1 Exports (Old Names Still Work)
-# =============================================================================
-
 from .foundation.data_structures import (
     SwarmConfig,
-    JottyConfig,  # Backward compatibility
+    JottyConfig,
     MemoryEntry,
     MemoryLevel,
     GoalValue,
@@ -141,281 +94,209 @@ from .foundation.data_structures import (
     CommunicationType,
     AgentContribution,
     ValidationRound,
-    # v7.5 A-Team Enhancements
     ContextType,
-    RichObservation
+    RichObservation,
 )
 
-# v6.1 A-Team Enhancements: Rich State Representation (V2)
-from .orchestration.v2.swarm_roadmap import (
-    AgenticState,
-    TrajectoryStep,
-    DecomposedQFunction,
-    MarkovianTODO,
-    SubtaskState,
-    TaskStatus,
-    ThoughtLevelCredit,
-    StateCheckpointer,
-    TrajectoryPredictor
-)
-
-# v6.2 A-Team Critical Fixes (JOTTY v1.0 naming)
-from .integration.framework_decorators import (
-    ContextGuard,
-    JottyDecorator,
-    jotty_wrap,
-    EmptyPromptHandler,
-    JottyEnhanced
-)
-
-# v6.3 Universal Wrapper (JOTTY v1.0 naming)
-from .integration.universal_wrapper import (
-    JottyUniversal,
-    SmartConfig,
-    jotty_universal,
-    detect_actor_type,
-    ActorType
-)
-
-# v6.4 Smart Context Manager (Task-aware context compression)
-from .context.context_manager import (
-    SmartContextManager,
-    ContextChunk,
-    ContextPriority,
-    with_smart_context
-)
-
-from .memory.llm_rag import (
-    LLMRAGRetriever,
-    SlidingWindowChunker,
-    RecencyValueRanker,
-    LLMRelevanceScorer,
-    DeduplicationEngine,
-    CausalExtractor
-)
-
-from .learning.learning import (
-    TDLambdaLearner,
-    AdaptiveLearningRate,
-    IntermediateRewardCalculator,
-    ReasoningCreditAssigner,
-    AdaptiveExploration,
-    LearningHealthMonitor,
-    DynamicBudgetManager
-)
-
-from .memory.cortex import (
-    HierarchicalMemory,
-    MemoryCluster,
-    # v7.5 A-Team Enhancement
-    MemoryLevelClassifier
-)
-
-from .agents.inspector import (
-    InspectorAgent,
-    MultiRoundValidator,
-    InternalReasoningTool,
-    CachingToolWrapper
-)
-
-from .learning.offline_learning import (
-    OfflineLearner,
-    PrioritizedEpisodeBuffer
-)
-
-# 🆕 A-TEAM: Predictive Cooperative Swarm (Game Theory + MARL)
-from .learning.predictive_cooperation import (
-    CooperationPrinciples,
-    NashBargainingSolver,
-    CooperationReasoner,
-    PredictiveCooperativeAgent,
-    CooperationState
-)
-
-# 🆕 A-TEAM: Context Gradient (Learning mechanism for LLM-based RL)
-from .context.context_gradient import (
-    ContextGradient,
-    ContextApplier,
-    ContextUpdate
-)
-
-# JottyCore is now SwarmManager (V2)
-from .orchestration import SwarmManager as JottyCore
-PersistenceManager = None  # Deprecated, use MASLearning
+# Backward compat aliases
+from .orchestration import SwarmManager as JottyCore  # noqa: F811
+PersistenceManager = None  # Deprecated
 create_reval = None  # Deprecated
 
-# v9.1 Complete Persistence Manager - NO HARDCODING
-from .persistence.persistence import (
-    Vault
-)
-
-# v7.0 SwarmManager - Multi-Actor Orchestration (V2)
-from .orchestration import (
-    SwarmManager,
-    MarkovianTODO as SwarmMarkovianTODO,
-    PolicyExplorer,  # Now in v2
-    CreditAssignment,
-    AdaptiveLearning,
-)
-from .orchestration.v2.swarm_roadmap import TodoItem
-from .foundation.agent_config import AgentConfig
-from .learning.q_learning import LLMQPredictor
-from .context.context_guard import SmartContextGuard
-# SwarmLearner is now internal to swarm_reval, not exported
-
-# v7.1 Predictive MARL - Multi-Agent Trajectory Prediction (Vision Implementation)
-from .learning.predictive_marl import (
-    LLMTrajectoryPredictor,
-    DivergenceMemory,
-    CooperativeCreditAssigner,
-    PredictedTrajectory,
-    ActualTrajectory,
-    Divergence,
-    AgentModel,
-    PredictedAction
-)
-
-# v7.2 Brain-Inspired Modes - Neuroscience-Based Memory and Learning
-from .memory.consolidation_engine import (
-    BrainMode,
-    BrainModeConfig,
-    MemoryCandidate,
-    HippocampalExtractor,
-    ConsolidationResult,
-    SharpWaveRippleConsolidator,
-    BrainStateMachine,
-    AgentRole,
-    AgentAbstractor
-)
-
-# v7.3 Memory Orchestrator - Unified Memory API
-from .memory.memory_orchestrator import (
-    SimpleBrain,
-    BrainPreset,
-    ConsolidationTrigger,
-    Experience,
-    calculate_chunk_size,
-    get_model_context,
-    load_brain_config
-)
-
-# v7.4 Robust Parsing - A-Team Approved Generic Utilities
-from .foundation.robust_parsing import (
-    parse_float_robust,
-    parse_bool_robust,
-    parse_json_robust,
-    AdaptiveThreshold,
-    EpsilonGreedy,
-    safe_hash,
-    content_similarity
-)
-
-# v8.0 Algorithmic Foundations - NO HARDCODING, Principled Math
-from .utils.algorithmic_foundations import (
-    # Credit Assignment (Shapley Value, Difference Rewards)
-    ShapleyValueEstimator,
-    DifferenceRewardEstimator,
-
-    # Information Theory (Self-Information, Mutual Information)
-    SurpriseEstimator,
-    MutualInformationRetriever,
-
-    # Universal Context Management
-    UniversalContextGuard,
-    ContextAwareDocumentProcessor
-)
-
-# v8.0 Global Context Guard - Protects ALL DSPy calls
-from .context.global_context_guard import (
-    GlobalContextGuard,
-    OverflowDetector,
-    patch_dspy_with_guard,
-    unpatch_dspy
-)
-
-# v8.0 Integration - Ties everything together
-from .integration.integration import (
-    JottyIntegration,
-    initialize_jotty,
-    get_jotty
-)
-
-# v9.0 Modern Agents - NO HEURISTICS, ONLY AGENTS
-from .agents.agent_factory import (
-    # Retry handling (replaces heuristic fallbacks)
-    UniversalRetryHandler,
-    RetryStrategy,
-    AgentResult,
-
-    # Pattern detection (replaces ALL keyword matching)
-    PatternDetector,
-
-    # Credit assignment (COMA 2018, not Shapley 1953)
-    LLMCounterfactualCritic,
-
-    # Memory retrieval (Self-RAG 2023, not embedding models)
-    SelfRAGMemoryRetriever,
-
-    # Surprise estimation (LLM-based, not Shannon 1948 formula)
-    LLMSurpriseEstimator
-)
-
 # =============================================================================
-# LOTUS Optimization Layer (Inspired by LOTUS: https://github.com/lotus-data/lotus)
+# LAZY: Heavy modules loaded on first attribute access
 # =============================================================================
-# Semantic Operators and Query Optimization for LLM-based Data Processing
-# Key features:
-# - Model Cascade: Use cheap models first, expensive only when needed (~10x cost reduction)
-# - Semantic Cache: Memoize semantic operations (~infinite speedup for repeats)
-# - Batch Executor: Batch LLM calls for throughput (~10x throughput)
-# - Adaptive Validator: Skip validation for trusted agents (~50% validation reduction)
 
-try:
-    from .lotus import (
-        # Configuration
-        LotusConfig,
-        CascadeThresholds,
-        CacheConfig,
+_LAZY_IMPORTS: dict[str, str] = {
+    # --- orchestration.v2.swarm_roadmap ---
+    "AgenticState": ".orchestration.v2.swarm_roadmap",
+    "TrajectoryStep": ".orchestration.v2.swarm_roadmap",
+    "DecomposedQFunction": ".orchestration.v2.swarm_roadmap",
+    "MarkovianTODO": ".orchestration.v2.swarm_roadmap",
+    "SwarmMarkovianTODO": ".orchestration.v2.swarm_roadmap",
+    "SubtaskState": ".orchestration.v2.swarm_roadmap",
+    "TaskStatus": ".orchestration.v2.swarm_roadmap",
+    "ThoughtLevelCredit": ".orchestration.v2.swarm_roadmap",
+    "StateCheckpointer": ".orchestration.v2.swarm_roadmap",
+    "TrajectoryPredictor": ".orchestration.v2.swarm_roadmap",
+    "TodoItem": ".orchestration.v2.swarm_roadmap",
+    # --- integration.framework_decorators ---
+    "ContextGuard": ".integration.framework_decorators",
+    "JottyDecorator": ".integration.framework_decorators",
+    "jotty_wrap": ".integration.framework_decorators",
+    "EmptyPromptHandler": ".integration.framework_decorators",
+    "JottyEnhanced": ".integration.framework_decorators",
+    # --- integration.universal_wrapper ---
+    "JottyUniversal": ".integration.universal_wrapper",
+    "SmartConfig": ".integration.universal_wrapper",
+    "jotty_universal": ".integration.universal_wrapper",
+    "detect_actor_type": ".integration.universal_wrapper",
+    "ActorType": ".integration.universal_wrapper",
+    # --- context.context_manager ---
+    "SmartContextManager": ".context.context_manager",
+    "ContextChunk": ".context.context_manager",
+    "ContextPriority": ".context.context_manager",
+    "with_smart_context": ".context.context_manager",
+    # --- memory.llm_rag ---
+    "LLMRAGRetriever": ".memory.llm_rag",
+    "SlidingWindowChunker": ".memory.llm_rag",
+    "RecencyValueRanker": ".memory.llm_rag",
+    "LLMRelevanceScorer": ".memory.llm_rag",
+    "DeduplicationEngine": ".memory.llm_rag",
+    "CausalExtractor": ".memory.llm_rag",
+    # --- learning.learning ---
+    "TDLambdaLearner": ".learning.learning",
+    "AdaptiveLearningRate": ".learning.learning",
+    "IntermediateRewardCalculator": ".learning.learning",
+    "ReasoningCreditAssigner": ".learning.learning",
+    "AdaptiveExploration": ".learning.learning",
+    "LearningHealthMonitor": ".learning.learning",
+    "DynamicBudgetManager": ".learning.learning",
+    # --- memory.cortex ---
+    "HierarchicalMemory": ".memory.cortex",
+    "MemoryCluster": ".memory.cortex",
+    "MemoryLevelClassifier": ".memory.cortex",
+    # --- agents.inspector ---
+    "MultiRoundValidator": ".agents.inspector",
+    "InternalReasoningTool": ".agents.inspector",
+    "CachingToolWrapper": ".agents.inspector",
+    # --- learning.offline_learning ---
+    "OfflineLearner": ".learning.offline_learning",
+    "PrioritizedEpisodeBuffer": ".learning.offline_learning",
+    # --- learning.predictive_cooperation ---
+    "CooperationState": ".learning.predictive_cooperation",
+    # --- foundation.agent_config ---
+    # AgentConfig already imported eagerly
+    # --- learning.q_learning ---
+    "LLMQPredictor": ".learning.q_learning",
+    # --- context.context_guard ---
+    "SmartContextGuard": ".context.context_guard",
+    # --- learning.predictive_marl ---
+    "LLMTrajectoryPredictor": ".learning.predictive_marl",
+    "DivergenceMemory": ".learning.predictive_marl",
+    "CooperativeCreditAssigner": ".learning.predictive_marl",
+    "PredictedTrajectory": ".learning.predictive_marl",
+    "ActualTrajectory": ".learning.predictive_marl",
+    "Divergence": ".learning.predictive_marl",
+    "AgentModel": ".learning.predictive_marl",
+    "PredictedAction": ".learning.predictive_marl",
+    # --- memory.consolidation_engine ---
+    "BrainMode": ".memory.consolidation_engine",
+    "BrainModeConfig": ".memory.consolidation_engine",
+    "MemoryCandidate": ".memory.consolidation_engine",
+    "HippocampalExtractor": ".memory.consolidation_engine",
+    "ConsolidationResult": ".memory.consolidation_engine",
+    "SharpWaveRippleConsolidator": ".memory.consolidation_engine",
+    "BrainStateMachine": ".memory.consolidation_engine",
+    "AgentRole": ".memory.consolidation_engine",
+    "AgentAbstractor": ".memory.consolidation_engine",
+    # --- memory.memory_orchestrator ---
+    "SimpleBrain": ".memory.memory_orchestrator",
+    "BrainPreset": ".memory.memory_orchestrator",
+    "ConsolidationTrigger": ".memory.memory_orchestrator",
+    "Experience": ".memory.memory_orchestrator",
+    "calculate_chunk_size": ".memory.memory_orchestrator",
+    "get_model_context": ".memory.memory_orchestrator",
+    "load_brain_config": ".memory.memory_orchestrator",
+    # --- foundation.robust_parsing ---
+    "parse_float_robust": ".foundation.robust_parsing",
+    "parse_bool_robust": ".foundation.robust_parsing",
+    "parse_json_robust": ".foundation.robust_parsing",
+    "AdaptiveThreshold": ".foundation.robust_parsing",
+    "EpsilonGreedy": ".foundation.robust_parsing",
+    "safe_hash": ".foundation.robust_parsing",
+    "content_similarity": ".foundation.robust_parsing",
+    # --- utils.algorithmic_foundations ---
+    "ShapleyValueEstimator": ".utils.algorithmic_foundations",
+    "DifferenceRewardEstimator": ".utils.algorithmic_foundations",
+    "SurpriseEstimator": ".utils.algorithmic_foundations",
+    "MutualInformationRetriever": ".utils.algorithmic_foundations",
+    "UniversalContextGuard": ".utils.algorithmic_foundations",
+    "ContextAwareDocumentProcessor": ".utils.algorithmic_foundations",
+    # --- context.global_context_guard ---
+    "GlobalContextGuard": ".context.global_context_guard",
+    "OverflowDetector": ".context.global_context_guard",
+    "patch_dspy_with_guard": ".context.global_context_guard",
+    "unpatch_dspy": ".context.global_context_guard",
+    # --- integration.integration ---
+    "JottyIntegration": ".integration.integration",
+    "initialize_jotty": ".integration.integration",
+    "get_jotty": ".integration.integration",
+    # --- agents.agent_factory ---
+    "UniversalRetryHandler": ".agents.agent_factory",
+    "RetryStrategy": ".agents.agent_factory",
+    "AgentResult": ".agents.agent_factory",
+    "PatternDetector": ".agents.agent_factory",
+    "LLMCounterfactualCritic": ".agents.agent_factory",
+    "SelfRAGMemoryRetriever": ".agents.agent_factory",
+    "LLMSurpriseEstimator": ".agents.agent_factory",
+    # --- persistence.persistence ---
+    # Vault already imported eagerly via jotty.py
+    # --- orchestration (PolicyExplorer etc.) ---
+    "PolicyExplorer": ".orchestration",
+    "CreditAssignment": ".orchestration",
+    "AdaptiveLearning": ".orchestration",
+}
 
-        # Model Cascade (biggest cost saver)
-        ModelCascade,
-        CascadeResult,
-        ModelTier,
+# --- LOTUS (optional, wrapped in try/except at import time) ---
+_LOTUS_NAMES: dict[str, str] = {
+    "LotusConfig": ".lotus",
+    "CascadeThresholds": ".lotus",
+    "CacheConfig": ".lotus",
+    "ModelCascade": ".lotus",
+    "CascadeResult": ".lotus",
+    "ModelTier": ".lotus",
+    "SemanticCache": ".lotus",
+    "CacheEntry": ".lotus",
+    "CacheStats": ".lotus",
+    "BatchExecutor": ".lotus",
+    "BatchResult": ".lotus",
+    "BatchConfig": ".lotus",
+    "AdaptiveValidator": ".lotus",
+    "ValidationDecision": ".lotus",
+    "SemanticOperator": ".lotus",
+    "SemFilter": ".lotus",
+    "SemMap": ".lotus",
+    "SemExtract": ".lotus",
+    "SemTopK": ".lotus",
+    "SemanticDataFrame": ".lotus",
+    "LotusOptimizer": ".lotus",
+    "enhance_swarm_manager": ".lotus.integration",
+    "create_cascaded_lm": ".lotus.integration",
+    "setup_lotus_optimization": ".lotus.integration",
+    "LotusEnhancement": ".lotus.integration",
+    "LotusSwarmMixin": ".lotus.integration",
+}
 
-        # Semantic Cache (memoization)
-        SemanticCache,
-        CacheEntry,
-        CacheStats,
+LOTUS_AVAILABLE = False  # Set to True on first successful lotus import
 
-        # Batch Executor (throughput)
-        BatchExecutor,
-        BatchResult,
-        BatchConfig,
 
-        # Adaptive Validator (skip unnecessary validation)
-        AdaptiveValidator,
-        ValidationDecision,
+def __getattr__(name: str):
+    global LOTUS_AVAILABLE
 
-        # Semantic Operators (LOTUS-style declarative API)
-        SemanticOperator,
-        SemFilter,
-        SemMap,
-        SemExtract,
-        SemTopK,
-        SemanticDataFrame,
+    # Standard lazy imports
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        # Handle SwarmMarkovianTODO alias
+        attr_name = "MarkovianTODO" if name == "SwarmMarkovianTODO" else name
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
 
-        # Unified Optimizer
-        LotusOptimizer,
-    )
+    # LOTUS lazy imports (optional)
+    if name in _LOTUS_NAMES:
+        try:
+            module_path = _LOTUS_NAMES[name]
+            module = _importlib.import_module(module_path, __name__)
+            value = getattr(module, name)
+            globals()[name] = value
+            LOTUS_AVAILABLE = True
+            return value
+        except ImportError:
+            raise AttributeError(f"LOTUS not installed: {name!r}")
 
-    from .lotus.integration import (
-        enhance_swarm_manager,
-        create_cascaded_lm,
-        setup_lotus_optimization,
-        LotusEnhancement,
-        LotusSwarmMixin,
-    )
+    if name == "LOTUS_AVAILABLE":
+        return LOTUS_AVAILABLE
 
-    LOTUS_AVAILABLE = True
-except ImportError:
-    LOTUS_AVAILABLE = False
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

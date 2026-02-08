@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Automatic feature type detection
-- Missing value imputation
-- Categorical encoding
-- Feature interactions
-- Domain-specific transformations
+- analyze
 
 ## Tools
 - `feature_engineer`: Engineer features for a dataset

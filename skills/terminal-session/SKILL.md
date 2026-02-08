@@ -10,6 +10,10 @@ Provides persistent terminal sessions that maintain state across commands, suppo
 ## Type
 base
 
+
+## Capabilities
+- code
+
 ## Features
 
 - Persistent sessions (state maintained across commands)

@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - claude-cli-llm
 
+
+## Capabilities
+- research
+
 ## Features
 
 - ✅ No API keys required - uses Claude CLI LM

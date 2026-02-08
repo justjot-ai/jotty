@@ -7,6 +7,10 @@ Provides safe shell command execution capabilities with timeout and output captu
 ## Type
 base
 
+
+## Capabilities
+- code
+
 ## Tools
 
 ### execute_command_tool

@@ -21,6 +21,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- analyze
+- document
+
 ## Usage
 
 ```python

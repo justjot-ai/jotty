@@ -10,6 +10,7 @@ This skill provides weather information including temperature, humidity, wind sp
 ## Type
 base
 
+
 ## Capabilities
 - data-fetch
 

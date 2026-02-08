@@ -7,6 +7,10 @@ Provides mathematical calculation capabilities including basic arithmetic, scien
 ## Type
 base
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### calculate_tool

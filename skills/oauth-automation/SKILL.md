@@ -14,6 +14,10 @@ This skill automates OAuth authentication flows using browser automation. It can
 ## Type
 base
 
+
+## Capabilities
+- code
+
 ## Features
 
 - Automated OAuth login flows

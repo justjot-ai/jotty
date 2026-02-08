@@ -23,6 +23,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- document
+- code
+
 ## Usage
 
 ```python

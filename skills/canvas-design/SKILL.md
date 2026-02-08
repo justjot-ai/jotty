@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - image-generator
 
+
+## Capabilities
+- media
+- visualize
+
 ## Tools
 
 ### `create_design_artwork_tool`

@@ -10,6 +10,7 @@ Provides web search capabilities using Google (via Serper API) or DuckDuckGo, an
 ## Type
 base
 
+
 ## Capabilities
 - research
 - data-fetch

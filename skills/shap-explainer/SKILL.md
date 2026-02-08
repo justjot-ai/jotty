@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Generate SHAP values for any scikit-learn compatible model
-- Feature importance analysis
-- Local and global explanations
-- Waterfall, beeswarm, and force plots
-- Model-agnostic interpretations
+- analyze
 
 ## Tools
 - `shap_explain_tool`: Generate SHAP explanations for a model

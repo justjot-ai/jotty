@@ -10,6 +10,11 @@ derived
 ## Base Skills
 - pptx-editor
 
+
+## Capabilities
+- visualize
+- document
+
 ## Features
 - **AI-Powered Generation**: Create presentations from text descriptions
 - **Docker Integration**: Automatic container management (start/stop)

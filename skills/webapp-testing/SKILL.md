@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - browser-automation
 
+
+## Capabilities
+- code
+
 ## Tools
 
 ### `test_webapp_tool`

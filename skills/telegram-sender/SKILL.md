@@ -10,6 +10,7 @@ This skill sends text messages and files (PDFs, images, etc.) to Telegram using 
 ## Type
 base
 
+
 ## Capabilities
 - communicate
 

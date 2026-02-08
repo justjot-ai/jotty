@@ -6,6 +6,10 @@ Generates professional LaTeX documents with proper mathematical notation, styled
 ## Type
 base
 
+
+## Capabilities
+- document
+
 ## Tools
 
 ### `generate_latex_document_tool`

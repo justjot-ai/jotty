@@ -7,6 +7,11 @@ Advanced web scraping capabilities using Scrapy. Supports single page scraping o
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+- research
+
 ## Tools
 
 ### scrape_website_tool

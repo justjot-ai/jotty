@@ -7,6 +7,10 @@ Splits text into semantic chunks for RAG (Retrieval Augmented Generation) system
 ## Type
 base
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### chunk_text_tool

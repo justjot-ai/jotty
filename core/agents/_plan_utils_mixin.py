@@ -716,7 +716,14 @@ Filename: {filename}
         
         # Discover skills if not provided
         if available_skills is None:
-            available_skills = self._discover_available_skills()
+            try:
+                from ..registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                registry.init()
+                available_skills = registry.list_skills()
+            except Exception as e:
+                logger.warning(f"Failed to discover skills: {e}")
+                available_skills = []
         
         # Select best skills
         selected_skills, selection_reasoning = self.select_skills(
@@ -794,26 +801,6 @@ Filename: {filename}
         except Exception as e:
             logger.warning(f"Failed to convert skills to agents: {e}")
             return None
-    
-    def _discover_available_skills(self) -> List[Dict[str, Any]]:
-        """Discover available skills from registry."""
-        try:
-            from ..registry.skills_registry import get_skills_registry
-            registry = get_skills_registry()
-            registry.init()
-            
-            all_skills_list = registry.list_skills()
-            return [
-                {
-                    'name': s['name'],
-                    'description': s.get('description', ''),
-                    'tools': s.get('tools', [])
-                }
-                for s in all_skills_list
-            ]
-        except Exception as e:
-            logger.warning(f"Failed to discover skills: {e}")
-            return []
     
     def _extract_required_tools(self, steps: List[Any], skill_names: List[str]) -> List[str]:
         """Extract all required tools from steps."""

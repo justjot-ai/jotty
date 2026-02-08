@@ -7,6 +7,11 @@ Editing toolkit for existing PowerPoint (.pptx) files using python-pptx. This sk
 ## Type
 base
 
+
+## Capabilities
+- document
+- visualize
+
 ## Tools
 
 ### read_pptx_tool

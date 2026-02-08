@@ -9,6 +9,11 @@ derived
 ## Base Skills
 - web-search
 
+
+## Capabilities
+- research
+- data-fetch
+
 ## Use Cases
 
 - Collect data from multiple APIs

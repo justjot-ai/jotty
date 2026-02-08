@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - github
 
+
+## Capabilities
+- document
+- code
+
 ## Tools
 
 ### `generate_changelog_tool`

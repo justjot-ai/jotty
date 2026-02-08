@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Time series decomposition
-- ARIMA/SARIMA forecasting
-- Prophet forecasting
-- Feature extraction from time series
-- Anomaly detection in time series
-- Cross-validation for time series
+- analyze
 
 ## Tools
 - `timeseries_decompose_tool`: Decompose time series

@@ -16,6 +16,11 @@ Based on latest research (2025-2026) on prompt engineering and LLM ensembling.
 ## Type
 base
 
+
+## Capabilities
+- analyze
+- code
+
 ## Usage
 
 ### Basic LLM Call

@@ -7,6 +7,10 @@ Generative art toolkit using Pillow and numpy for creating various types of algo
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Installation
 ```bash
 pip install Pillow numpy

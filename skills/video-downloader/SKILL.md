@@ -10,6 +10,10 @@ This skill downloads videos from YouTube and other platforms directly to your co
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### `download_video_tool`

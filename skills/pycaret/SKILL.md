@@ -9,12 +9,9 @@ derived
 ## Base Skills
 - automl
 
+
 ## Capabilities
-- Compare 15+ ML algorithms automatically
-- Automatic preprocessing and feature engineering
-- Hyperparameter tuning
-- Model ensembling (blending, stacking, boosting)
-- Model interpretation and explainability
+- analyze
 
 ## Tools
 - `pycaret_classify_tool`: AutoML classification

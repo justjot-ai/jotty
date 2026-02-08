@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- code
+
 ## Tools
 
 ### `create_skill_template_tool`

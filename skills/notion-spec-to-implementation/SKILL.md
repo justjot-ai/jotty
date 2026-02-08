@@ -17,6 +17,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- code
+- document
+
 ## Tools
 
 ### `create_implementation_plan_tool`

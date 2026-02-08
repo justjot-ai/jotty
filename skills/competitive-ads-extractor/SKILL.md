@@ -13,6 +13,11 @@ derived
 ## Base Skills
 - web-search
 
+
+## Capabilities
+- research
+- data-fetch
+
 ## Tools
 
 ### `extract_competitive_ads_tool`

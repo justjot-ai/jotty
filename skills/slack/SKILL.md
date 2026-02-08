@@ -10,6 +10,10 @@ This skill provides tools to send messages, read channels, upload files, and int
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Features
 
 - Send messages to channels and DMs

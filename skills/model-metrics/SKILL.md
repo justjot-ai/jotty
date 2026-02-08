@@ -9,13 +9,9 @@ derived
 ## Base Skills
 - data-profiler
 
+
 ## Capabilities
-- Classification metrics (accuracy, F1, AUC, precision, recall)
-- Regression metrics (MSE, RMSE, MAE, R2, MAPE)
-- Cross-validation scoring
-- Confusion matrix analysis
-- Threshold optimization
-- Calibration analysis
+- analyze
 
 ## Tools
 - `metrics_classify_tool`: Classification metrics

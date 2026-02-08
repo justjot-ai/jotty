@@ -6,3 +6,7 @@ result = generate_image(
 
 ## Type
 base
+
+
+## Capabilities
+- media

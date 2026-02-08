@@ -13,6 +13,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- document
+
 ## Tools
 
 ### `generate_transformer_paper_tool`

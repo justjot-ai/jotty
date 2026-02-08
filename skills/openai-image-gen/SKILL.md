@@ -7,6 +7,10 @@ Generate, edit, and create variations of images using OpenAI's DALL-E API. Uses 
 ## Type
 base
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### generate_image_tool

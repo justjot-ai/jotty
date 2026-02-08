@@ -10,6 +10,10 @@ This skill uploads PDFs to reMarkable tablet using rmapi (reMarkable cloud API c
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Features
 
 - Upload PDFs to reMarkable cloud

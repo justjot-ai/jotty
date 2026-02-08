@@ -17,6 +17,11 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- media
+- communicate
+
 ## Tools
 
 ### `create_slack_gif_tool`

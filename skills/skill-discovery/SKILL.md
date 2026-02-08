@@ -10,6 +10,10 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- research
+
 ## Tools
 
 ### list_categories_tool

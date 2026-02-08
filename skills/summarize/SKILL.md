@@ -10,6 +10,10 @@ This skill provides comprehensive text summarization capabilities using Claude C
 ## Type
 base
 
+
+## Capabilities
+- analyze
+
 ## Tools
 
 ### summarize_text_tool

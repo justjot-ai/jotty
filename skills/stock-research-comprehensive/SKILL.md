@@ -16,6 +16,13 @@ composite
 ## Execution
 sequential
 
+
+## Capabilities
+- research
+- data-fetch
+- document
+- communicate
+
 ## Features
 - **Fundamentals Research**: Financial metrics, company overview, business model
 - **Technical Analysis**: Price trends, technical indicators, chart patterns

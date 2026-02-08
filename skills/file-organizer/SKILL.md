@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - file-operations
 
+
+## Capabilities
+- file-ops
+
 ## Tools
 
 ### `organize_files_tool`

@@ -8,6 +8,10 @@ derived
 ## Base Skills
 - document-converter
 
+
+## Capabilities
+- document
+
 ## Use Cases
 
 - Generate PDFs from text content

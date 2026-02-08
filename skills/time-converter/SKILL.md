@@ -7,6 +7,10 @@ Convert time between timezones and formats
 ## Type
 base
 
+
+## Capabilities
+- analyze
+
 ## Tools
 - `convert_timezone`: Convert time from one timezone to another
 - `format_time`: Format time string in various formats (12h/24h, ISO8601, etc.)

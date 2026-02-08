@@ -59,7 +59,17 @@ class RunCommand(BaseCommand):
             # Status callback for streaming progress
             def status_callback(stage: str, detail: str = ""):
                 """Stream progress updates to the CLI."""
-                if detail:
+                # Use different icons for different stages
+                import re
+                step_match = re.match(r'Step (\d+)/(\d+)', stage)
+                if step_match:
+                    icon = "▶" if 'completed' not in (detail or '').lower() else "✓"
+                    cli.renderer.print(f"  [bold cyan]{icon}[/bold cyan] {stage}: {detail}")
+                elif 'error' in stage.lower() or 'failed' in (detail or '').lower():
+                    cli.renderer.print(f"  [bold red]✗[/bold red] {stage}: {detail}")
+                elif 'complete' in stage.lower() or 'success' in (detail or '').lower():
+                    cli.renderer.print(f"  [bold green]✓[/bold green] {stage}: {detail}")
+                elif detail:
                     cli.renderer.print(f"  [cyan]→[/cyan] {stage}: {detail}")
                 else:
                     cli.renderer.print(f"  [cyan]→[/cyan] {stage}")
@@ -93,23 +103,50 @@ class RunCommand(BaseCommand):
                 if hasattr(output, 'outputs') and hasattr(output, 'skills_used'):
                     outputs_dict = output.outputs or {}
                     seen_paths = set()
+                    step_summaries = []  # Track per-step summaries for multi-step display
+
                     for step_key, step_result in outputs_dict.items():
                         if isinstance(step_result, dict):
+                            # Extract file paths
                             for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
                                 if key in step_result and step_result[key]:
                                     path = step_result[key]
                                     if path not in seen_paths:
                                         file_paths.append((key.replace('_', ' ').title(), path))
                                         seen_paths.add(path)
+
+                            # Extract notable metadata
                             for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
                                 if key in step_result and step_result[key]:
                                     summary[key] = step_result[key]
+
+                            # Track per-step results for multi-step display
+                            step_label = step_key.replace('_', ' ').title()
+                            if step_result.get('query'):
+                                count = step_result.get('count', len(step_result.get('results', [])))
+                                step_summaries.append(f"🔍 {step_label}: {step_result['query']} ({count} results)")
+                            elif step_result.get('text') and len(step_result.get('text', '')) > 20:
+                                text_preview = step_result['text'][:80].replace('\n', ' ')
+                                step_summaries.append(f"📝 {step_label}: {text_preview}...")
+                            elif step_result.get('pdf_path'):
+                                step_summaries.append(f"📄 {step_label}: {step_result['pdf_path']}")
+                            elif step_result.get('telegram_sent') or step_result.get('message_id'):
+                                step_summaries.append(f"📨 {step_label}: Delivered ✓")
 
                     # Add skills and steps to summary
                     if output.skills_used:
                         summary['skills'] = ', '.join(output.skills_used)
                     if output.steps_executed:
                         summary['steps'] = output.steps_executed
+
+                    # Display step-by-step breakdown for multi-step plans
+                    if step_summaries and len(step_summaries) > 1:
+                        cli.renderer.newline()
+                        cli.renderer.panel(
+                            "\n".join(step_summaries),
+                            title=f"Execution Steps ({len(step_summaries)})",
+                            style="cyan"
+                        )
 
                 elif isinstance(output, dict):
                     for key in ['pdf_path', 'md_path', 'output_path', 'file_path']:

@@ -7,6 +7,11 @@ Integrates with Notion API to search, read, create, and update pages and databas
 ## Type
 base
 
+
+## Capabilities
+- data-fetch
+- document
+
 ## Configuration
 API key is loaded from:
 1. Environment variable: `NOTION_API_KEY`

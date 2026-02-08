@@ -10,6 +10,10 @@ This skill provides tools to send messages, read channels, create threads, and i
 ## Type
 base
 
+
+## Capabilities
+- communicate
+
 ## Features
 
 - Send messages to channels

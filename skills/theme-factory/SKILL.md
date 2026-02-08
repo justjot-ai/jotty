@@ -13,6 +13,10 @@ derived
 ## Base Skills
 - image-generator
 
+
+## Capabilities
+- media
+
 ## Tools
 
 ### `apply_theme_tool`
