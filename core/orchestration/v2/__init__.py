@@ -55,12 +55,6 @@ Discovering Capabilities:
 -------------------------
     swarm = SwarmManager(agents="test")
     
-    # List all capabilities
-    capabilities = swarm.list_capabilities()
-    
-    # Get help for a component
-    help_text = swarm.get_help("SwarmResearcher")
-    
     # Check available providers
     providers = swarm.swarm_provider_gateway.list_available_providers()
 
