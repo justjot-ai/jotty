@@ -26,6 +26,7 @@ import logging
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
+from dataclasses import dataclass, field
 import importlib.util
 
 # Load environment variables from .env file
@@ -43,8 +44,80 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# TOOL METADATA (Absorbed from ToolsRegistry)
+# =============================================================================
+
+@dataclass
+class ToolMetadata:
+    """
+    Metadata for a tool within a skill.
+
+    This consolidates ToolSchema from the old ToolsRegistry into SkillsRegistry,
+    providing rich metadata for each tool including MCP support, parameters, etc.
+
+    The SkillsRegistry is now the single source of truth for tools.
+    """
+    name: str  # Tool name within the skill
+    description: str  # What this tool does
+    category: str = "general"  # Category grouping
+    mcp_enabled: bool = False  # Available via MCP protocol
+    parameters: Dict[str, Any] = field(default_factory=dict)  # Parameter schema (JSON Schema)
+    returns: Optional[str] = None  # Return type description
+    examples: List[Dict[str, Any]] = field(default_factory=list)  # Usage examples
+    tags: List[str] = field(default_factory=list)  # Searchable tags
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'category': self.category,
+            'mcp_enabled': self.mcp_enabled,
+            'parameters': self.parameters,
+            'returns': self.returns,
+            'examples': self.examples,
+            'tags': self.tags,
+        }
+
+    def to_claude_tool(self) -> Dict[str, Any]:
+        """Convert to Claude API tool format."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'input_schema': {
+                'type': 'object',
+                'properties': self.parameters.get('properties', {}),
+                'required': self.parameters.get('required', []),
+            }
+        }
+
+
+# =============================================================================
+# SKILL DEFINITION (Enhanced with Tool Metadata)
+# =============================================================================
+
 class SkillDefinition:
-    """Definition of a skill with its tools (supports lazy loading)."""
+    """
+    Definition of a skill with its tools (supports lazy loading).
+
+    Skills are the "Hands" of the Jotty system - they represent what the
+    swarm can DO. Each skill contains multiple tools with rich metadata.
+
+    Architecture:
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                       SKILL DEFINITION (Hands)                       │
+    │  ┌─────────────────────────────────────────────────────────────────┐ │
+    │  │                          Tools                                   │ │
+    │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │ │
+    │  │  │   tool_1    │  │   tool_2    │  │   tool_N    │             │ │
+    │  │  │  callable   │  │  callable   │  │  callable   │             │ │
+    │  │  │  metadata   │  │  metadata   │  │  metadata   │             │ │
+    │  │  └─────────────┘  └─────────────┘  └─────────────┘             │ │
+    │  └─────────────────────────────────────────────────────────────────┘ │
+    │  Metadata: name, description, category, path, mcp_enabled, tags     │
+    └─────────────────────────────────────────────────────────────────────┘
+    """
 
     def __init__(
         self,
@@ -52,13 +125,27 @@ class SkillDefinition:
         description: str,
         tools: Optional[Dict[str, Callable]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        _tool_loader: Optional[Callable] = None
+        _tool_loader: Optional[Callable] = None,
+        # New: Tool metadata for each tool
+        tool_metadata: Optional[Dict[str, ToolMetadata]] = None,
+        # Skill-level attributes (from ToolSchema patterns)
+        category: str = "general",
+        mcp_enabled: bool = False,
+        tags: Optional[List[str]] = None,
+        version: str = "1.0.0",
     ):
         self.name = name
         self.description = description
         self._tools = tools  # None until loaded (lazy) or pre-populated (eager)
         self._tool_loader = _tool_loader  # Callable that returns Dict[str, Callable]
         self.metadata = metadata or {}
+
+        # New: Enhanced metadata from ToolsRegistry patterns
+        self._tool_metadata: Dict[str, ToolMetadata] = tool_metadata or {}
+        self.category = category
+        self.mcp_enabled = mcp_enabled
+        self.tags = tags or []
+        self.version = version
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -78,6 +165,55 @@ class SkillDefinition:
     @tools.setter
     def tools(self, value: Dict[str, Callable]):
         self._tools = value
+
+    def get_tool_metadata(self, tool_name: str) -> Optional[ToolMetadata]:
+        """Get metadata for a specific tool."""
+        return self._tool_metadata.get(tool_name)
+
+    def set_tool_metadata(self, tool_name: str, metadata: ToolMetadata):
+        """Set metadata for a specific tool."""
+        self._tool_metadata[tool_name] = metadata
+
+    def list_tools(self) -> List[str]:
+        """List all tool names in this skill."""
+        return list(self.tools.keys())
+
+    def get_tool(self, tool_name: str) -> Optional[Callable]:
+        """Get a specific tool callable."""
+        return self.tools.get(tool_name)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'category': self.category,
+            'mcp_enabled': self.mcp_enabled,
+            'tags': self.tags,
+            'version': self.version,
+            'tools': self.list_tools(),
+            'tool_count': len(self.tools),
+            'metadata': self.metadata,
+        }
+
+    def to_claude_tools(self) -> List[Dict[str, Any]]:
+        """Convert all tools to Claude API tool format."""
+        claude_tools = []
+        for tool_name in self.list_tools():
+            meta = self._tool_metadata.get(tool_name)
+            if meta:
+                claude_tools.append(meta.to_claude_tool())
+            else:
+                # Generate basic tool definition from callable
+                tool = self.tools.get(tool_name)
+                if tool:
+                    doc = tool.__doc__ or f"Tool: {tool_name}"
+                    claude_tools.append({
+                        'name': tool_name,
+                        'description': doc.strip().split('\n')[0],
+                        'input_schema': {'type': 'object', 'properties': {}},
+                    })
+        return claude_tools
 
 
 class SkillsRegistry:
