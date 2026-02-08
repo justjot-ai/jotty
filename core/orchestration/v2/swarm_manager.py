@@ -1322,8 +1322,14 @@ Provide a structured synthesis with:
             return EpisodeResult(
                 output=None,
                 success=False,
-                agent_name="swarm_manager",
-                error="No tasks executed"
+                trajectory=[],
+                tagged_outputs=[],
+                episode=self.episode_count,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
+                agent_contributions={},
+                alerts=["No tasks executed"],
             )
 
         if len(results) == 1:

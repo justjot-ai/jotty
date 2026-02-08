@@ -1078,8 +1078,17 @@ JSON:"""
         if not entities:
             entities = [task]  # Fallback: treat whole task as one entity
 
-        # Build available skill names for reference
+        # Build available skill names — check FULL registry, not just selected skills
         available = {s.get('name', ''): s for s in skills}
+        try:
+            from ..registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            if registry:
+                for sname, sdef in registry.loaded_skills.items():
+                    if sname not in available:
+                        available[sname] = {'name': sname}
+        except Exception:
+            pass
 
         # Build decomposed plan
         ExecutionStep = _get_execution_step()
@@ -1091,17 +1100,31 @@ JSON:"""
         task_wants_telegram = 'telegram' in task_lower
         task_wants_slack = 'slack' in task_lower
 
+        # Extract the topic/context from the task (e.g., "payment gateway" from "Paytm vs PhonePe payment gateway")
+        topic_words = []
+        for w in task_lower.split():
+            if w not in {'vs', 'vs.', 'versus', 'compare', 'comparison', 'research', 'create',
+                        'generate', 'send', 'via', 'telegram', 'slack', 'pdf', 'report',
+                        'and', 'the', 'a', 'an', 'on', 'for', 'with', 'difference', 'between'}:
+                # Skip entity names themselves
+                if not any(w.lower() in e.lower() for e in entities):
+                    topic_words.append(w)
+        topic_context = ' '.join(topic_words[:3])  # e.g., "payment gateway"
+
         # Step(s): Research each entity separately
         for i, entity in enumerate(entities[:4]):  # Max 4 entities
+            entity_clean = entity.strip()
+            # Build a richer search query
+            search_query = f'{entity_clean} {topic_context}'.strip() if topic_context else entity_clean
             search_params = {
-                'query': entity.strip(),
-                'max_results': '5',
+                'query': search_query,
+                'max_results': 5,
             }
             decomposed.append(ExecutionStep(
                 skill_name='web-search',
                 tool_name='search_web_tool',
                 params=search_params,
-                description=f'Research: {entity.strip()}',
+                description=f'Research: {search_query}',
                 output_key=f'research_{i}',
                 depends_on=[],
             ))
@@ -1113,8 +1136,16 @@ JSON:"""
         )
         entity_names = ' vs '.join(e.strip() for e in entities[:4])
 
-        synth_skill = 'claude-cli-llm' if 'claude-cli-llm' in available else 'summarize'
-        synth_tool = 'generate_text_tool' if synth_skill == 'claude-cli-llm' else 'summarize_text_tool'
+        # Prefer claude-cli-llm for synthesis (more control), fallback to summarize
+        if 'claude-cli-llm' in available:
+            synth_skill = 'claude-cli-llm'
+            synth_tool = 'generate_text_tool'
+        elif 'summarize' in available:
+            synth_skill = 'summarize'
+            synth_tool = 'summarize_text_tool'
+        else:
+            synth_skill = 'claude-cli-llm'
+            synth_tool = 'generate_text_tool'
 
         decomposed.append(ExecutionStep(
             skill_name=synth_skill,
@@ -1122,12 +1153,16 @@ JSON:"""
             params={
                 'prompt': (
                     f'Create a detailed, structured comparison of {entity_names}. '
-                    f'Include: Executive Summary, Feature Comparison Table, '
-                    f'Pricing Comparison, Pros/Cons for each, and Recommendation. '
+                    f'Format as a professional markdown report with these sections:\n'
+                    f'# {entity_names} Comparison Report\n'
+                    f'## Executive Summary\n'
+                    f'## Feature Comparison\n'
+                    f'| Feature | {" | ".join(e.strip() for e in entities[:4])} |\n'
+                    f'## Pricing & Plans\n'
+                    f'## Pros and Cons\n'
+                    f'## Recommendation\n\n'
                     f'Use the following research data:\n{research_refs}'
                 ),
-                'content': research_refs,
-                'topic': entity_names,
             },
             description=f'Synthesize structured comparison: {entity_names}',
             output_key='synthesis',
@@ -1138,11 +1173,13 @@ JSON:"""
         if task_wants_pdf or task_wants_telegram:
             pdf_skill = 'simple-pdf-generator' if 'simple-pdf-generator' in available else 'document-converter'
             pdf_tool = 'generate_pdf_tool' if pdf_skill == 'simple-pdf-generator' else 'convert_to_pdf_tool'
+            # Content comes from synthesis — handle both generate_text_tool (text) and summarize_text_tool (summary)
+            content_ref = '${synthesis.text}' if synth_skill == 'claude-cli-llm' else '${synthesis.summary}'
             decomposed.append(ExecutionStep(
                 skill_name=pdf_skill,
                 tool_name=pdf_tool,
                 params={
-                    'content': '${synthesis.text}',
+                    'content': content_ref,
                     'title': f'{entity_names} Comparison Report',
                     'topic': entity_names,
                 },
@@ -1208,8 +1245,9 @@ JSON:"""
             for part in vs_match:
                 # Clean each part: remove common prefixes/suffixes
                 part = re.sub(r'^\s*(compare|research|analyze|research on|create|generate|send|make|build)\s+', '', part, flags=re.IGNORECASE)
-                part = re.sub(r'\s*(comparison|report|pdf|document|via telegram|via slack|and send|,.*$)\s*$', '', part, flags=re.IGNORECASE)
-                part = part.strip()
+                part = re.sub(r'\s*(comparison|compare|report|pdf|document|analysis|review|overview)\b.*$', '', part, flags=re.IGNORECASE)
+                part = re.sub(r'\s*(via telegram|via slack|and send|and create|,.*$)\s*$', '', part, flags=re.IGNORECASE)
+                part = part.strip().rstrip(',. ')
                 if part and len(part) > 1:
                     entities.append(part)
             if len(entities) >= 2:
