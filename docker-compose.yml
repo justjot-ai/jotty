@@ -1,0 +1,162 @@
+version: '3.8'
+
+# Define reusable environment variables
+x-common-env: &common-env
+  DATABASE_URL: sqlite:///data/stock_market.db
+  REDIS_URL: redis://redis:6379/0
+
+x-backend-env: &backend-env
+  <<: *common-env
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+
+x-backend-service: &backend-service
+  build:
+    context: .
+    dockerfile: Dockerfile.backend
+  environment: *backend-env
+  volumes:
+    - sqlite_data:/app/data
+    - ./:/app
+  depends_on:
+    database:
+      condition: service_started
+    cache:
+      condition: service_started
+
+services:
+  # Database Service
+  database:
+    image: alpine:latest
+    container_name: stock_db
+    volumes:
+      - sqlite_data:/app/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    command: >
+      sh -c "mkdir -p /app/data && 
+             touch /app/data/stock_market.db"
+    restart: unless-stopped
+
+  # Cache Service  
+  cache:
+    image: redis:7-alpine
+    container_name: stock_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # API Backend Service
+  api_backend:
+    <<: *backend-service
+    container_name: stock_api
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *backend-env
+      CORS_ORIGINS: http://localhost:3000,http://frontend:3000
+      API_ENV: ${API_ENV:-development}
+    command: >
+      uvicorn app:app 
+      --host 0.0.0.0 
+      --port 8000 
+      --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Background Task Worker
+  task_worker:
+    <<: *backend-service
+    container_name: stock_worker
+    command: >
+      celery -A app.celery worker 
+      --loglevel=info 
+      --concurrency=2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.celery", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Task Scheduler
+  task_scheduler:
+    <<: *backend-service
+    container_name: stock_scheduler
+    command: >
+      celery -A app.celery beat 
+      --loglevel=info 
+      --schedule=/tmp/celerybeat-schedule
+    restart: unless-stopped
+    volumes:
+      - sqlite_data:/app/data
+      - ./:/app
+      - celery_schedule:/tmp
+
+  # Frontend Web Application
+  web_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stock_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8000
+      CHOKIDAR_USEPOLLING: "true"
+      NODE_ENV: ${NODE_ENV:-development}
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      api_backend:
+        condition: service_healthy
+    command: npm start
+    restart: unless-stopped
+
+  # Reverse Proxy
+  reverse_proxy:
+    image: nginx:alpine
+    container_name: stock_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api_backend:
+        condition: service_healthy
+      web_frontend:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Persistent Data Storage
+volumes:
+  sqlite_data:
+    name: stock_market_db_data
+  redis_data:
+    name: stock_market_cache_data
+  celery_schedule:
+    name: stock_market_celery_schedule
+  frontend_node_modules:
+    name: stock_market_frontend_modules
+
+# Explicit Network Configuration
+networks:
+  default:
+    name: stock_market_network
+    driver: bridge

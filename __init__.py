@@ -84,12 +84,9 @@ __author__ = "Soham Acharya & Anshul Chauhan"
 # 🎯 PRIMARY EXPORTS - What pipelines use
 # =============================================================================
 
-# Main Entry Points
-from .core.orchestration.conductor import (
-    Conductor,
-    TodoItem,
-    create_conductor
-)
+# Main Entry Points (V2: SwarmManager)
+from .core.orchestration import SwarmManager
+from .core.orchestration.v2.swarm_roadmap import TodoItem
 
 # Agent Configuration (THE one - uses 'agent' field)
 from .core.foundation.agent_config import AgentConfig
@@ -191,8 +188,8 @@ from .core.integration.universal_wrapper import (
 # ADVANCED EXPORTS (For Custom Implementations)
 # =============================================================================
 
-# Enhanced State
-from .core.orchestration.roadmap import (
+# Enhanced State (V2: swarm_roadmap)
+from .core.orchestration.v2.swarm_roadmap import (
     AgenticState,
     TrajectoryStep,
     DecomposedQFunction,
@@ -341,6 +338,15 @@ __all__ = [
 
     # CLI
     "JottyCLI",
+
+    # SDK (lazy loaded)
+    "JottyClient",
+    "JottySync",
+    "ExecutionContext",
+    "SDKResponse",
+    "SDKEvent",
+    "ModeRouter",
+    "get_mode_router",
 ]
 
 # =============================================================================
@@ -348,8 +354,30 @@ __all__ = [
 # =============================================================================
 
 def __getattr__(name):
-    """Lazy import for CLI components."""
+    """Lazy import for CLI and SDK components."""
     if name == "JottyCLI":
         from .cli.app import JottyCLI
         return JottyCLI
+    # SDK exports (lazy for fast startup)
+    if name == "JottyClient":
+        from .sdk.client import Jotty as JottyClient
+        return JottyClient
+    if name == "JottySync":
+        from .sdk.client import JottySync
+        return JottySync
+    if name == "ExecutionContext":
+        from .core.foundation.types.sdk_types import ExecutionContext
+        return ExecutionContext
+    if name == "SDKResponse":
+        from .core.foundation.types.sdk_types import SDKResponse
+        return SDKResponse
+    if name == "SDKEvent":
+        from .core.foundation.types.sdk_types import SDKEvent
+        return SDKEvent
+    if name == "ModeRouter":
+        from .core.api.mode_router import ModeRouter
+        return ModeRouter
+    if name == "get_mode_router":
+        from .core.api.mode_router import get_mode_router
+        return get_mode_router
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

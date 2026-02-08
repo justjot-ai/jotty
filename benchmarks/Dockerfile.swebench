@@ -1,0 +1,42 @@
+# SWE-bench Docker Image with Claude CLI
+# Uses Python 3.9 for compatibility with old packages (pre-2020)
+
+FROM python:3.9-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    gcc \
+    g++ \
+    make \
+    curl \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude CLI
+RUN npm install -g @anthropic-ai/claude-code || true
+
+# Set working directory
+WORKDIR /app
+
+# Install Python dependencies
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install \
+    datasets \
+    huggingface_hub \
+    pytest \
+    pytest-timeout \
+    dspy-ai \
+    anthropic \
+    aiohttp
+
+# Create a simple script to run SWE-bench
+RUN echo '#!/bin/bash\ncd /app/Jotty && python -m Jotty.benchmarks.swe_bench "$@"' > /usr/local/bin/run-swebench && \
+    chmod +x /usr/local/bin/run-swebench
+
+# Set Python path
+ENV PYTHONPATH=/app:/app/Jotty
+
+# Default command
+CMD ["run-swebench", "--dataset", "lite", "--samples", "1"]
