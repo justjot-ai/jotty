@@ -88,6 +88,12 @@ class ChannelRouter:
         self._sessions: Dict[str, Dict[str, Any]] = {}  # channel:user -> session
         self._cli = None
         self._running = False
+        self._trust_manager = None
+
+    def set_trust_manager(self, trust_manager):
+        """Set trust manager for message authorization."""
+        self._trust_manager = trust_manager
+        logger.info("Trust manager configured")
 
     def set_cli(self, cli):
         """Set JottyCLI instance for processing messages."""
@@ -106,6 +112,37 @@ class ChannelRouter:
     async def handle_message(self, event: MessageEvent):
         """Handle incoming message from any channel."""
         logger.info(f"[{event.channel.value}] {event.user_name}: {event.content[:50]}...")
+
+        # Check trust if trust manager is configured
+        if self._trust_manager:
+            trust_result = self._trust_manager.check_message(
+                event.channel,
+                event.user_id,
+                event.content
+            )
+
+            if not trust_result.get("proceed"):
+                # User not authorized - send trust response
+                response_text = trust_result.get("response", "Not authorized")
+                await self._send_response(ResponseEvent(
+                    channel=event.channel,
+                    channel_id=event.channel_id,
+                    content=response_text,
+                    reply_to=event.message_id
+                ))
+                return response_text
+
+            # Check if pairing just succeeded - send success message
+            if trust_result.get("response") and "successful" in trust_result.get("response", "").lower():
+                await self._send_response(ResponseEvent(
+                    channel=event.channel,
+                    channel_id=event.channel_id,
+                    content=trust_result["response"],
+                    reply_to=event.message_id
+                ))
+                # Continue processing the original message if it wasn't just the code
+                if event.content.strip().isdigit() and len(event.content.strip()) == 6:
+                    return trust_result["response"]
 
         # Get or create session
         session_key = f"{event.channel.value}:{event.channel_id}:{event.user_id}"

@@ -61,6 +61,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -311,14 +313,25 @@ class ReviewSynthesisSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseReviewAgent:
-    """Base class for review agents."""
+class BaseReviewAgent(DomainAgent):
+    """Base class for review agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -339,8 +352,9 @@ class CodeReviewer(BaseReviewAgent):
     """Reviews code quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=CodeReviewSignature)
         self._reviewer = dspy.ChainOfThought(CodeReviewSignature)
+        self.learned_context = learned_context
 
     async def review(
         self,
@@ -387,8 +401,9 @@ class SecurityScanner(BaseReviewAgent):
     """Scans for security vulnerabilities."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=SecurityReviewSignature)
         self._scanner = dspy.ChainOfThought(SecurityReviewSignature)
+        self.learned_context = learned_context
 
     async def scan(
         self,
@@ -430,8 +445,9 @@ class PerformanceAnalyzer(BaseReviewAgent):
     """Analyzes performance issues."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=PerformanceReviewSignature)
         self._analyzer = dspy.ChainOfThought(PerformanceReviewSignature)
+        self.learned_context = learned_context
 
     async def analyze(
         self,
@@ -473,8 +489,9 @@ class ArchitectureReviewer(BaseReviewAgent):
     """Reviews architecture."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ArchitectureReviewSignature)
         self._reviewer = dspy.ChainOfThought(ArchitectureReviewSignature)
+        self.learned_context = learned_context
 
     async def review(
         self,
@@ -518,8 +535,9 @@ class StyleChecker(BaseReviewAgent):
     """Checks code style."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=StyleReviewSignature)
         self._checker = dspy.ChainOfThought(StyleReviewSignature)
+        self.learned_context = learned_context
 
     async def check(
         self,
@@ -563,7 +581,8 @@ class ReviewSynthesizer(BaseReviewAgent):
     """Synthesizes all reviews."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ReviewSynthesisSignature)
+        self.learned_context = learned_context
         self._synthesizer = dspy.ChainOfThought(ReviewSynthesisSignature)
 
     async def synthesize(
@@ -616,7 +635,7 @@ class ReviewSynthesizer(BaseReviewAgent):
 # =============================================================================
 
 @register_swarm("review")
-class ReviewSwarm(BaseSwarm):
+class ReviewSwarm(DomainSwarm):
     """
     World-Class Review Swarm.
 
@@ -628,48 +647,46 @@ class ReviewSwarm(BaseSwarm):
     - Style checking
     """
 
+    AGENT_TEAM = AgentTeam.define(
+        (CodeReviewer, "CodeReviewer", "_code_reviewer"),
+        (SecurityScanner, "SecurityScanner", "_security_scanner"),
+        (PerformanceAnalyzer, "PerformanceAnalyzer", "_performance_analyzer"),
+        (ArchitectureReviewer, "ArchitectureReviewer", "_architecture_reviewer"),
+        (StyleChecker, "StyleChecker", "_style_checker"),
+        (ReviewSynthesizer, "ReviewSynthesizer", "_synthesizer"),
+    )
+
     def __init__(self, config: ReviewConfig = None):
         super().__init__(config or ReviewConfig())
-        self._agents_initialized = False
-
-        # Agents
-        self._code_reviewer = None
-        self._security_scanner = None
-        self._performance_analyzer = None
-        self._architecture_reviewer = None
-        self._style_checker = None
-        self._synthesizer = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._code_reviewer = CodeReviewer(self._memory, self._context, self._bus, self._agent_context("CodeReviewer"))
-        self._security_scanner = SecurityScanner(self._memory, self._context, self._bus, self._agent_context("SecurityScanner"))
-        self._performance_analyzer = PerformanceAnalyzer(self._memory, self._context, self._bus, self._agent_context("PerformanceAnalyzer"))
-        self._architecture_reviewer = ArchitectureReviewer(self._memory, self._context, self._bus, self._agent_context("ArchitectureReviewer"))
-        self._style_checker = StyleChecker(self._memory, self._context, self._bus, self._agent_context("StyleChecker"))
-        self._synthesizer = ReviewSynthesizer(self._memory, self._context, self._bus, self._agent_context("ReviewSynthesizer"))
-
-        self._agents_initialized = True
-        logger.info("✅ ReviewSwarm agents initialized")
-
-    async def execute(
-        self,
-        code: str,
-        **kwargs
-    ) -> ReviewResult:
-        """Execute review."""
-        return await self.review(code, **kwargs)
 
     async def review(
         self,
         code: str,
         context: str = "",
-        language: str = None
+        language: str = None,
+        **kwargs
+    ) -> ReviewResult:
+        """
+        Perform comprehensive code review.
+
+        Convenience method that delegates to execute().
+
+        Args:
+            code: Code to review
+            context: Context about the code/PR
+            language: Programming language
+
+        Returns:
+            ReviewResult with all findings
+        """
+        return await self.execute(code, context=context, language=language, **kwargs)
+
+    async def _execute_domain(
+        self,
+        code: str,
+        context: str = "",
+        language: str = None,
+        **kwargs
     ) -> ReviewResult:
         """
         Perform comprehensive code review.
@@ -683,11 +700,6 @@ class ReviewSwarm(BaseSwarm):
             ReviewResult with all findings
         """
         start_time = datetime.now()
-
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
 
         config = self.config
         lang = language or config.language

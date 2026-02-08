@@ -61,6 +61,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -317,14 +319,25 @@ class VisualizationSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseDataAgent:
-    """Base class for data analysis agents."""
+class BaseDataAgent(DomainAgent):
+    """Base class for data analysis agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -345,8 +358,9 @@ class DataProfilerAgent(BaseDataAgent):
     """Profiles datasets."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=DataProfilingSignature)
         self._profiler = dspy.ChainOfThought(DataProfilingSignature)
+        self.learned_context = learned_context
 
     async def profile(
         self,
@@ -392,8 +406,9 @@ class EDAAgent(BaseDataAgent):
     """Performs exploratory data analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=EDASignature)
         self._explorer = dspy.ChainOfThought(EDASignature)
+        self.learned_context = learned_context
 
     async def explore(
         self,
@@ -435,8 +450,9 @@ class StatisticalAgent(BaseDataAgent):
     """Performs statistical analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=StatisticalAnalysisSignature)
         self._analyst = dspy.ChainOfThought(StatisticalAnalysisSignature)
+        self.learned_context = learned_context
 
     async def analyze(
         self,
@@ -480,8 +496,9 @@ class InsightAgent(BaseDataAgent):
     """Generates insights."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=InsightGenerationSignature)
         self._generator = dspy.ChainOfThought(InsightGenerationSignature)
+        self.learned_context = learned_context
 
     async def generate(
         self,
@@ -529,8 +546,9 @@ class MLRecommenderAgent(BaseDataAgent):
     """Recommends ML approaches."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=MLRecommendationSignature)
         self._recommender = dspy.ChainOfThought(MLRecommendationSignature)
+        self.learned_context = learned_context
 
     async def recommend(
         self,
@@ -578,8 +596,9 @@ class VisualizationAgent(BaseDataAgent):
     """Recommends visualizations."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=VisualizationSignature)
         self._visualizer = dspy.ChainOfThought(VisualizationSignature)
+        self.learned_context = learned_context
 
     async def recommend(
         self,
@@ -633,7 +652,7 @@ class VisualizationAgent(BaseDataAgent):
 # =============================================================================
 
 @register_swarm("data_analysis")
-class DataAnalysisSwarm(BaseSwarm):
+class DataAnalysisSwarm(DomainSwarm):
     """
     World-Class Data Analysis Swarm.
 
@@ -646,41 +665,25 @@ class DataAnalysisSwarm(BaseSwarm):
     - Visualization suggestions
     """
 
+    # Declarative agent team - auto-initialized by DomainSwarm
+    AGENT_TEAM = AgentTeam.define(
+        (DataProfilerAgent, "DataProfiler", "_profiler"),
+        (EDAAgent, "EDA", "_eda_agent"),
+        (StatisticalAgent, "Statistical", "_statistical_agent"),
+        (InsightAgent, "Insight", "_insight_agent"),
+        (MLRecommenderAgent, "MLRecommender", "_ml_recommender"),
+        (VisualizationAgent, "Visualization", "_visualization_agent"),
+    )
+
     def __init__(self, config: DataAnalysisConfig = None):
         super().__init__(config or DataAnalysisConfig())
-        self._agents_initialized = False
 
-        # Agents
-        self._profiler = None
-        self._eda_agent = None
-        self._statistical_agent = None
-        self._insight_agent = None
-        self._ml_recommender = None
-        self._visualization_agent = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._profiler = DataProfilerAgent(self._memory, self._context, self._bus, self._agent_context("DataProfiler"))
-        self._eda_agent = EDAAgent(self._memory, self._context, self._bus, self._agent_context("EDA"))
-        self._statistical_agent = StatisticalAgent(self._memory, self._context, self._bus, self._agent_context("Statistical"))
-        self._insight_agent = InsightAgent(self._memory, self._context, self._bus, self._agent_context("Insight"))
-        self._ml_recommender = MLRecommenderAgent(self._memory, self._context, self._bus, self._agent_context("MLRecommender"))
-        self._visualization_agent = VisualizationAgent(self._memory, self._context, self._bus, self._agent_context("Visualization"))
-
-        self._agents_initialized = True
-        logger.info("DataAnalysisSwarm agents initialized")
-
-    async def execute(
+    async def _execute_domain(
         self,
         data: Any,
         **kwargs
     ) -> AnalysisResult:
-        """Execute data analysis."""
+        """Execute data analysis (called by DomainSwarm.execute())."""
         return await self.analyze(data, **kwargs)
 
     async def analyze(
@@ -704,10 +707,7 @@ class DataAnalysisSwarm(BaseSwarm):
         """
         start_time = datetime.now()
 
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
+        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
 
         logger.info(f"📊 DataAnalysisSwarm starting...")
 

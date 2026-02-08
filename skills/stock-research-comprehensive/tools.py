@@ -76,7 +76,7 @@ async def comprehensive_stock_research_tool(params: Dict[str, Any]) -> Dict[str,
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
 
         ticker = params.get('ticker', '').upper().strip()
         if not ticker:

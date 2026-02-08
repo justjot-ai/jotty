@@ -23,7 +23,7 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - categories (list): List of category info
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
         categories = []
@@ -64,7 +64,7 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - skills (list): List of skill info
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
 
@@ -120,11 +120,11 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with skill details and available tools
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
 
         skill_name = params.get('skill_name')
         if not skill_name:
@@ -184,7 +184,7 @@ def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with skill summary
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
         format_type = params.get('format', 'json')
@@ -216,7 +216,7 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with refresh status
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest(refresh=True)
 
@@ -248,7 +248,7 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with operation status
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         skill_name = params.get('skill_name')
         category = params.get('category')
@@ -292,7 +292,7 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with recommended skills
     """
     try:
-        from core.registry.skills_manifest import get_skills_manifest
+        from Jotty.core.registry.skills_manifest import get_skills_manifest
 
         task = params.get('task', '').lower()
         max_results = params.get('max_results', 10)

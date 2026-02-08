@@ -238,7 +238,7 @@ async def _analyze_leadership(transcripts: List[Dict], user_name: str) -> Dict:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

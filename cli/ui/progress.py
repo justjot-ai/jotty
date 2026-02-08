@@ -242,15 +242,15 @@ class SwarmState:
     streaming_text: str = ""  # Live streaming text (reasoning tokens from current agent)
     phases: List[Dict[str, str]] = field(default_factory=lambda: [
         {"id": "Phase 0", "name": "ScopeDetector", "status": "pending"},
-        {"id": "Phase 1", "name": "Architect", "status": "pending"},
-        {"id": "Phase 1.5", "name": "Researcher", "status": "pending"},
-        {"id": "Phase 2", "name": "Developer", "status": "pending"},
-        {"id": "Phase 3", "name": "Optimizer", "status": "pending"},
-        {"id": "Phase 3.5", "name": "Validator", "status": "pending"},
-        {"id": "Phase 4", "name": "TestWriter", "status": "pending"},
-        {"id": "Phase 5", "name": "DocWriter", "status": "pending"},
-        {"id": "Phase 5.5", "name": "Verifier", "status": "pending"},
+        {"id": "Phase 1", "name": "CollaborativeDesign", "status": "pending"},  # Architect + Researcher iterating
+        {"id": "Phase 2", "name": "TeamPlanning", "status": "pending"},
+        {"id": "Phase 3", "name": "Developer", "status": "pending"},
+        {"id": "Phase 4", "name": "Optimizer", "status": "pending"},
+        {"id": "Phase 4.5", "name": "Validator", "status": "pending"},
+        {"id": "Phase 5", "name": "Verifier", "status": "pending"},
         {"id": "Phase 6", "name": "TeamReview", "status": "pending"},
+        {"id": "Phase 7", "name": "TestWriter", "status": "pending"},
+        {"id": "Phase 8", "name": "DocWriter", "status": "pending"},
     ])
 
     # Files generated
@@ -295,6 +295,10 @@ class SwarmState:
     # File explorer state
     selected_file_index: int = 0
     file_scroll_offset: int = 0
+
+    # Log scroll state
+    log_scroll_offset: int = 0
+    log_follow_mode: bool = True  # Auto-scroll to bottom
 
     # Component tracking
     components: List[str] = field(default_factory=list)
@@ -387,7 +391,8 @@ class SwarmState:
                 elif p["status"] == "pending":
                     p["status"] = "active"
 
-        # Track files
+        # Track files - multiple patterns for real-time detection
+        # Pattern 1: "Done -- N file(s): file1.py, file2.py"
         if "file(s)" in message and "done" in msg_lower:
             file_match = re.search(r':\s*(.+)$', message)
             if file_match:
@@ -395,6 +400,44 @@ class SwarmState:
                     fname = fname.strip()
                     if fname and '.' in fname:
                         self.files[fname] = {"loc": 0, "validated": False}
+
+        # Pattern 2: "[N/M] filename.py ready" (Developer progress)
+        ready_match = re.search(r'\[\d+/\d+\]\s+(\S+\.(?:py|js|ts|jsx|tsx|sql|yaml|yml|json|html|css|sh|go|rs|java|md))\s+ready', message, re.IGNORECASE)
+        if ready_match:
+            fname = ready_match.group(1).strip()
+            if fname and fname not in self.files:
+                self.files[fname] = {"loc": 0, "validated": False}
+
+        # Pattern 3: "Writing filename.py..." (Developer starting)
+        writing_match = re.search(r'Writing\s+(\S+\.(?:py|js|ts|jsx|tsx|sql|yaml|yml|json|html|css|sh|go|rs|java|md))', message, re.IGNORECASE)
+        if writing_match:
+            fname = writing_match.group(1).strip()
+            if fname and fname not in self.files:
+                self.files[fname] = {"loc": 0, "validated": False, "status": "writing"}
+
+        # Pattern 4: "--- filename.py (N lines) ---" (code preview header)
+        preview_match = re.search(r'---\s+(\S+\.(?:py|js|ts|jsx|tsx|sql|yaml|yml|json|html|css|sh|go|rs|java|md))\s+\((\d+)\s+lines?\)', message, re.IGNORECASE)
+        if preview_match:
+            fname = preview_match.group(1).strip()
+            loc = int(preview_match.group(2))
+            self.files[fname] = {"loc": loc, "validated": False}
+            self.total_loc = sum(f.get("loc", 0) for f in self.files.values())
+
+        # Pattern 5: "Optimizing filename.py..." or "optimized"
+        opt_match = re.search(r'Optimiz(?:ing|ed)\s+(\S+\.(?:py|js|ts|jsx|tsx|sql|yaml|yml|json|html|css|sh))', message, re.IGNORECASE)
+        if opt_match:
+            fname = opt_match.group(1).strip()
+            if fname and fname not in self.files:
+                self.files[fname] = {"loc": 0, "validated": False}
+
+        # Pattern 6: Full-stack generated files "Done -- filename1 + filename2"
+        fullstack_match = re.search(r'Done\s+--\s+([\w./]+(?:\.py|\.sql|\.yaml|\.json|\.js|\.jsx|\.sh|\.txt)(?:\s*\+\s*[\w./]+(?:\.py|\.sql|\.yaml|\.json|\.js|\.jsx|\.sh|\.txt))*)', message, re.IGNORECASE)
+        if fullstack_match:
+            files_str = fullstack_match.group(1)
+            for fname in re.split(r'\s*\+\s*', files_str):
+                fname = fname.strip()
+                if fname and '.' in fname and fname not in self.files:
+                    self.files[fname] = {"loc": 0, "validated": False}
 
         # Track validation
         if "syntax ok" in msg_lower or "run ok" in msg_lower:
@@ -417,7 +460,7 @@ class SwarmState:
                 self.expand_phases_teamreview()
 
         # Component tracking
-        if phase == "Phase 1" and agent in ("Architect", "SystemDesigner"):
+        if phase == "Phase 1" and agent in ("Architect", "SystemDesigner", "CollaborativeDesign"):
             comp_count_match = re.search(r'(\d+)\s+component', message)
             if comp_count_match:
                 self.component_count = int(comp_count_match.group(1))
@@ -478,9 +521,9 @@ class SwarmState:
             self.add_agent_message(agent, "Pipeline", f"{phase} completed")
         if "architecture_designed" in msg_lower or "designing" in msg_lower:
             self.add_agent_message(agent, "Developer", "architecture handoff")
-        if "optimiz" in msg_lower and phase == "Phase 3":
+        if "optimiz" in msg_lower and phase == "Phase 4":
             self.add_agent_message("Developer", agent, "code handoff")
-        if "validat" in msg_lower and phase == "Phase 3.5":
+        if "validat" in msg_lower and phase == "Phase 4.5":
             self.add_agent_message("Optimizer", agent, "optimized code handoff")
         if "review" in msg_lower and phase == "Phase 6":
             self.add_agent_message("Verifier", agent, "verified code for review")
@@ -492,6 +535,12 @@ class SwarmState:
             )
         if "rework" in msg_lower:
             self.add_agent_message("TeamReview", "Optimizer", "rework request")
+
+        # Track output path
+        if "saved to:" in msg_lower:
+            path_match = re.search(r'[Ss]aved to:\s*(.+)$', message)
+            if path_match:
+                self.output_path = path_match.group(1).strip()
 
 
 class SwarmDashboard:
@@ -569,6 +618,28 @@ class SwarmDashboard:
                             self.state.file_scroll_offset = max(
                                 0, self.state.file_scroll_offset - 10
                             )
+                            if self._live:
+                                self._live.update(self._build_layout())
+                        # Log scrolling on Page 1 with [ and ] keys
+                        elif ch == '[' and self.state.current_page == 1:
+                            # Scroll log up
+                            self.state.log_follow_mode = False
+                            self.state.log_scroll_offset = max(0, self.state.log_scroll_offset - 5)
+                            if self._live:
+                                self._live.update(self._build_layout())
+                        elif ch == ']' and self.state.current_page == 1:
+                            # Scroll log down
+                            max_offset = max(0, len(self.state.log_entries) - 10)
+                            self.state.log_scroll_offset = min(max_offset, self.state.log_scroll_offset + 5)
+                            if self.state.log_scroll_offset >= max_offset:
+                                self.state.log_follow_mode = True
+                            if self._live:
+                                self._live.update(self._build_layout())
+                        elif ch == 'f' and self.state.current_page == 1:
+                            # Toggle follow mode (auto-scroll to bottom)
+                            self.state.log_follow_mode = not self.state.log_follow_mode
+                            if self.state.log_follow_mode:
+                                self.state.log_scroll_offset = max(0, len(self.state.log_entries) - 10)
                             if self._live:
                                 self._live.update(self._build_layout())
             except Exception:
@@ -855,6 +926,12 @@ class SwarmDashboard:
             # Arbitrator decisions
             for dec in self.state.arbitrator_decisions[-3:]:
                 sections.append(f"  [dim]{dec}[/dim]")
+            sections.append("")
+
+        # Output path
+        if self.state.output_path:
+            sections.append(f"[bold]Output:[/bold]")
+            sections.append(f"  [cyan]{self.state.output_path}[/cyan]")
 
         return Panel(
             "\n".join(sections) if sections else "[dim]Waiting...[/dim]",
@@ -863,20 +940,49 @@ class SwarmDashboard:
         )
 
     def _render_log(self) -> "Panel":
-        """Render scrolling log panel."""
-        visible = self.state.log_entries[-10:]
-        log_text = "\n".join(f"[dim]{entry}[/dim]" for entry in visible)
+        """Render scrolling log panel with keyboard navigation."""
+        total_entries = len(self.state.log_entries)
+        visible_count = 10
+
+        if self.state.log_follow_mode:
+            # Auto-follow: show last N entries
+            self.state.log_scroll_offset = max(0, total_entries - visible_count)
+
+        start_idx = self.state.log_scroll_offset
+        end_idx = start_idx + visible_count
+        visible = self.state.log_entries[start_idx:end_idx]
+
+        log_lines = []
+        for i, entry in enumerate(visible, start=start_idx + 1):
+            log_lines.append(f"[dim]{i:3d}[/dim] {entry}")
+
+        log_text = "\n".join(log_lines) if log_lines else "[dim]No log entries yet[/dim]"
+
+        # Build title with scroll info
+        follow_indicator = "[green]●[/green]" if self.state.log_follow_mode else "[dim]○[/dim]"
+        scroll_info = f" [{start_idx + 1}-{min(end_idx, total_entries)}/{total_entries}]" if total_entries > 0 else ""
+        title = f"[bold]Log{scroll_info}[/bold] {follow_indicator} [dim][[/] ↑ | [dim]][/] ↓ | [dim]f[/] follow"
+
         return Panel(
-            log_text or "[dim]No log entries yet[/dim]",
-            title="[bold]Log[/bold]",
+            log_text,
+            title=title,
             border_style="dim",
         )
 
     def _render_footer(self) -> "Panel":
         """Render footer with navigation hint."""
         pg = self.state.current_page
+        base_nav = "[bold]1[/bold]=Pipeline  [bold]2[/bold]=Tasks  [bold]3[/bold]=Files"
+
+        if pg == 1:
+            extra = "  |  [bold][/]=↑ [bold]][/]=↓ [bold]f[/]=follow log"
+        elif pg == 3:
+            extra = "  |  [bold]j[/]=↓ [bold]k[/]=↑ [bold]d[/]=pgdn [bold]u[/]=pgup"
+        else:
+            extra = ""
+
         return Panel(
-            f"[dim]Press [bold]1[/bold]=Pipeline  [bold]2[/bold]=Tasks/Comms  [bold]3[/bold]=Files  |  Page {pg}/3[/dim]",
+            f"[dim]Press {base_nav}{extra}  |  Page {pg}/3[/dim]",
             style="dim",
             height=1,
         )
@@ -1012,13 +1118,44 @@ class SwarmDashboard:
             self.console.print(f"  Validation: {s.validation_status}")
         if s.review_status:
             self.console.print(f"  Review: {s.review_status}")
+        if s.output_path:
+            self.console.print(f"  [bold green]Output saved to:[/bold green] {s.output_path}")
+
+    def load_file_contents(self, result):
+        """Populate file_contents from a result object for preview."""
+        if not result or not hasattr(result, 'code') or not result.code:
+            return
+        # Load main files
+        if hasattr(result.code, 'files') and result.code.files:
+            for fname, content in result.code.files.items():
+                self.state.file_contents[fname] = content
+                if fname in self.state.files:
+                    self.state.files[fname]["loc"] = content.count('\n') + 1
+                else:
+                    self.state.files[fname] = {"loc": content.count('\n') + 1, "validated": False}
+        # Load test files
+        if hasattr(result.code, 'tests') and result.code.tests:
+            for fname, content in result.code.tests.items():
+                self.state.file_contents[fname] = content
+                if fname not in self.state.files:
+                    self.state.files[fname] = {"loc": content.count('\n') + 1, "validated": False}
+        # Update total LOC
+        self.state.total_loc = sum(f.get("loc", 0) for f in self.state.files.values())
+        # Set output path from result metadata
+        if hasattr(result, 'metadata') and result.metadata.get('output_path'):
+            self.state.output_path = result.metadata['output_path']
 
     def show_export_menu(self, result, output_path: str = ""):
         """Interactive post-run export menu."""
+        # Load file contents for preview
+        self.load_file_contents(result)
+
         self.console.print(f"\n[bold cyan]Export Options[/bold cyan]")
 
         if output_path:
             self.console.print(f"  [green]Auto-saved to:[/green] {output_path}")
+        elif self.state.output_path:
+            self.console.print(f"  [green]Auto-saved to:[/green] {self.state.output_path}")
 
         if not result or not hasattr(result, 'code') or not result.code:
             self.console.print("  [dim]No code to export[/dim]")

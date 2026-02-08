@@ -107,7 +107,7 @@ async def last30days_to_epub_telegram_tool(params: Dict[str, Any]) -> Dict[str, 
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         topic = params.get('topic')
         if not topic:

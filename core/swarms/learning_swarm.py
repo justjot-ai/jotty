@@ -64,6 +64,8 @@ from .base_swarm import (
     ImprovementHistory, ImprovementSuggestion, ImprovementType,
     Evaluation, EvaluationResult, SwarmRegistry
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -278,14 +280,25 @@ class MetaLearningSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseLearningAgent:
-    """Base class for learning agents."""
+class BaseLearningAgent(DomainAgent):
+    """Base class for learning agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -636,7 +649,7 @@ class MetaLearner(BaseLearningAgent):
 # =============================================================================
 
 @register_swarm("learning")
-class LearningSwarm(BaseSwarm):
+class LearningSwarm(DomainSwarm):
     """
     World-Class Learning Swarm (Meta-Swarm).
 
@@ -649,46 +662,34 @@ class LearningSwarm(BaseSwarm):
     - Cross-domain meta-learning
     """
 
+    AGENT_TEAM = AgentTeam.define(
+        (PerformanceEvaluator, "PerformanceEvaluator", "_evaluator"),
+        (GoldCurator, "GoldCurator", "_curator"),
+        (PromptOptimizer, "PromptOptimizer", "_prompt_optimizer"),
+        (WorkflowOptimizer, "WorkflowOptimizer", "_workflow_optimizer"),
+        (ParameterTuner, "ParameterTuner", "_parameter_tuner"),
+        (MetaLearner, "MetaLearner", "_meta_learner"),
+    )
+
     def __init__(self, config: LearningConfig = None):
         super().__init__(config or LearningConfig())
-        self._agents_initialized = False
-
-        # Agents
-        self._evaluator = None
-        self._curator = None
-        self._prompt_optimizer = None
-        self._workflow_optimizer = None
-        self._parameter_tuner = None
-        self._meta_learner = None
 
         # Data stores
         self._all_gold_dbs: Dict[str, GoldStandardDB] = {}
         self._all_histories: Dict[str, ImprovementHistory] = {}
 
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._evaluator = PerformanceEvaluator(self._memory, self._context, self._bus, self._agent_context("PerformanceEvaluator"))
-        self._curator = GoldCurator(self._memory, self._context, self._bus, self._agent_context("GoldCurator"))
-        self._prompt_optimizer = PromptOptimizer(self._memory, self._context, self._bus, self._agent_context("PromptOptimizer"))
-        self._workflow_optimizer = WorkflowOptimizer(self._memory, self._context, self._bus, self._agent_context("WorkflowOptimizer"))
-        self._parameter_tuner = ParameterTuner(self._memory, self._context, self._bus, self._agent_context("ParameterTuner"))
-        self._meta_learner = MetaLearner(self._memory, self._context, self._bus, self._agent_context("MetaLearner"))
-
-        self._agents_initialized = True
-        logger.info("LearningSwarm agents initialized")
-
-    async def execute(
+    async def _execute_domain(
         self,
         swarm_name: str,
         **kwargs
     ) -> LearningResult:
-        """Execute learning cycle."""
-        return await self.evaluate_and_improve(swarm_name, **kwargs)
+        """
+        Execute learning cycle.
+
+        This is the domain-specific execution method called by DomainSwarm.execute().
+        Agent initialization and pre/post learning hooks are handled by the parent class.
+        """
+        return await self._evaluate_and_improve_internal(swarm_name, **kwargs)
 
     async def evaluate_and_improve(
         self,
@@ -699,6 +700,30 @@ class LearningSwarm(BaseSwarm):
         """
         Evaluate and improve a swarm.
 
+        Public method that calls execute() to ensure proper lifecycle hooks.
+
+        Args:
+            swarm_name: Name of the swarm to improve
+            evaluations: Evaluation results (optional)
+            traces: Execution traces (optional)
+
+        Returns:
+            LearningResult with improvements
+        """
+        return await self.execute(swarm_name, evaluations=evaluations, traces=traces)
+
+    async def _evaluate_and_improve_internal(
+        self,
+        swarm_name: str,
+        evaluations: List[Evaluation] = None,
+        traces: List[ExecutionTrace] = None
+    ) -> LearningResult:
+        """
+        Internal implementation of evaluate and improve.
+
+        Called by _execute_domain() after agents are initialized
+        and pre-learning hooks have run.
+
         Args:
             swarm_name: Name of the swarm to improve
             evaluations: Evaluation results (optional)
@@ -708,11 +733,6 @@ class LearningSwarm(BaseSwarm):
             LearningResult with improvements
         """
         start_time = datetime.now()
-
-        # Lifecycle hooks: load learned context before agent init
-        await self._pre_execute_learning()
-
-        self._init_agents()
 
         config = self.config
 

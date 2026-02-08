@@ -103,7 +103,7 @@ async def _generate_design_philosophy(brief: str, style: str) -> str:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

@@ -583,6 +583,15 @@ class SwarmConfig:
     redis_db: int = 0
 
     # =========================================================================
+    # 21.5 LOCAL-FIRST MODE (OpenClaw-Inspired)
+    # =========================================================================
+    # Enable local-first mode for privacy - no external API calls
+    local_mode: bool = False              # Master switch for local-only inference
+    local_model: str = "ollama/llama3"    # Local model for agents (Ollama format)
+    local_voice: bool = True              # Use local voice providers when local_mode=True
+    local_embedding: bool = True          # Use local embeddings when local_mode=True (future)
+
+    # =========================================================================
     # 22. DYNAMIC ORCHESTRATION (NEW - A-Team v2.0)
     # =========================================================================
     # Incorporates DeepThink's dynamic planning, state analysis, and recovery

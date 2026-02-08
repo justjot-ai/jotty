@@ -2,13 +2,18 @@
 Self-Improving Agents
 ======================
 
-The four agents that form the self-improving feedback loop:
+The six agents that form the self-improving feedback loop:
 - ExpertAgent: Evaluates outputs against gold standards
 - ReviewerAgent: Analyzes patterns and suggests improvements
 - PlannerAgent: Plans task execution with optimization
 - ActorAgent: Executes tasks with learned improvements
+- AuditorAgent: Verifies evaluation quality
+- LearnerAgent: Extracts reusable learnings
+
+All agents inherit from MetaAgent for unified infrastructure.
 
 Extracted from base_swarm.py for modularity.
+Refactored to use BaseAgent hierarchy (Feb 2026).
 """
 
 import json
@@ -19,7 +24,7 @@ from dataclasses import asdict
 import dspy
 
 from .swarm_types import (
-    AgentConfig, AgentRole, Evaluation, EvaluationResult,
+    AgentConfig as SwarmAgentConfig, AgentRole, Evaluation, EvaluationResult,
     ImprovementSuggestion, ImprovementType
 )
 from .swarm_signatures import (
@@ -29,14 +34,17 @@ from .swarm_signatures import (
 )
 from .evaluation import GoldStandardDB, ImprovementHistory
 
+# Import base class
+from ..agents.base import MetaAgent, MetaAgentConfig
+
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# SELF-IMPROVING AGENTS
+# SELF-IMPROVING AGENTS (Refactored to use MetaAgent)
 # =============================================================================
 
-class ExpertAgent:
+class ExpertAgent(MetaAgent):
     """
     Expert Agent - Evaluates outputs against gold standards.
 
@@ -45,12 +53,35 @@ class ExpertAgent:
     2. Scores each evaluation criterion
     3. Provides specific feedback
     4. Determines if improvement is needed
+
+    Inherits from MetaAgent for:
+    - DSPy module auto-initialization
+    - Gold standard database integration
+    - Memory and context helpers
+    - Retry logic and error handling
     """
 
-    def __init__(self, config: AgentConfig, gold_db: GoldStandardDB):
-        self.config = config
-        self.gold_db = gold_db
-        self._evaluator = dspy.ChainOfThought(ExpertEvaluationSignature)
+    def __init__(self, config: SwarmAgentConfig, gold_db: GoldStandardDB):
+        """
+        Initialize ExpertAgent.
+
+        Args:
+            config: Swarm agent configuration
+            gold_db: Gold standard database for evaluation
+        """
+        # Convert swarm config to MetaAgentConfig
+        meta_config = MetaAgentConfig(
+            name=config.name or "ExpertAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=ExpertEvaluationSignature,
+            config=meta_config,
+            gold_db=gold_db,
+        )
+        self.swarm_config = config
 
     async def evaluate(
         self,
@@ -58,60 +89,38 @@ class ExpertAgent:
         actual_output: Dict[str, Any],
         context: str = ""
     ) -> Evaluation:
-        """Evaluate output against gold standard."""
-        gold_standard = self.gold_db.get(gold_standard_id)
-        if not gold_standard:
-            raise ValueError(f"Gold standard not found: {gold_standard_id}")
+        """
+        Evaluate output against gold standard.
 
-        try:
-            result = self._evaluator(
-                gold_standard=json.dumps({
-                    'expected_output': gold_standard.expected_output,
-                    'criteria': gold_standard.evaluation_criteria
-                }),
-                actual_output=json.dumps(actual_output),
-                context=context
-            )
+        Uses MetaAgent's evaluate_against_gold for core logic,
+        then converts to Evaluation dataclass.
+        """
+        # Use base class evaluation
+        result = await self.evaluate_against_gold(
+            gold_id=gold_standard_id,
+            output=actual_output,
+            context=context
+        )
 
-            # Parse scores
-            try:
-                scores = json.loads(result.scores)
-            except:
-                scores = {}
+        # Parse result enum
+        result_enum = EvaluationResult.NEEDS_IMPROVEMENT
+        result_str = str(result.get('result', 'needs_improvement')).upper().replace(' ', '_')
+        for er in EvaluationResult:
+            if er.value.upper() == result_str:
+                result_enum = er
+                break
 
-            # Parse result enum
-            result_enum = EvaluationResult.NEEDS_IMPROVEMENT
-            result_str = str(result.result).upper().replace(' ', '_')
-            for er in EvaluationResult:
-                if er.value.upper() == result_str:
-                    result_enum = er
-                    break
-
-            # Parse feedback
-            feedback = [f.strip() for f in str(result.feedback).split('|') if f.strip()]
-
-            return Evaluation(
-                gold_standard_id=gold_standard_id,
-                actual_output=actual_output,
-                scores=scores,
-                overall_score=float(result.overall_score) if result.overall_score else 0.0,
-                result=result_enum,
-                feedback=feedback
-            )
-
-        except Exception as e:
-            logger.error(f"Expert evaluation failed: {e}")
-            return Evaluation(
-                gold_standard_id=gold_standard_id,
-                actual_output=actual_output,
-                scores={},
-                overall_score=0.0,
-                result=EvaluationResult.FAILED,
-                feedback=[f"Evaluation error: {str(e)}"]
-            )
+        return Evaluation(
+            gold_standard_id=gold_standard_id,
+            actual_output=actual_output,
+            scores=result.get('scores', {}),
+            overall_score=result.get('overall_score', 0.0),
+            result=result_enum,
+            feedback=result.get('feedback', [])
+        )
 
 
-class ReviewerAgent:
+class ReviewerAgent(MetaAgent):
     """
     Reviewer Agent - Analyzes patterns and suggests improvements.
 
@@ -120,61 +129,67 @@ class ReviewerAgent:
     2. Identifies systematic issues
     3. Suggests concrete improvements
     4. Prioritizes based on impact
+
+    Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+        """
+        Initialize ReviewerAgent.
+
+        Args:
+            config: Swarm agent configuration
+            history: Improvement history tracker
+        """
+        meta_config = MetaAgentConfig(
+            name=config.name or "ReviewerAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=ReviewerAnalysisSignature,
+            config=meta_config,
+            improvement_history=history,
+        )
+        self.swarm_config = config
         self.history = history
-        self._analyzer = dspy.ChainOfThought(ReviewerAnalysisSignature)
 
     async def analyze_and_suggest(
         self,
         evaluations: List[Evaluation],
-        agent_configs: Dict[AgentRole, AgentConfig]
+        agent_configs: Dict[AgentRole, SwarmAgentConfig]
     ) -> List[ImprovementSuggestion]:
         """Analyze evaluations and suggest improvements."""
         if not evaluations:
             return []
 
-        try:
-            # Get improvement history
-            past_improvements = self.history.get_successful_improvements()
+        # Use base class method
+        result_dicts = await self.analyze_and_suggest_improvements(
+            evaluations=[asdict(e) for e in evaluations],
+            agent_configs={k.value: asdict(v) for k, v in agent_configs.items()}
+        )
 
-            result = self._analyzer(
-                evaluations=json.dumps([asdict(e) for e in evaluations], default=str),
-                agent_configs=json.dumps({k.value: asdict(v) for k, v in agent_configs.items()}, default=str),
-                improvement_history=json.dumps(past_improvements, default=str)
-            )
-
-            # Parse suggestions
+        # Convert to ImprovementSuggestion objects
+        suggestions = []
+        for s in result_dicts:
             try:
-                suggestions_data = json.loads(result.suggestions)
-            except:
-                suggestions_data = []
+                suggestions.append(ImprovementSuggestion(
+                    agent_role=AgentRole(s.get('agent_role', 'actor')),
+                    improvement_type=ImprovementType(s.get('improvement_type', 'prompt_refinement')),
+                    description=s.get('description', ''),
+                    priority=int(s.get('priority', 3)),
+                    expected_impact=float(s.get('expected_impact', 0.5)),
+                    implementation_details=s.get('implementation_details', {}),
+                    based_on_evaluations=[e.gold_standard_id for e in evaluations]
+                ))
+            except Exception as e:
+                logger.debug(f"Failed to parse suggestion: {e}")
 
-            suggestions = []
-            for s in suggestions_data:
-                try:
-                    suggestions.append(ImprovementSuggestion(
-                        agent_role=AgentRole(s.get('agent_role', 'actor')),
-                        improvement_type=ImprovementType(s.get('improvement_type', 'prompt_refinement')),
-                        description=s.get('description', ''),
-                        priority=int(s.get('priority', 3)),
-                        expected_impact=float(s.get('expected_impact', 0.5)),
-                        implementation_details=s.get('implementation_details', {}),
-                        based_on_evaluations=[e.gold_standard_id for e in evaluations]
-                    ))
-                except Exception as e:
-                    logger.debug(f"Failed to parse suggestion: {e}")
-
-            return suggestions
-
-        except Exception as e:
-            logger.error(f"Reviewer analysis failed: {e}")
-            return []
+        return suggestions
 
 
-class PlannerAgent:
+class PlannerAgent(MetaAgent):
     """
     Planner Agent - Plans task execution with optimization.
 
@@ -183,12 +198,31 @@ class PlannerAgent:
     2. Optimizes based on past performance
     3. Identifies parallelization opportunities
     4. Plans error recovery
+
+    Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+        """
+        Initialize PlannerAgent.
+
+        Args:
+            config: Swarm agent configuration
+            history: Improvement history tracker
+        """
+        meta_config = MetaAgentConfig(
+            name=config.name or "PlannerAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=PlannerOptimizationSignature,
+            config=meta_config,
+            improvement_history=history,
+        )
+        self.swarm_config = config
         self.history = history
-        self._optimizer = dspy.ChainOfThought(PlannerOptimizationSignature)
 
     async def create_plan(
         self,
@@ -198,7 +232,8 @@ class PlannerAgent:
     ) -> Dict[str, Any]:
         """Create an optimized execution plan."""
         try:
-            result = self._optimizer(
+            # Execute using base class infrastructure
+            result = await self.execute(
                 task_description=task_description,
                 improvement_suggestions=json.dumps(
                     [asdict(s) for s in (relevant_improvements or [])],
@@ -207,18 +242,28 @@ class PlannerAgent:
                 past_plans=json.dumps(past_plans or [], default=str)
             )
 
+            if not result.success:
+                return {
+                    'plan': {'tasks': [{'name': 'execute', 'description': task_description}]},
+                    'rationale': f'Fallback plan due to error: {result.error}',
+                    'risks': [result.error or 'Unknown error']
+                }
+
+            output = result.output or {}
+
             # Parse plan
             try:
-                plan = json.loads(result.optimized_plan)
-            except:
+                plan = json.loads(output.get('optimized_plan', '{}'))
+            except (json.JSONDecodeError, TypeError):
                 plan = {'tasks': [{'name': 'execute', 'description': task_description}]}
 
             # Parse risk mitigations
-            risks = [r.strip() for r in str(result.risk_mitigations).split('|') if r.strip()]
+            risks_str = str(output.get('risk_mitigations', ''))
+            risks = [r.strip() for r in risks_str.split('|') if r.strip()]
 
             return {
                 'plan': plan,
-                'rationale': str(result.rationale),
+                'rationale': str(output.get('rationale', '')),
                 'risks': risks
             }
 
@@ -231,7 +276,7 @@ class PlannerAgent:
             }
 
 
-class ActorAgent:
+class ActorAgent(MetaAgent):
     """
     Actor Agent - Executes tasks with learned improvements.
 
@@ -240,20 +285,43 @@ class ActorAgent:
     2. Applies learnings from past feedback
     3. Adapts based on improvement suggestions
     4. Reports confidence levels
+
+    Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: AgentConfig, history: ImprovementHistory):
-        self.config = config
-        self.history = history
-        self._executor = dspy.ChainOfThought(ActorExecutionSignature)
+    def __init__(self, config: SwarmAgentConfig, history: ImprovementHistory):
+        """
+        Initialize ActorAgent.
 
-    async def execute(
+        Args:
+            config: Swarm agent configuration
+            history: Improvement history tracker
+        """
+        meta_config = MetaAgentConfig(
+            name=config.name or "ActorAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=ActorExecutionSignature,
+            config=meta_config,
+            improvement_history=history,
+        )
+        self.swarm_config = config
+        self.history = history
+
+    async def execute_task(
         self,
         task: str,
         context: Dict[str, Any],
         learnings: List[str] = None
     ) -> Tuple[Dict[str, Any], float, List[str]]:
-        """Execute a task and return output, confidence, and applied learnings."""
+        """
+        Execute a task and return output, confidence, and applied learnings.
+
+        Note: Renamed from execute() to avoid conflict with BaseAgent.execute()
+        """
         try:
             # Get relevant successful improvements
             successful = self.history.get_successful_improvements(AgentRole.ACTOR)
@@ -261,29 +329,36 @@ class ActorAgent:
                 s['suggestion']['description'] for s in successful[:5]
             ]
 
-            result = self._executor(
+            # Execute using base class
+            result = await self.execute(
                 task=task,
                 context=json.dumps(context, default=str),
                 learnings="\n".join(all_learnings) if all_learnings else "No prior learnings"
             )
 
+            if not result.success:
+                return {'error': result.error}, 0.0, []
+
+            output = result.output or {}
+
             # Parse output
             try:
-                output = json.loads(result.output)
-            except:
-                output = {'result': str(result.output)}
+                parsed_output = json.loads(output.get('output', '{}'))
+            except (json.JSONDecodeError, TypeError):
+                parsed_output = {'result': str(output.get('output', ''))}
 
-            confidence = float(result.confidence) if result.confidence else 0.5
-            applied = [l.strip() for l in str(result.applied_learnings).split('|') if l.strip()]
+            confidence = float(output.get('confidence', 0.5))
+            applied_str = str(output.get('applied_learnings', ''))
+            applied = [l.strip() for l in applied_str.split('|') if l.strip()]
 
-            return output, confidence, applied
+            return parsed_output, confidence, applied
 
         except Exception as e:
             logger.error(f"Actor execution failed: {e}")
             return {'error': str(e)}, 0.0, []
 
 
-class AuditorAgent:
+class AuditorAgent(MetaAgent):
     """
     Auditor Agent - Verifies evaluation quality and consistency.
 
@@ -292,11 +367,28 @@ class AuditorAgent:
     2. Verifies reasoning matches scores
     3. Detects potential evaluation errors
     4. Non-blocking: defaults to passed=True on any failure
+
+    Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: AgentConfig):
-        self.config = config
-        self._verifier = dspy.ChainOfThought(AuditorVerificationSignature)
+    def __init__(self, config: SwarmAgentConfig):
+        """
+        Initialize AuditorAgent.
+
+        Args:
+            config: Swarm agent configuration
+        """
+        meta_config = MetaAgentConfig(
+            name=config.name or "AuditorAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=AuditorVerificationSignature,
+            config=meta_config,
+        )
+        self.swarm_config = config
 
     async def audit_evaluation(
         self,
@@ -308,29 +400,28 @@ class AuditorAgent:
         Audit an evaluation for consistency and quality.
 
         Non-blocking: catches all exceptions and defaults to passed=True.
-
-        Args:
-            evaluation: Evaluation data dict (scores, feedback, etc.)
-            output_data: The output that was evaluated
-            context: Additional context about the task
-
-        Returns:
-            Dict with 'passed' (bool) and 'reasoning' (str)
         """
         try:
-            result = self._verifier(
+            result = await self.execute(
                 evaluation_data=json.dumps(evaluation, default=str),
                 output_data=json.dumps(output_data, default=str),
                 context=context or "No additional context"
             )
 
-            passed = bool(result.audit_passed) if result.audit_passed is not None else True
-            reasoning = str(result.reasoning) if result.reasoning else "Audit completed"
+            if not result.success:
+                return {
+                    'passed': True,
+                    'reasoning': f"Audit skipped (non-blocking): {result.error}"
+                }
+
+            output = result.output or {}
+            passed = bool(output.get('audit_passed', True))
+            reasoning = str(output.get('reasoning', 'Audit completed'))
 
             return {
                 'passed': passed,
                 'reasoning': reasoning,
-                'confidence': float(result.confidence) if result.confidence else 0.5
+                'confidence': float(output.get('confidence', 0.5))
             }
 
         except Exception as e:
@@ -341,7 +432,7 @@ class AuditorAgent:
             }
 
 
-class LearnerAgent:
+class LearnerAgent(MetaAgent):
     """
     Learner Agent - Extracts reusable learnings from excellent executions.
 
@@ -350,13 +441,30 @@ class LearnerAgent:
     2. Extracts reusable patterns and quality factors
     3. Provides domain-specific insights
     4. Scores reusability for prioritization
+
+    Inherits from MetaAgent for unified infrastructure.
     """
 
-    def __init__(self, config: AgentConfig):
-        self.config = config
-        self._extractor = dspy.ChainOfThought(LearnerExtractionSignature)
+    def __init__(self, config: SwarmAgentConfig):
+        """
+        Initialize LearnerAgent.
 
-    async def extract_learnings(
+        Args:
+            config: Swarm agent configuration
+        """
+        meta_config = MetaAgentConfig(
+            name=config.name or "LearnerAgent",
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+        )
+        super().__init__(
+            signature=LearnerExtractionSignature,
+            config=meta_config,
+        )
+        self.swarm_config = config
+
+    async def extract_learnings_from_execution(
         self,
         input_data: Dict[str, Any],
         output_data: Dict[str, Any],
@@ -366,33 +474,15 @@ class LearnerAgent:
         """
         Extract reusable learnings from an excellent execution.
 
-        Args:
-            input_data: Task input parameters
-            output_data: Task output
-            evaluation: Evaluation data (scores, feedback)
-            domain: Domain of the task
-
-        Returns:
-            List of learning strings
+        Note: Renamed from extract_learnings() to be more specific.
         """
-        try:
-            result = self._extractor(
-                input_data=json.dumps(input_data, default=str),
-                output_data=json.dumps(output_data, default=str),
-                evaluation_data=json.dumps(evaluation, default=str),
-                domain=domain
-            )
-
-            learnings = [
-                l.strip() for l in str(result.learnings).split('|')
-                if l.strip()
-            ]
-
-            return learnings
-
-        except Exception as e:
-            logger.debug(f"Learner extraction failed: {e}")
-            return []
+        # Use base class method
+        return await self.extract_learnings(
+            input_data=input_data,
+            output_data=output_data,
+            evaluation=evaluation,
+            domain=domain
+        )
 
 
 __all__ = [

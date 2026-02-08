@@ -61,6 +61,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -303,14 +305,25 @@ class TestQualitySignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseTestAgent:
-    """Base class for testing agents."""
+class BaseTestAgent(DomainAgent):
+    """Base class for testing agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -331,7 +344,8 @@ class CodeAnalyzerAgent(BaseTestAgent):
     """Analyzes code for testability."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=CodeAnalysisSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CodeAnalysisSignature)
 
     async def analyze(
@@ -384,7 +398,8 @@ class UnitTestAgent(BaseTestAgent):
     """Generates unit tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=UnitTestSignature)
+        self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(UnitTestSignature)
 
     async def generate(
@@ -427,7 +442,8 @@ class IntegrationTestAgent(BaseTestAgent):
     """Generates integration tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=IntegrationTestSignature)
+        self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(IntegrationTestSignature)
 
     async def generate(
@@ -470,7 +486,8 @@ class E2ETestAgent(BaseTestAgent):
     """Generates end-to-end tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=E2ETestSignature)
+        self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(E2ETestSignature)
 
     async def generate(
@@ -513,7 +530,8 @@ class CoverageAgent(BaseTestAgent):
     """Analyzes test coverage."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=CoverageAnalysisSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CoverageAnalysisSignature)
 
     async def analyze(
@@ -556,7 +574,8 @@ class QualityAgent(BaseTestAgent):
     """Assesses test quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=TestQualitySignature)
+        self.learned_context = learned_context
         self._assessor = dspy.ChainOfThought(TestQualitySignature)
 
     async def assess(
@@ -597,7 +616,7 @@ class QualityAgent(BaseTestAgent):
 # =============================================================================
 
 @register_swarm("testing")
-class TestingSwarm(BaseSwarm):
+class TestingSwarm(DomainSwarm):
     """
     World-Class Testing Swarm.
 
@@ -609,42 +628,26 @@ class TestingSwarm(BaseSwarm):
     - Quality assessment
     """
 
+    # Declarative agent team - auto-initialized by DomainSwarm
+    AGENT_TEAM = AgentTeam.define(
+        (CodeAnalyzerAgent, "CodeAnalyzer", "_analyzer"),
+        (UnitTestAgent, "UnitTest", "_unit_tester"),
+        (IntegrationTestAgent, "IntegrationTest", "_integration_tester"),
+        (E2ETestAgent, "E2ETest", "_e2e_tester"),
+        (CoverageAgent, "Coverage", "_coverage_agent"),
+        (QualityAgent, "Quality", "_quality_agent"),
+    )
+
     def __init__(self, config: TestingConfig = None):
         super().__init__(config or TestingConfig())
-        self._agents_initialized = False
 
-        # Agents
-        self._analyzer = None
-        self._unit_tester = None
-        self._integration_tester = None
-        self._e2e_tester = None
-        self._coverage_agent = None
-        self._quality_agent = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._analyzer = CodeAnalyzerAgent(self._memory, self._context, self._bus, self._agent_context("CodeAnalyzer"))
-        self._unit_tester = UnitTestAgent(self._memory, self._context, self._bus, self._agent_context("UnitTest"))
-        self._integration_tester = IntegrationTestAgent(self._memory, self._context, self._bus, self._agent_context("IntegrationTest"))
-        self._e2e_tester = E2ETestAgent(self._memory, self._context, self._bus, self._agent_context("E2ETest"))
-        self._coverage_agent = CoverageAgent(self._memory, self._context, self._bus, self._agent_context("Coverage"))
-        self._quality_agent = QualityAgent(self._memory, self._context, self._bus, self._agent_context("Quality"))
-
-        self._agents_initialized = True
-        logger.info("TestingSwarm agents initialized")
-
-    async def execute(
+    async def _execute_domain(
         self,
         code: str,
         language: str = None,
         **kwargs
     ) -> TestingResult:
-        """Execute test generation."""
+        """Execute test generation (called by DomainSwarm.execute())."""
         return await self.generate_tests(code, language, **kwargs)
 
     async def generate_tests(
@@ -668,10 +671,7 @@ class TestingSwarm(BaseSwarm):
         """
         start_time = datetime.now()
 
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
+        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
 
         config = self.config
         lang = language or config.language

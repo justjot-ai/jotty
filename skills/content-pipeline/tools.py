@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 try:
     from Jotty.core.validation import ParamValidator, ValidationError, validate_params
 except ImportError:
-    from core.validation import ParamValidator, ValidationError, validate_params
+    from Jotty.core.validation import ParamValidator, ValidationError, validate_params
 
 # Validation schemas for tools
 RUN_PIPELINE_SCHEMA = {
@@ -76,8 +76,8 @@ def _import_justjot():
             break
 
     try:
-        from core.pipeline import ContentPipeline
-        from core.document import Document
+        from Jotty.core.pipeline import ContentPipeline
+        from Jotty.core.document import Document
         _ContentPipeline = ContentPipeline
         _Document = Document
         logger.info("JustJot.ai ContentPipeline imported successfully")
@@ -368,7 +368,7 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                 def write(self, doc, output_path=None, **kwargs):
                     try:
                         from utils.markdown_converter import MarkdownConverter
-                        from core.config import PageSize
+                        from Jotty.core.config import PageSize
 
                         size_map = {
                             'remarkable': PageSize.REMARKABLE,
@@ -416,7 +416,7 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                 def write(self, doc, output_path=None, **kwargs):
                     try:
                         from utils.markdown_converter import MarkdownConverter
-                        from core.config import PageSize
+                        from Jotty.core.config import PageSize
 
                         import tempfile
                         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
@@ -472,7 +472,7 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                     try:
                         from utils.remarkable_sync import RemarkableSync
                         from utils.markdown_converter import MarkdownConverter
-                        from core.config import PageSize
+                        from Jotty.core.config import PageSize
 
                         # First generate remarkable-optimized PDF
                         import tempfile

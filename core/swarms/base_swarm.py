@@ -160,7 +160,6 @@ class BaseSwarm(ABC):
 
         # Initialize shared resources
         try:
-            from .research_swarm import BaseAgent
             from ..agents.dag_agents import SwarmResources
             from ..foundation.data_structures import JottyConfig
 
@@ -1585,6 +1584,465 @@ class BaseSwarm(ABC):
             success=success,
             tools_used=tools_used or []
         )
+
+    # =========================================================================
+    # ARXIV SWARM INTEGRATION (Handoff, Coalition, Smart Routing)
+    # =========================================================================
+
+    def _handoff_task(
+        self,
+        task_id: str,
+        to_agent: str,
+        task_type: str,
+        context: Dict = None,
+        partial_result: Any = None,
+        progress: float = 0.0
+    ):
+        """
+        Hand off task to another agent with context preservation.
+
+        SwarmAgentic pattern integrated into BaseSwarm.
+        """
+        if not self._swarm_intelligence:
+            logger.warning("Handoff requires SwarmIntelligence connection")
+            return None
+
+        from_agent = self.config.name or 'base_swarm'
+
+        handoff = self._swarm_intelligence.initiate_handoff(
+            task_id=task_id,
+            from_agent=from_agent,
+            to_agent=to_agent,
+            task_type=task_type,
+            context=context or {},
+            partial_result=partial_result,
+            progress=progress
+        )
+
+        logger.info(f"Task handoff: {from_agent} → {to_agent} ({task_type})")
+        return handoff
+
+    def _accept_handoff(self, task_id: str):
+        """
+        Accept a pending handoff for this swarm.
+
+        Returns HandoffContext with preserved state.
+        """
+        if not self._swarm_intelligence:
+            return None
+
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.accept_handoff(task_id, swarm_name)
+
+    def _get_pending_handoffs(self):
+        """Get all pending handoffs for this swarm."""
+        if not self._swarm_intelligence:
+            return []
+
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.get_pending_handoffs(swarm_name)
+
+    def _form_coalition(
+        self,
+        task_type: str,
+        required_roles: List[str] = None,
+        min_agents: int = 2,
+        max_agents: int = 5
+    ):
+        """
+        Form coalition for complex multi-agent tasks.
+
+        SwarmAgentic pattern: Dynamic team assembly.
+        """
+        if not self._swarm_intelligence:
+            logger.warning("Coalition requires SwarmIntelligence connection")
+            return None
+
+        coalition = self._swarm_intelligence.form_coalition(
+            task_type=task_type,
+            required_roles=required_roles,
+            min_agents=min_agents,
+            max_agents=max_agents
+        )
+
+        if coalition:
+            logger.info(f"Coalition formed: {coalition.coalition_id} with {len(coalition.members)} agents")
+
+        return coalition
+
+    def _dissolve_coalition(self, coalition_id: str):
+        """Dissolve coalition after task completion."""
+        if self._swarm_intelligence:
+            self._swarm_intelligence.dissolve_coalition(coalition_id)
+
+    def _smart_route(
+        self,
+        task_id: str,
+        task_type: str,
+        task_description: str = "",
+        prefer_coalition: bool = False,
+        use_auction: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Smart routing combining all arXiv swarm patterns.
+
+        Integrates: handoff, hierarchy, auction, coalition.
+
+        Returns:
+            Dict with assigned_agent, coalition_id, method, confidence
+        """
+        if not self._swarm_intelligence:
+            return {"assigned_agent": None, "method": "none", "confidence": 0.0}
+
+        return self._swarm_intelligence.smart_route(
+            task_id=task_id,
+            task_type=task_type,
+            task_description=task_description,
+            prefer_coalition=prefer_coalition,
+            use_auction=use_auction,
+            use_hierarchy=True
+        )
+
+    def _gossip_broadcast(self, message_type: str, content: Dict[str, Any]):
+        """
+        Broadcast message via gossip protocol.
+
+        SwarmSys O(log n) dissemination pattern.
+        """
+        if not self._swarm_intelligence:
+            return None
+
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.gossip_broadcast(
+            origin_agent=swarm_name,
+            message_type=message_type,
+            content=content
+        )
+
+    def _gossip_receive(self) -> List:
+        """Receive gossip messages for this swarm."""
+        if not self._swarm_intelligence:
+            return []
+
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.gossip_receive(swarm_name)
+
+    def _build_supervisor_tree(self, agents: List[str] = None):
+        """
+        Build hierarchical supervisor tree for O(log n) coordination.
+
+        SwarmSys pattern.
+        """
+        if self._swarm_intelligence:
+            self._swarm_intelligence.build_supervisor_tree(agents)
+
+    def _get_supervisor(self, agent: str = None) -> str:
+        """Get supervisor for an agent (or self)."""
+        if not self._swarm_intelligence:
+            return None
+
+        agent = agent or self.config.name or 'base_swarm'
+        return self._swarm_intelligence.get_supervisor(agent)
+
+    # =========================================================================
+    # WORK-STEALING & LOAD BALANCING
+    # =========================================================================
+
+    def _get_load(self) -> float:
+        """Get current load of this swarm."""
+        if not self._swarm_intelligence:
+            return 0.0
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.get_agent_load(swarm_name)
+
+    def _balance_load(self) -> List[Dict]:
+        """Rebalance work across the swarm."""
+        if not self._swarm_intelligence:
+            return []
+        return self._swarm_intelligence.balance_load()
+
+    def _work_steal(self) -> bool:
+        """Attempt to steal work if idle."""
+        if not self._swarm_intelligence:
+            return False
+        swarm_name = self.config.name or 'base_swarm'
+        result = self._swarm_intelligence.work_steal(swarm_name)
+        return result is not None
+
+    # =========================================================================
+    # FAILURE RECOVERY
+    # =========================================================================
+
+    def _record_failure(
+        self,
+        task_id: str,
+        task_type: str,
+        error_type: str = "unknown",
+        context: Dict = None
+    ) -> str:
+        """
+        Record task failure and get reassignment.
+
+        Returns new agent name or None.
+        """
+        if not self._swarm_intelligence:
+            return None
+        swarm_name = self.config.name or 'base_swarm'
+        return self._swarm_intelligence.record_failure(
+            task_id=task_id,
+            agent=swarm_name,
+            task_type=task_type,
+            error_type=error_type,
+            context=context
+        )
+
+    # =========================================================================
+    # PRIORITY QUEUE
+    # =========================================================================
+
+    def _enqueue_task(
+        self,
+        task_id: str,
+        task_type: str,
+        priority: int = 5,
+        context: Dict = None
+    ):
+        """Add task to priority queue."""
+        if self._swarm_intelligence:
+            self._swarm_intelligence.enqueue_task(
+                task_id=task_id,
+                task_type=task_type,
+                priority=priority,
+                context=context
+            )
+
+    def _dequeue_task(self) -> Dict:
+        """Get next priority task."""
+        if not self._swarm_intelligence:
+            return None
+        return self._swarm_intelligence.dequeue_task()
+
+    def _escalate_task(self, task_id: str, new_priority: int):
+        """Escalate task priority."""
+        if self._swarm_intelligence:
+            self._swarm_intelligence.escalate_priority(task_id, new_priority)
+
+    # =========================================================================
+    # TASK DECOMPOSITION
+    # =========================================================================
+
+    def _decompose_task(
+        self,
+        task_id: str,
+        task_type: str,
+        subtasks: List[Dict],
+        parallel: bool = True
+    ) -> List[str]:
+        """
+        Decompose complex task into subtasks.
+
+        Args:
+            task_id: Parent task ID
+            task_type: Type of parent task
+            subtasks: List of {"type": str, "context": dict, "priority": int}
+            parallel: Whether subtasks can run in parallel
+
+        Returns:
+            List of subtask IDs.
+        """
+        if not self._swarm_intelligence:
+            return []
+        return self._swarm_intelligence.decompose_task(
+            task_id=task_id,
+            task_type=task_type,
+            subtasks=subtasks,
+            parallel=parallel
+        )
+
+    def _aggregate_results(self, parent_task_id: str, results: Dict) -> Dict:
+        """Aggregate subtask results."""
+        if not self._swarm_intelligence:
+            return {"results": results}
+        return self._swarm_intelligence.aggregate_subtask_results(
+            parent_task_id=parent_task_id,
+            results=results
+        )
+
+    # =========================================================================
+    # BYZANTINE CONSENSUS
+    # =========================================================================
+
+    def _byzantine_vote(
+        self,
+        question: str,
+        options: List[str],
+        voters: List[str] = None
+    ) -> Dict:
+        """
+        Run Byzantine fault-tolerant vote.
+
+        Requires 2/3 majority for consensus.
+        """
+        if not self._swarm_intelligence:
+            return {"decision": options[0] if options else None, "consensus": False}
+        return self._swarm_intelligence.byzantine_vote(
+            question=question,
+            options=options,
+            voters=voters
+        )
+
+    # =========================================================================
+    # SWARM STATUS
+    # =========================================================================
+
+    def _get_swarm_status(self) -> Dict:
+        """Get comprehensive swarm status."""
+        if not self._swarm_intelligence:
+            return {"health_score": 0.5}
+        return self._swarm_intelligence.get_swarm_status()
+
+    # =========================================================================
+    # CIRCUIT BREAKER
+    # =========================================================================
+
+    def _record_circuit_failure(self, agent: str = None):
+        """Record failure for circuit breaker."""
+        if self._swarm_intelligence:
+            agent = agent or self.config.name or 'base_swarm'
+            self._swarm_intelligence.record_circuit_failure(agent)
+
+    def _record_circuit_success(self, agent: str = None):
+        """Record success - resets circuit breaker."""
+        if self._swarm_intelligence:
+            agent = agent or self.config.name or 'base_swarm'
+            self._swarm_intelligence.record_circuit_success(agent)
+
+    def _check_circuit(self, agent: str = None) -> bool:
+        """Check if agent circuit is open (blocked)."""
+        if not self._swarm_intelligence:
+            return True
+        agent = agent or self.config.name or 'base_swarm'
+        return self._swarm_intelligence.check_circuit(agent)
+
+    # =========================================================================
+    # BACKPRESSURE
+    # =========================================================================
+
+    def _get_backpressure(self) -> float:
+        """Get current swarm backpressure (0-1)."""
+        if not self._swarm_intelligence:
+            return 0.0
+        return self._swarm_intelligence.calculate_backpressure()
+
+    def _should_accept_task(self, priority: int = 5) -> bool:
+        """Check if swarm should accept new task."""
+        if not self._swarm_intelligence:
+            return True
+        return self._swarm_intelligence.should_accept_task(priority)
+
+    # =========================================================================
+    # LEADERSHIP & LIFECYCLE
+    # =========================================================================
+
+    def _elect_leader(self, candidates: List[str] = None, task_type: str = None) -> str:
+        """Elect leader for a task."""
+        if not self._swarm_intelligence:
+            return candidates[0] if candidates else None
+        return self._swarm_intelligence.elect_leader(candidates, task_type)
+
+    def _get_adaptive_timeout(self, agent: str = None, task_type: str = None) -> float:
+        """Get adaptive timeout for agent."""
+        if not self._swarm_intelligence:
+            return 30.0
+        agent = agent or self.config.name or 'base_swarm'
+        return self._swarm_intelligence.get_adaptive_timeout(agent, task_type or "general")
+
+    # =========================================================================
+    # PARALLEL EXECUTION
+    # =========================================================================
+
+    async def _execute_parallel(self, tasks: List[Dict], timeout: float = 30.0) -> List[Dict]:
+        """
+        Execute multiple tasks in parallel.
+
+        Args:
+            tasks: List of {"task_id", "func", "args", "kwargs"}
+            timeout: Timeout per task
+
+        Returns:
+            List of results
+        """
+        if not self._swarm_intelligence:
+            # Fallback: sequential execution
+            results = []
+            for task in tasks:
+                try:
+                    func = task.get("func")
+                    args = task.get("args", [])
+                    kwargs = task.get("kwargs", {})
+                    if asyncio.iscoroutinefunction(func):
+                        result = await func(*args, **kwargs)
+                    else:
+                        result = func(*args, **kwargs)
+                    results.append({"task_id": task.get("task_id"), "success": True, "result": result})
+                except Exception as e:
+                    results.append({"task_id": task.get("task_id"), "success": False, "error": str(e)})
+            return results
+
+        return await self._swarm_intelligence.execute_parallel(tasks, timeout)
+
+    async def _parallel_map(self, items: List, func, max_concurrent: int = 5) -> List:
+        """Apply function to items in parallel."""
+        if not self._swarm_intelligence:
+            # Fallback
+            results = []
+            for item in items:
+                try:
+                    if asyncio.iscoroutinefunction(func):
+                        results.append(await func(item))
+                    else:
+                        results.append(func(item))
+                except:
+                    results.append(None)
+            return results
+
+        return await self._swarm_intelligence.parallel_map(items, func, max_concurrent)
+
+    async def _process_in_chunks(
+        self,
+        items: List,
+        chunk_size: int,
+        process_func,
+        delay: float = 0.1
+    ) -> List:
+        """Process items in chunks to avoid timeouts."""
+        if not self._swarm_intelligence:
+            return await process_func(items)
+
+        return await self._swarm_intelligence.process_in_chunks(
+            items, chunk_size, process_func, delay
+        )
+
+    # =========================================================================
+    # SMART CACHING
+    # =========================================================================
+
+    def _cache_result(self, key: str, result: Any, ttl: float = 3600.0):
+        """Cache a result."""
+        if self._swarm_intelligence:
+            self._swarm_intelligence.cache_result(key, result, ttl)
+
+    def _get_cached(self, key: str) -> Any:
+        """Get cached result or None."""
+        if not self._swarm_intelligence:
+            return None
+        return self._swarm_intelligence.get_cached(key)
+
+    def _get_cache_stats(self) -> Dict:
+        """Get cache statistics."""
+        if not self._swarm_intelligence:
+            return {"hits": 0, "misses": 0, "hit_rate": 0, "size": 0}
+        return self._swarm_intelligence.get_cache_stats()
 
     @abstractmethod
     async def execute(self, *args, **kwargs) -> SwarmResult:

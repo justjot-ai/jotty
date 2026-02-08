@@ -74,7 +74,7 @@ async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, A
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         topic = params.get('topic')
         if not topic:
@@ -182,7 +182,7 @@ async def reddit_trending_to_justjot_tool(params: Dict[str, Any]) -> Dict[str, A
         
         if use_mcp_client:
             try:
-                from core.integration.mcp_client import MCPClient
+                from Jotty.core.integration.mcp_client import MCPClient
                 from pathlib import Path
                 
                 server_path = "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js"

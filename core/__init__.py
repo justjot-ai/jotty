@@ -364,3 +364,63 @@ from .agents.agent_factory import (
     # Surprise estimation (LLM-based, not Shannon 1948 formula)
     LLMSurpriseEstimator
 )
+
+# =============================================================================
+# LOTUS Optimization Layer (Inspired by LOTUS: https://github.com/lotus-data/lotus)
+# =============================================================================
+# Semantic Operators and Query Optimization for LLM-based Data Processing
+# Key features:
+# - Model Cascade: Use cheap models first, expensive only when needed (~10x cost reduction)
+# - Semantic Cache: Memoize semantic operations (~infinite speedup for repeats)
+# - Batch Executor: Batch LLM calls for throughput (~10x throughput)
+# - Adaptive Validator: Skip validation for trusted agents (~50% validation reduction)
+
+try:
+    from .lotus import (
+        # Configuration
+        LotusConfig,
+        CascadeThresholds,
+        CacheConfig,
+
+        # Model Cascade (biggest cost saver)
+        ModelCascade,
+        CascadeResult,
+        ModelTier,
+
+        # Semantic Cache (memoization)
+        SemanticCache,
+        CacheEntry,
+        CacheStats,
+
+        # Batch Executor (throughput)
+        BatchExecutor,
+        BatchResult,
+        BatchConfig,
+
+        # Adaptive Validator (skip unnecessary validation)
+        AdaptiveValidator,
+        ValidationDecision,
+
+        # Semantic Operators (LOTUS-style declarative API)
+        SemanticOperator,
+        SemFilter,
+        SemMap,
+        SemExtract,
+        SemTopK,
+        SemanticDataFrame,
+
+        # Unified Optimizer
+        LotusOptimizer,
+    )
+
+    from .lotus.integration import (
+        enhance_swarm_manager,
+        create_cascaded_lm,
+        setup_lotus_optimization,
+        LotusEnhancement,
+        LotusSwarmMixin,
+    )
+
+    LOTUS_AVAILABLE = True
+except ImportError:
+    LOTUS_AVAILABLE = False

@@ -33,6 +33,9 @@ from enum import Enum
 import json
 import re
 
+from ..agents.base import DomainAgent, DomainAgentConfig
+from .base import DomainSwarm, AgentTeam
+
 logger = logging.getLogger(__name__)
 
 
@@ -196,7 +199,7 @@ class TechnicalSignalsSignature(dspy.Signature):
 # RESEARCH SWARM
 # =============================================================================
 
-class ResearchSwarm:
+class ResearchSwarm(DomainSwarm):
     """
     World-Class Research Swarm with parallel agents and LLM analysis.
 
@@ -224,28 +227,12 @@ class ResearchSwarm:
     └─────────────────────────────────────────────────────────────┘
     """
 
+    # Declarative agent team - defined after agent classes at end of file
+    AGENT_TEAM = None  # Set after agent class definitions
+
     def __init__(self, config: Optional[ResearchConfig] = None):
         """Initialize research swarm."""
-        self.config = config or ResearchConfig()
-        self._initialized = False
-
-        # Shared resources
-        self._memory = None
-        self._context = None
-        self._bus = None
-
-        # Agents
-        self._data_fetcher = None
-        self._web_searcher = None
-        self._sentiment_analyzer = None
-        self._llm_analyzer = None
-        self._peer_comparator = None
-        self._chart_generator = None
-        self._report_generator = None
-        # New enhanced agents
-        self._technical_analyzer = None
-        self._screener_agent = None
-        self._social_sentiment_agent = None
+        super().__init__(config or ResearchConfig())
 
         # DSPy modules
         self._stock_analyzer = None
@@ -296,30 +283,13 @@ class ResearchSwarm:
 
         self._initialized = True
 
-    def _init_agents(self):
-        """Initialize all agents."""
-        self._init_shared_resources()
-
-        self._data_fetcher = DataFetcherAgent(self._memory, self._context, self._bus)
-        self._web_searcher = WebSearchAgent(self._memory, self._context, self._bus)
-        self._sentiment_analyzer = SentimentAgent(self._memory, self._context, self._bus, self._sentiment_module)
-        self._llm_analyzer = LLMAnalysisAgent(self._memory, self._context, self._bus, self._stock_analyzer)
-        self._peer_comparator = PeerComparisonAgent(self._memory, self._context, self._bus, self._peer_selector)
-        self._chart_generator = EnhancedChartGeneratorAgent(self._memory, self._context, self._bus)
-        self._report_generator = ReportGeneratorAgent(self._memory, self._context, self._bus)
-        # New enhanced agents
-        self._technical_analyzer = TechnicalAnalysisAgent(
-            self._memory, self._context, self._bus,
-            self._technical_signals_module,
-            self.config.nse_data_path
-        )
-        self._screener_agent = ScreenerAgent(self._memory, self._context, self._bus)
-        self._social_sentiment_agent = SocialSentimentAgent(
-            self._memory, self._context, self._bus,
-            self._social_sentiment_module
-        )
-
-        logger.info("✅ All research agents initialized (including enhanced agents)")
+    async def _execute_domain(
+        self,
+        query: str,
+        **kwargs
+    ) -> ResearchResult:
+        """Execute research (called by DomainSwarm.execute())."""
+        return await self.research(query, **kwargs)
 
     async def research(
         self,
@@ -342,9 +312,7 @@ class ResearchSwarm:
         """
         start_time = datetime.now()
 
-        # Initialize agents if needed
-        if not self._data_fetcher:
-            self._init_agents()
+        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
 
         # Parse inputs
         ticker = ticker or self._extract_ticker(query)
@@ -671,12 +639,24 @@ Success: {result.success}"""
 # AGENTS
 # =============================================================================
 
-class BaseAgent:
-    """Base class for all agents with shared resources."""
+class BaseResearchAgent(DomainAgent):
+    """Base class for research agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
@@ -694,7 +674,7 @@ class BaseAgent:
                 pass
 
 
-class DataFetcherAgent(BaseAgent):
+class DataFetcherAgent(BaseResearchAgent):
     """Fetches financial data from Yahoo Finance and other APIs."""
 
     def __init__(self, memory=None, context=None, bus=None):
@@ -720,7 +700,7 @@ class DataFetcherAgent(BaseAgent):
             return {'error': str(e), 'sources': []}
 
 
-class WebSearchAgent(BaseAgent):
+class WebSearchAgent(BaseResearchAgent):
     """Searches web for news and updates."""
 
     def __init__(self, memory=None, context=None, bus=None):
@@ -795,7 +775,7 @@ class WebSearchAgent(BaseAgent):
             return {'news_text': '', 'news_count': 0}
 
 
-class SentimentAgent(BaseAgent):
+class SentimentAgent(BaseResearchAgent):
     """Analyzes sentiment from news."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -851,7 +831,7 @@ class SentimentAgent(BaseAgent):
         return {'sentiment_score': score, 'sentiment_label': label, 'key_themes': []}
 
 
-class LLMAnalysisAgent(BaseAgent):
+class LLMAnalysisAgent(BaseResearchAgent):
     """LLM-powered stock analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -942,7 +922,7 @@ class LLMAnalysisAgent(BaseAgent):
         }
 
 
-class PeerComparisonAgent(BaseAgent):
+class PeerComparisonAgent(BaseResearchAgent):
     """Compares stock with sector peers."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -1040,7 +1020,7 @@ class PeerComparisonAgent(BaseAgent):
         return [p for p in sector_peers if p != ticker][:5]
 
 
-class ChartGeneratorAgent(BaseAgent):
+class ChartGeneratorAgent(BaseResearchAgent):
     """Generates technical analysis charts."""
 
     async def generate(self, ticker: str, data: Dict[str, Any], output_dir: str) -> Dict[str, Any]:
@@ -1128,7 +1108,7 @@ class ChartGeneratorAgent(BaseAgent):
         return [sum(data[i:i+window])/window for i in range(len(data)-window+1)]
 
 
-class TechnicalAnalysisAgent(BaseAgent):
+class TechnicalAnalysisAgent(BaseResearchAgent):
     """
     Technical Analysis Agent with multi-timeframe support.
 
@@ -1741,7 +1721,7 @@ class TechnicalAnalysisAgent(BaseAgent):
         return indicators
 
 
-class EnhancedChartGeneratorAgent(BaseAgent):
+class EnhancedChartGeneratorAgent(BaseResearchAgent):
     """
     Enhanced Chart Generator following HourlyReport.py patterns.
 
@@ -2185,7 +2165,7 @@ class EnhancedChartGeneratorAgent(BaseAgent):
             return None
 
 
-class ScreenerAgent(BaseAgent):
+class ScreenerAgent(BaseResearchAgent):
     """
     Screener.in Agent for Indian company fundamentals.
 
@@ -2455,7 +2435,7 @@ class ScreenerAgent(BaseAgent):
             return None
 
 
-class SocialSentimentAgent(BaseAgent):
+class SocialSentimentAgent(BaseResearchAgent):
     """
     Social Sentiment Agent for multi-source sentiment analysis.
 
@@ -2601,7 +2581,7 @@ class SocialSentimentAgent(BaseAgent):
         }
 
 
-class ReportGeneratorAgent(BaseAgent):
+class ReportGeneratorAgent(BaseResearchAgent):
     """Generates final report and handles output."""
 
     async def generate(
@@ -2669,3 +2649,22 @@ def research_sync(query: str, **kwargs) -> ResearchResult:
         result = research_sync("Paytm")
     """
     return asyncio.run(research(query, **kwargs))
+
+
+# =============================================================================
+# AGENT_TEAM ASSIGNMENT (after all agent classes defined)
+# =============================================================================
+
+# Set AGENT_TEAM now that all agent classes are defined
+ResearchSwarm.AGENT_TEAM = AgentTeam.define(
+    (DataFetcherAgent, "DataFetcher", "_data_fetcher"),
+    (WebSearchAgent, "WebSearch", "_web_searcher"),
+    (SentimentAgent, "Sentiment", "_sentiment_analyzer"),
+    (LLMAnalysisAgent, "LLMAnalyzer", "_llm_analyzer"),
+    (PeerComparisonAgent, "PeerComparator", "_peer_comparator"),
+    (EnhancedChartGeneratorAgent, "ChartGenerator", "_chart_generator"),
+    (ReportGeneratorAgent, "ReportGenerator", "_report_generator"),
+    (TechnicalAnalysisAgent, "TechnicalAnalyzer", "_technical_analyzer"),
+    (ScreenerAgent, "Screener", "_screener_agent"),
+    (SocialSentimentAgent, "SocialSentiment", "_social_sentiment_agent"),
+)

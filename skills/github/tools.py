@@ -3,11 +3,15 @@ GitHub CLI Skill
 
 Provides tools for interacting with GitHub using the gh CLI.
 Supports PRs, issues, repo info, and GitHub Actions workflows.
+Refactored to use Jotty core utilities.
 """
+
 import subprocess
 import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
+
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -17,69 +21,32 @@ class GitHubCLI:
 
     @staticmethod
     def run_command(args: List[str], timeout: int = 60) -> Dict[str, Any]:
-        """
-        Execute a gh CLI command and return the result.
-
-        Args:
-            args: List of command arguments (without 'gh' prefix)
-            timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with success, output/error, and exit_code
-        """
+        """Execute a gh CLI command and return the result."""
         try:
             cmd = ['gh'] + args
             logger.debug(f"Executing: {' '.join(cmd)}")
 
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
             if result.returncode == 0:
-                return {
-                    'success': True,
-                    'output': result.stdout.strip(),
-                    'exit_code': 0
-                }
+                return tool_response(output=result.stdout.strip(), exit_code=0)
             else:
-                return {
-                    'success': False,
-                    'error': result.stderr.strip() or result.stdout.strip(),
-                    'exit_code': result.returncode
-                }
+                return tool_error(
+                    result.stderr.strip() or result.stdout.strip(),
+                    exit_code=result.returncode
+                )
 
         except subprocess.TimeoutExpired:
-            return {
-                'success': False,
-                'error': f'Command timed out after {timeout} seconds'
-            }
+            return tool_error(f'Command timed out after {timeout} seconds')
         except FileNotFoundError:
-            return {
-                'success': False,
-                'error': 'gh CLI not found. Install from: https://cli.github.com/'
-            }
+            return tool_error('gh CLI not found. Install from: https://cli.github.com/')
         except Exception as e:
             logger.error(f"GitHub CLI error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'Command execution failed: {str(e)}'
-            }
+            return tool_error(f'Command execution failed: {str(e)}')
 
     @staticmethod
     def run_json_command(args: List[str], timeout: int = 60) -> Dict[str, Any]:
-        """
-        Execute a gh CLI command that returns JSON.
-
-        Args:
-            args: List of command arguments (without 'gh' prefix)
-            timeout: Command timeout in seconds
-
-        Returns:
-            Dictionary with success, data/error
-        """
+        """Execute a gh CLI command that returns JSON."""
         result = GitHubCLI.run_command(args, timeout)
 
         if not result.get('success'):
@@ -89,89 +56,67 @@ class GitHubCLI:
             output = result.get('output', '')
             if output:
                 data = json.loads(output)
-                return {
-                    'success': True,
-                    'data': data
-                }
-            return {
-                'success': True,
-                'data': None
-            }
+                return tool_response(data=data)
+            return tool_response(data=None)
         except json.JSONDecodeError as e:
-            return {
-                'success': False,
-                'error': f'Failed to parse JSON response: {str(e)}',
-                'raw_output': result.get('output', '')[:500]
-            }
+            return tool_error(
+                f'Failed to parse JSON response: {str(e)}',
+                raw_output=result.get('output', '')[:500]
+            )
 
 
+def _add_repo_arg(args: List[str], repo: str) -> None:
+    """Add --repo argument if provided."""
+    if repo:
+        args.extend(['--repo', repo])
+
+
+def _add_limit_arg(args: List[str], limit: int) -> None:
+    """Add --limit argument if provided."""
+    if limit:
+        args.extend(['--limit', str(limit)])
+
+
+@tool_wrapper()
 def list_prs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List pull requests for a repository.
 
     Args:
         params: Dictionary containing:
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
-            - state (str, optional): Filter by state - 'open', 'closed', 'merged', 'all' (default: 'open')
-            - limit (int, optional): Maximum number of PRs to return (default: 30)
-            - author (str, optional): Filter by author username
-            - base (str, optional): Filter by base branch
-            - head (str, optional): Filter by head branch
-            - label (str, optional): Filter by label
+            - repo (str, optional): Repository in owner/repo format
+            - state (str, optional): 'open', 'closed', 'merged', 'all' (default: 'open')
+            - limit (int, optional): Maximum PRs to return (default: 30)
+            - author/base/head/label (str, optional): Filters
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - prs (list): List of PR objects with number, title, state, author, etc.
-            - count (int): Number of PRs returned
-            - error (str, optional): Error message if failed
+        Dictionary with success, prs list, count
     """
-    repo = params.get('repo')
-    state = params.get('state', 'open')
-    limit = params.get('limit', 30)
-    author = params.get('author')
-    base = params.get('base')
-    head = params.get('head')
-    label = params.get('label')
-
     args = ['pr', 'list', '--json',
             'number,title,state,author,createdAt,updatedAt,url,headRefName,baseRefName,labels,isDraft']
 
-    if repo:
-        args.extend(['--repo', repo])
+    _add_repo_arg(args, params.get('repo'))
 
+    state = params.get('state', 'open')
     if state and state != 'all':
         args.extend(['--state', state])
 
-    if limit:
-        args.extend(['--limit', str(limit)])
+    _add_limit_arg(args, params.get('limit', 30))
 
-    if author:
-        args.extend(['--author', author])
-
-    if base:
-        args.extend(['--base', base])
-
-    if head:
-        args.extend(['--head', head])
-
-    if label:
-        args.extend(['--label', label])
+    for key in ('author', 'base', 'head', 'label'):
+        if params.get(key):
+            args.extend([f'--{key}', params[key]])
 
     result = GitHubCLI.run_json_command(args)
 
-    if not result.get('success'):
-        return result
+    if result.get('success'):
+        prs = result.get('data', [])
+        return tool_response(prs=prs, count=len(prs))
 
-    prs = result.get('data', [])
-
-    return {
-        'success': True,
-        'prs': prs,
-        'count': len(prs)
-    }
+    return result
 
 
+@tool_wrapper(required_params=['number'])
 def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get details of a specific pull request.
@@ -179,37 +124,23 @@ def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - number (int, required): PR number
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
-            - include_diff (bool, optional): Include diff stats (default: False)
-            - include_comments (bool, optional): Include comments (default: False)
+            - repo (str, optional): Repository in owner/repo format
+            - include_diff (bool, optional): Include diff stats
+            - include_comments (bool, optional): Include comments
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - pr (dict): PR details including number, title, body, state, author, etc.
-            - error (str, optional): Error message if failed
+        Dictionary with success, pr object
     """
-    number = params.get('number')
-    if not number:
-        return {'success': False, 'error': 'number parameter is required'}
-
-    repo = params.get('repo')
-    include_diff = params.get('include_diff', False)
-    include_comments = params.get('include_comments', False)
-
-    # Build JSON fields to retrieve
     fields = ['number', 'title', 'body', 'state', 'author', 'createdAt', 'updatedAt',
               'closedAt', 'mergedAt', 'url', 'headRefName', 'baseRefName', 'labels',
               'isDraft', 'mergeable', 'reviewDecision', 'additions', 'deletions',
               'changedFiles', 'commits']
 
-    if include_comments:
+    if params.get('include_comments'):
         fields.append('comments')
 
-    args = ['pr', 'view', str(number), '--json', ','.join(fields)]
-
-    if repo:
-        args.extend(['--repo', repo])
+    args = ['pr', 'view', str(params['number']), '--json', ','.join(fields)]
+    _add_repo_arg(args, params.get('repo'))
 
     result = GitHubCLI.run_json_command(args)
 
@@ -219,21 +150,17 @@ def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     pr_data = result.get('data', {})
 
     # Optionally get diff stats
-    if include_diff:
-        diff_args = ['pr', 'diff', str(number), '--stat']
-        if repo:
-            diff_args.extend(['--repo', repo])
-
+    if params.get('include_diff'):
+        diff_args = ['pr', 'diff', str(params['number']), '--stat']
+        _add_repo_arg(diff_args, params.get('repo'))
         diff_result = GitHubCLI.run_command(diff_args)
         if diff_result.get('success'):
             pr_data['diff_stat'] = diff_result.get('output')
 
-    return {
-        'success': True,
-        'pr': pr_data
-    }
+    return tool_response(pr=pr_data)
 
 
+@tool_wrapper(required_params=['title'])
 def create_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new pull request.
@@ -241,156 +168,90 @@ def create_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - title (str, required): PR title
-            - body (str, optional): PR description/body
-            - base (str, optional): Base branch (default: default branch)
-            - head (str, optional): Head branch (default: current branch)
+            - body (str, optional): PR description
+            - base/head (str, optional): Base/head branch
             - repo (str, optional): Repository in owner/repo format
-            - draft (bool, optional): Create as draft PR (default: False)
-            - labels (list, optional): List of label names to add
-            - assignees (list, optional): List of usernames to assign
-            - reviewers (list, optional): List of usernames to request review from
+            - draft (bool, optional): Create as draft
+            - labels/assignees/reviewers (list, optional): Lists to add
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - pr (dict): Created PR details with number, url, etc.
-            - error (str, optional): Error message if failed
+        Dictionary with success, pr object, message
     """
-    title = params.get('title')
-    if not title:
-        return {'success': False, 'error': 'title parameter is required'}
+    args = ['pr', 'create', '--title', params['title']]
 
-    body = params.get('body', '')
-    base = params.get('base')
-    head = params.get('head')
-    repo = params.get('repo')
-    draft = params.get('draft', False)
-    labels = params.get('labels', [])
-    assignees = params.get('assignees', [])
-    reviewers = params.get('reviewers', [])
+    if params.get('body'):
+        args.extend(['--body', params['body']])
 
-    args = ['pr', 'create', '--title', title]
+    for key in ('base', 'head'):
+        if params.get(key):
+            args.extend([f'--{key}', params[key]])
 
-    if body:
-        args.extend(['--body', body])
+    _add_repo_arg(args, params.get('repo'))
 
-    if base:
-        args.extend(['--base', base])
-
-    if head:
-        args.extend(['--head', head])
-
-    if repo:
-        args.extend(['--repo', repo])
-
-    if draft:
+    if params.get('draft'):
         args.append('--draft')
 
-    if labels:
-        for label in labels:
-            args.extend(['--label', label])
-
-    if assignees:
-        for assignee in assignees:
-            args.extend(['--assignee', assignee])
-
-    if reviewers:
-        for reviewer in reviewers:
-            args.extend(['--reviewer', reviewer])
+    for key in ('labels', 'assignees', 'reviewers'):
+        for item in params.get(key, []):
+            args.extend([f'--{key[:-1]}', item])  # Remove 's' for flag name
 
     result = GitHubCLI.run_command(args)
 
     if not result.get('success'):
         return result
 
-    # Parse the output to get PR URL
     output = result.get('output', '')
-
-    # Get PR details
     pr_info = {'url': output}
 
-    # Extract PR number from URL if possible
     if '/pull/' in output:
         try:
-            pr_number = output.split('/pull/')[-1].strip()
-            pr_info['number'] = int(pr_number)
+            pr_info['number'] = int(output.split('/pull/')[-1].strip())
         except (ValueError, IndexError):
             pass
 
-    return {
-        'success': True,
-        'pr': pr_info,
-        'message': f'Pull request created: {output}'
-    }
+    return tool_response(pr=pr_info, message=f'Pull request created: {output}')
 
 
+@tool_wrapper()
 def list_issues_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List issues for a repository.
 
     Args:
         params: Dictionary containing:
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
-            - state (str, optional): Filter by state - 'open', 'closed', 'all' (default: 'open')
-            - limit (int, optional): Maximum number of issues to return (default: 30)
-            - author (str, optional): Filter by author username
-            - assignee (str, optional): Filter by assignee username
-            - label (str, optional): Filter by label
-            - milestone (str, optional): Filter by milestone
+            - repo (str, optional): Repository in owner/repo format
+            - state (str, optional): 'open', 'closed', 'all' (default: 'open')
+            - limit (int, optional): Maximum issues to return (default: 30)
+            - author/assignee/label/milestone (str, optional): Filters
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - issues (list): List of issue objects
-            - count (int): Number of issues returned
-            - error (str, optional): Error message if failed
+        Dictionary with success, issues list, count
     """
-    repo = params.get('repo')
-    state = params.get('state', 'open')
-    limit = params.get('limit', 30)
-    author = params.get('author')
-    assignee = params.get('assignee')
-    label = params.get('label')
-    milestone = params.get('milestone')
-
     args = ['issue', 'list', '--json',
             'number,title,state,author,createdAt,updatedAt,url,labels,assignees,milestone,body']
 
-    if repo:
-        args.extend(['--repo', repo])
+    _add_repo_arg(args, params.get('repo'))
 
+    state = params.get('state', 'open')
     if state and state != 'all':
         args.extend(['--state', state])
 
-    if limit:
-        args.extend(['--limit', str(limit)])
+    _add_limit_arg(args, params.get('limit', 30))
 
-    if author:
-        args.extend(['--author', author])
-
-    if assignee:
-        args.extend(['--assignee', assignee])
-
-    if label:
-        args.extend(['--label', label])
-
-    if milestone:
-        args.extend(['--milestone', milestone])
+    for key in ('author', 'assignee', 'label', 'milestone'):
+        if params.get(key):
+            args.extend([f'--{key}', params[key]])
 
     result = GitHubCLI.run_json_command(args)
 
-    if not result.get('success'):
-        return result
+    if result.get('success'):
+        issues = result.get('data', [])
+        return tool_response(issues=issues, count=len(issues))
 
-    issues = result.get('data', [])
-
-    return {
-        'success': True,
-        'issues': issues,
-        'count': len(issues)
-    }
+    return result
 
 
+@tool_wrapper(required_params=['title'])
 def create_issue_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new issue.
@@ -398,148 +259,101 @@ def create_issue_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - title (str, required): Issue title
-            - body (str, optional): Issue description/body
+            - body (str, optional): Issue description
             - repo (str, optional): Repository in owner/repo format
-            - labels (list, optional): List of label names to add
-            - assignees (list, optional): List of usernames to assign
+            - labels/assignees (list, optional): Lists to add
             - milestone (str, optional): Milestone name or number
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - issue (dict): Created issue details with number, url, etc.
-            - error (str, optional): Error message if failed
+        Dictionary with success, issue object, message
     """
-    title = params.get('title')
-    if not title:
-        return {'success': False, 'error': 'title parameter is required'}
+    args = ['issue', 'create', '--title', params['title']]
 
-    body = params.get('body', '')
-    repo = params.get('repo')
-    labels = params.get('labels', [])
-    assignees = params.get('assignees', [])
-    milestone = params.get('milestone')
+    if params.get('body'):
+        args.extend(['--body', params['body']])
 
-    args = ['issue', 'create', '--title', title]
+    _add_repo_arg(args, params.get('repo'))
 
-    if body:
-        args.extend(['--body', body])
+    for key in ('labels', 'assignees'):
+        for item in params.get(key, []):
+            args.extend([f'--{key[:-1]}', item])
 
-    if repo:
-        args.extend(['--repo', repo])
-
-    if labels:
-        for label in labels:
-            args.extend(['--label', label])
-
-    if assignees:
-        for assignee in assignees:
-            args.extend(['--assignee', assignee])
-
-    if milestone:
-        args.extend(['--milestone', str(milestone)])
+    if params.get('milestone'):
+        args.extend(['--milestone', str(params['milestone'])])
 
     result = GitHubCLI.run_command(args)
 
     if not result.get('success'):
         return result
 
-    # Parse the output to get issue URL
     output = result.get('output', '')
-
     issue_info = {'url': output}
 
-    # Extract issue number from URL if possible
     if '/issues/' in output:
         try:
-            issue_number = output.split('/issues/')[-1].strip()
-            issue_info['number'] = int(issue_number)
+            issue_info['number'] = int(output.split('/issues/')[-1].strip())
         except (ValueError, IndexError):
             pass
 
-    return {
-        'success': True,
-        'issue': issue_info,
-        'message': f'Issue created: {output}'
-    }
+    return tool_response(issue=issue_info, message=f'Issue created: {output}')
 
 
+@tool_wrapper()
 def get_repo_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get information about a repository.
 
     Args:
         params: Dictionary containing:
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
+            - repo (str, optional): Repository in owner/repo format
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - repo (dict): Repository details including name, description, stars, forks, etc.
-            - error (str, optional): Error message if failed
+        Dictionary with success, repo object
     """
-    repo = params.get('repo')
-
     args = ['repo', 'view', '--json',
             'name,owner,description,url,homepageUrl,defaultBranchRef,isPrivate,isFork,'
             'stargazerCount,forkCount,watchers,issues,pullRequests,createdAt,updatedAt,'
             'languages,licenseInfo,primaryLanguage']
 
-    if repo:
-        args.append(repo)
+    if params.get('repo'):
+        args.append(params['repo'])
 
     result = GitHubCLI.run_json_command(args)
 
-    if not result.get('success'):
-        return result
+    if result.get('success'):
+        return tool_response(repo=result.get('data', {}))
 
-    return {
-        'success': True,
-        'repo': result.get('data', {})
-    }
+    return result
 
 
+@tool_wrapper()
 def list_workflows_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List GitHub Actions workflows for a repository.
 
     Args:
         params: Dictionary containing:
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
-            - limit (int, optional): Maximum number of workflows to return (default: 30)
+            - repo (str, optional): Repository in owner/repo format
+            - limit (int, optional): Maximum workflows to return (default: 30)
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - workflows (list): List of workflow objects with id, name, state, path
-            - count (int): Number of workflows returned
-            - error (str, optional): Error message if failed
+        Dictionary with success, workflows list, count
     """
-    repo = params.get('repo')
-    limit = params.get('limit', 30)
-
     args = ['workflow', 'list', '--json', 'id,name,state,path']
 
-    if repo:
-        args.extend(['--repo', repo])
-
-    if limit:
-        args.extend(['--limit', str(limit)])
+    _add_repo_arg(args, params.get('repo'))
+    _add_limit_arg(args, params.get('limit', 30))
 
     result = GitHubCLI.run_json_command(args)
 
-    if not result.get('success'):
-        return result
+    if result.get('success'):
+        workflows = result.get('data', [])
+        return tool_response(workflows=workflows, count=len(workflows))
 
-    workflows = result.get('data', [])
-
-    return {
-        'success': True,
-        'workflows': workflows,
-        'count': len(workflows)
-    }
+    return result
 
 
+@tool_wrapper(required_params=['workflow'])
 def run_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Trigger a GitHub Actions workflow.
@@ -547,44 +361,43 @@ def run_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - workflow (str, required): Workflow ID, name, or filename
-            - repo (str, optional): Repository in owner/repo format. Uses current repo if not specified.
-            - ref (str, optional): Branch or tag to run the workflow on (default: default branch)
-            - inputs (dict, optional): Input parameters for the workflow as key-value pairs
+            - repo (str, optional): Repository in owner/repo format
+            - ref (str, optional): Branch or tag to run on
+            - inputs (dict, optional): Input parameters as key-value pairs
 
     Returns:
-        Dictionary with:
-            - success (bool): Whether the operation succeeded
-            - message (str): Success/status message
-            - error (str, optional): Error message if failed
+        Dictionary with success, message, output
     """
-    workflow = params.get('workflow')
-    if not workflow:
-        return {'success': False, 'error': 'workflow parameter is required'}
+    args = ['workflow', 'run', str(params['workflow'])]
 
-    repo = params.get('repo')
-    ref = params.get('ref')
+    _add_repo_arg(args, params.get('repo'))
+
+    if params.get('ref'):
+        args.extend(['--ref', params['ref']])
+
     inputs = params.get('inputs', {})
-
-    args = ['workflow', 'run', str(workflow)]
-
-    if repo:
-        args.extend(['--repo', repo])
-
-    if ref:
-        args.extend(['--ref', ref])
-
-    # Add workflow inputs
     if inputs and isinstance(inputs, dict):
         for key, value in inputs.items():
             args.extend(['--field', f'{key}={value}'])
 
     result = GitHubCLI.run_command(args)
 
-    if not result.get('success'):
-        return result
+    if result.get('success'):
+        return tool_response(
+            message=f'Workflow "{params["workflow"]}" triggered successfully',
+            output=result.get('output', '')
+        )
 
-    return {
-        'success': True,
-        'message': f'Workflow "{workflow}" triggered successfully',
-        'output': result.get('output', '')
-    }
+    return result
+
+
+__all__ = [
+    'list_prs_tool',
+    'get_pr_tool',
+    'create_pr_tool',
+    'list_issues_tool',
+    'create_issue_tool',
+    'get_repo_info_tool',
+    'list_workflows_tool',
+    'run_workflow_tool'
+]

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 try:
     from Jotty.core.validation import ParamValidator, ValidationError
 except ImportError:
-    from core.validation import ParamValidator, ValidationError
+    from Jotty.core.validation import ParamValidator, ValidationError
 
 # Valid output formats
 ARXIV_OUTPUT_FORMATS = ['markdown', 'pdf', 'remarkable', 'a4', 'letter', 'epub', 'kindle']
@@ -82,7 +82,7 @@ def arxiv_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         _ensure_justjot_path()
 
         from utils.arxiv_converter import ArxivConverter, extract_arxiv_id
-        from core.config import PageSize
+        from Jotty.core.config import PageSize
 
         # Extract clean arxiv ID
         arxiv_id = extract_arxiv_id(arxiv_input)

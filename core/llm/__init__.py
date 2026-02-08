@@ -50,6 +50,16 @@ from .unified import (
     generate_text,
 )
 
+from .local_provider import (
+    LocalLLMProvider,
+    LocalLLMResponse,
+)
+
+from .provider_factory import (
+    ProviderFactory,
+    get_provider as get_provider_auto,
+)
+
 __all__ = [
     # Response type
     "LLMResponse",
@@ -74,4 +84,10 @@ __all__ = [
     "get_llm",
     "generate",
     "generate_text",
+
+    # Local-first (OpenClaw-inspired)
+    "LocalLLMProvider",
+    "LocalLLMResponse",
+    "ProviderFactory",
+    "get_provider_auto",
 ]

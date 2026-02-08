@@ -144,7 +144,8 @@ def _get_task_type():
 class TaskTypeInferenceSignature(dspy.Signature):
     """Classify the task type from description.
 
-    You are a CLASSIFIER. Analyze the task description and classify it into one of these types:
+    You are a CLASSIFIER. You MUST classify ANY input - even vague or incomplete ones.
+    NEVER ask for clarification. ALWAYS provide a classification.
 
     CLASSIFICATION GUIDE:
     - creation: Create files, build apps, write code, generate content, make something new
@@ -153,26 +154,31 @@ class TaskTypeInferenceSignature(dspy.Signature):
       Examples: "Research best practices", "Find documentation", "Search for tutorials"
     - comparison: Compare options, vs analysis, evaluate alternatives
       Examples: "Compare React vs Vue", "Which database is better"
-    - analysis: Analyze data, evaluate code, review content, assess quality
-      Examples: "Analyze this code", "Review the architecture", "Evaluate performance"
+    - analysis: Analyze data, evaluate code, review content, assess quality, calculate, compute
+      Examples: "Analyze this code", "Review the architecture", "Calculate the answer"
     - communication: Send messages, notify, email, communicate with users
       Examples: "Send an email", "Notify the team", "Post an update"
     - automation: Automate workflows, schedule tasks, set up pipelines
       Examples: "Automate deployment", "Schedule backups", "Set up CI/CD"
-    - unknown: Only if none of the above clearly fit
+    - unknown: ONLY if task is completely unintelligible (random characters, empty)
 
-    IMPORTANT: Default to 'creation' for any task involving building, creating, or writing code/files.
+    CRITICAL RULES:
+    1. For ANY math/calculation task -> 'analysis'
+    2. For ANY vague task mentioning "answer", "help", "do" -> 'analysis'
+    3. For building/creating -> 'creation'
+    4. NEVER output questions or ask for clarification
+    5. Default to 'analysis' for ambiguous tasks (NOT 'unknown')
     """
-    task_description: str = dspy.InputField(desc="The task description to classify")
+    task_description: str = dspy.InputField(desc="The task description to classify. May be vague - classify it anyway.")
 
     task_type: str = dspy.OutputField(
-        desc="Output EXACTLY one word: creation, research, comparison, analysis, communication, automation, or unknown. If task mentions 'create', 'build', 'write', or 'make', output 'creation'."
+        desc="Output EXACTLY one word: creation, research, comparison, analysis, communication, automation, or unknown. For vague tasks, default to 'analysis'. NEVER ask questions."
     )
     reasoning: str = dspy.OutputField(
-        desc="Brief 1-2 sentence explanation of why this type was chosen."
+        desc="Brief 1-2 sentence explanation. If task is vague, explain your best guess."
     )
     confidence: float = dspy.OutputField(
-        desc="A number between 0.0 and 1.0 indicating confidence."
+        desc="A number between 0.0 and 1.0. Use 0.5 for vague tasks."
     )
 
 
@@ -322,8 +328,13 @@ class AgenticPlanner:
             cls._llm_semaphore = threading.Semaphore(cls._max_concurrent_llm_calls)
         return cls._llm_semaphore
 
-    def __init__(self):
-        """Initialize agentic planner."""
+    def __init__(self, fast_model: str = "haiku"):
+        """Initialize agentic planner.
+
+        Args:
+            fast_model: Model for fast classification tasks (default: haiku).
+                        Use 'haiku' for speed, 'sonnet' for accuracy.
+        """
         if not DSPY_AVAILABLE:
             raise RuntimeError("DSPy required for AgenticPlanner")
 
@@ -345,14 +356,31 @@ class AgenticPlanner:
         self._compressor = ContextCompressor() if CONTEXT_UTILS_AVAILABLE else None
         self._max_compression_retries = 3
 
-        logger.info("🧠 AgenticPlanner initialized (fully LLM-based, no hardcoded logic)")
+        # Fast LM for classification tasks (task type inference, skill selection)
+        # Uses Haiku by default for speed - these are simple classification tasks
+        self._fast_lm = None
+        self._fast_model = fast_model
+        self._init_fast_lm()
+
+        logger.info(f"🧠 AgenticPlanner initialized (fast_model={fast_model} for classification)")
+
+    def _init_fast_lm(self):
+        """Initialize fast LM for classification tasks."""
+        try:
+            from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+            self._fast_lm = DirectClaudeCLI(model=self._fast_model)
+            logger.debug(f"Fast LM initialized: {self._fast_model}")
+        except Exception as e:
+            logger.warning(f"Could not initialize fast LM ({self._fast_model}): {e}")
+            self._fast_lm = None
 
     def _call_with_retry(
         self,
         module,
         kwargs: Dict[str, Any],
         compressible_fields: Optional[List[str]] = None,
-        max_retries: int = 5
+        max_retries: int = 5,
+        lm: Optional[Any] = None
     ):
         """
         Call a DSPy module with automatic retry and context compression.
@@ -369,6 +397,7 @@ class AgenticPlanner:
             kwargs: Arguments to pass to module
             compressible_fields: Fields that can be compressed (e.g., 'available_skills')
             max_retries: Maximum retry attempts (default 5 for rate limit resilience)
+            lm: Optional LM to use (for fast classification tasks)
 
         Returns:
             Module result or raises exception
@@ -386,7 +415,12 @@ class AgenticPlanner:
 
                 # Use semaphore to serialize LLM calls (prevents rate limiting)
                 with semaphore:
-                    return module(**kwargs)
+                    # Use specified LM or default
+                    if lm:
+                        with dspy.context(lm=lm):
+                            return module(**kwargs)
+                    else:
+                        return module(**kwargs)
 
             except Exception as e:
                 last_error = e
@@ -474,14 +508,16 @@ class AgenticPlanner:
             # Prepare task for inference (preserves full context)
             task_for_inference = self._abstract_task_for_planning(task)
 
-            # Check async context and call with appropriate LM binding
-            try:
-                asyncio.get_running_loop()
-                lm = dspy.settings.lm
-                with dspy.context(lm=lm):
+            # Use fast LM (Haiku) for classification - much faster than Sonnet
+            classification_lm = self._fast_lm or dspy.settings.lm
+
+            # Call with fast LM for quick classification
+            if classification_lm:
+                with dspy.context(lm=classification_lm):
                     result = self.task_type_inferrer(task_description=task_for_inference)
-            except RuntimeError:
-                # Not in async context — direct call
+                logger.debug(f"Task type inference using fast model: {self._fast_model}")
+            else:
+                # Fallback to default LM
                 result = self.task_type_inferrer(task_description=task_for_inference)
 
             # Parse task_type field
@@ -518,19 +554,43 @@ class AgenticPlanner:
             return task_type, reasoning, confidence
 
         except Exception as e:
+            error_str = str(e)
             logger.warning(f"Task type inference failed: {e}, using keyword fallback")
 
-            # Minimal keyword fallback
+            # Detect if LLM asked for clarification instead of classifying
+            clarification_markers = [
+                'could you', 'please provide', 'what', 'which', 'can you',
+                'i need', 'clarify', 'more information', 'specify'
+            ]
+            if any(marker in error_str.lower() for marker in clarification_markers):
+                logger.info("LLM asked for clarification - defaulting to analysis")
+                return TaskType.ANALYSIS, "LLM requested clarification - default to analysis", 0.5
+
+            # Enhanced keyword fallback with more coverage
             task_lower = task.lower()
-            if any(w in task_lower for w in ['compare', 'vs', 'versus', 'comparison']):
-                return TaskType.COMPARISON, "Keyword fallback: comparison task", 0.6
-            elif any(w in task_lower for w in ['research', 'find', 'search', 'discover']):
-                return TaskType.RESEARCH, "Keyword fallback: research task", 0.6
-            elif any(w in task_lower for w in ['create', 'generate', 'make', 'build']):
+
+            # Creation keywords
+            if any(w in task_lower for w in ['create', 'generate', 'make', 'build', 'write', 'implement', 'develop', 'code']):
                 return TaskType.CREATION, "Keyword fallback: creation task", 0.6
-            elif any(w in task_lower for w in ['analyze', 'analysis', 'evaluate']):
+            # Comparison keywords
+            elif any(w in task_lower for w in ['compare', 'vs', 'versus', 'comparison', 'difference', 'better']):
+                return TaskType.COMPARISON, "Keyword fallback: comparison task", 0.6
+            # Research keywords
+            elif any(w in task_lower for w in ['research', 'find', 'search', 'discover', 'look up', 'what is']):
+                return TaskType.RESEARCH, "Keyword fallback: research task", 0.6
+            # Analysis keywords (including calculation)
+            elif any(w in task_lower for w in ['analyze', 'analysis', 'evaluate', 'calculate', 'compute', 'answer', 'solve', 'sum', 'result']):
                 return TaskType.ANALYSIS, "Keyword fallback: analysis task", 0.6
-            return TaskType.UNKNOWN, f"Inference failed: {str(e)[:100]}", 0.3
+            # Automation keywords
+            elif any(w in task_lower for w in ['automate', 'schedule', 'pipeline', 'workflow', 'cron']):
+                return TaskType.AUTOMATION, "Keyword fallback: automation task", 0.6
+            # Communication keywords
+            elif any(w in task_lower for w in ['send', 'email', 'notify', 'message', 'communicate']):
+                return TaskType.COMMUNICATION, "Keyword fallback: communication task", 0.6
+
+            # Default to ANALYSIS for any ambiguous task (not UNKNOWN)
+            # This ensures we always try to do something useful
+            return TaskType.ANALYSIS, f"Ambiguous task - defaulting to analysis", 0.4
 
     # Skills that depend on external services that may be unreliable
     # These are deprioritized in skill selection to prefer more reliable alternatives
@@ -593,6 +653,7 @@ class AgenticPlanner:
             import dspy
 
             # Call skill selector with retry and context compression
+            # Use fast LM (Haiku) for classification - much faster than Sonnet
             selector_kwargs = {
                 'task_description': task,
                 'available_skills': skills_json,
@@ -603,8 +664,10 @@ class AgenticPlanner:
                 module=self.skill_selector,
                 kwargs=selector_kwargs,
                 compressible_fields=['available_skills'],
-                max_retries=self._max_compression_retries
+                max_retries=self._max_compression_retries,
+                lm=self._fast_lm  # Use fast model for skill selection
             )
+            logger.debug(f"Skill selection using fast model: {self._fast_model}")
 
             # Parse selected skills
             try:
@@ -651,6 +714,7 @@ class AgenticPlanner:
             matched_skills = []
 
             # Priority keyword mappings for common tasks
+            # IMPORTANT: claude-cli-llm should be the default for simple Q&A tasks
             keyword_skill_map = {
                 ('file', 'create', 'write', 'save'): 'file-operations',
                 ('generate', 'llm', 'text', 'content'): 'claude-cli-llm',
@@ -658,7 +722,8 @@ class AgenticPlanner:
                 ('terminal', 'shell', 'command', 'run'): 'terminal',
                 ('research', 'report'): 'research-to-pdf',
                 ('image', 'picture', 'photo'): 'image-generator',
-                ('calculate', 'math', 'compute'): 'calculator',
+                ('calculate', 'math', 'compute', '+', '-', '*', '/', 'sum', 'add', 'multiply', 'divide'): 'claude-cli-llm',
+                ('what', 'how', 'why', 'explain', 'answer', 'tell', 'help'): 'claude-cli-llm',  # Q&A tasks
             }
 
             for keywords, skill_name in keyword_skill_map.items():
@@ -674,9 +739,23 @@ class AgenticPlanner:
                 reasoning = f"Keyword-matched fallback: {matched_skills}"
                 logger.info(f"Keyword fallback matched: {matched_skills}")
             else:
-                # Last resort: use first available skills
-                final_names = [s.get('name') for s in available_skills[:max_skills]]
-                reasoning = "Fallback: using first available skills"
+                # Last resort: prefer claude-cli-llm for general Q&A, then first available
+                final_names = []
+                preferred_fallbacks = ['claude-cli-llm', 'calculator', 'web-search']
+                for preferred in preferred_fallbacks:
+                    for s in available_skills:
+                        if s.get('name') == preferred:
+                            final_names = [preferred]
+                            reasoning = f"Fallback: using {preferred} for general task"
+                            logger.info(f"Fallback to preferred skill: {preferred}")
+                            break
+                    if final_names:
+                        break
+
+                if not final_names:
+                    # True last resort: use first available skills
+                    final_names = [s.get('name') for s in available_skills[:max_skills]]
+                    reasoning = "Fallback: using first available skills"
 
         # Filter to available skills
         selected_skills = [s for s in available_skills if s.get('name') in final_names]
@@ -1637,13 +1716,14 @@ Filename: {filename}
             TaskType.RESEARCH: ['web-search', 'http-client', 'web-scraper', 'claude-cli-llm', 'arxiv-downloader'],
             TaskType.COMPARISON: ['web-search', 'claude-cli-llm', 'calculator'],
             TaskType.CREATION: ['claude-cli-llm', 'file-operations', 'docx-tools', 'text-utils'],
-            TaskType.ANALYSIS: ['calculator', 'claude-cli-llm', 'web-search'],
+            TaskType.ANALYSIS: ['claude-cli-llm', 'calculator', 'web-search'],  # claude-cli-llm first for general analysis
             TaskType.COMMUNICATION: ['claude-cli-llm', 'http-client'],
             TaskType.AUTOMATION: ['shell-exec', 'file-operations', 'process-manager'],
+            TaskType.UNKNOWN: ['claude-cli-llm', 'web-search', 'calculator'],  # Default fallback for unknown
         }
 
-        # Get priority list for this task type
-        priority_skills = priority_map.get(task_type, ['claude-cli-llm', 'web-search'])
+        # Get priority list for this task type (claude-cli-llm is always a safe fallback)
+        priority_skills = priority_map.get(task_type, ['claude-cli-llm', 'web-search', 'calculator'])
 
         # Sort skills by priority
         skill_names = {s.get('name', ''): s for s in skills}

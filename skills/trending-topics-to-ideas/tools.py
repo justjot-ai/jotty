@@ -157,7 +157,7 @@ Format the synthesis with clear sections and bullet points where appropriate."""
             
             if use_mcp_client:
                 try:
-                    from core.integration.mcp_client import MCPClient
+                    from Jotty.core.integration.mcp_client import MCPClient
                     from pathlib import Path
                     
                     server_path = "/var/www/sites/personal/stock_market/JustJot.ai/dist/mcp/server.js"
@@ -298,7 +298,7 @@ async def trending_topics_to_ideas_tool(params: Dict[str, Any]) -> Dict[str, Any
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

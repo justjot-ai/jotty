@@ -181,10 +181,148 @@ class AgentSession:
             self.messages = self.messages[-100:]
 
 
+# =============================================================================
+# ARXIV SWARM ENHANCEMENTS (SwarmSys, SwarmAgentic patterns)
+# =============================================================================
+
+@dataclass
+class HandoffContext:
+    """
+    Context preservation during agent handoff (SwarmAgentic pattern).
+
+    Enables seamless task transfer between agents with full context.
+    """
+    task_id: str
+    from_agent: str
+    to_agent: str
+    task_type: str
+    context: Dict[str, Any] = field(default_factory=dict)
+    partial_result: Any = None
+    progress: float = 0.0  # 0-1 completion
+    priority: int = 5  # 1-10, higher = more urgent
+    deadline: float = None  # Unix timestamp
+    handoff_chain: List[str] = field(default_factory=list)  # Previous agents
+    timestamp: float = field(default_factory=time.time)
+
+    def add_to_chain(self, agent: str):
+        """Track handoff history."""
+        if agent not in self.handoff_chain:
+            self.handoff_chain.append(agent)
+
+
+@dataclass
+class Coalition:
+    """
+    Dynamic team of agents (SwarmAgentic coalition formation).
+
+    Groups agents for complex tasks requiring collaboration.
+    """
+    coalition_id: str
+    task_type: str
+    leader: str  # Coordinator agent
+    members: List[str] = field(default_factory=list)
+    roles: Dict[str, str] = field(default_factory=dict)  # agent -> role
+    formed_at: float = field(default_factory=time.time)
+    active: bool = True
+    shared_context: Dict[str, Any] = field(default_factory=dict)
+
+    def add_member(self, agent: str, role: str = "worker"):
+        """Add agent to coalition with role."""
+        if agent not in self.members:
+            self.members.append(agent)
+            self.roles[agent] = role
+
+    def remove_member(self, agent: str):
+        """Remove agent from coalition."""
+        if agent in self.members:
+            self.members.remove(agent)
+            self.roles.pop(agent, None)
+
+
+@dataclass
+class AuctionBid:
+    """
+    Bid in contract-net protocol (SwarmSys auction pattern).
+
+    Agents bid on tasks based on capability and availability.
+    """
+    agent_name: str
+    task_id: str
+    bid_value: float  # 0-1, higher = more capable/available
+    estimated_time: float  # Seconds
+    confidence: float  # 0-1
+    specialization_match: float  # 0-1
+    current_load: float  # 0-1, 0 = idle
+    reasoning: str = ""
+    timestamp: float = field(default_factory=time.time)
+
+    @property
+    def score(self) -> float:
+        """Combined bid score for ranking."""
+        return (
+            self.bid_value * 0.3 +
+            self.confidence * 0.25 +
+            self.specialization_match * 0.25 +
+            (1 - self.current_load) * 0.2
+        )
+
+
+@dataclass
+class GossipMessage:
+    """
+    Message for gossip protocol (SwarmSys efficient dissemination).
+
+    Enables O(log n) information spread across swarm.
+    """
+    message_id: str
+    content: Dict[str, Any]
+    origin_agent: str
+    message_type: str  # "info", "warning", "route", "capability"
+    ttl: int = 3  # Hops remaining
+    seen_by: List[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+
+    def mark_seen(self, agent: str) -> bool:
+        """Mark as seen, return True if should propagate."""
+        if agent in self.seen_by:
+            return False
+        self.seen_by.append(agent)
+        self.ttl -= 1
+        return self.ttl > 0
+
+
+@dataclass
+class SupervisorNode:
+    """
+    Node in hierarchical supervisor tree (SwarmSys O(log n) pattern).
+
+    Enables efficient coordination without flat O(n) communication.
+    """
+    node_id: str
+    agent_name: str
+    level: int  # 0 = leaf, higher = supervisor
+    parent: str = None  # Parent node_id
+    children: List[str] = field(default_factory=list)  # Child node_ids
+    supervised_agents: List[str] = field(default_factory=list)
+    load: float = 0.0  # Current workload 0-1
+
+    def is_leaf(self) -> bool:
+        return self.level == 0
+
+    def is_root(self) -> bool:
+        return self.parent is None
+
+
 __all__ = [
     'AgentSpecialization',
     'AgentProfile',
     'ConsensusVote',
     'SwarmDecision',
     'AgentSession',
+    # arXiv swarm enhancements
+    'HandoffContext',
+    'Coalition',
+    'AuctionBid',
+    'GossipMessage',
+    'SupervisorNode',
 ]

@@ -35,33 +35,53 @@ def get_current_context() -> str:
 class DirectClaudeCLI(dspy.BaseLM):
     """DSPy-compatible LM that calls Claude CLI binary directly with retry logic."""
 
-    # Retry configuration
-    MAX_RETRIES = 3
-    BASE_DELAY = 2.0  # seconds
-    MAX_DELAY = 30.0  # seconds
+    # Retry configuration - balanced for reliability
+    MAX_RETRIES = 3  # 4 total attempts with adaptive timeouts
+    BASE_DELAY = 0.5  # seconds
+    MAX_DELAY = 5.0  # seconds
 
-    # Retryable error patterns
+    # Retryable error patterns (transient issues only)
     RETRYABLE_ERRORS = [
-        "Usage Policy",
         "rate limit",
         "overloaded",
         "temporarily unavailable",
         "timeout",
         "connection",
+        "empty response",  # Transient - CLI may return empty on overload
     ]
 
-    def __init__(self, model: str = "sonnet", max_retries: int = 3, **kwargs):
+    # Non-retryable errors (policy violations, etc.) - fail immediately
+    NON_RETRYABLE_ERRORS = [
+        "violation",
+        "unable to respond",
+        "policy",
+        "inappropriate",
+        "cannot assist",
+        "refuse",
+    ]
+
+    # Model-specific timeout defaults (increased for complex DSPy prompts)
+    MODEL_TIMEOUTS = {
+        "haiku": 60,   # Haiku is fast but DSPy prompts are complex
+        "sonnet": 120,  # Sonnet needs more time
+        "opus": 180,   # Opus is slower but higher quality
+    }
+
+    def __init__(self, model: str = "sonnet", max_retries: int = 3, base_timeout: int = None, **kwargs):
         """
         Initialize Direct Claude CLI wrapper.
 
         Args:
             model: Claude model (sonnet, opus, haiku)
             max_retries: Maximum retry attempts (default 3)
+            base_timeout: Base timeout in seconds (auto-set based on model if None)
             **kwargs: Additional arguments (ignored for compatibility)
         """
         super().__init__(model=model, **kwargs)
         self.model = model
         self.max_retries = max_retries
+        # Auto-select timeout based on model if not specified
+        self.base_timeout = base_timeout or self.MODEL_TIMEOUTS.get(model, 90)
         self.kwargs = kwargs
         self.history: List[Dict[str, Any]] = []
 
@@ -71,10 +91,24 @@ class DirectClaudeCLI(dspy.BaseLM):
         self.failed_calls = 0
         self.retried_calls = 0
 
+        logger.debug(f"DirectClaudeCLI initialized: model={model}, base_timeout={self.base_timeout}s")
+
     def _is_retryable_error(self, error_msg: str) -> bool:
-        """Check if error is retryable."""
+        """Check if error is retryable (not a policy violation).
+
+        Default: retry unknown errors (most are transient).
+        Only skip retry for explicit policy violations.
+        """
         error_lower = error_msg.lower()
-        return any(pattern.lower() in error_lower for pattern in self.RETRYABLE_ERRORS)
+
+        # Check for non-retryable errors first (policy violations)
+        if any(pattern.lower() in error_lower for pattern in self.NON_RETRYABLE_ERRORS):
+            logger.error(f"🚫 Policy violation detected - will not retry")
+            return False
+
+        # Everything else is retryable (default to retry for unknown errors)
+        # This includes explicit RETRYABLE_ERRORS and any unknown transient errors
+        return True
 
     def _calculate_delay(self, attempt: int) -> float:
         """Calculate delay with exponential backoff and jitter."""
@@ -83,10 +117,19 @@ class DirectClaudeCLI(dspy.BaseLM):
         jitter = delay * 0.25 * (2 * random.random() - 1)
         return delay + jitter
 
+    # Model aliases that Claude CLI accepts directly
+    # The CLI handles these natively: 'sonnet', 'haiku', 'opus'
+    # Only map if we need specific versions
+    MODEL_MAP = {
+        # Claude CLI accepts aliases directly - no mapping needed for standard aliases
+        # Only add mappings for specific version overrides if needed
+    }
+
     def _single_call(self, input_text: str, timeout: int = 180) -> str:
         """Make a single call to Claude CLI."""
-        # Use claude-sonnet-4 model which has better handling
-        model = 'claude-sonnet-4-20250514' if self.model == 'sonnet' else self.model
+        # Use model directly (CLI accepts aliases like 'sonnet', 'haiku', 'opus')
+        # Only use MODEL_MAP for specific version overrides
+        model = self.MODEL_MAP.get(self.model, self.model)
 
         result = subprocess.run(
             ['claude', '--model', model, '--'],
@@ -124,12 +167,25 @@ class DirectClaudeCLI(dspy.BaseLM):
         if prompt:
             input_text = prompt
         elif messages:
-            input_text = "\n\n".join([
-                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
-                for msg in messages
-            ])
+            # Better formatting for DSPy messages - extract system prompt and user content
+            parts = []
+            for msg in messages:
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                if role == 'system':
+                    # System prompts go first without role prefix
+                    parts.insert(0, content)
+                elif role == 'user':
+                    parts.append(content)
+                elif role == 'assistant':
+                    parts.append(f"Assistant: {content}")
+            input_text = "\n\n".join(parts)
         else:
             raise ValueError("Either prompt or messages must be provided")
+
+        # Log prompt size for debugging
+        if len(input_text) > 2000:
+            logger.debug(f"Large prompt: {len(input_text)} chars")
 
         logger.debug(f"Claude CLI call #{self.total_calls} with model: {self.model}")
 
@@ -137,8 +193,11 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         for attempt in range(self.max_retries + 1):
             try:
-                # Adjust timeout based on attempt (longer timeout for retries)
-                timeout = 180 + (attempt * 60)  # 180s, 240s, 300s, 360s
+                # Adaptive timeouts - use model-based base_timeout, increasing with retries
+                # haiku: 45s, 68s, 90s, 113s (much faster)
+                # sonnet: 90s, 135s, 180s, 225s
+                # opus: 180s, 270s, 360s, 450s
+                timeout = self.base_timeout + (attempt * int(self.base_timeout * 0.5))
 
                 response = self._single_call(input_text, timeout)
 

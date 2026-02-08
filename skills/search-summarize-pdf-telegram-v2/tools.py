@@ -7,7 +7,7 @@ Uses declarative pipeline configuration.
 try:
     from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
 except ImportError:
-    from core.registry.pipeline_skill import create_pipeline_skill, StepType
+    from Jotty.core.registry.pipeline_skill import create_pipeline_skill, StepType
 
 # Define pipeline declaratively
 PIPELINE_CONFIG = [
@@ -143,7 +143,7 @@ async def search_summarize_pdf_telegram_v2_tool(params: dict) -> dict:
     try:
         from Jotty.core.registry.skills_registry import get_skills_registry
     except ImportError:
-        from core.registry.skills_registry import get_skills_registry
+        from Jotty.core.registry.skills_registry import get_skills_registry
     
     registry = get_skills_registry()
     registry.init()

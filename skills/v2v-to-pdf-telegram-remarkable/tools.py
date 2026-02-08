@@ -39,7 +39,7 @@ async def v2v_to_pdf_and_send_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         query = params.get('query', 'trending topics')
         title = params.get('title', f'V2V Trending: {query}')

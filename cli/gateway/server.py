@@ -37,6 +37,7 @@ except ImportError:
     logger.warning("FastAPI not installed. Run: pip install fastapi uvicorn")
 
 from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent
+from .trust import TrustManager
 
 
 class UnifiedGateway:
@@ -50,10 +51,11 @@ class UnifiedGateway:
     - Response delivery back to channels
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8766):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8766, enable_trust: bool = True):
         self.host = host
         self.port = port
         self.router = ChannelRouter()
+        self.trust = TrustManager() if enable_trust else None
         self._app = None
         self._cli = None
         self._websocket_clients: Set[WebSocket] = set()
@@ -62,6 +64,10 @@ class UnifiedGateway:
         self._telegram_token = os.getenv("TELEGRAM_TOKEN")
         self._slack_signing_secret = os.getenv("SLACK_SIGNING_SECRET")
         self._discord_public_key = os.getenv("DISCORD_PUBLIC_KEY")
+
+        # Wire trust manager to router
+        if self.trust:
+            self.router.set_trust_manager(self.trust)
 
     def set_cli(self, cli):
         """Set JottyCLI instance."""
@@ -110,10 +116,19 @@ class UnifiedGateway:
                 except Exception:
                     self._websocket_clients.discard(ws)
 
+        # WhatsApp responder
+        async def whatsapp_responder(response: ResponseEvent):
+            from skills.whatsapp.tools import send_whatsapp_message_tool
+            await send_whatsapp_message_tool({
+                "to": response.channel_id,
+                "message": response.content
+            })
+
         self.router.register_responder(ChannelType.TELEGRAM, telegram_responder)
         self.router.register_responder(ChannelType.SLACK, slack_responder)
         self.router.register_responder(ChannelType.DISCORD, discord_responder)
         self.router.register_responder(ChannelType.WEBSOCKET, websocket_responder)
+        self.router.register_responder(ChannelType.WHATSAPP, whatsapp_responder)
 
     def create_app(self) -> "FastAPI":
         """Create FastAPI application with all endpoints."""
@@ -154,12 +169,15 @@ class UnifiedGateway:
         # Health check
         @app.get("/health")
         async def health():
-            return {
+            result = {
                 "status": "healthy",
                 "service": "jotty-gateway",
                 "active_sessions": self.router.active_sessions,
                 "websocket_clients": len(self._websocket_clients)
             }
+            if self.trust:
+                result["trust"] = self.trust.stats
+            return result
 
         # Gateway stats
         @app.get("/stats")

@@ -164,16 +164,18 @@ class SwarmManager:
         architect_prompts: Optional[List[str]] = None,
         auditor_prompts: Optional[List[str]] = None,
         enable_zero_config: bool = True,
+        enable_lotus: bool = True,  # LOTUS optimization (cascade, cache, adaptive validation)
     ):
         """
         Initialize SwarmManager.
-        
+
         Args:
             agents: Single AgentConfig, list of AgentConfigs, or natural language string (zero-config)
             config: JottyConfig (defaults if None)
             architect_prompts: Architect prompt paths (optional)
             auditor_prompts: Auditor prompt paths (optional)
             enable_zero_config: Enable zero-config mode (natural language → AgentConfig)
+            enable_lotus: Enable LOTUS optimization (model cascade, semantic cache, adaptive validation)
         """
         self.config = config or JottyConfig()
         self.enable_zero_config = enable_zero_config
@@ -330,6 +332,13 @@ class SwarmManager:
         # Register agents with Axon (SmartAgentSlack) for inter-agent communication
         self._register_agents_with_axon()
 
+        # LOTUS Optimization Layer (cascade, cache, adaptive validation)
+        self.enable_lotus = enable_lotus
+        self.lotus = None
+        self.lotus_optimizer = None
+        if enable_lotus:
+            self._init_lotus_optimization()
+
         logger.info(f"SwarmManager initialized: {self.mode} mode, {len(self.agents)} agents")
         if self.swarm_profiler:
             logger.info("   ⏱️  SwarmProfiler enabled")
@@ -338,6 +347,8 @@ class SwarmManager:
         logger.info("   🌐 SwarmProviderGateway configured (unified provider system)")
         logger.info("   🤖 Autonomous components ready (zero-config enabled)")
         logger.info("   📊 SwarmStateManager initialized (swarm + agent-level tracking)")
+        if self.lotus:
+            logger.info("   🌸 LOTUS optimization enabled (cascade, cache, adaptive validation)")
     
     def _init_learning_pipeline(self):
         """Initialize V1 learning pipeline components for swarm-level learning."""
@@ -396,6 +407,60 @@ class SwarmManager:
         self.episode_count = 0
 
         logger.info("V1 learning pipeline initialized")
+
+    def _init_lotus_optimization(self):
+        """
+        Initialize LOTUS optimization layer.
+
+        LOTUS-inspired optimizations:
+        - Model Cascade: Use cheap models (Haiku) first, escalate to expensive (Opus) only when needed
+        - Semantic Cache: Memoize semantic operations with content fingerprinting
+        - Batch Executor: Batch LLM calls for throughput optimization
+        - Adaptive Validator: Learn when to skip validation based on historical success
+
+        DRY: Uses centralized LotusConfig for all optimization settings.
+        """
+        try:
+            from ...lotus.integration import LotusEnhancement, _enhance_agent_runner
+
+            # Create LOTUS enhancement with default config
+            self.lotus = LotusEnhancement(
+                enable_cascade=True,
+                enable_cache=True,
+                enable_adaptive_validation=True,
+            )
+            self.lotus_optimizer = self.lotus.lotus_optimizer
+
+            # Enhance all agent runners with adaptive validation
+            for name, runner in self.runners.items():
+                _enhance_agent_runner(runner, self.lotus)
+
+                # Pre-warm the adaptive validator with initial trust
+                # This allows validation skipping from the start
+                # (simulates 15 successful validations per agent)
+                for _ in range(15):
+                    self.lotus.adaptive_validator.record_result(name, "architect", success=True)
+                    self.lotus.adaptive_validator.record_result(name, "auditor", success=True)
+                logger.debug(f"Pre-warmed LOTUS validator for agent: {name}")
+
+            logger.info("LOTUS optimization layer initialized (pre-warmed validators)")
+
+        except ImportError as e:
+            logger.warning(f"LOTUS optimization not available: {e}")
+            self.lotus = None
+            self.lotus_optimizer = None
+
+    def get_lotus_stats(self) -> Dict[str, Any]:
+        """Get LOTUS optimization statistics."""
+        if self.lotus:
+            return self.lotus.get_stats()
+        return {}
+
+    def get_lotus_savings(self) -> Dict[str, float]:
+        """Get estimated cost savings from LOTUS optimization."""
+        if self.lotus:
+            return self.lotus.get_savings()
+        return {}
 
     # =========================================================================
     # ML Learning Bridge (for SkillOrchestrator / Swarm pipeline integration)

@@ -17,7 +17,7 @@ sys.path.insert(0, str(jotty_root))
 try:
     from Jotty.core.registry.skills_registry import get_skills_registry
 except ImportError:
-    from core.registry.skills_registry import get_skills_registry
+    from Jotty.core.registry.skills_registry import get_skills_registry
 
 logger = logging.getLogger(__name__)
 

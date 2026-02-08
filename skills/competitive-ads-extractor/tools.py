@@ -47,7 +47,7 @@ async def extract_competitive_ads_tool(params: Dict[str, Any]) -> Dict[str, Any]
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()
@@ -124,7 +124,7 @@ async def _analyze_ads(ads: List[Dict], competitor_name: str, depth: str) -> Dic
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
-            from core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
         
         registry = get_skills_registry()
         registry.init()

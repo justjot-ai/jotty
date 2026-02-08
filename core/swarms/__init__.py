@@ -84,6 +84,16 @@ Sync versions:
 # BASE SWARM INFRASTRUCTURE
 # =============================================================================
 
+# Unified swarm base classes
+from .base import (
+    DomainSwarm,
+    AgentTeam,
+    AgentSpec,
+    TeamResult,
+    CoordinationPattern,
+    MergeStrategy,
+)
+
 from .base_swarm import (
     # Enums
     AgentRole,
@@ -133,7 +143,7 @@ from .research_swarm import (
     research_sync,
 
     # Individual agents (for customization)
-    BaseAgent,
+    BaseResearchAgent,
     DataFetcherAgent,
     WebSearchAgent,
     SentimentAgent,
@@ -443,7 +453,7 @@ __all__ = [
     "RatingType",
     "research",
     "research_sync",
-    "BaseAgent",
+    "BaseResearchAgent",
     "DataFetcherAgent",
     "WebSearchAgent",
     "SentimentAgent",

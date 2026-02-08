@@ -66,6 +66,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -696,14 +698,25 @@ class ResearchFindingsWriter(SectionWriter):
 # AGENTS
 # =============================================================================
 
-class BaseWriterAgent:
-    """Base class for writer agents."""
+class BaseWriterAgent(DomainAgent):
+    """Base class for writer agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -724,8 +737,9 @@ class OutlineAgent(BaseWriterAgent):
     """Generates content outlines."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=OutlineGenerationSignature)
         self._generator = dspy.ChainOfThought(OutlineGenerationSignature)
+        self.learned_context = learned_context
 
     async def generate(
         self,
@@ -779,8 +793,9 @@ class ResearchAgent(BaseWriterAgent):
     """Researches topics."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ResearchSignature)
         self._researcher = dspy.ChainOfThought(ResearchSignature)
+        self.learned_context = learned_context
 
     async def research(
         self,
@@ -827,7 +842,8 @@ class PolishAgent(BaseWriterAgent):
     """Polishes and refines content."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ContentPolishSignature)
+        self.learned_context = learned_context
         self._polisher = dspy.ChainOfThought(ContentPolishSignature)
 
     async def polish(
@@ -870,7 +886,7 @@ class PolishAgent(BaseWriterAgent):
 # =============================================================================
 
 @register_swarm("idea_writer")
-class IdeaWriterSwarm(BaseSwarm):
+class IdeaWriterSwarm(DomainSwarm):
     """
     World-Class Idea Writer Swarm.
 
@@ -881,36 +897,14 @@ class IdeaWriterSwarm(BaseSwarm):
     - Professional polishing
     """
 
+    AGENT_TEAM = AgentTeam.define(
+        (OutlineAgent, "Outline", "_outline_agent"),
+        (ResearchAgent, "Research", "_research_agent"),
+        (PolishAgent, "Polish", "_polish_agent"),
+    )
+
     def __init__(self, config: WriterConfig = None):
         super().__init__(config or WriterConfig())
-        self._agents_initialized = False
-
-        # Agents
-        self._outline_agent = None
-        self._research_agent = None
-        self._polish_agent = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._outline_agent = OutlineAgent(self._memory, self._context, self._bus, self._agent_context("Outline"))
-        self._research_agent = ResearchAgent(self._memory, self._context, self._bus, self._agent_context("Research"))
-        self._polish_agent = PolishAgent(self._memory, self._context, self._bus, self._agent_context("Polish"))
-
-        self._agents_initialized = True
-        logger.info("IdeaWriterSwarm agents initialized")
-
-    async def execute(
-        self,
-        topic: str,
-        **kwargs
-    ) -> WriterResult:
-        """Execute content writing."""
-        return await self.write(topic, **kwargs)
 
     async def write(
         self,
@@ -929,12 +923,26 @@ class IdeaWriterSwarm(BaseSwarm):
         Returns:
             WriterResult with generated content
         """
+        return await self.execute(topic, sections=sections, custom_outline=custom_outline)
+
+    async def _execute_domain(
+        self,
+        topic: str,
+        sections: List[str] = None,
+        custom_outline: Outline = None
+    ) -> WriterResult:
+        """
+        Domain-specific content writing logic.
+
+        Args:
+            topic: Main topic or idea
+            sections: List of section types to include (uses registry)
+            custom_outline: Optional pre-made outline
+
+        Returns:
+            WriterResult with generated content
+        """
         start_time = datetime.now()
-
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
 
         config = self.config
 
@@ -1104,48 +1112,12 @@ class IdeaWriterSwarm(BaseSwarm):
 
             logger.info(f"✅ IdeaWriterSwarm complete: {title}, {result.word_count} words")
 
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['outline_generate', 'research', 'content_write']),
-                task_type='content_writing',
-                output_data={
-                    'title': title,
-                    'word_count': result.word_count,
-                    'sections_generated': len(written_sections),
-                    'quality_score': quality_score,
-                    'readability_score': result.readability_score,
-                    'sources_count': len(research.get('sources', [])),
-                    'has_outline': bool(outline.thesis),
-                    'execution_time': exec_time,
-                },
-                input_data={
-                    'topic': topic,
-                    'sections_requested': sections,
-                    'content_type': config.content_type.value,
-                    'tone': config.tone.value,
-                    'audience': config.audience,
-                    'word_count_target': config.word_count_target,
-                    'include_research': config.include_research,
-                    'include_citations': config.include_citations,
-                }
-            )
-
             return result
 
         except Exception as e:
             logger.error(f"❌ IdeaWriterSwarm error: {e}")
             import traceback
             traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['outline_generate']),
-                task_type='content_writing'
-            )
             return WriterResult(
                 success=False,
                 swarm_name=self.config.name,
@@ -1173,7 +1145,7 @@ async def write(topic: str, **kwargs) -> WriterResult:
         result = await write("The Future of AI")
     """
     swarm = IdeaWriterSwarm()
-    return await swarm.write(topic, **kwargs)
+    return await swarm.execute(topic, **kwargs)
 
 
 def write_sync(topic: str, **kwargs) -> WriterResult:

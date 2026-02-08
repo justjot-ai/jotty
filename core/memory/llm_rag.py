@@ -526,47 +526,54 @@ class DeduplicationSignature(dspy.Signature):
 class DeduplicationEngine:
     """
     LLM-based deduplication to reduce memory redundancy.
-    
+
     Why LLM over string similarity:
     1. Understands semantic equivalence
     2. Can merge information intelligently
     3. Preserves unique details from both
     """
-    
+
+    # Set to True to skip expensive LLM deduplication calls (use hash-only)
+    SKIP_LLM_DEDUP = True
+
     def __init__(self, config: JottyConfig):
         self.config = config
         self.threshold = config.similarity_threshold
-        self.checker = dspy.ChainOfThought(DeduplicationSignature)
+        self.checker = dspy.ChainOfThought(DeduplicationSignature) if not self.SKIP_LLM_DEDUP else None
     
     def check_duplicate(self, mem_a: MemoryEntry, mem_b: MemoryEntry) -> Tuple[bool, float, str]:
         """
         Check if two memories are duplicates.
-        
+
         Returns:
             (is_duplicate, similarity, merged_content)
         """
         # Quick hash check first
         if mem_a.content_hash == mem_b.content_hash:
             return True, 1.0, mem_a.content
-        
+
         # Quick length check (very different lengths unlikely duplicates)
         len_ratio = min(len(mem_a.content), len(mem_b.content)) / max(len(mem_a.content), len(mem_b.content))
         if len_ratio < 0.3:
             return False, len_ratio, ""
-        
+
+        # Skip expensive LLM calls if configured
+        if self.SKIP_LLM_DEDUP or self.checker is None:
+            return False, len_ratio, ""
+
         try:
             result = self.checker(
                 memory_a=mem_a.content,
                 memory_b=mem_b.content,
                 context=f"Memory level: {mem_a.level.value}, Agent: {mem_a.source_agent}"
             )
-            
+
             is_dup = result.is_duplicate
             sim = float(result.similarity_score) if result.similarity_score else 0.0
             merged = result.merged_content if is_dup else ""
-            
+
             return is_dup and sim >= self.threshold, sim, merged
-            
+
         except Exception:
             return False, 0.0, ""
     

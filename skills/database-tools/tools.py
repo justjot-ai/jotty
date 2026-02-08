@@ -405,7 +405,7 @@ def natural_language_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with generated SQL and optional results
     """
     try:
-        from core.llm import generate
+        from Jotty.core.llm import generate
 
         question = params.get('question')
         if not question:

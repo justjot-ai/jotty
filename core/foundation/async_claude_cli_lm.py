@@ -124,11 +124,13 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         logger.debug(f"AsyncClaudeCLI: Input length: {len(input_text)} chars")
 
         # Build command (based on claude-code-api patterns)
+        # Note: --output-format stream-json requires --verbose when using -p
         cmd = [
             self.claude_path,
             "-p", input_text,  # -p flag for prompt
             "--model", self.cli_model,
             "--output-format", "stream-json",  # JSON streaming format
+            "--verbose",  # Required for stream-json with -p flag
         ]
 
         try:

@@ -25,7 +25,7 @@ async def _call_mcp_tool(tool_name: str, arguments: Dict[str, Any]) -> Dict[str,
         Tool execution result
     """
     try:
-        from core.integration.mcp_client import call_justjot_mcp_tool
+        from Jotty.core.integration.mcp_client import call_justjot_mcp_tool
         
         # Prepare environment
         env = {}

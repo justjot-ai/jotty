@@ -61,6 +61,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -329,14 +331,25 @@ class IaCGenerationSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseDevOpsAgent:
-    """Base class for DevOps agents."""
+class BaseDevOpsAgent(DomainAgent):
+    """Base class for DevOps agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -357,8 +370,9 @@ class InfrastructureArchitect(BaseDevOpsAgent):
     """Designs cloud infrastructure."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=InfrastructureDesignSignature)
         self._designer = dspy.ChainOfThought(InfrastructureDesignSignature)
+        self.learned_context = learned_context
 
     async def design(
         self,
@@ -408,8 +422,9 @@ class CICDDesigner(BaseDevOpsAgent):
     """Designs CI/CD pipelines."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=CICDDesignSignature)
         self._designer = dspy.ChainOfThought(CICDDesignSignature)
+        self.learned_context = learned_context
 
     async def design(
         self,
@@ -462,8 +477,9 @@ class ContainerSpecialist(BaseDevOpsAgent):
     """Handles containerization."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ContainerizationSignature)
         self._specialist = dspy.ChainOfThought(ContainerizationSignature)
+        self.learned_context = learned_context
 
     async def containerize(
         self,
@@ -512,8 +528,9 @@ class SecurityHardener(BaseDevOpsAgent):
     """Handles security hardening."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=SecurityHardeningSignature)
         self._hardener = dspy.ChainOfThought(SecurityHardeningSignature)
+        self.learned_context = learned_context
 
     async def harden(
         self,
@@ -567,8 +584,9 @@ class MonitoringSpecialist(BaseDevOpsAgent):
     """Sets up monitoring and observability."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=MonitoringSetupSignature)
         self._specialist = dspy.ChainOfThought(MonitoringSetupSignature)
+        self.learned_context = learned_context
 
     async def setup(
         self,
@@ -619,8 +637,9 @@ class IaCGenerator(BaseDevOpsAgent):
     """Generates Infrastructure as Code."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=IaCGenerationSignature)
         self._generator = dspy.ChainOfThought(IaCGenerationSignature)
+        self.learned_context = learned_context
 
     async def generate(
         self,
@@ -658,7 +677,7 @@ class IaCGenerator(BaseDevOpsAgent):
 # =============================================================================
 
 @register_swarm("devops")
-class DevOpsSwarm(BaseSwarm):
+class DevOpsSwarm(DomainSwarm):
     """
     World-Class DevOps Swarm.
 
@@ -671,36 +690,19 @@ class DevOpsSwarm(BaseSwarm):
     - IaC generation
     """
 
+    AGENT_TEAM = AgentTeam.define(
+        (InfrastructureArchitect, "InfrastructureArchitect", "_infra_architect"),
+        (CICDDesigner, "CICDDesigner", "_cicd_designer"),
+        (ContainerSpecialist, "ContainerSpecialist", "_container_specialist"),
+        (SecurityHardener, "SecurityHardener", "_security_hardener"),
+        (MonitoringSpecialist, "MonitoringSpecialist", "_monitoring_specialist"),
+        (IaCGenerator, "IaCGenerator", "_iac_generator"),
+    )
+
     def __init__(self, config: DevOpsConfig = None):
         super().__init__(config or DevOpsConfig())
-        self._agents_initialized = False
 
-        # Agents
-        self._infra_architect = None
-        self._cicd_designer = None
-        self._container_specialist = None
-        self._security_hardener = None
-        self._monitoring_specialist = None
-        self._iac_generator = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._infra_architect = InfrastructureArchitect(self._memory, self._context, self._bus, self._agent_context("InfrastructureArchitect"))
-        self._cicd_designer = CICDDesigner(self._memory, self._context, self._bus, self._agent_context("CICDDesigner"))
-        self._container_specialist = ContainerSpecialist(self._memory, self._context, self._bus, self._agent_context("ContainerSpecialist"))
-        self._security_hardener = SecurityHardener(self._memory, self._context, self._bus, self._agent_context("SecurityHardener"))
-        self._monitoring_specialist = MonitoringSpecialist(self._memory, self._context, self._bus, self._agent_context("MonitoringSpecialist"))
-        self._iac_generator = IaCGenerator(self._memory, self._context, self._bus, self._agent_context("IaCGenerator"))
-
-        self._agents_initialized = True
-        logger.info("DevOpsSwarm agents initialized")
-
-    async def execute(
+    async def _execute_domain(
         self,
         app_name: str,
         **kwargs
@@ -732,10 +734,6 @@ class DevOpsSwarm(BaseSwarm):
             DevOpsResult with complete configuration
         """
         start_time = datetime.now()
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
 
         config = self.config
         compliance = compliance or []

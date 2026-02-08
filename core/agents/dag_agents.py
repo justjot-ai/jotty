@@ -11,6 +11,8 @@ Uses Jotty's SHARED infrastructure:
 - SmartAgentSlack: Inter-agent communication bus
 - TDLambdaLearner: Shared learning from execution outcomes
 
+Refactored to use BaseAgent hierarchy (Feb 2026).
+
 Author: A-Team
 Date: February 2026
 """
@@ -37,7 +39,118 @@ from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
 from .axon import SmartAgentSlack, MessageBus
 
+# Import base class infrastructure
+from .base import BaseAgent, AgentConfig, AgentResult, DomainAgent, DomainAgentConfig
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# BASE AGENT MIXIN FOR DAG AGENTS
+# =============================================================================
+
+class DAGAgentMixin:
+    """
+    Mixin providing BaseAgent-compatible infrastructure to DAG agents.
+
+    Delegates to BaseAgent infrastructure when possible:
+    - Metrics tracking (mirrors BaseAgent._metrics)
+    - Pre/post execution hooks (mirrors BaseAgent hooks)
+    - Unified logging
+    - Error handling patterns
+
+    Used by TaskBreakdownAgent (dspy.Module + mixin) and TodoCreatorAgent.
+
+    Note: This mixin exists because DSPy agents need to inherit from dspy.Module
+    for the forward() method, but we still want BaseAgent's infrastructure.
+    """
+
+    def _init_agent_infrastructure(self, name: str):
+        """Initialize BaseAgent-compatible infrastructure."""
+        # Use BaseAgent's config structure
+        self._agent_config = AgentConfig(
+            name=name,
+            enable_memory=True,
+            enable_context=True,
+        )
+        # Mirror BaseAgent's metrics structure
+        self._metrics = {
+            "total_executions": 0,
+            "successful_executions": 0,
+            "failed_executions": 0,
+            "total_retries": 0,  # Added for BaseAgent compatibility
+            "total_execution_time": 0.0,
+        }
+        self._pre_hooks = []
+        self._post_hooks = []
+        self._initialized = False
+
+    def add_pre_hook(self, hook):
+        """Add a pre-execution hook (BaseAgent-compatible)."""
+        self._pre_hooks.append(hook)
+
+    def add_post_hook(self, hook):
+        """Add a post-execution hook (BaseAgent-compatible)."""
+        self._post_hooks.append(hook)
+
+    def _run_pre_hooks(self, **kwargs):
+        """Run all pre-execution hooks (sync version for DSPy forward())."""
+        for hook in self._pre_hooks:
+            try:
+                hook(self, **kwargs)
+            except Exception as e:
+                logger.warning(f"Pre-hook failed: {e}")
+
+    def _run_post_hooks(self, result, **kwargs):
+        """Run all post-execution hooks (sync version for DSPy forward())."""
+        for hook in self._post_hooks:
+            try:
+                hook(self, result, **kwargs)
+            except Exception as e:
+                logger.warning(f"Post-hook failed: {e}")
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get agent execution metrics (BaseAgent-compatible format)."""
+        metrics = self._metrics.copy()
+        if metrics["total_executions"] > 0:
+            metrics["success_rate"] = (
+                metrics["successful_executions"] / metrics["total_executions"]
+            )
+            metrics["avg_execution_time"] = (
+                metrics["total_execution_time"] / metrics["total_executions"]
+            )
+        else:
+            metrics["success_rate"] = 0.0
+            metrics["avg_execution_time"] = 0.0
+        return metrics
+
+    def reset_metrics(self):
+        """Reset all metrics to zero (BaseAgent-compatible)."""
+        self._metrics = {
+            "total_executions": 0,
+            "successful_executions": 0,
+            "failed_executions": 0,
+            "total_retries": 0,
+            "total_execution_time": 0.0,
+        }
+
+    def _track_execution(self, success: bool, execution_time: float):
+        """Track execution metrics."""
+        self._metrics["total_executions"] += 1
+        if success:
+            self._metrics["successful_executions"] += 1
+        else:
+            self._metrics["failed_executions"] += 1
+        self._metrics["total_execution_time"] += execution_time
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize agent state (BaseAgent-compatible)."""
+        return {
+            "name": self._agent_config.name,
+            "class": self.__class__.__name__,
+            "metrics": self.get_metrics(),
+            "initialized": getattr(self, '_initialized', False),
+        }
 
 
 # =============================================================================
@@ -428,7 +541,7 @@ class ExecutableDAG:
 # TASK BREAKDOWN AGENT
 # =============================================================================
 
-class TaskBreakdownAgent(dspy.Module):
+class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
     """
     DSPy Chain of Thought agent that breaks down implementation plans into DAG workflows.
 
@@ -436,14 +549,21 @@ class TaskBreakdownAgent(dspy.Module):
     - memory: Shared knowledge across all agents
     - context: Shared taskboard for coordination
     - bus: Inter-agent communication
+
+    Inherits from:
+    - dspy.Module: For DSPy integration (forward() method)
+    - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
     def __init__(self, config: Optional[JottyConfig] = None):
         super().__init__()
-        self.config = config or JottyConfig()
+        self.jotty_config = config or JottyConfig()
+
+        # Initialize BaseAgent infrastructure via mixin
+        self._init_agent_infrastructure("TaskBreakdownAgent")
 
         # Get SHARED swarm resources (singleton)
-        self.swarm = SwarmResources.get_instance(self.config)
+        self.swarm = SwarmResources.get_instance(self.jotty_config)
         self.memory = self.swarm.memory      # SHARED memory
         self.context = self.swarm.context    # SHARED taskboard
         self.bus = self.swarm.bus            # SHARED communication
@@ -457,6 +577,55 @@ class TaskBreakdownAgent(dspy.Module):
         self.bus.subscribe("TaskBreakdownAgent", self._handle_message)
 
         logger.info("✓ TaskBreakdownAgent initialized with SHARED swarm resources")
+
+    async def execute(self, implementation_plan: str, **kwargs) -> AgentResult:
+        """
+        Execute task breakdown with BaseAgent-compatible interface.
+
+        Args:
+            implementation_plan: Complete implementation plan as string
+
+        Returns:
+            AgentResult with MarkovianTODO as output
+        """
+        import time
+        start_time = time.time()
+
+        self._run_pre_hooks(implementation_plan=implementation_plan, **kwargs)
+
+        try:
+            # Call the DSPy forward method
+            markovian_todo = self.forward(implementation_plan)
+
+            execution_time = time.time() - start_time
+            self._track_execution(success=True, execution_time=execution_time)
+
+            result = AgentResult(
+                success=True,
+                output=markovian_todo,
+                agent_name="TaskBreakdownAgent",
+                execution_time=execution_time,
+                metadata={
+                    "task_count": len(markovian_todo.subtasks),
+                    "todo_id": markovian_todo.todo_id,
+                }
+            )
+
+            self._run_post_hooks(result, implementation_plan=implementation_plan, **kwargs)
+            return result
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            self._track_execution(success=False, execution_time=execution_time)
+            logger.error(f"TaskBreakdownAgent execution failed: {e}")
+
+            return AgentResult(
+                success=False,
+                output=None,
+                agent_name="TaskBreakdownAgent",
+                execution_time=execution_time,
+                error=str(e)
+            )
 
     def _handle_message(self, message):
         """Handle incoming messages from other agents."""
@@ -908,7 +1077,7 @@ class TaskBreakdownAgent(dspy.Module):
 # TODO CREATOR AGENT
 # =============================================================================
 
-class TodoCreatorAgent:
+class TodoCreatorAgent(DAGAgentMixin):
     """
     DSPy agent for DAG validation, actor assignment, and optimization.
 
@@ -917,11 +1086,17 @@ class TodoCreatorAgent:
     - context: Shared taskboard for coordination
     - bus: Inter-agent communication
     - learner: Shared learning from outcomes
+
+    Inherits from:
+    - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
     def __init__(self, config: Optional[JottyConfig] = None, lm: Optional[dspy.LM] = None):
-        self.config = config or JottyConfig()
+        self.jotty_config = config or JottyConfig()
         self.lm = lm or getattr(dspy.settings, 'lm', None)
+
+        # Initialize BaseAgent infrastructure via mixin
+        self._init_agent_infrastructure("TodoCreatorAgent")
 
         if self.lm is None:
             raise RuntimeError(
@@ -930,7 +1105,7 @@ class TodoCreatorAgent:
             )
 
         # Get SHARED swarm resources (singleton)
-        self.swarm = SwarmResources.get_instance(self.config)
+        self.swarm = SwarmResources.get_instance(self.jotty_config)
         self.memory = self.swarm.memory      # SHARED memory
         self.context = self.swarm.context    # SHARED taskboard
         self.bus = self.swarm.bus            # SHARED communication
@@ -949,6 +1124,72 @@ class TodoCreatorAgent:
     def _handle_message(self, message):
         """Handle incoming messages from other agents."""
         logger.info(f"TodoCreatorAgent received from {message.from_agent}: {message.data}")
+
+    async def execute(
+        self,
+        markovian_todo: MarkovianTODO,
+        available_actors: List[Dict[str, Any]],
+        **kwargs
+    ) -> AgentResult:
+        """
+        Execute DAG creation with BaseAgent-compatible interface.
+
+        Args:
+            markovian_todo: MarkovianTODO with tasks
+            available_actors: List of actor dicts with 'name' and 'capabilities'
+
+        Returns:
+            AgentResult with ExecutableDAG as output
+        """
+        import time
+        start_time = time.time()
+
+        self._run_pre_hooks(
+            markovian_todo=markovian_todo,
+            available_actors=available_actors,
+            **kwargs
+        )
+
+        try:
+            # Call the synchronous create_executable_dag method
+            executable_dag = self.create_executable_dag(markovian_todo, available_actors)
+
+            execution_time = time.time() - start_time
+            self._track_execution(success=True, execution_time=execution_time)
+
+            result = AgentResult(
+                success=True,
+                output=executable_dag,
+                agent_name="TodoCreatorAgent",
+                execution_time=execution_time,
+                metadata={
+                    "task_count": executable_dag.total_tasks,
+                    "assignments": len(executable_dag.assignments),
+                    "validation_passed": executable_dag.validation_passed,
+                    "todo_id": executable_dag.markovian_todo.todo_id,
+                }
+            )
+
+            self._run_post_hooks(
+                result,
+                markovian_todo=markovian_todo,
+                available_actors=available_actors,
+                **kwargs
+            )
+            return result
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            self._track_execution(success=False, execution_time=execution_time)
+            logger.error(f"TodoCreatorAgent execution failed: {e}")
+
+            return AgentResult(
+                success=False,
+                output=None,
+                agent_name="TodoCreatorAgent",
+                execution_time=execution_time,
+                error=str(e)
+            )
 
     def create_executable_dag(
         self,

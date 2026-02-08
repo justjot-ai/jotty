@@ -63,6 +63,8 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
+from .base import DomainSwarm, AgentTeam
+from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -386,14 +388,25 @@ class InvestmentThesisSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseFundamentalAgent:
-    """Base class for fundamental analysis agents."""
+class BaseFundamentalAgent(DomainAgent):
+    """Base class for fundamental analysis agents. Inherits from DomainAgent for unified infrastructure."""
 
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        self.memory = memory
-        self.context = context
+    def __init__(self, memory=None, context=None, bus=None, signature=None):
+        config = DomainAgentConfig(
+            name=self.__class__.__name__,
+            enable_memory=memory is not None,
+            enable_context=context is not None,
+        )
+        super().__init__(signature=signature, config=config)
+
+        # Ensure LM is configured before child classes create DSPy modules
+        self._ensure_initialized()
+
+        if memory is not None:
+            self._memory = memory
+        if context is not None:
+            self._context_manager = context
         self.bus = bus
-        self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
         """Broadcast event to other agents."""
@@ -414,7 +427,8 @@ class FinancialStatementAgent(BaseFundamentalAgent):
     """Analyzes financial statements."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=FinancialStatementSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(FinancialStatementSignature)
 
     async def analyze(
@@ -457,7 +471,8 @@ class RatioAnalysisAgent(BaseFundamentalAgent):
     """Performs ratio analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=RatioAnalysisSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(RatioAnalysisSignature)
 
     async def analyze(
@@ -509,7 +524,8 @@ class ValuationAgent(BaseFundamentalAgent):
     """Performs company valuation."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=DCFValuationSignature)
+        self.learned_context = learned_context
         self._dcf = dspy.ChainOfThought(DCFValuationSignature)
 
     async def dcf_valuation(
@@ -568,7 +584,8 @@ class QualityEarningsAgent(BaseFundamentalAgent):
     """Assesses earnings quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=QualityEarningsSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(QualityEarningsSignature)
 
     async def assess(
@@ -610,7 +627,8 @@ class ManagementAgent(BaseFundamentalAgent):
     """Analyzes management quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=ManagementAnalysisSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(ManagementAnalysisSignature)
 
     async def analyze(
@@ -656,7 +674,8 @@ class MoatAgent(BaseFundamentalAgent):
     """Analyzes competitive moat."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=CompetitiveMoatSignature)
+        self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CompetitiveMoatSignature)
 
     async def analyze(
@@ -701,7 +720,8 @@ class ThesisAgent(BaseFundamentalAgent):
     """Generates investment thesis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
-        super().__init__(memory, context, bus, learned_context)
+        super().__init__(memory, context, bus, signature=InvestmentThesisSignature)
+        self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(InvestmentThesisSignature)
 
     async def generate(
@@ -777,7 +797,7 @@ class ThesisAgent(BaseFundamentalAgent):
 # =============================================================================
 
 @register_swarm("fundamental")
-class FundamentalSwarm(BaseSwarm):
+class FundamentalSwarm(DomainSwarm):
     """
     World-Class Fundamental Analysis Swarm.
 
@@ -791,43 +811,26 @@ class FundamentalSwarm(BaseSwarm):
     - Investment thesis
     """
 
+    # Declarative agent team - auto-initialized by DomainSwarm
+    AGENT_TEAM = AgentTeam.define(
+        (FinancialStatementAgent, "FinancialStatement", "_financial_agent"),
+        (RatioAnalysisAgent, "RatioAnalysis", "_ratio_agent"),
+        (ValuationAgent, "Valuation", "_valuation_agent"),
+        (QualityEarningsAgent, "QualityEarnings", "_quality_agent"),
+        (ManagementAgent, "Management", "_management_agent"),
+        (MoatAgent, "Moat", "_moat_agent"),
+        (ThesisAgent, "Thesis", "_thesis_agent"),
+    )
+
     def __init__(self, config: FundamentalConfig = None):
         super().__init__(config or FundamentalConfig())
-        self._agents_initialized = False
 
-        # Agents
-        self._financial_agent = None
-        self._ratio_agent = None
-        self._valuation_agent = None
-        self._quality_agent = None
-        self._management_agent = None
-        self._moat_agent = None
-        self._thesis_agent = None
-
-    def _init_agents(self):
-        """Initialize all agents with per-agent learned context."""
-        if self._agents_initialized:
-            return
-
-        self._init_shared_resources()
-
-        self._financial_agent = FinancialStatementAgent(self._memory, self._context, self._bus, self._agent_context("FinancialStatement"))
-        self._ratio_agent = RatioAnalysisAgent(self._memory, self._context, self._bus, self._agent_context("RatioAnalysis"))
-        self._valuation_agent = ValuationAgent(self._memory, self._context, self._bus, self._agent_context("Valuation"))
-        self._quality_agent = QualityEarningsAgent(self._memory, self._context, self._bus, self._agent_context("QualityEarnings"))
-        self._management_agent = ManagementAgent(self._memory, self._context, self._bus, self._agent_context("Management"))
-        self._moat_agent = MoatAgent(self._memory, self._context, self._bus, self._agent_context("Moat"))
-        self._thesis_agent = ThesisAgent(self._memory, self._context, self._bus, self._agent_context("Thesis"))
-
-        self._agents_initialized = True
-        logger.info("FundamentalSwarm agents initialized")
-
-    async def execute(
+    async def _execute_domain(
         self,
         ticker: str,
         **kwargs
     ) -> FundamentalResult:
-        """Execute fundamental analysis."""
+        """Execute fundamental analysis (called by DomainSwarm.execute())."""
         return await self.analyze(ticker, **kwargs)
 
     async def analyze(
@@ -851,10 +854,7 @@ class FundamentalSwarm(BaseSwarm):
         """
         start_time = datetime.now()
 
-        # Pre-execution learning: load state, warmup, compute scores
-        await self._pre_execute_learning()
-
-        self._init_agents()
+        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
 
         logger.info(f"📊 FundamentalSwarm starting: {ticker} on {exchange}")
 
