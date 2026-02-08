@@ -199,13 +199,16 @@ class ExecutionPlanningSignature(dspy.Signature):
     STEP FORMAT (REQUIRED):
     Each step must have:
     - skill_name: EXACT name from available_skills (e.g., "web-search", "file-operations")
-    - tool_name: Tool from that skill's tools list
+    - tool_name: EXACT tool name from that skill's "tools" array - COPY IT EXACTLY, do NOT use generic names like "use_skill"
     - params: Parameters required by the tool
     - description: What this step accomplishes
 
     EXAMPLE STEPS:
     {"skill_name": "web-search", "tool_name": "tavily_search_tool", "params": {"query": "..."}, "description": "Search for..."}
     {"skill_name": "file-operations", "tool_name": "write_file_tool", "params": {"path": "...", "content": "..."}, "description": "Create..."}
+    {"skill_name": "research-to-pdf", "tool_name": "research_to_pdf_tool", "params": {"topic": "..."}, "description": "Research and create PDF..."}
+
+    NEVER use generic tool names like "use_skill", "execute", "run", "call" - always use the EXACT tool name from the skill's tools array.
 
     FALLBACK: If a needed capability doesn't exist, use "web-search" for research or "file-operations" for creation.
     """

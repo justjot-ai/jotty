@@ -199,7 +199,11 @@ Test the SDK client with real-time event visualization.
                 'Planning': '📋 Planning steps...',
                 'Generating': '✍️ Generating content...',
                 'Processing': '💭 Processing...',
-                # Skill execution
+                # Skill loading/execution
+                'Loading': '📦 Loading skill...',
+                'Executing': '⚡ Executing...',
+                'Done': '✅ Completed',
+                # Skill execution types (from skill_plan_executor)
                 'Step': '⚡ Executing step...',
                 'Searching': '🔍 Searching...',
                 'Researching': '📚 Researching...',
@@ -209,6 +213,7 @@ Test the SDK client with real-time event visualization.
                 'Retrying': '🔄 Retrying...',
                 'Replanning': '🔄 Adapting...',
                 'Ensemble': '🧩 Multi-perspective analysis...',
+                'Error': '❌ Error',
             }
             _last_status = [None]
             _last_print_time = [0]
@@ -231,16 +236,22 @@ Test the SDK client with real-time event visualization.
 
                     # Map to user-friendly message
                     msg = None
-                    for key, friendly in _status_messages.items():
-                        if key.lower() in status.lower():
-                            msg = friendly
-                            break
+
+                    # If detail contains emoji, show it directly (already formatted)
+                    if detail and any(c in detail for c in '📚🔍🌐📄📊📨💬📁📈💹🔧✓✗'):
+                        msg = detail
+                    else:
+                        # Look up friendly message
+                        for key, friendly in _status_messages.items():
+                            if key.lower() in status.lower():
+                                msg = friendly
+                                break
 
                     # Show step progress with detail
                     if status.startswith('Step '):
                         msg = f"⚡ {status}"
                         if detail:
-                            msg += f": {detail[:40]}"
+                            msg += f": {detail[:80]}"
 
                     if msg and _last_status[0] != f"{status}:{detail}":
                         _last_status[0] = f"{status}:{detail}"

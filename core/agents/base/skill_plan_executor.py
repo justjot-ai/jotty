@@ -172,9 +172,17 @@ class SkillPlanExecutor:
         Returns:
             Step result dict with 'success' key
         """
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+
         if self._skills_registry is None:
             return {'success': False, 'error': 'Skills registry not available'}
 
+        _status("Loading", f"skill: {step.skill_name}")
         skill = self._skills_registry.get_skill(step.skill_name)
         if not skill:
             return {
@@ -182,7 +190,32 @@ class SkillPlanExecutor:
                 'error': f'Skill not found: {step.skill_name}',
             }
 
+        # If skill extends BaseSkill, set the status callback for live updates
+        try:
+            from ...registry.skills_registry import BaseSkill
+            if isinstance(skill, BaseSkill):
+                skill.set_status_callback(status_callback)
+        except ImportError:
+            pass
+
         tool = skill.tools.get(step.tool_name) if hasattr(skill, 'tools') else None
+
+        # Fallback: if tool not found, try to find a matching tool or use first available
+        if not tool and hasattr(skill, 'tools') and skill.tools:
+            # Try to find tool with similar name
+            tool_name_lower = step.tool_name.lower() if step.tool_name else ''
+            for name, func in skill.tools.items():
+                if tool_name_lower in name.lower() or name.lower() in tool_name_lower:
+                    tool = func
+                    logger.info(f"Tool '{step.tool_name}' not found, using similar: '{name}'")
+                    break
+
+            # Last resort: use first tool (most skills have one primary tool)
+            if not tool:
+                first_tool_name = list(skill.tools.keys())[0]
+                tool = skill.tools[first_tool_name]
+                logger.info(f"Tool '{step.tool_name}' not found, using first tool: '{first_tool_name}'")
+
         if not tool:
             return {
                 'success': False,
@@ -190,6 +223,31 @@ class SkillPlanExecutor:
             }
 
         resolved_params = self.resolve_params(step.params, outputs)
+
+        # Pass status callback to skill via params (skills can optionally use it)
+        if status_callback:
+            resolved_params['_status_callback'] = status_callback
+
+        # Emit status based on skill type
+        skill_status_map = {
+            'research': '📚 Researching...',
+            'search': '🔍 Searching...',
+            'web': '🌐 Fetching web data...',
+            'pdf': '📄 Creating PDF...',
+            'chart': '📊 Generating charts...',
+            'telegram': '📨 Sending message...',
+            'slack': '💬 Posting to Slack...',
+            'file': '📁 Processing files...',
+            'data': '📈 Analyzing data...',
+            'stock': '💹 Fetching stock data...',
+        }
+
+        for key, msg in skill_status_map.items():
+            if key in step.skill_name.lower() or key in step.tool_name.lower():
+                _status("Executing", msg)
+                break
+        else:
+            _status("Executing", f"🔧 Running {step.skill_name}...")
 
         try:
             if inspect.iscoroutinefunction(tool):
@@ -202,10 +260,12 @@ class SkillPlanExecutor:
             elif not isinstance(result, dict):
                 result = {'success': True, 'output': result}
 
+            _status("Done", f"✓ {step.skill_name}")
             return result
 
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
+            _status("Error", f"✗ {step.skill_name}")
             return {'success': False, 'error': str(e)}
 
     # =========================================================================

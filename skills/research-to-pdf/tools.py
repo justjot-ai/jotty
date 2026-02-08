@@ -9,10 +9,23 @@ This skill combines:
 import asyncio
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Callable, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Module-level status callback (set by executor before calling tool)
+_current_status_callback: Optional[Callable] = None
+
+
+def emit_status(stage: str, detail: str = ""):
+    """Emit a status update if callback is set."""
+    if _current_status_callback:
+        try:
+            _current_status_callback(stage, detail)
+        except Exception:
+            pass
+    logger.info(f"[research-to-pdf] {stage}: {detail}")
 
 
 async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -37,12 +50,17 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_size (int): PDF file size in bytes
             - error (str, optional): Error message if failed
     """
+    global _current_status_callback
+
     try:
+        # Extract status callback from params (passed by executor)
+        _current_status_callback = params.pop('_status_callback', None)
+
         try:
             from Jotty.core.registry.skills_registry import get_skills_registry
         except ImportError:
             from Jotty.core.registry.skills_registry import get_skills_registry
-        
+
         topic = params.get('topic', '')
         if not topic:
             return {
@@ -52,9 +70,9 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         
         registry = get_skills_registry()
         registry.init()
-        
+
         # Step 1: Research
-        logger.info(f"Researching topic: {topic}")
+        emit_status("Researching", f"🔍 Searching for {topic}...")
         last30days_skill = registry.get_skill('last30days-claude-cli')
         if not last30days_skill:
             return {
@@ -87,9 +105,9 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             }
 
         raw_research = research_result.get('output', '')
+        emit_status("Analyzing", "🧠 Analyzing search results...")
 
         # Step 1.5: AI Synthesis - Convert raw search results into comprehensive analysis
-        logger.info("Synthesizing research into comprehensive report...")
         research_content = await _synthesize_research(topic, raw_research, deep)
         
         # Step 2: Create markdown file
@@ -146,11 +164,11 @@ async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 - **Topic:** {topic}
 """
         
+        emit_status("Writing", "📝 Creating markdown report...")
         md_file.write_text(report_content)
-        logger.info(f"Markdown file created: {md_file}")
-        
+
         # Step 3: Convert to PDF
-        logger.info("Converting markdown to PDF")
+        emit_status("Converting", "📄 Converting to PDF...")
         doc_converter_skill = registry.get_skill('document-converter')
         if not doc_converter_skill:
             return {

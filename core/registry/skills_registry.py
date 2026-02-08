@@ -45,6 +45,141 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# BASE SKILL CLASS
+# =============================================================================
+
+class BaseSkill:
+    """
+    Base class for all Jotty skills.
+
+    Skills extend this class to gain:
+    - Status callback support for progress reporting
+    - Lifecycle hooks (setup, execute, cleanup)
+    - Consistent interface across all skills
+    - Context sharing (session, user, metadata)
+
+    Usage:
+        class ResearchSkill(BaseSkill):
+            name = "research-to-pdf"
+            description = "Research topics and create PDF reports"
+
+            def setup(self):
+                # Initialize resources
+                pass
+
+            async def execute(self, params: dict) -> dict:
+                self.status("Searching", "🔍 Searching the web...")
+                results = await self.search(params['query'])
+
+                self.status("Analyzing", "🧠 Analyzing results...")
+                analysis = self.analyze(results)
+
+                self.status("Creating", "📄 Creating PDF...")
+                pdf_path = self.create_pdf(analysis)
+
+                return {"success": True, "pdf_path": pdf_path}
+
+    The status() method emits progress updates that flow to the CLI/UI.
+    """
+
+    # Class attributes - override in subclasses
+    name: str = "base-skill"
+    description: str = "Base skill class"
+    version: str = "1.0.0"
+    category: str = "general"
+    tags: List[str] = []
+
+    def __init__(self, status_callback: Optional[Callable] = None):
+        """
+        Initialize skill with optional status callback.
+
+        Args:
+            status_callback: Callable(stage, detail) for progress updates
+        """
+        self._status_callback = status_callback
+        self._context: Dict[str, Any] = {}
+
+    def set_status_callback(self, callback: Callable):
+        """Set status callback for progress reporting."""
+        self._status_callback = callback
+
+    def set_context(self, **context):
+        """Set execution context (session_id, user_id, metadata, etc.)."""
+        self._context.update(context)
+
+    def status(self, stage: str, detail: str = ""):
+        """
+        Emit a status update for progress reporting.
+
+        Args:
+            stage: Stage name (e.g., "Searching", "Analyzing")
+            detail: Detail message with emoji (e.g., "🔍 Searching web...")
+        """
+        if self._status_callback:
+            try:
+                self._status_callback(stage, detail)
+            except Exception:
+                pass
+        logger.debug(f"[{self.name}] {stage}: {detail}")
+
+    def setup(self):
+        """
+        Setup hook called before execution.
+        Override in subclasses for initialization.
+        """
+        pass
+
+    def cleanup(self):
+        """
+        Cleanup hook called after execution.
+        Override in subclasses for resource cleanup.
+        """
+        pass
+
+    async def execute(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute the skill with given parameters.
+
+        Override in subclasses to implement skill logic.
+
+        Args:
+            params: Skill parameters
+
+        Returns:
+            Result dict with 'success' key
+        """
+        raise NotImplementedError("Subclasses must implement execute()")
+
+    def get_tools(self) -> Dict[str, Callable]:
+        """
+        Get tool functions for this skill.
+
+        Returns dict mapping tool names to callables.
+        Default implementation wraps execute() as the main tool.
+        Override for skills with multiple tools.
+        """
+        async def main_tool(params: dict) -> dict:
+            self.setup()
+            try:
+                return await self.execute(params)
+            finally:
+                self.cleanup()
+
+        return {f"{self.name}_tool": main_tool}
+
+    def to_definition(self) -> "SkillDefinition":
+        """Convert to SkillDefinition for registry compatibility."""
+        return SkillDefinition(
+            name=self.name,
+            description=self.description,
+            tools=self.get_tools(),
+            category=self.category,
+            tags=self.tags,
+            version=self.version,
+        )
+
+
+# =============================================================================
 # TOOL METADATA (Absorbed from ToolsRegistry)
 # =============================================================================
 
