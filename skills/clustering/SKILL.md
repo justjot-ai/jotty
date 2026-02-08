@@ -2,6 +2,13 @@
 
 **Description:** Unsupervised clustering algorithms and cluster analysis.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - K-Means clustering
 - DBSCAN clustering

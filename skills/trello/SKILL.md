@@ -3,6 +3,10 @@
 ## Description
 Integrates with Trello API to manage boards, lists, and cards. Supports listing boards, viewing board details with lists, managing cards (create, update, move), and adding comments.
 
+
+## Type
+base
+
 ## Configuration
 Credentials are loaded from:
 1. Environment variables: `TRELLO_API_KEY` and `TRELLO_TOKEN`

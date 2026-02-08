@@ -2,6 +2,13 @@
 
 Template for aggregating data from multiple sources.
 
+
+## Type
+derived
+
+## Base Skills
+- web-search
+
 ## Use Cases
 
 - Collect data from multiple APIs

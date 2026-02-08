@@ -2,6 +2,13 @@
 
 **Description:** Hyperparameter optimization using Optuna Bayesian optimization.
 
+
+## Type
+derived
+
+## Base Skills
+- automl
+
 ## Capabilities
 - Bayesian hyperparameter optimization
 - Multi-objective optimization

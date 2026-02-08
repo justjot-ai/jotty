@@ -9,6 +9,17 @@ This composite skill combines:
 2. **text-utils**: Format results as markdown
 3. **mcp-justjot**: Create JustJot idea with the content
 
+
+## Type
+composite
+
+## Base Skills
+- web-scraper
+- mcp-justjot
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

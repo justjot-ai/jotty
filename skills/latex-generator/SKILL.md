@@ -2,6 +2,10 @@
 
 Generates professional LaTeX documents with proper mathematical notation, styled in the StatQuest format.
 
+
+## Type
+base
+
 ## Tools
 
 ### `generate_latex_document_tool`

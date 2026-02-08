@@ -6,6 +6,13 @@ Assists in writing high-quality content by conducting research, adding citations
 
 This skill acts as your writing partner, helping you research, outline, draft, and refine content while maintaining your unique voice and style. Provides collaborative outlining, research assistance, hook improvement, and section-by-section feedback.
 
+
+## Type
+derived
+
+## Base Skills
+- web-search
+
 ## Tools
 
 ### `write_content_with_research_tool`

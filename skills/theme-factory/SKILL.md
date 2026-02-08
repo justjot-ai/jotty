@@ -6,6 +6,13 @@ Provides professional font and color themes for styling artifacts like slides, d
 
 This skill provides a curated collection of professional themes with carefully selected color palettes and font pairings. Each theme includes cohesive colors and complementary fonts suitable for different contexts and audiences.
 
+
+## Type
+derived
+
+## Base Skills
+- image-generator
+
 ## Tools
 
 ### `apply_theme_tool`

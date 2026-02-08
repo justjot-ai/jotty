@@ -6,6 +6,10 @@ Interact with Slack channels and users using the Slack Web API.
 
 This skill provides tools to send messages, read channels, upload files, and interact with Slack workspaces using the Slack Web API via requests.
 
+
+## Type
+base
+
 ## Features
 
 - Send messages to channels and DMs

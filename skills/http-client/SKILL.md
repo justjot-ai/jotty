@@ -3,6 +3,10 @@
 ## Description
 Provides advanced HTTP request capabilities: GET, POST, PUT, DELETE requests with headers, authentication, and response handling.
 
+
+## Type
+base
+
 ## Tools
 
 ### http_get_tool

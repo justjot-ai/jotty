@@ -3,6 +3,10 @@
 ## Description
 Converts documents between various formats: Markdown, PDF, EPUB, DOCX, HTML. Uses Pandoc for conversions.
 
+
+## Type
+base
+
 ## Tools
 
 ### convert_to_pdf_tool

@@ -3,6 +3,18 @@
 ## Description
 Complete pipeline that fetches financial data from screener.in, analyzes it with Claude LLM, generates PDF, and sends to Telegram.
 
+
+## Type
+composite
+
+## Base Skills
+- screener-financials
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Pipeline Flow
 1. **Source**: Fetch financial data from screener.in for company symbol(s)
 2. **Processor**: Synthesize and analyze data using Claude CLI LLM

@@ -6,6 +6,10 @@ Integrates JustJot.ai MCP tools as Jotty skills.
 
 This skill wraps JustJot.ai MCP (Model Context Protocol) tools, making them available as Jotty skills. This allows you to use JustJot.ai features (ideas, templates, sections, tags) from within Jotty workflows.
 
+
+## Type
+base
+
 ## Available Tools
 
 ### Ideas Management

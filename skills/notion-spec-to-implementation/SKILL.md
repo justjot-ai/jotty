@@ -6,6 +6,17 @@ Transforms Notion specifications into implementation plans with tasks, milestone
 
 This skill reads specifications from Notion pages and creates structured implementation plans with tasks, milestones, and progress tracking. Helps bridge the gap between product specs and development execution.
 
+
+## Type
+composite
+
+## Base Skills
+- notion
+- file-operations
+
+## Execution
+sequential
+
 ## Tools
 
 ### `create_implementation_plan_tool`

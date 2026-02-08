@@ -6,6 +6,10 @@ Send PDFs to reMarkable tablet via cloud API.
 
 This skill uploads PDFs to reMarkable tablet using rmapi (reMarkable cloud API client).
 
+
+## Type
+base
+
 ## Features
 
 - Upload PDFs to reMarkable cloud

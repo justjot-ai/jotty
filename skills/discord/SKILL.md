@@ -6,6 +6,10 @@ Interact with Discord servers and channels using the Discord API.
 
 This skill provides tools to send messages, read channels, create threads, and interact with Discord servers using the Discord API via requests.
 
+
+## Type
+base
+
 ## Features
 
 - Send messages to channels

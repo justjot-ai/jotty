@@ -6,6 +6,10 @@ Web search with Google (Serper API) or DuckDuckGo, plus content scraping.
 
 Provides web search capabilities using Google (via Serper API) or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research.
 
+
+## Type
+base
+
 ## Capabilities
 - research
 - data-fetch

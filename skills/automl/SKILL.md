@@ -2,6 +2,13 @@
 
 **Description:** Automatic machine learning - model selection, training, and optimization.
 
+
+## Type
+derived
+
+## Base Skills
+- claude-cli-llm
+
 ## Capabilities
 - Automatic model selection from 10+ algorithms
 - Cross-validation with stratified folds

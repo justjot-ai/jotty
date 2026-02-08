@@ -4,6 +4,17 @@
 
 Multi-agent skill that searches for information on any topic, summarizes it using Claude CLI LLM, and creates a structured idea on JustJot.ai using MCP client (direct MongoDB access).
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- mcp-justjot
+
+## Execution
+sequential
+
 ## Workflow
 
 1. **Source**: Search web for topic information

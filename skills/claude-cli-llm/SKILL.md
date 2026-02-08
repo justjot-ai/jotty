@@ -12,6 +12,10 @@ This skill provides LLM capabilities including cutting-edge prompt ensembling te
 
 Based on latest research (2025-2026) on prompt engineering and LLM ensembling.
 
+
+## Type
+base
+
 ## Usage
 
 ### Basic LLM Call

@@ -3,6 +3,10 @@
 ## Description
 GIF creation toolkit using Pillow. Create animated GIFs from images, text animations, loading spinners, and optimize GIFs for various platforms like Slack.
 
+
+## Type
+base
+
 ## Tools
 
 ### create_gif_from_images_tool

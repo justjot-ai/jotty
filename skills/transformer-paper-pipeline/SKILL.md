@@ -2,6 +2,17 @@
 
 Generates a research paper on Transformers using Claude CLI LLM, converts it to LaTeX PDF, and sends to Telegram.
 
+
+## Type
+composite
+
+## Base Skills
+- arxiv-downloader
+- document-converter
+
+## Execution
+sequential
+
 ## Tools
 
 ### `generate_transformer_paper_tool`

@@ -419,7 +419,8 @@ class SkillDefinition:
         }
         # Only include composite/derived hints when relevant
         if self.skill_type == SkillType.COMPOSITE:
-            result['combines'] = self.combines
+            # Backward compat: populate combines from base_skills if empty
+            result['combines'] = self.combines if self.combines else self.base_skills
             result['use_when'] = self.use_when
             result['execution_mode'] = self.execution_mode
         elif self.skill_type == SkillType.DERIVED:
@@ -1126,7 +1127,8 @@ class SkillsRegistry:
             }
             # Add composite/derived hints
             if skill.skill_type == SkillType.COMPOSITE:
-                skill_dict["combines"] = skill.combines
+                # Backward compat: populate combines from base_skills if empty
+                skill_dict["combines"] = skill.combines if skill.combines else skill.base_skills
                 skill_dict["use_when"] = skill.use_when
                 skill_dict["execution_mode"] = skill.execution_mode
             elif skill.skill_type == SkillType.DERIVED:
@@ -1233,7 +1235,7 @@ class SkillsRegistry:
                     "_matched_capabilities": list(matching_caps),
                 }
                 if skill.skill_type == SkillType.COMPOSITE:
-                    skill_dict["combines"] = skill.combines
+                    skill_dict["combines"] = skill.combines if skill.combines else skill.base_skills
                     skill_dict["use_when"] = skill.use_when
                 elif skill.skill_type == SkillType.DERIVED:
                     skill_dict["use_when"] = skill.use_when

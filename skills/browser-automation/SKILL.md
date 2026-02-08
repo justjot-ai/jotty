@@ -6,6 +6,10 @@ Full browser automation with Playwright and Selenium backends.
 
 Comprehensive browser automation supporting navigation, screenshots, form filling, clicking, data extraction, JavaScript execution, and PDF generation. Supports both Playwright (async, faster) and Selenium with CDP (for Electron embedding).
 
+
+## Type
+base
+
 ## Features
 
 - Navigate to URLs with JS rendering

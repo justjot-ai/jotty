@@ -3,6 +3,10 @@
 ## Description
 Provides essential file system operations: read, write, list directories, create/delete files and directories, search files, and get file metadata.
 
+
+## Type
+base
+
 ## Tools
 
 ### read_file_tool

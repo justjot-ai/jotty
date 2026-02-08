@@ -3,6 +3,10 @@
 ## Description
 Splits text into semantic chunks for RAG (Retrieval Augmented Generation) systems. Uses intelligent chunking that preserves context and structure.
 
+
+## Type
+base
+
 ## Tools
 
 ### chunk_text_tool

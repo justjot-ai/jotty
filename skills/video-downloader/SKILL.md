@@ -6,6 +6,10 @@ Downloads videos from YouTube and other platforms for offline viewing, editing, 
 
 This skill downloads videos from YouTube and other platforms directly to your computer. Supports various formats, quality options, and batch downloads.
 
+
+## Type
+base
+
 ## Tools
 
 ### `download_video_tool`

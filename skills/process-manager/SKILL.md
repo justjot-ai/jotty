@@ -3,6 +3,10 @@
 ## Description
 Provides process management capabilities: list running processes, get process details, and terminate processes.
 
+
+## Type
+base
+
 ## Tools
 
 ### list_processes_tool

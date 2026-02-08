@@ -3,6 +3,10 @@
 ## Description
 Downloads and extracts content from arXiv papers. Supports 40+ conference/journal templates and can extract text from LaTeX source or compile to PDF.
 
+
+## Type
+base
+
 ## Tools
 
 ### download_arxiv_paper_tool

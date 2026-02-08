@@ -3,6 +3,10 @@
 ## Description
 Excel file manipulation toolkit using openpyxl and pandas. Provides tools for reading, writing, and manipulating Excel workbooks including cell updates, formulas, and charts.
 
+
+## Type
+base
+
 ## Tools
 
 ### read_excel_tool

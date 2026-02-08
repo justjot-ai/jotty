@@ -2,6 +2,12 @@
 
 Template for converting text/markdown content to PDF.
 
+## Type
+derived
+
+## Base Skills
+- document-converter
+
 ## Use Cases
 
 - Generate PDFs from text content

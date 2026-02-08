@@ -4,6 +4,17 @@
 
 Multi-agent skill that transforms data and natural language questions into AI-generated visualizations saved as JustJot ideas. Uses LIDA for visualization generation and JustJot's registry-driven section system for maximum compatibility with all 47+ section types.
 
+
+## Type
+composite
+
+## Base Skills
+- image-generator
+- mcp-justjot
+
+## Execution
+sequential
+
 ## Workflow
 
 1. **Input**: DataFrame + Natural language question

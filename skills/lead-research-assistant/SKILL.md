@@ -6,6 +6,13 @@ Identifies high-quality leads for your product or service by analyzing your busi
 
 This skill helps you identify and qualify potential leads for your business by analyzing your product/service, understanding your ideal customer profile, and providing actionable outreach strategies. Perfect for sales, business development, and marketing professionals.
 
+
+## Type
+derived
+
+## Base Skills
+- web-search
+
 ## Tools
 
 ### `research_leads_tool`

@@ -2,6 +2,13 @@
 
 **Description:** Comprehensive model evaluation metrics for classification, regression, and ranking.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Classification metrics (accuracy, F1, AUC, precision, recall)
 - Regression metrics (MSE, RMSE, MAE, R2, MAPE)

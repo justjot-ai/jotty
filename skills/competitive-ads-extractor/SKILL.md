@@ -6,6 +6,13 @@ Extracts and analyzes competitors' ads from ad libraries to understand messaging
 
 This skill helps you understand your competitors' advertising strategies by extracting ads from ad libraries (Facebook, Google, etc.) and analyzing messaging, creative approaches, and targeting strategies.
 
+
+## Type
+derived
+
+## Base Skills
+- web-search
+
 ## Tools
 
 ### `extract_competitive_ads_tool`

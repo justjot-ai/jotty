@@ -9,6 +9,13 @@ This skill extracts structured financial data from research results and generate
 - **Data Tables**: Financial statements, valuation metrics, key ratios, peer comparisons
 - **Visual Analytics**: Trend analysis, comparative charts, performance dashboards
 
+
+## Type
+derived
+
+## Base Skills
+- image-generator
+
 ## Tools
 
 ### `generate_intelligent_charts_tool` ⭐ **BEST OF AI**

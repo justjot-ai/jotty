@@ -6,6 +6,10 @@ Check current weather and forecast for any location using the wttr.in API.
 
 This skill provides weather information including temperature, humidity, wind speed, and multi-day forecasts for any city or location worldwide.
 
+
+## Type
+base
+
 ## Capabilities
 - data-fetch
 

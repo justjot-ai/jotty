@@ -9,6 +9,18 @@ This composite skill combines:
 2. **Design Creation** (Processor): canvas-design
 3. **GIF Creation** (Sink): slack-gif-creator
 
+
+## Type
+composite
+
+## Base Skills
+- image-generator
+- voice
+- video-downloader
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

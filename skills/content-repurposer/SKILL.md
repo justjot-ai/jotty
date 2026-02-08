@@ -3,6 +3,13 @@
 ## Description
 Repurposes long-form content into multiple platform-specific formats: Twitter threads, LinkedIn posts, blog excerpts, email newsletters, and more.
 
+
+## Type
+derived
+
+## Base Skills
+- claude-cli-llm
+
 ## Tools
 
 ### repurpose_content_tool

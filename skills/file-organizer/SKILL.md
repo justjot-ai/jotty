@@ -6,6 +6,13 @@ Intelligently organizes files and folders by understanding context, finding dupl
 
 This skill acts as your personal organization assistant, helping you maintain a clean, logical file structure across your computer without the mental overhead of constant manual organization.
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Tools
 
 ### `organize_files_tool`

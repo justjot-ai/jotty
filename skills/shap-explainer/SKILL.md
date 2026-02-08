@@ -2,6 +2,13 @@
 
 **Description:** Model explainability and interpretation using SHAP values.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Generate SHAP values for any scikit-learn compatible model
 - Feature importance analysis

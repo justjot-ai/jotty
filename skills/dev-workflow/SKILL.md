@@ -9,6 +9,18 @@ This composite skill combines:
 2. **Skill Creation** (Processor): skill-creator
 3. **Webapp Testing** (Sink): webapp-testing
 
+
+## Type
+composite
+
+## Base Skills
+- github
+- shell-exec
+- file-operations
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

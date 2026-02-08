@@ -11,6 +11,17 @@ This composite skill:
    - Synthesize information via Claude CLI LLM
    - Create JustJot idea with synthesized content as sections
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- mcp-justjot
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

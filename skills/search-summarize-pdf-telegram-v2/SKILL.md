@@ -6,6 +6,19 @@ Demonstrates generic Source → Processor → Sink pipeline pattern using declar
 
 This skill uses the generic pipeline framework (`core/registry/pipeline_skill.py`) to define workflows declaratively as arrays of source/processor/sink steps.
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Capabilities
 - research
 - document

@@ -6,6 +6,10 @@ Improves image quality by enhancing resolution, sharpness, and clarity. Perfect 
 
 This skill takes images and screenshots and makes them look better—sharper, clearer, and more professional. Enhances resolution, improves sharpness, reduces artifacts, and optimizes for different use cases.
 
+
+## Type
+base
+
 ## Tools
 
 ### `enhance_image_tool`

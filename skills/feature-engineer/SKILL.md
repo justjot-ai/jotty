@@ -2,6 +2,13 @@
 
 **Description:** Automatic feature engineering for tabular data.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Automatic feature type detection
 - Missing value imputation

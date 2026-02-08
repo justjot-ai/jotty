@@ -6,6 +6,13 @@ Analyzes meeting transcripts and recordings to uncover behavioral patterns, comm
 
 This skill transforms your meeting transcripts into actionable insights about your communication patterns, helping you become a more effective communicator and leader. Identifies when you avoid conflict, use filler words, dominate conversations, or miss opportunities to listen.
 
+
+## Type
+derived
+
+## Base Skills
+- claude-cli-llm
+
 ## Tools
 
 ### `analyze_meeting_insights_tool`

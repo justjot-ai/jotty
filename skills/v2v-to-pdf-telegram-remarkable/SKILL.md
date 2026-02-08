@@ -10,6 +10,19 @@ This composite skill combines:
 3. Telegram sending
 4. reMarkable uploading
 
+
+## Type
+composite
+
+## Base Skills
+- voice
+- document-converter
+- telegram-sender
+- remarkable-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

@@ -6,6 +6,13 @@ Creates elaborate HTML artifacts using React, TypeScript, Tailwind CSS, and shad
 
 This skill helps create complex HTML artifacts for Claude.ai using modern frontend technologies. Supports multi-component artifacts requiring state management, routing, or shadcn/ui components.
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Tools
 
 ### `init_artifact_project_tool`

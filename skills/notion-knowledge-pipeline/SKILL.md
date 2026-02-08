@@ -9,6 +9,18 @@ This composite skill combines:
 2. **Research Documentation** (Processor): notion-research-documentation
 3. **Implementation Planning** (Sink): notion-spec-to-implementation
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- notion
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

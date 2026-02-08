@@ -3,6 +3,10 @@
 ## Description
 Provides text manipulation, encoding/decoding, formatting, and text processing utilities.
 
+
+## Type
+base
+
 ## Tools
 
 ### encode_text_tool

@@ -6,6 +6,17 @@ Transforms conversations and discussions into structured documentation pages in 
 
 This skill captures insights, decisions, and knowledge from chat context, formats them appropriately, and saves to Notion wikis or databases with proper organization and linking for easy discovery.
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- notion
+
+## Execution
+sequential
+
 ## Tools
 
 ### `capture_knowledge_to_notion_tool`

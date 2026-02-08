@@ -3,6 +3,10 @@
 ## Description
 Speech-to-text transcription and translation using OpenAI's Whisper API. Supports multiple audio formats and output formats including subtitles.
 
+
+## Type
+base
+
 ## Tools
 
 ### transcribe_audio_tool

@@ -2,6 +2,10 @@
 
 **Description:** Comprehensive data profiling and exploratory data analysis (EDA).
 
+
+## Type
+base
+
 ## Capabilities
 - Automatic data type detection
 - Missing value analysis

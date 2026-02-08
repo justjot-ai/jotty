@@ -8,6 +8,17 @@ Supports converting content from various sources (markdown, arxiv, html, pdf, yo
 processors (diagram rendering, latex handling, image downloading) to multiple output formats
 (pdf, epub, markdown, docx, html, remarkable).
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- document-converter
+
+## Execution
+sequential
+
 ## Tools
 
 ### run_pipeline_tool

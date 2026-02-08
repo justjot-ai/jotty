@@ -3,6 +3,13 @@
 ## Description
 Fetches financial data for Indian companies from screener.in. Includes free proxy rotation to avoid blocking and rate limits.
 
+
+## Type
+derived
+
+## Base Skills
+- web-scraper
+
 ## Features
 - Fetch company financials (P&L, Balance Sheet, Cash Flow)
 - Free proxy rotation (automatic)

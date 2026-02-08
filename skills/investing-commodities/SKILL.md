@@ -2,6 +2,13 @@
 
 Fetches latest commodities prices from investing.com.
 
+
+## Type
+derived
+
+## Base Skills
+- web-scraper
+
 ## Tools
 
 ### `get_commodities_prices_tool`

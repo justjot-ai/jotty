@@ -12,6 +12,19 @@ Performs **deep research** using multi-stage context intelligence methodology. U
 6. **Quality Validation** - Ensures comprehensive coverage
 7. **Iterative Refinement** - Refines weak sections
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## How Deep Research Works
 
 ### Context Intelligence

@@ -3,6 +3,10 @@
 ## Description
 Multi-database skill using SQLAlchemy with connection pooling, safe parameterized queries, and natural language query support.
 
+
+## Type
+base
+
 ## Supported Databases
 - PostgreSQL
 - MySQL

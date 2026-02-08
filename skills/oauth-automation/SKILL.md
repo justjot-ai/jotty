@@ -10,6 +10,10 @@ This skill automates OAuth authentication flows using browser automation. It can
 - Credential storage and management
 - Headless/Docker environments
 
+
+## Type
+base
+
 ## Features
 
 - Automated OAuth login flows

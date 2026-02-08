@@ -3,6 +3,10 @@
 ## Description
 Downloads YouTube video transcripts and converts them to markdown/PDF/EPUB. Supports single videos and playlists with optional AI summarization.
 
+
+## Type
+base
+
 ## Tools
 
 ### download_youtube_video_tool

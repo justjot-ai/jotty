@@ -9,6 +9,18 @@ This composite skill combines:
 2. **document-converter**: Convert markdown to EPUB
 3. **telegram-sender**: Send EPUB to Telegram
 
+
+## Type
+composite
+
+## Base Skills
+- last30days-claude-cli
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

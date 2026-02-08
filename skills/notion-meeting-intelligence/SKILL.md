@@ -6,6 +6,18 @@ Prepares meeting materials by gathering context from Notion and creating compreh
 
 This skill helps prepare for meetings by gathering context from Notion, enriching with research, and creating both internal pre-reads and external-facing agendas saved to Notion.
 
+
+## Type
+composite
+
+## Base Skills
+- voice
+- claude-cli-llm
+- notion
+
+## Execution
+sequential
+
 ## Tools
 
 ### `prepare_meeting_materials_tool`

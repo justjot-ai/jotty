@@ -3,6 +3,13 @@
 ## Description
 Meta-skill for discovering and understanding available Jotty skills. Helps agents find the right tools for tasks.
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Tools
 
 ### list_categories_tool

@@ -2,6 +2,10 @@
 
 **Description:** Data validation and quality checking for ML pipelines.
 
+
+## Type
+base
+
 ## Capabilities
 - Schema validation
 - Data type checking

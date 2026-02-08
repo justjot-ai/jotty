@@ -6,6 +6,10 @@ Helps write internal communications using company-standard formats for status re
 
 This skill provides templates and guidelines for writing various types of internal communications including 3P updates (Progress/Plans/Problems), company newsletters, FAQs, status reports, leadership updates, project updates, and incident reports.
 
+
+## Type
+base
+
 ## Tools
 
 ### `write_internal_comm_tool`

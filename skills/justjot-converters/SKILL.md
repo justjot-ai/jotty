@@ -5,6 +5,13 @@ Utility converters for transforming content between formats and distributing doc
 Wraps JustJot.ai's specialized converters for arXiv papers, YouTube videos, HTML pages,
 and device sync utilities (Kindle, reMarkable).
 
+
+## Type
+derived
+
+## Base Skills
+- document-converter
+
 ## Tools
 
 ### arxiv_to_markdown_tool

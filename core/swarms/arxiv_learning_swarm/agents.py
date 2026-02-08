@@ -4,12 +4,10 @@ import asyncio
 import logging
 import json
 import re
-import aiohttp
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from xml.etree import ElementTree
 
 import dspy
 
@@ -98,156 +96,64 @@ class BaseLearningAgent(DomainAgent):
 
 
 class PaperFetcherAgent(BaseLearningAgent):
-    """Fetches papers from ArXiv with anti-rate-limit measures and caching."""
+    """Fetches papers from ArXiv via the ``arxiv-downloader`` skill.
 
-    ARXIV_API_URL = "http://export.arxiv.org/api/query"
-    CACHE_DIR = "/tmp/arxiv_cache"
+    All networking, caching, retry, and XML parsing is delegated to the
+    skill layer.  The only agent-specific logic retained is LOTUS
+    semantic ranking (``search_and_rank_with_lotus``).
+    """
 
-    # Random user agents to rotate
-    USER_AGENTS = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36",
-    ]
+    # ---- helpers to call skill ----
 
-    def _get_random_headers(self) -> Dict[str, str]:
-        """Get random browser-like headers."""
-        import random
-        return {
-            "User-Agent": random.choice(self.USER_AGENTS),
-            "Accept": "application/xml, text/xml, */*",
-            "Accept-Language": random.choice(["en-US,en;q=0.9", "en-GB,en;q=0.8", "en;q=0.7"]),
-            "Accept-Encoding": "gzip, deflate",
-            "Connection": "keep-alive",
-            "Cache-Control": "no-cache",
-            "DNT": "1",
-        }
-
-    def _get_proxy(self) -> Optional[str]:
-        """Get VPN/proxy URL from environment."""
-        import os
-        # Check for proxy in environment variables
-        proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('HTTP_PROXY') or os.environ.get('ARXIV_PROXY')
-        return proxy
-
-    def _get_cache_path(self, arxiv_id: str) -> Path:
-        """Get cache file path for an arxiv ID."""
-        import os
-        os.makedirs(self.CACHE_DIR, exist_ok=True)
-        safe_id = arxiv_id.replace("/", "_").replace(".", "_")
-        return Path(self.CACHE_DIR) / f"{safe_id}.json"
-
-    def _load_from_cache(self, arxiv_id: str) -> Optional[PaperInfo]:
-        """Load paper info from cache if available."""
-        cache_path = self._get_cache_path(arxiv_id)
-        if cache_path.exists():
+    def _get_skill_tools(self):
+        """Lazy-load the arxiv-downloader skill tools."""
+        if not hasattr(self, '_skill_tools'):
             try:
-                with open(cache_path, 'r') as f:
-                    data = json.load(f)
-                logger.info(f"📦 Loaded from cache: {arxiv_id}")
-                return PaperInfo(**data)
-            except Exception as e:
-                logger.debug(f"Cache load failed: {e}")
-        return None
+                from Jotty.core.registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                registry.init()
+                skill = registry.get_skill('arxiv-downloader')
+                self._skill_tools = skill.tools if skill else {}
+            except Exception:
+                self._skill_tools = {}
+        return self._skill_tools
 
-    def _save_to_cache(self, arxiv_id: str, paper: PaperInfo):
-        """Save paper info to cache."""
-        cache_path = self._get_cache_path(arxiv_id)
-        try:
-            data = {
-                'arxiv_id': paper.arxiv_id,
-                'title': paper.title,
-                'authors': paper.authors,
-                'abstract': paper.abstract,
-                'categories': paper.categories,
-                'published': paper.published,
-                'pdf_url': paper.pdf_url,
-                'arxiv_url': paper.arxiv_url,
-            }
-            with open(cache_path, 'w') as f:
-                json.dump(data, f)
-            logger.debug(f"Cached: {arxiv_id}")
-        except Exception as e:
-            logger.debug(f"Cache save failed: {e}")
+    @staticmethod
+    def _result_to_paper(d: Dict[str, Any]) -> PaperInfo:
+        """Convert a skill result dict to a PaperInfo dataclass."""
+        return PaperInfo(
+            arxiv_id=d.get('arxiv_id') or d.get('id', ''),
+            title=d.get('title', ''),
+            authors=d.get('authors', []),
+            abstract=d.get('abstract', ''),
+            categories=d.get('categories', []),
+            published=d.get('published', ''),
+            pdf_url=d.get('pdf_url', ''),
+            arxiv_url=d.get('arxiv_url') or d.get('url', ''),
+        )
 
-    async def _random_delay(self, min_sec: float = 1.0, max_sec: float = 3.0):
-        """Add random delay to avoid rate limiting."""
-        import random
-        delay = random.uniform(min_sec, max_sec)
-        await asyncio.sleep(delay)
-
-    async def _fetch_with_retry(self, url: str, params: Dict, max_retries: int = 5) -> Optional[str]:
-        """Fetch URL with retry logic, random headers, and optional proxy."""
-        import random
-
-        proxy = self._get_proxy()
-        connector = None
-
-        for attempt in range(max_retries):
-            # Add longer random delay before each request (except first)
-            if attempt > 0:
-                # Exponential backoff with longer delays: 10s, 30s, 60s, 120s
-                delay = (10 * (2 ** attempt)) + random.uniform(5, 15)
-                logger.info(f"⏳ Retry {attempt + 1}/{max_retries} after {delay:.1f}s delay...")
-                await asyncio.sleep(delay)
-            else:
-                # Initial delay of 2-5 seconds
-                await self._random_delay(2.0, 5.0)
-
-            headers = self._get_random_headers()
-
-            try:
-                async with aiohttp.ClientSession(headers=headers) as session:
-                    kwargs = {"params": params, "timeout": aiohttp.ClientTimeout(total=30)}
-                    if proxy:
-                        kwargs["proxy"] = proxy
-                        logger.debug(f"Using proxy: {proxy[:20]}...")
-
-                    async with session.get(url, **kwargs) as resp:
-                        if resp.status == 200:
-                            return await resp.text()
-                        elif resp.status == 429:
-                            logger.warning(f"⚠️ Rate limited (429), will retry...")
-                            continue
-                        else:
-                            logger.error(f"ArXiv API error: {resp.status}")
-                            if attempt < max_retries - 1:
-                                continue
-                            return None
-            except asyncio.TimeoutError:
-                logger.warning(f"⏱️ Request timeout, will retry...")
-                continue
-            except Exception as e:
-                logger.warning(f"Request failed: {e}")
-                if attempt < max_retries - 1:
-                    continue
-                return None
-
-        logger.error(f"❌ All {max_retries} attempts failed")
-        return None
+    # ---- public interface (unchanged) ----
 
     async def fetch_by_id(self, arxiv_id: str) -> Optional[PaperInfo]:
-        """Fetch paper by ArXiv ID with caching."""
-        # Clean the ID
+        """Fetch paper by ArXiv ID with caching (delegated to skill)."""
         arxiv_id = arxiv_id.replace("arxiv:", "").replace("arXiv:", "")
         if "/" in arxiv_id:
             arxiv_id = arxiv_id.split("/")[-1]
 
-        # Check cache first
-        cached = self._load_from_cache(arxiv_id)
-        if cached:
-            return cached
+        tools = self._get_skill_tools()
+        download_fn = tools.get('download_arxiv_paper_tool')
+        if download_fn is None:
+            logger.warning("arxiv-downloader skill not available, cannot fetch paper")
+            return None
 
         try:
-            params = {"id_list": arxiv_id}
-            xml_text = await self._fetch_with_retry(self.ARXIV_API_URL, params)
-            if xml_text:
-                paper = self._parse_arxiv_response(xml_text)
-                if paper:
-                    self._save_to_cache(arxiv_id, paper)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, download_fn, {'arxiv_id': arxiv_id, 'extract_mode': 'text'}
+            )
+            if result.get('success'):
+                paper = self._result_to_paper(result)
+                self._broadcast("paper_fetched", {'arxiv_id': paper.arxiv_id, 'title': paper.title[:50]})
                 return paper
             return None
         except Exception as e:
@@ -255,70 +161,59 @@ class PaperFetcherAgent(BaseLearningAgent):
             return None
 
     async def search_by_topic(self, topic: str, max_results: int = 5) -> List[PaperInfo]:
-        """Search papers by topic."""
+        """Search papers by topic (delegated to skill)."""
+        tools = self._get_skill_tools()
+        search_fn = tools.get('search_arxiv_tool')
+        if search_fn is None:
+            logger.warning("arxiv-downloader skill not available, cannot search")
+            return []
+
         try:
-            params = {
-                "search_query": f"all:{topic}",
-                "start": 0,
-                "max_results": max_results,
-                "sortBy": "relevance",
-                "sortOrder": "descending"
-            }
-            xml_text = await self._fetch_with_retry(self.ARXIV_API_URL, params)
-            if xml_text:
-                return self._parse_arxiv_search_response(xml_text)
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, search_fn, {'query': f'all:{topic}', 'max_results': max_results, 'sort_by': 'relevance'}
+            )
+            if result.get('success'):
+                papers = [self._result_to_paper(r) for r in result.get('results', [])]
+                self._broadcast("papers_searched", {'count': len(papers)})
+                return papers
             return []
         except Exception as e:
             logger.error(f"Topic search failed: {e}")
             return []
+
+    # ---- LOTUS (agent-specific, not a skill) ----
 
     async def search_and_rank_with_lotus(
         self,
         topic: str,
         max_results: int = 5,
         rank_by: str = "Which {abstract} is most exciting and impactful for learning?",
-        lotus_model: str = "gpt-4o-mini"
+        lotus_model: str = "gpt-4o-mini",
     ) -> List[PaperInfo]:
-        """
-        Search papers using LOTUS with semantic ranking.
+        """Search papers using LOTUS with semantic ranking.
 
-        Uses LOTUS sem_topk for intelligent paper ranking based on learning value,
-        excitement, or custom criteria.
-
-        Args:
-            topic: Search topic
-            max_results: Number of top papers to return
-            rank_by: Natural language ranking criterion
-            lotus_model: Model for LOTUS operations
-
-        Returns:
-            List of PaperInfo objects, semantically ranked
+        Falls back to ``search_by_topic`` when LOTUS is unavailable.
         """
         if not LOTUS_AVAILABLE:
             logger.warning("LOTUS not available, falling back to standard search")
             return await self.search_by_topic(topic, max_results)
 
         try:
-            logger.info(f"🌸 LOTUS-powered search: {topic}")
-
+            logger.info(f"LOTUS-powered search: {topic}")
             lotus_arxiv = LotusArxiv(LotusArxivConfig(model=lotus_model))
 
-            # Search and rank with LOTUS
             ranked_df = await lotus_arxiv.search_and_rank(
-                query=topic,
-                rank_by=rank_by,
-                limit=max_results * 3,  # Search more, rank to get best
-                top_k=max_results
+                query=topic, rank_by=rank_by,
+                limit=max_results * 3, top_k=max_results,
             )
 
             if ranked_df.empty:
                 logger.warning("LOTUS search returned no results")
                 return await self.search_by_topic(topic, max_results)
 
-            # Convert DataFrame to PaperInfo objects
             papers = []
             for _, row in ranked_df.iterrows():
-                # Extract arxiv_id from URL or id column
                 arxiv_id = ""
                 if "arxiv_id" in row:
                     arxiv_id = str(row["arxiv_id"])
@@ -337,126 +232,14 @@ class PaperFetcherAgent(BaseLearningAgent):
                     categories=[],
                     published=str(row.get("published", ""))[:10] if row.get("published") else "",
                     pdf_url=f"https://arxiv.org/pdf/{arxiv_id}.pdf" if arxiv_id else "",
-                    arxiv_url=f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else ""
+                    arxiv_url=f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else "",
                 ))
 
             logger.info(f"  Found {len(papers)} semantically ranked papers")
             return papers
-
         except Exception as e:
             logger.error(f"LOTUS search failed: {e}, falling back to standard search")
             return await self.search_by_topic(topic, max_results)
-
-    def _parse_arxiv_response(self, xml_text: str) -> Optional[PaperInfo]:
-        """Parse single paper from ArXiv XML response."""
-        try:
-            ns = {'atom': 'http://www.w3.org/2005/Atom', 'arxiv': 'http://arxiv.org/schemas/atom'}
-            root = ElementTree.fromstring(xml_text)
-
-            entry = root.find('atom:entry', ns)
-            if entry is None:
-                return None
-
-            # Extract ID
-            id_elem = entry.find('atom:id', ns)
-            arxiv_id = id_elem.text.split('/abs/')[-1] if id_elem is not None else ""
-
-            # Extract title
-            title_elem = entry.find('atom:title', ns)
-            title = title_elem.text.strip().replace('\n', ' ') if title_elem is not None else ""
-
-            # Extract authors
-            authors = []
-            for author in entry.findall('atom:author', ns):
-                name = author.find('atom:name', ns)
-                if name is not None:
-                    authors.append(name.text)
-
-            # Extract abstract
-            summary_elem = entry.find('atom:summary', ns)
-            abstract = summary_elem.text.strip() if summary_elem is not None else ""
-
-            # Extract categories
-            categories = []
-            for cat in entry.findall('arxiv:primary_category', ns):
-                if cat.get('term'):
-                    categories.append(cat.get('term'))
-            for cat in entry.findall('atom:category', ns):
-                if cat.get('term') and cat.get('term') not in categories:
-                    categories.append(cat.get('term'))
-
-            # Extract published date
-            published_elem = entry.find('atom:published', ns)
-            published = published_elem.text[:10] if published_elem is not None else ""
-
-            # Build URLs
-            pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
-            arxiv_url = f"https://arxiv.org/abs/{arxiv_id}"
-
-            self._broadcast("paper_fetched", {'arxiv_id': arxiv_id, 'title': title[:50]})
-
-            return PaperInfo(
-                arxiv_id=arxiv_id,
-                title=title,
-                authors=authors,
-                abstract=abstract,
-                categories=categories,
-                published=published,
-                pdf_url=pdf_url,
-                arxiv_url=arxiv_url
-            )
-
-        except Exception as e:
-            logger.error(f"Parse error: {e}")
-            return None
-
-    def _parse_arxiv_search_response(self, xml_text: str) -> List[PaperInfo]:
-        """Parse multiple papers from ArXiv search response."""
-        papers = []
-        try:
-            ns = {'atom': 'http://www.w3.org/2005/Atom', 'arxiv': 'http://arxiv.org/schemas/atom'}
-            root = ElementTree.fromstring(xml_text)
-
-            for entry in root.findall('atom:entry', ns):
-                # Similar parsing as single paper
-                id_elem = entry.find('atom:id', ns)
-                arxiv_id = id_elem.text.split('/abs/')[-1] if id_elem is not None else ""
-
-                title_elem = entry.find('atom:title', ns)
-                title = title_elem.text.strip().replace('\n', ' ') if title_elem is not None else ""
-
-                authors = []
-                for author in entry.findall('atom:author', ns):
-                    name = author.find('atom:name', ns)
-                    if name is not None:
-                        authors.append(name.text)
-
-                summary_elem = entry.find('atom:summary', ns)
-                abstract = summary_elem.text.strip() if summary_elem is not None else ""
-
-                categories = []
-                for cat in entry.findall('atom:category', ns):
-                    if cat.get('term'):
-                        categories.append(cat.get('term'))
-
-                published_elem = entry.find('atom:published', ns)
-                published = published_elem.text[:10] if published_elem is not None else ""
-
-                papers.append(PaperInfo(
-                    arxiv_id=arxiv_id,
-                    title=title,
-                    authors=authors,
-                    abstract=abstract,
-                    categories=categories,
-                    published=published,
-                    pdf_url=f"https://arxiv.org/pdf/{arxiv_id}.pdf",
-                    arxiv_url=f"https://arxiv.org/abs/{arxiv_id}"
-                ))
-
-            self._broadcast("papers_searched", {'count': len(papers)})
-
-        except Exception as e:
-            logger.error(f"Search parse error: {e}")
 
         return papers
 

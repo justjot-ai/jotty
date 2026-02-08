@@ -9,6 +9,18 @@ This composite skill combines:
 2. **document-converter**: Convert markdown to PDF
 3. **telegram-sender**: Send PDF to Telegram
 
+
+## Type
+composite
+
+## Base Skills
+- last30days-claude-cli
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

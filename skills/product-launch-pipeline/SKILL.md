@@ -10,6 +10,19 @@ This composite skill combines:
 3. **Competitor Analysis** (Processor): competitive-ads-extractor
 4. **Content Creation** (Sink): content-research-writer
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- slack
+- telegram-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

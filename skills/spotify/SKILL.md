@@ -6,6 +6,10 @@ Control Spotify playback and manage playlists using the Spotify Web API.
 
 This skill provides tools to search for music, control playback, and manage playlists using the Spotify Web API via requests.
 
+
+## Type
+base
+
 ## Features
 
 - Search for tracks, albums, artists, and playlists

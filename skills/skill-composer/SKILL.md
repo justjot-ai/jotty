@@ -2,6 +2,13 @@
 
 Dynamically compose multiple skills into complex workflows.
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Capabilities
 
 - **Sequential execution**: Execute skills one after another (A → B → C)

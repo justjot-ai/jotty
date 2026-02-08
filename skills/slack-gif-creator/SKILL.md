@@ -6,6 +6,17 @@ Creates animated GIFs optimized for Slack with size constraints and animation pr
 
 This skill creates animated GIFs specifically optimized for Slack's requirements. Supports both message GIFs and emoji GIFs with different size constraints and optimization strategies.
 
+
+## Type
+composite
+
+## Base Skills
+- gif-creator
+- slack
+
+## Execution
+sequential
+
 ## Tools
 
 ### `create_slack_gif_tool`

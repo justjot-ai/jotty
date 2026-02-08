@@ -4,6 +4,18 @@ Research any topic and generate a **comprehensive PDF report** with AI-synthesiz
 
 ## Description
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- document-converter
+
+## Execution
+sequential
+
 **USE THIS SKILL when user asks to:**
 - Research something AND generate/create PDF
 - Compare topics AND send as PDF

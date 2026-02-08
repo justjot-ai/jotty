@@ -6,6 +6,10 @@ Dual-provider WhatsApp integration supporting both Baileys (open-source) and the
 
 Inspired by OpenClaw's approach: prefers Baileys (free, open-source) when available, falls back to Business API.
 
+
+## Type
+base
+
 ## Features
 
 - Send text messages

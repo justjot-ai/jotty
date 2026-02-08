@@ -3,6 +3,10 @@
 ## Description
 Integrates with Notion API to search, read, create, and update pages and databases. Supports full CRUD operations on Notion workspace content.
 
+
+## Type
+base
+
 ## Configuration
 API key is loaded from:
 1. Environment variable: `NOTION_API_KEY`

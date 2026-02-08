@@ -3,6 +3,10 @@
 ## Description
 Comprehensive PDF toolkit for extracting, manipulating, and creating PDF files. Uses pdfplumber for extraction, pypdf for manipulation, and reportlab for creation.
 
+
+## Type
+base
+
 ## Tools
 
 ### extract_text_tool

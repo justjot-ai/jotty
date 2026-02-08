@@ -10,6 +10,19 @@ This composite skill combines:
 3. **document-converter**: Convert summary to PDF
 4. **telegram-sender**: Send PDF to Telegram
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

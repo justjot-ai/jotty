@@ -2,6 +2,13 @@
 
 **Description:** Full AutoML pipeline using PyCaret - compare models, tune, ensemble, deploy.
 
+
+## Type
+derived
+
+## Base Skills
+- automl
+
 ## Capabilities
 - Compare 15+ ML algorithms automatically
 - Automatic preprocessing and feature engineering

@@ -6,6 +6,13 @@ Generates creative domain name ideas for your project and checks availability ac
 
 This skill helps you find the perfect domain name for your project by generating creative options and checking what's actually available to register. Saves hours of brainstorming and manual checking.
 
+
+## Type
+derived
+
+## Base Skills
+- web-search
+
 ## Tools
 
 ### `brainstorm_domains_tool`

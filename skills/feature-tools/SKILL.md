@@ -2,6 +2,13 @@
 
 **Description:** Automated deep feature synthesis using Featuretools library.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Automated feature generation from relational data
 - Deep feature synthesis (DFS)

@@ -8,6 +8,10 @@ This skill provides LLM capabilities using Google's Gemini models for text gener
 image understanding (vision), and multi-turn chat conversations. Supports multiple
 Gemini models including gemini-1.5-flash, gemini-1.5-pro, and gemini-2.0-flash.
 
+
+## Type
+base
+
 ## Usage
 
 ```python

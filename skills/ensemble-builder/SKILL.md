@@ -2,6 +2,13 @@
 
 **Description:** Advanced model ensembling - stacking, blending, voting, and weighted combinations.
 
+
+## Type
+derived
+
+## Base Skills
+- automl
+
 ## Capabilities
 - Stacking with meta-learners
 - Blending with holdout

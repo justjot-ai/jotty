@@ -9,6 +9,18 @@ This composite skill combines:
 2. **document-converter**: Convert markdown to PDF
 3. **remarkable-sender**: Upload PDF to reMarkable tablet
 
+
+## Type
+composite
+
+## Base Skills
+- last30days-claude-cli
+- document-converter
+- remarkable-sender
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

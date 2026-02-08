@@ -9,6 +9,17 @@ This composite skill combines:
 2. **Content Writing** (Processor): content-research-writer
 3. **Notion Documentation** (Sink): notion-research-documentation
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- notion
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

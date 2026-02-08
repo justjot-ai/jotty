@@ -2,6 +2,13 @@
 
 **Description:** AutoML using auto-sklearn with ensemble selection.
 
+
+## Type
+derived
+
+## Base Skills
+- claude-cli-llm
+
 ## Capabilities
 - Automated algorithm selection
 - Hyperparameter optimization

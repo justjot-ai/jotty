@@ -2,6 +2,13 @@
 
 **Description:** Time series analysis and forecasting tools.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Time series decomposition
 - ARIMA/SARIMA forecasting

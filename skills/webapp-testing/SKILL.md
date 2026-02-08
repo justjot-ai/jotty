@@ -6,6 +6,13 @@ Toolkit for interacting with and testing local web applications using Playwright
 
 This skill provides tools for testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.
 
+
+## Type
+derived
+
+## Base Skills
+- browser-automation
+
 ## Tools
 
 ### `test_webapp_tool`

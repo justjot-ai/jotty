@@ -6,6 +6,13 @@ Helps create and validate MCP (Model Context Protocol) servers with best practic
 
 This skill assists in building MCP servers by providing templates, validation, and best practices. Helps create Python and Node.js MCP servers following the Model Context Protocol specification.
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Tools
 
 ### `create_mcp_server_tool`

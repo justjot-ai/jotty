@@ -3,6 +3,10 @@
 ## Description
 Advanced web scraping capabilities using Scrapy. Supports single page scraping or spider mode (following links), with proxy support for geo-blocked content.
 
+
+## Type
+base
+
 ## Tools
 
 ### scrape_website_tool

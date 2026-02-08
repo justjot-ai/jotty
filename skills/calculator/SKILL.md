@@ -3,6 +3,10 @@
 ## Description
 Provides mathematical calculation capabilities including basic arithmetic, scientific calculations, and unit conversions.
 
+
+## Type
+base
+
 ## Tools
 
 ### calculate_tool

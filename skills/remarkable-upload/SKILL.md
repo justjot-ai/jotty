@@ -3,6 +3,10 @@
 ## Description
 Uploads PDFs to reMarkable cloud for syncing to device. Supports registration, upload, and status checking.
 
+
+## Type
+base
+
 ## Tools
 
 ### upload_to_remarkable_tool

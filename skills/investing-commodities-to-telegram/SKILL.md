@@ -2,6 +2,17 @@
 
 Fetches latest commodities prices from investing.com and sends to Telegram.
 
+
+## Type
+composite
+
+## Base Skills
+- investing-commodities
+- telegram-sender
+
+## Execution
+sequential
+
 ## Tools
 
 ### `commodities_to_telegram_tool`

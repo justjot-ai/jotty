@@ -3,6 +3,19 @@
 ## Description
 Performs comprehensive stock research covering fundamentals, technical analysis, and broker research reports. Generates a markdown report, converts to PDF, and sends to Telegram.
 
+
+## Type
+composite
+
+## Base Skills
+- web-search
+- claude-cli-llm
+- document-converter
+- telegram-sender
+
+## Execution
+sequential
+
 ## Features
 - **Fundamentals Research**: Financial metrics, company overview, business model
 - **Technical Analysis**: Price trends, technical indicators, chart patterns

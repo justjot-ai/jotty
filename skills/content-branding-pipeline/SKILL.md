@@ -10,6 +10,17 @@ This composite skill combines:
 3. **Brand Guidelines** (Processor): brand-guidelines
 4. **Theme Application** (Sink): theme-factory
 
+
+## Type
+composite
+
+## Base Skills
+- claude-cli-llm
+- brand-guidelines
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

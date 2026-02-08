@@ -6,6 +6,13 @@ Creates visual art and designs in PNG and PDF formats using design philosophy pr
 
 This skill creates visual art and design pieces by first establishing a design philosophy, then expressing it visually through form, space, color, and composition. Outputs original visual designs as PNG or PDF files.
 
+
+## Type
+derived
+
+## Base Skills
+- image-generator
+
 ## Tools
 
 ### `create_design_artwork_tool`

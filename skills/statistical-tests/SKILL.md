@@ -2,6 +2,13 @@
 
 **Description:** Statistical hypothesis testing and analysis.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - T-tests (one-sample, two-sample, paired)
 - ANOVA (one-way, two-way)

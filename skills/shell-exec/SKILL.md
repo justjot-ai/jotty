@@ -3,6 +3,10 @@
 ## Description
 Provides safe shell command execution capabilities with timeout and output capture.
 
+
+## Type
+base
+
 ## Tools
 
 ### execute_command_tool

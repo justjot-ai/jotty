@@ -1570,13 +1570,23 @@ class ScreenerAgent(BaseResearchAgent):
         }
 
         try:
-            from Jotty.skills.screener_financials.tools import get_company_financials_tool
+            from Jotty.core.registry.skills_registry import get_skills_registry
+
+            registry = get_skills_registry()
+            registry.init()
+            skill = registry.get_skill('screener-financials')
+            if skill is None:
+                raise ImportError("screener-financials skill not registered")
+
+            tool_fn = skill.tools.get('get_company_financials_tool')
+            if tool_fn is None:
+                raise ImportError("get_company_financials_tool not found in skill")
 
             # Call the skill (sync) — run in executor to keep async
-            import asyncio
-            skill_result = await asyncio.get_event_loop().run_in_executor(
+            loop = asyncio.get_event_loop()
+            skill_result = await loop.run_in_executor(
                 None,
-                get_company_financials_tool,
+                tool_fn,
                 {
                     'company_name': ticker,
                     'data_type': 'all',
@@ -1591,8 +1601,8 @@ class ScreenerAgent(BaseResearchAgent):
                 result['quarterly_results'] = data.get('quarterly_results', [])
                 result['peers'] = data.get('peers', [])
                 result['success'] = True
-        except ImportError:
-            logger.warning("screener-financials skill not available, attempting direct fetch")
+        except (ImportError, Exception) as e:
+            logger.warning(f"screener-financials skill not available ({e}), attempting direct fetch")
             # Graceful degradation — attempt basic aiohttp fetch
             result = await self._fallback_fetch(ticker, result)
         except Exception as e:

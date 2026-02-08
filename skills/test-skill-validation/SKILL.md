@@ -6,6 +6,13 @@ Test skill for validation
 
 [Detailed description of what this skill does and when to use it]
 
+
+## Type
+derived
+
+## Base Skills
+- file-operations
+
 ## Tools
 
 ### `tool_name_tool`

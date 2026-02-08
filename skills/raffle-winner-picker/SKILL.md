@@ -6,6 +6,13 @@ Picks random winners from lists, spreadsheets, or files for giveaways, raffles, 
 
 This skill randomly selects winners from lists, spreadsheets, or CSV files for giveaways and contests. Uses cryptographically secure random selection and provides transparent results.
 
+
+## Type
+derived
+
+## Base Skills
+- calculator
+
 ## Tools
 
 ### `pick_raffle_winner_tool`

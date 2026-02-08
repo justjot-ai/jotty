@@ -6,6 +6,10 @@ Persistent terminal sessions with pexpect for interactive command execution.
 
 Provides persistent terminal sessions that maintain state across commands, support for SSH connections, and interactive command execution with expect-based pattern matching.
 
+
+## Type
+base
+
 ## Features
 
 - Persistent sessions (state maintained across commands)

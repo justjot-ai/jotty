@@ -6,6 +6,17 @@ Search for trending topics on V2V.ai and generate reports.
 
 This skill searches V2V.ai for trending topics and generates research reports that can be converted to PDFs and sent to Telegram/reMarkable.
 
+
+## Type
+composite
+
+## Base Skills
+- voice
+- web-search
+
+## Execution
+sequential
+
 ## Features
 
 - Search V2V.ai for trending topics

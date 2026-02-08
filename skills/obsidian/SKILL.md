@@ -3,6 +3,10 @@
 ## Description
 Provides file-based tools for interacting with Obsidian markdown vaults. Supports listing, reading, creating, updating, and searching notes, as well as finding backlinks between notes.
 
+
+## Type
+base
+
 ## Configuration
 Set the default vault path via environment variable:
 ```bash

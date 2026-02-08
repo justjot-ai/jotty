@@ -7,6 +7,10 @@ Supports cloud providers (ElevenLabs, OpenAI Whisper) and local providers (Piper
 
 Inspired by OpenClaw's voice architecture with automatic provider selection.
 
+
+## Type
+base
+
 ## Features
 
 - Text-to-speech (TTS) with multiple voice options

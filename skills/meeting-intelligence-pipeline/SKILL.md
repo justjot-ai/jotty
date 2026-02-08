@@ -9,6 +9,18 @@ This composite skill combines:
 2. **Meeting Preparation** (Processor): notion-meeting-intelligence
 3. **Internal Communications** (Sink): internal-comms
 
+
+## Type
+composite
+
+## Base Skills
+- voice
+- claude-cli-llm
+- notion
+
+## Execution
+sequential
+
 ## Usage
 
 ```python

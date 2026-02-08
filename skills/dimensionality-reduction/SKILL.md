@@ -2,6 +2,13 @@
 
 **Description:** Dimensionality reduction techniques for visualization and feature extraction.
 
+
+## Type
+derived
+
+## Base Skills
+- data-profiler
+
 ## Capabilities
 - Principal Component Analysis (PCA)
 - t-SNE visualization

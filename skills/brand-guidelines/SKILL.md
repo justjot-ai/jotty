@@ -6,6 +6,13 @@ Applies Anthropic's official brand colors and typography to artifacts for consis
 
 This skill applies Anthropic's brand identity (colors, typography) to documents, presentations, and other artifacts to maintain consistent brand styling.
 
+
+## Type
+derived
+
+## Base Skills
+- image-generator
+
 ## Tools
 
 ### `apply_brand_styling_tool`
