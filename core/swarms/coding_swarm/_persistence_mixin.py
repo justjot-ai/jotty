@@ -1,0 +1,258 @@
+"""
+Persistence Mixin - Output file writing and ADR generation.
+"""
+
+import json
+import logging
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+from .types import CodeOutput
+
+logger = logging.getLogger(__name__)
+
+
+class PersistenceMixin:
+    def _persist_output(self, code_output: CodeOutput, requirements: str) -> Optional[str]:
+        """Persist generated code output to disk.
+
+        Writes source files, tests, docs, architecture, requirements, and a
+        manifest to config.output_dir/<timestamp>/.
+
+        Args:
+            code_output: The generated code output.
+            requirements: Original requirements text for traceability.
+
+        Returns:
+            Output directory path string, or None on failure.
+        """
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            base_dir = Path(self.config.output_dir) / timestamp
+
+            # Create directory structure
+            src_dir = base_dir / "src"
+            tests_dir = base_dir / "tests"
+            docs_dir = base_dir / "docs"
+
+            src_dir.mkdir(parents=True, exist_ok=True)
+            tests_dir.mkdir(parents=True, exist_ok=True)
+            docs_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write source files
+            for filename, content in code_output.files.items():
+                file_path = src_dir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content, encoding="utf-8")
+
+            # Write test files
+            for filename, content in code_output.tests.items():
+                file_path = tests_dir / filename
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(content, encoding="utf-8")
+
+            # Write documentation
+            if code_output.docs:
+                (docs_dir / "DOCUMENTATION.md").write_text(code_output.docs, encoding="utf-8")
+
+            # Write architecture
+            if code_output.architecture:
+                (docs_dir / "ARCHITECTURE.md").write_text(code_output.architecture, encoding="utf-8")
+
+            # Write original requirements for traceability
+            (base_dir / "REQUIREMENTS.txt").write_text(requirements, encoding="utf-8")
+
+            # Write manifest
+            manifest = {
+                "timestamp": timestamp,
+                "files": list(code_output.files.keys()),
+                "tests": list(code_output.tests.keys()),
+                "main_file": code_output.main_file,
+                "entry_point": code_output.entry_point,
+                "dependencies": code_output.dependencies,
+                "has_docs": bool(code_output.docs),
+                "has_architecture": bool(code_output.architecture),
+            }
+            (base_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2), encoding="utf-8"
+            )
+
+            logger.info(f"📁 Output persisted to {base_dir}")
+            return str(base_dir)
+
+        except Exception as e:
+            logger.error(f"Failed to persist output (non-blocking): {e}")
+            return None
+
+    def _write_adr(
+        self,
+        base_dir: Path,
+        adr_number: int,
+        title: str,
+        context: str,
+        decision: str,
+        consequences: str,
+        participants: List[str] = None,
+        status: str = "Accepted"
+    ) -> Optional[str]:
+        """Write an Architecture Decision Record (ADR) to the adr folder.
+
+        ADR format follows the standard template:
+        - Title, Status, Context, Decision, Consequences
+
+        Args:
+            base_dir: Output directory path
+            adr_number: ADR sequence number (e.g., 1, 2, 3)
+            title: Short title for the decision
+            context: What is the issue/situation requiring a decision
+            decision: What decision was made
+            consequences: What are the results/implications
+            participants: List of personas/agents involved
+            status: Decision status (Accepted, Proposed, Deprecated, Superseded)
+
+        Returns:
+            Path to written ADR file, or None on failure.
+        """
+        try:
+            adr_dir = base_dir / "adr"
+            adr_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate filename: NNNN-title-slug.md
+            title_slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')[:50]
+            filename = f"{adr_number:04d}-{title_slug}.md"
+
+            participants_str = ", ".join(participants) if participants else "Team"
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+            content = f"""# ADR {adr_number:04d}: {title}
+
+**Date:** {timestamp}
+**Status:** {status}
+**Participants:** {participants_str}
+
+## Context
+
+{context}
+
+## Decision
+
+{decision}
+
+## Consequences
+
+{consequences}
+
+---
+*Generated by Jotty CodingSwarm*
+"""
+            adr_path = adr_dir / filename
+            adr_path.write_text(content, encoding="utf-8")
+            logger.debug(f"ADR written: {adr_path}")
+            return str(adr_path)
+
+        except Exception as e:
+            logger.error(f"Failed to write ADR (non-blocking): {e}")
+            return None
+
+    def _write_planning_adr(self, base_dir: Path, planning_result: Dict[str, Any], requirements: str) -> Optional[str]:
+        """Write ADR for team planning decisions."""
+        if not planning_result:
+            return None
+
+        team_feedback = planning_result.get('team_feedback', [])
+        participants = [fb.get('persona', 'Unknown') for fb in team_feedback if isinstance(fb, dict)]
+
+        # Collect concerns as context
+        concerns = []
+        for fb in team_feedback:
+            if isinstance(fb, dict):
+                for c in fb.get('concerns', []):
+                    if isinstance(c, dict):
+                        concerns.append(f"- [{c.get('severity', '?')}] {c.get('description', '')}")
+
+        context = f"Requirements: {requirements[:200]}...\n\n"
+        if concerns:
+            context += "Team concerns raised:\n" + "\n".join(concerns[:10])
+        else:
+            context += "No major concerns raised by team."
+
+        decision = planning_result.get('refined_architecture', 'No refined architecture')[:1000]
+        if planning_result.get('implementation_plan'):
+            decision += "\n\n### Implementation Plan\n" + planning_result['implementation_plan'][:500]
+
+        consequences = planning_result.get('risk_mitigations', 'No specific risks identified.')
+        if planning_result.get('team_agreements'):
+            consequences += "\n\n### Team Agreements\n" + planning_result['team_agreements'][:500]
+
+        return self._write_adr(
+            base_dir=base_dir,
+            adr_number=1,
+            title="Architecture Design Decision",
+            context=context,
+            decision=decision,
+            consequences=consequences,
+            participants=participants,
+            status="Accepted"
+        )
+
+    def _write_review_adr(self, base_dir: Path, review_result: Dict[str, Any], adr_number: int = 2) -> Optional[str]:
+        """Write ADR for team review decisions and debates."""
+        if not review_result:
+            return None
+
+        phase_a = review_result.get('phase_a_results', [])
+        phase_b = review_result.get('phase_b_results', [])
+        all_reviews = phase_a + phase_b
+
+        participants = list(set(r.get('persona', 'Unknown') for r in all_reviews if isinstance(r, dict)))
+
+        # Collect issues raised as context
+        issues = []
+        for r in all_reviews:
+            if isinstance(r, dict) and r.get('verdict') == 'REJECTED':
+                persona = r.get('persona', 'Reviewer')
+                for issue in r.get('issues', []):
+                    if isinstance(issue, dict):
+                        issues.append(f"- [{persona}] {issue.get('description', '')[:100]}")
+
+        context = f"Code review conducted by {len(participants)} reviewers.\n\n"
+        if issues:
+            context += "Issues raised:\n" + "\n".join(issues[:15])
+        else:
+            context += "No critical issues identified during review."
+
+        # Decision based on final outcome
+        approved = review_result.get('approved', True)
+        rework_attempts = review_result.get('rework_attempts', 0)
+
+        if approved:
+            decision = "Code APPROVED after review."
+            if rework_attempts > 0:
+                decision += f" Required {rework_attempts} rework cycle(s) to address concerns."
+        else:
+            decision = "Code REJECTED. Issues remain unresolved."
+            decision += f"\n\nFeedback:\n{review_result.get('feedback', 'No specific feedback')[:500]}"
+
+        # Consequences
+        verdicts = []
+        for r in all_reviews:
+            if isinstance(r, dict):
+                persona = r.get('persona', 'Reviewer')
+                verdict = r.get('verdict', 'UNKNOWN')
+                overruled = " (overruled by Arbitrator)" if r.get('arbitrator_overruled') else ""
+                verdicts.append(f"- {persona}: {verdict}{overruled}")
+
+        consequences = "### Reviewer Verdicts\n" + "\n".join(verdicts)
+
+        return self._write_adr(
+            base_dir=base_dir,
+            adr_number=adr_number,
+            title="Code Review Decision",
+            context=context,
+            decision=decision,
+            consequences=consequences,
+            participants=participants,
+            status="Accepted" if approved else "Proposed"
+        )

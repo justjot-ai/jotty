@@ -34,7 +34,7 @@ class SwarmLearningPipeline:
 
     def _init_components(self):
         """Initialize all learning components."""
-        from .rl_learning_manager import LearningManager
+        from ...learning.learning_coordinator import LearningCoordinator as LearningManager
         from ...learning.predictive_marl import (
             LLMTrajectoryPredictor, DivergenceMemory,
             CooperativeCreditAssigner,

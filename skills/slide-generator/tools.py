@@ -48,6 +48,32 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if not title or not slides_data:
         return {'success': False, 'error': 'title and slides parameters are required'}
 
+    # Handle string slides (convert to proper list structure)
+    if isinstance(slides_data, str):
+        import json
+        slides_text = slides_data.strip()
+        try:
+            slides_data = json.loads(slides_text)
+        except json.JSONDecodeError:
+            # Convert plain text to slides
+            lines = [l.strip() for l in slides_text.split('\n') if l.strip()]
+            if lines:
+                slides_data = [{'title': f'Slide {i+1}', 'bullets': [l.lstrip('•-*0123456789.) ')]}
+                               for i, l in enumerate(lines[:10]) if l.lstrip('•-*0123456789.) ')]
+            else:
+                slides_data = [{'title': 'Content', 'bullets': [slides_text[:500]]}]
+
+    # Validate slide structure
+    validated = []
+    for i, slide in enumerate(slides_data):
+        if isinstance(slide, str):
+            validated.append({'title': f'Slide {i+1}', 'bullets': [slide]})
+        elif isinstance(slide, dict):
+            validated.append(slide)
+        else:
+            validated.append({'title': f'Slide {i+1}', 'bullets': [str(slide)]})
+    slides_data = validated
+
     status.emit("Creating", f"📊 Creating PDF slides: {title[:40]}...")
 
     subtitle = params.get('subtitle', '')
@@ -221,13 +247,40 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if not slides_data:
         return {'success': False, 'error': 'slides parameter is required (list of slide dicts)'}
 
-    # Handle case where slides_data is a string (JSON) instead of list
+    # Handle case where slides_data is a string instead of list
     if isinstance(slides_data, str):
+        import json
+        slides_text = slides_data.strip()
+
+        # Try 1: Parse as JSON
         try:
-            import json
-            slides_data = json.loads(slides_data)
+            slides_data = json.loads(slides_text)
         except json.JSONDecodeError:
-            return {'success': False, 'error': 'slides parameter must be a list of slide dicts, got string'}
+            # Try 2: Check if it's markdown code block with JSON
+            if '```' in slides_text:
+                json_part = slides_text.split('```')[1] if len(slides_text.split('```')) > 1 else slides_text
+                if json_part.startswith('json'):
+                    json_part = json_part[4:]
+                try:
+                    slides_data = json.loads(json_part.strip())
+                except json.JSONDecodeError:
+                    pass
+
+            # Try 3: Convert plain text to slides structure
+            if isinstance(slides_data, str):
+                # Split by newlines or numbered items
+                lines = [l.strip() for l in slides_data.split('\n') if l.strip()]
+                if lines:
+                    # Create slides from each line
+                    slides_data = []
+                    for i, line in enumerate(lines[:10]):  # Max 10 slides
+                        # Clean up bullet markers, numbers
+                        line = line.lstrip('•-*0123456789.) ')
+                        if line:
+                            slides_data.append({'title': f'Slide {i+1}', 'bullets': [line]})
+                else:
+                    # Single slide with all content
+                    slides_data = [{'title': 'Content', 'bullets': [slides_text[:500]]}]
 
     # Validate each slide is a dict with title and bullets
     validated_slides = []

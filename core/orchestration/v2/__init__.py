@@ -133,7 +133,7 @@ from .optimization_pipeline import (
 from .credit_assignment import CreditAssignment, ImprovementCredit
 from .adaptive_learning import AdaptiveLearning, LearningState
 from .policy_explorer import PolicyExplorer, PolicyExplorerSignature
-from .rl_learning_manager import LearningManager, LearningUpdate
+from ...learning.learning_coordinator import LearningCoordinator as LearningManager, LearningUpdate
 
 # Export components
 __all__ = [
