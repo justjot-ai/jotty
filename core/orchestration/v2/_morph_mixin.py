@@ -44,9 +44,7 @@ class MorphMixin:
             'scores': {name: {'rcs': s.rcs, 'rds': s.rds, 'tras': s.tras} for name, s in scores.items()},
             'task_context': task[:50] if task else ''
         })
-
-        if len(self.morph_score_history) > 100:
-            self.morph_score_history = self.morph_score_history[-100:]
+        # deque auto-bounds at maxlen=100
 
         return scores
 

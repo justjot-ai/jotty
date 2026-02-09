@@ -28,7 +28,7 @@ Usage:
 import os
 import logging
 from enum import Enum
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 
 from .validation_gate import ValidationMode
@@ -90,7 +90,7 @@ class TierDecision:
     model: str
     provider: str
     reason: str
-    estimated_cost_ratio: float = 1.0  # Relative to BALANCED (1.0)
+    estimated_cost_ratio: float = 1.0  # Relative to QUALITY tier (1.0 = Opus)
 
 
 class ModelTierRouter:

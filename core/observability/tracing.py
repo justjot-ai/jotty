@@ -28,6 +28,7 @@ Usage:
 import time
 import uuid
 import threading
+import contextvars
 import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
@@ -260,7 +261,10 @@ class TracingContext:
     """
     Manages a trace tree with span creation and nesting.
 
-    Thread-safe. Each thread maintains its own span stack.
+    Uses contextvars.ContextVar for the span stack so that:
+    - Each asyncio Task gets its own stack (async-safe)
+    - Each thread gets its own stack (thread-safe)
+    - asyncio.gather() doesn't corrupt parent-child relationships
 
     Usage:
         tracer = TracingContext()
@@ -272,9 +276,16 @@ class TracingContext:
         trace = tracer.get_current_trace()
     """
 
+    # ContextVar: each async task / thread gets its own span stack.
+    # This is the key difference from threading.local — asyncio.gather()
+    # creates child tasks that inherit the parent's context snapshot,
+    # so concurrent spans don't corrupt each other's nesting.
+    _span_stack_var: contextvars.ContextVar[List[Span]] = contextvars.ContextVar(
+        'tracing_span_stack', default=None
+    )
+
     def __init__(self):
         self._trace: Optional[Trace] = None
-        self._span_stack: threading.local = threading.local()
         self._lock = threading.Lock()
         self._all_traces: List[Trace] = []
 
@@ -292,9 +303,11 @@ class TracingContext:
         return self._trace
 
     def _get_stack(self) -> List[Span]:
-        if not hasattr(self._span_stack, 'stack'):
-            self._span_stack.stack = []
-        return self._span_stack.stack
+        stack = self._span_stack_var.get(None)
+        if stack is None:
+            stack = []
+            self._span_stack_var.set(stack)
+        return stack
 
     @contextmanager
     def span(self, name: str, **attributes):
@@ -325,11 +338,12 @@ class TracingContext:
             attributes=dict(attributes),
         )
 
-        # Add to parent or trace root
-        if parent:
-            parent.children.append(new_span)
-        else:
-            self._trace.root_spans.append(new_span)
+        # Add to parent or trace root (lock protects shared trace structure)
+        with self._lock:
+            if parent:
+                parent.children.append(new_span)
+            else:
+                self._trace.root_spans.append(new_span)
 
         stack.append(new_span)
 
@@ -340,7 +354,8 @@ class TracingContext:
             raise
         finally:
             new_span.end()
-            stack.pop()
+            if stack and stack[-1] is new_span:
+                stack.pop()
 
     def get_active_span(self) -> Optional[Span]:
         """Get the currently active span (innermost)."""
@@ -370,7 +385,7 @@ class TracingContext:
         with self._lock:
             self._trace = None
             self._all_traces.clear()
-            self._span_stack = threading.local()
+            self._span_stack_var.set(None)
 
 
 # =========================================================================

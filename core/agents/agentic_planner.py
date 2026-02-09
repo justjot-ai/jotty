@@ -54,8 +54,7 @@ if PYDANTIC_AVAILABLE:
         verification: str = Field(default="", description="How to confirm this step succeeded")
         fallback_skill: str = Field(default="", description="Alternative skill if this one fails")
 
-        class Config:
-            extra = "allow"  # Allow extra fields from LLM
+        model_config = {"extra": "allow"}  # Allow extra fields from LLM
 
         @model_validator(mode='before')
         @classmethod
@@ -263,14 +262,48 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         logger.info(f"🧠 AgenticPlanner initialized (fast_model={fast_model} for classification)")
 
     def _init_fast_lm(self):
-        """Initialize fast LM for classification tasks."""
-        try:
-            from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-            self._fast_lm = DirectClaudeCLI(model=self._fast_model)
-            logger.debug(f"Fast LM initialized: {self._fast_model}")
-        except Exception as e:
-            logger.warning(f"Could not initialize fast LM ({self._fast_model}): {e}")
-            self._fast_lm = None
+        """Initialize fast LM for routing/classification tasks.
+
+        Priority:
+        1. Gemini 2.0 Flash via OpenRouter (fastest: ~3.6s avg, cheapest)
+        2. DirectAnthropicLM Haiku (fast: ~5.6s avg)
+        3. DSPy global LM fallback (Sonnet — slower but works)
+        """
+        import os
+
+        # 1. Try Gemini Flash via OpenRouter (35% faster than Haiku, 8x cheaper)
+        or_key = os.environ.get('OPENROUTER_API_KEY')
+        if or_key:
+            try:
+                import dspy
+                self._fast_lm = dspy.LM(
+                    'openrouter/google/gemini-2.0-flash-001',
+                    api_key=or_key,
+                    max_tokens=1024,
+                )
+                self._fast_model = 'gemini-2.0-flash'
+                logger.info(f"Fast LM: Gemini 2.0 Flash via OpenRouter (routing/classification)")
+                return
+            except Exception as e:
+                logger.debug(f"Gemini Flash not available: {e}")
+
+        # 2. Try DirectAnthropicLM Haiku (fast, reliable)
+        if os.environ.get('ANTHROPIC_API_KEY'):
+            try:
+                from ..foundation.direct_anthropic_lm import DirectAnthropicLM
+                self._fast_lm = DirectAnthropicLM(
+                    model='haiku',
+                    max_tokens=1024,
+                )
+                self._fast_model = 'haiku'
+                logger.info(f"Fast LM: Anthropic Haiku (routing/classification)")
+                return
+            except Exception as e:
+                logger.debug(f"DirectAnthropicLM Haiku not available: {e}")
+
+        # 3. Fallback: use whatever DSPy has configured (Sonnet)
+        self._fast_lm = None
+        logger.info(f"Fast LM: using default DSPy LM (no dedicated routing model)")
 
     def _call_with_retry(
         self,
@@ -373,8 +406,9 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
                 elif action == 'backoff':
                     delay = strategy.get('delay_seconds', 1) * (2 ** attempt)
+                    delay = min(delay, 30)  # Cap at 30s
                     logger.info(f"   Backing off for {delay}s...")
-                    time.sleep(min(delay, 30))  # Cap at 30s
+                    time.sleep(delay)
 
                 elif action == 'wait':
                     delay = strategy.get('delay_seconds', 30)
@@ -385,7 +419,110 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         if last_error:
             raise last_error
         raise RuntimeError("Unexpected state in retry logic")
-    
+
+    async def _acall_with_retry(
+        self,
+        module,
+        kwargs: Dict[str, Any],
+        compressible_fields: Optional[List[str]] = None,
+        max_retries: int = 5,
+        lm: Optional[Any] = None
+    ):
+        """
+        Async version of _call_with_retry using DSPy's native .acall().
+
+        Advantages over the sync version:
+        - Does not block the event loop (no thread pool needed)
+        - Uses asyncio.sleep() for backoff (event loop stays responsive)
+        - Native async all the way to the LLM provider
+
+        Falls back to sync _call_with_retry if module has no .acall().
+        """
+        import asyncio
+
+        # Fallback if module doesn't support async
+        if not hasattr(module, 'acall'):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                None,
+                lambda: self._call_with_retry(module, kwargs, compressible_fields, max_retries, lm),
+            )
+
+        compression_ratio = 0.7
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    logger.info(f"   Retry {attempt}/{max_retries}")
+
+                # Use specified LM context or default
+                if lm:
+                    with _get_dspy().context(lm=lm):
+                        return await module.acall(**kwargs)
+                else:
+                    return await module.acall(**kwargs)
+
+            except Exception as e:
+                last_error = e
+
+                # Detect error type (same logic as sync version)
+                if CONTEXT_UTILS_AVAILABLE:
+                    error_type, strategy = detect_error_type(e)
+                    logger.debug(f"   Error type detected: {error_type.value}")
+                else:
+                    error_str = str(e).lower()
+                    error_type_str = type(e).__name__.lower()
+
+                    if any(p in error_str for p in ['context', 'token', 'too long']):
+                        error_type = 'context_length'
+                        strategy = {'should_retry': True, 'action': 'compress'}
+                    elif any(p in error_str for p in ['rate limit', 'rate_limit', 'ratelimit', 'too many requests', '429']) or 'ratelimit' in error_type_str:
+                        import re
+                        wait_match = re.search(r'(\d+)\s*seconds?', error_str)
+                        wait_time = int(wait_match.group(1)) if wait_match else 60
+                        strategy = {'should_retry': True, 'action': 'wait', 'delay_seconds': wait_time}
+                        logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
+                    elif 'timeout' in error_str:
+                        error_type = 'timeout'
+                        strategy = {'should_retry': True, 'action': 'backoff', 'delay_seconds': 2}
+                    else:
+                        error_type = 'unknown'
+                        strategy = {'should_retry': False}
+
+                if not strategy.get('should_retry') or attempt >= max_retries:
+                    raise
+
+                action = strategy.get('action', 'fail')
+
+                if action == 'compress' and compressible_fields and self._compressor:
+                    for field in compressible_fields:
+                        if field in kwargs and kwargs[field]:
+                            original = kwargs[field]
+                            if isinstance(original, str) and len(original) > 1000:
+                                result = self._compressor.compress(
+                                    original,
+                                    target_ratio=compression_ratio
+                                )
+                                kwargs[field] = result.content
+                                logger.info(f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars")
+                    compression_ratio *= 0.7
+
+                elif action == 'backoff':
+                    delay = strategy.get('delay_seconds', 1) * (2 ** attempt)
+                    delay = min(delay, 30)
+                    logger.info(f"   Backing off for {delay}s...")
+                    await asyncio.sleep(delay)
+
+                elif action == 'wait':
+                    delay = strategy.get('delay_seconds', 30)
+                    logger.info(f"   Rate limited, waiting {delay}s...")
+                    await asyncio.sleep(delay)
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("Unexpected state in async retry logic")
+
     def plan_execution(
         self,
         task: str,
@@ -525,7 +662,8 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 module=self.execution_planner,
                 kwargs=planner_kwargs,
                 compressible_fields=['available_skills', 'previous_outputs'],
-                max_retries=self._max_compression_retries
+                max_retries=self._max_compression_retries,
+                lm=self._fast_lm,  # Use fast LM for planning (routing task)
             )
 
             # Debug: Log raw LLM response
@@ -1025,6 +1163,7 @@ JSON:"""
                 },
                 compressible_fields=['available_skills', 'completed_outputs'],
                 max_retries=self._max_compression_retries,
+                lm=self._fast_lm,  # Use fast LM for replanning (routing task)
             )
 
             raw_plan = getattr(result, 'corrected_plan', None)

@@ -27,7 +27,7 @@ import hashlib
 import math
 from typing import Dict, List, Any, Optional, Tuple, Callable
 from dataclasses import dataclass, field
-from collections import defaultdict
+from collections import defaultdict, deque
 from enum import Enum
 
 try:
@@ -112,16 +112,16 @@ class SwarmIntelligence(
         # Session management (moltbot pattern)
         self.sessions: Dict[str, AgentSession] = {}
 
-        # Collective memory (shared across swarm)
-        self.collective_memory: List[Dict] = []
+        # Collective memory (shared across swarm, bounded to prevent leak)
+        self.collective_memory: deque = deque(maxlen=1000)
         self.memory_embeddings: Dict[str, Any] = {}
 
         # Online adaptation buffer
         self.adaptation_buffer: List[Dict] = []
         self.adaptation_interval = 5  # Adapt every N experiences
 
-        # Consensus history
-        self.consensus_history: List[SwarmDecision] = []
+        # Consensus history (bounded)
+        self.consensus_history: deque = deque(maxlen=200)
 
         # Stigmergy layer (indirect coordination via shared artifacts)
         self.stigmergy = StigmergyLayer()
@@ -141,8 +141,8 @@ class SwarmIntelligence(
         # Agent0: Dynamic tool management
         self.tool_manager = ToolManager()
 
-        # Track swarm-level MorphAgent scores over time
-        self.morph_score_history: List[Dict[str, Any]] = []
+        # Track swarm-level MorphAgent scores over time (bounded)
+        self.morph_score_history: deque = deque(maxlen=100)
 
         # Training mode configuration (Agent0 inspired)
         self._training_mode = False
@@ -154,7 +154,7 @@ class SwarmIntelligence(
 
         # Handoff management (SwarmAgentic pattern)
         self.pending_handoffs: Dict[str, HandoffContext] = {}
-        self.handoff_history: List[HandoffContext] = []
+        self.handoff_history: deque = deque(maxlen=200)
 
         # Coalition management (SwarmAgentic pattern)
         self.coalitions: Dict[str, Coalition] = {}
@@ -294,9 +294,7 @@ class SwarmIntelligence(
             'timestamp': time.time()
         })
 
-        # Bound collective memory
-        if len(self.collective_memory) > 1000:
-            self.collective_memory = self.collective_memory[-1000:]
+        # deque auto-bounds at maxlen=1000
 
         # Online adaptation
         self.adaptation_buffer.append({
@@ -714,17 +712,17 @@ class SwarmIntelligence(
                 }
                 for name, p in self.agent_profiles.items()
             },
-            'collective_memory': self.collective_memory[-limit:],  # Keep recent
+            'collective_memory': list(self.collective_memory)[-limit:],  # Keep recent
             'stigmergy': self.stigmergy.to_dict(),  # Persist stigmergy state
             'benchmarks': self.benchmarks.to_dict(),  # Persist benchmark data
             'curriculum': self.curriculum_generator.to_dict(),  # DrZero curriculum state
-            'morph_score_history': self.morph_score_history[-50:],  # MorphAgent score history
+            'morph_score_history': list(self.morph_score_history)[-50:],  # MorphAgent score history
             'tool_manager': self.tool_manager.to_dict(),  # Agent0 tool management state
             # arXiv swarm enhancements
             'handoff_history': [
                 {'task_id': h.task_id, 'from': h.from_agent, 'to': h.to_agent,
                  'task_type': h.task_type, 'progress': h.progress, 'chain': h.handoff_chain}
-                for h in self.handoff_history[-50:]
+                for h in list(self.handoff_history)[-50:]
             ],
             'tree_built': self._tree_built,
             'priority_queue': getattr(self, 'priority_queue', [])[-100:],
@@ -773,7 +771,7 @@ class SwarmIntelligence(
                 except Exception as prof_err:
                     logger.warning(f"Could not load profile '{name}': {prof_err}")
 
-            self.collective_memory = data.get('collective_memory', [])
+            self.collective_memory = deque(data.get('collective_memory', []), maxlen=1000)
 
             # Load stigmergy state
             if 'stigmergy' in data:
@@ -789,7 +787,7 @@ class SwarmIntelligence(
 
             # Load MorphAgent score history
             if 'morph_score_history' in data:
-                self.morph_score_history = data['morph_score_history']
+                self.morph_score_history = deque(data['morph_score_history'], maxlen=100)
 
             # Load Agent0 tool manager state
             if 'tool_manager' in data:

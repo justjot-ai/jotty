@@ -59,7 +59,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -172,7 +172,9 @@ class ValidationGate:
 
         # Outcome tracking for drift detection
         self._decisions: Dict[ValidationMode, int] = defaultdict(int)
-        self._outcomes: Dict[ValidationMode, List[bool]] = defaultdict(list)
+        self._outcomes: Dict[ValidationMode, deque] = {
+            m: deque(maxlen=200) for m in ValidationMode
+        }
         self._total_calls = 0
         self._total_latency_ms = 0.0
 
@@ -244,7 +246,7 @@ class ValidationGate:
 
         # ── 5. Drift check — if DIRECT tasks have been failing, escalate
         if final_mode == ValidationMode.DIRECT:
-            recent_direct = self._outcomes.get(ValidationMode.DIRECT, [])[-20:]
+            recent_direct = list(self._outcomes[ValidationMode.DIRECT])[-20:]
             if len(recent_direct) >= 5:
                 recent_fail_rate = 1.0 - (sum(recent_direct) / len(recent_direct))
                 if recent_fail_rate > 0.30:
@@ -296,9 +298,7 @@ class ValidationGate:
         whether its routing decisions are leading to good outcomes.
         """
         self._outcomes[mode].append(success)
-        # Keep bounded
-        if len(self._outcomes[mode]) > 200:
-            self._outcomes[mode] = self._outcomes[mode][-100:]
+        # deque auto-bounds at maxlen=200
 
     # =====================================================================
     # LLM CLASSIFICATION
@@ -331,7 +331,7 @@ class ValidationGate:
         try:
             # Single cheap call — ~100 input tokens, ~1 output token
             prompt = f"{_GATE_SYSTEM}\n\nTask: {goal[:300]}\n\nClassification:"
-            response = self._lm(prompt)
+            response = self._lm(prompt=prompt)
 
             # Parse response
             text = ""
@@ -363,15 +363,31 @@ class ValidationGate:
         Lazy-init the cheapest available LM.
 
         Tries in order of cost/speed:
-            1. DirectAnthropicLM (Haiku) — cheapest Anthropic, needs ANTHROPIC_API_KEY
-            2. LiteLLM (Groq llama-3.1-8b) — free tier, ultra-fast, needs GROQ_API_KEY
-            3. LiteLLM (any available) — fallback to whatever API key exists
+            1. Gemini 2.0 Flash via OpenRouter — fastest, cheapest
+            2. DirectAnthropicLM (Haiku) — fast, needs ANTHROPIC_API_KEY
+            3. LiteLLM (Groq llama-3.1-8b) — free tier, ultra-fast, needs GROQ_API_KEY
+            4. LiteLLM (any available) — fallback to whatever API key exists
 
         Returns True if any LM is available.
         """
         import os
 
-        # 1. Try Anthropic Haiku (preferred — purpose-built for cheap classification)
+        # 1. Try Gemini Flash via OpenRouter (fastest + cheapest for classification)
+        or_key = os.environ.get('OPENROUTER_API_KEY')
+        if or_key:
+            try:
+                import dspy
+                self._lm = dspy.LM(
+                    'openrouter/google/gemini-2.0-flash-001',
+                    api_key=or_key,
+                    max_tokens=10,
+                )
+                logger.info("ValidationGate: Gemini 2.0 Flash via OpenRouter")
+                return True
+            except Exception as e:
+                logger.debug(f"ValidationGate: Gemini Flash not available: {e}")
+
+        # 2. Try Anthropic Haiku (fast, reliable)
         try:
             from Jotty.core.foundation.direct_anthropic_lm import (
                 DirectAnthropicLM,

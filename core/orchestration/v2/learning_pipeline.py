@@ -122,13 +122,10 @@ class SwarmLearningPipeline:
         self._pending_training_tasks: list = []
 
         # Paradigm effectiveness tracker (auto paradigm selection)
-        # KISS: Simple dict, no new classes. Persisted with stigmergy.
-        self._paradigm_stats: Dict[str, Dict[str, int]] = {
-            'fanout': {'runs': 0, 'successes': 0},
-            'relay': {'runs': 0, 'successes': 0},
-            'debate': {'runs': 0, 'successes': 0},
-            'refinement': {'runs': 0, 'successes': 0},
-        }
+        # Keyed by task_type → paradigm → {runs, successes}.
+        # "_global" is the fallback when task_type is unknown.
+        # KISS: Nested dict, no new classes. Persisted with stigmergy.
+        self._paradigm_stats: Dict[str, Dict[str, Dict[str, int]]] = {}
 
     # =========================================================================
     # Persistence paths
@@ -212,7 +209,15 @@ class SwarmLearningPipeline:
                 self.stigmergy = StigmergyLayer.from_dict(stig_data)
                 # Restore paradigm stats if present (saved alongside stigmergy)
                 if 'paradigm_stats' in stig_data:
-                    self._paradigm_stats.update(stig_data['paradigm_stats'])
+                    loaded = stig_data['paradigm_stats']
+                    # Backward compat: old format was {paradigm: {runs, successes}}
+                    # New format is {task_type: {paradigm: {runs, successes}}}
+                    if loaded and isinstance(next(iter(loaded.values()), None), dict):
+                        first_val = next(iter(loaded.values()))
+                        if 'runs' in first_val:
+                            # Old flat format — wrap under '_global'
+                            loaded = {'_global': loaded}
+                    self._paradigm_stats.update(loaded)
                 logger.info(
                     f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals"
                 )
@@ -714,38 +719,74 @@ class SwarmLearningPipeline:
     # Paradigm effectiveness tracking (auto paradigm selection)
     # =========================================================================
 
-    def record_paradigm_result(self, paradigm: str, success: bool):
-        """Record the outcome of a discussion paradigm run."""
-        if paradigm not in self._paradigm_stats:
-            self._paradigm_stats[paradigm] = {'runs': 0, 'successes': 0}
-        self._paradigm_stats[paradigm]['runs'] += 1
+    _PARADIGMS = ('fanout', 'relay', 'debate', 'refinement')
+
+    def _ensure_paradigm_bucket(self, task_type: str):
+        """Lazy-create the stats bucket for a task_type."""
+        if task_type not in self._paradigm_stats:
+            self._paradigm_stats[task_type] = {
+                p: {'runs': 0, 'successes': 0} for p in self._PARADIGMS
+            }
+
+    def record_paradigm_result(
+        self, paradigm: str, success: bool, task_type: str = '_global',
+    ):
+        """Record the outcome of a discussion paradigm run for a task type."""
+        self._ensure_paradigm_bucket(task_type)
+        bucket = self._paradigm_stats[task_type]
+        if paradigm not in bucket:
+            bucket[paradigm] = {'runs': 0, 'successes': 0}
+        bucket[paradigm]['runs'] += 1
         if success:
-            self._paradigm_stats[paradigm]['successes'] += 1
+            bucket[paradigm]['successes'] += 1
+
+        # Also update _global so there's always a fallback
+        if task_type != '_global':
+            self.record_paradigm_result(paradigm, success, '_global')
 
     def recommend_paradigm(self, task_type: str = None) -> str:
         """
         Recommend the best discussion paradigm based on historical success rates.
 
-        Uses Thompson Sampling (beta distribution) for explore/exploit:
+        Per-task-type: "debate is great for analysis, relay is great for writing."
+        Falls back to _global stats when task_type has < 5 data points.
+
+        Uses Thompson Sampling (Beta distribution) for explore/exploit:
         - Paradigms with more successes are preferred.
         - Paradigms with few runs get explored.
         - Falls back to 'fanout' if no data yet.
 
-        KISS: ~15 lines, no external deps. DRY: Uses existing _paradigm_stats.
+        KISS: ~25 lines, no external deps. DRY: Uses existing _paradigm_stats.
         """
         import random
+
+        # Pick the best bucket: task-specific if enough data, else global
+        bucket = None
+        key = task_type or '_global'
+        if key in self._paradigm_stats:
+            total_runs = sum(
+                s['runs'] for s in self._paradigm_stats[key].values()
+            )
+            if total_runs >= 5:
+                bucket = self._paradigm_stats[key]
+
+        if bucket is None and '_global' in self._paradigm_stats:
+            bucket = self._paradigm_stats['_global']
+
+        if not bucket:
+            # No data at all — return random paradigm
+            return random.choice(list(self._PARADIGMS))
 
         best_paradigm = 'fanout'
         best_score = -1.0
 
-        for paradigm, stats in self._paradigm_stats.items():
+        for paradigm in self._PARADIGMS:
+            stats = bucket.get(paradigm, {'runs': 0, 'successes': 0})
             runs = stats['runs']
             successes = stats['successes']
             if runs == 0:
-                # Unexplored paradigm gets a random draw from uniform prior
                 score = random.random()
             else:
-                # Thompson sampling: draw from Beta(successes+1, failures+1)
                 failures = runs - successes
                 score = random.betavariate(successes + 1, failures + 1)
 
@@ -755,17 +796,34 @@ class SwarmLearningPipeline:
 
         return best_paradigm
 
-    def get_paradigm_stats(self) -> Dict[str, Any]:
-        """Get paradigm effectiveness stats with success rates."""
-        stats = {}
-        for paradigm, data in self._paradigm_stats.items():
-            runs = data['runs']
-            successes = data['successes']
-            stats[paradigm] = {
-                **data,
-                'success_rate': successes / runs if runs > 0 else None,
-            }
-        return stats
+    def get_paradigm_stats(self, task_type: str = None) -> Dict[str, Any]:
+        """
+        Get paradigm effectiveness stats with success rates.
+
+        Args:
+            task_type: If provided, return stats for that task type.
+                       If None, return _global stats with per-type breakdown.
+        """
+        def _format_bucket(bucket):
+            out = {}
+            for paradigm, data in bucket.items():
+                runs = data['runs']
+                successes = data['successes']
+                out[paradigm] = {
+                    **data,
+                    'success_rate': successes / runs if runs > 0 else None,
+                }
+            return out
+
+        if task_type:
+            bucket = self._paradigm_stats.get(task_type, {})
+            return _format_bucket(bucket)
+
+        # Return global + per-type summary
+        result = {}
+        for tt, bucket in self._paradigm_stats.items():
+            result[tt] = _format_bucket(bucket)
+        return result
 
     # =========================================================================
     # Curriculum generation

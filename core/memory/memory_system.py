@@ -139,15 +139,21 @@ class MemorySystem:
 
     def _init_full(self):
         """Initialize full HierarchicalMemory backend."""
-        from Jotty.core.foundation.data_structures import JottyConfig
+        from Jotty.core.foundation.data_structures import JottyConfig, MemoryLevel
 
         jc = self._jotty_config or JottyConfig()
 
         from .cortex import HierarchicalMemory
-        self._backend = HierarchicalMemory(
+        backend = HierarchicalMemory(
             agent_name=self.config.agent_name,
             config=jc,
         )
+
+        # Verify the backend is functional (memories dict was initialized)
+        if not hasattr(backend, 'memories') or MemoryLevel.EPISODIC not in backend.memories:
+            raise RuntimeError("HierarchicalMemory failed to initialize memories dict")
+
+        self._backend = backend
         self._backend_type = MemoryBackend.FULL
 
         # Initialize brain state machine for consolidation
@@ -236,11 +242,10 @@ class MemorySystem:
             content=content,
             level=mem_level,
             goal=goal,
-            metadata=metadata,
+            context=metadata,  # HierarchicalMemory uses 'context' not 'metadata'
         )
 
-        # Auto-consolidate check
-        self._store_count += 1
+        # Auto-consolidate check (store_count already incremented in store())
         if (self.config.auto_consolidate
                 and self._store_count % (self.config.consolidation_interval * 5) == 0):
             self.consolidate()
@@ -331,7 +336,7 @@ class MemorySystem:
             logger.warning(f"Fallback retrieval failed: {e}")
             return []
 
-    def consolidate(self) -> Dict[str, Any]:
+    async def consolidate(self) -> Dict[str, Any]:
         """
         Consolidate memories (episodic -> semantic -> procedural -> meta).
 
@@ -348,7 +353,12 @@ class MemorySystem:
 
         if self._backend_type == MemoryBackend.FULL:
             try:
-                result = self._backend.consolidate()
+                # HierarchicalMemory.consolidate() is async
+                import asyncio
+                if asyncio.iscoroutinefunction(self._backend.consolidate):
+                    result = await self._backend.consolidate()
+                else:
+                    result = self._backend.consolidate()
                 elapsed = time.time() - start
                 logger.info(f"Memory consolidation complete ({elapsed:.1f}s)")
                 return {
@@ -361,7 +371,7 @@ class MemorySystem:
                 logger.warning(f"Consolidation failed: {e}")
                 return {'success': False, 'error': str(e)}
         else:
-            # Fallback: LRU eviction
+            # Fallback: LRU eviction (sync)
             try:
                 self._backend.prune()
                 return {
@@ -372,7 +382,7 @@ class MemorySystem:
             except Exception as e:
                 return {'success': False, 'error': str(e)}
 
-    def record_episode(self, goal: str, result: Any, reward: float = 0.0):
+    async def record_episode(self, goal: str, result: Any, reward: float = 0.0):
         """
         Record a complete episode for learning.
 
@@ -402,7 +412,7 @@ class MemorySystem:
             logger.info(
                 f"Auto-consolidation triggered (episode {self._episode_count})"
             )
-            self.consolidate()
+            await self.consolidate()
 
     def status(self) -> Dict[str, Any]:
         """

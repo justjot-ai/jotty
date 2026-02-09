@@ -420,13 +420,9 @@ class SwarmManager:
 
         # Intelligence effectiveness A/B metrics:
         # Tracks whether stigmergy/byzantine guidance improves success rate.
-        # KISS: Just counters, no classes. Persists across runs.
-        self._intelligence_metrics: Dict[str, int] = {
-            'guided_runs': 0,          # runs where intelligence reordered/filtered
-            'guided_successes': 0,     # guided runs that succeeded
-            'unguided_runs': 0,        # runs with no intelligence guidance
-            'unguided_successes': 0,   # unguided runs that succeeded
-        }
+        # Keyed by task_type for fine-grained analysis.
+        # KISS: Nested dict, no classes.
+        self._intelligence_metrics: Dict[str, Dict[str, int]] = {}
 
         # Model tier router: maps task complexity -> cheap/balanced/quality LM
         # Lazy-init on first use. Integrates with ValidationGate decisions.
@@ -760,25 +756,28 @@ class SwarmManager:
         # Training daemon status
         result['training_daemon'] = self.training_daemon_status()
 
-        # Intelligence effectiveness A/B metrics
-        im = self._intelligence_metrics
-        guided_rate = (
-            im['guided_successes'] / im['guided_runs']
-            if im['guided_runs'] > 0 else None
-        )
-        unguided_rate = (
-            im['unguided_successes'] / im['unguided_runs']
-            if im['unguided_runs'] > 0 else None
-        )
+        # Intelligence effectiveness A/B metrics (per task_type)
+        def _format_im(bucket):
+            gr = bucket.get('guided_runs', 0)
+            gs = bucket.get('guided_successes', 0)
+            ur = bucket.get('unguided_runs', 0)
+            us = bucket.get('unguided_successes', 0)
+            guided_rate = gs / gr if gr > 0 else None
+            unguided_rate = us / ur if ur > 0 else None
+            return {
+                **bucket,
+                'guided_success_rate': guided_rate,
+                'unguided_success_rate': unguided_rate,
+                'guidance_lift': (
+                    guided_rate - unguided_rate
+                    if guided_rate is not None and unguided_rate is not None
+                    else None
+                ),
+            }
+
         result['intelligence_effectiveness'] = {
-            **im,
-            'guided_success_rate': guided_rate,
-            'unguided_success_rate': unguided_rate,
-            'guidance_lift': (
-                guided_rate - unguided_rate
-                if guided_rate is not None and unguided_rate is not None
-                else None
-            ),
+            tt: _format_im(bucket)
+            for tt, bucket in self._intelligence_metrics.items()
         }
 
         # Paradigm effectiveness stats
@@ -1548,18 +1547,34 @@ class SwarmManager:
         except Exception as e:
             logger.debug(f"Intelligence-guided selection skipped: {e}")
 
-        # Track guidance for A/B effectiveness metrics
+        # Track guidance for A/B effectiveness metrics (per task_type)
         self._last_run_guided = _intelligence_applied
-        if _intelligence_applied:
-            self._intelligence_metrics['guided_runs'] += 1
-        else:
-            self._intelligence_metrics['unguided_runs'] += 1
+        try:
+            _im_task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
+        except Exception:
+            _im_task_type = '_global'
+        self._last_task_type = _im_task_type
+
+        for _tt in (_im_task_type, '_global') if _im_task_type != '_global' else ('_global',):
+            if _tt not in self._intelligence_metrics:
+                self._intelligence_metrics[_tt] = {
+                    'guided_runs': 0, 'guided_successes': 0,
+                    'unguided_runs': 0, 'unguided_successes': 0,
+                }
+            if _intelligence_applied:
+                self._intelligence_metrics[_tt]['guided_runs'] += 1
+            else:
+                self._intelligence_metrics[_tt]['unguided_runs'] += 1
 
         # Auto paradigm selection: use learning data to pick the best paradigm
         if discussion_paradigm == 'auto':
             try:
-                discussion_paradigm = self.learning.recommend_paradigm()
-                logger.info(f"🧠 Auto paradigm: selected '{discussion_paradigm}'")
+                _task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
+                discussion_paradigm = self.learning.recommend_paradigm(_task_type)
+                logger.info(
+                    f"🧠 Auto paradigm: selected '{discussion_paradigm}' "
+                    f"for task_type='{_task_type}'"
+                )
             except Exception:
                 discussion_paradigm = 'fanout'
 
@@ -2364,19 +2379,29 @@ class SwarmManager:
         )
         self.episode_count = self.learning.episode_count
 
-        # Track intelligence A/B effectiveness
-        if result.success and getattr(self, '_last_run_guided', False):
-            self._intelligence_metrics['guided_successes'] += 1
-        elif result.success:
-            self._intelligence_metrics['unguided_successes'] += 1
+        # Track intelligence A/B effectiveness (per task_type)
+        if result.success:
+            _guided = getattr(self, '_last_run_guided', False)
+            _tt = getattr(self, '_last_task_type', '_global')
+            for _bucket_key in (_tt, '_global') if _tt != '_global' else ('_global',):
+                bucket = self._intelligence_metrics.get(_bucket_key)
+                if bucket:
+                    if _guided:
+                        bucket['guided_successes'] += 1
+                    else:
+                        bucket['unguided_successes'] += 1
 
         # Track paradigm effectiveness (for auto paradigm selection)
         paradigm = getattr(self, '_last_paradigm', None)
         if paradigm:
             try:
-                self.learning.record_paradigm_result(paradigm, result.success)
+                task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
+                self.learning.record_paradigm_result(paradigm, result.success, task_type)
             except Exception:
-                pass
+                try:
+                    self.learning.record_paradigm_result(paradigm, result.success)
+                except Exception:
+                    pass
 
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
         """Delegate to SwarmLearningPipeline."""

@@ -26,8 +26,6 @@ from Jotty.core.foundation.exceptions import (
     MemoryStorageError,
     ConsolidationError,
     LearningError,
-    TimeoutError as JottyTimeoutError,
-    wrap_exception,
 )
 from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
 from Jotty.core.memory.cortex import HierarchicalMemory
@@ -477,6 +475,36 @@ class AgentRunner:
                     learning_context_parts.append(transfer_context)
             except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
+
+        # Warm-start: inject swarm intelligence hints (stigmergy + agent profile)
+        # DRY: reuses existing swarm_intelligence reference, no new deps.
+        if self.swarm_intelligence:
+            try:
+                _si = self.swarm_intelligence
+                # Agent performance hint
+                profile = _si.agent_profiles.get(self.agent_name)
+                if profile and profile.total_tasks > 0:
+                    _success_pct = int(profile.trust_score * 100)
+                    _spec = profile.specialization.value
+                    learning_context_parts.append(
+                        f"Your track record: {_success_pct}% trust, "
+                        f"specialization={_spec}, {profile.total_tasks} tasks completed."
+                    )
+
+                # Stigmergy route hint: what worked for similar tasks
+                if hasattr(_si, 'stigmergy'):
+                    task_type = self.transfer_learning.extractor.extract_task_type(goal) if self.transfer_learning else None
+                    if task_type:
+                        route_signals = _si.stigmergy.get_route_signals(task_type)
+                        if route_signals:
+                            best_agent = max(route_signals, key=route_signals.get)
+                            if best_agent == self.agent_name:
+                                learning_context_parts.append(
+                                    f"Stigmergy hint: you are the top-performing agent "
+                                    f"for '{task_type}' tasks. Lean into your strengths."
+                                )
+            except Exception as e:
+                logger.debug(f"Warm-start context skipped: {e}")
 
         # Pass learning context as separate kwarg — NOT in the task string
         if learning_context_parts:

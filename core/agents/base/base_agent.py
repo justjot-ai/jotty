@@ -152,8 +152,8 @@ class BaseAgent(ABC):
         self._initialized = True
         logger.debug(f"BaseAgent '{self.config.name}' initialized")
 
-    def _load_anthropic_key(self):
-        """Load ANTHROPIC_API_KEY from .env.anthropic file if not in environment."""
+    def _load_api_keys(self):
+        """Load API keys from .env.anthropic file if not in environment."""
         import os
         from pathlib import Path
 
@@ -164,13 +164,16 @@ class BaseAgent(ABC):
                 with open(env_file) as f:
                     for line in f:
                         line = line.strip()
-                        if line.startswith('ANTHROPIC_API_KEY='):
-                            key = line.split('=', 1)[1].strip()
-                            os.environ['ANTHROPIC_API_KEY'] = key
-                            logger.debug(f"Loaded ANTHROPIC_API_KEY from {env_file}")
-                            return
+                        if not line or line.startswith('#'):
+                            continue
+                        if '=' in line:
+                            key_name, key_val = line.split('=', 1)
+                            key_name, key_val = key_name.strip(), key_val.strip()
+                            if key_val and key_name not in os.environ:
+                                os.environ[key_name] = key_val
+                                logger.debug(f"Loaded {key_name} from {env_file}")
             except Exception as e:
-                logger.warning(f"Failed to load API key from {env_file}: {e}")
+                logger.warning(f"Failed to load API keys from {env_file}: {e}")
 
     def _init_dspy_lm(self):
         """Auto-configure DSPy LM if not already set.
@@ -182,10 +185,10 @@ class BaseAgent(ABC):
         try:
             import dspy
             if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                # Load API key from .env.anthropic if not in environment
+                # Load API keys from .env.anthropic if not in environment
                 import os
-                if not os.environ.get('ANTHROPIC_API_KEY'):
-                    self._load_anthropic_key()
+                if not os.environ.get('ANTHROPIC_API_KEY') or not os.environ.get('OPENROUTER_API_KEY'):
+                    self._load_api_keys()
 
                 # Try direct API first (fastest)
                 try:
