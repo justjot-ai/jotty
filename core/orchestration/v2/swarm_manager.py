@@ -1153,6 +1153,7 @@ class SwarmManager:
                 identity = getattr(ac.agent, 'system_prompt', '') or getattr(ac, 'system_prompt', '')
                 break
 
+        import os as _os
         return composer.compose(
             identity=identity,
             tools=tool_names if tool_names else None,
@@ -1162,6 +1163,7 @@ class SwarmManager:
             constraints=constraints,
             task=task,
             extra_sections=extra_sections,
+            workspace_dir=_os.getcwd(),
         )
 
     async def run(self, goal: str, **kwargs) -> EpisodeResult:

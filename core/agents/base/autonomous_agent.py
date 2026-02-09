@@ -241,6 +241,8 @@ class AutonomousAgent(BaseAgent):
         # Learning context is kept separate from task to prevent pollution
         # of search queries, entity extraction, and skill params
         learning_context = kwargs.pop('learning_context', None)
+        # Workspace dir for project rules (.jottyrules) — flows to DomainAgent
+        workspace_dir = kwargs.pop('workspace_dir', None)
         direct_llm = kwargs.pop('direct_llm', False)
 
         def _status(stage: str, detail: str = ""):
@@ -418,6 +420,16 @@ class AutonomousAgent(BaseAgent):
             prev_outputs = {}
             if learning_context:
                 prev_outputs['_learning_guidance'] = learning_context[:2000]
+            # Inject project rules (.jottyrules) into planning so planner
+            # respects project conventions (e.g. "use TypeScript", "prefer pnpm")
+            if workspace_dir:
+                try:
+                    from Jotty.core.prompts.rules import load_project_rules
+                    _rules = load_project_rules(workspace_dir)
+                    if _rules:
+                        prev_outputs['_project_rules'] = _rules[:2000]
+                except Exception:
+                    pass
             steps = await self._create_plan(task, task_type, skills, previous_outputs=prev_outputs if prev_outputs else None)
             _status("Plan ready", f"{len(steps)} steps")
         else:

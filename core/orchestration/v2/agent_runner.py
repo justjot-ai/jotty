@@ -897,10 +897,18 @@ class AgentRunner:
         # Stage 1: Gather learning context (extracted to _gather_learning_context)
         learning_context_parts = self._gather_learning_context(goal)
 
-        # Pass learning context as separate kwarg — NOT in the task string
+        # Pass learning context as separate kwarg — NOT in the task string.
+        # This flows through AutoAgent → AutonomousAgent → DomainAgent._enrich_module_for_call()
+        # where PromptComposer formats it for the model family and injects into DSPy signature.
         if learning_context_parts:
             kwargs['learning_context'] = "\n\n".join(learning_context_parts)
             logger.info(f"Learning context: {len(learning_context_parts)} sections ({sum(len(p) for p in learning_context_parts)} chars)")
+
+        # Pass workspace_dir so project rules (.jottyrules, .clinerules, etc.)
+        # get loaded and injected into DSPy signature instructions via PromptComposer.
+        if 'workspace_dir' not in kwargs:
+            import os
+            kwargs['workspace_dir'] = os.getcwd()
 
         # Keep enriched_goal = goal (NO concatenation — task string stays clean)
         enriched_goal = goal
@@ -1116,11 +1124,12 @@ class AgentRunner:
                         auditor_reasoning=auditor_reasoning,
                     )
 
-                    # Build enriched goal with auditor critique
-                    judge_goal = (
-                        f"{enriched_goal}\n\n"
+                    # Pass judge feedback as learning_context so it reaches
+                    # the PLANNER (via previous_outputs) but NOT individual
+                    # skill params (where it would pollute URLs, commands, etc.)
+                    judge_feedback = (
                         f"[Judge feedback — your previous attempt was rejected]:\n"
-                        f"{auditor_reasoning}\n\n"
+                        f"{auditor_reasoning}\n"
                         f"Please address the feedback and try again."
                     )
 
@@ -1128,9 +1137,14 @@ class AgentRunner:
                     if hasattr(self.agent, 'execute'):
                         retry_kwargs = dict(kwargs)
                         retry_kwargs['_judge_retried'] = True
+                        # Merge judge feedback into learning_context (not the goal)
+                        existing_lc = retry_kwargs.get('learning_context', '') or ''
+                        retry_kwargs['learning_context'] = (
+                            existing_lc + '\n\n' + judge_feedback
+                        ).strip()
                         if status_callback:
                             retry_kwargs['status_callback'] = status_callback
-                        agent_output = await self.agent.execute(judge_goal, **retry_kwargs)
+                        agent_output = await self.agent.execute(enriched_goal, **retry_kwargs)
                     elif hasattr(self.agent, 'forward'):
                         agent_output = self.agent(goal=judge_goal, **kwargs)
                     else:

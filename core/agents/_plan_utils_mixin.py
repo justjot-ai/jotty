@@ -204,6 +204,10 @@ class PlanUtilsMixin:
         context_markers = [
             '\n[Learning Context',         # From autonomous_agent learning injection
             '\n\n[Learning Context',        # With double newline prefix
+            '\n[Judge feedback',            # From agent_runner judge intervention
+            '\n\n[Judge feedback',          # With double newline prefix
+            '\n[Skill guidance',            # From autonomous_agent skill guidance
+            '\n\n[Skill guidance',          # With double newline prefix
             '\n[Multi-Perspective Analysis',
             '\n[Multi-Perspective',
             '\nLearned Insights:',

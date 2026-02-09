@@ -173,6 +173,56 @@ class DomainAgent(BaseAgent):
                 logger.error(f"Failed to initialize DSPy module: {e}")
                 raise
 
+    def _enrich_module_for_call(
+        self,
+        learning_context: Optional[str] = None,
+        workspace_dir: Optional[str] = None,
+    ):
+        """
+        Enrich the DSPy module's signature instructions using PromptComposer.
+
+        This is the bridge between PromptComposer and DSPy:
+        - Takes the signature's existing docstring (instructions)
+        - Enriches it with learning context, project rules, trust levels
+        - Formats for the model family (XML for Claude, Markdown for GPT, etc.)
+        - Returns a temporary module with enriched instructions
+
+        If no extra context is available, returns self._module unchanged (zero cost).
+        """
+        if not learning_context and not workspace_dir:
+            return self._module
+
+        try:
+            import dspy
+            from Jotty.core.prompts import PromptComposer
+
+            # Get existing signature instructions (docstring)
+            base_instructions = getattr(self.signature, 'instructions', '') or ''
+
+            # Detect model for family-aware formatting
+            model = getattr(self.config, 'model', '') or ''
+
+            composer = PromptComposer(model=model)
+
+            # Build enriched instructions: identity=base_instructions + learning + rules
+            enriched = composer.compose(
+                identity=base_instructions,
+                learning_context=learning_context.split('\n\n') if learning_context else None,
+                workspace_dir=workspace_dir,
+            )
+
+            # Create enriched signature + module
+            enriched_sig = self.signature.with_instructions(enriched)
+            config: DomainAgentConfig = self.config
+            if config.use_chain_of_thought:
+                return dspy.ChainOfThought(enriched_sig)
+            else:
+                return dspy.Predict(enriched_sig)
+
+        except Exception as e:
+            logger.debug(f"Module enrichment skipped: {e}")
+            return self._module
+
     async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
         """
         Execute the DSPy signature with the provided inputs.
@@ -219,10 +269,18 @@ class DomainAgent(BaseAgent):
         if missing:
             logger.warning(f"Missing input fields: {missing}")
 
+        # Enrich DSPy signature instructions with PromptComposer context.
+        # This is the bridge: PromptComposer → DSPy → LLM call.
+        # learning_context and workspace_dir flow from AgentRunner kwargs.
+        _module = self._enrich_module_for_call(
+            kwargs.get('learning_context'),
+            kwargs.get('workspace_dir'),
+        )
+
         # Primary path: execute DSPy signature
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(self._module, **inputs),
+                asyncio.to_thread(_module, **inputs),
                 timeout=config.timeout
             )
 
