@@ -601,6 +601,43 @@ class SkillPlanExecutor:
                     value = re.sub(unresolved_pattern, replacement, value)
                     logger.info(f"Resolved unrecognised placeholder in param '{key}' with last step output")
 
+                # -------------------------------------------------------
+                # Post-resolution sanity: detect resolved 'command' params
+                # that are LLM output or task descriptions (not shell cmds).
+                # Auto-fix by looking for a recently written script file.
+                # -------------------------------------------------------
+                if key == 'command' and len(value) > 150:
+                    # If it looks like JSON (LLM returned a dict), extract a
+                    # useful field like 'text' or 'output'.
+                    _val_stripped = value.strip()
+                    if _val_stripped.startswith('{') and _val_stripped.endswith('}'):
+                        try:
+                            import json as _json
+                            _obj = _json.loads(_val_stripped)
+                            if isinstance(_obj, dict) and 'text' in _obj:
+                                # Extract the text — but it's code, not a command.
+                                # Find a script file that was written
+                                for _k in reversed(list(outputs.keys())):
+                                    _sd = outputs[_k]
+                                    if isinstance(_sd, dict) and 'path' in _sd:
+                                        _path = _sd['path']
+                                        if _path.endswith('.py'):
+                                            value = f'python {_path}'
+                                            logger.info(f"Auto-fixed 'command' from LLM output → '{value}'")
+                                            break
+                        except (ValueError, KeyError):
+                            pass
+                    # If value looks like natural language (lots of spaces), find script
+                    elif value.count(' ') > 15:
+                        for _k in reversed(list(outputs.keys())):
+                            _sd = outputs[_k]
+                            if isinstance(_sd, dict) and 'path' in _sd:
+                                _path = _sd['path']
+                                if _path.endswith('.py'):
+                                    value = f'python {_path}'
+                                    logger.info(f"Auto-fixed 'command' from task description → '{value}'")
+                                    break
+
                 resolved[key] = value
 
             elif isinstance(value, dict):

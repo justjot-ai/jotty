@@ -259,6 +259,18 @@ if DSPY_AVAILABLE:
         Create a corrected plan that routes around the failures.
         Each step MUST have: skill_name, tool_name, params, description, verification, fallback_skill.
         Only plan the REMAINING work - completed steps should not be repeated.
+
+        CRITICAL PARAMETER RULES (common replan failures):
+        - shell-exec/execute_command_tool: "command" must be a LITERAL shell command
+          (e.g., {"command": "python weather_fetcher.py"})
+          NEVER set command to ${step_0} or the task description text.
+        - shell-exec/execute_script_tool: "script" must be the actual Python code string.
+          NOT "script_path" — the param name is "script".
+        - file-operations/write_file_tool: requires {"path": "...", "content": "..."}
+          The param name is "path" (NOT "file_path" or "filepath").
+        - file-operations/read_file_tool: requires {"path": "filename.ext"}
+          Use the ACTUAL filename, NOT a step reference like "step_2".
+        - If a step wrote a file, reference it by its ACTUAL filename in later steps.
         """
         task_description: str = dspy.InputField(desc="Original task to accomplish")
         task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
