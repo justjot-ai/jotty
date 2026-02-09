@@ -31,9 +31,9 @@ class ClaudeSDKLM(dspy.BaseLM):
 
     def __init__(
         self,
-        model: str = "sonnet",
+        model: str = "",
         max_turns: int = 1,
-        timeout: int = 120,
+        timeout: int = 0,
         **kwargs
     ):
         """
@@ -45,6 +45,10 @@ class ClaudeSDKLM(dspy.BaseLM):
             timeout: Timeout in seconds
             **kwargs: Additional arguments
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        model = model or DEFAULT_MODEL_ALIAS
+        timeout = timeout or LLM_TIMEOUT_SECONDS
+
         super().__init__(model=f"claude-sdk/{model}", **kwargs)
         self.cli_model = model
         self.max_turns = max_turns
@@ -196,7 +200,7 @@ def is_sdk_available() -> bool:
 
 
 # Convenience function
-def configure_claude_sdk(model: str = "sonnet", **kwargs) -> ClaudeSDKLM:
+def configure_claude_sdk(model: str = "", **kwargs) -> ClaudeSDKLM:
     """
     Configure DSPy with ClaudeSDKLM.
 

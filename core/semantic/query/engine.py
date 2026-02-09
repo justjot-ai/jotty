@@ -143,11 +143,12 @@ class SemanticQueryEngine:
         prompt = self._build_prompt(processed_question, context, dialect_hint)
 
         # Generate SQL using LLM
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
         response = llm_generate(
             prompt=prompt,
-            model="sonnet",
+            model=DEFAULT_MODEL_ALIAS,
             provider="claude-cli",
-            timeout=120
+            timeout=LLM_TIMEOUT_SECONDS
         )
 
         if not response.success:

@@ -20,6 +20,10 @@ import json
 import os
 from urllib.parse import urljoin
 
+from Jotty.core.foundation.config_defaults import (
+    DEFAULT_MODEL_ALIAS, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS,
+)
+
 
 class AISDKProviderLM(BaseLM):
     """
@@ -116,7 +120,7 @@ class AISDKProviderLM(BaseLM):
             headers['Authorization'] = f'Bearer {self.api_key}'
         
         try:
-            response = requests.post(url, json=payload, headers=headers, stream=stream, timeout=120)
+            response = requests.post(url, json=payload, headers=headers, stream=stream, timeout=LLM_TIMEOUT_SECONDS)
             response.raise_for_status()
             
             if stream:
@@ -213,7 +217,7 @@ class AISDKProviderLM(BaseLM):
     def generate(
         self,
         messages: List[Dict[str, str]],
-        temperature: float = 0.7,
+        temperature: float = LLM_TEMPERATURE,
         max_tokens: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:

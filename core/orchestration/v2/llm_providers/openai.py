@@ -7,7 +7,7 @@ import json
 import asyncio
 from typing import Dict, Any, Optional, Callable, List
 
-from .base import LLMProvider
+from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
@@ -54,7 +54,7 @@ class OpenAIProvider(LLMProvider):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> LLMResponse:
         # Add system message
         full_messages = [{"role": "system", "content": system}]
@@ -76,7 +76,7 @@ class OpenAIProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> tuple:
         full_messages = [{"role": "system", "content": system}]
         full_messages.extend(self._convert_messages(messages))

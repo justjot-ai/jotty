@@ -170,23 +170,44 @@ class AgentRunner:
         self.architect_validator = MultiRoundValidator(architect_agents, config.config)
         self.auditor_validator = MultiRoundValidator(auditor_agents, config.config)
         
-        # Per-agent memory
+        # Per-agent memory: use the shared swarm memory if available,
+        # otherwise fall back to creating a standalone instance.
+        # This ensures all agents share the same memory store (with
+        # agent_name used for namespacing in store/retrieve calls).
         self.agent_memory: Optional[HierarchicalMemory] = None
         if config.enable_memory:
-            self.agent_memory = HierarchicalMemory(
-                config=config.config,
-                agent_name=self.agent_name
-            )
+            if swarm_memory is not None:
+                # Shared memory — all agents see each other's experiences
+                self.agent_memory = swarm_memory
+                logger.debug(f"Agent '{self.agent_name}' using shared swarm memory")
+            else:
+                # Fallback: standalone memory (no sharing)
+                self.agent_memory = HierarchicalMemory(
+                    config=config.config,
+                    agent_name=self.agent_name
+                )
+                logger.debug(f"Agent '{self.agent_name}' using standalone memory (no swarm memory)")
         
-        # Per-agent learning
+        # Per-agent learning: prefer the swarm-level learning_manager if available,
+        # so all agents contribute to a single shared learner.
+        # Falls back to standalone TDLambdaLearner only when no swarm context exists.
         from Jotty.core.learning.learning import AdaptiveLearningRate
         self.agent_learner: Optional[TDLambdaLearner] = None
+        self._using_shared_learner = False
         if config.enable_learning:
-            adaptive_lr = AdaptiveLearningRate(config.config)
-            self.agent_learner = TDLambdaLearner(
-                config=config.config,
-                adaptive_lr=adaptive_lr
-            )
+            if learning_manager is not None and hasattr(learning_manager, 'td_learner'):
+                # Shared learner from SwarmLearningPipeline
+                self.agent_learner = learning_manager.td_learner
+                self._using_shared_learner = True
+                logger.debug(f"Agent '{self.agent_name}' using shared TD-Lambda learner")
+            else:
+                # Standalone fallback
+                adaptive_lr = AdaptiveLearningRate(config.config)
+                self.agent_learner = TDLambdaLearner(
+                    config=config.config,
+                    adaptive_lr=adaptive_lr
+                )
+                logger.debug(f"Agent '{self.agent_name}' using standalone TD-Lambda learner")
 
         # Shaped rewards for dense learning signal
         self.shaped_reward_manager: Optional[ShapedRewardManager] = None
@@ -209,6 +230,50 @@ class AgentRunner:
 
         # AgentScope-inspired lifecycle hooks (pluggable middleware)
         self._hooks: Dict[str, List[Callable]] = {ht: [] for ht in HOOK_TYPES}
+
+        # Bridge: auto-import hooks from the underlying agent (BaseAgent)
+        # so users only need one registration point. BaseAgent._pre_hooks
+        # map to 'pre_execute' and _post_hooks map to 'post_execute'.
+        self._bridge_agent_hooks()
+
+    # =========================================================================
+    # AGENT HOOK BRIDGE
+    # =========================================================================
+
+    def _bridge_agent_hooks(self):
+        """Bridge hooks from the underlying BaseAgent into the AgentRunner
+        lifecycle, so users only need to register hooks in one place.
+
+        BaseAgent._pre_hooks  -> AgentRunner 'pre_execute'
+        BaseAgent._post_hooks -> AgentRunner 'post_execute'
+        """
+        agent = self.agent
+        if not hasattr(agent, '_pre_hooks') and not hasattr(agent, '_post_hooks'):
+            return
+
+        # Wrap BaseAgent hooks to match AgentRunner's hook signature (**context)
+        for pre_hook in getattr(agent, '_pre_hooks', []):
+            def _wrap_pre(fn=pre_hook, **ctx):
+                try:
+                    if asyncio.iscoroutinefunction(fn):
+                        # Can't await in sync hook runner — skip async agent hooks
+                        logger.debug(f"Skipping async agent pre-hook (not supported in AgentRunner)")
+                        return
+                    fn(agent, **{k: v for k, v in ctx.items() if k in ('goal', 'kwargs')})
+                except Exception as e:
+                    logger.debug(f"Bridged agent pre-hook failed: {e}")
+            self.add_hook('pre_execute', _wrap_pre, name=f"agent_bridge_pre_{id(pre_hook)}")
+
+        for post_hook in getattr(agent, '_post_hooks', []):
+            def _wrap_post(fn=post_hook, **ctx):
+                try:
+                    if asyncio.iscoroutinefunction(fn):
+                        return
+                    result = ctx.get('agent_output')
+                    fn(agent, result, **{k: v for k, v in ctx.items() if k == 'goal'})
+                except Exception as e:
+                    logger.debug(f"Bridged agent post-hook failed: {e}")
+            self.add_hook('post_execute', _wrap_post, name=f"agent_bridge_post_{id(post_hook)}")
 
     # =========================================================================
     # LIFECYCLE HOOKS (AgentScope-inspired)
@@ -339,6 +404,224 @@ class AgentRunner:
 
         return task_type
 
+    # =========================================================================
+    # PIPELINE STAGES (extracted from run() for readability)
+    # =========================================================================
+
+    def _gather_learning_context(self, goal: str) -> List[str]:
+        """Stage 1: Gather learning context from memory, Q-learning, transfer
+        learning, and swarm intelligence. Returns list of context strings.
+
+        Separated from run() so the method stays focused on orchestration.
+        """
+        parts = []
+
+        # 1. Memory retrieval
+        if self.agent_memory:
+            try:
+                from Jotty.core.foundation.data_structures import MemoryLevel
+                memory_budget = getattr(
+                    self.config.config, 'memory_retrieval_budget', 3000
+                )
+                relevant_memories = self.agent_memory.retrieve(
+                    query=goal,
+                    goal=goal,
+                    budget_tokens=memory_budget,
+                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META]
+                )
+                if relevant_memories:
+                    context = "\n".join([m.content for m in relevant_memories[:5]])
+                    parts.append(f"Relevant past experience:\n{context}")
+                    logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
+            except (MemoryRetrievalError, KeyError, TypeError) as e:
+                logger.debug(f"Memory retrieval skipped: {e}")
+            except Exception as e:
+                logger.warning(f"Memory retrieval unexpected error: {type(e).__name__}: {e}")
+
+        # 2. Q-learning context from swarm-level learner
+        if self.learning_manager:
+            try:
+                state = {'query': goal, 'agent': self.agent_name}
+                q_context = self.learning_manager.get_learned_context(state)
+                if q_context:
+                    parts.append(f"Learned Insights:\n{q_context}")
+            except (LearningError, KeyError, AttributeError) as e:
+                logger.debug(f"Q-learning context injection skipped: {e}")
+
+        # 3. Transferable learning context (cross-swarm, cross-goal)
+        if self.transfer_learning:
+            try:
+                transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
+                if transfer_context and 'Transferable Learnings' in transfer_context:
+                    parts.append(transfer_context)
+            except (LearningError, KeyError, AttributeError) as e:
+                logger.debug(f"Transfer learning context injection skipped: {e}")
+
+        # 4. Swarm intelligence hints (stigmergy + agent profile)
+        if self.swarm_intelligence:
+            try:
+                _si = self.swarm_intelligence
+                profile = _si.agent_profiles.get(self.agent_name)
+                if profile and profile.total_tasks > 0:
+                    _success_pct = int(profile.trust_score * 100)
+                    _spec = profile.specialization.value
+                    parts.append(
+                        f"Your track record: {_success_pct}% trust, "
+                        f"specialization={_spec}, {profile.total_tasks} tasks completed."
+                    )
+
+                if hasattr(_si, 'stigmergy'):
+                    task_type = self.transfer_learning.extractor.extract_task_type(goal) if self.transfer_learning else None
+                    if task_type:
+                        route_signals = _si.stigmergy.get_route_signals(task_type)
+                        if route_signals:
+                            best_agent = max(route_signals, key=route_signals.get)
+                            if best_agent == self.agent_name:
+                                parts.append(
+                                    f"Stigmergy hint: you are the top-performing agent "
+                                    f"for '{task_type}' tasks. Lean into your strengths."
+                                )
+            except Exception as e:
+                logger.debug(f"Warm-start context skipped: {e}")
+
+        return parts
+
+    async def _record_post_execution_learning(
+        self, goal: str, agent_output, success: bool, trajectory: list,
+        architect_results: list, auditor_results: list,
+        architect_shaped_reward: float, duration: float, kwargs: dict
+    ) -> dict:
+        """Stage 3: Record learning data (memory, TD-lambda, Q-learning, feedback).
+
+        Returns dict with episode_memory_entry, tagged_outputs, agent_contributions.
+        """
+        import time
+
+        # Memory storage
+        episode_memory_entry = None
+        if self.agent_memory:
+            from Jotty.core.foundation.data_structures import MemoryLevel
+            episode_memory_entry = self.agent_memory.store(
+                content=f"Goal: {goal}\nOutput: {str(agent_output)[:500]}",
+                level=MemoryLevel.EPISODIC,
+                context={'agent': self.agent_name, 'goal': goal},
+                goal=goal
+            )
+
+        # Shaped rewards after auditor validation
+        auditor_shaped_reward = 0.0
+        if self.shaped_reward_manager:
+            auditor_shaped_reward = self.shaped_reward_manager.check_rewards(
+                event_type="validation",
+                state={
+                    'auditor_results': auditor_results,
+                    'passed': success,
+                    'goal': goal,
+                    'output': str(agent_output)[:500]
+                },
+                trajectory=trajectory
+            )
+            self.shaped_reward_manager.check_rewards(
+                event_type="actor_complete",
+                state={
+                    'output': str(agent_output)[:500],
+                    'success': success,
+                    'goal': goal
+                },
+                trajectory=trajectory
+            )
+
+        # TD(lambda) learning update
+        final_reward = 0.0
+        if self.agent_learner:
+            step_reward = architect_shaped_reward + auditor_shaped_reward
+            if episode_memory_entry:
+                self.agent_learner.record_access(episode_memory_entry, step_reward=step_reward)
+
+            terminal_reward = 1.0 if success else -0.5
+            shaped_total = self.shaped_reward_manager.get_total_reward() if self.shaped_reward_manager else 0.0
+            final_reward = terminal_reward + shaped_total
+
+            memories_dict = {}
+            if episode_memory_entry:
+                memories_dict[episode_memory_entry.key] = episode_memory_entry
+
+            updates = self.agent_learner.end_episode(
+                final_reward=final_reward,
+                memories=memories_dict
+            )
+            if updates:
+                logger.debug(f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})")
+
+        # Q-learning record
+        if self.learning_manager:
+            try:
+                q_state = {'query': goal, 'agent': self.agent_name, 'success': success}
+                q_action = {'actor': self.agent_name, 'task': goal[:100]}
+                q_reward = final_reward if final_reward else (1.0 if success else -0.5)
+                self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
+            except (LearningError, KeyError, AttributeError) as e:
+                logger.debug(f"Swarm Q-learning record skipped: {e}")
+
+        # Memory consolidation
+        if self.agent_memory:
+            try:
+                await self.agent_memory.consolidate()
+            except Exception as e:
+                logger.debug(f"Memory consolidation skipped: {type(e).__name__}: {e}")
+
+        # Executor feedback to SwarmIntelligence
+        if self.swarm_intelligence:
+            try:
+                detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                self.swarm_intelligence.receive_executor_feedback(
+                    task_id=f"{self.agent_name}_{int(time.time())}",
+                    success=success,
+                    tools_used=[],
+                    execution_time=duration,
+                    error_type=None,
+                    task_type=detected_task_type
+                )
+            except Exception as fb_err:
+                logger.debug(f"Executor feedback skipped: {fb_err}")
+
+        # Build tagged outputs
+        from Jotty.core.foundation.types.learning_types import TaggedOutput
+        tagged_outputs = []
+        if auditor_results:
+            for result in auditor_results:
+                if result.output_tag:
+                    tagged_outputs.append(TaggedOutput(
+                        name=self.agent_name,
+                        tag=result.output_tag,
+                        why_useful=result.why_useful or result.reasoning,
+                        content=agent_output
+                    ))
+
+        # Build agent contributions
+        agent_contributions = {}
+        if architect_results:
+            from Jotty.core.foundation.types.agent_types import AgentContribution
+            for result in architect_results:
+                agent_contributions[result.agent_name] = AgentContribution(
+                    agent_name=result.agent_name,
+                    contribution_score=result.confidence if result.should_proceed else -result.confidence,
+                    decision="approve" if result.should_proceed else "reject",
+                    decision_correct=success,
+                    counterfactual_impact=0.5,
+                    reasoning_quality=result.confidence,
+                    evidence_used=[],
+                    tools_used=result.tool_calls or [],
+                    decision_timing=0.5,
+                    temporal_weight=1.0
+                )
+
+        return {
+            'episode_memory_entry': episode_memory_entry,
+            'tagged_outputs': tagged_outputs,
+            'agent_contributions': agent_contributions,
+        }
+
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Run agent execution with validation and learning.
@@ -434,77 +717,8 @@ class AgentRunner:
 
         _status("Preparing", "retrieving context")
 
-        # Retrieve learning context as SEPARATE data (not concatenated into task string)
-        # This prevents context pollution in search queries, entity extraction, and skill params.
-        # The learning_context is passed as a kwarg and only injected into LLM planning prompts.
-        learning_context_parts = []
-
-        if self.agent_memory:
-            try:
-                from Jotty.core.foundation.data_structures import MemoryLevel
-                relevant_memories = self.agent_memory.retrieve(
-                    query=goal,
-                    goal=goal,
-                    budget_tokens=3000,
-                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META]
-                )
-                if relevant_memories:
-                    context = "\n".join([m.content for m in relevant_memories[:5]])
-                    learning_context_parts.append(f"Relevant past experience:\n{context}")
-                    logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
-            except (MemoryRetrievalError, KeyError, TypeError) as e:
-                logger.debug(f"Memory retrieval skipped: {e}")
-            except Exception as e:
-                logger.warning(f"Memory retrieval unexpected error: {type(e).__name__}: {e}")
-
-        # Inject Q-learning context from swarm-level learner
-        if self.learning_manager:
-            try:
-                state = {'query': goal, 'agent': self.agent_name}
-                q_context = self.learning_manager.get_learned_context(state)
-                if q_context:
-                    learning_context_parts.append(f"Learned Insights:\n{q_context}")
-            except (LearningError, KeyError, AttributeError) as e:
-                logger.debug(f"Q-learning context injection skipped: {e}")
-
-        # Inject transferable learning context (cross-swarm, cross-goal)
-        if self.transfer_learning:
-            try:
-                transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
-                if transfer_context and 'Transferable Learnings' in transfer_context:
-                    learning_context_parts.append(transfer_context)
-            except (LearningError, KeyError, AttributeError) as e:
-                logger.debug(f"Transfer learning context injection skipped: {e}")
-
-        # Warm-start: inject swarm intelligence hints (stigmergy + agent profile)
-        # DRY: reuses existing swarm_intelligence reference, no new deps.
-        if self.swarm_intelligence:
-            try:
-                _si = self.swarm_intelligence
-                # Agent performance hint
-                profile = _si.agent_profiles.get(self.agent_name)
-                if profile and profile.total_tasks > 0:
-                    _success_pct = int(profile.trust_score * 100)
-                    _spec = profile.specialization.value
-                    learning_context_parts.append(
-                        f"Your track record: {_success_pct}% trust, "
-                        f"specialization={_spec}, {profile.total_tasks} tasks completed."
-                    )
-
-                # Stigmergy route hint: what worked for similar tasks
-                if hasattr(_si, 'stigmergy'):
-                    task_type = self.transfer_learning.extractor.extract_task_type(goal) if self.transfer_learning else None
-                    if task_type:
-                        route_signals = _si.stigmergy.get_route_signals(task_type)
-                        if route_signals:
-                            best_agent = max(route_signals, key=route_signals.get)
-                            if best_agent == self.agent_name:
-                                learning_context_parts.append(
-                                    f"Stigmergy hint: you are the top-performing agent "
-                                    f"for '{task_type}' tasks. Lean into your strengths."
-                                )
-            except Exception as e:
-                logger.debug(f"Warm-start context skipped: {e}")
+        # Stage 1: Gather learning context (extracted to _gather_learning_context)
+        learning_context_parts = self._gather_learning_context(goal)
 
         # Pass learning context as separate kwarg — NOT in the task string
         if learning_context_parts:
@@ -652,10 +866,13 @@ class AgentRunner:
                 # KISS: max 1 retry, reuse existing execute path.
                 # ----------------------------------------------------------
                 _judge_retried = kwargs.get('_judge_retried', False)
+                judge_confidence_threshold = getattr(
+                    self.config.config, 'judge_intervention_confidence', 0.6
+                )
                 if (
                     not success
                     and not _judge_retried
-                    and auditor_confidence < 0.6
+                    and auditor_confidence < judge_confidence_threshold
                     and auditor_reasoning
                     and auditor_reasoning != "No feedback"
                 ):
@@ -759,155 +976,26 @@ class AgentRunner:
                     'tag': auditor_results[0].output_tag.value if auditor_results and auditor_results[0].output_tag else None
                 }
             
-            # 4. Memory storage (if enabled) - store before learning so we can use it
-            episode_memory_entry = None
-            if self.agent_memory:
-                from Jotty.core.foundation.data_structures import MemoryLevel
-                episode_memory_entry = self.agent_memory.store(
-                    content=f"Goal: {goal}\nOutput: {str(agent_output)[:500]}",
-                    level=MemoryLevel.EPISODIC,
-                    context={'agent': self.agent_name, 'goal': goal},
-                    goal=goal
-                )
-            
-            # 5. Shaped rewards after auditor validation
-            auditor_shaped_reward = 0.0
-            if self.shaped_reward_manager:
-                auditor_shaped_reward = self.shaped_reward_manager.check_rewards(
-                    event_type="validation",
-                    state={
-                        'auditor_results': auditor_results,
-                        'passed': passed,
-                        'goal': goal,
-                        'output': str(agent_output)[:500]
-                    },
-                    trajectory=trajectory
-                )
-                # Also check actor_complete rewards
-                self.shaped_reward_manager.check_rewards(
-                    event_type="actor_complete",
-                    state={
-                        'output': str(agent_output)[:500],
-                        'success': success,
-                        'goal': goal
-                    },
-                    trajectory=trajectory
-                )
-
-            # 6. Learning update with dense shaped rewards (if enabled)
-            if self.agent_learner:
-                # Record memory access with intermediate shaped reward
-                step_reward = architect_shaped_reward + auditor_shaped_reward
-                if episode_memory_entry:
-                    self.agent_learner.record_access(episode_memory_entry, step_reward=step_reward)
-
-                # Final reward combines sparse terminal + accumulated shaped rewards
-                terminal_reward = 1.0 if success else -0.5
-                shaped_total = self.shaped_reward_manager.get_total_reward() if self.shaped_reward_manager else 0.0
-                final_reward = terminal_reward + shaped_total
-
-                # Build memories dict from accessed memories (for end_episode)
-                memories_dict = {}
-                if episode_memory_entry:
-                    memories_dict[episode_memory_entry.key] = episode_memory_entry
-
-                # Perform TD(λ) updates at episode end
-                updates = self.agent_learner.end_episode(
-                    final_reward=final_reward,
-                    memories=memories_dict
-                )
-
-                if updates:
-                    logger.debug(f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})")
-
-            # 7. Record experience into swarm-level Q-learner
-            if self.learning_manager:
-                try:
-                    q_state = {'query': goal, 'agent': self.agent_name, 'success': success}
-                    q_action = {'actor': self.agent_name, 'task': goal[:100]}
-                    q_reward = final_reward if 'final_reward' in locals() else (1.0 if success else -0.5)
-                    self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
-                except (LearningError, KeyError, AttributeError) as e:
-                    logger.debug(f"Swarm Q-learning record skipped: {e}")
-
-            # 8. Memory consolidation: promote episodic -> semantic/procedural
-            if self.agent_memory:
-                try:
-                    await self.agent_memory.consolidate()
-                    logger.debug("Memory consolidation completed")
-                except (ConsolidationError, MemoryStorageError) as e:
-                    logger.debug(f"Memory consolidation skipped: {e}")
-                except Exception as e:
-                    logger.warning(f"Memory consolidation unexpected error: {type(e).__name__}: {e}")
-            
+            # Stage 3: Record learning (memory, TD-lambda, Q-learning, feedback)
             duration = time.time() - start_time
-            
-            # Extract tagged outputs from auditor results
-            from Jotty.core.foundation.types.learning_types import TaggedOutput
-            from Jotty.core.foundation.types.enums import OutputTag
-            tagged_outputs = []
-            if auditor_results:
-                for result in auditor_results:
-                    if result.output_tag:
-                        tagged_outputs.append(TaggedOutput(
-                            name=self.agent_name,
-                            tag=result.output_tag,
-                            why_useful=result.why_useful or result.reasoning,
-                            content=agent_output
-                        ))
-            
-            # Build agent contributions
-            agent_contributions = {}
-            if architect_results:
-                for result in architect_results:
-                    from Jotty.core.foundation.types.agent_types import AgentContribution
-                    agent_contributions[result.agent_name] = AgentContribution(
-                        agent_name=result.agent_name,
-                        contribution_score=result.confidence if result.should_proceed else -result.confidence,
-                        decision="approve" if result.should_proceed else "reject",
-                        decision_correct=success,
-                        counterfactual_impact=0.5,  # Default
-                        reasoning_quality=result.confidence,
-                        evidence_used=[],
-                        tools_used=result.tool_calls or [],
-                        decision_timing=0.5,
-                        temporal_weight=1.0
-                    )
-
-            # Agent0: Send executor feedback to SwarmIntelligence for curriculum adaptation
-            if self.swarm_intelligence:
-                try:
-                    # Extract tools used from agent contributions
-                    all_tools_used = []
-                    for contrib in agent_contributions.values():
-                        if hasattr(contrib, 'tools_used'):
-                            all_tools_used.extend(contrib.tools_used)
-
-                    # Get task type from current tracking
-                    detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
-
-                    self.swarm_intelligence.receive_executor_feedback(
-                        task_id=f"{self.agent_name}_{int(time.time())}",
-                        success=success,
-                        tools_used=all_tools_used,
-                        execution_time=duration,
-                        error_type=None,
-                        task_type=detected_task_type
-                    )
-                    logger.debug(f"Executor feedback sent: success={success}, tools={all_tools_used[:3]}")
-                except Exception as fb_err:
-                    logger.debug(f"Executor feedback skipped: {fb_err}")
+            learning_data = await self._record_post_execution_learning(
+                goal=goal, agent_output=agent_output, success=success,
+                trajectory=trajectory, architect_results=architect_results,
+                auditor_results=auditor_results or [],
+                architect_shaped_reward=architect_shaped_reward,
+                duration=duration, kwargs=kwargs
+            )
 
             episode_result = EpisodeResult(
                 output=agent_output,
                 success=success,
                 trajectory=trajectory,
-                tagged_outputs=tagged_outputs,
-                episode=0,  # Episode number (could track this)
+                tagged_outputs=learning_data['tagged_outputs'],
+                episode=0,
                 execution_time=duration,
                 architect_results=architect_results or [],
                 auditor_results=auditor_results or [],
-                agent_contributions=agent_contributions
+                agent_contributions=learning_data['agent_contributions']
             )
 
             # Record gate outcome for drift detection

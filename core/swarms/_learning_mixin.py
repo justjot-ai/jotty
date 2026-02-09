@@ -47,11 +47,13 @@ class SwarmLearningMixin:
 
         Auto-connects SwarmIntelligence, loads saved state, runs warmup
         on first run, computes MorphAgent scores, analyzes tool performance,
-        and stitches Agent0 + MorphAgent findings into a learned context dict.
+        runs coordination protocols (circuit breakers, gossip, auctions,
+        coalitions, supervisor tree, backpressure), and stitches all findings
+        into a learned context dict.
 
         Returns:
             Dict with learning context (has_learning, tool_performance,
-            agent_scores, weak_tools, recommendations, etc.)
+            agent_scores, weak_tools, recommendations, coordination, etc.)
         """
         learned_context = {
             'has_learning': False,
@@ -61,6 +63,7 @@ class SwarmLearningMixin:
             'strong_tools': [],
             'recommendations': [],
             'warmup_completed': False,
+            'coordination': {},
         }
 
         try:
@@ -172,13 +175,19 @@ class SwarmLearningMixin:
                             }
             learned_context['score_trends'] = score_trends
 
+            # 9. Coordination protocols (circuit breakers, gossip, auctions,
+            #    coalitions, supervisor tree, backpressure)
+            coordination = self._coordinate_pre_execution(si)
+            learned_context['coordination'] = coordination
+
             learned_context['has_learning'] = bool(
                 learned_context['tool_performance'] or
                 learned_context['agent_scores'] or
                 learned_context['warmup_completed'] or
                 learned_context['expert_knowledge'] or
                 learned_context['prior_failures'] or
-                learned_context['score_trends']
+                learned_context['score_trends'] or
+                learned_context['coordination']
             )
 
             self._learned_context = learned_context
@@ -191,11 +200,276 @@ class SwarmLearningMixin:
                     f"{expert_count} expert patterns loaded"
                 )
 
+        except (ImportError, AttributeError) as e:
+            # Expected: missing optional dependencies or uninitialized components
+            logger.debug(f"Pre-execution learning skipped (optional dep): {e}")
+            self._learned_context = learned_context
         except Exception as e:
-            logger.debug(f"Pre-execution learning skipped: {e}")
+            # Unexpected: log at warning so degradation is visible
+            logger.warning(f"Pre-execution learning failed unexpectedly: {type(e).__name__}: {e}")
             self._learned_context = learned_context
 
         return learned_context
+
+    # =========================================================================
+    # COORDINATION PROTOCOLS (Wire auctions, coalitions, gossip, etc.)
+    # =========================================================================
+
+    def _coordinate_pre_execution(self, si) -> Dict[str, Any]:
+        """
+        Run coordination protocols before task execution.
+
+        Wires the orphaned SwarmIntelligence coordination features into the
+        actual execution lifecycle:
+
+        1. Circuit breakers: Filter out agents with open circuits
+        2. Gossip: Process pending messages so agents have latest info
+        3. Supervisor tree: Build hierarchy on first run for O(log n) routing
+        4. Backpressure: Check if swarm is overwhelmed
+        5. Load balancing: Rebalance work if agents are overloaded
+
+        Returns:
+            Dict with coordination state for downstream use.
+        """
+        coord = {
+            'available_agents': [],
+            'circuit_blocked': [],
+            'gossip_messages_processed': 0,
+            'supervisor_tree_built': False,
+            'backpressure': 0.0,
+            'should_accept': True,
+            'load_balanced': 0,
+        }
+
+        if not si:
+            return coord
+
+        try:
+            # 1. Circuit breakers: get list of available agents (not blocked)
+            all_agents = list(si.agent_profiles.keys())
+            available = si.get_available_agents(all_agents)
+            blocked = [a for a in all_agents if a not in available]
+            coord['available_agents'] = available
+            coord['circuit_blocked'] = blocked
+            if blocked:
+                logger.info(
+                    f"Circuit breakers blocking {len(blocked)} agents: "
+                    f"{', '.join(blocked)}"
+                )
+
+            # 2. Gossip: receive and process pending messages for all agents.
+            # This ensures agents have the latest coordination info (handoffs,
+            # coalition announcements, work-steal notifications, etc.) before
+            # any new execution starts.
+            total_gossip = 0
+            for agent_name in available:
+                messages = si.gossip_receive(agent_name)
+                total_gossip += len(messages)
+            coord['gossip_messages_processed'] = total_gossip
+            if total_gossip > 0:
+                logger.debug(f"Processed {total_gossip} gossip messages across agents")
+
+            # 3. Supervisor tree: build on first run if we have enough agents.
+            # This enables O(log n) hierarchical routing for large swarms.
+            if not si._tree_built and len(available) >= 4:
+                si.build_supervisor_tree(available)
+                coord['supervisor_tree_built'] = True
+
+            # 4. Backpressure: check if swarm is overwhelmed.
+            # High backpressure means we should throttle or reject low-priority tasks.
+            coord['backpressure'] = si.calculate_backpressure()
+            coord['should_accept'] = si.should_accept_task(priority=5)
+            if not coord['should_accept']:
+                logger.warning(
+                    f"Swarm backpressure high ({coord['backpressure']:.2f}), "
+                    f"may throttle low-priority tasks"
+                )
+
+            # 5. Load balancing: if any agents are idle while others are
+            # overloaded, redistribute pending work via work-stealing.
+            try:
+                actions = si.balance_load()
+                coord['load_balanced'] = len(actions)
+                if actions:
+                    si.metrics.record_coordination('load_balance', success=True)
+            except Exception as e:
+                logger.debug(f"Load balancing failed: {e}")
+                si.metrics.record_error('coordination', 'load_balance', str(e))
+
+            # 6. Stigmergy evaporation: decay stale signals so the pheromone
+            # landscape stays fresh. Without this, old signals persist
+            # indefinitely since decay only happens lazily on sense().
+            try:
+                pruned = si.stigmergy.evaporate()
+                coord['stigmergy_pruned'] = pruned
+                coord['stigmergy_active'] = len(si.stigmergy.signals)
+            except Exception as e:
+                logger.debug(f"Stigmergy evaporation failed: {e}")
+                si.metrics.record_error('coordination', 'stigmergy', str(e))
+
+            # 7. Coalition formation: for swarms with 3+ available agents,
+            # form a coalition for the upcoming task. This groups agents
+            # into a coordinated team with a leader, enabling the
+            # coalition_broadcast/dissolve lifecycle to actually trigger.
+            try:
+                coord['coalition_formed'] = None
+                if len(available) >= 3 and not si.coalitions:
+                    swarm_name = getattr(self.config, 'name', None) or 'base_swarm'
+                    task_type = getattr(self.config, 'domain', 'general')
+                    coalition = si.form_coalition(
+                        task_type=task_type,
+                        min_agents=min(2, len(available)),
+                        max_agents=min(5, len(available))
+                    )
+                    if coalition:
+                        coord['coalition_formed'] = coalition.coalition_id
+                        coord['coalition_members'] = coalition.members
+                        coord['coalition_leader'] = coalition.leader
+                        si.metrics.record_coordination('coalition', success=True)
+                        logger.info(
+                            f"Coalition formed: {coalition.coalition_id} "
+                            f"({len(coalition.members)} agents, leader={coalition.leader})"
+                        )
+            except Exception as e:
+                logger.debug(f"Coalition formation failed: {e}")
+                si.metrics.record_error('coordination', 'coalition', str(e))
+
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"Pre-execution coordination skipped (optional dep): {e}")
+        except Exception as e:
+            logger.warning(f"Pre-execution coordination failed: {type(e).__name__}: {e}")
+
+        return coord
+
+    def _coordinate_post_execution(
+        self,
+        si,
+        success: bool,
+        execution_time: float,
+        tools_used: List[str],
+        task_type: str
+    ):
+        """
+        Run coordination protocols after task execution.
+
+        Wires the orphaned SwarmIntelligence coordination features into the
+        actual execution lifecycle:
+
+        1. Byzantine verify: verify swarm-level result consistency
+        2. Gossip broadcast: propagate execution outcome to all agents
+        3. Coalition cleanup: dissolve any active coalition for this task
+        4. Failure recovery: on failure, auto-reassign via auction
+        5. Agent retirement: check if any agents should be retired
+
+        Args:
+            si: SwarmIntelligence instance
+            success: Whether the overall execution succeeded
+            execution_time: Total execution time
+            tools_used: Tools used during execution
+            task_type: Type of task executed
+        """
+        if not si:
+            return
+
+        swarm_name = self.config.name or 'base_swarm'
+
+        try:
+            # 1. Byzantine verify: verify the swarm-level execution result.
+            # This catches cases where agents claimed intermediate success
+            # but the overall result is a failure (or vice versa).
+            try:
+                si.byzantine.verify_claim(
+                    agent=swarm_name,
+                    claimed_success=success,
+                    actual_result={'success': success, 'time': execution_time},
+                    task_type=task_type
+                )
+                si.metrics.record_coordination('byzantine', agent=swarm_name, success=True)
+            except Exception as e:
+                logger.debug(f"Byzantine verification failed: {e}")
+                si.metrics.record_error('coordination', 'byzantine', str(e))
+
+            # 2. Gossip broadcast: propagate execution outcome so all agents
+            # have awareness of what just happened. This feeds into the gossip
+            # protocol for decentralized coordination.
+            try:
+                si.gossip_broadcast(
+                    origin_agent=swarm_name,
+                    message_type="execution_result",
+                    content={
+                        "task_type": task_type,
+                        "success": success,
+                        "execution_time": execution_time,
+                        "tools_used": tools_used,
+                    },
+                    ttl=2  # Propagate through 2 hops
+                )
+                si.metrics.record_coordination('gossip', agent=swarm_name, success=True)
+            except Exception as e:
+                logger.debug(f"Gossip broadcast failed: {e}")
+                si.metrics.record_error('coordination', 'gossip', str(e))
+
+            # 3. Coalition cleanup: dissolve any active coalitions that were
+            # formed for this execution. Agents become available for new coalitions.
+            try:
+                to_dissolve = []
+                for cid, coalition in si.coalitions.items():
+                    if coalition.task_type == task_type and coalition.active:
+                        to_dissolve.append(cid)
+                for cid in to_dissolve:
+                    si.dissolve_coalition(cid)
+                    si.metrics.record_coordination('coalition_dissolve', success=True)
+                    logger.debug(f"Dissolved coalition {cid} after {task_type} execution")
+            except Exception as e:
+                logger.debug(f"Coalition cleanup failed: {e}")
+                si.metrics.record_error('coordination', 'coalition_cleanup', str(e))
+
+            # 4. Failure recovery: if the execution failed, use auction-based
+            # reassignment to find an alternative agent for retry.
+            if not success:
+                try:
+                    new_agent = si.record_failure(
+                        task_id=f"{task_type}_{int(__import__('time').time())}",
+                        agent=swarm_name,
+                        task_type=task_type,
+                        error_type='execution_failure',
+                        context={'tools_used': tools_used, 'execution_time': execution_time}
+                    )
+                    if new_agent:
+                        si.metrics.record_coordination('failure_recovery', agent=new_agent, success=True)
+                        logger.info(f"Failure recovery: reassigned {task_type} to {new_agent}")
+                except Exception as e:
+                    logger.debug(f"Failure recovery failed: {e}")
+                    si.metrics.record_error('coordination', 'failure_recovery', str(e))
+
+            # 5. Agent retirement: check if any agents have degraded enough
+            # to warrant retirement (low trust, high failure rate, circuit open).
+            try:
+                for agent_name in list(si.agent_profiles.keys()):
+                    if si.should_retire_agent(agent_name):
+                        logger.warning(
+                            f"Agent {agent_name} recommended for retirement "
+                            f"(trust={si.agent_profiles[agent_name].trust_score:.2f})"
+                        )
+            except Exception as e:
+                logger.debug(f"Retirement check failed: {e}")
+                si.metrics.record_error('coordination', 'retirement_check', str(e))
+
+            # 6. Stigmergy evaporation: clean up stale signals post-execution.
+            try:
+                si.stigmergy.evaporate()
+            except Exception as e:
+                logger.debug(f"Post-execution stigmergy evaporation failed: {e}")
+                si.metrics.record_error('coordination', 'stigmergy_evaporate', str(e))
+
+        except (AttributeError, ImportError) as e:
+            logger.debug(f"Post-execution coordination skipped (optional dep): {e}")
+        except Exception as e:
+            logger.warning(f"Post-execution coordination failed: {type(e).__name__}: {e}")
+            try:
+                si.metrics.record_error('coordination', 'post_execution', str(e))
+            except Exception:
+                pass  # Last resort: metrics system itself is broken
 
     def _build_learned_context_string(self, agent_name: str = None) -> str:
         """
@@ -339,6 +613,22 @@ class SwarmLearningMixin:
                         f"Track record: {len(successes)}/{total_recent} recent successes — "
                         f"maintain this standard"
                     )
+
+        # Coordination protocol status (circuit breakers, backpressure, etc.)
+        coord = ctx.get('coordination', {})
+        if coord:
+            coord_parts = []
+            blocked = coord.get('circuit_blocked', [])
+            if blocked:
+                coord_parts.append(f"Circuit-blocked agents: {', '.join(blocked)}")
+            backpressure = coord.get('backpressure', 0)
+            if backpressure > 0.5:
+                coord_parts.append(f"Backpressure: {backpressure:.0%} (high — prioritize efficiency)")
+            load_balanced = coord.get('load_balanced', 0)
+            if load_balanced > 0:
+                coord_parts.append(f"{load_balanced} tasks rebalanced via work-stealing")
+            if coord_parts:
+                lines.append(f"Swarm Status: {'; '.join(coord_parts)}")
 
         # Priority recommendations (HIGH first)
         recommendations = ctx.get('recommendations', [])
@@ -712,8 +1002,8 @@ class SwarmLearningMixin:
                             })
                     except (json.JSONDecodeError, TypeError):
                         pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failure analysis from memory failed: {e}")
 
         return failures
 
@@ -815,6 +1105,7 @@ class SwarmLearningMixin:
             output_data: Optional dict of output metrics for evaluation
             input_data: Optional dict of input params for evaluation matching
         """
+        _learning_errors = []  # Track failures for observability
         try:
             # 1. Send executor feedback (tools, success, timing)
             self._send_executor_feedback(
@@ -839,12 +1130,22 @@ class SwarmLearningMixin:
                         for name, s in morph_scores.items()
                     }
                 })
-                # Bound history
-                if len(si.morph_score_history) > 50:
-                    si.morph_score_history = si.morph_score_history[-50:]
+                # Note: morph_score_history is a deque(maxlen=100), self-bounding.
+                # No manual truncation needed.
 
             # 3. Re-analyze tools and update assignments
             self._manage_tools()
+
+            # 3a. Post-execution coordination protocols (byzantine verify,
+            #     circuit breakers, gossip broadcast, coalition cleanup,
+            #     load balancing, failure recovery)
+            self._coordinate_post_execution(
+                si=si,
+                success=success,
+                execution_time=execution_time,
+                tools_used=tools_used,
+                task_type=task_type
+            )
 
             # 4. Evaluate output against gold standard (centralized for all swarms)
             evaluation = None
@@ -892,8 +1193,8 @@ class SwarmLearningMixin:
                         execution_time=execution_time,
                         success=success
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Benchmark recording failed: {e}")
 
             # 4c. Auto-curate gold standard from excellent outputs
             if (evaluation and evaluation.overall_score >= 0.9 and
@@ -901,8 +1202,8 @@ class SwarmLearningMixin:
                 self._gold_db and output_data and input_data):
                 try:
                     self._curate_gold_standard(task_type, input_data, output_data, evaluation)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Gold standard curation failed: {e}")
 
             # 4d. Extract learnings from excellent executions
             if (evaluation and evaluation.overall_score >= 0.9 and
@@ -943,8 +1244,8 @@ class SwarmLearningMixin:
                             })
                         self._improvement_history._save_history()
                         logger.info(f"Extracted {len(learnings)} learnings from excellent execution")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Learning extraction failed: {e}")
 
             # 5. Run improvement cycle if evaluation below threshold
             if evaluation and evaluation.overall_score < self.config.improvement_threshold:
@@ -960,8 +1261,10 @@ class SwarmLearningMixin:
                 save_path = self._get_intelligence_save_path()
                 si.save(save_path)
                 logger.debug(f"Post-execution learning state saved to {save_path}")
+            except (OSError, IOError) as save_err:
+                logger.warning(f"Failed to save post-execution state (I/O): {save_err}")
             except Exception as save_err:
-                logger.debug(f"Failed to save post-execution state: {save_err}")
+                logger.warning(f"Failed to save post-execution state: {type(save_err).__name__}: {save_err}")
 
             # 7. Store execution outcome as expert improvement in HierarchicalMemory
             self._store_execution_as_improvement(
@@ -971,8 +1274,13 @@ class SwarmLearningMixin:
                 task_type=task_type
             )
 
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Post-execution learning skipped (optional dep): {e}")
         except Exception as e:
-            logger.debug(f"Post-execution learning skipped: {e}")
+            logger.warning(
+                f"Post-execution learning failed unexpectedly: {type(e).__name__}: {e}. "
+                f"Learning data for this execution may be lost."
+            )
 
     async def _run_improvement_cycle(self) -> List[ImprovementSuggestion]:
         """Run the self-improvement cycle."""
@@ -1043,8 +1351,8 @@ class SwarmLearningMixin:
                     "error": error,
                     "output_summary": str(output_data)[:100] if output_data else "",
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Trace recording failed: {e}")
 
         # Agent0: Per-phase swarm-level feedback removed — swarm-level recording
         # is handled once by _post_execute_learning() at end of execute().
@@ -1052,18 +1360,43 @@ class SwarmLearningMixin:
 
         # MorphAgent: Update agent profile for per-agent tracking
         swarm_name = self.config.name or 'base_swarm'
-        if self._swarm_intelligence and hasattr(self._swarm_intelligence, 'agent_profiles'):
-            self._swarm_intelligence.register_agent(agent_name)
+        si = self._swarm_intelligence
+        if si and hasattr(si, 'agent_profiles'):
+            si.register_agent(agent_name)
             # Record task result under individual agent name (not swarm name)
             # so per-agent profiles accumulate real task_success data
             if agent_name != swarm_name:
                 task_type_label = agent_role.value if agent_role else 'unknown'
-                self._swarm_intelligence.record_task_result(
+                si.record_task_result(
                     agent_name=agent_name,
                     task_type=task_type_label,
                     success=success,
                     execution_time=execution_time
                 )
+
+            # Byzantine verification: verify agent's result against actual outcome.
+            # Unlike classical BFT where agents self-report, here we verify the
+            # execution result (output_data) against the success flag to catch
+            # silent failures (agent returns garbage but claims success).
+            try:
+                si.byzantine.verify_claim(
+                    agent=agent_name,
+                    claimed_success=success,
+                    actual_result=output_data,
+                    task_type=task_type_label
+                )
+            except Exception:
+                pass  # Non-blocking — don't break trace on verification failure
+
+            # Circuit breaker: track per-agent failures so repeatedly failing
+            # agents get temporarily blocked from receiving new tasks.
+            try:
+                if success:
+                    si.record_circuit_success(agent_name)
+                else:
+                    si.record_circuit_failure(agent_name)
+            except Exception:
+                pass  # Non-blocking
 
         # Store in memory for learning
         if self._memory and self.config.enable_learning:

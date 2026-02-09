@@ -179,24 +179,30 @@ class HierarchicalMemory(RetrievalMixin, ConsolidationMixin):
             return existing
         
         # Check for old-format keys with same content (migration)
+        # Two-pass approach: find first, then mutate (avoids RuntimeError from
+        # modifying dict during iteration).
         if level in self.memories:
+            migrate_old_key = None
             for old_key, old_entry in self.memories[level].items():
                 # Old format: no colons (just hash)
                 if ':' not in old_key:
                     old_hash = hashlib.md5(old_entry.content.encode()).hexdigest()[:16]
                     if old_hash == content_hash:
-                        # Found old memory with same content - migrate to new key
-                        del self.memories[level][old_key]
-                        old_entry.key = new_key
-                        # Update metadata with domain/task_type
-                        if not hasattr(old_entry, 'metadata') or old_entry.metadata is None:
-                            old_entry.metadata = {}
-                        old_entry.metadata['domain'] = domain
-                        old_entry.metadata['task_type'] = task_type
-                        self.memories[level][new_key] = old_entry
-                        old_entry.access_count += 1
-                        old_entry.last_accessed = datetime.now()
-                        return old_entry
+                        migrate_old_key = old_key
+                        break  # Found match, stop iterating
+            
+            if migrate_old_key is not None:
+                old_entry = self.memories[level].pop(migrate_old_key)
+                old_entry.key = new_key
+                # Update metadata with domain/task_type
+                if not hasattr(old_entry, 'metadata') or old_entry.metadata is None:
+                    old_entry.metadata = {}
+                old_entry.metadata['domain'] = domain
+                old_entry.metadata['task_type'] = task_type
+                self.memories[level][new_key] = old_entry
+                old_entry.access_count += 1
+                old_entry.last_accessed = datetime.now()
+                return old_entry
         
         # Create new entry
         entry = MemoryEntry(

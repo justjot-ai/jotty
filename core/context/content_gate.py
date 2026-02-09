@@ -352,8 +352,17 @@ class ContentGate:
         future_tasks: List[str] = None
     ) -> ProcessedContent:
         """Synchronous version of process."""
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.process(content, query, future_tasks))
+        try:
+            asyncio.get_running_loop()
+            # Already in async context — run in a new thread to avoid
+            # "this event loop is already running" errors
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(
+                    asyncio.run, self.process(content, query, future_tasks)
+                ).result()
+        except RuntimeError:
+            return asyncio.run(self.process(content, query, future_tasks))
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get gate statistics."""

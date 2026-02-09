@@ -1070,19 +1070,16 @@ class JottySync:
 
     def __init__(self, **kwargs):
         self._async_client = Jotty(**kwargs)
-        self._loop = None
-
-    def _get_loop(self):
-        if self._loop is None:
-            try:
-                self._loop = asyncio.get_event_loop()
-            except RuntimeError:
-                self._loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(self._loop)
-        return self._loop
 
     def _run(self, coro):
-        return self._get_loop().run_until_complete(coro)
+        try:
+            asyncio.get_running_loop()
+            # Already in async context — offload to a thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
+        except RuntimeError:
+            return asyncio.run(coro)
 
     def chat(self, message: str, **kwargs) -> SDKResponse:
         return self._run(self._async_client.chat(message, **kwargs))

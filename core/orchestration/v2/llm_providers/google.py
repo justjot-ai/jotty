@@ -6,7 +6,7 @@ import os
 import asyncio
 from typing import Dict, Any, Optional, Callable, List
 
-from .base import LLMProvider
+from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
@@ -42,7 +42,7 @@ class GoogleProvider(LLMProvider):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> LLMResponse:
         import google.generativeai as genai
 
@@ -82,7 +82,7 @@ class GoogleProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> tuple:
         # Google streaming is more complex, fall back to non-streaming
         response = await self.call(messages, tools, system, max_tokens)

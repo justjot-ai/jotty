@@ -42,20 +42,20 @@ class ProviderManager:
 
     def init_provider_registry(self):
         """Initialize the skill provider registry with all available providers."""
-        try:
-            from Jotty.core.skills.providers import ProviderRegistry as PR, SkillCategory as SC
-            from Jotty.core.skills.providers.browser_use_provider import BrowserUseProvider
-            from Jotty.core.skills.providers.openhands_provider import OpenHandsProvider
-            from Jotty.core.skills.providers.agent_s_provider import AgentSProvider
-            from Jotty.core.skills.providers.open_interpreter_provider import OpenInterpreterProvider
-            from Jotty.core.skills.providers.composite_provider import (
-                ResearchAndAnalyzeProvider,
-                AutomateWorkflowProvider,
-                FullStackAgentProvider,
-            )
-        except ImportError as e:
-            logger.debug(f"Skill providers not available: {e}")
+        from .swarm_manager import _load_providers, _provider_cache
+
+        if not _load_providers():
+            logger.debug("Skill providers not available")
             return
+
+        PR = _provider_cache['ProviderRegistry']
+        BrowserUseProvider = _provider_cache['BrowserUseProvider']
+        OpenHandsProvider = _provider_cache['OpenHandsProvider']
+        AgentSProvider = _provider_cache['AgentSProvider']
+        OpenInterpreterProvider = _provider_cache['OpenInterpreterProvider']
+        ResearchAndAnalyzeProvider = _provider_cache['ResearchAndAnalyzeProvider']
+        AutomateWorkflowProvider = _provider_cache['AutomateWorkflowProvider']
+        FullStackAgentProvider = _provider_cache['FullStackAgentProvider']
 
         try:
             si = self.swarm_intelligence
@@ -133,8 +133,9 @@ class ProviderManager:
             return None
 
         try:
-            from Jotty.core.skills.providers import SkillCategory
-            cat_enum = SkillCategory(category) if isinstance(category, str) else category
+            from .swarm_manager import _provider_cache
+            SkillCategory = _provider_cache.get('SkillCategory')
+            cat_enum = SkillCategory(category) if isinstance(category, str) and SkillCategory else category
 
             result = await self.provider_registry.execute(
                 category=cat_enum,

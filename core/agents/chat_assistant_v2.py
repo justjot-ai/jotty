@@ -14,6 +14,8 @@ import json
 from typing import Dict, Any, Optional
 from anthropic import Anthropic
 
+from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+
 from .section_tools import generate_section_tools, get_system_prompt
 from ..ui import (
     return_kanban,
@@ -159,7 +161,7 @@ Choose the BEST section format for this query and generate appropriate content.
             # Claude API call with tool calling
             response = self.llm.messages.create(
                 model="claude-3-5-sonnet-20241022",
-                max_tokens=4096,
+                max_tokens=LLM_MAX_OUTPUT_TOKENS,
                 system=get_system_prompt(),  # Includes tool hints
                 messages=messages,
                 tools=self.tools,  # Auto-generated from schemas

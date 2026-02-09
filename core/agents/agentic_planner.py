@@ -271,6 +271,8 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         import os
 
+        from ..foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
+
         # 1. Try Gemini Flash via OpenRouter (35% faster than Haiku, 8x cheaper)
         or_key = os.environ.get('OPENROUTER_API_KEY')
         if or_key:
@@ -279,7 +281,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 self._fast_lm = dspy.LM(
                     'openrouter/google/gemini-2.0-flash-001',
                     api_key=or_key,
-                    max_tokens=1024,
+                    max_tokens=LLM_PLANNING_MAX_TOKENS,
                 )
                 self._fast_model = 'gemini-2.0-flash'
                 logger.info(f"Fast LM: Gemini 2.0 Flash via OpenRouter (routing/classification)")
@@ -293,7 +295,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 from ..foundation.direct_anthropic_lm import DirectAnthropicLM
                 self._fast_lm = DirectAnthropicLM(
                     model='haiku',
-                    max_tokens=1024,
+                    max_tokens=LLM_PLANNING_MAX_TOKENS,
                 )
                 self._fast_model = 'haiku'
                 logger.info(f"Fast LM: Anthropic Haiku (routing/classification)")
@@ -442,7 +444,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         # Fallback if module doesn't support async
         if not hasattr(module, 'acall'):
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
                 lambda: self._call_with_retry(module, kwargs, compressible_fields, max_retries, lm),

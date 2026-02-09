@@ -115,6 +115,8 @@ def create_claude_openai_lm(
 
     # Create DSPy LM using OpenAI format
     # The wrapper doesn't need an API key, but DSPy requires one
+    from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+    kwargs.setdefault('max_tokens', LLM_MAX_OUTPUT_TOKENS)
     lm = dspy.LM(
         model=f"openai/{model}",
         api_base=base_url,

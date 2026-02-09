@@ -76,15 +76,11 @@ class SkillBasedAgent(dspy.Module):
             
             # Check if we're in async context
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # Already in async context - use create_task
-                    result = asyncio.create_task(self._auto_agent.execute(task))
-                else:
-                    # Not in async context - run it
-                    result = loop.run_until_complete(self._auto_agent.execute(task))
+                asyncio.get_running_loop()
+                # Already in async context — schedule as task
+                result = asyncio.create_task(self._auto_agent.execute(task))
             except RuntimeError:
-                # No event loop - create new one
+                # No running loop — safe to use asyncio.run()
                 result = asyncio.run(self._auto_agent.execute(task))
             
             # Extract result

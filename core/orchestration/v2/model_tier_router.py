@@ -32,6 +32,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 
 from .validation_gate import ValidationMode
+from Jotty.core.foundation.config_defaults import MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +53,12 @@ MODE_TO_TIER: Dict[ValidationMode, ModelTier] = {
 
 # Model preferences per tier, per provider (ordered by preference)
 # IMPORTANT: First model in each list is the primary pick.
+# Anthropic model names centralized in config_defaults.py
 TIER_MODELS: Dict[str, Dict[ModelTier, List[str]]] = {
     'anthropic': {
-        ModelTier.CHEAP: ['claude-3-5-haiku-latest', 'claude-haiku'],
-        ModelTier.BALANCED: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-latest'],
-        ModelTier.QUALITY: ['claude-opus-4-20250514', 'claude-sonnet-4-20250514'],
+        ModelTier.CHEAP: [MODEL_HAIKU, 'claude-haiku'],
+        ModelTier.BALANCED: [MODEL_SONNET, 'claude-3-5-sonnet-latest'],
+        ModelTier.QUALITY: [MODEL_OPUS, MODEL_SONNET],
     },
     'openai': {
         ModelTier.CHEAP: ['gpt-4o-mini'],
@@ -164,7 +166,7 @@ class ModelTierRouter:
             models = TIER_MODELS.get(provider, {}).get(ModelTier.BALANCED, [])
             tier = ModelTier.BALANCED
 
-        model = models[0] if models else 'claude-sonnet-4-20250514'
+        model = models[0] if models else MODEL_SONNET
 
         # Cost ratio relative to QUALITY tier (what you'd pay without routing)
         quality_cost = TIER_COST_PER_1M[ModelTier.QUALITY]

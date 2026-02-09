@@ -38,7 +38,7 @@ class ClaudeCLILM(BaseLM):
     - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
     """
 
-    def __init__(self, model="sonnet", **kwargs):
+    def __init__(self, model="", **kwargs):
         """
         Initialize Claude CLI LM.
 
@@ -48,6 +48,8 @@ class ClaudeCLILM(BaseLM):
         """
         # Drop enable_skills from kwargs for backwards compatibility
         kwargs.pop('enable_skills', None)
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+        model = model or DEFAULT_MODEL_ALIAS
         super().__init__(model=f"claude-cli/{model}", **kwargs)
         self.cli_model = model
         self._verify_cli_available()

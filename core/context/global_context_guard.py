@@ -381,9 +381,19 @@ class GlobalContextGuard:
         
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            return asyncio.get_event_loop().run_until_complete(
-                self._guarded_call(func, args, kwargs)
-            )
+            try:
+                asyncio.get_running_loop()
+                # Already in async context — can't use run_until_complete.
+                # Create a task instead (caller must be in sync code that
+                # somehow ended up in an async frame, e.g. Jupyter).
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    return pool.submit(
+                        asyncio.run, self._guarded_call(func, args, kwargs)
+                    ).result()
+            except RuntimeError:
+                # No running loop — safe to use asyncio.run()
+                return asyncio.run(self._guarded_call(func, args, kwargs))
         
         if asyncio.iscoroutinefunction(func):
             return async_wrapper

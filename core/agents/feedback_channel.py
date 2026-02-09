@@ -339,8 +339,9 @@ class FeedbackChannel:
         msg_id = self.send(msg)
 
         # Poll for response (KISS: no event/Future infrastructure needed)
-        deadline = asyncio.get_event_loop().time() + timeout
-        while asyncio.get_event_loop().time() < deadline:
+        _loop = asyncio.get_running_loop()
+        deadline = _loop.time() + timeout
+        while _loop.time() < deadline:
             # Check for responses to our message
             pending = self.messages.get(source_actor, [])
             for i, response in enumerate(pending):
@@ -349,7 +350,7 @@ class FeedbackChannel:
                     pending.pop(i)
                     logger.info(
                         f"📨 {source_actor} got reply from {target_actor} "
-                        f"({(asyncio.get_event_loop().time() - (deadline - timeout)):.1f}s)"
+                        f"({(_loop.time() - (deadline - timeout)):.1f}s)"
                     )
                     return response
             await asyncio.sleep(poll_interval)

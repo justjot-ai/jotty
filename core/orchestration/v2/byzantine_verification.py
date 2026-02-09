@@ -241,7 +241,226 @@ class ByzantineVerifier:
 
         return "\n".join(lines)
 
+    def to_dict(self) -> Dict:
+        """Serialize for persistence."""
+        return {
+            'claim_history': self.claim_history[-500:],
+            'verified_count': self.verified_count,
+            'inconsistent_count': self.inconsistent_count,
+        }
+
+    def restore_from_dict(self, data: Dict):
+        """Restore state from persistence. Requires existing SI reference."""
+        self.claim_history = data.get('claim_history', [])
+        self.verified_count = data.get('verified_count', 0)
+        self.inconsistent_count = data.get('inconsistent_count', 0)
+
+
+class ConsistencyChecker:
+    """
+    Multi-agent output consistency checker.
+
+    Repurposed from ByzantineVerifier's trust model. Instead of checking if
+    agents "lie" (they can't -- the system observes results directly), this
+    checks for **consistency across multiple agents working on the same task**.
+
+    Use cases:
+    - Parallel teams: Compare outputs from 2+ agents on the same task
+    - Hallucination detection: Flag when agents disagree on factual claims
+    - Confidence estimation: High agreement = high confidence in result
+    - Quality gating: Reject outputs that deviate too far from consensus
+
+    Architecture:
+    - Takes multiple agent outputs for the same task
+    - Compares them for agreement/disagreement
+    - Uses trust scores to weight contributions
+    - Returns consensus result with confidence
+    """
+
+    def __init__(self, byzantine_verifier: ByzantineVerifier):
+        """
+        Args:
+            byzantine_verifier: Underlying verifier for trust scores
+        """
+        self.verifier = byzantine_verifier
+        self.consistency_history: List[Dict] = []
+
+    def check_consistency(
+        self,
+        outputs: Dict[str, Any],
+        task_type: str = "general"
+    ) -> Dict[str, Any]:
+        """
+        Check consistency across multiple agent outputs.
+
+        Args:
+            outputs: Dict mapping agent_name -> their output for the same task
+            task_type: Type of task for context
+
+        Returns:
+            Dict with:
+            - 'consistent': bool - whether outputs agree
+            - 'agreement_rate': float 0-1 - how much agents agree
+            - 'consensus_output': Any - the majority/trust-weighted winner
+            - 'confidence': float 0-1 - confidence in consensus
+            - 'outliers': List[str] - agents whose output disagrees
+            - 'details': Dict - per-agent analysis
+        """
+        if len(outputs) < 2:
+            agent = list(outputs.keys())[0] if outputs else "unknown"
+            output = list(outputs.values())[0] if outputs else None
+            return {
+                'consistent': True,
+                'agreement_rate': 1.0,
+                'consensus_output': output,
+                'confidence': 0.5,  # Low confidence with single agent
+                'outliers': [],
+                'details': {agent: {'agrees': True}} if agent != "unknown" else {},
+            }
+
+        # Use ByzantineVerifier's majority_vote for trust-weighted consensus
+        consensus_output, confidence = self.verifier.majority_vote(outputs)
+
+        # Calculate agreement rate
+        agreements = 0
+        total_comparisons = 0
+        outliers = []
+
+        for agent, output in outputs.items():
+            if str(output) == str(consensus_output):
+                agreements += 1
+            else:
+                outliers.append(agent)
+            total_comparisons += 1
+
+        agreement_rate = agreements / total_comparisons if total_comparisons > 0 else 0.0
+        consistent = agreement_rate >= 0.5  # Majority agrees
+
+        # Record for trend tracking
+        record = {
+            'task_type': task_type,
+            'agent_count': len(outputs),
+            'agreement_rate': agreement_rate,
+            'consistent': consistent,
+            'outlier_count': len(outliers),
+            'timestamp': __import__('time').time(),
+        }
+        self.consistency_history.append(record)
+        if len(self.consistency_history) > 500:
+            self.consistency_history = self.consistency_history[-500:]
+
+        # Apply trust penalties to outliers (mild -- they might be right)
+        for outlier in outliers:
+            if outlier in self.verifier.si.agent_profiles:
+                profile = self.verifier.si.agent_profiles[outlier]
+                profile.trust_score = max(0.1, profile.trust_score - 0.02)
+
+        # Boost trust for agents in consensus
+        for agent in outputs:
+            if agent not in outliers and agent in self.verifier.si.agent_profiles:
+                profile = self.verifier.si.agent_profiles[agent]
+                profile.trust_score = min(1.0, profile.trust_score + 0.01)
+
+        # Build details
+        details = {}
+        for agent, output in outputs.items():
+            details[agent] = {
+                'agrees': agent not in outliers,
+                'trust_score': self.verifier.si.agent_profiles.get(
+                    agent, type('P', (), {'trust_score': 0.5})()
+                ).trust_score,
+                'output_preview': str(output)[:100],
+            }
+
+        result = {
+            'consistent': consistent,
+            'agreement_rate': agreement_rate,
+            'consensus_output': consensus_output,
+            'confidence': confidence,
+            'outliers': outliers,
+            'details': details,
+        }
+
+        if not consistent:
+            logger.warning(
+                f"Inconsistent outputs for {task_type}: "
+                f"{len(outliers)}/{len(outputs)} agents disagree "
+                f"(agreement={agreement_rate:.0%})"
+            )
+
+        return result
+
+    def detect_hallucination(
+        self,
+        primary_output: Any,
+        verification_outputs: Dict[str, Any],
+        task_type: str = "general"
+    ) -> Dict[str, Any]:
+        """
+        Detect potential hallucination by comparing primary output against
+        verification outputs from other agents.
+
+        Args:
+            primary_output: The main output to verify
+            verification_outputs: Dict of agent_name -> their verification output
+            task_type: Type of task
+
+        Returns:
+            Dict with 'likely_hallucination', 'confidence', 'evidence'
+        """
+        all_outputs = {'primary': primary_output}
+        all_outputs.update(verification_outputs)
+
+        result = self.check_consistency(all_outputs, task_type)
+
+        # Primary is hallucinating if it's an outlier with low agreement
+        likely_hallucination = (
+            'primary' in result['outliers']
+            and result['agreement_rate'] > 0.5
+            and len(verification_outputs) >= 2
+        )
+
+        return {
+            'likely_hallucination': likely_hallucination,
+            'confidence': result['confidence'],
+            'agreement_rate': result['agreement_rate'],
+            'evidence': (
+                f"Primary output disagrees with {len(result['outliers'])} "
+                f"of {len(all_outputs)} agents"
+                if likely_hallucination
+                else f"Primary output consistent with consensus "
+                     f"(agreement={result['agreement_rate']:.0%})"
+            ),
+        }
+
+    def get_consistency_stats(self) -> Dict[str, Any]:
+        """Get overall consistency statistics."""
+        if not self.consistency_history:
+            return {'total_checks': 0}
+
+        total = len(self.consistency_history)
+        consistent_count = sum(1 for r in self.consistency_history if r['consistent'])
+        avg_agreement = sum(r['agreement_rate'] for r in self.consistency_history) / total
+
+        # Per task-type breakdown
+        by_task = {}
+        for record in self.consistency_history:
+            tt = record['task_type']
+            if tt not in by_task:
+                by_task[tt] = {'total': 0, 'consistent': 0}
+            by_task[tt]['total'] += 1
+            if record['consistent']:
+                by_task[tt]['consistent'] += 1
+
+        return {
+            'total_checks': total,
+            'consistency_rate': consistent_count / total,
+            'avg_agreement': avg_agreement,
+            'by_task_type': by_task,
+        }
+
 
 __all__ = [
     'ByzantineVerifier',
+    'ConsistencyChecker',
 ]

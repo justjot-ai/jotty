@@ -151,7 +151,7 @@ class WhatsAppWebClient:
         """Read and process output from Node.js bridge."""
         while self._process and self._process.poll() is None:
             try:
-                line = await asyncio.get_event_loop().run_in_executor(
+                line = await asyncio.get_running_loop().run_in_executor(
                     None, self._process.stdout.readline
                 )
 
@@ -260,7 +260,7 @@ class WhatsAppWebClient:
             Dict with success status and message_id
         """
         request_id = str(uuid.uuid4())
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
         self._send_command({
@@ -297,7 +297,7 @@ class WhatsAppWebClient:
             Dict with success status
         """
         request_id = str(uuid.uuid4())
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
         cmd = {
@@ -324,7 +324,7 @@ class WhatsAppWebClient:
     async def get_chats(self, limit: int = 50) -> List[Dict]:
         """Get recent chats."""
         request_id = str(uuid.uuid4())
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
         self._send_command({
@@ -342,7 +342,7 @@ class WhatsAppWebClient:
     async def get_contacts(self, limit: int = 100) -> List[Dict]:
         """Get contacts."""
         request_id = str(uuid.uuid4())
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
         self._send_command({

@@ -21,11 +21,15 @@ import dspy
 
 logger = logging.getLogger(__name__)
 
-# Model name mapping
+# Model name mapping — centralized in config_defaults
+from Jotty.core.foundation.config_defaults import (
+    MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU,
+    DEFAULT_MODEL_ALIAS, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS,
+)
 MODEL_MAP = {
-    "haiku": "claude-3-5-haiku-latest",
-    "sonnet": "claude-sonnet-4-20250514",
-    "opus": "claude-opus-4-20250514",
+    "haiku": MODEL_HAIKU,
+    "sonnet": MODEL_SONNET,
+    "opus": MODEL_OPUS,
 }
 
 
@@ -39,9 +43,9 @@ class DirectAnthropicLM(dspy.BaseLM):
     def __init__(
         self,
         model: str = "haiku",
-        max_tokens: int = 4096,
-        temperature: float = 0.7,
-        timeout: int = 120,
+        max_tokens: Optional[int] = None,
+        temperature: float = LLM_TEMPERATURE,
+        timeout: int = LLM_TIMEOUT_SECONDS,
         api_key: Optional[str] = None,
         **kwargs
     ):
@@ -57,6 +61,11 @@ class DirectAnthropicLM(dspy.BaseLM):
         """
         # Resolve model name
         self.model_id = MODEL_MAP.get(model, model)
+
+        # Centralized default for max output tokens
+        if max_tokens is None:
+            from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+            max_tokens = LLM_MAX_OUTPUT_TOKENS
 
         super().__init__(model=f"anthropic-direct/{model}", **kwargs)
         self.model_alias = model

@@ -380,15 +380,3 @@ def return_image(
         content=content,
         title=title
     )
-
-
-# Map old adapter names to new section helper (for backwards compatibility during migration)
-# TODO: Remove this once all code is migrated to use return_section() directly
-SECTION_HELPERS = {
-    "kanban-board": return_kanban,
-    "chart": return_chart,
-    "mermaid": return_mermaid,
-    "data-table": return_data_table,
-    "file-download": return_file_download,
-    "image": return_image,
-}

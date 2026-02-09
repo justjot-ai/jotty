@@ -346,8 +346,8 @@ class DomainAgent(BaseAgent):
 def create_domain_agent(
     signature: Type,
     use_chain_of_thought: bool = True,
-    model: str = "sonnet",
-    timeout: float = 120.0,
+    model: str = "",
+    timeout: float = 0.0,
 ) -> DomainAgent:
     """
     Factory function to create a DomainAgent.
@@ -361,6 +361,9 @@ def create_domain_agent(
     Returns:
         Configured DomainAgent
     """
+    from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+    model = model or DEFAULT_MODEL_ALIAS
+    timeout = timeout or float(LLM_TIMEOUT_SECONDS)
     config = DomainAgentConfig(
         name=f"DomainAgent[{signature.__name__}]",
         model=model,

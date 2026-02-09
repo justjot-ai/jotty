@@ -459,7 +459,8 @@ class MemoryLevelClassifier:
         """
         from .modern_agents import UniversalRetryHandler, PatternDetector
         
-        retry_handler = UniversalRetryHandler(max_retries=3)
+        from Jotty.core.foundation.config_defaults import MAX_RETRIES
+        retry_handler = UniversalRetryHandler(max_retries=MAX_RETRIES)
         
         async def classify_attempt(**kwargs):
             exp = kwargs.get('experience', '')

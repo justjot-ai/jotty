@@ -583,7 +583,7 @@ Reasoning: {result.reasoning[:500]}
 def create_validation_agent(
     signature: Type = None,
     is_pre_validation: bool = True,
-    model: str = "sonnet",
+    model: str = "",
 ) -> ValidationAgent:
     """
     Factory function to create a ValidationAgent.
@@ -596,6 +596,8 @@ def create_validation_agent(
     Returns:
         Configured ValidationAgent
     """
+    from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+    model = model or DEFAULT_MODEL_ALIAS
     name = f"ValidationAgent[{signature.__name__}]" if signature else "ValidationAgent"
     config = ValidationConfig(name=name, model=model)
 

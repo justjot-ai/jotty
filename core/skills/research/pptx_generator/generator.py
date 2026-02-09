@@ -99,7 +99,7 @@ async def convert_pptx_to_pdf(pptx_path: str, output_dir: Optional[str] = None) 
 
     try:
         # Run LibreOffice headless conversion
-        result = await asyncio.get_event_loop().run_in_executor(
+        result = await asyncio.get_running_loop().run_in_executor(
             None,
             lambda: subprocess.run(
                 [
@@ -206,7 +206,7 @@ async def generate_learning_pptx(
 
         try:
             # Run Node.js script
-            result = await asyncio.get_event_loop().run_in_executor(
+            result = await asyncio.get_running_loop().run_in_executor(
                 None,
                 lambda: subprocess.run(
                     ['node', str(GENERATE_SCRIPT), json_path, output_path],

@@ -414,7 +414,7 @@ def create_meta_agent(
     signature: Type = None,
     gold_db=None,
     improvement_history=None,
-    model: str = "sonnet",
+    model: str = "",
 ) -> MetaAgent:
     """
     Factory function to create a MetaAgent.
@@ -428,6 +428,8 @@ def create_meta_agent(
     Returns:
         Configured MetaAgent
     """
+    from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+    model = model or DEFAULT_MODEL_ALIAS
     name = f"MetaAgent[{signature.__name__}]" if signature else "MetaAgent"
     config = MetaAgentConfig(name=name, model=model)
     return MetaAgent(

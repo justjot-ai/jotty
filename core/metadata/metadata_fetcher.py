@@ -120,8 +120,8 @@ class MetaDataFetcher:
         metadata_provider: Any,
         enable_cache: bool = True,
         default_cache_ttl: int = 300,
-        max_retries: int = 3,
-        retry_delay: float = 1.0,
+        max_retries: int = 0,
+        retry_delay: float = 0.0,
         react_max_iters: int = 5
     ):
         """
@@ -135,11 +135,12 @@ class MetaDataFetcher:
             retry_delay: Initial retry delay in seconds (default: 1.0)
             react_max_iters: Max iterations for ReAct agent (default: 5)
         """
+        from Jotty.core.foundation.config_defaults import MAX_RETRIES, RETRY_BACKOFF_SECONDS
         self.metadata_provider = metadata_provider
         self.enable_cache = enable_cache
         self.default_cache_ttl = default_cache_ttl
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
+        self.max_retries = max_retries or MAX_RETRIES
+        self.retry_delay = retry_delay or RETRY_BACKOFF_SECONDS
         self.react_max_iters = react_max_iters
         
         # Tool registry

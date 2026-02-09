@@ -147,14 +147,21 @@ class AgentTeam:
     agents: Dict[str, AgentSpec] = field(default_factory=dict)
     pattern: CoordinationPattern = CoordinationPattern.NONE
     merge_strategy: MergeStrategy = MergeStrategy.COMBINE
-    timeout: float = 120.0
-    max_retries: int = 3
+    timeout: float = 0.0   # 0.0 → resolved in __post_init__
+    max_retries: int = 0   # 0 → resolved in __post_init__
 
     # For hierarchical pattern
     manager_attr: Optional[str] = None
 
     # Initialized agent instances (set by swarm)
     _instances: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def __post_init__(self):
+        from Jotty.core.foundation.config_defaults import DEFAULTS
+        if self.timeout == 0.0:
+            self.timeout = float(DEFAULTS.LLM_TIMEOUT_SECONDS)
+        if self.max_retries <= 0:
+            self.max_retries = DEFAULTS.MAX_RETRIES
 
     def add(
         self,
@@ -611,7 +618,7 @@ class AgentTeam:
         *specs: tuple,
         pattern: CoordinationPattern = CoordinationPattern.NONE,
         merge_strategy: MergeStrategy = MergeStrategy.COMBINE,
-        timeout: float = 120.0,
+        timeout: float = 0.0,
         manager_attr: str = None
     ) -> 'AgentTeam':
         """

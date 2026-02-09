@@ -6,7 +6,7 @@ import os
 import asyncio
 from typing import Dict, Any, Optional, Callable, List
 
-from .base import LLMProvider
+from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
@@ -34,7 +34,7 @@ class AnthropicProvider(LLMProvider):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> LLMResponse:
         response = self.client.messages.create(
             model=self.model,
@@ -51,7 +51,7 @@ class AnthropicProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> tuple:
         full_content = ""
 

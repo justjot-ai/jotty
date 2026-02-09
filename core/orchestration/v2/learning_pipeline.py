@@ -331,7 +331,7 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"SwarmLearner recording skipped: {e}")
 
-        # 2. Brain consolidation
+        # 2. Brain consolidation (fire-and-forget in running loop)
         try:
             experience = {
                 'content': str(result.output)[:500] if result.output else '',
@@ -339,11 +339,12 @@ class SwarmLearningPipeline:
                 'reward': episode_reward,
                 'agent': 'swarm',
             }
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            try:
+                asyncio.get_running_loop()
+                # We're inside a running event loop — schedule as background task
                 asyncio.ensure_future(self.brain_state.process_experience(experience))
-            else:
-                loop.run_until_complete(self.brain_state.process_experience(experience))
+            except RuntimeError:
+                pass  # No running loop — skip async consolidation
         except Exception as e:
             logger.debug(f"Brain consolidation skipped: {e}")
 

@@ -116,7 +116,7 @@ class SwarmProviderGateway:
                     if not self._configured_lm and shutil.which('claude'):
                         try:
                             from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
-                            self._configured_lm = DirectClaudeCLI(model="sonnet")
+                            self._configured_lm = DirectClaudeCLI()  # model resolved from config_defaults
                             logger.info("🌐 SwarmProviderGateway (async): Using DirectClaudeCLI")
                         except Exception as e:
                             logger.debug(f"DirectClaudeCLI failed: {e}")

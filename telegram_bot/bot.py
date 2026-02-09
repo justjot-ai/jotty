@@ -460,7 +460,7 @@ class TelegramBotHandler:
             async def stream_callback(chunk: str):
                 """Update Telegram message with streaming content."""
                 stream_content.append(chunk)
-                current_time = asyncio.get_event_loop().time()
+                current_time = asyncio.get_running_loop().time()
 
                 # Only update message periodically to avoid rate limits
                 if current_time - last_update_time[0] >= UPDATE_INTERVAL:

@@ -381,10 +381,10 @@ class ChannelRouter:
             # Schedule async deletion
             import asyncio
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 loop.create_task(session_manager.delete(user_id))
-            except Exception:
-                pass
+            except RuntimeError:
+                pass  # No running loop — skip async cleanup
 
         # Clear from legacy
         session_key = f"{channel.value}:{channel_id}:{user_id}"

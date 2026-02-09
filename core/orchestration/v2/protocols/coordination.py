@@ -6,6 +6,7 @@ These are mixed into SwarmIntelligence at class definition.
 """
 
 import asyncio
+import hashlib
 import time
 import logging
 import math

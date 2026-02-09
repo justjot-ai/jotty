@@ -58,11 +58,12 @@ class SwarmBenchmarks:
         # Cooperation events
         self.cooperation_events: List[Dict] = []
 
+        # Iteration history for self-improvement tracking
+        self.iteration_history: List[Dict] = []
+
     def record_iteration(self, iteration_id: str, task_type: str,
                          score: float, execution_time: float, success: bool):
         """Record a self-improvement iteration."""
-        if not hasattr(self, 'iteration_history'):
-            self.iteration_history = []
         self.iteration_history.append({
             'iteration_id': iteration_id, 'task_type': task_type,
             'score': score, 'execution_time': execution_time,

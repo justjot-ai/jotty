@@ -644,12 +644,11 @@ def generate_python(spec: Dict, output_dir: Path):
 
             def _run(self, coro):
                 try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as pool:
-                            return pool.submit(asyncio.run, coro).result()
-                    return loop.run_until_complete(coro)
+                    asyncio.get_running_loop()
+                    # Already in async context — offload to a thread
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        return pool.submit(asyncio.run, coro).result()
                 except RuntimeError:
                     return asyncio.run(coro)
 

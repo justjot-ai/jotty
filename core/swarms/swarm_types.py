@@ -94,16 +94,28 @@ class ImprovementSuggestion:
 
 @dataclass
 class AgentConfig:
-    """Configuration for an agent."""
+    """Configuration for an agent.
+
+    Sentinel defaults (0 / 0.0 / '') resolved from config_defaults in __post_init__.
+    """
     role: AgentRole
     name: str
-    model: str = "sonnet"
-    temperature: float = 0.7
-    max_tokens: int = 4096
+    model: str = ""           # "" → DEFAULT_MODEL_ALIAS
+    temperature: float = 0.0  # 0.0 → LLM_TEMPERATURE
+    max_tokens: int = 0       # 0 → LLM_MAX_OUTPUT_TOKENS
     system_prompt: str = ""
     tools: List[str] = field(default_factory=list)
     parameters: Dict[str, Any] = field(default_factory=dict)
     version: int = 1
+
+    def __post_init__(self):
+        from Jotty.core.foundation.config_defaults import DEFAULTS
+        if not self.model:
+            self.model = DEFAULTS.DEFAULT_MODEL_ALIAS
+        if self.temperature == 0.0:
+            self.temperature = DEFAULTS.LLM_TEMPERATURE
+        if self.max_tokens <= 0:
+            self.max_tokens = DEFAULTS.LLM_MAX_OUTPUT_TOKENS
 
 
 @dataclass

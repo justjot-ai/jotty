@@ -67,7 +67,7 @@ class DirectClaudeCLI(dspy.BaseLM):
         "opus": 180,   # Opus is slower but higher quality
     }
 
-    def __init__(self, model: str = "sonnet", max_retries: int = 3, base_timeout: int = None, **kwargs):
+    def __init__(self, model: str = "", max_retries: int = 0, base_timeout: int = None, **kwargs):
         """
         Initialize Direct Claude CLI wrapper.
 
@@ -77,6 +77,10 @@ class DirectClaudeCLI(dspy.BaseLM):
             base_timeout: Base timeout in seconds (auto-set based on model if None)
             **kwargs: Additional arguments (ignored for compatibility)
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, MAX_RETRIES
+        model = model or DEFAULT_MODEL_ALIAS
+        max_retries = max_retries or MAX_RETRIES
+
         super().__init__(model=model, **kwargs)
         self.model = model
         self.max_retries = max_retries

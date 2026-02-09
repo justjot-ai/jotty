@@ -47,13 +47,17 @@ class PersistentClaudeCLI(dspy.BaseLM):
 
     def __init__(
         self,
-        model: str = "sonnet",
-        timeout: int = 120,
+        model: str = "",
+        timeout: int = 0,
         auto_clear: bool = True,
         **kwargs
     ):
         if self._initialized:
             return
+
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        model = model or DEFAULT_MODEL_ALIAS
+        timeout = timeout or LLM_TIMEOUT_SECONDS
 
         super().__init__(model=f"claude-cli-persistent/{model}", **kwargs)
         self.cli_model = model
@@ -321,7 +325,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
             cls._instance = None
 
 
-def configure_persistent_claude(model: str = "sonnet", **kwargs) -> PersistentClaudeCLI:
+def configure_persistent_claude(model: str = "", **kwargs) -> PersistentClaudeCLI:
     """
     Configure DSPy with PersistentClaudeCLI.
 

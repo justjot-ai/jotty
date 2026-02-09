@@ -115,16 +115,17 @@ class ModelChatAgent:
         'max_drawdown': ['drawdown', 'max_drawdown', 'mdd'],
     }
 
-    def __init__(self, llm_model: str = "sonnet"):
+    def __init__(self, llm_model: str = ""):
         """
         Initialize ModelChatAgent.
 
         Args:
             llm_model: Model to use for LLM reasoning (sonnet, opus, haiku)
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
         self._tracker = None
         self._llm = None
-        self._llm_model = llm_model
+        self._llm_model = llm_model or DEFAULT_MODEL_ALIAS
         self.conversation_history: List[Dict[str, str]] = []
         self._initialized = False
 

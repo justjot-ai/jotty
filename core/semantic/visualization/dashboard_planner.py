@@ -85,7 +85,7 @@ class DashboardPlanner:
         self,
         viz_layer,
         provider: str = "claude-cli",
-        model: str = "sonnet",
+        model: str = "",
         max_charts: int = 6,
         library: str = "plotly",
         **kwargs
@@ -101,9 +101,10 @@ class DashboardPlanner:
             library: Chart library (plotly, matplotlib, altair, seaborn)
             **kwargs: Additional LLM options
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
         self.viz_layer = viz_layer
         self.provider = provider
-        self.model = model
+        self.model = model or DEFAULT_MODEL_ALIAS
         self.max_charts = max_charts
         self.library = library
         self.kwargs = kwargs
@@ -203,11 +204,12 @@ IMPORTANT:
 
 Respond ONLY with the JSON, no other text."""
 
+        from Jotty.core.foundation.config_defaults import LLM_TIMEOUT_SECONDS
         response = self.llm_generate(
             prompt=prompt,
             provider=self.provider,
             model=self.model,
-            timeout=120,
+            timeout=LLM_TIMEOUT_SECONDS,
             **self.kwargs
         )
 

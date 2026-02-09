@@ -152,7 +152,7 @@ class BatchExecutor:
 
         async with self._lock:
             # Create future for this item
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             future = loop.create_future()
 
             # Create batch item

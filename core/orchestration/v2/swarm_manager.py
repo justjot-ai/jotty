@@ -69,54 +69,49 @@ from .ensemble_manager import EnsembleManager
 from .learning_delegate import LearningDelegate
 from .mas_zero_controller import MASZeroController
 from .model_tier_router import ModelTierRouter
+from .swarm_router import SwarmRouter
 
 logger = logging.getLogger(__name__)
 
 
-# Skill Provider System - Lazy loaded
-PROVIDERS_AVAILABLE = False
-ProviderRegistry = None
-SkillCategory = None
-BrowserUseProvider = None
-OpenHandsProvider = None
-AgentSProvider = None
-OpenInterpreterProvider = None
-ResearchAndAnalyzeProvider = None
-AutomateWorkflowProvider = None
-FullStackAgentProvider = None
+# Skill Provider System - Lazy loaded via cache dict (no globals)
+_provider_cache: Dict[str, Any] = {}
 
-def _load_providers():
-    """Lazy load providers to avoid circular imports."""
-    global PROVIDERS_AVAILABLE, ProviderRegistry, SkillCategory
-    global BrowserUseProvider, OpenHandsProvider, AgentSProvider
-    global OpenInterpreterProvider, ResearchAndAnalyzeProvider
-    global AutomateWorkflowProvider, FullStackAgentProvider
 
-    if PROVIDERS_AVAILABLE:
+def _load_providers() -> bool:
+    """
+    Lazy load skill providers to avoid circular imports.
+
+    Caches result in _provider_cache so the import cost is paid once.
+    Returns True if providers are available.
+    """
+    if _provider_cache.get('available'):
         return True
 
     try:
-        from Jotty.core.skills.providers import ProviderRegistry as PR, SkillCategory as SC
-        from Jotty.core.skills.providers.browser_use_provider import BrowserUseProvider as BUP
-        from Jotty.core.skills.providers.openhands_provider import OpenHandsProvider as OHP
-        from Jotty.core.skills.providers.agent_s_provider import AgentSProvider as ASP
-        from Jotty.core.skills.providers.open_interpreter_provider import OpenInterpreterProvider as OIP
+        from Jotty.core.skills.providers import ProviderRegistry, SkillCategory
+        from Jotty.core.skills.providers.browser_use_provider import BrowserUseProvider
+        from Jotty.core.skills.providers.openhands_provider import OpenHandsProvider
+        from Jotty.core.skills.providers.agent_s_provider import AgentSProvider
+        from Jotty.core.skills.providers.open_interpreter_provider import OpenInterpreterProvider
         from Jotty.core.skills.providers.composite_provider import (
-            ResearchAndAnalyzeProvider as RAP,
-            AutomateWorkflowProvider as AWP,
-            FullStackAgentProvider as FSP,
+            ResearchAndAnalyzeProvider,
+            AutomateWorkflowProvider,
+            FullStackAgentProvider,
         )
 
-        ProviderRegistry = PR
-        SkillCategory = SC
-        BrowserUseProvider = BUP
-        OpenHandsProvider = OHP
-        AgentSProvider = ASP
-        OpenInterpreterProvider = OIP
-        ResearchAndAnalyzeProvider = RAP
-        AutomateWorkflowProvider = AWP
-        FullStackAgentProvider = FSP
-        PROVIDERS_AVAILABLE = True
+        _provider_cache.update({
+            'available': True,
+            'ProviderRegistry': ProviderRegistry,
+            'SkillCategory': SkillCategory,
+            'BrowserUseProvider': BrowserUseProvider,
+            'OpenHandsProvider': OpenHandsProvider,
+            'AgentSProvider': AgentSProvider,
+            'OpenInterpreterProvider': OpenInterpreterProvider,
+            'ResearchAndAnalyzeProvider': ResearchAndAnalyzeProvider,
+            'AutomateWorkflowProvider': AutomateWorkflowProvider,
+            'FullStackAgentProvider': FullStackAgentProvider,
+        })
         return True
 
     except ImportError as e:
@@ -332,6 +327,11 @@ class SwarmManager:
         get_agents=lambda: self.agents,
         get_runners=lambda: self.runners,
     ))
+    _router = LazyComponent(lambda self: SwarmRouter(
+        get_swarm_intelligence=lambda: getattr(self, 'swarm_intelligence', None),
+        get_agents=lambda: self.agents,
+        get_model_tier_router=lambda: self._model_tier_router,
+    ))
 
     # =========================================================================
     # INIT - Fast, minimal, no I/O
@@ -418,6 +418,10 @@ class SwarmManager:
         self._training_daemon: Optional[asyncio.Task] = None
         self._training_daemon_results: list = []
 
+        # Learning readiness: set by _ensure_runners background init,
+        # awaited by run() to prevent operating with partially-loaded state.
+        self._learning_ready = asyncio.Event()
+
         # Intelligence effectiveness A/B metrics:
         # Tracks whether stigmergy/byzantine guidance improves success rate.
         # Keyed by task_type for fine-grained analysis.
@@ -454,8 +458,14 @@ class SwarmManager:
                 enable_memory=True,
             )
 
+            # Propagate JottyConfig to agent so lazy-loaded components
+            # (memory, context, etc.) use the same config as SwarmManager.
+            agent = agent_config.agent
+            if hasattr(agent, 'set_jotty_config'):
+                agent.set_jotty_config(self.config)
+
             runner = AgentRunner(
-                agent=agent_config.agent,
+                agent=agent,
                 config=runner_config,
                 task_planner=self.swarm_planner,
                 task_board=self.swarm_task_board,
@@ -475,16 +485,29 @@ class SwarmManager:
         if self.enable_lotus:
             self._init_lotus_optimization()
 
-        # Auto-load previous learnings + integrate MAS terminal in background
-        # This saves ~3s by not blocking runner construction
-        import threading
-        def _bg_init():
+        # Auto-load previous learnings + integrate MAS terminal in background.
+        # Uses asyncio task instead of raw thread so run() can await readiness
+        # via self._learning_ready event before executing with partial state.
+        async def _bg_learning_init():
             try:
                 self.learning.auto_load()
                 self.mas_learning.integrate_with_terminal(self.swarm_terminal)
             except Exception as e:
-                logger.debug(f"Background learning init: {e}")
-        threading.Thread(target=_bg_init, daemon=True).start()
+                logger.warning(f"Background learning init failed: {e}")
+            finally:
+                self._learning_ready.set()
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_bg_learning_init())
+        except RuntimeError:
+            # No running event loop — fall back to synchronous init
+            try:
+                self.learning.auto_load()
+                self.mas_learning.integrate_with_terminal(self.swarm_terminal)
+            except Exception as e:
+                logger.warning(f"Synchronous learning init failed: {e}")
+            self._learning_ready.set()
 
         # Init providers if available
         if _load_providers():
@@ -1044,6 +1067,13 @@ class SwarmManager:
 
         # Lazy init: Build runners on first run
         self._ensure_runners()
+
+        # Wait for background learning init to complete (max 5s)
+        # Prevents operating with partially-loaded learning state.
+        try:
+            await asyncio.wait_for(self._learning_ready.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Learning init timed out after 5s, proceeding without full learning state")
 
         # MAS-ZERO: Reset per-problem experience library
         self._reset_experience()

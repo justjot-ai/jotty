@@ -193,6 +193,8 @@ class DomainSwarm(BaseSwarm):
 
         This method leverages the team's coordination pattern (PIPELINE,
         PARALLEL, CONSENSUS, etc.) to orchestrate agent execution.
+        Also wires in coalition formation and smart routing from
+        SwarmIntelligence when available.
 
         Args:
             task: The task/input for the team
@@ -224,6 +226,52 @@ class DomainSwarm(BaseSwarm):
         full_context = context or {}
         if self._context:
             full_context["shared_context"] = self._context
+
+        # Wire in coordination protocols from SwarmIntelligence
+        si = self._swarm_intelligence
+        if si and si.agent_profiles:
+            task_str = str(task)[:200] if task else ""
+            task_type = self.__class__.__name__
+
+            # Coalition formation: for PARALLEL teams with 2+ agents,
+            # form a coalition so agents are tracked as a coordinated unit
+            if (self.AGENT_TEAM.pattern == CoordinationPattern.PARALLEL
+                    and len(self.AGENT_TEAM) >= 2):
+                try:
+                    agent_names = [
+                        getattr(self, attr, None).__class__.__name__
+                        for attr, _ in self.AGENT_TEAM
+                        if hasattr(self, attr)
+                    ]
+                    coalition = si.form_coalition(
+                        task_type=task_type,
+                        required_roles=[],
+                        min_agents=2,
+                        max_agents=len(agent_names)
+                    )
+                    if coalition:
+                        full_context["coalition_id"] = coalition.coalition_id
+                        full_context["coalition_leader"] = coalition.leader
+                except Exception:
+                    pass  # Non-blocking
+
+            # Smart routing: use SwarmIntelligence to determine optimal
+            # agent ordering or leader selection
+            try:
+                route = si.smart_route(
+                    task_id=f"{task_type}_{id(task)}",
+                    task_type=task_type,
+                    task_description=task_str,
+                    prefer_coalition=False,  # Already handled above
+                    use_auction=(self.AGENT_TEAM.pattern == CoordinationPattern.NONE),
+                    use_hierarchy=True
+                )
+                if route.get("assigned_agent"):
+                    full_context["routed_agent"] = route["assigned_agent"]
+                    full_context["routing_method"] = route.get("method", "unknown")
+                    full_context["routing_confidence"] = route.get("confidence", 0.5)
+            except Exception:
+                pass  # Non-blocking
 
         return await self.AGENT_TEAM.execute(task, full_context, **kwargs)
 

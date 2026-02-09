@@ -63,10 +63,15 @@ class VisualizationIdeaConfig:
 
     # LLM options
     llm_provider: str = "claude-cli"
-    llm_model: str = "sonnet"
+    llm_model: str = ""  # "" → resolved from config_defaults
 
     # Styling
     colors: List[str] = None
+
+    def __post_init__(self):
+        if not self.llm_model:
+            from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+            self.llm_model = DEFAULT_MODEL_ALIAS
 
 
 class JustJotIdeaBuilder:

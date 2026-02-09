@@ -9,6 +9,10 @@ import logging
 import time
 from typing import Dict, Any, Optional, List
 
+from Jotty.core.foundation.config_defaults import (
+    LLM_MAX_OUTPUT_TOKENS, LLM_TIMEOUT_SECONDS, DEFAULT_MODEL_ALIAS,
+)
+
 from .providers import (
     LLMResponse,
     ClaudeCLIProvider,
@@ -54,9 +58,9 @@ class UnifiedLLM:
     def __init__(
         self,
         default_provider: str = "claude-cli",
-        default_model: str = "sonnet",
+        default_model: str = DEFAULT_MODEL_ALIAS,
         fallback_order: Optional[List[str]] = None,
-        timeout: int = 120,
+        timeout: int = LLM_TIMEOUT_SECONDS,
         cost_tracker: Optional['CostTracker'] = None,
     ):
         """
@@ -81,7 +85,7 @@ class UnifiedLLM:
         provider: Optional[str] = None,
         model: Optional[str] = None,
         timeout: Optional[int] = None,
-        max_tokens: int = 4096,
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
         fallback: bool = False,
         **kwargs
     ) -> LLMResponse:
@@ -264,8 +268,8 @@ def get_llm() -> UnifiedLLM:
 def generate(
     prompt: str,
     provider: str = "claude-cli",
-    model: str = "sonnet",
-    timeout: int = 120,
+    model: str = DEFAULT_MODEL_ALIAS,
+    timeout: int = LLM_TIMEOUT_SECONDS,
     fallback: bool = False,
     **kwargs
 ) -> LLMResponse:
@@ -292,8 +296,8 @@ def generate(
 def generate_text(
     prompt: str,
     provider: str = "claude-cli",
-    model: str = "sonnet",
-    timeout: int = 120,
+    model: str = DEFAULT_MODEL_ALIAS,
+    timeout: int = LLM_TIMEOUT_SECONDS,
     fallback: bool = False,
     **kwargs
 ) -> str:

@@ -568,7 +568,7 @@ class SwarmTerminal:
                     exit_code=-1,
                 )
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _run_sync)
 
     async def write_file(self, path: str, content: str, mode: str = 'w') -> CommandResult:

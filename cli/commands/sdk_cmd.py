@@ -342,7 +342,7 @@ Test the SDK client with real-time event visualization.
             while True:
                 try:
                     # Get input with rich prompt
-                    user_input = await asyncio.get_event_loop().run_in_executor(
+                    user_input = await asyncio.get_running_loop().run_in_executor(
                         None,
                         lambda: session.prompt(HTML('<prompt>you></prompt> '))
                     )

@@ -77,7 +77,7 @@ class ResearchSwarm(DomainSwarm):
         if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
             try:
                 from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-                lm = DirectClaudeCLI(model="sonnet")
+                lm = DirectClaudeCLI()  # model resolved from config_defaults
                 dspy.configure(lm=lm)
                 logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
             except Exception as e:

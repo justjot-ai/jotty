@@ -10,6 +10,8 @@ import logging
 from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
 
+from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,8 +80,8 @@ class ClaudeLLMTextGenerator:
     def __init__(
         self,
         provider: str = "claude-cli",
-        model: str = "sonnet",
-        timeout: int = 120,
+        model: str = DEFAULT_MODEL_ALIAS,
+        timeout: int = LLM_TIMEOUT_SECONDS,
         fallback: bool = True,
         **kwargs
     ):
@@ -215,7 +217,7 @@ class ClaudeLLMTextGenerator:
 
 def get_lida_text_generator(
     provider: str = "claude-cli",
-    model: str = "sonnet",
+    model: str = DEFAULT_MODEL_ALIAS,
     **kwargs
 ) -> ClaudeLLMTextGenerator:
     """

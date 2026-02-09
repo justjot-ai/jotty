@@ -8,6 +8,10 @@ import subprocess
 import os
 import logging
 from typing import Dict, Any, Optional
+
+from Jotty.core.foundation.config_defaults import (
+    LLM_MAX_OUTPUT_TOKENS, LLM_TIMEOUT_SECONDS, DEFAULT_MODEL_ALIAS,
+)
 from dataclasses import dataclass
 from enum import Enum
 
@@ -47,11 +51,12 @@ class LLMResponse:
         return result
 
 
-# Model mappings for different providers
+# Model mappings — centralized in config_defaults
+from Jotty.core.foundation.config_defaults import MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU
 ANTHROPIC_MODELS = {
-    "haiku": "claude-3-5-haiku-latest",
-    "sonnet": "claude-sonnet-4-20250514",
-    "opus": "claude-opus-4-20250514",
+    "haiku": MODEL_HAIKU,
+    "sonnet": MODEL_SONNET,
+    "opus": MODEL_OPUS,
 }
 
 GEMINI_MODELS = {
@@ -76,8 +81,8 @@ class ClaudeCLIProvider:
     @staticmethod
     def generate(
         prompt: str,
-        model: str = "sonnet",
-        timeout: int = 120,
+        model: str = DEFAULT_MODEL_ALIAS,
+        timeout: int = LLM_TIMEOUT_SECONDS,
         **kwargs
     ) -> LLMResponse:
         """
@@ -164,8 +169,8 @@ class AnthropicAPIProvider:
     @staticmethod
     def generate(
         prompt: str,
-        model: str = "sonnet",
-        max_tokens: int = 4096,
+        model: str = DEFAULT_MODEL_ALIAS,
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
         **kwargs
     ) -> LLMResponse:
         """
@@ -308,7 +313,7 @@ class OpenAIProvider:
     def generate(
         prompt: str,
         model: str = "gpt4o",
-        max_tokens: int = 4096,
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
         **kwargs
     ) -> LLMResponse:
         """

@@ -94,11 +94,14 @@ class ArxivLearningConfig(SwarmConfig):
     # SPEED OPTIMIZATIONS
     llm_model: str = "haiku"  # "haiku" (faster) or "sonnet" (higher quality)
     use_fast_predict: bool = True  # Use dspy.Predict (faster) instead of ChainOfThought
-    llm_timeout: int = 120  # Timeout per LLM call in seconds
+    llm_timeout: int = 0  # 0 → resolved in __post_init__ from LLM_TIMEOUT_SECONDS
     max_concurrent_llm: int = 5  # Concurrent LLM calls for parallel_deep mode
 
     def __post_init__(self):
         self.name = "ArxivLearningSwarm"
+        if self.llm_timeout <= 0:
+            from Jotty.core.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+            self.llm_timeout = LLM_TIMEOUT_SECONDS
         self.domain = "arxiv_learning"
 
 

@@ -231,6 +231,118 @@ class RecencyValueRanker:
 
 
 # =============================================================================
+# OPTIONAL EMBEDDING PRE-FILTER (Fast ~2ms first pass)
+# =============================================================================
+
+class EmbeddingPreFilter:
+    """
+    Optional fast embedding pre-filter before expensive LLM scoring.
+
+    Uses local sentence-transformers model (~2ms per query) to narrow
+    down candidates before the LLM scorer runs (~500ms per batch).
+
+    This is a performance optimization, not a replacement for LLM scoring.
+    The LLM scorer still handles all the nuanced semantic matching.
+
+    Architecture:
+        1. EmbeddingPreFilter narrows N memories -> top-K candidates (~2ms)
+        2. LLMRelevanceScorer scores K candidates semantically (~500ms)
+        3. Combined: O(2ms + 500ms) vs O(N * 500ms) for pure LLM
+
+    Falls back gracefully to pure LLM if embeddings unavailable.
+    """
+
+    _model = None
+    _model_name = None
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", top_k: int = 50):
+        """
+        Args:
+            model_name: Sentence-transformers model name
+            top_k: Number of candidates to pass to LLM scorer
+        """
+        self.model_name = model_name
+        self.top_k = top_k
+        self._available = None  # Lazy check
+
+    @classmethod
+    def _get_model(cls, model_name: str):
+        """Lazy-load sentence-transformers model (shared across instances)."""
+        if cls._model is None or cls._model_name != model_name:
+            try:
+                from sentence_transformers import SentenceTransformer
+                cls._model = SentenceTransformer(model_name)
+                cls._model_name = model_name
+                logger.info(f"Embedding pre-filter loaded: {model_name}")
+            except ImportError:
+                logger.debug(
+                    "sentence-transformers not installed, embedding pre-filter disabled. "
+                    "Install with: pip install sentence-transformers"
+                )
+                cls._model = False  # Mark as unavailable
+        return cls._model if cls._model is not False else None
+
+    @property
+    def available(self) -> bool:
+        """Check if embedding model is available."""
+        if self._available is None:
+            self._available = self._get_model(self.model_name) is not None
+        return self._available
+
+    def prefilter(self, query: str, memories: List['MemoryEntry'],
+                  goal: str = "") -> List['MemoryEntry']:
+        """
+        Fast embedding-based pre-filter.
+
+        Args:
+            query: Search query
+            memories: All candidate memories
+            goal: Optional goal for context
+
+        Returns:
+            Top-K memories by embedding similarity (for LLM to refine)
+        """
+        if not self.available or len(memories) <= self.top_k:
+            return memories  # No filtering needed
+
+        model = self._get_model(self.model_name)
+        if model is None:
+            return memories
+
+        try:
+            import numpy as np
+
+            # Encode query
+            query_text = f"{query} {goal}".strip()
+            query_embedding = model.encode([query_text], show_progress_bar=False)[0]
+
+            # Encode memory contents (batch for efficiency)
+            memory_texts = [m.content[:500] for m in memories]
+            memory_embeddings = model.encode(memory_texts, show_progress_bar=False)
+
+            # Cosine similarity
+            query_norm = query_embedding / (np.linalg.norm(query_embedding) + 1e-10)
+            memory_norms = memory_embeddings / (
+                np.linalg.norm(memory_embeddings, axis=1, keepdims=True) + 1e-10
+            )
+            similarities = memory_norms @ query_norm
+
+            # Get top-K indices
+            top_indices = np.argsort(similarities)[-self.top_k:][::-1]
+            filtered = [memories[i] for i in top_indices]
+
+            logger.debug(
+                f"Embedding pre-filter: {len(memories)} -> {len(filtered)} candidates "
+                f"(top similarity: {similarities[top_indices[0]]:.3f})"
+            )
+            return filtered
+
+        except Exception as e:
+            logger.debug(f"Embedding pre-filter failed, using all memories: {e}")
+            return memories
+
+
+# =============================================================================
 # LLM RELEVANCE SCORER (Pure Semantic - No Keywords!)
 # =============================================================================
 
@@ -776,7 +888,7 @@ class LLMRAGRetriever:
     - Domain-specific jargon
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: JottyConfig, use_embedding_prefilter: bool = True):
         self.config = config
         
         self.chunker = SlidingWindowChunker(
@@ -786,11 +898,19 @@ class LLMRAGRetriever:
         
         # NO keyword filter - use recency/value ranking instead
         self.preranker = RecencyValueRanker(config)
+
+        # Optional embedding pre-filter (fast ~2ms first pass)
+        # Narrows candidates before expensive LLM scoring
+        self.embedding_prefilter = None
+        if use_embedding_prefilter:
+            self.embedding_prefilter = EmbeddingPreFilter(
+                top_k=min(50, config.rag_max_candidates)
+            )
         
-        # Pure LLM semantic scoring
+        # Pure LLM semantic scoring (second pass on pre-filtered candidates)
         self.scorer = LLMRelevanceScorer(config)
 
-        # 🧠 Brain-Inspired Memory Synthesis (NEW!)
+        # Brain-Inspired Memory Synthesis
         self.synthesizer = MemorySynthesizer(config)
 
         # Deduplication
@@ -832,8 +952,18 @@ class LLMRAGRetriever:
         if not candidates:
             return []
         
-        # Step 2: PURE LLM semantic scoring
+        # Step 1.5: Optional embedding pre-filter (fast ~2ms)
+        # Narrows candidates before expensive LLM scoring
         candidate_memories = [m for m, _ in candidates]
+        if (self.embedding_prefilter and self.embedding_prefilter.available
+                and len(candidate_memories) > self.embedding_prefilter.top_k):
+            candidate_memories = self.embedding_prefilter.prefilter(
+                query=query,
+                memories=candidate_memories,
+                goal=goal
+            )
+        
+        # Step 2: PURE LLM semantic scoring (on pre-filtered candidates)
         relevance_scores = self.scorer.score_batch(
             query=query,
             memories=candidate_memories,

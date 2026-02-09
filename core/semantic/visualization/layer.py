@@ -151,7 +151,7 @@ class VisualizationLayer:
         self,
         data_source: DataSource,
         llm_provider: str = "claude-cli",
-        llm_model: str = "sonnet",
+        llm_model: str = "",
         default_library: ChartLibrary = ChartLibrary.MATPLOTLIB,
         **llm_kwargs
     ):
@@ -165,9 +165,10 @@ class VisualizationLayer:
             default_library: Default chart library
             **llm_kwargs: Additional LLM configuration
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
         self.data_source = data_source
         self.llm_provider = llm_provider
-        self.llm_model = llm_model
+        self.llm_model = llm_model or DEFAULT_MODEL_ALIAS
         self.default_library = default_library
         self._llm_kwargs = llm_kwargs
 
@@ -179,7 +180,7 @@ class VisualizationLayer:
         cls,
         semantic_layer,
         llm_provider: str = "claude-cli",
-        llm_model: str = "sonnet",
+        llm_model: str = "",
         **kwargs
     ) -> 'VisualizationLayer':
         """
@@ -203,7 +204,7 @@ class VisualizationLayer:
         dataframe,
         name: str = "data",
         llm_provider: str = "claude-cli",
-        llm_model: str = "sonnet",
+        llm_model: str = "",
         **kwargs
     ) -> 'VisualizationLayer':
         """
@@ -227,7 +228,7 @@ class VisualizationLayer:
         cls,
         path: str,
         llm_provider: str = "claude-cli",
-        llm_model: str = "sonnet",
+        llm_model: str = "",
         **kwargs
     ) -> 'VisualizationLayer':
         """

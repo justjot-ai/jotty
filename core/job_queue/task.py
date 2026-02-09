@@ -10,6 +10,7 @@ from enum import Enum
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
 from ..foundation.types import TaskStatus
+from ..foundation.config_defaults import MAX_RETRIES
 
 
 class TaskPriority(Enum):
@@ -180,7 +181,7 @@ class Task:
             actual_hours=data.get('actual_hours'),
             error_message=data.get('error_message'),
             retry_count=data.get('retry_count', 0),
-            max_retries=data.get('max_retries', 3),
+            max_retries=data.get('max_retries', MAX_RETRIES),
             depends_on=data.get('depends_on'),
             blocks=data.get('blocks'),
             created_by=data.get('created_by', 'system'),

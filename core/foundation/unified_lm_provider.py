@@ -49,7 +49,13 @@ class ContextAwareLM(BaseLM):
         """
         # Initialize with the wrapped LM's model name
         model_name = getattr(wrapped_lm, 'model', 'unknown')
-        super().__init__(model=model_name, **kwargs)
+        # Inherit kwargs from the wrapped LM (max_tokens, temperature, etc.)
+        # so DSPy sees the correct settings on the wrapper, not BaseLM defaults.
+        inherited_kwargs = dict(getattr(wrapped_lm, 'kwargs', {}))
+        # Remove api_key from inherited kwargs — don't duplicate secrets
+        inherited_kwargs.pop('api_key', None)
+        inherited_kwargs.update(kwargs)  # Explicit overrides win
+        super().__init__(model=model_name, **inherited_kwargs)
         self._wrapped = wrapped_lm
         # Copy attributes from wrapped LM
         self.provider = getattr(wrapped_lm, 'provider', 'unknown')
@@ -143,7 +149,11 @@ class UnifiedLMProvider:
             # Use DSPy's native API support (faster than CLI, more reliable)
             lm = UnifiedLMProvider._create_direct_lm(provider, model, **kwargs)
             return ContextAwareLM(lm) if inject_context else lm
-        
+
+        if provider == 'zen':
+            lm = UnifiedLMProvider._create_zen_lm(model, **kwargs)
+            return ContextAwareLM(lm) if inject_context else lm
+
         # CLI providers and OpenCode use AISDKProviderLM
         try:
             from ..integration.ai_sdk_provider_adapter import AISDKProviderLM
@@ -189,15 +199,15 @@ class UnifiedLMProvider:
         
         # Map provider to DSPy model format
         # Handle model aliases (e.g., "sonnet" -> full model name)
+        # Centralized in config_defaults — change model versions there.
+        from Jotty.core.foundation.config_defaults import (
+            MODEL_ALIASES, DEFAULTS,
+        )
         model_aliases = {
-            'anthropic': {
-                'sonnet': 'claude-sonnet-4-20250514',  # Latest Sonnet 4
-                'opus': 'claude-opus-4-20250514',
-                'haiku': 'claude-3-5-haiku-20241022',
-            },
+            'anthropic': MODEL_ALIASES,
             'openai': {
                 'gpt4': 'gpt-4-turbo',
-                'gpt4o': 'gpt-4o',
+                'gpt4o': DEFAULTS.MODEL_OPENAI_DEFAULT,
             },
         }
         
@@ -206,13 +216,13 @@ class UnifiedLMProvider:
         if provider in model_aliases and model in model_aliases[provider]:
             resolved_model = model_aliases[provider][model]
         elif not resolved_model:
-            # Default models
+            # Default models — centralized in config_defaults
             defaults = {
-                'anthropic': 'claude-sonnet-4-20250514',  # Latest Sonnet 4
-                'openai': 'gpt-4o',
-                'google': 'gemini-2.0-flash-exp',
-                'groq': 'llama-3.1-8b-instant',
-                'openrouter': 'meta-llama/llama-3.3-70b-instruct:free',
+                'anthropic': DEFAULTS.MODEL_SONNET,
+                'openai': DEFAULTS.MODEL_OPENAI_DEFAULT,
+                'google': DEFAULTS.MODEL_GEMINI_DEFAULT,
+                'groq': DEFAULTS.MODEL_GROQ_DEFAULT,
+                'openrouter': DEFAULTS.MODEL_OPENROUTER_DEFAULT,
             }
             resolved_model = defaults.get(provider, model)
         
@@ -243,6 +253,10 @@ class UnifiedLMProvider:
             raise ValueError(f"API key required for provider '{provider}'")
         
         # Use DSPy's native LM (faster than CLI, more reliable)
+        # Centralized default — DSPy's built-in 1024 truncates real-world output.
+        from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+        kwargs.setdefault('max_tokens', LLM_MAX_OUTPUT_TOKENS)
+
         # For Anthropic, enable structured output mode to enforce JSON
         if provider == 'anthropic':
             # Anthropic API supports response_format for structured output
@@ -250,7 +264,197 @@ class UnifiedLMProvider:
             kwargs.setdefault('response_format', {'type': 'json_object'})
         
         return dspy.LM(model_map[provider], api_key=api_key, **kwargs)
-    
+
+    # =========================================================================
+    # OPENCODE ZEN PROVIDER (Free and paid models via opencode.ai/zen)
+    # =========================================================================
+
+    # Zen model registry: model_id -> (endpoint_path, api_format)
+    # api_format determines how DSPy should talk to the endpoint:
+    #   'openai'     -> /v1/chat/completions (OpenAI-compatible)
+    #   'anthropic'  -> /v1/messages (Anthropic-compatible)
+    #   'responses'  -> /v1/responses (OpenAI Responses API)
+    ZEN_MODELS = {
+        # === FREE MODELS ===
+        'glm-4.7-free':              ('chat/completions', 'openai'),
+        'kimi-k2.5-free':            ('chat/completions', 'openai'),
+        'minimax-m2.1-free':         ('messages',         'anthropic'),
+        'big-pickle':                ('chat/completions', 'openai'),
+        'gpt-5-nano':                ('responses',        'openai'),
+        'trinity-large-preview-free': ('chat/completions', 'openai'),
+        'alpha-g5':                  ('chat/completions', 'openai'),
+        # === PAID - OpenAI-compatible ===
+        'glm-4.7':            ('chat/completions', 'openai'),
+        'glm-4.6':            ('chat/completions', 'openai'),
+        'kimi-k2.5':          ('chat/completions', 'openai'),
+        'kimi-k2-thinking':   ('chat/completions', 'openai'),
+        'kimi-k2':            ('chat/completions', 'openai'),
+        'minimax-m2.1':       ('chat/completions', 'openai'),
+        'qwen3-coder':        ('chat/completions', 'openai'),
+        # === PAID - Anthropic-compatible ===
+        'claude-sonnet-4-5':  ('messages',         'anthropic'),
+        'claude-sonnet-4':    ('messages',         'anthropic'),
+        'claude-haiku-4-5':   ('messages',         'anthropic'),
+        'claude-3-5-haiku':   ('messages',         'anthropic'),
+        'claude-opus-4-6':    ('messages',         'anthropic'),
+        'claude-opus-4-5':    ('messages',         'anthropic'),
+        'claude-opus-4-1':    ('messages',         'anthropic'),
+        # === PAID - OpenAI Responses API ===
+        'gpt-5.2':            ('responses',        'openai'),
+        'gpt-5.2-codex':      ('responses',        'openai'),
+        'gpt-5.1':            ('responses',        'openai'),
+        'gpt-5.1-codex':      ('responses',        'openai'),
+        'gpt-5.1-codex-max':  ('responses',        'openai'),
+        'gpt-5.1-codex-mini': ('responses',        'openai'),
+        'gpt-5':              ('responses',        'openai'),
+        'gpt-5-codex':        ('responses',        'openai'),
+        # === PAID - Google ===
+        'gemini-3-pro':       ('models/gemini-3-pro', 'google'),
+        'gemini-3-flash':     ('models/gemini-3-flash', 'google'),
+    }
+
+    # Free Zen models (no credit card needed)
+    ZEN_FREE_MODELS = [
+        'glm-4.7-free', 'kimi-k2.5-free', 'minimax-m2.1-free',
+        'big-pickle', 'gpt-5-nano', 'trinity-large-preview-free', 'alpha-g5',
+    ]
+
+    ZEN_BASE_URL = 'https://opencode.ai/zen/v1'
+
+    @staticmethod
+    def _create_zen_lm(
+        model: Optional[str] = None,
+        **kwargs
+    ) -> BaseLM:
+        """
+        Create DSPy LM for OpenCode Zen provider.
+
+        Zen provides curated, benchmarked models via standard API endpoints.
+        Free models available: glm-4.7-free, kimi-k2.5-free, minimax-m2.1-free,
+        big-pickle, gpt-5-nano.
+
+        Args:
+            model: Zen model ID (e.g., 'glm-4.7-free', 'big-pickle')
+                   Defaults to 'glm-4.7-free' (free, no cost)
+            **kwargs: Additional LM arguments
+
+        Returns:
+            DSPy LM instance configured for Zen endpoint
+
+        Env:
+            OPENCODE_ZEN_API_KEY: API key from https://opencode.ai/auth
+        """
+        api_key = kwargs.pop('api_key', None) or os.getenv('OPENCODE_ZEN_API_KEY')
+        if not api_key:
+            raise ValueError(
+                "OpenCode Zen API key required. "
+                "Set OPENCODE_ZEN_API_KEY env var or pass api_key=. "
+                "Get your key at https://opencode.ai/auth"
+            )
+
+        # Default to a free model
+        if not model or model == 'free':
+            model = UnifiedLMProvider.ZEN_FREE_MODELS[0]
+            logger.debug(f"Zen: using default free model '{model}'")
+
+        # Look up endpoint and API format
+        if model not in UnifiedLMProvider.ZEN_MODELS:
+            original_model = model
+            # Try fuzzy match — prefer free models first
+            free_matches = [
+                m for m in UnifiedLMProvider.ZEN_FREE_MODELS if model in m
+            ]
+            all_matches = [
+                m for m in UnifiedLMProvider.ZEN_MODELS if model in m
+            ]
+            matches = free_matches or all_matches
+            if matches:
+                model = matches[0]
+                logger.debug(f"Zen: fuzzy matched '{original_model}' to '{model}'")
+            else:
+                # Fallback to default free model instead of raising error
+                fallback = UnifiedLMProvider.ZEN_FREE_MODELS[0]
+                logger.warning(
+                    f"Unknown Zen model '{original_model}', "
+                    f"falling back to free model '{fallback}'. "
+                    f"Available free: {', '.join(UnifiedLMProvider.ZEN_FREE_MODELS)}"
+                )
+                model = fallback
+
+        endpoint_path, api_format = UnifiedLMProvider.ZEN_MODELS[model]
+        base_url = f"{UnifiedLMProvider.ZEN_BASE_URL}"
+
+        from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+
+        # DSPy validates temperature/max_tokens as direct constructor args
+        # (not **kwargs), so we must extract and pass them explicitly.
+        # For reasoning models (gpt-5 family, o1/o3/o4/o5), DSPy requires
+        # temperature=1.0 or None, and max_tokens >= 16000 or None.
+        import re
+        is_reasoning = bool(re.match(
+            r"^(?:o[1345](?:-(?:mini|nano|pro))?|gpt-5(?!-chat)(?:-.*)?)$",
+            model,
+        ))
+
+        if is_reasoning:
+            temperature = kwargs.pop('temperature', 1.0)
+            if temperature != 1.0:
+                temperature = 1.0
+            max_tokens = kwargs.pop('max_tokens', 16000)
+            if max_tokens is not None and max_tokens < 16000:
+                max_tokens = 16000
+        else:
+            temperature = kwargs.pop('temperature', None)
+            max_tokens = kwargs.pop('max_tokens', LLM_MAX_OUTPUT_TOKENS)
+
+        if api_format == 'anthropic':
+            dspy_model = f"anthropic/{model}"
+        elif api_format == 'openai':
+            dspy_model = f"openai/{model}"
+        elif api_format == 'google':
+            dspy_model = f"google/{model}"
+        else:
+            raise ValueError(f"Unknown API format '{api_format}' for Zen model '{model}'")
+
+        lm = dspy.LM(
+            dspy_model,
+            api_key=api_key,
+            api_base=f"{base_url}/",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
+
+        is_free = model in UnifiedLMProvider.ZEN_FREE_MODELS
+        logger.info(
+            f"Zen LM created: {model} ({'FREE' if is_free else 'PAID'}) "
+            f"via {base_url}/{endpoint_path}"
+        )
+        return lm
+
+    @staticmethod
+    def list_zen_models(free_only: bool = False) -> Dict[str, Dict]:
+        """
+        List available Zen models with metadata.
+
+        Args:
+            free_only: Only return free models
+
+        Returns:
+            Dict mapping model_id -> {'endpoint', 'format', 'free'}
+        """
+        result = {}
+        for model_id, (endpoint, fmt) in UnifiedLMProvider.ZEN_MODELS.items():
+            is_free = model_id in UnifiedLMProvider.ZEN_FREE_MODELS
+            if free_only and not is_free:
+                continue
+            result[model_id] = {
+                'endpoint': f"{UnifiedLMProvider.ZEN_BASE_URL}/{endpoint}",
+                'format': fmt,
+                'free': is_free,
+            }
+        return result
+
     @staticmethod
     def configure_default_lm(provider: Optional[str] = None, **kwargs) -> BaseLM:
         """
@@ -289,7 +493,18 @@ class UnifiedLMProvider:
         except Exception as e:
             logger.debug(f"JottyClaudeProvider not available: {e}")
 
-        # 2. API providers (fallback if CLI not available)
+        # 2. OpenCode Zen free models (if API key available)
+        zen_key = os.getenv('OPENCODE_ZEN_API_KEY')
+        if zen_key:
+            try:
+                lm = UnifiedLMProvider.create_lm('zen', model='glm-4.7-free')
+                dspy.configure(lm=lm)
+                logger.debug("DSPy configured with OpenCode Zen (free: glm-4.7-free)")
+                return lm
+            except Exception as e:
+                logger.debug(f"OpenCode Zen not available: {e}")
+
+        # 3. API providers (fallback if CLI not available)
         # Check for API keys and use native DSPy support
         api_providers = [
             ('anthropic', 'ANTHROPIC_API_KEY', 'sonnet'),
@@ -447,9 +662,29 @@ class UnifiedLMProvider:
             'note': 'Free GLM model via remote execution',
         }
 
+        # OpenCode Zen (curated models, some free)
+        zen_available = bool(os.getenv('OPENCODE_ZEN_API_KEY'))
+        zen_free = UnifiedLMProvider.ZEN_FREE_MODELS
+        zen_all = list(UnifiedLMProvider.ZEN_MODELS.keys())
+        providers['zen'] = {
+            'type': 'api',
+            'available': zen_available,
+            'models': zen_all,
+            'free_models': zen_free,
+            'default': 'glm-4.7-free',
+            'aliases': {
+                'free': 'glm-4.7-free',
+                'kimi-free': 'kimi-k2.5-free',
+                'minimax-free': 'minimax-m2.1-free',
+                'pickle': 'big-pickle',
+            },
+            'requires': 'OPENCODE_ZEN_API_KEY',
+            'note': f'{len(zen_free)} free models, {len(zen_all)} total. Get key at https://opencode.ai/auth',
+        }
+
         # Determine recommended provider
         recommended = None
-        priority = ['claude-cli', 'anthropic', 'openai', 'groq', 'openrouter', 'opencode']
+        priority = ['claude-cli', 'anthropic', 'openai', 'zen', 'groq', 'openrouter', 'opencode']
         for p in priority:
             if providers.get(p, {}).get('available'):
                 recommended = p

@@ -145,7 +145,7 @@ class OpenInterpreterProvider(SkillProvider):
             logger.info(f"🐍 Open Interpreter executing: {task[:50]}...")
 
             # Run in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def run_interpreter():
                 messages = self._interpreter.chat(task, display=False)

@@ -15,6 +15,8 @@ import dspy
 from dspy import BaseLM
 from typing import Dict, Any, Optional, List
 
+from Jotty.core.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
 
 class CursorCLILM(BaseLM):
     """DSPy-compatible LM using Cursor CLI.
@@ -130,7 +132,7 @@ class CursorCLILM(BaseLM):
             cmd,
             capture_output=True,
             text=True,
-            timeout=kwargs.get('timeout', 120)
+            timeout=kwargs.get('timeout', LLM_TIMEOUT_SECONDS)
         )
 
         if result.returncode != 0:

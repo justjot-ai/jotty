@@ -38,9 +38,10 @@ class RoutingMixin:
         use_hierarchy: bool = True
     ) -> Dict[str, Any]:
         """
-        Smart routing combining all arXiv swarm patterns.
+        Smart routing combining all arXiv swarm patterns + RL-learned values.
 
-        Integrates: handoff, hierarchy, auction, coalition, gossip.
+        Integrates: handoff, hierarchy, auction, coalition, gossip,
+        and TD-Lambda learned values for closed-loop RL.
 
         Args:
             task_id: Task identifier
@@ -58,12 +59,22 @@ class RoutingMixin:
             "assigned_agent": None,
             "coalition": None,
             "method": "direct",
-            "confidence": 0.5
+            "confidence": 0.5,
+            "rl_advantage": 0.0,
         }
 
         available = list(self.agent_profiles.keys())
         if not available:
             return result
+
+        # Filter out circuit-blocked agents
+        try:
+            available = self.get_available_agents(available)
+        except Exception:
+            pass
+
+        if not available:
+            available = list(self.agent_profiles.keys())
 
         # Strategy 1: Coalition for complex tasks
         if prefer_coalition:
@@ -105,14 +116,103 @@ class RoutingMixin:
                 result["assigned_agent"] = best
                 result["method"] = "morph_tras"
                 result["confidence"] = 0.75
+                # Enrich with RL advantage if available
+                rl_adv = self._get_rl_advantage(best, task_type)
+                result["rl_advantage"] = rl_adv
                 return result
 
-        # Strategy 5: Fallback to simple routing
+        # Strategy 5: RL-informed routing using TD-Lambda learned values
+        # This closes the RL loop: learned values now influence agent selection.
+        rl_best = self._rl_informed_select(available, task_type)
+        if rl_best:
+            result["assigned_agent"] = rl_best
+            result["method"] = "rl_informed"
+            result["confidence"] = 0.7
+            result["rl_advantage"] = self._get_rl_advantage(rl_best, task_type)
+            return result
+
+        # Strategy 6: Fallback to simple routing
         best = self.get_best_agent_for_task(task_type, available, task_description)
         result["assigned_agent"] = best
         result["method"] = "simple"
         result["confidence"] = 0.6
         return result
+
+    def _rl_informed_select(self, available: List[str], task_type: str) -> Optional[str]:
+        """
+        Select agent using RL-learned values (closes the RL loop).
+
+        Uses TD-Lambda grouped baseline advantages: agents whose task_type
+        baseline is above average get preference. Combined with success rate
+        for a blended RL+empirical score.
+
+        Returns:
+            Best agent name, or None if no RL data available.
+        """
+        # Access the grouped baseline from the learning system
+        td_learner = getattr(self, '_td_learner', None)
+        if td_learner is None:
+            return None
+
+        grouped = getattr(td_learner, 'grouped_baseline', None)
+        if grouped is None:
+            return None
+
+        # Need at least some learning data
+        if grouped.group_counts.get(task_type, 0) < 2:
+            return None
+
+        baseline = grouped.get_baseline(task_type)
+        best_agent = None
+        best_score = -1.0
+
+        for agent_name in available:
+            profile = self.agent_profiles.get(agent_name)
+            if not profile:
+                continue
+
+            # Empirical success rate for this task type
+            success_rate = profile.get_success_rate(task_type)
+
+            # RL advantage: how much better is this agent's recent performance
+            # vs the group baseline for this task type
+            advantage = success_rate - baseline
+
+            # Trust-weighted blend of empirical + RL advantage
+            trust = profile.trust_score
+            score = (
+                0.5 * success_rate +
+                0.3 * (0.5 + advantage) +  # center advantage around 0.5
+                0.2 * trust
+            )
+
+            if score > best_score:
+                best_score = score
+                best_agent = agent_name
+
+        return best_agent
+
+    def _get_rl_advantage(self, agent_name: str, task_type: str) -> float:
+        """
+        Get the RL advantage for an agent on a task type.
+
+        Returns the difference between agent's success rate and the
+        group baseline (positive = agent is above average for this task type).
+        """
+        td_learner = getattr(self, '_td_learner', None)
+        if td_learner is None:
+            return 0.0
+
+        grouped = getattr(td_learner, 'grouped_baseline', None)
+        if grouped is None:
+            return 0.0
+
+        baseline = grouped.get_baseline(task_type)
+        profile = self.agent_profiles.get(agent_name)
+        if not profile:
+            return 0.0
+
+        return profile.get_success_rate(task_type) - baseline
 
     # =========================================================================
     # WORK-STEALING (Idle agents steal from busy ones)
@@ -141,7 +241,9 @@ class RoutingMixin:
             load += 0.2
 
         # Recent tasks (from collective memory)
-        recent = [m for m in self.collective_memory[-20:]
+        # Use list() for deque compatibility (deque doesn't support slicing in all Python versions)
+        mem_list = list(self.collective_memory)
+        recent = [m for m in mem_list[-20:]
                   if m.get('agent') == agent and time.time() - m.get('timestamp', 0) < 60]
         load += min(0.4, len(recent) * 0.1)
 

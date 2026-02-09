@@ -248,7 +248,7 @@ class WorkflowCommand(BaseCommand):
                         registry["workflows"][workflow_name] = {
                             "id": workflow_id,
                             "template": template,
-                            "created": str(asyncio.get_event_loop().time())
+                            "created": str(asyncio.get_running_loop().time())
                         }
                         _save_workflow_registry(registry)
 

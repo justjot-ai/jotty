@@ -106,7 +106,7 @@ def _progress(phase: str, agent: str, message: str):
 
 
 async def _stream_call(module, phase: str, agent: str, listener_field: str = "reasoning",
-                       timeout: float = 90.0, max_retries: int = 3, **kwargs):
+                       timeout: float = 90.0, max_retries: int = 0, **kwargs):
     """Call a DSPy module with streaming, forwarding reasoning tokens to _progress().
 
     Args:
@@ -145,6 +145,9 @@ async def _stream_call(module, phase: str, agent: str, listener_field: str = "re
         return result
 
     # Retry with timeout
+    if max_retries <= 0:
+        from Jotty.core.foundation.config_defaults import MAX_RETRIES
+        max_retries = MAX_RETRIES
     last_error = None
     for attempt in range(1, max_retries + 1):
         try:

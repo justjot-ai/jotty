@@ -89,8 +89,9 @@ class UniversalRetryHandler:
     4. Never fall back to hardcoded rules
     """
     
-    def __init__(self, max_retries: int = 3):
-        self.max_retries = max_retries
+    def __init__(self, max_retries: int = 0):
+        from Jotty.core.foundation.config_defaults import MAX_RETRIES
+        self.max_retries = max_retries or MAX_RETRIES
         if DSPY_AVAILABLE:
             self.analyzer = dspy.ChainOfThought(RetryWithContextSignature)
         else:

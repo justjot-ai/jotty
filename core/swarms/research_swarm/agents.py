@@ -530,7 +530,7 @@ class TechnicalAnalysisAgent(BaseResearchAgent):
 
         tool_fn = self._get_skill_tool()
         if tool_fn is not None:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             skill_result = await loop.run_in_executor(
                 None, tool_fn, {
                     'ticker': ticker,
@@ -1065,7 +1065,7 @@ class ScreenerAgent(BaseResearchAgent):
                 raise ImportError("get_company_financials_tool not found in skill")
 
             # Call the skill (sync) — run in executor to keep async
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             skill_result = await loop.run_in_executor(
                 None,
                 tool_fn,

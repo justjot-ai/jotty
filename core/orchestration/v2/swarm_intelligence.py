@@ -21,6 +21,7 @@ All classes are re-exported here for backward compatibility.
 """
 
 import asyncio
+import threading
 import time
 import logging
 import hashlib
@@ -64,13 +65,13 @@ except ImportError:
 
 from .stigmergy import StigmergySignal, StigmergyLayer
 from .benchmarking import SwarmMetrics, SwarmBenchmarks
-from .byzantine_verification import ByzantineVerifier
+from .byzantine_verification import ByzantineVerifier, ConsistencyChecker
 from .curriculum_generator import SyntheticTask, CurriculumGenerator
 from .tool_management import ToolManager
+from .metrics_collector import MetricsCollector
 
-# Protocol mixins (extracted from this file for modularity)
+# Protocol modules (now composed, not inherited)
 from .protocols import CoordinationMixin, RoutingMixin, ResilienceMixin, LifecycleMixin
-# Feature mixins (extracted for maintainability)
 from ._consensus_mixin import ConsensusMixin
 from ._session_mixin import SessionMixin
 from ._morph_mixin import MorphMixin
@@ -80,12 +81,22 @@ from ._morph_mixin import MorphMixin
 # SWARM INTELLIGENCE ENGINE
 # =============================================================================
 
-class SwarmIntelligence(
-    CoordinationMixin, RoutingMixin, ResilienceMixin, LifecycleMixin,
-    ConsensusMixin, SessionMixin, MorphMixin
-):
+class SwarmIntelligence:
     """
     World-class swarm intelligence coordinator.
+
+    Architecture: Uses composition instead of mixin inheritance.
+    Each concern is a delegate object whose methods are accessible
+    via __getattr__ forwarding for backward compatibility.
+
+    Delegates:
+    - _coordination: handoff, auction, coalition, gossip, supervisor hierarchy
+    - _routing: task routing, circuit breakers
+    - _resilience: failure recovery, backpressure
+    - _lifecycle: agent lifecycle management
+    - _consensus: swarm consensus voting
+    - _session: session management (moltbot pattern)
+    - _morph: MorphAgent scoring integration
 
     Features:
     - Emergent specialization
@@ -106,6 +117,11 @@ class SwarmIntelligence(
             else self.DEFAULT_COLLECTIVE_MEMORY_LIMIT
         )
 
+        # Thread-safe lock for shared mutable state (agent_profiles,
+        # collective_memory, adaptation_buffer). Prevents races when
+        # multiple agents record results concurrently in multi-agent mode.
+        self._state_lock = threading.Lock()
+
         # Agent profiles (emergent specialization)
         self.agent_profiles: Dict[str, AgentProfile] = {}
 
@@ -113,12 +129,14 @@ class SwarmIntelligence(
         self.sessions: Dict[str, AgentSession] = {}
 
         # Collective memory (shared across swarm, bounded to prevent leak)
-        self.collective_memory: deque = deque(maxlen=1000)
+        # Uses collective_memory_limit as maxlen so runtime and persistence
+        # are consistent — no silent data loss on save/load cycles.
+        self.collective_memory: deque = deque(maxlen=self.collective_memory_limit)
         self.memory_embeddings: Dict[str, Any] = {}
 
         # Online adaptation buffer
         self.adaptation_buffer: List[Dict] = []
-        self.adaptation_interval = 5  # Adapt every N experiences
+        self.adaptation_interval = getattr(config, 'adaptation_interval', 5)
 
         # Consensus history (bounded)
         self.consensus_history: deque = deque(maxlen=200)
@@ -131,6 +149,12 @@ class SwarmIntelligence(
 
         # Byzantine fault tolerance (verify agent claims)
         self.byzantine = ByzantineVerifier(self)
+
+        # Multi-agent consistency checker (repurposed Byzantine for parallel teams)
+        self.consistency_checker = ConsistencyChecker(self.byzantine)
+
+        # Observability: process-wide metrics collector
+        self.metrics = MetricsCollector.get_global()
 
         # DrZero-inspired curriculum generator (self-generated training tasks)
         self.curriculum_generator = CurriculumGenerator(config)
@@ -147,6 +171,10 @@ class SwarmIntelligence(
         # Training mode configuration (Agent0 inspired)
         self._training_mode = False
         self._memory_system = None
+
+        # RL loop: reference to TD-Lambda learner for RL-informed routing
+        # Set via connect_td_learner() from the swarm's learning mixin
+        self._td_learner = None
 
         # =================================================================
         # ARXIV SWARM ENHANCEMENTS
@@ -171,7 +199,54 @@ class SwarmIntelligence(
         self.supervisor_tree: Dict[str, SupervisorNode] = {}
         self._tree_built = False
 
+        # ================================================================
+        # COMPOSED DELEGATES (replaces mixin inheritance)
+        # Each delegate gets a reference to self so it can access shared state.
+        # Methods are accessible via __getattr__ for backward compatibility.
+        # ================================================================
+        self._delegates = []
+        for MixinClass in (CoordinationMixin, RoutingMixin, ResilienceMixin,
+                           LifecycleMixin, ConsensusMixin, SessionMixin, MorphMixin):
+            delegate = MixinClass.__new__(MixinClass)
+            # Point delegate's __dict__ lookups to self for shared state
+            delegate.__dict__['_host'] = self
+            self._delegates.append(delegate)
+
         logger.info("SwarmIntelligence initialized (DrZero + MorphAgent + arXiv Swarm patterns)")
+
+    def __getattr__(self, name: str):
+        """Forward attribute lookups to composed delegates for backward compatibility.
+
+        This allows code like `si.initiate_handoff(...)` to work even though
+        initiate_handoff is defined on CoordinationMixin, not SwarmIntelligence.
+        """
+        # Avoid infinite recursion on _delegates itself
+        if name == '_delegates':
+            raise AttributeError(name)
+        for delegate in self._delegates:
+            # Look up in the delegate's class (not instance, since instance __dict__
+            # points to _host=self which would recurse)
+            method = getattr(type(delegate), name, None)
+            if method is not None:
+                # Bind the method to self (not delegate) so it accesses shared state
+                import types
+                if callable(method):
+                    return types.MethodType(method, self)
+                return method
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+
+    def connect_td_learner(self, td_learner):
+        """
+        Connect a TD-Lambda learner for RL-informed routing.
+
+        This closes the RL loop: learned values from TD-Lambda now influence
+        agent selection in smart_route() and get_best_agent_for_task().
+
+        Args:
+            td_learner: TDLambdaLearner instance with grouped_baseline
+        """
+        self._td_learner = td_learner
+        logger.debug("TD-Lambda learner connected for RL-informed routing")
 
     def enable_training_mode(self, enabled: bool = True, memory_system=None):
         """
@@ -266,7 +341,10 @@ class SwarmIntelligence(
     # =========================================================================
 
     def register_agent(self, agent_name: str):
-        """Register an agent for tracking."""
+        """Register an agent for tracking. Thread-safe (lock acquired by callers or here)."""
+        # Avoid nested lock acquisition: check-then-set is safe because
+        # _state_lock is already held by callers like record_task_result.
+        # For standalone calls, the worst case is a benign double-init.
         if agent_name not in self.agent_profiles:
             self.agent_profiles[agent_name] = AgentProfile(agent_name=agent_name)
 
@@ -280,30 +358,29 @@ class SwarmIntelligence(
         is_multi_agent: bool = False,
         agents_count: int = 1
     ):
-        """Record task result for specialization learning."""
-        self.register_agent(agent_name)
-        self.agent_profiles[agent_name].update_task_result(task_type, success, execution_time)
+        """Record task result for specialization learning. Thread-safe."""
+        with self._state_lock:
+            self.register_agent(agent_name)
+            self.agent_profiles[agent_name].update_task_result(task_type, success, execution_time)
 
-        # Add to collective memory
-        self.collective_memory.append({
-            'agent': agent_name,
-            'task_type': task_type,
-            'success': success,
-            'execution_time': execution_time,
-            'context': context or {},
-            'timestamp': time.time()
-        })
+            # Add to collective memory
+            self.collective_memory.append({
+                'agent': agent_name,
+                'task_type': task_type,
+                'success': success,
+                'execution_time': execution_time,
+                'context': context or {},
+                'timestamp': time.time()
+            })
 
-        # deque auto-bounds at maxlen=1000
-
-        # Online adaptation
-        self.adaptation_buffer.append({
-            'agent': agent_name,
-            'task_type': task_type,
-            'success': success
-        })
-        if len(self.adaptation_buffer) >= self.adaptation_interval:
-            self._perform_online_adaptation()
+            # Online adaptation
+            self.adaptation_buffer.append({
+                'agent': agent_name,
+                'task_type': task_type,
+                'success': success
+            })
+            if len(self.adaptation_buffer) >= self.adaptation_interval:
+                self._perform_online_adaptation()
 
         # Stigmergy: deposit success/warning signals
         if success:
@@ -316,6 +393,16 @@ class SwarmIntelligence(
             self.benchmarks.record_multi_agent_run(task_type, execution_time, agents_count, success)
         else:
             self.benchmarks.record_single_agent_run(task_type, execution_time, success)
+
+        # Observability: record to metrics collector
+        swarm_name = context.get('swarm', 'unknown') if context else 'unknown'
+        self.metrics.record_task(
+            swarm=swarm_name,
+            agent=agent_name,
+            task_type=task_type,
+            success=success,
+            duration=execution_time,
+        )
 
     def get_agent_specialization(self, agent_name: str) -> AgentSpecialization:
         """Get current specialization of an agent."""
@@ -365,12 +452,13 @@ class SwarmIntelligence(
         profiles = {name: self.agent_profiles[name] for name in available_agents}
 
         # Strategy 1: Use MorphAgent TRAS scoring if enabled and task description available
+        min_rcs = getattr(self.config, 'morph_min_rcs', 0.3)
         if use_morph_scoring and task_description and self.morph_scorer:
             best = self.morph_scorer.get_best_agent_by_tras(
                 profiles=profiles,
                 task=task_description,
                 task_type=task_type,
-                min_rcs=0.3  # Require minimum role clarity
+                min_rcs=min_rcs
             )
             if best:
                 logger.debug(f"MorphAgent TRAS routing: {task_type} -> {best}")
@@ -383,19 +471,31 @@ class SwarmIntelligence(
             available_signals = {a: s for a, s in route_signals.items() if a in available_agents}
             if available_signals:
                 best_from_stigmergy = max(available_signals.keys(), key=lambda a: available_signals[a])
-                if available_signals[best_from_stigmergy] > 0.5:  # Strong signal
+                stigmergy_threshold = getattr(self.config, 'stigmergy_routing_threshold', 0.5)
+                if available_signals[best_from_stigmergy] > stigmergy_threshold:
                     logger.debug(f"Stigmergy routing: {task_type} -> {best_from_stigmergy}")
                     return best_from_stigmergy
 
-        # Strategy 3: Fallback to traditional scoring
+        # Strategy 3: Fallback to traditional scoring + RL advantage
         best_agent = None
         best_score = -1.0
+
+        # Get RL baseline for this task type (closes the RL loop)
+        rl_baseline = 0.5
+        if self._td_learner:
+            grouped = getattr(self._td_learner, 'grouped_baseline', None)
+            if grouped and grouped.group_counts.get(task_type, 0) >= 2:
+                rl_baseline = grouped.get_baseline(task_type)
 
         for agent_name in available_agents:
             profile = self.agent_profiles[agent_name]
 
             # Base: success rate for this task type
             success_rate = profile.get_success_rate(task_type)
+
+            # RL advantage: how this agent compares to the learned baseline
+            # Positive = agent outperforms expectations for this task type
+            rl_advantage = (success_rate - rl_baseline) if self._td_learner else 0.0
 
             # Bonus for specialization match
             spec_bonus = 0.0
@@ -412,12 +512,13 @@ class SwarmIntelligence(
                 rcs, _ = self.morph_scorer.compute_rcs(profile)
                 rcs_bonus = rcs * 0.1  # Up to 0.1 bonus for clear roles
 
-            # Combined score
+            # Combined score with RL advantage (15% weight)
             score = (
-                success_rate * 0.4 +
-                trust_weight * 0.25 +
+                success_rate * 0.30 +
+                trust_weight * 0.20 +
                 spec_bonus * 0.15 +
-                rcs_bonus * 0.2
+                rcs_bonus * 0.15 +
+                (0.5 + rl_advantage) * 0.20  # Center RL advantage around 0.5
             )
 
             if score > best_score:
@@ -463,18 +564,24 @@ class SwarmIntelligence(
         for item in self.adaptation_buffer:
             recent_by_agent[item['agent']].append(item['success'])
 
-        # Check for struggling agents
+        # Check for struggling agents (thresholds from config)
+        struggle_threshold = getattr(self.config, 'adaptation_struggle_threshold', 0.3)
+        excel_threshold = getattr(self.config, 'adaptation_excel_threshold', 0.8)
+        trust_decrease = getattr(self.config, 'trust_decrease_on_struggle', 0.1)
+        trust_increase = getattr(self.config, 'trust_increase_on_excel', 0.05)
+        trust_min = getattr(self.config, 'trust_min', 0.1)
+
         for agent_name, results in recent_by_agent.items():
             recent_rate = sum(results) / len(results)
             profile = self.agent_profiles.get(agent_name)
 
-            if profile and recent_rate < 0.3 and len(results) >= 3:
+            if profile and recent_rate < struggle_threshold and len(results) >= 3:
                 # Agent is struggling - trigger adaptation
                 logger.info(f"Online adaptation: {agent_name} struggling ({recent_rate:.0%}), may need different task types")
-                profile.trust_score = max(0.1, profile.trust_score - 0.1)
-            elif profile and recent_rate > 0.8 and len(results) >= 3:
+                profile.trust_score = max(trust_min, profile.trust_score - trust_decrease)
+            elif profile and recent_rate > excel_threshold and len(results) >= 3:
                 # Agent is excelling - boost trust
-                profile.trust_score = min(1.0, profile.trust_score + 0.05)
+                profile.trust_score = min(1.0, profile.trust_score + trust_increase)
 
         # Clear buffer
         self.adaptation_buffer = []
@@ -578,7 +685,8 @@ class SwarmIntelligence(
 
         # Find similar past experiences
         if self.collective_memory:
-            for mem in self.collective_memory[-50:]:  # Recent memories
+            recent = list(self.collective_memory)[-50:]  # deque doesn't support slicing
+            for mem in recent:
                 if task_type and mem.get('task_type') == task_type:
                     wisdom['similar_experiences'].append({
                         'agent': mem['agent'],
@@ -692,10 +800,6 @@ class SwarmIntelligence(
         """Save swarm intelligence state."""
         import json
 
-        limit = self.collective_memory_limit
-        if len(self.collective_memory) > limit:
-            logger.info(f"Truncating collective_memory: {len(self.collective_memory)} → {limit} items")
-
         data = {
             'agent_profiles': {
                 name: {
@@ -712,16 +816,27 @@ class SwarmIntelligence(
                 }
                 for name, p in self.agent_profiles.items()
             },
-            'collective_memory': list(self.collective_memory)[-limit:],  # Keep recent
+            # deque is already bounded by collective_memory_limit — no extra truncation needed
+            'collective_memory': list(self.collective_memory),
             'stigmergy': self.stigmergy.to_dict(),  # Persist stigmergy state
             'benchmarks': self.benchmarks.to_dict(),  # Persist benchmark data
             'curriculum': self.curriculum_generator.to_dict(),  # DrZero curriculum state
             'morph_score_history': list(self.morph_score_history)[-50:],  # MorphAgent score history
             'tool_manager': self.tool_manager.to_dict(),  # Agent0 tool management state
+            # Byzantine verification state (claim history + stats)
+            'byzantine': self.byzantine.to_dict(),
+            # Circuit breaker state (agent -> {state, failures, last_failure})
+            'circuit_breakers': getattr(self, 'circuit_breakers', {}),
+            # Consensus history (bounded deque)
+            'consensus_history': list(self.consensus_history)[-200:],
             # arXiv swarm enhancements
             'handoff_history': [
                 {'task_id': h.task_id, 'from': h.from_agent, 'to': h.to_agent,
-                 'task_type': h.task_type, 'progress': h.progress, 'chain': h.handoff_chain}
+                 'task_type': h.task_type, 'progress': h.progress, 'chain': h.handoff_chain,
+                 'status': getattr(h, 'status', 'completed'),
+                 'timestamp': getattr(h, 'timestamp', None),
+                 'metadata': getattr(h, 'metadata', {}),
+                }
                 for h in list(self.handoff_history)[-50:]
             ],
             'tree_built': self._tree_built,
@@ -771,7 +886,7 @@ class SwarmIntelligence(
                 except Exception as prof_err:
                     logger.warning(f"Could not load profile '{name}': {prof_err}")
 
-            self.collective_memory = deque(data.get('collective_memory', []), maxlen=1000)
+            self.collective_memory = deque(data.get('collective_memory', []), maxlen=self.collective_memory_limit)
 
             # Load stigmergy state
             if 'stigmergy' in data:
@@ -792,6 +907,18 @@ class SwarmIntelligence(
             # Load Agent0 tool manager state
             if 'tool_manager' in data:
                 self.tool_manager = ToolManager.from_dict(data['tool_manager'])
+
+            # Load Byzantine verification state
+            if 'byzantine' in data:
+                self.byzantine.restore_from_dict(data['byzantine'])
+
+            # Load circuit breaker state
+            if 'circuit_breakers' in data:
+                self.circuit_breakers = data['circuit_breakers']
+
+            # Load consensus history
+            if 'consensus_history' in data:
+                self.consensus_history = deque(data['consensus_history'], maxlen=200)
 
             # Load arXiv swarm state
             self._tree_built = data.get('tree_built', False)

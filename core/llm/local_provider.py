@@ -11,6 +11,8 @@ import logging
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 
+from Jotty.core.foundation.config_defaults import LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,7 +76,7 @@ class LocalLLMProvider:
         self,
         prompt: str,
         max_tokens: int = 2048,
-        temperature: float = 0.7,
+        temperature: float = LLM_TEMPERATURE,
         **kwargs
     ) -> LocalLLMResponse:
         """
@@ -128,7 +130,7 @@ class LocalLLMProvider:
                             "temperature": temperature
                         }
                     },
-                    timeout=120.0
+                    timeout=float(LLM_TIMEOUT_SECONDS)
                 )
 
                 if response.status_code == 200:
@@ -186,7 +188,7 @@ class LocalLLMProvider:
                         "temperature": temperature,
                         "stream": False
                     },
-                    timeout=120.0
+                    timeout=float(LLM_TIMEOUT_SECONDS)
                 )
 
                 if response.status_code == 200:
@@ -222,7 +224,7 @@ class LocalLLMProvider:
         self,
         prompt: str,
         max_tokens: int = 2048,
-        temperature: float = 0.7,
+        temperature: float = LLM_TEMPERATURE,
         **kwargs
     ) -> LocalLLMResponse:
         """Synchronous wrapper for generate()."""

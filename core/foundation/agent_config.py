@@ -63,7 +63,7 @@ class AgentSpec:
     
     # Critical Agent Control
     is_critical: bool = False
-    max_retries: int = 3
+    max_retries: int = 0  # 0 → resolved in __post_init__
     retry_strategy: str = "with_hints"
     
     # JOTTY v1.0: Executor flag (replaces hardcoded SQL checks)
@@ -80,6 +80,10 @@ class AgentSpec:
             self.architect_prompts = []
         if self.auditor_prompts is None:
             self.auditor_prompts = []
+        # Resolve sentinel defaults from centralized config
+        if self.max_retries <= 0:
+            from Jotty.core.foundation.config_defaults import MAX_RETRIES
+            self.max_retries = MAX_RETRIES
 
 
 # Backward compatibility alias

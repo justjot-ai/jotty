@@ -563,6 +563,167 @@ class CurriculumGenerator:
             return 0.5
         return sum(1 for f in recent if f['success']) / len(recent)
 
+    # =========================================================================
+    # REPLAY BUFFER: Generate tasks from real past executions
+    # =========================================================================
+
+    def generate_replay_task(
+        self,
+        collective_memory,
+        profiles: Dict[str, 'AgentProfile'],
+        target_agent: Optional[str] = None
+    ) -> Optional[SyntheticTask]:
+        """
+        Generate a training task from REAL past executions (replay buffer).
+
+        Instead of template-based synthetic tasks with placeholder strings like
+        "Filter records where: category contains value" (which are non-executable),
+        this pulls actual tasks from collective_memory and re-presents them for
+        practice, focusing on previously failed tasks.
+
+        DrZero insight: Replaying failed tasks is more valuable than synthetic ones
+        because they represent real gaps in agent capability.
+
+        Args:
+            collective_memory: SwarmIntelligence.collective_memory (deque of dicts)
+            profiles: Current agent profiles
+            target_agent: Optionally target specific agent
+
+        Returns:
+            SyntheticTask based on a real past task, or None if no suitable replay
+        """
+        import random
+
+        if not collective_memory:
+            return None
+
+        mem_list = list(collective_memory)
+
+        # Prioritize failed tasks (these are where learning value is highest)
+        failed_tasks = [
+            m for m in mem_list
+            if not m.get('success', True)
+            and m.get('context', {}).get('query', '')  # Must have a real query
+        ]
+
+        # Also include successful tasks for reinforcement (lower priority)
+        successful_tasks = [
+            m for m in mem_list
+            if m.get('success', True)
+            and m.get('context', {}).get('query', '')
+        ]
+
+        # If targeting a specific agent, filter to their failures
+        if target_agent:
+            agent_failed = [m for m in failed_tasks if m.get('agent') == target_agent]
+            if agent_failed:
+                failed_tasks = agent_failed
+
+        # Select replay candidate: 80% failed tasks, 20% successful (reinforcement)
+        candidates = []
+        if failed_tasks and random.random() < 0.8:
+            candidates = failed_tasks
+        elif successful_tasks:
+            candidates = successful_tasks
+        elif failed_tasks:
+            candidates = failed_tasks
+        else:
+            return None  # No suitable replay candidates
+
+        # Pick a random candidate (with recency bias: more recent = more likely)
+        weights = [i + 1 for i in range(len(candidates))]  # Linear recency weight
+        selected = random.choices(candidates, weights=weights, k=1)[0]
+
+        # Extract real task description
+        context = selected.get('context', {})
+        task_description = (
+            context.get('query', '')
+            or context.get('task', '')
+            or context.get('goal', '')
+            or f"Repeat {selected.get('task_type', 'general')} task"
+        )
+
+        task_type = selected.get('task_type', 'general')
+        was_success = selected.get('success', False)
+
+        # Calculate difficulty from historical performance
+        difficulty = self.difficulty_by_type.get(task_type, 0.3)
+        if not was_success:
+            difficulty = min(1.0, difficulty + 0.1)  # Failed tasks are harder
+
+        task = SyntheticTask(
+            task_id=f"replay_{self.total_generated}_{int(time.time())}",
+            task_type=task_type,
+            description=task_description,
+            difficulty=difficulty,
+            target_agent=target_agent or selected.get('agent'),
+            metadata={
+                'source': 'replay_buffer',
+                'original_success': was_success,
+                'original_agent': selected.get('agent', 'unknown'),
+                'original_time': selected.get('execution_time', 0),
+                'curriculum_round': self.total_generated,
+            }
+        )
+
+        self.generated_tasks.append(task)
+        if len(self.generated_tasks) > self.max_history:
+            self.generated_tasks = self.generated_tasks[-self.max_history:]
+
+        self.total_generated += 1
+
+        logger.debug(
+            f"Replay task generated: type={task_type}, "
+            f"original_success={was_success}, difficulty={difficulty:.2f}"
+        )
+        return task
+
+    def generate_smart_task(
+        self,
+        profiles: Dict[str, 'AgentProfile'],
+        collective_memory=None,
+        target_agent: Optional[str] = None,
+    ) -> SyntheticTask:
+        """
+        Smart task generation: prefer replay buffer, fall back to templates.
+
+        This is the recommended entry point. It tries:
+        1. Replay buffer (real past tasks) - preferred because executable
+        2. Tool-aware templates - if no replay data
+        3. Basic templates - last resort
+
+        Args:
+            profiles: Current agent profiles
+            collective_memory: Optional collective memory for replay
+            target_agent: Optionally target specific agent
+
+        Returns:
+            SyntheticTask (from replay or template)
+        """
+        # Try replay buffer first
+        if collective_memory and len(list(collective_memory)) > 5:
+            replay_task = self.generate_replay_task(
+                collective_memory=collective_memory,
+                profiles=profiles,
+                target_agent=target_agent
+            )
+            if replay_task:
+                return replay_task
+
+        # Fall back to tool-aware template
+        if self._tool_success_rates:
+            return self.generate_tool_aware_task(
+                profiles=profiles,
+                target_agent=target_agent,
+                prefer_weak_tools=True
+            )
+
+        # Last resort: basic template
+        return self.generate_training_task(
+            profiles=profiles,
+            target_agent=target_agent
+        )
+
     def to_dict(self) -> Dict:
         """Serialize for persistence - includes full learning history."""
         # Convert tool_success_rates tuples to lists for JSON

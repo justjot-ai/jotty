@@ -279,7 +279,7 @@ class SwarmConfig:
     # Dead Letter Queue Config
     enable_dead_letter_queue: bool = True
     dlq_max_size: int = 1000
-    dlq_max_retries: int = 3  # Max retry attempts for failed operations
+    dlq_max_retries: int = 0  # 0 → resolved in __post_init__ from MAX_RETRIES
 
     # NEW: Multi-round limits
     max_validation_rounds: int = 3
@@ -692,10 +692,39 @@ class SwarmConfig:
     # NOTE: This is set per-instance, not in config file
 
     # =========================================================================
+    # 22. SWARM INTELLIGENCE TUNING (Previously hardcoded magic numbers)
+    # =========================================================================
+    # Online adaptation: trust adjustments when agents struggle or excel
+    trust_decrease_on_struggle: float = 0.1  # Trust penalty per adaptation window
+    trust_increase_on_excel: float = 0.05  # Trust bonus per adaptation window
+    trust_min: float = 0.1  # Minimum trust floor
+    adaptation_interval: int = 5  # Adapt every N experiences
+    adaptation_struggle_threshold: float = 0.3  # Success rate below this = struggling
+    adaptation_excel_threshold: float = 0.8  # Success rate above this = excelling
+
+    # Routing thresholds
+    stigmergy_routing_threshold: float = 0.5  # Min signal strength for stigmergy routing
+    morph_min_rcs: float = 0.3  # Min Role Clarity Score for TRAS routing
+
+    # Validation / judge intervention
+    judge_intervention_confidence: float = 0.6  # Auditor confidence below this triggers retry
+
+    # Memory retrieval budgets
+    memory_retrieval_budget: int = 3000  # Tokens for memory retrieval in AgentRunner
+
+    # Collective memory
+    collective_memory_limit: int = 200  # Max items in swarm collective memory
+
+    # =========================================================================
     # Computed properties
     # =========================================================================
     def __post_init__(self):
         """Calculate derived config values."""
+        # Resolve sentinel defaults from centralized config
+        if self.dlq_max_retries <= 0:
+            from Jotty.core.foundation.config_defaults import MAX_RETRIES
+            self.dlq_max_retries = MAX_RETRIES
+
         # A-Team: Calculate char limits from token budgets
         # Rule of thumb: 1 token ≈ 4 characters
         if self.preview_char_limit is None:

@@ -15,7 +15,7 @@ Extracted from swarm_intelligence.py for modularity.
 import time
 import hashlib
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from collections import defaultdict
 
@@ -164,6 +164,36 @@ class StigmergyLayer:
 
         return dict(recommendations)
 
+    def evaporate(self, decay_rate: float = None) -> int:
+        """
+        Public evaporation method — decay all signals and prune dead ones.
+
+        Call this periodically (e.g., pre/post execution) to clean up stale
+        signals that no one is actively sensing. Without periodic evaporation,
+        signals only decay lazily on sense() calls, meaning old signals persist
+        indefinitely if nobody queries their type.
+
+        Args:
+            decay_rate: Override decay rate (uses instance default if None)
+
+        Returns:
+            Number of signals pruned
+        """
+        rate = decay_rate if decay_rate is not None else self.decay_rate
+        before = len(self.signals)
+
+        # Apply decay to every signal
+        for signal in self.signals.values():
+            signal.decay(rate)
+
+        # Remove dead signals
+        self._prune_weak_signals()
+
+        pruned = before - len(self.signals)
+        if pruned > 0:
+            logger.debug(f"Stigmergy evaporation: pruned {pruned} signals ({len(self.signals)} remaining)")
+        return pruned
+
     def _apply_decay(self):
         """Apply time-based decay to all signals."""
         for signal in self.signals.values():
@@ -230,7 +260,216 @@ class StigmergyLayer:
         return instance
 
 
+# =============================================================================
+# CROSS-SWARM STIGMERGY (Shared coordination across swarm instances)
+# =============================================================================
+
+class CrossSwarmStigmergy:
+    """
+    Cross-swarm coordination via shared stigmergy signals.
+
+    Unlike the per-swarm StigmergyLayer (which duplicates AgentProfile.task_success),
+    this provides something AgentProfile can't: **inter-swarm communication**.
+
+    Use cases:
+    - CodingSwarm deposits "code_quality:high" -> TestingSwarm picks it up
+    - DataAnalysisSwarm warns about bad data -> any swarm avoids that source
+    - ResearchSwarm shares discovered patterns -> all swarms benefit
+    - Any swarm can broadcast capability announcements for task delegation
+
+    Signal types unique to cross-swarm:
+    - 'capability': Announce what a swarm can do well
+    - 'data_quality': Share data quality observations
+    - 'delegation': Request another swarm to handle a sub-task
+    - 'insight': Share discovered patterns across swarms
+    """
+
+    # Singleton shared layer for all swarms in this process
+    _shared_instance: 'CrossSwarmStigmergy' = None
+    _lock = None
+
+    def __init__(self, decay_rate: float = 0.05, max_signals: int = 1000):
+        self._layer = StigmergyLayer(decay_rate=decay_rate, max_signals=max_signals)
+        self._swarm_registry: Dict[str, Dict[str, Any]] = {}  # swarm_name -> info
+
+    @classmethod
+    def get_shared(cls) -> 'CrossSwarmStigmergy':
+        """Get the process-wide shared stigmergy layer."""
+        if cls._shared_instance is None:
+            cls._shared_instance = cls()
+        return cls._shared_instance
+
+    def register_swarm(self, swarm_name: str, domain: str = "general",
+                       capabilities: List[str] = None):
+        """Register a swarm for cross-swarm coordination."""
+        self._swarm_registry[swarm_name] = {
+            'domain': domain,
+            'capabilities': capabilities or [],
+            'registered_at': time.time()
+        }
+        # Announce capabilities
+        if capabilities:
+            self._layer.deposit(
+                signal_type='capability',
+                content={
+                    'swarm': swarm_name,
+                    'domain': domain,
+                    'capabilities': capabilities
+                },
+                agent=swarm_name,
+                strength=1.0
+            )
+
+    def share_insight(self, from_swarm: str, insight_type: str,
+                      content: Any, strength: float = 0.8) -> str:
+        """
+        Share an insight from one swarm to all others.
+
+        Args:
+            from_swarm: Originating swarm name
+            insight_type: Type of insight ('data_quality', 'pattern', 'warning')
+            content: Insight content
+            strength: Signal strength
+
+        Returns:
+            Signal ID
+        """
+        return self._layer.deposit(
+            signal_type='insight',
+            content={
+                'from_swarm': from_swarm,
+                'insight_type': insight_type,
+                'data': content
+            },
+            agent=from_swarm,
+            strength=strength,
+            metadata={'insight_type': insight_type}
+        )
+
+    def request_delegation(self, from_swarm: str, task_type: str,
+                           task_description: str, urgency: float = 0.5) -> str:
+        """
+        Request another swarm to handle a sub-task.
+
+        Args:
+            from_swarm: Requesting swarm
+            task_type: Type of task to delegate
+            task_description: What needs to be done
+            urgency: How urgent (0-1)
+
+        Returns:
+            Signal ID for tracking
+        """
+        return self._layer.deposit(
+            signal_type='delegation',
+            content={
+                'from_swarm': from_swarm,
+                'task_type': task_type,
+                'description': task_description,
+                'urgency': urgency
+            },
+            agent=from_swarm,
+            strength=urgency
+        )
+
+    def check_delegations(self, for_swarm: str) -> List[Dict]:
+        """
+        Check for pending delegation requests relevant to this swarm.
+
+        Returns delegation requests where the swarm has matching capabilities.
+        """
+        delegations = self._layer.sense(signal_type='delegation', min_strength=0.1)
+        swarm_info = self._swarm_registry.get(for_swarm, {})
+        capabilities = swarm_info.get('capabilities', [])
+
+        relevant = []
+        for signal in delegations:
+            content = signal.content
+            if isinstance(content, dict):
+                # Don't return own delegations
+                if content.get('from_swarm') == for_swarm:
+                    continue
+                # Check capability match
+                task_type = content.get('task_type', '')
+                if any(cap in task_type for cap in capabilities) or not capabilities:
+                    relevant.append({
+                        'signal_id': signal.signal_id,
+                        'from_swarm': content.get('from_swarm'),
+                        'task_type': task_type,
+                        'description': content.get('description', ''),
+                        'urgency': content.get('urgency', 0.5),
+                        'strength': signal.strength
+                    })
+
+        return sorted(relevant, key=lambda x: x['urgency'], reverse=True)
+
+    def get_insights_for(self, swarm_name: str, insight_type: str = None,
+                         min_strength: float = 0.2) -> List[Dict]:
+        """
+        Get cross-swarm insights relevant to a swarm.
+
+        Args:
+            swarm_name: Receiving swarm
+            insight_type: Filter by type (None = all)
+            min_strength: Minimum signal strength
+
+        Returns:
+            List of insight dicts
+        """
+        signals = self._layer.sense(signal_type='insight', min_strength=min_strength)
+        insights = []
+        for signal in signals:
+            content = signal.content
+            if isinstance(content, dict):
+                if content.get('from_swarm') == swarm_name:
+                    continue  # Skip own insights
+                if insight_type and content.get('insight_type') != insight_type:
+                    continue
+                insights.append({
+                    'from_swarm': content.get('from_swarm'),
+                    'insight_type': content.get('insight_type'),
+                    'data': content.get('data'),
+                    'strength': signal.strength
+                })
+
+        return insights
+
+    def find_capable_swarm(self, task_type: str) -> Optional[str]:
+        """
+        Find a swarm capable of handling a task type.
+
+        Uses capability announcements to match task to swarm.
+        """
+        capability_signals = self._layer.sense(
+            signal_type='capability', min_strength=0.3
+        )
+
+        best_swarm = None
+        best_strength = 0.0
+
+        for signal in capability_signals:
+            content = signal.content
+            if isinstance(content, dict):
+                capabilities = content.get('capabilities', [])
+                if any(cap in task_type or task_type in cap for cap in capabilities):
+                    if signal.strength > best_strength:
+                        best_strength = signal.strength
+                        best_swarm = content.get('swarm')
+
+        return best_swarm
+
+    def evaporate(self):
+        """Evaporate stale cross-swarm signals."""
+        self._layer.evaporate()
+
+    @property
+    def registered_swarms(self) -> List[str]:
+        """Get list of registered swarm names."""
+        return list(self._swarm_registry.keys())
+
+
 __all__ = [
     'StigmergySignal',
     'StigmergyLayer',
+    'CrossSwarmStigmergy',
 ]

@@ -568,7 +568,7 @@ class AutonomousAgent(BaseAgent):
             import asyncio as _aio
             if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
                 lm = dspy.settings.lm
-                loop = _aio.get_event_loop()
+                loop = _aio.get_running_loop()
                 response = await loop.run_in_executor(None, lambda: lm(prompt=prompt))
                 if isinstance(response, list):
                     text = response[0] if response else None
@@ -613,7 +613,7 @@ def create_autonomous_agent(
     max_steps: int = 10,
     enable_replanning: bool = True,
     skill_filter: Optional[str] = None,
-    model: str = "sonnet",
+    model: str = "",
 ) -> AutonomousAgent:
     """
     Factory function to create an AutonomousAgent.
@@ -627,6 +627,8 @@ def create_autonomous_agent(
     Returns:
         Configured AutonomousAgent
     """
+    from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+    model = model or DEFAULT_MODEL_ALIAS
     config = AutonomousAgentConfig(
         name="AutonomousAgent",
         model=model,

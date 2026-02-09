@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Callable, List
 
 from .types import LLMResponse
+from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
 
 
 class LLMProvider(ABC):
@@ -22,7 +23,7 @@ class LLMProvider(ABC):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> LLMResponse:
         """Call LLM API and return unified response."""
         pass
@@ -34,7 +35,7 @@ class LLMProvider(ABC):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = 4096
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
     ) -> tuple:
         """Call LLM API with streaming, return (response, streamed_content)."""
         pass

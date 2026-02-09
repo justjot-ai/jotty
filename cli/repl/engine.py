@@ -188,7 +188,7 @@ class REPLEngine:
                 else:
                     # Fallback to sync prompt in thread
                     import asyncio
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     return await loop.run_in_executor(
                         None,
                         lambda: self._session.prompt(self.prompt_text)

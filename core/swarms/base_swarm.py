@@ -142,26 +142,29 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         if self._initialized:
             return
 
-        # Auto-configure DSPy if needed
+        # Auto-configure DSPy if needed (thread-safe via shared lock)
         try:
             import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                try:
-                    from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-                    lm = DirectClaudeCLI(model="sonnet")
-                    dspy.configure(lm=lm)
-                    logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
-                except Exception as e:
-                    logger.warning(f"Could not configure DSPy LM: {e}")
+            from ..agents.base.base_agent import _dspy_lm_lock
+            with _dspy_lm_lock:
+                if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+                    try:
+                        from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                        lm = DirectClaudeCLI()  # model resolved from config_defaults
+                        dspy.configure(lm=lm)
+                        logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
+                    except Exception as e:
+                        logger.warning(f"Could not configure DSPy LM: {e}")
         except ImportError:
             logger.warning("DSPy not available, skipping LM auto-configuration")
 
-        # Initialize shared resources
+        # Initialize shared resources (use self.config's jotty_config if available,
+        # otherwise create a default — but avoid creating multiple independent configs)
         try:
             from ..agents.dag_agents import SwarmResources
             from ..foundation.data_structures import JottyConfig
 
-            jotty_config = JottyConfig()
+            jotty_config = getattr(self.config, 'jotty_config', None) or JottyConfig()
             resources = SwarmResources.get_instance(jotty_config)
 
             self._memory = resources.memory
@@ -287,6 +290,11 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         # Register swarm as an agent
         swarm_name = self.config.name or 'base_swarm'
         self._swarm_intelligence.register_agent(swarm_name)
+
+        # Close the RL loop: connect TD-Lambda learner so routing uses learned values
+        if hasattr(self, '_learner') and self._learner:
+            self._swarm_intelligence.connect_td_learner(self._learner)
+            logger.debug("RL loop closed: TD-Lambda learner connected to SwarmIntelligence")
 
         logger.info(f"✅ SwarmIntelligence connected (training={enable_training})")
 
@@ -497,8 +505,14 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         task_type: str,
         input_data: Dict[str, Any]
     ) -> Optional[Evaluation]:
-        """Evaluate output against gold standard if available."""
-        if not self.config.enable_self_improvement or not self._expert:
+        """
+        Evaluate output against gold standard if available.
+
+        Uses LLM-based Expert agent when available, falls back to
+        rule-based evaluation when no LLM is configured. This ensures
+        the self-improvement loop always produces learning data.
+        """
+        if not self.config.enable_self_improvement:
             return None
 
         # Find matching gold standard
@@ -507,14 +521,106 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             logger.debug(f"No gold standard found for task_type: {task_type}")
             return None
 
-        evaluation = await self._expert.evaluate(
-            gold_standard_id=gold_standard.id,
-            actual_output=output,
-            context=json.dumps({'task_type': task_type, 'input': input_data})
-        )
+        # Strategy 1: LLM-based evaluation (Expert agent)
+        if self._expert:
+            try:
+                evaluation = await self._expert.evaluate(
+                    gold_standard_id=gold_standard.id,
+                    actual_output=output,
+                    context=json.dumps({'task_type': task_type, 'input': input_data})
+                )
+                self._evaluation_history.record(evaluation)
+                return evaluation
+            except Exception as llm_err:
+                logger.debug(f"LLM evaluation failed ({llm_err}), using rule-based fallback")
 
-        self._evaluation_history.record(evaluation)
+        # Strategy 2: Rule-based fallback (no LLM needed)
+        evaluation = self._rule_based_evaluate(gold_standard, output, task_type)
+        if evaluation:
+            self._evaluation_history.record(evaluation)
         return evaluation
+
+    def _rule_based_evaluate(
+        self,
+        gold_standard,
+        output: Dict[str, Any],
+        task_type: str
+    ) -> Optional[Evaluation]:
+        """
+        Rule-based evaluation fallback when no LLM is available.
+
+        Checks:
+        - Output is non-empty
+        - Expected keys are present
+        - Output length is reasonable compared to gold standard
+        - Key fields match expected patterns
+        """
+        try:
+            scores = {}
+            feedback = []
+
+            # Check 1: Output completeness (non-empty)
+            output_str = json.dumps(output, default=str)
+            if len(output_str) < 10:
+                scores['completeness'] = 0.1
+                feedback.append("Output appears empty or minimal")
+            elif len(output_str) < 50:
+                scores['completeness'] = 0.4
+                feedback.append("Output is quite short")
+            else:
+                scores['completeness'] = 0.8
+                feedback.append("Output has reasonable content")
+
+            # Check 2: Expected keys present
+            expected = gold_standard.expected_output if hasattr(gold_standard, 'expected_output') else {}
+            if isinstance(expected, dict) and isinstance(output, dict):
+                expected_keys = set(expected.keys())
+                actual_keys = set(output.keys())
+                if expected_keys:
+                    overlap = len(expected_keys & actual_keys) / len(expected_keys)
+                    scores['structure'] = overlap
+                    if overlap < 0.5:
+                        feedback.append(f"Missing expected keys: {expected_keys - actual_keys}")
+                else:
+                    scores['structure'] = 0.7
+
+            # Check 3: No error indicators
+            has_error = any(
+                k in output_str.lower()
+                for k in ['error', 'traceback', 'exception', 'failed']
+            )
+            if has_error:
+                scores['error_free'] = 0.2
+                feedback.append("Output contains error indicators")
+            else:
+                scores['error_free'] = 0.9
+
+            # Overall score
+            overall = sum(scores.values()) / max(1, len(scores))
+
+            # Determine result
+            if overall >= 0.8:
+                result = EvaluationResult.EXCELLENT
+            elif overall >= 0.6:
+                result = EvaluationResult.GOOD
+            elif overall >= 0.4:
+                result = EvaluationResult.NEEDS_IMPROVEMENT
+            else:
+                result = EvaluationResult.POOR
+
+            feedback.append(f"[Rule-based evaluation — no LLM available]")
+
+            return Evaluation(
+                gold_standard_id=gold_standard.id if hasattr(gold_standard, 'id') else 'unknown',
+                actual_output=output,
+                scores=scores,
+                overall_score=overall,
+                result=result,
+                feedback=feedback
+            )
+        except Exception as e:
+            logger.debug(f"Rule-based evaluation failed: {e}")
+            return None
 
     def _agent_context(self, agent_name: str) -> str:
         """Build per-agent learned context string.

@@ -125,7 +125,7 @@ class SkillPlanExecutor:
                 )
             else:
                 # Fallback: run sync planner in thread pool
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 selected, reasoning = await asyncio.wait_for(
                     loop.run_in_executor(
                         None,
@@ -191,7 +191,7 @@ class SkillPlanExecutor:
                 )
             else:
                 # Fallback: run sync planner in thread pool
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 steps, reasoning = await asyncio.wait_for(
                     loop.run_in_executor(
                         None,
@@ -276,7 +276,7 @@ class SkillPlanExecutor:
         elif hasattr(self.planner, 'replan_with_reflection'):
             try:
                 excluded = list(self._excluded_skills)
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 steps, reflection, reasoning = await asyncio.wait_for(
                     loop.run_in_executor(
                         None,
@@ -314,7 +314,7 @@ class SkillPlanExecutor:
                     timeout=REPLAN_TIMEOUT,
                 )
             else:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 steps, reasoning = await asyncio.wait_for(
                     loop.run_in_executor(
                         None,
@@ -446,7 +446,7 @@ class SkillPlanExecutor:
                 result = await _asyncio.wait_for(tool(resolved_params), timeout=step_timeout)
             else:
                 # Run sync tools in executor with timeout
-                loop = _asyncio.get_event_loop()
+                loop = _asyncio.get_running_loop()
                 result = await _asyncio.wait_for(
                     loop.run_in_executor(None, tool, resolved_params),
                     timeout=step_timeout,

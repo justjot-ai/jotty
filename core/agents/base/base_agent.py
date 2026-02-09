@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -28,6 +29,11 @@ from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Module-level lock for DSPy LM initialization.
+# Prevents race conditions when multiple agents/swarms concurrently
+# try to configure the global dspy.settings.lm.
+_dspy_lm_lock = threading.Lock()
+
 
 # =============================================================================
 # CONFIGURATION AND RESULT DATACLASSES
@@ -35,14 +41,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AgentConfig:
-    """Unified configuration for all agent types."""
+    """Unified configuration for all agent types.
+
+    All numeric defaults are 0 / 0.0 sentinels, resolved from
+    ``Jotty.core.foundation.config_defaults`` in ``__post_init__``.
+    This keeps a single source of truth for LLM settings.
+    """
     name: str = ""
-    model: str = "sonnet"
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    max_retries: int = 3
-    retry_delay: float = 1.0
-    timeout: float = 120.0
+    model: str = ""           # "" → DEFAULT_MODEL_ALIAS
+    temperature: float = 0.0  # 0.0 → LLM_TEMPERATURE
+    max_tokens: int = 0       # 0 → LLM_MAX_OUTPUT_TOKENS
+    max_retries: int = 0      # 0 → MAX_RETRIES
+    retry_delay: float = 0.0  # 0.0 → RETRY_BACKOFF_SECONDS
+    timeout: float = 0.0      # 0.0 → LLM_TIMEOUT_SECONDS
     enable_memory: bool = True
     enable_context: bool = True
     enable_monitoring: bool = True
@@ -51,8 +62,21 @@ class AgentConfig:
     parameters: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        from Jotty.core.foundation.config_defaults import DEFAULTS
         if not self.name:
             self.name = self.__class__.__name__
+        if not self.model:
+            self.model = DEFAULTS.DEFAULT_MODEL_ALIAS
+        if self.temperature == 0.0:
+            self.temperature = DEFAULTS.LLM_TEMPERATURE
+        if self.max_tokens <= 0:
+            self.max_tokens = DEFAULTS.LLM_MAX_OUTPUT_TOKENS
+        if self.max_retries <= 0:
+            self.max_retries = DEFAULTS.MAX_RETRIES
+        if self.retry_delay == 0.0:
+            self.retry_delay = DEFAULTS.RETRY_BACKOFF_SECONDS
+        if self.timeout == 0.0:
+            self.timeout = float(DEFAULTS.LLM_TIMEOUT_SECONDS)
 
 
 @dataclass
@@ -139,6 +163,19 @@ class BaseAgent(ABC):
 
         self._initialized = False
 
+    def set_jotty_config(self, config) -> 'BaseAgent':
+        """Inject a shared JottyConfig so lazy-loaded components (memory, etc.)
+        use the same configuration as the rest of the system.
+
+        Args:
+            config: JottyConfig instance from SwarmManager or CLI
+
+        Returns:
+            self (for chaining)
+        """
+        self._jotty_config = config
+        return self
+
     # =========================================================================
     # LAZY INITIALIZATION
     # =========================================================================
@@ -178,44 +215,52 @@ class BaseAgent(ABC):
     def _init_dspy_lm(self):
         """Auto-configure DSPy LM if not already set.
 
+        Thread-safe: uses _dspy_lm_lock to prevent races when multiple
+        agents/swarms initialize concurrently.
+
         Priority:
         1. DirectAnthropicLM (if ANTHROPIC_API_KEY set) - fastest, ~0.5s
         2. PersistentClaudeCLI (uses claude CLI) - ~3s
         """
         try:
             import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                # Load API keys from .env.anthropic if not in environment
-                import os
-                if not os.environ.get('ANTHROPIC_API_KEY') or not os.environ.get('OPENROUTER_API_KEY'):
-                    self._load_api_keys()
-
-                # Try direct API first (fastest)
-                try:
-                    from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
-                    if is_api_key_available():
-                        self._lm = DirectAnthropicLM(
-                            model=self.config.model,
-                            max_tokens=min(int(self.config.max_tokens), 8192),
-                        )
-                        dspy.configure(lm=self._lm)
-                        logger.info(f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest")
-                        return
-                except Exception as e:
-                    logger.debug(f"DirectAnthropicLM not available: {e}")
-
-                # Fallback to Claude CLI
-                try:
-                    from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
-                    self._lm = PersistentClaudeCLI(model=self.config.model)
-                    dspy.configure(lm=self._lm)
-                    logger.info(f"Auto-configured DSPy LM with PersistentClaudeCLI ({self.config.model})")
-                except Exception as e:
-                    logger.warning(f"Could not auto-configure DSPy LM: {e}")
-            else:
-                self._lm = dspy.settings.lm
         except ImportError:
             logger.debug("DSPy not available, skipping LM configuration")
+            return
+
+        with _dspy_lm_lock:
+            # Re-check inside lock — another thread may have configured it
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+                self._lm = dspy.settings.lm
+                return
+
+            # Load API keys from .env.anthropic if not in environment
+            import os
+            if not os.environ.get('ANTHROPIC_API_KEY') or not os.environ.get('OPENROUTER_API_KEY'):
+                self._load_api_keys()
+
+            # Try direct API first (fastest)
+            try:
+                from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+                if is_api_key_available():
+                    self._lm = DirectAnthropicLM(
+                        model=self.config.model,
+                        max_tokens=min(int(self.config.max_tokens), 8192),
+                    )
+                    dspy.configure(lm=self._lm)
+                    logger.info(f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest")
+                    return
+            except Exception as e:
+                logger.debug(f"DirectAnthropicLM not available: {e}")
+
+            # Fallback to Claude CLI
+            try:
+                from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
+                self._lm = PersistentClaudeCLI(model=self.config.model)
+                dspy.configure(lm=self._lm)
+                logger.info(f"Auto-configured DSPy LM with PersistentClaudeCLI ({self.config.model})")
+            except Exception as e:
+                logger.warning(f"Could not auto-configure DSPy LM: {e}")
 
     @property
     def memory(self):
@@ -224,8 +269,12 @@ class BaseAgent(ABC):
             try:
                 from Jotty.core.memory.cortex import HierarchicalMemory
                 from Jotty.core.foundation.data_structures import JottyConfig
+                # Use the shared _jotty_config if one was injected, otherwise
+                # fall back to a default. This prevents creating N independent
+                # JottyConfig instances with potentially different defaults.
+                jotty_config = getattr(self, '_jotty_config', None) or JottyConfig()
                 self._memory = HierarchicalMemory(
-                    config=JottyConfig(),
+                    config=jotty_config,
                     agent_name=self.config.name
                 )
                 logger.debug(f"Initialized HierarchicalMemory for {self.config.name}")

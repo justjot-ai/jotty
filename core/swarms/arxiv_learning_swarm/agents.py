@@ -147,7 +147,7 @@ class PaperFetcherAgent(BaseLearningAgent):
             return None
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None, download_fn, {'arxiv_id': arxiv_id, 'extract_mode': 'text'}
             )
@@ -169,7 +169,7 @@ class PaperFetcherAgent(BaseLearningAgent):
             return []
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(
                 None, search_fn, {'query': f'all:{topic}', 'max_results': max_results, 'sort_by': 'relevance'}
             )

@@ -290,7 +290,7 @@ async def _search_async(query_info: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': 'Web search tool not available'}
     
     # Run in thread pool since search_web_tool is synchronous
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None,
         search_web_tool,

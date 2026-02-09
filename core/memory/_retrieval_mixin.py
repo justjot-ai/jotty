@@ -79,7 +79,7 @@ class RetrievalMixin:
         dramatically reducing context building time.
         """
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Run the synchronous retrieve in a thread pool to avoid blocking
         result = await loop.run_in_executor(
@@ -240,7 +240,7 @@ class RetrievalMixin:
         Async version of retrieve_and_synthesize for parallel retrieval.
         """
         import asyncio
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Run the synchronous synthesis in a thread pool
         result = await loop.run_in_executor(

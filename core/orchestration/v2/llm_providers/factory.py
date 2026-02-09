@@ -11,6 +11,7 @@ from .anthropic import AnthropicProvider
 from .openai import OpenAIProvider, OpenRouterProvider, GroqProvider
 from .google import GoogleProvider
 from .adapter import JottyClaudeProviderAdapter
+from Jotty.core.foundation.config_defaults import MODEL_SONNET, DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,8 @@ def create_provider(
     provider = provider.lower()
 
     default_models = {
-        'anthropic': 'claude-sonnet-4-20250514',
-        'openai': 'gpt-4o',
+        'anthropic': MODEL_SONNET,
+        'openai': DEFAULTS.MODEL_OPENAI_DEFAULT,
         'openrouter': 'anthropic/claude-3.5-sonnet',
         'groq': 'llama-3.1-70b-versatile',
         'google': 'gemini-2.0-flash-exp'

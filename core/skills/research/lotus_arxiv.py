@@ -139,7 +139,7 @@ class LotusArxiv:
         logger.info(f"🔍 Searching ArXiv: {query}")
 
         # Run in executor since LOTUS web_search may block
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         df = await loop.run_in_executor(
             None,
             lambda: web_search(WebSearchCorpus.ARXIV, query, limit)
@@ -171,7 +171,7 @@ class LotusArxiv:
 
         logger.info(f"🔍 Searching and ranking: {query}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Search
         df = await loop.run_in_executor(
@@ -212,7 +212,7 @@ class LotusArxiv:
 
         logger.info(f"🔎 Filtering papers: {filter_by}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         strategy = "cot" if self.config.use_cot else "quick"
 
         filtered_df = await loop.run_in_executor(
@@ -241,7 +241,7 @@ class LotusArxiv:
 
         logger.info(f"📄 Extracting full text: {arxiv_id}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         try:
             df = await loop.run_in_executor(
@@ -286,7 +286,7 @@ class LotusArxiv:
 
         logger.info("🧠 Extracting concepts...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Create a DataFrame with the text
         df = pd.DataFrame({"text": [text]})
@@ -319,7 +319,7 @@ class LotusArxiv:
 
         logger.info("📊 Aggregating insights across papers...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         result_df = await loop.run_in_executor(
             None,
@@ -353,7 +353,7 @@ class LotusArxiv:
 
         logger.info(f"🔗 Finding similar papers...")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Index the corpus
         indexed_df = await loop.run_in_executor(
@@ -393,7 +393,7 @@ class LotusArxiv:
 
         logger.info(f"🗺️ Mapping papers: {instruction}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         result_df = await loop.run_in_executor(
             None,

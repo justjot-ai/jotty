@@ -42,8 +42,8 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
     def __init__(
         self,
-        model: str = "sonnet",
-        timeout: int = 120,
+        model: str = "",
+        timeout: int = 0,
         **kwargs
     ):
         """
@@ -54,6 +54,10 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             timeout: Timeout in seconds (default 120)
             **kwargs: Additional arguments
         """
+        from Jotty.core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        model = model or DEFAULT_MODEL_ALIAS
+        timeout = timeout or LLM_TIMEOUT_SECONDS
+
         super().__init__(model=f"claude-cli/{model}", **kwargs)
         self.cli_model = model
         self.timeout = timeout
@@ -232,7 +236,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
 
 # Convenience function for DSPy configuration
-def configure_async_claude_cli(model: str = "sonnet", **kwargs) -> AsyncClaudeCLILM:
+def configure_async_claude_cli(model: str = "", **kwargs) -> AsyncClaudeCLILM:
     """
     Configure DSPy with AsyncClaudeCLILM.
 

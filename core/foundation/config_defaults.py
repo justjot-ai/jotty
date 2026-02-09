@@ -41,6 +41,72 @@ class JottyDefaults:
     """
 
     # =========================================================================
+    # MODEL NAMES — Single place to update when Anthropic ships a new version
+    # =========================================================================
+
+    DEFAULT_MODEL_ALIAS: str = "sonnet"
+    """Short alias used throughout the codebase (sonnet, haiku, opus).
+    Resolved to a full model name via MODEL_ALIASES below."""
+
+    MODEL_SONNET: str = "claude-sonnet-4-20250514"
+    """Full Anthropic Sonnet model identifier."""
+
+    MODEL_OPUS: str = "claude-opus-4-20250514"
+    """Full Anthropic Opus model identifier."""
+
+    MODEL_HAIKU: str = "claude-3-5-haiku-20241022"
+    """Full Anthropic Haiku model identifier."""
+
+    MODEL_OPENAI_DEFAULT: str = "gpt-4o"
+    """Default OpenAI model."""
+
+    MODEL_GEMINI_DEFAULT: str = "gemini-2.0-flash-exp"
+    """Default Google Gemini model."""
+
+    MODEL_GROQ_DEFAULT: str = "llama-3.1-8b-instant"
+    """Default Groq model."""
+
+    MODEL_OPENROUTER_DEFAULT: str = "meta-llama/llama-3.3-70b-instruct:free"
+    """Default OpenRouter model (free tier)."""
+
+    # =========================================================================
+    # LLM DEFAULTS — Agent / provider shared settings
+    # =========================================================================
+
+    LLM_TEMPERATURE: float = 0.7
+    """Default sampling temperature for creative/general tasks."""
+
+    LLM_TEMPERATURE_DETERMINISTIC: float = 0.0
+    """Temperature for deterministic tasks (classification, routing)."""
+
+    LLM_MAX_OUTPUT_TOKENS: int = 4096
+    """Max tokens the LLM may generate per response.
+
+    Single source of truth — every LM creation path should reference this
+    instead of hardcoding 4096/1024/8192.  DSPy's built-in default is only
+    1024, which truncates most real-world outputs (reports, code, analysis).
+
+    Override per-call when you genuinely need a different limit (e.g. the
+    ValidationGate classifier only needs ~10 tokens).
+    """
+
+    LLM_PLANNING_MAX_TOKENS: int = 1024
+    """Max tokens for lightweight planning / classification LLM calls.
+
+    Used by AgenticPlanner fast-path and ValidationGate where responses
+    are short JSON structs, not full-length content.
+    """
+
+    LLM_TIMEOUT_SECONDS: int = 120
+    """Timeout for LLM API calls (2 minutes)."""
+
+    MAX_RETRIES: int = 3
+    """Maximum retry attempts for failed operations."""
+
+    RETRY_BACKOFF_SECONDS: float = 1.0
+    """Base backoff time between retries."""
+
+    # =========================================================================
     # TOKEN BUDGETS
     # =========================================================================
 
@@ -179,8 +245,8 @@ class JottyDefaults:
     TOOL_TIMEOUT_SECONDS: int = 60
     """Timeout for individual tool calls (1 minute)."""
 
-    LLM_TIMEOUT_SECONDS: int = 120
-    """Timeout for LLM API calls (2 minutes)."""
+    # NOTE: LLM_TIMEOUT_SECONDS, MAX_RETRIES, RETRY_BACKOFF_SECONDS
+    # are defined in the "LLM DEFAULTS" section above.
 
     # Circuit breaker
     CIRCUIT_BREAKER_THRESHOLD: int = 5
@@ -188,13 +254,6 @@ class JottyDefaults:
 
     CIRCUIT_BREAKER_TIMEOUT: int = 60
     """Seconds to wait before retrying after circuit opens."""
-
-    # Retry limits
-    MAX_RETRIES: int = 3
-    """Maximum retry attempts for failed operations."""
-
-    RETRY_BACKOFF_SECONDS: float = 1.0
-    """Base backoff time between retries."""
 
     # =========================================================================
     # VALIDATION & QUALITY
@@ -308,12 +367,47 @@ MAX_TOKENS = DEFAULTS.MAX_CONTEXT_TOKENS
 SAFETY_MARGIN = DEFAULTS.SAFETY_MARGIN
 EPISODIC_CAPACITY = DEFAULTS.EPISODIC_CAPACITY
 MAX_ENTRY_TOKENS = DEFAULTS.MAX_ENTRY_TOKENS
+LLM_MAX_OUTPUT_TOKENS = DEFAULTS.LLM_MAX_OUTPUT_TOKENS
+LLM_PLANNING_MAX_TOKENS = DEFAULTS.LLM_PLANNING_MAX_TOKENS
+
+# Model names — change here when Anthropic/OpenAI ships new versions
+MODEL_SONNET = DEFAULTS.MODEL_SONNET
+MODEL_OPUS = DEFAULTS.MODEL_OPUS
+MODEL_HAIKU = DEFAULTS.MODEL_HAIKU
+DEFAULT_MODEL_ALIAS = DEFAULTS.DEFAULT_MODEL_ALIAS
+
+# Model aliases dict — maps short names to full version strings
+MODEL_ALIASES = {
+    'sonnet': DEFAULTS.MODEL_SONNET,
+    'opus': DEFAULTS.MODEL_OPUS,
+    'haiku': DEFAULTS.MODEL_HAIKU,
+}
+
+# LLM defaults
+LLM_TEMPERATURE = DEFAULTS.LLM_TEMPERATURE
+LLM_TIMEOUT_SECONDS = DEFAULTS.LLM_TIMEOUT_SECONDS
+MAX_RETRIES = DEFAULTS.MAX_RETRIES
+RETRY_BACKOFF_SECONDS = DEFAULTS.RETRY_BACKOFF_SECONDS
 
 __all__ = [
     'JottyDefaults',
     'DEFAULTS',
+    # Token budgets
     'MAX_TOKENS',
     'SAFETY_MARGIN',
     'EPISODIC_CAPACITY',
     'MAX_ENTRY_TOKENS',
+    'LLM_MAX_OUTPUT_TOKENS',
+    'LLM_PLANNING_MAX_TOKENS',
+    # Model names
+    'MODEL_SONNET',
+    'MODEL_OPUS',
+    'MODEL_HAIKU',
+    'DEFAULT_MODEL_ALIAS',
+    'MODEL_ALIASES',
+    # LLM defaults
+    'LLM_TEMPERATURE',
+    'LLM_TIMEOUT_SECONDS',
+    'MAX_RETRIES',
+    'RETRY_BACKOFF_SECONDS',
 ]

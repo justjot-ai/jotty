@@ -195,10 +195,12 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
         # Try OpenAI wrapper first (fastest)
         if self._is_server_running():
             if self._lm is None or getattr(self._lm, '_model', None) != model:
+                from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
                 self._lm = dspy.LM(
                     model=f"openai/{model}",
                     api_base=self.base_url,
                     api_key="not-needed",
+                    max_tokens=LLM_MAX_OUTPUT_TOKENS,
                     # Enable JSON output mode for structured responses
                     response_format={"type": "json_object"},
                     # Longer timeout - Claude CLI calls can take 30-60s each
