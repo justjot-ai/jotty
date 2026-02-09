@@ -2459,10 +2459,11 @@ class SwarmManager:
         """
         results = []
         for i in range(max_tasks):
-            # Check convergence
+            # Check convergence (NOT plateau — training is the cure for plateau)
             if stop_on_convergence:
                 try:
-                    if self.learning.adaptive_learning.should_stop_early():
+                    al = self.learning.adaptive_learning
+                    if al.state.is_converging and al.should_stop_early():
                         logger.info(
                             f"🎓 Training loop: converged after {i} tasks, stopping"
                         )
