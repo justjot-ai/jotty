@@ -220,6 +220,7 @@ class ByzantineVerifier:
         output: Any,
         goal: str = "",
         task_type: str = "general",
+        trust_level: str = "safe",
     ) -> Dict[str, Any]:
         """
         Heuristic output quality verification for single-agent mode.
@@ -230,6 +231,11 @@ class ByzantineVerifier:
         - Output that's just the error message
         - Output that restates the question without answering
         - Agent claiming success on garbage output
+
+        Trust-level aware (Cline auto-approve pattern):
+        - SAFE tools: basic checks only (fast path)
+        - SIDE_EFFECT tools: full heuristic suite
+        - DESTRUCTIVE tools: stricter thresholds + extra checks
 
         Returns:
             Dict with 'quality_ok' (bool), 'issues' (list), 'adjusted_success' (bool)
@@ -251,8 +257,34 @@ class ByzantineVerifier:
 
         output_text = output_text.strip()
 
+        # Trust-level strictness: DESTRUCTIVE tools get tighter thresholds
+        _min_length = 20 if trust_level != "destructive" else 50
+        _overlap_threshold = 0.8 if trust_level != "destructive" else 0.6
+
+        # SAFE tools: skip deep checks if output has basic substance
+        if trust_level == "safe" and claimed_success and len(output_text) >= _min_length:
+            # Fast path: minimal verification for read-only tools
+            quality_ok = True
+            claim_record = {
+                'agent': agent, 'claimed': True, 'actual': True,
+                'task_type': task_type, 'timestamp': time.time(),
+                'consistent': True, 'quality_issues': [],
+            }
+            self.claim_history.append(claim_record)
+            if len(self.claim_history) > 500:
+                self.claim_history = self.claim_history[-500:]
+            self.verified_count += 1
+            if quality_ok:
+                self.si.register_agent(agent)
+                profile = self.si.agent_profiles[agent]
+                profile.trust_score = min(1.0, profile.trust_score + 0.02)
+            return {
+                'quality_ok': True, 'issues': [],
+                'adjusted_success': True, 'trust_level': trust_level,
+            }
+
         # Check 1: Empty or trivially short output
-        if len(output_text) < 20:
+        if len(output_text) < _min_length:
             issues.append("output_too_short")
 
         # Check 2: Output is mostly an error message
@@ -263,13 +295,11 @@ class ByzantineVerifier:
 
         # Check 3: Output just restates the goal (no actual work done)
         if goal and len(goal) > 10 and len(output_text) > 0:
-            # Simple overlap check: if >80% of output words are from the goal,
-            # the agent likely just echoed the question
             goal_words = set(goal.lower().split())
             output_words = set(output_text.lower().split())
             if output_words and goal_words:
                 overlap = len(output_words & goal_words) / len(output_words)
-                if overlap > 0.8 and len(output_text) < len(goal) * 2:
+                if overlap > _overlap_threshold and len(output_text) < len(goal) * 2:
                     issues.append("output_restates_goal")
 
         # Check 4: Agent says success but output is actually a refusal
@@ -279,6 +309,13 @@ class ByzantineVerifier:
         ]
         if claimed_success and any(phrase in lower_output for phrase in refusal_phrases):
             issues.append("success_claimed_on_refusal")
+
+        # Check 5 (DESTRUCTIVE only): extra paranoia — check for confirmation keywords
+        if trust_level == "destructive" and claimed_success:
+            danger_words = ['deleted', 'removed', 'dropped', 'purged', 'destroyed']
+            if any(w in lower_output for w in danger_words):
+                # Output says something was destroyed — flag for human review
+                issues.append("destructive_action_detected")
 
         quality_ok = len(issues) == 0
         adjusted_success = claimed_success and quality_ok

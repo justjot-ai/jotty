@@ -603,6 +603,14 @@ class SwarmManager:
                     pass
             logger.info(f"🎓 {stage}: {detail}")
 
+        # Checkpoint before training — enables rollback if training degrades
+        checkpoint_path = None
+        try:
+            checkpoint_path = self.learning.save_checkpoint(label="pre_train")
+            _status("Checkpoint", f"saved to {checkpoint_path}")
+        except Exception as e:
+            logger.warning(f"Pre-training checkpoint failed: {e}")
+
         _status("Training", f"starting {num_tasks} curriculum tasks")
 
         lp = self.learning
@@ -673,6 +681,7 @@ class SwarmManager:
             'results': results,
             'pre_effectiveness': pre_report.get('_global', {}),
             'post_effectiveness': post_report.get('_global', {}),
+            'checkpoint': checkpoint_path,  # rollback with self.learning.restore_checkpoint(path)
         }
 
     def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0):
@@ -1092,6 +1101,69 @@ class SwarmManager:
         logger.info(f"✅ Converted natural language to AgentConfig: {task_graph.task_type.value}")
         return agent_config
     
+    def compose_prompt(
+        self,
+        agent_name: str = "",
+        task: str = "",
+        learning_context: Optional[list] = None,
+        constraints: Optional[list] = None,
+        extra_sections: Optional[dict] = None,
+    ) -> str:
+        """
+        Compose a model-family-aware agent prompt using PromptComposer.
+
+        Adapts prompt structure to the LLM provider (Claude: XML, GPT: Markdown,
+        Groq: minimal). Integrates tool trust levels and context gates.
+
+        This is a utility — the existing raw string path still works.
+        Use this when you want model-optimized prompts.
+        """
+        from Jotty.core.prompts import PromptComposer
+
+        # Detect model from agent config
+        model = ""
+        for ac in self.agents:
+            if ac.name == agent_name or not agent_name:
+                model = getattr(ac, 'model', '') or getattr(ac.agent, 'model', '') or ''
+                break
+        if not model:
+            model = getattr(self.config, 'model', '')
+
+        composer = PromptComposer(model=model)
+
+        # Gather tool info with trust levels
+        tool_names = []
+        tool_descs = {}
+        trust_levels = {}
+        try:
+            from Jotty.core.registry import get_unified_registry
+            registry = get_unified_registry()
+            skills = registry.list_skills()
+            for s in skills[:30]:  # Top 30 to keep prompt manageable
+                tool_names.append(s['name'])
+                tool_descs[s['name']] = s.get('description', '')
+                trust_levels[s['name']] = s.get('trust_level', 'safe')
+        except Exception:
+            pass
+
+        # Agent identity
+        identity = ""
+        for ac in self.agents:
+            if ac.name == agent_name or not agent_name:
+                identity = getattr(ac.agent, 'system_prompt', '') or getattr(ac, 'system_prompt', '')
+                break
+
+        return composer.compose(
+            identity=identity,
+            tools=tool_names if tool_names else None,
+            tool_descriptions=tool_descs,
+            trust_levels=trust_levels,
+            learning_context=learning_context,
+            constraints=constraints,
+            task=task,
+            extra_sections=extra_sections,
+        )
+
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
         """
         Run task execution with full autonomy.
@@ -1464,6 +1536,9 @@ class SwarmManager:
                 self._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
                 _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
 
+                # Surface user-friendly summary with artifacts
+                self._log_execution_summary(result)
+
                 # Exit profiling context
                 if profile_context:
                     profile_context.__exit__(None, None, None)
@@ -1505,6 +1580,9 @@ class SwarmManager:
                 overhead_pct = (overhead / total_elapsed * 100) if total_elapsed > 0 else 0
                 self._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
                 _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
+
+                # Surface user-friendly summary with artifacts
+                self._log_execution_summary(result)
 
                 # Exit profiling context
                 if profile_context:
@@ -1630,6 +1708,25 @@ class SwarmManager:
                 learned_hints.append(
                     f"[Learned] Common error: {str(err_pat)[:120]}"
                 )
+
+            # 4. Workflow patterns: known successful tool sequences for this task type
+            if self.swarm_workflow_learner:
+                try:
+                    from Jotty.core.learning.transfer_learning import PatternExtractor
+                    norm_type = PatternExtractor.normalize_task_type(task_type)
+                    wf_patterns = self.swarm_workflow_learner.get_patterns_by_task_type(norm_type)
+                    for pat in wf_patterns[:3]:
+                        if pat.success_rate >= 0.5:
+                            ops = ' → '.join(pat.operations[:6]) if pat.operations else 'N/A'
+                            tools = ', '.join(pat.tools_used[:5]) if pat.tools_used else 'N/A'
+                            learned_hints.append(
+                                f"[Learned] Proven workflow for '{norm_type}': "
+                                f"{ops} (tools: {tools}, "
+                                f"success: {pat.success_rate:.0%}, "
+                                f"time: {pat.execution_time:.0f}s)"
+                            )
+                except Exception as wf_err:
+                    logger.debug(f"Workflow pattern lookup skipped: {wf_err}")
 
             # Inject learned context into kwargs for the agent
             if learned_hints:
@@ -2736,6 +2833,29 @@ class SwarmManager:
                     )
                     for t in still_pending:
                         t.cancel()
+
+    def _log_execution_summary(self, result: EpisodeResult):
+        """Log a user-friendly summary with artifacts after execution."""
+        try:
+            _output = getattr(result, 'output', None)
+            # Check if output is an ExecutionResult with .summary and .artifacts
+            if hasattr(_output, 'summary'):
+                logger.info(f"\n📋 Execution Summary:\n{_output.summary}")
+            elif hasattr(_output, 'artifacts'):
+                artifacts = _output.artifacts
+                if artifacts:
+                    logger.info("📂 Created files:")
+                    for a in artifacts:
+                        size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
+                        logger.info(f"  → {a['path']}{size}")
+            # Also check if result itself has useful info
+            if result.success:
+                skills = getattr(_output, 'skills_used', []) if hasattr(_output, 'skills_used') else []
+                steps = getattr(_output, 'steps_executed', 0) if hasattr(_output, 'steps_executed') else 0
+                if skills or steps:
+                    logger.info(f"📊 {steps} steps executed, skills: {', '.join(skills) if skills else 'N/A'}")
+        except Exception as e:
+            logger.debug(f"Summary logging skipped: {e}")
 
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, goal: str = ''):
         """Delegate to SwarmLearningPipeline."""

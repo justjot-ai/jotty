@@ -392,3 +392,133 @@ def validate_tool_attributes(tool_class: type) -> ValidationResult:
         errors=errors,
         warnings=warnings
     )
+
+
+# =============================================================================
+# RUNTIME TOOL GUARD (Cline ToolExecutor patterns)
+# =============================================================================
+
+class ToolGuard:
+    """
+    Runtime tool execution guard — enforces safety policies BEFORE tool runs.
+
+    Inspired by Cline's ToolExecutor:
+    1. Plan/Act mode: planning phase only allows SAFE tools
+    2. One-side-effect-per-turn: at most one SIDE_EFFECT/DESTRUCTIVE tool per turn
+    3. Path-based access control: block tools on sensitive paths
+    4. Cooldown: prevent rapid-fire destructive calls
+
+    Usage:
+        guard = ToolGuard()
+        ok, reason = guard.check("send-telegram", "side_effect", mode="plan")
+        if not ok:
+            logger.warning(f"Blocked: {reason}")
+
+        # After successful tool execution:
+        guard.record_use("send-telegram", "side_effect")
+
+        # Next side-effect in same turn is blocked:
+        ok, reason = guard.check("write-file", "side_effect")
+        # ok=False, reason="One side-effect tool per turn..."
+
+        # Reset at turn boundary:
+        guard.reset_turn()
+    """
+
+    # Paths that tools should never touch
+    DEFAULT_BLOCKED_PATHS = {
+        '.env', '.git', 'credentials', 'secrets',
+        'id_rsa', 'id_ed25519', '.ssh', '.aws',
+        'token', 'password', '.key', '.pem',
+    }
+
+    def __init__(
+        self,
+        blocked_path_patterns: Optional[Set[str]] = None,
+        max_destructive_per_session: int = 3,
+    ):
+        self._blocked_patterns = blocked_path_patterns or self.DEFAULT_BLOCKED_PATHS
+        self._max_destructive = max_destructive_per_session
+        self._side_effect_used_this_turn = False
+        self._destructive_count_session = 0
+        self._last_tool: Optional[str] = None
+
+    def check(
+        self,
+        tool_name: str,
+        trust_level: str = "safe",
+        mode: str = "act",
+        target_path: Optional[str] = None,
+    ) -> tuple:
+        """
+        Check if a tool call should be allowed.
+
+        Args:
+            tool_name: Name of the tool
+            trust_level: "safe", "side_effect", or "destructive"
+            mode: "plan" or "act"
+            target_path: Optional file path the tool will operate on
+
+        Returns:
+            (allowed: bool, reason: str)
+        """
+        # 1. Plan mode: only SAFE tools
+        if mode == "plan" and trust_level != "safe":
+            return (False,
+                f"Tool '{tool_name}' ({trust_level}) blocked in plan mode. "
+                f"Only safe/read-only tools allowed during planning."
+            )
+
+        # 2. One side-effect per turn
+        if trust_level in ("side_effect", "destructive") and self._side_effect_used_this_turn:
+            return (False,
+                f"Tool '{tool_name}' blocked: one side-effect tool per turn. "
+                f"Previous: '{self._last_tool}'. Reset turn boundary first."
+            )
+
+        # 3. Session-level destructive limit
+        if trust_level == "destructive":
+            if self._destructive_count_session >= self._max_destructive:
+                return (False,
+                    f"Tool '{tool_name}' blocked: destructive tool limit "
+                    f"({self._max_destructive}) reached for this session."
+                )
+
+        # 4. Path-based access control
+        if target_path:
+            path_lower = target_path.lower()
+            for pattern in self._blocked_patterns:
+                if pattern in path_lower:
+                    return (False,
+                        f"Tool '{tool_name}' blocked: path '{target_path}' "
+                        f"matches blocked pattern '{pattern}'."
+                    )
+
+        return (True, "")
+
+    def record_use(self, tool_name: str, trust_level: str = "safe"):
+        """Record a successful tool use (call after execution)."""
+        if trust_level in ("side_effect", "destructive"):
+            self._side_effect_used_this_turn = True
+            self._last_tool = tool_name
+        if trust_level == "destructive":
+            self._destructive_count_session += 1
+
+    def reset_turn(self):
+        """Reset per-turn state. Call at the start of each agent turn."""
+        self._side_effect_used_this_turn = False
+        self._last_tool = None
+
+    def reset_session(self):
+        """Full reset (new task/session)."""
+        self.reset_turn()
+        self._destructive_count_session = 0
+
+    def stats(self) -> Dict[str, Any]:
+        """Current guard state for debugging."""
+        return {
+            'side_effect_used_this_turn': self._side_effect_used_this_turn,
+            'last_tool': self._last_tool,
+            'destructive_count_session': self._destructive_count_session,
+            'max_destructive': self._max_destructive,
+        }

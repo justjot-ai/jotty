@@ -84,6 +84,64 @@ class ExecutionResult:
     execution_time: float = 0.0
     stopped_early: bool = False  # True if execution stopped due to failure
 
+    @property
+    def artifacts(self) -> List[Dict[str, Any]]:
+        """Extract all created files/artifacts from execution outputs.
+        
+        Scans outputs for file paths (from file-operations, shell-exec, etc.)
+        Returns list of {path, type, size_bytes, step} dicts.
+        """
+        found = []
+        for step_name, step_data in (self.outputs or {}).items():
+            if not isinstance(step_data, dict):
+                continue
+            # file-operations returns {path, bytes_written}
+            if 'path' in step_data and step_data.get('success', True):
+                found.append({
+                    'path': step_data['path'],
+                    'type': 'file',
+                    'size_bytes': step_data.get('bytes_written', 0),
+                    'step': step_name,
+                })
+            # shell-exec may create files (check stdout for file paths)
+            if 'stdout' in step_data:
+                import re
+                stdout = str(step_data.get('stdout', ''))
+                # Look for common "saved to X" / "wrote X" patterns
+                for m in re.finditer(r'(?:saved?|wrot?e?|created?|output)\s+(?:to\s+)?["\']?([^\s"\']+\.\w{1,5})', stdout, re.I):
+                    fpath = m.group(1)
+                    if len(fpath) > 3 and '/' in fpath or '.' in fpath:
+                        found.append({'path': fpath, 'type': 'file', 'size_bytes': 0, 'step': step_name})
+        return found
+
+    @property
+    def summary(self) -> str:
+        """Human-readable summary of what was done and what was produced."""
+        parts = []
+        status = "completed successfully" if self.success else "failed"
+        parts.append(f"Task {status} in {self.execution_time:.1f}s ({self.steps_executed} steps)")
+
+        if self.skills_used:
+            parts.append(f"Skills used: {', '.join(self.skills_used)}")
+
+        artifacts = self.artifacts
+        if artifacts:
+            parts.append("Files created:")
+            for a in artifacts:
+                size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
+                parts.append(f"  → {a['path']}{size}")
+
+        if self.errors:
+            parts.append(f"Errors: {'; '.join(self.errors[:3])}")
+
+        if self.final_output and isinstance(self.final_output, str):
+            # Show first meaningful bit of final output
+            clean = self.final_output.strip()[:300]
+            if clean:
+                parts.append(f"Output: {clean}")
+
+        return '\n'.join(parts)
+
 
 class AutoAgent(AutonomousAgent):
     """

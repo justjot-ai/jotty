@@ -308,6 +308,90 @@ class SwarmLearningPipeline:
         return Path.home() / '.jotty' / 'stigmergy.json'
 
     # =========================================================================
+    # CHECKPOINTS — snapshot/restore learning state (Cline-inspired)
+    # =========================================================================
+
+    def save_checkpoint(self, label: str = "") -> str:
+        """
+        Save a snapshot of all learning state files.
+
+        Returns the checkpoint directory path. Use restore_checkpoint()
+        with this path to roll back if training degrades performance.
+        """
+        import shutil
+        import time as _t
+
+        ts = int(_t.time())
+        tag = f"_{label}" if label else ""
+        base = Path(getattr(self.config, 'base_path', None) or (Path.home() / '.jotty'))
+        checkpoint_dir = base / 'checkpoints' / f"cp_{ts}{tag}"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        files_to_backup = [
+            self._get_learning_path(),
+            self._get_transfer_learning_path(),
+            self._get_swarm_intelligence_path(),
+            self._get_credit_weights_path(),
+            self._get_stigmergy_path(),
+        ]
+
+        copied = 0
+        for src in files_to_backup:
+            if src.exists():
+                shutil.copy2(src, checkpoint_dir / src.name)
+                copied += 1
+
+        logger.info(f"Checkpoint saved: {checkpoint_dir} ({copied} files)")
+        return str(checkpoint_dir)
+
+    def restore_checkpoint(self, checkpoint_dir: str) -> int:
+        """
+        Restore learning state from a checkpoint.
+
+        Args:
+            checkpoint_dir: Path returned by save_checkpoint()
+
+        Returns:
+            Number of files restored
+        """
+        import shutil
+
+        cp_path = Path(checkpoint_dir)
+        if not cp_path.is_dir():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_dir}")
+
+        targets = {
+            'swarm_learnings.json': self._get_learning_path(),
+            'transfer_learnings.json': self._get_transfer_learning_path(),
+            'swarm_intelligence.json': self._get_swarm_intelligence_path(),
+            'credit_weights.json': self._get_credit_weights_path(),
+            'stigmergy.json': self._get_stigmergy_path(),
+        }
+
+        restored = 0
+        for filename, dest in targets.items():
+            src = cp_path / filename
+            if src.exists():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+                restored += 1
+
+        # Reload the restored state into live objects
+        self.auto_load()
+
+        logger.info(f"Checkpoint restored: {checkpoint_dir} ({restored} files)")
+        return restored
+
+    def list_checkpoints(self) -> list:
+        """List available checkpoints, newest first."""
+        base = Path(getattr(self.config, 'base_path', None) or (Path.home() / '.jotty'))
+        cp_base = base / 'checkpoints'
+        if not cp_base.exists():
+            return []
+        dirs = sorted(cp_base.iterdir(), reverse=True)
+        return [str(d) for d in dirs if d.is_dir()]
+
+    # =========================================================================
     # Auto-load / Auto-save
     # =========================================================================
 

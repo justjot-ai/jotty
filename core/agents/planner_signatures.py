@@ -130,6 +130,15 @@ if DSPY_AVAILABLE:
         6. Deliver: Send via requested channel (telegram, slack, etc.)
         This pattern produces MUCH higher quality than using a composite skill that does one generic search.
 
+        CODE GENERATION / CREATION TASK PATTERN (when task says "generate", "build", "create", "write" a script/tool/app):
+        NEVER pass the task description as code to shell-exec. Instead:
+        1. Generate: Use claude-cli-llm to generate the actual code/script content
+        2. Save: Use file-operations/write_file_tool to save the generated code to a descriptive filename
+           (e.g., "hacker_news_scraper.py", "csv_analyzer.py" — NOT "test_generate.py" or "script.py")
+        3. Execute: Use shell-exec to run the saved script (e.g., {"command": "python hacker_news_scraper.py"})
+        4. Verify: Use file-operations/read_file_tool to read any output files and confirm correctness
+        The file name MUST be descriptive of the task (derived from the task subject).
+
         PHASE 3 - PLAN (ReAct):
         For each step, reason about: What could go wrong? What does this step need from prior steps?
         Each step MUST have:
@@ -139,7 +148,7 @@ if DSPY_AVAILABLE:
         - description: What this step accomplishes
         - verification: How to confirm this step succeeded (e.g., "output contains weather data")
         - fallback_skill: Alternative skill if this one fails (e.g., "http-client")
-        - output_key: A unique key for this step's output (e.g., "step_0", "step_1", "search_results")
+        - output_key: A DESCRIPTIVE key for this step's output (e.g., "hn_scraper", "search_results", "generated_code" — NOT "step_0")
         - depends_on: List of step INDICES (0-based integers) this step needs
 
         REFERENCING PREVIOUS STEP OUTPUTS (CRITICAL):
@@ -167,7 +176,7 @@ if DSPY_AVAILABLE:
         task_description: str = dspy.InputField(desc="Task to accomplish")
         task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
         available_skills: str = dspy.InputField(desc="JSON array of available skills. ONLY use skill_name values from this list!")
-        previous_outputs: str = dspy.InputField(desc="JSON dict of outputs from previous steps")
+        previous_outputs: str = dspy.InputField(desc="JSON dict of outputs from previous steps. May contain '_learning_guidance' with lessons from past executions — use these to avoid known failures and replicate successful approaches.")
         max_steps: int = dspy.InputField(desc="Maximum number of steps")
 
         # Use typed Pydantic model - DSPy JSONAdapter enforces schema

@@ -500,11 +500,37 @@ class SkillPlanExecutor:
             if isinstance(value, str):
                 pattern = r'\$\{([^}]+)\}'
 
-                def replacer(match):
-                    path = match.group(1)
-                    resolved = self.resolve_path(path, outputs)
+                def replacer(match, _param_name=key):
+                    ref_path = match.group(1)
+                    raw_resolved = self.resolve_path(ref_path, outputs)
+
+                    # Smart extraction: if the resolved value is a JSON dict
+                    # and the target param hints at what field to extract, do so.
+                    # e.g. params["path"] = "${step_2}" -> extract step_2["path"]
+                    if raw_resolved.startswith('{'):
+                        try:
+                            import json as _json
+                            obj = _json.loads(raw_resolved)
+                            if isinstance(obj, dict):
+                                # If param name matches a key in the resolved dict, extract it
+                                if _param_name in obj:
+                                    return str(obj[_param_name]).replace('\\', '\\\\')
+                                # Common extractions: path, content, output, stdout
+                                for extract_key in ('path', 'output', 'content', 'stdout', 'result'):
+                                    if _param_name.lower() in (extract_key, f'file_{extract_key}', f'{extract_key}_path'):
+                                        if extract_key in obj:
+                                            return str(obj[extract_key]).replace('\\', '\\\\')
+                                # If param is 'path' but dict doesn't have it, scan all outputs
+                                if _param_name == 'path':
+                                    for _k in reversed(list(outputs.keys())):
+                                        _sd = outputs[_k]
+                                        if isinstance(_sd, dict) and 'path' in _sd:
+                                            return str(_sd['path']).replace('\\', '\\\\')
+                        except (ValueError, KeyError):
+                            pass
+
                     # Escape backslashes so re.sub doesn't interpret \u etc.
-                    return resolved.replace('\\', '\\\\')
+                    return raw_resolved.replace('\\', '\\\\')
 
                 value = re.sub(pattern, replacer, value)
 
@@ -521,6 +547,37 @@ class SkillPlanExecutor:
                             aggregated,
                             value,
                         )
+
+                # Fallback: if the entire value is a bare output key (no ${} wrapping),
+                # resolve it directly. LLMs often write params like {"path": "step_2"}
+                # instead of {"path": "${step_2}"}.
+                if value in outputs and isinstance(outputs[value], dict):
+                    step_data = outputs[value]
+                    # Smart field extraction based on param name
+                    if key in step_data:
+                        value = str(step_data[key])
+                        logger.info(f"Resolved bare output key '{key}={params[key]}' → {value[:100]}")
+                    elif key == 'path' and 'path' in step_data:
+                        value = str(step_data['path'])
+                        logger.info(f"Resolved bare output key '{key}={params[key]}' → {value[:100]}")
+                    elif key in ('content', 'text') and 'output' in step_data:
+                        value = str(step_data['output'])[:10000]
+                        logger.info(f"Resolved bare output key '{key}={params[key]}' → content ({len(value)} chars)")
+                    elif key == 'path':
+                        # The referenced step doesn't have a path — scan ALL outputs
+                        # for the most recent step with a path field (common for
+                        # verify steps that reference the wrong step index).
+                        for _k in reversed(list(outputs.keys())):
+                            _sd = outputs[_k]
+                            if isinstance(_sd, dict) and 'path' in _sd:
+                                value = str(_sd['path'])
+                                logger.info(f"Resolved bare output key '{key}={params[key]}' → path from '{_k}': {value[:100]}")
+                                break
+                    else:
+                        # Serialize the whole dict as fallback
+                        import json as _json
+                        value = _json.dumps(step_data, default=str)[:8000]
+                        logger.info(f"Resolved bare output key '{key}={params[key]}' → full dict ({len(value)} chars)")
 
                 # Fallback: detect unresolved placeholder-like strings
                 # (e.g. "{CONTENT_FROM_STEP_1}", "{PREVIOUS_OUTPUT}") and

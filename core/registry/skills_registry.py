@@ -71,6 +71,43 @@ class SkillType(Enum):
     COMPOSITE = "composite"
 
 
+class TrustLevel(Enum):
+    """
+    Tool trust level — determines verification depth before execution.
+    Inspired by Cline's per-tool auto-approve pattern.
+
+    SAFE:         Read-only, no side effects. Auto-approved.
+                  Examples: web-search, calculator, read-file
+    SIDE_EFFECT:  Creates or modifies external state. Basic verification.
+                  Examples: create-idea, send-telegram, write-file
+    DESTRUCTIVE:  Irreversible actions. Full verification + user confirmation.
+                  Examples: delete-file, drop-database, send-email-blast
+    """
+    SAFE = "safe"
+    SIDE_EFFECT = "side_effect"
+    DESTRUCTIVE = "destructive"
+
+
+# Auto-classify trust level from skill category/tags (heuristic)
+_SAFE_CATEGORIES = {'search', 'research', 'analysis', 'calculation', 'read', 'general'}
+_DESTRUCTIVE_TAGS = {'delete', 'drop', 'purge', 'destroy', 'remove', 'irreversible'}
+
+
+def _infer_trust_level(
+    category: str, tags: List[str], name: str
+) -> TrustLevel:
+    """Infer trust level from skill metadata. KISS heuristic."""
+    tag_set = {t.lower() for t in tags}
+    if tag_set & _DESTRUCTIVE_TAGS:
+        return TrustLevel.DESTRUCTIVE
+    if category.lower() in _SAFE_CATEGORIES:
+        return TrustLevel.SAFE
+    # Side-effect keywords in name
+    if any(kw in name.lower() for kw in ('send', 'create', 'write', 'post', 'update')):
+        return TrustLevel.SIDE_EFFECT
+    return TrustLevel.SAFE  # default: safe
+
+
 # =============================================================================
 # BASE SKILL CLASS
 # =============================================================================
@@ -302,6 +339,11 @@ class SkillDefinition:
         skill_type: Optional[SkillType] = None,
         base_skills: Optional[List[str]] = None,
         execution_mode: Optional[str] = None,
+        # Trust level (Cline auto-approve pattern)
+        trust_level: Optional[TrustLevel] = None,
+        # Context gate (Cline contextRequirements pattern)
+        # Callable that takes task_context dict → bool (should skill be available?)
+        context_gate: Optional[Callable] = None,
     ):
         self.name = name
         self.description = description
@@ -329,6 +371,17 @@ class SkillDefinition:
         self.skill_type = skill_type or SkillType.BASE
         self.base_skills = base_skills or []
         self.execution_mode = execution_mode or ""
+
+        # Trust level: determines verification depth before execution.
+        # Auto-inferred from category/tags if not explicitly set.
+        self.trust_level = trust_level or _infer_trust_level(
+            category, self.tags, name
+        )
+
+        # Context gate: optional function(task_context) → bool.
+        # When set, skill is only available when gate returns True.
+        # Example: browser skill only available when headless browser is configured.
+        self.context_gate = context_gate
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -370,6 +423,19 @@ class SkillDefinition:
         """Get a specific tool callable."""
         return self.tools.get(tool_name)
 
+    def is_available(self, task_context: Optional[Dict[str, Any]] = None) -> bool:
+        """Check if this skill is available for the given task context.
+
+        Evaluates the context_gate (Cline's contextRequirements pattern).
+        Skills without a gate are always available.
+        """
+        if self.context_gate is None:
+            return True
+        try:
+            return bool(self.context_gate(task_context or {}))
+        except Exception:
+            return True  # Fail open — don't block execution on gate errors
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
         result = {
@@ -385,6 +451,7 @@ class SkillDefinition:
             'capabilities': self.capabilities,
             'skill_type': self.skill_type.value,
             'base_skills': self.base_skills,
+            'trust_level': self.trust_level.value,
         }
         if self.skill_type == SkillType.COMPOSITE:
             result['execution_mode'] = self.execution_mode
@@ -1219,7 +1286,10 @@ class SkillsRegistry:
             counts[skill.skill_type.value] += 1
         return counts
 
-    def discover(self, task: str, max_results: int = 50) -> List[Dict[str, Any]]:
+    def discover(
+        self, task: str, max_results: int = 50,
+        task_context: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Discover relevant skills for a task using keyword + capability scoring.
 
@@ -1229,12 +1299,18 @@ class SkillsRegistry:
         - Capability keyword match (+2 per capability)
         - Type boost: composite +2, derived +1
 
+        Context gates (Cline's contextRequirements pattern):
+        Skills with a context_gate are only included when the gate returns True
+        for the given task_context. This allows conditional tool availability
+        (e.g., browser skills only when headless browser is available).
+
         Returns all matched skills sorted by score, padded with unmatched
         skills up to max_results so the LLM has diverse options.
 
         Args:
             task: Task description
             max_results: Maximum skills to return (default: 50)
+            task_context: Optional dict for context_gate evaluation
 
         Returns:
             List of skill dicts sorted by relevance score (descending)
@@ -1259,6 +1335,10 @@ class SkillsRegistry:
         unmatched = []
 
         for skill in self.loaded_skills.values():
+            # Context gate filter: skip skills whose gate says "not available"
+            if not skill.is_available(task_context):
+                continue
+
             name_lower = skill.name.lower()
             desc_lower = (skill.description or '').lower()
 
@@ -1312,6 +1392,7 @@ class SkillsRegistry:
             'base_skills': skill.base_skills,
             'capabilities': skill.capabilities,
             'relevance_score': score,
+            'trust_level': skill.trust_level.value,
         }
         if skill.skill_type == SkillType.COMPOSITE and skill.execution_mode:
             d['execution_mode'] = skill.execution_mode

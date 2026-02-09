@@ -822,6 +822,58 @@ class SwarmIntelligence:
         return status
 
     # =========================================================================
+    # CONTEXT CONDENSATION (inspired by Cline's condense tool)
+    # =========================================================================
+
+    def condense_collective_memory(self, keep_recent: int = 20) -> str:
+        """
+        Compress old collective memory entries into statistical summaries.
+
+        Instead of feeding hundreds of raw episode records to agents,
+        old entries are aggregated into per-task-type statistics.
+        Recent entries are kept verbatim for recency value.
+
+        Returns a condensed summary string suitable for agent context.
+        No LLM call — pure aggregation (KISS).
+        """
+        with self._state_lock:
+            entries = list(self.collective_memory)
+
+        if len(entries) <= keep_recent:
+            return ""  # Nothing to condense
+
+        old_entries = entries[:-keep_recent]
+        # Aggregate stats per task_type
+        stats: Dict[str, Dict] = {}
+        for entry in old_entries:
+            tt = entry.get('task_type', 'unknown')
+            if tt not in stats:
+                stats[tt] = {
+                    'successes': 0, 'failures': 0,
+                    'total_time': 0.0, 'agents': set(),
+                }
+            s = stats[tt]
+            if entry.get('success'):
+                s['successes'] += 1
+            else:
+                s['failures'] += 1
+            s['total_time'] += entry.get('execution_time', 0.0)
+            s['agents'].add(entry.get('agent', '?'))
+
+        # Build condensed summary
+        lines = [f"[Condensed history: {len(old_entries)} episodes]"]
+        for tt, s in sorted(stats.items()):
+            total = s['successes'] + s['failures']
+            rate = s['successes'] / total if total else 0
+            avg_t = s['total_time'] / total if total else 0
+            agents_str = ', '.join(sorted(s['agents']))
+            lines.append(
+                f"  {tt}: {rate:.0%} success ({total} runs, "
+                f"avg {avg_t:.1f}s, agents: {agents_str})"
+            )
+        return '\n'.join(lines)
+
+    # =========================================================================
     # PERSISTENCE
     # =========================================================================
 

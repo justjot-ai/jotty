@@ -13,6 +13,7 @@ AgentScope-inspired lifecycle hooks (Gao et al., 2025):
 
 import asyncio
 import logging
+import time as _time
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 
@@ -65,6 +66,80 @@ class AgentRunnerConfig:
     enable_learning: bool = True
     enable_memory: bool = True
     enable_terminal: bool = True  # Enable SwarmTerminal for auto-fix
+
+
+class TaskProgress:
+    """
+    Visible task progress tracker (Cline's Focus Chain pattern).
+
+    A simple checklist that updates as the agent works. Each step
+    can be pending, in_progress, done, or failed. The checklist
+    is exposed via the status callback so UI/CLI can display it.
+
+    Usage:
+        progress = TaskProgress("Research AI trends")
+        progress.add_step("Search for recent papers")
+        progress.add_step("Analyze findings")
+        progress.add_step("Write summary")
+        progress.start_step(0)  # "Search for recent papers" → in_progress
+        progress.complete_step(0)  # → done
+        print(progress.render())
+    """
+
+    def __init__(self, goal: str = ""):
+        self.goal = goal
+        self.steps: List[Dict[str, Any]] = []  # {name, status, started_at, finished_at}
+        self.created_at = _time.time()
+
+    def add_step(self, name: str) -> int:
+        """Add a step. Returns its index."""
+        idx = len(self.steps)
+        self.steps.append({
+            'name': name, 'status': 'pending',
+            'started_at': None, 'finished_at': None,
+        })
+        return idx
+
+    def start_step(self, idx: int):
+        if 0 <= idx < len(self.steps):
+            self.steps[idx]['status'] = 'in_progress'
+            self.steps[idx]['started_at'] = _time.time()
+
+    def complete_step(self, idx: int):
+        if 0 <= idx < len(self.steps):
+            self.steps[idx]['status'] = 'done'
+            self.steps[idx]['finished_at'] = _time.time()
+
+    def fail_step(self, idx: int):
+        if 0 <= idx < len(self.steps):
+            self.steps[idx]['status'] = 'failed'
+            self.steps[idx]['finished_at'] = _time.time()
+
+    def render(self) -> str:
+        """Render checklist as text (suitable for status callback or logging)."""
+        icons = {'pending': '[ ]', 'in_progress': '[>]', 'done': '[x]', 'failed': '[!]'}
+        lines = [f"Task: {self.goal}"] if self.goal else []
+        for i, s in enumerate(self.steps):
+            icon = icons.get(s['status'], '[ ]')
+            elapsed = ""
+            if s['status'] == 'done' and s['started_at'] and s['finished_at']:
+                elapsed = f" ({s['finished_at'] - s['started_at']:.1f}s)"
+            lines.append(f"  {icon} {s['name']}{elapsed}")
+        done = sum(1 for s in self.steps if s['status'] == 'done')
+        total = len(self.steps)
+        if total:
+            lines.append(f"  Progress: {done}/{total} ({done/total:.0%})")
+        return "\n".join(lines)
+
+    def summary(self) -> Dict[str, Any]:
+        """Machine-readable summary."""
+        done = sum(1 for s in self.steps if s['status'] == 'done')
+        failed = sum(1 for s in self.steps if s['status'] == 'failed')
+        return {
+            'total': len(self.steps), 'done': done, 'failed': failed,
+            'completion_pct': done / len(self.steps) if self.steps else 0,
+            'steps': [{'name': s['name'], 'status': s['status']} for s in self.steps],
+        }
 
 
 class AgentRunner:
@@ -219,6 +294,17 @@ class AgentRunner:
         # hint into the agent's context. Resets on any success.
         self._consecutive_failures: int = 0
         self._max_consecutive_before_hint: int = 2  # inject hint after 2 failures
+
+        # Tool guard (Cline ToolExecutor patterns):
+        # - Plan/Act mode: restrict side-effect tools during planning
+        # - One side-effect per turn: prevent cascading mutations
+        # - Path access control: block sensitive file operations
+        from Jotty.core.registry.tool_validation import ToolGuard
+        self.tool_guard = ToolGuard()
+
+        # Task progress tracker (Cline Focus Chain pattern):
+        # Visible checklist of steps, updated via status callback.
+        self.task_progress: Optional[TaskProgress] = None
 
         logger.info(f"AgentRunner initialized: {self.agent_name}")
 
@@ -419,8 +505,15 @@ class AgentRunner:
         learning, and swarm intelligence. Returns list of context strings.
 
         Separated from run() so the method stays focused on orchestration.
+
+        Budget guard (Cline-inspired): total injected context is capped at
+        max_learning_context_chars (default ~8000 chars ≈ 2000 tokens).
+        Prevents learning context from eating up the model's context window.
         """
         parts = []
+        _max_chars = getattr(
+            self.config.config, 'max_learning_context_chars', 8000
+        )
 
         # 1. Memory retrieval
         if self.agent_memory:
@@ -475,7 +568,7 @@ class AgentRunner:
             except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
 
-        # 4. Swarm intelligence hints (stigmergy + agent profile)
+        # 4. Swarm intelligence hints (stigmergy + agent profile + condensed history)
         if self.swarm_intelligence:
             try:
                 _si = self.swarm_intelligence
@@ -499,8 +592,50 @@ class AgentRunner:
                                     f"Stigmergy hint: you are the top-performing agent "
                                     f"for '{task_type}' tasks. Lean into your strengths."
                                 )
+
+                # Condensed collective history (Cline condense pattern):
+                # Instead of raw episode data, give the agent a statistical
+                # summary of old episodes. Recent ones are kept verbatim in
+                # the collective_memory deque for Q-learning / routing.
+                condensed = _si.condense_collective_memory(keep_recent=20)
+                if condensed:
+                    parts.append(condensed)
             except Exception as e:
                 logger.debug(f"Warm-start context skipped: {e}")
+
+        # Consecutive failure hint — tell the agent to change approach
+        if self._consecutive_failures >= self._max_consecutive_before_hint:
+            parts.append(
+                f"WARNING: {self._consecutive_failures} consecutive failures. "
+                f"Your previous approach is not working. Try a fundamentally "
+                f"different strategy — different tools, simpler steps, or "
+                f"break the problem into smaller parts."
+            )
+
+        # Budget guard: compress (not drop) when total exceeds budget.
+        # Pattern from SmartContextManager: keep start + end of each chunk,
+        # compress the middle. This preserves signal while fitting budget.
+        total_chars = sum(len(p) for p in parts)
+        if total_chars > _max_chars and parts:
+            # Calculate how much each part can have (fair share)
+            per_part_budget = _max_chars // len(parts)
+            compressed_parts = []
+            for p in parts:
+                if len(p) <= per_part_budget:
+                    compressed_parts.append(p)
+                else:
+                    # Keep start + end, mark middle as compressed
+                    keep = max(100, per_part_budget)
+                    half = keep // 2
+                    compressed_parts.append(
+                        p[:half] + "\n[...compressed...]\n" + p[-half:]
+                    )
+            parts = compressed_parts
+            logger.debug(
+                f"Context budget: compressed {total_chars} → "
+                f"{sum(len(p) for p in parts)} chars "
+                f"(budget: {_max_chars})"
+            )
 
         for i, p in enumerate(parts, 1):
             logger.info(f"  📖 Context {i}: {p[:200]}")
@@ -719,6 +854,16 @@ class AgentRunner:
         )
         _status("ValidationGate", f"{mode_label} — {gate_decision.reason}")
 
+        # Reset tool guard per turn (Cline: one side-effect per turn)
+        self.tool_guard.reset_turn()
+
+        # Initialize task progress tracker (Cline Focus Chain)
+        self.task_progress = TaskProgress(goal=goal)
+        self.task_progress.add_step("Gather context")
+        self.task_progress.add_step("Validate approach")
+        self.task_progress.add_step("Execute task")
+        self.task_progress.add_step("Verify output")
+
         # Hook: pre_run — modify goal, inject context, log start
         hook_ctx = self._run_hooks(
             'pre_run',
@@ -741,6 +886,7 @@ class AgentRunner:
         if self.shaped_reward_manager:
             self.shaped_reward_manager.reset()
 
+        self.task_progress.start_step(0)  # Gather context
         _status("Preparing", "retrieving context")
 
         # Stage 1: Gather learning context (extracted to _gather_learning_context)
@@ -753,6 +899,7 @@ class AgentRunner:
 
         # Keep enriched_goal = goal (NO concatenation — task string stays clean)
         enriched_goal = goal
+        self.task_progress.complete_step(0)  # Context gathered
 
         # 1. Architect (pre-execution planning) - skip if gate says DIRECT or AUDIT_ONLY
         architect_results = []
@@ -763,6 +910,7 @@ class AgentRunner:
             # Hook: pre_architect
             self._run_hooks('pre_architect', goal=goal, agent_name=self.agent_name)
 
+            self.task_progress.start_step(1)  # Validate approach
             _status("Architect", "validating approach")
             architect_results, proceed = await self.architect_validator.validate(
                 goal=goal,
@@ -815,6 +963,8 @@ class AgentRunner:
         else:
             logger.info(f"⚡ Skipping architect: gate={gate_decision.mode.value}")
 
+        self.task_progress.complete_step(1)  # Approach validated
+
         # 2. Agent execution (use enriched goal with memory context)
         # Hook: pre_execute — last chance to modify goal before agent runs
         exec_ctx = self._run_hooks(
@@ -823,6 +973,7 @@ class AgentRunner:
         )
         enriched_goal = exec_ctx.get('goal', enriched_goal)
 
+        self.task_progress.start_step(2)  # Execute task
         _status("Agent", "executing task (this may take a while)")
         try:
             # Always use AutoAgent for skill execution (skip_validation only affects architect/auditor)
@@ -892,6 +1043,8 @@ class AgentRunner:
                 agent_output=agent_output, inner_success=inner_success,
             )
 
+            self.task_progress.complete_step(2)  # Task executed
+            self.task_progress.start_step(3)   # Verify output
             # 3. Auditor (post-execution validation) - skip if gate says DIRECT
             #    MALLM-inspired judge intervention: if auditor rejects,
             #    retry agent once with auditor feedback injected (Becker et al. 2025).
@@ -1052,10 +1205,12 @@ class AgentRunner:
                 agent_contributions=learning_data['agent_contributions']
             )
 
-            # Update consecutive failure counter
+            # Update task progress + consecutive failure counter
             if success:
+                self.task_progress.complete_step(3)  # Verified OK
                 self._consecutive_failures = 0
             else:
+                self.task_progress.fail_step(3)  # Verification failed
                 self._consecutive_failures += 1
 
             # Record gate outcome for drift detection
@@ -1064,11 +1219,16 @@ class AgentRunner:
             if self._validation_gate:
                 self._validation_gate.record_outcome(gate_decision.mode, success)
 
+            # Log task progress (Cline Focus Chain visibility)
+            if self.task_progress:
+                logger.info(f"📋 {self.task_progress.render()}")
+
             # Hook: post_run — record metrics, log results, send notifications
             self._run_hooks(
                 'post_run', goal=goal, agent_name=self.agent_name,
                 result=episode_result, success=success, elapsed=duration,
                 gate_decision=gate_decision,
+                task_progress=self.task_progress.summary() if self.task_progress else None,
             )
 
             return episode_result

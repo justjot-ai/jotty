@@ -403,13 +403,22 @@ class AutonomousAgent(BaseAgent):
                             'text-utils', 'file-operations', 'shell-exec'}
         _needs_planning = not skill_names.issubset(_direct_llm_only)
 
+        # OVERRIDE: Code generation/creation tasks ALWAYS need planning,
+        # even with simple skills. Without a plan, the agent tries to shell-exec
+        # the task description as code instead of generating code first.
+        if not _needs_planning and task_type in ('creation', 'generation', 'automation'):
+            _needs_planning = True
+            logger.info(f"📋 Forcing planning for {task_type} task (code gen needs a multi-step plan)")
+
         steps = []
         if _needs_planning:
             _status("Planning", "creating execution plan")
-            planning_task = task
+            # Pass learning context separately — it gets stripped by _abstract_task_for_planning
+            # if embedded in the task, so we pass it as previous_outputs metadata
+            prev_outputs = {}
             if learning_context:
-                planning_task = f"{task}\n\n[Learning Context - use to guide planning decisions]:\n{learning_context[:2000]}"
-            steps = await self._create_plan(planning_task, task_type, skills)
+                prev_outputs['_learning_guidance'] = learning_context[:2000]
+            steps = await self._create_plan(task, task_type, skills, previous_outputs=prev_outputs if prev_outputs else None)
             _status("Plan ready", f"{len(steps)} steps")
         else:
             _status("Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})")
