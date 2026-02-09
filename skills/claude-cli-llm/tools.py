@@ -13,12 +13,86 @@ Prompt Ensembling Strategies (based on latest research):
 import logging
 import json
 import asyncio
+import time as _time
 from typing import Dict, Any, List, Optional
 from collections import Counter
 
 from Jotty.core.utils.skill_status import SkillStatus
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# RATE LIMIT AWARE LLM CALLING
+# =============================================================================
+
+# Tracks RPM budget across calls within this module.
+# Reset automatically when a minute boundary is crossed.
+_rpm_state = {
+    'call_count': 0,
+    'window_start': 0.0,
+    'detected_rpm_limit': None,  # Set when we get a 429
+    'last_429_at': 0.0,
+}
+
+
+def _call_lm_with_retry(lm, *, prompt: str = None, messages=None,
+                         max_retries: int = 4, base_delay: float = 8.0,
+                         **kwargs):
+    """
+    Call LM with exponential backoff on rate-limit (429) errors.
+
+    Tracks call cadence and auto-inserts pre-call delays when we know
+    the provider has a tight RPM limit (e.g. 8 RPM on OpenRouter free).
+    """
+    import time
+
+    # Auto-pace: if we've seen a 429 recently, pre-delay to stay under RPM
+    now = time.time()
+    rpm_limit = _rpm_state.get('detected_rpm_limit')
+    if rpm_limit and rpm_limit <= 20:
+        # Calculate safe interval: 60s / rpm_limit with 20% headroom
+        safe_interval = 60.0 / rpm_limit * 1.2
+        elapsed_since_last = now - _rpm_state.get('last_call_at', 0)
+        if elapsed_since_last < safe_interval:
+            wait = safe_interval - elapsed_since_last
+            logger.debug(f"Rate-limit pacing: waiting {wait:.1f}s (RPM limit: {rpm_limit})")
+            time.sleep(wait)
+
+    for attempt in range(max_retries + 1):
+        try:
+            _rpm_state['last_call_at'] = time.time()
+            if prompt:
+                result = lm(prompt=prompt, **kwargs)
+            elif messages:
+                result = lm(messages=messages, **kwargs)
+            else:
+                result = lm(prompt="", **kwargs)
+            _rpm_state['call_count'] += 1
+            return result
+        except Exception as e:
+            err_str = str(e)
+            is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
+                             'rate limit' in err_str.lower() or
+                             'Too Many Requests' in err_str)
+            if is_rate_limit and attempt < max_retries:
+                # Extract RPM limit from headers if present
+                import re
+                rpm_match = re.search(r'X-RateLimit-Limit.*?(\d+)', err_str)
+                if rpm_match:
+                    _rpm_state['detected_rpm_limit'] = int(rpm_match.group(1))
+                else:
+                    # Conservative fallback: assume 8 RPM (OpenRouter free tier)
+                    _rpm_state['detected_rpm_limit'] = _rpm_state.get('detected_rpm_limit') or 8
+
+                _rpm_state['last_429_at'] = time.time()
+                delay = base_delay * (2 ** attempt)  # 8, 16, 32, 64
+                logger.info(f"Rate limited (attempt {attempt+1}/{max_retries}), "
+                            f"retrying in {delay:.0f}s...")
+                print(f"      [rate limited, retry in {delay:.0f}s]")
+                time.sleep(delay)
+            else:
+                raise
 
 
 # =============================================================================
@@ -125,8 +199,8 @@ def _self_consistency_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
     responses = []
     for i in range(num_samples):
         try:
-            # Add temperature variation for diversity
-            response = lm(prompt=prompt)
+            # Add temperature variation for diversity (with retry on rate limits)
+            response = _call_lm_with_retry(lm, prompt=prompt)
             text = response[0] if isinstance(response, list) else str(response)
             responses.append(text)
         except Exception as e:
@@ -147,7 +221,7 @@ Responses:
 
 Synthesize the best answer, combining the strongest points from all responses:"""
 
-    synthesis = lm(prompt=synthesis_prompt)
+    synthesis = _call_lm_with_retry(lm, prompt=synthesis_prompt)
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     # Calculate agreement score as confidence
@@ -194,14 +268,10 @@ def _multi_perspective_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]
     individual_responses = {}
     quality_scores = {}
 
-    # Optima-inspired: Run perspectives in PARALLEL (Chen et al., 2024)
-    # Original: sequential loop (~30s × 4 = 120s)
-    # Optimized: concurrent threads (~30s total = 4x speedup)
     total = len(perspectives)
-    print(f"  → Ensemble: generating {total} perspectives in parallel...")
 
     def _generate_one(idx, perspective):
-        """Generate a single perspective (runs in thread pool)."""
+        """Generate a single perspective with retry on rate limits."""
         if isinstance(perspective, dict):
             name = perspective.get('name', 'expert')
             system = perspective.get('system', '')
@@ -224,7 +294,7 @@ Requirements:
 Your analysis:"""
 
         try:
-            response = lm(prompt=perspective_prompt)
+            response = _call_lm_with_retry(lm, prompt=perspective_prompt)
             text = response[0] if isinstance(response, list) else str(response)
             score = _score_perspective_quality(text, prompt)
             print(f"    [{idx+1}/{total}] {name}... done (quality: {score:.0%})")
@@ -234,17 +304,28 @@ Your analysis:"""
             print(f"    [{idx+1}/{total}] {name}... failed: {e}")
             return name, f"[Failed: {e}]", 0.0
 
-    # Parallel execution using ThreadPoolExecutor
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    with ThreadPoolExecutor(max_workers=min(total, 4)) as executor:
-        futures = {
-            executor.submit(_generate_one, idx, p): idx
-            for idx, p in enumerate(perspectives)
-        }
-        for future in as_completed(futures):
-            name, text, score = future.result()
+    # Rate-limit aware execution strategy:
+    # If we've detected a tight RPM limit (<=20), run SEQUENTIALLY with pacing.
+    # Otherwise, run in parallel for speed.
+    rpm_limit = _rpm_state.get('detected_rpm_limit')
+    if rpm_limit and rpm_limit <= 20:
+        print(f"  → Ensemble: generating {total} perspectives sequentially (RPM limit: {rpm_limit})...")
+        for idx, p in enumerate(perspectives):
+            name, text, score = _generate_one(idx, p)
             individual_responses[name] = text
             quality_scores[name] = score
+    else:
+        print(f"  → Ensemble: generating {total} perspectives in parallel...")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=min(total, 4)) as executor:
+            futures = {
+                executor.submit(_generate_one, idx, p): idx
+                for idx, p in enumerate(perspectives)
+            }
+            for future in as_completed(futures):
+                name, text, score = future.result()
+                individual_responses[name] = text
+                quality_scores[name] = score
 
     if not individual_responses:
         return {'success': False, 'error': 'All perspectives failed'}
@@ -283,7 +364,7 @@ Weight higher-quality perspectives more heavily in your synthesis.
 
 Synthesized Answer:"""
 
-    synthesis = lm(prompt=synthesis_prompt)
+    synthesis = _call_lm_with_retry(lm, prompt=synthesis_prompt)
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     # Calculate weighted confidence based on quality scores
@@ -343,7 +424,7 @@ def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4)
 
     try:
         print("  → Ensemble: LLM generating domain-specific perspectives...", end=" ", flush=True)
-        # Ask LLM to generate appropriate perspectives
+        # Ask LLM to generate appropriate perspectives (with retry for rate limits)
         perspective_prompt = f"""Generate {max_perspectives} DOMAIN-EXPERT perspectives for this specific task.
 
 Task: {prompt}
@@ -377,7 +458,7 @@ EXAMPLE for "BaFin KGAB compliance checklist":
 
 JSON array for the given task:"""
 
-        response = lm(prompt=perspective_prompt)
+        response = _call_lm_with_retry(lm, prompt=perspective_prompt)
         text = response[0] if isinstance(response, list) else str(response)
 
         # Parse JSON from response
@@ -488,7 +569,7 @@ Question: {prompt}
 Your response:"""
 
         try:
-            response = lm(prompt=draft_prompt)
+            response = _call_lm_with_retry(lm, prompt=draft_prompt)
             text = response[0] if isinstance(response, list) else str(response)
             drafts[f'draft_{i+1}'] = text
         except Exception as e:
@@ -512,7 +593,7 @@ Draft Responses:
 
 Your improved, synthesized answer (should be better than any individual draft):"""
 
-    synthesis = lm(prompt=synthesis_prompt)
+    synthesis = _call_lm_with_retry(lm, prompt=synthesis_prompt)
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     return {
@@ -552,7 +633,7 @@ def _debate_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
 Your position:"""
 
         try:
-            response = lm(prompt=initial_prompt)
+            response = _call_lm_with_retry(lm, prompt=initial_prompt)
             text = response[0] if isinstance(response, list) else str(response)
             current_responses[debater['name']] = text
             debate_history.append({'round': 0, 'debater': debater['name'], 'response': text})
@@ -575,7 +656,7 @@ Question: {prompt}
 Your refined position (Round {round_num}):"""
 
             try:
-                response = lm(prompt=debate_prompt)
+                response = _call_lm_with_retry(lm, prompt=debate_prompt)
                 text = response[0] if isinstance(response, list) else str(response)
                 new_responses[debater['name']] = text
                 debate_history.append({'round': round_num, 'debater': debater['name'], 'response': text})
@@ -600,7 +681,7 @@ As an impartial judge, synthesize the debate into a final answer that:
 
 Final judgment:"""
 
-    synthesis = lm(prompt=synthesis_prompt)
+    synthesis = _call_lm_with_retry(lm, prompt=synthesis_prompt)
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     return {
