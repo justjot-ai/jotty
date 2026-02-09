@@ -162,6 +162,28 @@ def tool_wrapper(
         @functools.wraps(func)
         def wrapper(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
+                # Normalize common param aliases before validation.
+                # LLM planners frequently use alternative names like
+                # "file_path" instead of "path", "script_path" instead
+                # of "script", etc. Fix them silently.
+                _PARAM_ALIASES = {
+                    'path': ['file_path', 'filepath', 'filename', 'file_name', 'file'],
+                    'content': ['text', 'data', 'body', 'file_content'],
+                    'command': ['cmd', 'shell_command', 'shell_cmd'],
+                    'script': ['script_content', 'script_code', 'code', 'python_code', 'script_path'],
+                    'query': ['search_query', 'q', 'search', 'question'],
+                    'url': ['link', 'href', 'website', 'page_url'],
+                    'message': ['msg', 'text_message'],
+                    'timeout': ['time_limit', 'max_time'],
+                }
+                if required_params:
+                    for canonical, aliases in _PARAM_ALIASES.items():
+                        if canonical in required_params and canonical not in params:
+                            for alias in aliases:
+                                if alias in params:
+                                    params[canonical] = params.pop(alias)
+                                    break
+
                 # Validate required params
                 if required_params:
                     error = require_params(params, required_params)
@@ -192,6 +214,25 @@ def async_tool_wrapper(
         @functools.wraps(func)
         async def wrapper(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
+                # Same param alias normalization as sync tool_wrapper
+                _PARAM_ALIASES = {
+                    'path': ['file_path', 'filepath', 'filename', 'file_name', 'file'],
+                    'content': ['text', 'data', 'body', 'file_content'],
+                    'command': ['cmd', 'shell_command', 'shell_cmd'],
+                    'script': ['script_content', 'script_code', 'code', 'python_code', 'script_path'],
+                    'query': ['search_query', 'q', 'search', 'question'],
+                    'url': ['link', 'href', 'website', 'page_url'],
+                    'message': ['msg', 'text_message'],
+                    'timeout': ['time_limit', 'max_time'],
+                }
+                if required_params:
+                    for canonical, aliases in _PARAM_ALIASES.items():
+                        if canonical in required_params and canonical not in params:
+                            for alias in aliases:
+                                if alias in params:
+                                    params[canonical] = params.pop(alias)
+                                    break
+
                 if required_params:
                     error = require_params(params, required_params)
                     if error:

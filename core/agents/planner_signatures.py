@@ -131,13 +131,25 @@ if DSPY_AVAILABLE:
         This pattern produces MUCH higher quality than using a composite skill that does one generic search.
 
         CODE GENERATION / CREATION TASK PATTERN (when task says "generate", "build", "create", "write" a script/tool/app):
-        NEVER pass the task description as code to shell-exec. Instead:
+        NEVER pass the task description or LLM output as the shell-exec command. Instead:
         1. Generate: Use claude-cli-llm to generate the actual code/script content
-        2. Save: Use file-operations/write_file_tool to save the generated code to a descriptive filename
-           (e.g., "hacker_news_scraper.py", "csv_analyzer.py" — NOT "test_generate.py" or "script.py")
-        3. Execute: Use shell-exec to run the saved script (e.g., {"command": "python hacker_news_scraper.py"})
-        4. Verify: Use file-operations/read_file_tool to read any output files and confirm correctness
-        The file name MUST be descriptive of the task (derived from the task subject).
+        2. Save: Use file-operations/write_file_tool with params {"path": "<descriptive_name>.py", "content": "${generated_code}"}
+           File name MUST be descriptive (e.g., "weather_fetcher.py", "github_scraper.py" — NOT "script.py")
+        3. Execute: Use shell-exec/execute_command_tool with LITERAL command string:
+           params: {"command": "python <descriptive_name>.py"} — NEVER use ${template} for the command!
+           The command MUST be a real shell command like "python weather_fetcher.py", NOT "${step_0}" or the task text.
+        4. Verify: Use file-operations/read_file_tool to read output files and confirm correctness
+
+        SHELL-EXEC CRITICAL RULES:
+        - The "command" param must ALWAYS be a literal shell command (e.g., "python script.py", "ls -la", "curl ...")
+        - NEVER set command to "${step_0}" or "${generated_code}" — those resolve to LLM output text, NOT shell commands
+        - NEVER set command to the task description text
+        - If you need to run a Python script that was saved in step N, use: {"command": "python <filename_from_step_N>.py"}
+
+        FILE-OPERATIONS CRITICAL RULES:
+        - write_file_tool requires: {"path": "filename.ext", "content": "..."}
+        - read_file_tool requires: {"path": "filename.ext"}
+        - The param name is "path" (NOT "file_path", "filepath", or "filename")
 
         PHASE 3 - PLAN (ReAct):
         For each step, reason about: What could go wrong? What does this step need from prior steps?
