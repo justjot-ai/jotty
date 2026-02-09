@@ -302,6 +302,11 @@ class AgentRunner:
         from Jotty.core.registry.tool_validation import ToolGuard
         self.tool_guard = ToolGuard()
 
+        # Host provider (Cline HostProvider pattern):
+        # Core never imports CLI/Web directly — uses HostProvider.
+        from Jotty.core.interfaces.host_provider import HostProvider
+        self._host = HostProvider.get()
+
         # Task progress tracker (Cline Focus Chain pattern):
         # Visible checklist of steps, updated via status callback.
         self.task_progress: Optional[TaskProgress] = None
@@ -638,7 +643,7 @@ class AgentRunner:
             )
 
         for i, p in enumerate(parts, 1):
-            logger.info(f"  📖 Context {i}: {p[:200]}")
+            logger.info(f"  📖 Context {i}: {p[:500]}")
         return parts
 
     async def _record_post_execution_learning(
@@ -974,6 +979,19 @@ class AgentRunner:
         enriched_goal = exec_ctx.get('goal', enriched_goal)
 
         self.task_progress.start_step(2)  # Execute task
+
+        # Workspace checkpoint before execution (Cline checkpoint pattern).
+        # Enables rollback if agent makes destructive workspace changes.
+        _ws_checkpoint_id = None
+        try:
+            from .workspace_checkpoint import WorkspaceCheckpoint
+            _ws_cp = WorkspaceCheckpoint()
+            if _ws_cp._git_available:
+                _ws_checkpoint_id = _ws_cp.save(f"pre-exec:{goal[:50]}")
+                logger.debug(f"Workspace checkpoint: {_ws_checkpoint_id}")
+        except Exception as _cp_err:
+            logger.debug(f"Workspace checkpoint skipped: {_cp_err}")
+
         _status("Agent", "executing task (this may take a while)")
         try:
             # Always use AutoAgent for skill execution (skip_validation only affects architect/auditor)
@@ -1204,6 +1222,12 @@ class AgentRunner:
                 auditor_results=auditor_results or [],
                 agent_contributions=learning_data['agent_contributions']
             )
+
+            # Expose workspace checkpoint for rollback by caller
+            if _ws_checkpoint_id:
+                episode_result.trajectory.append(
+                    {"type": "workspace_checkpoint", "id": _ws_checkpoint_id}
+                )
 
             # Update task progress + consecutive failure counter
             if success:

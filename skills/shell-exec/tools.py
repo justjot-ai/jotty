@@ -46,6 +46,21 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     working_directory = params.get('working_directory')
     use_shell = params.get('shell', True)
 
+    # Safety check: detect if command is a natural language task description
+    # instead of an actual shell command. LLM planners sometimes pass the task
+    # description directly (e.g., "Write a Python script that..." as a command).
+    command = params['command'].strip()
+    _nl_indicators = ('write a', 'create a', 'generate a', 'build a', 'make a',
+                      'develop a', 'implement a', 'design a', 'analyze the',
+                      'research the', 'scrape the', 'fetch the')
+    if len(command) > 100 and any(command.lower().startswith(nl) for nl in _nl_indicators):
+        return tool_error(
+            f'Command appears to be a task description, not a shell command. '
+            f'Use execute_script_tool for Python code, or pass a real command like '
+            f'"python script.py"',
+            command=command[:80] + '...'
+        )
+
     cwd = None
     if working_directory:
         cwd_path = Path(working_directory)

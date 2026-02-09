@@ -1740,7 +1740,7 @@ class SwarmManager:
                     f"for task_type='{task_type}'"
                 )
                 for i, hint in enumerate(learned_hints, 1):
-                    logger.info(f"  📚 Hint {i}: {hint[:200]}")
+                    logger.info(f"  📚 Hint {i}: {hint}")
 
         except Exception as e:
             logger.warning(f"Pre-execution intelligence read failed: {e}")
@@ -2835,25 +2835,42 @@ class SwarmManager:
                         t.cancel()
 
     def _log_execution_summary(self, result: EpisodeResult):
-        """Log a user-friendly summary with artifacts after execution."""
+        """Log a user-friendly summary with artifacts after execution.
+        
+        Uses the OUTER result.success (which includes auditor verdict) 
+        to avoid contradictions like "completed successfully" + SUCCESS: False.
+        """
         try:
             _output = getattr(result, 'output', None)
-            # Check if output is an ExecutionResult with .summary and .artifacts
-            if hasattr(_output, 'summary'):
+            outer_success = result.success
+
+            if hasattr(_output, 'artifacts') or hasattr(_output, 'skills_used'):
+                # Build our own summary using the outer success status
+                parts = []
+                status = "completed successfully" if outer_success else "failed (auditor rejected)"
+                exec_time = getattr(_output, 'execution_time', 0) or 0
+                steps = getattr(_output, 'steps_executed', 0) or 0
+                parts.append(f"Task {status} in {exec_time:.1f}s ({steps} steps)")
+
+                skills = getattr(_output, 'skills_used', [])
+                if skills:
+                    parts.append(f"Skills used: {', '.join(skills)}")
+
+                if hasattr(_output, 'artifacts'):
+                    artifacts = _output.artifacts
+                    if artifacts:
+                        parts.append("Files created:")
+                        for a in artifacts:
+                            size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
+                            parts.append(f"  → {a['path']}{size}")
+
+                errors = getattr(_output, 'errors', [])
+                if errors:
+                    parts.append(f"Errors: {'; '.join(str(e) for e in errors[:3])}")
+
+                logger.info(f"\n📋 Execution Summary:\n" + '\n'.join(parts))
+            elif hasattr(_output, 'summary'):
                 logger.info(f"\n📋 Execution Summary:\n{_output.summary}")
-            elif hasattr(_output, 'artifacts'):
-                artifacts = _output.artifacts
-                if artifacts:
-                    logger.info("📂 Created files:")
-                    for a in artifacts:
-                        size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
-                        logger.info(f"  → {a['path']}{size}")
-            # Also check if result itself has useful info
-            if result.success:
-                skills = getattr(_output, 'skills_used', []) if hasattr(_output, 'skills_used') else []
-                steps = getattr(_output, 'steps_executed', 0) if hasattr(_output, 'steps_executed') else 0
-                if skills or steps:
-                    logger.info(f"📊 {steps} steps executed, skills: {', '.join(skills) if skills else 'N/A'}")
         except Exception as e:
             logger.debug(f"Summary logging skipped: {e}")
 

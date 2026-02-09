@@ -44,7 +44,7 @@ warnings.filterwarnings(
 )
 
 __version__ = "10.0.0"
-__author__ = "Soham Acharya & Anshul Chauhan"
+__author__ = "Jotty AI"
 
 # =============================================================================
 # ALL IMPORTS ARE LAZY — resolved on first attribute access

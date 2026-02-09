@@ -254,3 +254,111 @@ class JottyMessage:
             reply_to=original_message.message_id,
             metadata=metadata or {},
         )
+
+
+# =============================================================================
+# INTERNAL EVENT PROTOCOL (Cline protobuf pattern, KISS version)
+# =============================================================================
+# Typed dataclasses for inter-component communication.
+# Replaces raw dicts in kwargs paths. Each event is self-documenting.
+# No protobuf — just typed Python dataclasses with to_dict/from_dict.
+
+
+class EventType(Enum):
+    """Internal event types for component communication."""
+    TOOL_CALL = "tool_call"
+    TOOL_RESULT = "tool_result"
+    AGENT_START = "agent_start"
+    AGENT_COMPLETE = "agent_complete"
+    CHECKPOINT_SAVED = "checkpoint_saved"
+    CHECKPOINT_RESTORED = "checkpoint_restored"
+    LEARNING_UPDATE = "learning_update"
+    PROGRESS_UPDATE = "progress_update"
+    GUARD_DECISION = "guard_decision"
+
+
+@dataclass
+class InternalEvent:
+    """
+    Typed internal event for component-to-component communication.
+
+    Replaces raw dicts (kwargs) between agent_runner, swarm_manager,
+    learning_pipeline, etc. Each field is typed and documented.
+    """
+    event_type: EventType
+    source: str              # Component name (e.g., "agent_runner", "swarm_manager")
+    timestamp: float = field(default_factory=lambda: datetime.now().timestamp())
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+
+    # Payload — type depends on event_type
+    agent_name: str = ""
+    goal: str = ""
+    success: Optional[bool] = None
+    output: Optional[str] = None
+    error: Optional[str] = None
+    tool_name: str = ""
+    trust_level: str = ""
+    execution_time: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {
+            'event_type': self.event_type.value,
+            'event_id': self.event_id,
+            'source': self.source,
+            'timestamp': self.timestamp,
+            'agent_name': self.agent_name,
+            'goal': self.goal,
+        }
+        # Only include non-default fields to keep messages lean
+        if self.success is not None:
+            d['success'] = self.success
+        if self.output:
+            d['output'] = self.output[:500]  # Cap for serialization
+        if self.error:
+            d['error'] = self.error[:500]
+        if self.tool_name:
+            d['tool_name'] = self.tool_name
+        if self.trust_level:
+            d['trust_level'] = self.trust_level
+        if self.execution_time:
+            d['execution_time'] = self.execution_time
+        if self.metadata:
+            d['metadata'] = self.metadata
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "InternalEvent":
+        return cls(
+            event_type=EventType(data.get('event_type', 'agent_start')),
+            event_id=data.get('event_id', ''),
+            source=data.get('source', ''),
+            timestamp=data.get('timestamp', 0),
+            agent_name=data.get('agent_name', ''),
+            goal=data.get('goal', ''),
+            success=data.get('success'),
+            output=data.get('output'),
+            error=data.get('error'),
+            tool_name=data.get('tool_name', ''),
+            trust_level=data.get('trust_level', ''),
+            execution_time=data.get('execution_time', 0),
+            metadata=data.get('metadata', {}),
+        )
+
+    # Convenience constructors
+    @classmethod
+    def tool_call(cls, tool_name: str, trust_level: str, agent: str = "") -> "InternalEvent":
+        return cls(event_type=EventType.TOOL_CALL, source="agent_runner",
+                   tool_name=tool_name, trust_level=trust_level, agent_name=agent)
+
+    @classmethod
+    def agent_complete(cls, agent: str, goal: str, success: bool,
+                       output: str = "", time: float = 0) -> "InternalEvent":
+        return cls(event_type=EventType.AGENT_COMPLETE, source="agent_runner",
+                   agent_name=agent, goal=goal, success=success,
+                   output=output, execution_time=time)
+
+    @classmethod
+    def progress_update(cls, agent: str, progress_data: Dict) -> "InternalEvent":
+        return cls(event_type=EventType.PROGRESS_UPDATE, source="agent_runner",
+                   agent_name=agent, metadata=progress_data)

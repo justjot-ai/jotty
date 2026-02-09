@@ -24,5 +24,6 @@ Model-family adaptations:
 """
 
 from .composer import PromptComposer, ModelFamily
+from .rules import load_project_rules, clear_rules_cache
 
-__all__ = ['PromptComposer', 'ModelFamily']
+__all__ = ['PromptComposer', 'ModelFamily', 'load_project_rules', 'clear_rules_cache']

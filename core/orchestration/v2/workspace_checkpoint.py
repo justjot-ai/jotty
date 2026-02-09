@@ -93,15 +93,17 @@ class WorkspaceCheckpoint:
         return commit[:8]
 
     def restore(self, checkpoint_id: str) -> bool:
-        """Restore workspace to a checkpoint state."""
+        """Restore workspace to a checkpoint state (tracked + untracked files)."""
         if not self._git_available:
             return False
 
         ref = f"{self._REF_PREFIX}{checkpoint_id}"
         try:
             full_sha = self._run("rev-parse", ref)
-            # Checkout the tree from the checkpoint
+            # Checkout the tree from the checkpoint (restores tracked files)
             self._run("read-tree", "--reset", "-u", full_sha)
+            # Remove untracked files that didn't exist at checkpoint time
+            self._run("clean", "-fd", check=False)
             logger.info(f"Workspace restored to checkpoint: {checkpoint_id}")
             return True
         except RuntimeError as e:

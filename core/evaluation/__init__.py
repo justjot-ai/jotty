@@ -10,6 +10,7 @@ from .benchmark import Benchmark, BenchmarkResult, BenchmarkMetrics, CustomBench
 from .evaluation_protocol import EvaluationProtocol, EvaluationRun, EvaluationReport
 from .ablation_study import AblationStudy, ComponentContribution, AblationResult, ComponentType
 from .gaia_benchmark import GAIABenchmark
+from .eval_store import EvalStore
 
 __all__ = [
     'ReproducibilityConfig',
@@ -27,4 +28,5 @@ __all__ = [
     'ComponentContribution',
     'AblationResult',
     'ComponentType',
+    'EvalStore',
 ]

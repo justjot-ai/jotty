@@ -781,8 +781,16 @@ class LLMQPredictor:
             return combined > 0.4
 
         # Fallback: Jaccard word-overlap for unstructured strings
-        words1 = set(desc1.lower().split())
-        words2 = set(desc2.lower().split())
+        # Filter out stopwords to focus on meaningful content words
+        _stopwords = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+                      'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+                      'would', 'could', 'should', 'may', 'might', 'can', 'shall',
+                      'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from',
+                      'and', 'or', 'but', 'not', 'no', 'if', 'then', 'than',
+                      'this', 'that', 'these', 'those', 'it', 'its', 'my', 'your',
+                      'query', 'agent', 'auto', 'task', 'type'}
+        words1 = set(desc1.lower().split()) - _stopwords
+        words2 = set(desc2.lower().split()) - _stopwords
 
         if not words1 or not words2:
             return False
@@ -791,7 +799,7 @@ class LLMQPredictor:
         union = len(words1 | words2)
 
         similarity = overlap / union if union > 0 else 0
-        return similarity > 0.5
+        return similarity > 0.6  # Raised from 0.5 to reduce false matches
 
     def _parse_structured_fields(self, desc: str) -> Dict[str, str]:
         """Parse KEY: value segments from structured descriptions."""
@@ -1001,8 +1009,12 @@ class LLMQPredictor:
         THIS IS HOW LEARNING MANIFESTS IN LLM AGENTS!
         
         Returns natural language lessons learned from Q-table.
+        Filters by task_type when available to avoid irrelevant lessons
+        (e.g., stock analysis lessons polluting code generation tasks).
         """
         state_desc = self._state_to_natural_language(state)
+        # Extract task_type for filtering (if provided in state)
+        current_task_type = state.get('task_type', '').lower().strip() if isinstance(state, dict) else ''
         
         # Collect relevant lessons
         lessons = []
@@ -1016,8 +1028,17 @@ class LLMQPredictor:
                 q_data = self.Q[key]
                 lessons.extend(q_data.get('learned_lessons', []))
         else:
-            # Get all lessons for similar states
+            # Get lessons for similar states, filtered by task_type
             for (s, a), q_data in self.Q.items():
+                # If we have a task_type, only match entries of the same type
+                if current_task_type:
+                    # Parse task_type from stored state description
+                    stored_fields = self._parse_structured_fields(s)
+                    stored_type = stored_fields.get('TASK_TYPE', '').lower().strip()
+                    # Skip if stored entry has a different task_type
+                    if stored_type and stored_type != current_task_type:
+                        continue
+                
                 if self._are_similar(state_desc, s):
                     lessons.extend(q_data.get('learned_lessons', []))
         
@@ -1028,7 +1049,7 @@ class LLMQPredictor:
         unique_lessons = list(dict.fromkeys(lessons))  # Preserve order, remove dupes
         
         context = "# Q-Learning Lessons (Learned from Experience):\n"
-        for i, lesson in enumerate(unique_lessons[:10], 1):  # Top 10
+        for i, lesson in enumerate(unique_lessons[:5], 1):  # Top 5 (was 10 — too noisy)
             context += f"{i}. {lesson}\n"
         
         # Add Q-value statistics

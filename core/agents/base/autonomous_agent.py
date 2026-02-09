@@ -530,7 +530,7 @@ class AutonomousAgent(BaseAgent):
                         # Move error to warnings since replanning is recovering
                         if errors:
                             warnings.append(errors.pop())
-                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:60]})")
+                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:200]})")
                         i += 1
                         continue
 

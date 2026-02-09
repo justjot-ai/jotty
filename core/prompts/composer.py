@@ -88,6 +88,7 @@ class PromptComposer:
         constraints: Optional[List[str]] = None,
         task: str = "",
         extra_sections: Optional[Dict[str, str]] = None,
+        workspace_dir: Optional[str] = None,
     ) -> str:
         """
         Compose a full system prompt from sections.
@@ -125,7 +126,17 @@ class PromptComposer:
         if constraints:
             sections.append(self._format_constraints(constraints))
 
-        # 5. EXTRA SECTIONS
+        # 5. PROJECT RULES (.jottyrules / .clinerules / .cursorrules / CLAUDE.md)
+        if workspace_dir:
+            try:
+                from .rules import load_project_rules
+                rules = load_project_rules(workspace_dir)
+                if rules:
+                    sections.append(self._wrap_section("Project Rules", rules))
+            except Exception as e:
+                logger.debug(f"Rule loading skipped: {e}")
+
+        # 6. EXTRA SECTIONS
         if extra_sections:
             for name, content in extra_sections.items():
                 if content.strip():

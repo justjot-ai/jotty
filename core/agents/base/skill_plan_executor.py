@@ -411,6 +411,12 @@ class SkillPlanExecutor:
 
         resolved_params = self.resolve_params(step.params, outputs)
 
+        # Log resolved params for debugging (especially file paths)
+        if resolved_params and step.skill_name in ('file-operations', 'shell-exec'):
+            _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))
+                             for k, v in resolved_params.items() if k != 'content'}
+            logger.info(f"  📎 Resolved params: {_param_preview}")
+
         # Emit status based on skill type
         skill_status_map = {
             'research': '📚 Researching...',
