@@ -1,282 +1,148 @@
 import os
+from typing import Dict, Any
+import torch
+from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline
+from PIL import Image
 import io
 import base64
-import gc
-import logging
-from typing import Dict, Any, Optional
 
-logger = logging.getLogger(__name__)
-
-# Lazy imports: diffusers/torch/PIL are heavy and can fail with circular
-# import errors (accelerate.big_modeling).  Import at function call time
-# so skill discovery still succeeds even without GPU libraries.
-torch = None
-Image = None
-StableDiffusionPipeline = None
-StableDiffusionXLPipeline = None
-FluxPipeline = None
-
-def _ensure_imports():
-    """Lazy-load heavy GPU libraries on first use."""
-    global torch, Image, StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline
-    if torch is not None:
-        return True
-    try:
-        import torch as _torch
-        torch = _torch
-        from diffusers import (
-            StableDiffusionPipeline as _sdp,
-            StableDiffusionXLPipeline as _sdxl,
-            FluxPipeline as _flux,
-        )
-        StableDiffusionPipeline = _sdp
-        StableDiffusionXLPipeline = _sdxl
-        FluxPipeline = _flux
-        from PIL import Image as _img
-        Image = _img
-        return True
-    except Exception as e:
-        logger.warning(f"image-generator: GPU libraries unavailable ({e})")
-        return False
-
-def _get_device():
-    """Determine the best available device for inference."""
-    if not _ensure_imports():
-        return "cpu"
-    if torch.cuda.is_available():
-        return "cuda"
-    elif torch.backends.mps.is_available():
-        return "mps"
-    else:
-        return "cpu"
-
-def _cleanup_memory():
-    """Clean up GPU/memory after generation."""
-    gc.collect()
-    if torch is not None and torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-def _image_to_base64(image) -> str:
-    """Convert PIL Image to base64 string."""
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return img_str
-
-def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+def image_generator_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Generate images using open-source diffusion models.
+    Generate images using open-source models like Stable Diffusion, Flux, or SDXL.
     
-    Expected params:
-        - prompt (str): Text description of the image to generate
-        - model (str, optional): Model ID to use. Options:
-            - "stabilityai/stable-diffusion-xl-base-1.0" (default)
-            - "black-forest-labs/FLUX.1-dev"
-            - "runwayml/stable-diffusion-v1-5"
-        - negative_prompt (str, optional): Text describing what to avoid
-        - num_inference_steps (int, optional): Number of denoising steps (default: 50)
-        - guidance_scale (float, optional): Guidance scale for classifier-free guidance (default: 7.5)
-        - width (int, optional): Image width (default: 1024 for SDXL, 512 for SD1.5)
-        - height (int, optional): Image height (default: 1024 for SDXL, 512 for SD1.5)
-        - seed (int, optional): Random seed for reproducibility
-        - output_path (str, optional): Path to save the image (default: generated_image.png)
-        - return_base64 (bool, optional): Return image as base64 string (default: False)
+    Args:
+        params: Dictionary containing:
+            - prompt (str): Text description of the image to generate
+            - model (str, optional): Model ID (default: "runwayml/stable-diffusion-v1-5")
+            - output_path (str, optional): Path to save the image (default: "generated_image.png")
+            - num_inference_steps (int, optional): Number of denoising steps (default: 50)
+            - guidance_scale (float, optional): Guidance scale for generation (default: 7.5)
+            - width (int, optional): Image width (default: 512)
+            - height (int, optional): Image height (default: 512)
+            - seed (int, optional): Random seed for reproducibility
+            - return_base64 (bool, optional): Return image as base64 string (default: False)
     
     Returns:
-        Dict with success status, message, output_path, and optionally base64_image
+        Dictionary with success status and result information
     """
     try:
-        if not _ensure_imports():
-            return {"success": False, "error": "GPU libraries (torch/diffusers) not available on this system"}
-
         prompt = params.get("prompt")
         if not prompt:
             return {"success": False, "error": "Missing required parameter: prompt"}
         
-        model_id = params.get("model", "stabilityai/stable-diffusion-xl-base-1.0")
-        negative_prompt = params.get("negative_prompt", None)
+        model_id = params.get("model", "runwayml/stable-diffusion-v1-5")
+        output_path = params.get("output_path", "generated_image.png")
         num_inference_steps = params.get("num_inference_steps", 50)
         guidance_scale = params.get("guidance_scale", 7.5)
-        seed = params.get("seed", None)
-        output_path = params.get("output_path", "generated_image.png")
+        width = params.get("width", 512)
+        height = params.get("height", 512)
+        seed = params.get("seed")
         return_base64 = params.get("return_base64", False)
         
-        device = _get_device()
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        torch_dtype = torch.float16 if device == "cuda" else torch.float32
         
-        # Determine default dimensions based on model
         if "xl" in model_id.lower() or "sdxl" in model_id.lower():
-            default_size = 1024
+            pipe = StableDiffusionXLPipeline.from_pretrained(
+                model_id,
+                torch_dtype=torch_dtype,
+                use_safetensors=True
+            )
+            width = params.get("width", 1024)
+            height = params.get("height", 1024)
+        elif "flux" in model_id.lower():
+            pipe = FluxPipeline.from_pretrained(
+                model_id,
+                torch_dtype=torch_dtype
+            )
+            width = params.get("width", 1024)
+            height = params.get("height", 1024)
         else:
-            default_size = 512
-            
-        width = params.get("width", default_size)
-        height = params.get("height", default_size)
-        
-        # Load appropriate pipeline based on model
-        if "flux" in model_id.lower():
-            pipeline = FluxPipeline.from_pretrained(
+            pipe = StableDiffusionPipeline.from_pretrained(
                 model_id,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-            )
-        elif "xl" in model_id.lower() or "sdxl" in model_id.lower():
-            pipeline = StableDiffusionXLPipeline.from_pretrained(
-                model_id,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                use_safetensors=True,
-            )
-        else:
-            pipeline = StableDiffusionPipeline.from_pretrained(
-                model_id,
-                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                safety_checker=None,
+                torch_dtype=torch_dtype,
+                use_safetensors=True
             )
         
-        pipeline = pipeline.to(device)
+        pipe = pipe.to(device)
         
-        # Set up generator for reproducibility
+        if hasattr(pipe, 'enable_attention_slicing'):
+            pipe.enable_attention_slicing()
+        
         generator = None
         if seed is not None:
             generator = torch.Generator(device=device).manual_seed(seed)
         
-        # Generate image
-        generation_params = {
+        generation_kwargs = {
             "prompt": prompt,
             "num_inference_steps": num_inference_steps,
             "guidance_scale": guidance_scale,
             "width": width,
             "height": height,
-            "generator": generator,
         }
         
-        if negative_prompt:
-            generation_params["negative_prompt"] = negative_prompt
+        if generator is not None:
+            generation_kwargs["generator"] = generator
         
-        result = pipeline(**generation_params)
-        image = result.images[0]
+        image = pipe(**generation_kwargs).images[0]
         
-        # Save image
         image.save(output_path)
         
-        response = {
+        result = {
             "success": True,
-            "message": f"Image generated successfully using {model_id}",
             "output_path": output_path,
             "model": model_id,
             "prompt": prompt,
-            "dimensions": f"{width}x{height}",
+            "width": width,
+            "height": height
         }
         
         if return_base64:
-            response["base64_image"] = _image_to_base64(image)
+            buffered = io.BytesIO()
+            image.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+            result["base64_image"] = img_str
         
-        # Clean up
-        del pipeline
-        _cleanup_memory()
-        
-        return response
-        
-    except Exception as e:
-        _cleanup_memory()
-        return {"success": False, "error": f"Image generation failed: {str(e)}"}
-
-def list_available_models_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    List available image generation models.
-    
-    Expected params:
-        None required
-    
-    Returns:
-        Dict with success status and list of available models
-    """
-    models = [
-        {
-            "id": "stabilityai/stable-diffusion-xl-base-1.0",
-            "name": "Stable Diffusion XL",
-            "description": "High-quality 1024x1024 image generation",
-            "default_size": "1024x1024"
-        },
-        {
-            "id": "black-forest-labs/FLUX.1-dev",
-            "name": "FLUX.1 Dev",
-            "description": "Advanced diffusion model with high quality output",
-            "default_size": "1024x1024"
-        },
-        {
-            "id": "runwayml/stable-diffusion-v1-5",
-            "name": "Stable Diffusion v1.5",
-            "description": "Fast and efficient 512x512 image generation",
-            "default_size": "512x512"
-        }
-    ]
-    
-    return {
-        "success": True,
-        "models": models,
-        "message": f"Found {len(models)} available models"
-    }
-
-def batch_generate_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Generate multiple images from a list of prompts.
-    
-    Expected params:
-        - prompts (list): List of text prompts
-        - model (str, optional): Model ID to use
-        - output_dir (str, optional): Directory to save images (default: generated_images)
-        - base_filename (str, optional): Base filename pattern (default: image)
-        - Other parameters same as generate_image_tool
-    
-    Returns:
-        Dict with success status and list of generated image paths
-    """
-    try:
-        prompts = params.get("prompts")
-        if not prompts or not isinstance(prompts, list):
-            return {"success": False, "error": "Missing or invalid parameter: prompts (must be a list)"}
-        
-        output_dir = params.get("output_dir", "generated_images")
-        base_filename = params.get("base_filename", "image")
-        
-        # Create output directory if it doesn't exist
-        os.makedirs(output_dir, exist_ok=True)
-        
-        generated_images = []
-        errors = []
-        
-        for idx, prompt in enumerate(prompts):
-            output_path = os.path.join(output_dir, f"{base_filename}_{idx + 1}.png")
-            
-            # Create params for single image generation
-            single_params = params.copy()
-            single_params["prompt"] = prompt
-            single_params["output_path"] = output_path
-            single_params.pop("prompts", None)
-            single_params.pop("output_dir", None)
-            single_params.pop("base_filename", None)
-            
-            result = generate_image_tool(single_params)
-            
-            if result.get("success"):
-                generated_images.append({
-                    "index": idx + 1,
-                    "prompt": prompt,
-                    "path": output_path
-                })
-            else:
-                errors.append({
-                    "index": idx + 1,
-                    "prompt": prompt,
-                    "error": result.get("error")
-                })
-        
-        return {
-            "success": len(generated_images) > 0,
-            "message": f"Generated {len(generated_images)} out of {len(prompts)} images",
-            "generated_images": generated_images,
-            "errors": errors if errors else None,
-            "output_dir": output_dir
-        }
+        return result
         
     except Exception as e:
-        return {"success": False, "error": f"Batch generation failed: {str(e)}"}
+        return {"success": False, "error": str(e)}
+
+def stable_diffusion_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate images using Stable Diffusion v1.5.
+    
+    Args:
+        params: Dictionary containing generation parameters
+    
+    Returns:
+        Dictionary with success status and result information
+    """
+    params["model"] = params.get("model", "runwayml/stable-diffusion-v1-5")
+    return image_generator_tool(params)
+
+def sdxl_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate images using Stable Diffusion XL.
+    
+    Args:
+        params: Dictionary containing generation parameters
+    
+    Returns:
+        Dictionary with success status and result information
+    """
+    params["model"] = params.get("model", "stabilityai/stable-diffusion-xl-base-1.0")
+    return image_generator_tool(params)
+
+def flux_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate images using Flux model.
+    
+    Args:
+        params: Dictionary containing generation parameters
+    
+    Returns:
+        Dictionary with success status and result information
+    """
+    params["model"] = params.get("model", "black-forest-labs/FLUX.1-dev")
+    return image_generator_tool(params)

@@ -1,149 +1,139 @@
 from datetime import datetime
 import pytz
 
-def time_converter_tool(params: dict) -> dict:
-    """
-    Convert time between timezones and formats.
-    
-    params = {
-        'time': str (optional, defaults to current time, format: 'YYYY-MM-DD HH:MM:SS' or 'HH:MM:SS'),
-        'from_timezone': str (optional, defaults to 'UTC'),
-        'to_timezone': str (required),
-        'output_format': str (optional, defaults to '%Y-%m-%d %H:%M:%S')
-    }
-    """
+def convert_timezone_tool(params: dict) -> dict:
+    """Convert time from one timezone to another"""
     try:
-        to_timezone = params.get('to_timezone')
-        if not to_timezone:
-            return {
-                'success': False,
-                'error': 'to_timezone is required'
-            }
-        
-        from_timezone = params.get('from_timezone', 'UTC')
-        output_format = params.get('output_format', '%Y-%m-%d %H:%M:%S')
         time_str = params.get('time')
+        from_tz = params.get('from_timezone', 'UTC')
+        to_tz = params.get('to_timezone', 'UTC')
+        time_format = params.get('format', '%Y-%m-%d %H:%M:%S')
         
-        # Validate timezones
+        if not time_str:
+            return {'success': False, 'error': 'time parameter is required'}
+        
         try:
-            from_tz = pytz.timezone(from_timezone)
-            to_tz = pytz.timezone(to_timezone)
+            from_timezone = pytz.timezone(from_tz)
+            to_timezone = pytz.timezone(to_tz)
         except pytz.exceptions.UnknownTimeZoneError as e:
-            return {
-                'success': False,
-                'error': f'Invalid timezone: {str(e)}'
-            }
+            return {'success': False, 'error': f'Invalid timezone: {str(e)}'}
         
-        # Parse input time
-        if time_str:
-            try:
-                if len(time_str) <= 8:  # HH:MM:SS format
-                    dt = datetime.strptime(time_str, '%H:%M:%S')
-                    dt = dt.replace(year=datetime.now().year, month=datetime.now().month, day=datetime.now().day)
-                else:
-                    dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
-                dt = from_tz.localize(dt)
-            except ValueError:
-                return {
-                    'success': False,
-                    'error': 'Invalid time format. Use "YYYY-MM-DD HH:MM:SS" or "HH:MM:SS"'
-}
-        else:
-            dt = datetime.now(from_tz)
-        
-        # Convert to target timezone
-        converted_dt = dt.astimezone(to_tz)
+        dt = datetime.strptime(time_str, time_format)
+        dt_from = from_timezone.localize(dt)
+        dt_to = dt_from.astimezone(to_timezone)
         
         return {
             'success': True,
-            'converted_time': converted_dt.strftime(output_format),
-            'from_timezone': from_timezone,
-            'to_timezone': to_timezone,
-            'original_time': dt.strftime(output_format)
+            'original_time': time_str,
+            'original_timezone': from_tz,
+            'converted_time': dt_to.strftime(time_format),
+            'converted_timezone': to_tz
         }
-        
+    except ValueError as e:
+        return {'success': False, 'error': f'Invalid time format: {str(e)}'}
     except Exception as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
-
-def list_timezones_tool(params: dict) -> dict:
-    """
-    List available timezones.
-    
-    params = {
-        'filter': str (optional, filter timezones by keyword)
-    }
-    """
-    try:
-        filter_keyword = params.get('filter', '').lower()
-        all_timezones = pytz.all_timezones
-        
-        if filter_keyword:
-            filtered = [tz for tz in all_timezones if filter_keyword in tz.lower()]
-            return {
-                'success': True,
-                'timezones': filtered,
-                'count': len(filtered)
-            }
-        
-        return {
-            'success': True,
-            'timezones': all_timezones,
-            'count': len(all_timezones)
-        }
-        
-    except Exception as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {'success': False, 'error': str(e)}
 
 def format_time_tool(params: dict) -> dict:
-    """
-    Format time string to different formats.
-    
-    params = {
-        'time': str (required, format: 'YYYY-MM-DD HH:MM:SS'),
-        'input_format': str (optional, defaults to '%Y-%m-%d %H:%M:%S'),
-        'output_format': str (required)
-    }
-    """
+    """Convert time from one format to another"""
     try:
         time_str = params.get('time')
+        from_format = params.get('from_format', '%Y-%m-%d %H:%M:%S')
+        to_format = params.get('to_format', '%Y-%m-%d %H:%M:%S')
+        
         if not time_str:
-            return {
-                'success': False,
-                'error': 'time is required'
-            }
+            return {'success': False, 'error': 'time parameter is required'}
         
-        output_format = params.get('output_format')
-        if not output_format:
-            return {
-                'success': False,
-                'error': 'output_format is required'
-            }
+        dt = datetime.strptime(time_str, from_format)
+        converted = dt.strftime(to_format)
         
-        input_format = params.get('input_format', '%Y-%m-%d %H:%M:%S')
+        return {
+            'success': True,
+            'original_time': time_str,
+            'original_format': from_format,
+            'converted_time': converted,
+            'converted_format': to_format
+        }
+    except ValueError as e:
+        return {'success': False, 'error': f'Invalid time or format: {str(e)}'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def get_current_time_tool(params: dict) -> dict:
+    """Get current time in specified timezone and format"""
+    try:
+        timezone = params.get('timezone', 'UTC')
+        time_format = params.get('format', '%Y-%m-%d %H:%M:%S')
         
         try:
-            dt = datetime.strptime(time_str, input_format)
-            formatted_time = dt.strftime(output_format)
-            
-            return {
-                'success': True,
-                'formatted_time': formatted_time,
-                'original_time': time_str
-            }
-        except ValueError as e:
-            return {
-                'success': False,
-                'error': f'Time format error: {str(e)}'
-            }
+            tz = pytz.timezone(timezone)
+        except pytz.exceptions.UnknownTimeZoneError as e:
+            return {'success': False, 'error': f'Invalid timezone: {str(e)}'}
         
-    except Exception as e:
+        dt = datetime.now(tz)
+        
         return {
-            'success': False,
-            'error': str(e)
+            'success': True,
+            'current_time': dt.strftime(time_format),
+            'timezone': timezone,
+            'timestamp': dt.timestamp()
         }
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def timestamp_to_time_tool(params: dict) -> dict:
+    """Convert Unix timestamp to formatted time"""
+    try:
+        timestamp = params.get('timestamp')
+        timezone = params.get('timezone', 'UTC')
+        time_format = params.get('format', '%Y-%m-%d %H:%M:%S')
+        
+        if timestamp is None:
+            return {'success': False, 'error': 'timestamp parameter is required'}
+        
+        try:
+            tz = pytz.timezone(timezone)
+        except pytz.exceptions.UnknownTimeZoneError as e:
+            return {'success': False, 'error': f'Invalid timezone: {str(e)}'}
+        
+        dt = datetime.fromtimestamp(float(timestamp), tz)
+        
+        return {
+            'success': True,
+            'timestamp': timestamp,
+            'formatted_time': dt.strftime(time_format),
+            'timezone': timezone
+        }
+    except ValueError as e:
+        return {'success': False, 'error': f'Invalid timestamp: {str(e)}'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def time_to_timestamp_tool(params: dict) -> dict:
+    """Convert formatted time to Unix timestamp"""
+    try:
+        time_str = params.get('time')
+        timezone = params.get('timezone', 'UTC')
+        time_format = params.get('format', '%Y-%m-%d %H:%M:%S')
+        
+        if not time_str:
+            return {'success': False, 'error': 'time parameter is required'}
+        
+        try:
+            tz = pytz.timezone(timezone)
+        except pytz.exceptions.UnknownTimeZoneError as e:
+            return {'success': False, 'error': f'Invalid timezone: {str(e)}'}
+        
+        dt = datetime.strptime(time_str, time_format)
+        dt_tz = tz.localize(dt)
+        
+        return {
+            'success': True,
+            'formatted_time': time_str,
+            'timestamp': dt_tz.timestamp(),
+            'timezone': timezone
+        }
+    except ValueError as e:
+        return {'success': False, 'error': f'Invalid time or format: {str(e)}'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}

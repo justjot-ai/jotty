@@ -1,4 +1,1 @@
-python
-generate_image(
-    prompt="A serene mountain landscape at sunset with purple skies"
-)
+generate_image(prompt="a serene mountain landscape at sunset")
