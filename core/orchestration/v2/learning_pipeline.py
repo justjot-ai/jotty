@@ -948,6 +948,7 @@ class SwarmLearningPipeline:
             return
 
         # Extract task_type: prefer goal text (most reliable), then result fields
+        from Jotty.core.learning.transfer_learning import PatternExtractor
         task_type = 'unknown'
         if goal:
             try:
@@ -955,12 +956,15 @@ class SwarmLearningPipeline:
             except Exception:
                 pass
         if task_type == 'unknown' and hasattr(result, 'task_type') and result.task_type:
-            task_type = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
+            raw = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
+            task_type = PatternExtractor.normalize_task_type(raw)
         if task_type == 'unknown' and hasattr(result, 'task') and result.task:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(str(result.task))
             except Exception:
                 pass
+        # Always normalize (creation→generation, research→analysis, etc.)
+        task_type = PatternExtractor.normalize_task_type(task_type)
 
         # Extract skills/tools actually used from result or its output
         skills_used = []

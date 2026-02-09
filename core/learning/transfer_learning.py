@@ -264,6 +264,10 @@ class PatternExtractor:
     # Order matters: more specific types checked first.
     # Uses word-boundary matching (see extract_task_type) to prevent
     # "sum" matching "summarize", "search" matching "research", etc.
+    #
+    # NOTE: The LLM inference mixin uses a separate TaskType enum with
+    # 'creation' instead of 'generation'. We normalize via TASK_TYPE_ALIASES
+    # so stigmergy/transfer learning lookups match regardless of source.
     TASK_TYPES = {
         'comparison': ['compare', 'comparing', 'diff', 'contrast', 'versus', 'vs', 'pros and cons'],
         'analysis': ['analyze', 'analyse', 'examining', 'investigate', 'explore', 'research'],
@@ -272,7 +276,14 @@ class PatternExtractor:
         'transformation': ['transform', 'convert', 'map', 'process', 'clean'],
         'prediction': ['predict', 'forecast', 'estimate', 'project'],
         'validation': ['validate', 'verify', 'check', 'confirm', 'audit'],
-        'generation': ['generate', 'create', 'produce', 'build', 'make', 'write', 'summarize', 'summarise'],
+        'generation': ['generate', 'create', 'produce', 'build', 'make', 'write', 'summarize', 'summarise', 'scrape', 'script'],
+    }
+
+    # Normalize aliases between different classifiers (LLM vs keyword)
+    TASK_TYPE_ALIASES = {
+        'creation': 'generation',   # LLM inference says 'creation', we store as 'generation'
+        'research': 'analysis',     # LLM inference says 'research', we store as 'analysis'
+        'automation': 'generation', # LLM inference says 'automation', we store as 'generation'
     }
 
     # Time pattern keywords
@@ -293,6 +304,19 @@ class PatternExtractor:
         'analyzer': ['analy', 'insight', 'report'],
         'transformer': ['transform', 'convert', 'etl', 'pipeline'],
     }
+
+    @classmethod
+    def normalize_task_type(cls, task_type: str) -> str:
+        """Normalize task type aliases to canonical form.
+        
+        The LLM inference mixin returns 'creation'/'research'/'automation'
+        but stigmergy/transfer learning stores 'generation'/'analysis'.
+        This ensures consistent lookups regardless of source.
+        """
+        if not task_type:
+            return 'general'
+        canonical = task_type.lower().strip()
+        return cls.TASK_TYPE_ALIASES.get(canonical, canonical)
 
     def extract_task_type(self, query: str) -> str:
         """Extract abstract task type from query using word-boundary matching.

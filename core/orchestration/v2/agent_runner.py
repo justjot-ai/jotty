@@ -214,6 +214,12 @@ class AgentRunner:
         if config.enable_learning:
             self.shaped_reward_manager = ShapedRewardManager()
 
+        # Consecutive mistake counter (Cline pattern):
+        # Tracks sequential failures. When high, injects a "change approach"
+        # hint into the agent's context. Resets on any success.
+        self._consecutive_failures: int = 0
+        self._max_consecutive_before_hint: int = 2  # inject hint after 2 failures
+
         logger.info(f"AgentRunner initialized: {self.agent_name}")
 
         # Prompt selector for dynamic template selection
@@ -447,9 +453,13 @@ class AgentRunner:
                 logger.warning(f"Memory retrieval unexpected error: {type(e).__name__}: {e}")
 
         # 2. Q-learning context from swarm-level learner
+        #    Include task_type so Q-learner matches relevant lessons only
         if self.learning_manager:
             try:
-                state = {'query': goal, 'agent': self.agent_name}
+                _task_type = ''
+                if self.transfer_learning:
+                    _task_type = self.transfer_learning.extractor.extract_task_type(goal)
+                state = {'query': goal, 'agent': self.agent_name, 'task_type': _task_type}
                 q_context = self.learning_manager.get_learned_context(state)
                 if q_context:
                     parts.append(f"Learned Insights:\n{q_context}")
@@ -837,17 +847,41 @@ class AgentRunner:
             elif isinstance(agent_output, dict):
                 inner_success = bool(agent_output.get('success', True))
 
-            if hasattr(agent_output, '__dict__'):
-                trajectory.append({
-                    'step': 1,
-                    'action': 'execute',
-                    'output': str(agent_output)[:500],
-                    'success': inner_success,
-                })
+            # Build rich trajectory from ExecutionResult (if available)
+            # so learning pipeline gets actual skill names, not just 'execute'
+            _skills_used = []
+            if hasattr(agent_output, 'skills_used') and agent_output.skills_used:
+                _skills_used = list(agent_output.skills_used)
+            elif isinstance(agent_output, dict):
+                _skills_used = list(agent_output.get('skills_used', []))
+
+            _outputs = {}
+            if hasattr(agent_output, 'outputs') and isinstance(agent_output.outputs, dict):
+                _outputs = agent_output.outputs
+            elif isinstance(agent_output, dict):
+                _outputs = agent_output.get('outputs', {})
+
+            # Add one trajectory entry per executed step (skill) for rich learning
+            if _outputs:
+                for i, (step_name, step_data) in enumerate(_outputs.items(), 1):
+                    step_success = True
+                    step_skill = step_name
+                    if isinstance(step_data, dict):
+                        step_success = step_data.get('success', True)
+                        step_skill = step_data.get('skill', step_name)
+                    trajectory.append({
+                        'step': i,
+                        'skill': step_skill,
+                        'action': step_name,
+                        'success': step_success,
+                        'output': str(step_data)[:200] if step_data else None,
+                    })
             else:
+                # Fallback: single trajectory entry
                 trajectory.append({
                     'step': 1,
                     'action': 'execute',
+                    'skills_used': _skills_used,
                     'output': str(agent_output)[:500] if agent_output else None,
                     'success': inner_success,
                 })
@@ -880,17 +914,21 @@ class AgentRunner:
                 # If auditor rejects with concrete feedback and we haven't
                 # retried yet, re-run the agent with auditor critique.
                 # KISS: max 1 retry, reuse existing execute path.
+                #
+                # Retry when:
+                #   - Auditor rejected (not success)
+                #   - Haven't retried yet
+                #   - Auditor gave actionable reasoning
+                # High-confidence rejections are BEST for retry because
+                # the feedback is most specific and actionable.
                 # ----------------------------------------------------------
                 _judge_retried = kwargs.get('_judge_retried', False)
-                judge_confidence_threshold = getattr(
-                    self.config.config, 'judge_intervention_confidence', 0.6
-                )
                 if (
                     not success
                     and not _judge_retried
-                    and auditor_confidence < judge_confidence_threshold
                     and auditor_reasoning
                     and auditor_reasoning != "No feedback"
+                    and len(auditor_reasoning) > 20  # Must be substantive
                 ):
                     logger.info(
                         f"🧑‍⚖️ Judge intervention: auditor rejected "
@@ -1013,6 +1051,12 @@ class AgentRunner:
                 auditor_results=auditor_results or [],
                 agent_contributions=learning_data['agent_contributions']
             )
+
+            # Update consecutive failure counter
+            if success:
+                self._consecutive_failures = 0
+            else:
+                self._consecutive_failures += 1
 
             # Record gate outcome for drift detection
             # This lets the gate learn whether DIRECT/AUDIT routing
@@ -1139,6 +1183,8 @@ class AgentRunner:
         # Record gate outcome for failure
         if self._validation_gate and 'gate_decision' in locals():
             self._validation_gate.record_outcome(gate_decision.mode, False)
+
+        self._consecutive_failures += 1
 
         return EpisodeResult(
             output=None,

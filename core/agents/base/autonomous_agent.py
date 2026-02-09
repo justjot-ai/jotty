@@ -309,8 +309,19 @@ class AutonomousAgent(BaseAgent):
                 logger.warning(f"Failed skills: {failed}")
 
         # Step 3: Select best skills (uses CLEAN task, cached by task_type)
+        # Inject approach guidance from learning context so skill selector
+        # knows which tool combos worked/failed for this task type.
         _status("Selecting", "choosing best skills")
-        skills = await self._select_skills(task, all_skills, task_type=task_type)
+        _selection_task = task
+        if learning_context:
+            # Extract only the approach-relevant hints (avoid/use lines)
+            _approach_lines = [
+                ln for ln in learning_context.split('\n')
+                if any(kw in ln.lower() for kw in ['avoid', 'failed approach', 'successful approach', 'use:'])
+            ]
+            if _approach_lines:
+                _selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + '\n'.join(_approach_lines[:5])
+        skills = await self._select_skills(_selection_task, all_skills, task_type=task_type)
 
         # OPTIMIZATION: Strip heavy/irrelevant skills for knowledge-only tasks.
         # Tasks about design, architecture, algorithms, explanations etc. don't
