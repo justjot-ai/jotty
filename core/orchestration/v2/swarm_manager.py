@@ -1690,7 +1690,7 @@ class SwarmManager:
 
         # Learn from execution (DRY: reuse workflow learner)
         if result.success:
-            self._learn_from_result(result, agent_config)
+            self._learn_from_result(result, agent_config, goal=goal)
 
         # Post-episode learning + auto-save (fire-and-forget background)
         self._schedule_background_learning(result, goal)
@@ -2096,7 +2096,7 @@ class SwarmManager:
 
                     agent_config = next((a for a in self.agents if a.name == task.actor), None)
                     if agent_config:
-                        self._learn_from_result(result, agent_config)
+                        self._learn_from_result(result, agent_config, goal=task.description or goal)
                 else:
                     # Retry with enriched context if attempts remain
                     if attempt_counts.get(task.task_id, 1) < max_attempts:
@@ -2737,12 +2737,13 @@ class SwarmManager:
                     for t in still_pending:
                         t.cancel()
 
-    def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
+    def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, goal: str = ''):
         """Delegate to SwarmLearningPipeline."""
         self.learning.learn_from_result(
             result=result,
             agent_config=agent_config,
             workflow_learner=self.swarm_workflow_learner,
+            goal=goal,
         )
     
     async def autonomous_setup(self, goal: str, status_callback=None):

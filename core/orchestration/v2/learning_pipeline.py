@@ -708,20 +708,36 @@ class SwarmLearningPipeline:
             task_type = self.transfer_learning.extractor.extract_task_type(goal)
             agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             trajectory = getattr(result, 'trajectory', []) or []
+
+            # Extract tools/skills used from trajectory AND from output
             tools_used = []
             for step in trajectory:
                 if isinstance(step, dict):
-                    tool = step.get('tool_name', '') or step.get('tool', '')
+                    tool = step.get('skill') or step.get('tool_name') or step.get('tool', '')
                     if tool and tool not in tools_used:
                         tools_used.append(str(tool))
-            # Build a short approach summary from trajectory actions
-            actions = []
-            for step in trajectory[:5]:
+            # Also check output's skills_used (autonomous agent populates this)
+            _out = getattr(result, 'output', None)
+            if not tools_used:
+                if hasattr(_out, 'skills_used') and _out.skills_used:
+                    tools_used = list(_out.skills_used)
+                elif isinstance(_out, dict):
+                    tools_used = list(_out.get('skills_used', []))
+
+            # Build approach summary from skill sequence (much more useful than 'execute')
+            skill_steps = []
+            for step in trajectory[:8]:
                 if isinstance(step, dict):
-                    action = step.get('action', step.get('description', ''))
-                    if action:
-                        actions.append(str(action)[:60])
-            approach_summary = ' → '.join(actions) if actions else goal[:100]
+                    skill = step.get('skill') or step.get('tool_name', '')
+                    desc = step.get('description', step.get('action', ''))
+                    if skill:
+                        skill_steps.append(f"{skill}: {str(desc)[:40]}" if desc else skill)
+            if skill_steps:
+                approach_summary = ' → '.join(skill_steps)
+            elif tools_used:
+                approach_summary = f"Used: {', '.join(tools_used[:5])}"
+            else:
+                approach_summary = goal[:100]
 
             self.stigmergy.record_approach_outcome(
                 task_type=task_type,
@@ -747,52 +763,27 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Effectiveness tracking skipped: {e}")
 
-        # 7. MAS Learning
+        # 7. MAS Learning (session recording — MASLearning.record_session)
         try:
             if mas_learning:
-                task_type = self.transfer_learning.extractor.extract_task_type(goal) if hasattr(self, 'transfer_learning') else 'general'
                 execution_time = getattr(result, 'execution_time', 0.0)
 
+                # Collect agent names used
+                agents_used = []
                 if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                    agent_performances = {}
-                    for agent_name, contrib in result.agent_contributions.items():
-                        success = getattr(contrib, 'decision_correct', result.success)
-                        agent_time = getattr(contrib, 'execution_time', execution_time / len(result.agent_contributions))
-                        mas_learning.record_agent_task(
-                            agent_type=agent_name,
-                            task_type=task_type,
-                            success=success,
-                            time_taken=agent_time,
-                        )
-                        agent_performances[agent_name] = {
-                            'success': success,
-                            'success_rate': 1.0 if success else 0.0,
-                            'avg_time': agent_time,
-                        }
+                    agents_used = list(result.agent_contributions.keys())
                 else:
                     agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
-                    mas_learning.record_agent_task(
-                        agent_type=agent_name,
-                        task_type=task_type,
-                        success=result.success,
-                        time_taken=execution_time,
-                    )
-                    agent_performances = {
-                        agent_name: {
-                            'success': result.success,
-                            'success_rate': 1.0 if result.success else 0.0,
-                            'avg_time': execution_time,
-                        }
-                    }
+                    agents_used = [agent_name]
 
                 stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self.swarm_intelligence, 'stigmergy') else 0
                 mas_learning.record_session(
                     task_description=goal,
-                    agent_performances=agent_performances,
-                    fixes_applied=getattr(swarm_terminal, '_fix_history', []) if swarm_terminal else [],
-                    stigmergy_signals=stigmergy_signals,
+                    agents_used=agents_used,
                     total_time=execution_time,
                     success=result.success,
+                    stigmergy_signals=stigmergy_signals,
+                    output_quality=episode_reward,
                 )
         except Exception as e:
             logger.debug(f"MAS Learning record skipped: {e}")
@@ -949,41 +940,64 @@ class SwarmLearningPipeline:
         """How many training tasks are waiting."""
         return len(self._pending_training_tasks)
 
-    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner=None):
+    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner=None, goal: str = ''):
         """Learn from a successful execution result."""
         if not result.success:
             return
         if not workflow_learner:
             return
 
-        # Extract task_type from result first, then agent_config, then infer
+        # Extract task_type: prefer goal text (most reliable), then result fields
         task_type = 'unknown'
-        if hasattr(result, 'task_type') and result.task_type:
+        if goal:
+            try:
+                task_type = self.transfer_learning.extractor.extract_task_type(goal)
+            except Exception:
+                pass
+        if task_type == 'unknown' and hasattr(result, 'task_type') and result.task_type:
             task_type = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
-        elif hasattr(result, 'task') and result.task:
+        if task_type == 'unknown' and hasattr(result, 'task') and result.task:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(str(result.task))
             except Exception:
                 pass
 
-        # Extract skills/tools actually used from result
+        # Extract skills/tools actually used from result or its output
         skills_used = []
         if hasattr(result, 'skills_used') and result.skills_used:
             skills_used = list(result.skills_used)
-        elif hasattr(result, 'output') and isinstance(result.output, dict):
-            skills_used = list(result.output.get('skills_used', []))
+        if not skills_used and hasattr(result, 'output'):
+            _out = result.output
+            if isinstance(_out, dict):
+                skills_used = list(_out.get('skills_used', []))
+            elif hasattr(_out, 'skills_used') and _out.skills_used:
+                skills_used = list(_out.skills_used)
 
         # Extract operations from trajectory steps
         operations = []
         trajectory = getattr(result, 'trajectory', []) or []
         for step in trajectory[:10]:
             if isinstance(step, dict):
-                action = step.get('action') or step.get('skill') or step.get('step', '')
+                action = step.get('skill') or step.get('action') or step.get('tool_name') or step.get('step', '')
                 if action:
                     operations.append(str(action))
             elif step:
                 operations.append(str(step))
+        # Also extract from output.steps if available (autonomous agent execution results)
+        if not operations and hasattr(result, 'output'):
+            _out = result.output
+            _steps = getattr(_out, 'steps', None) or (isinstance(_out, dict) and _out.get('steps'))
+            if _steps and isinstance(_steps, (list, tuple)):
+                for s in _steps[:10]:
+                    if isinstance(s, dict):
+                        skill = s.get('skill', s.get('action', ''))
+                        if skill:
+                            operations.append(str(skill))
 
+        logger.info(
+            f"📝 Workflow learning: task_type={task_type}, "
+            f"operations={operations[:5]}, tools={skills_used[:5]}"
+        )
         workflow_learner.learn_from_execution(
             task_type=task_type,
             operations=operations,

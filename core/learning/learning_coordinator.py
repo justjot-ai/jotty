@@ -383,6 +383,11 @@ class LearningCoordinator:
 
         return self._agent_memories[agent_name]
 
+    @property
+    def q_learner(self) -> Any:
+        """Public access to shared Q-learner (used by SwarmLearningPipeline)."""
+        return self.get_shared_learner()
+
     def get_shared_learner(self) -> Any:
         """Get shared Q-learner (cross-agent)."""
         if self._shared_q_learner is None:
