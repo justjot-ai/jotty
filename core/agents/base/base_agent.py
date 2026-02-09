@@ -189,7 +189,7 @@ class BaseAgent(ABC):
 
                 # Try direct API first (fastest)
                 try:
-                    from ...foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+                    from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
                     if is_api_key_available():
                         self._lm = DirectAnthropicLM(model=self.config.model)
                         dspy.configure(lm=self._lm)
@@ -200,7 +200,7 @@ class BaseAgent(ABC):
 
                 # Fallback to Claude CLI
                 try:
-                    from ...foundation.persistent_claude_lm import PersistentClaudeCLI
+                    from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
                     self._lm = PersistentClaudeCLI(model=self.config.model)
                     dspy.configure(lm=self._lm)
                     logger.info(f"Auto-configured DSPy LM with PersistentClaudeCLI ({self.config.model})")
@@ -216,8 +216,8 @@ class BaseAgent(ABC):
         """Lazy-load HierarchicalMemory."""
         if self._memory is None and self.config.enable_memory:
             try:
-                from ...memory.cortex import HierarchicalMemory
-                from ...foundation.data_structures import JottyConfig
+                from Jotty.core.memory.cortex import HierarchicalMemory
+                from Jotty.core.foundation.data_structures import JottyConfig
                 self._memory = HierarchicalMemory(
                     config=JottyConfig(),
                     agent_name=self.config.name
@@ -232,7 +232,7 @@ class BaseAgent(ABC):
         """Lazy-load SharedContext."""
         if self._context_manager is None and self.config.enable_context:
             try:
-                from ...persistence.shared_context import SharedContext
+                from Jotty.core.persistence.shared_context import SharedContext
                 self._context_manager = SharedContext()
                 logger.debug(f"Initialized SharedContext for {self.config.name}")
             except Exception as e:
@@ -244,7 +244,7 @@ class BaseAgent(ABC):
         """Lazy-load SkillsRegistry."""
         if self._skills_registry is None and self.config.enable_skills:
             try:
-                from ...registry.skills_registry import get_skills_registry
+                from Jotty.core.registry.skills_registry import get_skills_registry
                 self._skills_registry = get_skills_registry()
                 if not self._skills_registry.initialized:
                     self._skills_registry.init()
@@ -415,7 +415,7 @@ class BaseAgent(ABC):
             return
 
         try:
-            from ...foundation.data_structures import MemoryLevel
+            from Jotty.core.foundation.data_structures import MemoryLevel
             level_enum = MemoryLevel[level.upper()] if isinstance(level, str) else level
             self.memory.store(
                 content=content,

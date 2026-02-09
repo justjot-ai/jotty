@@ -10,7 +10,7 @@ import time
 import logging
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
-from ...foundation.types import TaskStatus
+from Jotty.core.foundation.types import TaskStatus
 
 logger = logging.getLogger(__name__)
 

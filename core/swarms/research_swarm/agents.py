@@ -14,7 +14,7 @@ from pathlib import Path
 
 import dspy
 
-from ...agents.base import DomainAgent, DomainAgentConfig
+from Jotty.core.agents.base import DomainAgent, DomainAgentConfig
 from .types import RatingType, ResearchConfig, ResearchResult
 from .signatures import (
     StockAnalysisSignature, SentimentAnalysisSignature,

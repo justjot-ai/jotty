@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional, List
 
 import dspy
 
-from ...agents.base import DomainAgent, DomainAgentConfig
+from Jotty.core.agents.base import DomainAgent, DomainAgentConfig
 from .utils import _stream_call
 from .signatures import (
     ArchitectureDesignSignature,
@@ -71,7 +71,7 @@ class BaseCodeAgent(DomainAgent):
         """Broadcast event to other agents."""
         if self.bus:
             try:
-                from ...agents.axon import Message
+                from Jotty.core.agents.axon import Message
                 msg = Message(
                     sender=self.__class__.__name__,
                     receiver="broadcast",

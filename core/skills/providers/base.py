@@ -510,7 +510,7 @@ class JottyDefaultProvider(SkillProvider):
             return
 
         try:
-            from ...registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
             self._build_category_index()

@@ -41,7 +41,7 @@ try:
     CLAUDE_CLI_AVAILABLE = True
 except ImportError:
     try:
-        from ...integration.direct_claude_cli_lm import DirectClaudeCLI
+        from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
         CLAUDE_CLI_AVAILABLE = True
     except ImportError:
         CLAUDE_CLI_AVAILABLE = False

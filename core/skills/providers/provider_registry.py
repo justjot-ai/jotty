@@ -21,11 +21,11 @@ from .base import SkillProvider, SkillCategory, ProviderResult, JottyDefaultProv
 
 # Lazy import to avoid circular dependency
 if TYPE_CHECKING:
-    from ...orchestration.v2.sandbox_manager import SandboxManager, TrustLevel
+    from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager, TrustLevel
 
 # Import adaptive weights (no circular dependency)
 try:
-    from ...foundation.robust_parsing import AdaptiveWeightGroup
+    from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
 except ImportError:
     AdaptiveWeightGroup = None
 
@@ -428,13 +428,13 @@ class ProviderRegistry:
     def _get_sandbox_manager(self) -> 'SandboxManager':
         """Lazy load sandbox manager."""
         if self._sandbox_manager is None:
-            from ...orchestration.v2.sandbox_manager import SandboxManager
+            from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager
             self._sandbox_manager = SandboxManager()
         return self._sandbox_manager
 
     def _get_trust_level_enum(self, level: str) -> 'TrustLevel':
         """Convert string to TrustLevel enum."""
-        from ...orchestration.v2.sandbox_manager import TrustLevel
+        from Jotty.core.orchestration.v2.sandbox_manager import TrustLevel
         level_map = {
             'trusted': TrustLevel.TRUSTED,
             'sandboxed': TrustLevel.SANDBOXED,
@@ -480,7 +480,7 @@ class ProviderRegistry:
         - Code execution capabilities: DANGEROUS
         - Default: SANDBOXED
         """
-        from ...orchestration.v2.sandbox_manager import TrustLevel
+        from Jotty.core.orchestration.v2.sandbox_manager import TrustLevel
 
         # Check if trusted package
         if provider.name.lower() in self.TRUSTED_PACKAGES:
@@ -684,7 +684,7 @@ class ProviderRegistry:
         trust_level = self._trust_levels.get(provider.name)
 
         # Check if sandboxed execution needed
-        from ...orchestration.v2.sandbox_manager import TrustLevel
+        from Jotty.core.orchestration.v2.sandbox_manager import TrustLevel
         needs_sandbox = force_sandbox or (trust_level and trust_level != TrustLevel.TRUSTED)
 
         logger.info(f"🚀 Executing via {provider.name}: {task[:50]}... (trust: {trust_level.value if trust_level else 'unknown'})")

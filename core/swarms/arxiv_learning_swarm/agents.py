@@ -11,7 +11,7 @@ from pathlib import Path
 
 import dspy
 
-from ...agents.base import DomainAgent, DomainAgentConfig
+from Jotty.core.agents.base import DomainAgent, DomainAgentConfig
 from .types import (
     PaperInfo, Concept, LearningSection, LearningContent,
     LearningDepth, ContentStyle, AudienceLevel,
@@ -26,7 +26,7 @@ from .signatures import (
 
 # Import LOTUS
 try:
-    from ...skills.research.lotus_arxiv import LotusArxiv, LotusArxivConfig, is_lotus_available
+    from Jotty.core.skills.research.lotus_arxiv import LotusArxiv, LotusArxivConfig, is_lotus_available
     LOTUS_AVAILABLE = is_lotus_available()
 except ImportError:
     LOTUS_AVAILABLE = False

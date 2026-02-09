@@ -6,7 +6,7 @@ Extracted from html_slide_generator.py.
 
 import re
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 try:
     import dspy
+    DSPY_AVAILABLE = True
 except ImportError:
     dspy = None
+    DSPY_AVAILABLE = False
 
 from .content_analysis import ContentPattern, ContentAnalysis, ContentAnalyzer
 

@@ -10,7 +10,7 @@ import time
 
 from .chat_orchestrator import ChatOrchestrator
 from .chat_context import ChatContext, ChatMessage
-from ...ui.a2ui import is_a2ui_response, convert_to_a2ui_response
+from Jotty.core.ui.a2ui import is_a2ui_response, convert_to_a2ui_response
 
 logger = logging.getLogger(__name__)
 

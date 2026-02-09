@@ -87,7 +87,7 @@ class ReviewMixin:
         # Get web search function
         web_search_fn = None
         try:
-            from ...skills import get_skill_registry
+            from Jotty.core.skills import get_skill_registry
             registry = get_skill_registry()
             web_search_fn = registry.get('web-search', {}).get('search_web_tool')
         except Exception:
@@ -95,7 +95,7 @@ class ReviewMixin:
 
         if web_search_fn is None:
             try:
-                from ...skills import search_web_tool as web_search_fn
+                from Jotty.core.skills import search_web_tool as web_search_fn
             except Exception:
                 pass
 

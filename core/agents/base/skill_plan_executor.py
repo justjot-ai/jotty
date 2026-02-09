@@ -257,7 +257,7 @@ class SkillPlanExecutor:
         # If skill is a BaseSkill instance (class-based skill), set the status callback
         # Note: get_skill() returns SkillDefinition; check the underlying object if present
         try:
-            from ...registry.skills_registry import BaseSkill
+            from Jotty.core.registry.skills_registry import BaseSkill
             underlying = getattr(skill, '_skill_instance', None)
             if isinstance(underlying, BaseSkill):
                 underlying.set_status_callback(status_callback)

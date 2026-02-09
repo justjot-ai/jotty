@@ -118,7 +118,7 @@ class BrowserUseProvider(SkillProvider):
         """Set up LLM for browser-use agent."""
         try:
             # Try to use Claude CLI via our adapter
-            from ...integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
             import dspy
             self._llm = DirectClaudeCLI(model="sonnet")
             dspy.configure(lm=self._llm)

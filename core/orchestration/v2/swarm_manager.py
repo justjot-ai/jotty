@@ -459,7 +459,132 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
     def feedback_channel(self):
         return self.learning.feedback_channel
     
-    # _init_learning_pipeline removed — now handled by SwarmLearningPipeline
+    # =========================================================================
+    # LIFECYCLE MANAGEMENT
+    # =========================================================================
+
+    async def startup(self):
+        """
+        Async startup - prepare SwarmManager for execution.
+
+        Call this before run() for controlled initialization.
+        If not called, run() will auto-initialize (lazy).
+
+        Returns:
+            Self for chaining: `sm = await SwarmManager().startup()`
+        """
+        self._ensure_runners()
+        logger.info("SwarmManager startup complete")
+        return self
+
+    async def shutdown(self):
+        """
+        Graceful shutdown - persist learnings and release resources.
+
+        Should be called when SwarmManager is no longer needed.
+        Safe to call multiple times.
+        """
+        try:
+            # Persist all learnings
+            if '_lazy_learning' in self.__dict__:
+                self._auto_save_learnings()
+                logger.info("Learnings saved on shutdown")
+
+            # Clear runners
+            self.runners.clear()
+            self._runners_built = False
+
+            logger.info("SwarmManager shutdown complete")
+        except Exception as e:
+            logger.error(f"Shutdown error: {e}")
+
+    async def __aenter__(self):
+        """Async context manager: `async with SwarmManager() as sm:`"""
+        await self.startup()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager cleanup."""
+        await self.shutdown()
+        return False
+
+    # =========================================================================
+    # INTROSPECTION & METRICS
+    # =========================================================================
+
+    def status(self) -> Dict[str, Any]:
+        """
+        Get full introspection of SwarmManager state.
+
+        Shows which lazy components have been created, runner status,
+        learning stats, and execution metrics.
+
+        Returns:
+            Dict with component status, metrics, and health info.
+        """
+        lazy_names = [
+            'swarm_planner', 'swarm_task_board', 'swarm_memory',
+            'swarm_intent_parser', 'swarm_provider_gateway',
+            'swarm_researcher', 'swarm_installer', 'swarm_configurator',
+            'swarm_code_generator', 'swarm_workflow_learner',
+            'swarm_integrator', 'swarm_terminal',
+            'swarm_ui_registry', 'swarm_tool_validator', 'swarm_tool_registry',
+            'swarm_profiler', 'swarm_state_manager', 'shared_context',
+            'io_manager', 'data_registry', 'context_guard',
+            'learning', 'mas_learning',
+        ]
+        created = {n: f'_lazy_{n}' in self.__dict__ for n in lazy_names}
+        created_count = sum(created.values())
+
+        result = {
+            'mode': self.mode,
+            'agents': [a.name for a in self.agents],
+            'runners_built': self._runners_built,
+            'runners': list(self.runners.keys()),
+            'episode_count': self.episode_count,
+            'lotus_enabled': self.enable_lotus,
+            'lotus_active': self.lotus is not None,
+            'zero_config': self.enable_zero_config,
+            'components': {
+                'total': len(lazy_names),
+                'created': created_count,
+                'pending': len(lazy_names) - created_count,
+                'detail': created,
+            },
+        }
+
+        # Add learning stats if pipeline is active
+        if '_lazy_learning' in self.__dict__:
+            try:
+                result['learning'] = {
+                    'episode_count': self.learning.episode_count,
+                    'has_intelligence': self.swarm_intelligence is not None,
+                }
+            except Exception:
+                result['learning'] = {'status': 'error'}
+
+        # Add LOTUS stats if active
+        if self.lotus:
+            result['lotus_stats'] = self.get_lotus_stats()
+
+        return result
+
+    @property
+    def metrics(self) -> Dict[str, Any]:
+        """Quick access to execution metrics."""
+        return {
+            'episodes': self.episode_count,
+            'agents': len(self.agents),
+            'mode': self.mode,
+            'runners_built': self._runners_built,
+            'components_loaded': sum(
+                1 for k in self.__dict__ if k.startswith('_lazy_')
+            ),
+        }
+
+    # =========================================================================
+    # LOTUS OPTIMIZATION
+    # =========================================================================
 
     def _init_lotus_optimization(self):
         """

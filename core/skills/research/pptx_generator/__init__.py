@@ -2,7 +2,7 @@
 PowerPoint Generator for ArXiv Learning — package init.
 
 All implementation lives in ``generator.py``.  This file re-exports
-the public API so existing ``from ...pptx_generator import X`` still works.
+the public API so existing ``from Jotty.core.pptx_generator import X`` still works.
 """
 
 from .generator import (                           # noqa: F401

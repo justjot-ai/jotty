@@ -11,8 +11,15 @@ Extracted from base_swarm.py to reduce file size.
 import logging
 import json
 import hashlib
+from dataclasses import asdict
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+
+from .swarm_types import (
+    AgentRole,
+    ImprovementSuggestion,
+    ImprovementType,
+)
 
 logger = logging.getLogger(__name__)
 

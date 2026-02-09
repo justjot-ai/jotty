@@ -4,10 +4,15 @@ Slide Renderers Mixin - HTML rendering methods for each slide type.
 Extracted from HTMLSlideGenerator in html_slide_generator.py.
 """
 
+from __future__ import annotations
+
 import re
 import html
 import logging
-from typing import Dict, Any, List
+from typing import TYPE_CHECKING, Dict, Any, List
+
+if TYPE_CHECKING:
+    from .html_slide_generator import SlideConfig, SlideType
 
 logger = logging.getLogger(__name__)
 

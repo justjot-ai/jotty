@@ -364,7 +364,7 @@ class ValidationAgent(MetaAgent):
             return
 
         try:
-            from ...foundation.data_structures import MemoryLevel
+            from Jotty.core.foundation.data_structures import MemoryLevel
 
             decision = "PROCEED" if result.should_proceed else "BLOCK"
             if not self.is_pre_validation:
