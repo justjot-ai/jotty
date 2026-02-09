@@ -2,20 +2,21 @@
 Stigmergy Layer (Indirect Agent Coordination)
 ===============================================
 
-Implements ant-colony-inspired stigmergy:
-- StigmergySignal: Pheromone-like signal in shared environment
-- StigmergyLayer: Shared artifact store for indirect coordination
+Shared signal store for agent coordination without direct communication.
 
-Agents deposit signals, other agents sense and react.
-Signals decay over time; successful paths get reinforced.
+Key mechanism: after each task execution, record_outcome() deposits a
+signal. Over time, successful agent-task pairings accumulate strong
+signals while failed ones decay. recommend_agent() reads these signals
+to route new tasks to the best-performing agent.
 
-Extracted from swarm_intelligence.py for modularity.
+This is the actual value of stigmergy: emergent routing from accumulated
+experience, not a fancy name for a TTL cache.
 """
 
 import time
 import hashlib
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
 
@@ -145,24 +146,114 @@ class StigmergyLayer:
         signal.created_at = time.time()  # Reset decay timer
         return True
 
+    def record_outcome(self, agent: str, task_type: str, success: bool,
+                       quality: float = 0.0, metadata: Dict = None) -> str:
+        """
+        Record a task outcome as a signal. Call this after every execution.
+
+        Successful outcomes deposit a strong 'route' signal that reinforces
+        the agent-task pairing. Failed outcomes deposit a weak 'warning'
+        signal. Over many executions, the signal landscape converges to
+        reflect which agents are best for which task types.
+
+        Args:
+            agent: Agent that executed the task
+            task_type: Type of task (e.g., 'analysis', 'coding', 'research')
+            success: Whether the task succeeded
+            quality: Output quality 0-1 (optional, refines signal strength)
+            metadata: Additional context
+
+        Returns:
+            Signal ID
+        """
+        if success:
+            strength = 0.5 + 0.5 * max(0.0, min(1.0, quality))  # 0.5-1.0
+            signal_type = 'route'
+            content = {'task_type': task_type, 'agent': agent, 'success': True}
+        else:
+            strength = 0.3
+            signal_type = 'warning'
+            content = {'task_type': task_type, 'agent': agent, 'success': False}
+
+        # Check if there's an existing route signal for this agent+task_type
+        # If so, reinforce it instead of creating a new one (DRY: single signal per pairing)
+        for sid, signal in self.signals.items():
+            if (signal.signal_type == 'route'
+                    and isinstance(signal.content, dict)
+                    and signal.content.get('agent') == agent
+                    and signal.content.get('task_type') == task_type):
+                if success:
+                    self.reinforce(sid, amount=0.15 + 0.1 * quality)
+                else:
+                    # Weaken on failure
+                    signal.strength = max(0.01, signal.strength - 0.1)
+                return sid
+
+        return self.deposit(
+            signal_type=signal_type,
+            content=content,
+            agent=agent,
+            strength=strength,
+            metadata=metadata or {},
+        )
+
+    def recommend_agent(self, task_type: str, candidates: List[str] = None) -> List[Tuple[str, float]]:
+        """
+        Recommend agents for a task type based on accumulated signals.
+
+        Returns a ranked list of (agent, score) pairs. Agents with more
+        successful executions of this task type score higher.
+
+        Args:
+            task_type: Type of task to route
+            candidates: Optional whitelist of agent names to consider
+
+        Returns:
+            List of (agent_name, score) sorted by score descending.
+            Empty list if no signals exist for this task type.
+        """
+        self._apply_decay()
+
+        scores: Dict[str, float] = defaultdict(float)
+        penalties: Dict[str, float] = defaultdict(float)
+
+        # Accumulate positive signals from route signals
+        for signal in self.signals.values():
+            if not isinstance(signal.content, dict):
+                continue
+            if signal.content.get('task_type') != task_type:
+                continue
+
+            agent = signal.content.get('agent', '')
+            if not agent:
+                continue
+            if candidates and agent not in candidates:
+                continue
+
+            if signal.signal_type == 'route' and signal.content.get('success'):
+                scores[agent] += signal.strength
+            elif signal.signal_type == 'warning':
+                penalties[agent] += signal.strength * 0.5
+
+        # Net score = positive - penalties
+        result = []
+        all_agents = set(scores.keys()) | set(penalties.keys())
+        for agent in all_agents:
+            net = scores.get(agent, 0.0) - penalties.get(agent, 0.0)
+            if net > 0:
+                result.append((agent, net))
+
+        result.sort(key=lambda x: x[1], reverse=True)
+        return result
+
     def get_route_signals(self, task_type: str) -> Dict[str, float]:
         """
         Get routing recommendations from environment.
 
         Returns agent->strength mapping for task routing decisions.
+        Prefer recommend_agent() for ranked results.
         """
-        route_signals = self.sense(signal_type='route', min_strength=0.1)
-
-        recommendations = defaultdict(float)
-        for signal in route_signals:
-            content = signal.content
-            if isinstance(content, dict):
-                if content.get('task_type') == task_type:
-                    agent = content.get('agent', '')
-                    if agent:
-                        recommendations[agent] += signal.strength
-
-        return dict(recommendations)
+        return dict(self.recommend_agent(task_type))
 
     def evaporate(self, decay_rate: float = None) -> int:
         """

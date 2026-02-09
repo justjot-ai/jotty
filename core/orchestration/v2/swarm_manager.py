@@ -1,56 +1,32 @@
 """
-SwarmManager - World-Class Orchestrator
-========================================
+SwarmManager - Composable Swarm Orchestrator
+=============================================
 
 Lazy-initialized, composable swarm orchestration.
 Uses composition (has-a) instead of mixin inheritance (is-a) for all
 cross-cutting concerns: providers, ensemble, learning, MAS-ZERO.
 
-All components are lazy-loaded via descriptors - only created when first
-accessed. This means SwarmManager.__init__ is < 50ms regardless of how
-many components are registered.
+All components are lazy-loaded via descriptors — only created when first
+accessed. SwarmManager.__init__ completes in < 50ms.
 
 Architecture:
     SwarmManager (flat class, no mixins)
-    ├── Core (always created)
-    │   ├── config, agents, mode
-    │   └── runners (AgentRunners for each agent)
-    ├── Composed Managers (lazy, explicit dependencies)
-    │   ├── _providers - ProviderManager (skill provider registry)
-    │   ├── _ensemble - EnsembleManager (multi-perspective analysis)
-    │   ├── _learning_ops - LearningDelegate (learning operations)
-    │   └── _mas_zero - MASZeroController (MAS-ZERO capabilities)
-    ├── Planning (lazy)
-    │   ├── swarm_planner - AgenticPlanner
-    │   ├── swarm_task_board - SwarmTaskBoard
-    │   └── swarm_intent_parser - IntentParser
-    ├── Memory (lazy)
-    │   ├── swarm_memory - HierarchicalMemory
-    │   └── swarm_state_manager - SwarmStateManager
-    ├── Learning (lazy)
-    │   ├── learning - SwarmLearningPipeline
-    │   └── mas_learning - MASLearning
-    ├── Observability (integrated)
-    │   ├── TracingContext - span trees for debugging
-    │   └── MetricsCollector - per-agent execution metrics
-    ├── Autonomous (lazy, only on autonomous_setup)
-    │   ├── swarm_researcher, swarm_installer
-    │   ├── swarm_configurator, swarm_code_generator
-    │   └── swarm_terminal
-    └── Feature (lazy, only when needed)
-        ├── swarm_ui_registry, swarm_profiler
-        ├── swarm_tool_registry
-        └── lotus (optimization layer)
+    ├── Core: config, agents, mode, runners
+    ├── Composed: _providers, _ensemble, _learning_ops, _mas_zero
+    ├── Planning: swarm_planner, swarm_task_board, swarm_intent_parser
+    ├── Memory: swarm_memory, swarm_state_manager
+    ├── Learning: learning (SwarmLearningPipeline), mas_learning
+    └── Autonomous: swarm_researcher, swarm_installer, swarm_terminal, etc.
+
+    Learning sub-components (accessed via sm.learning.xxx or sm.xxx):
+        learning_manager, transfer_learning, swarm_intelligence,
+        trajectory_predictor, divergence_memory, cooperative_credit,
+        brain_state, agent_abstractor, swarm_learner,
+        agent_slack, feedback_channel, credit_weights
 
 Usage:
     sm = SwarmManager()  # Fast: ~10ms
     result = await sm.run("Research AI trends")  # Components init on demand
-
-    # Observability
-    from Jotty.core.observability import get_tracer, get_metrics
-    trace = get_tracer().get_current_trace()
-    print(trace.summary())  # Span tree with timing + cost
-    print(get_metrics().get_summary())  # Per-agent stats
 """
 
 import asyncio
@@ -72,6 +48,17 @@ from .model_tier_router import ModelTierRouter
 from .swarm_router import SwarmRouter
 
 logger = logging.getLogger(__name__)
+
+
+# Suppress noisy LiteLLM CancelledError on asyncio loop shutdown.
+# This is a known issue: LiteLLM's background LoggingWorker gets cancelled
+# when asyncio.run() tears down, producing harmless but alarming tracebacks.
+class _LiteLLMCancelledFilter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+        return 'CancelledError' not in msg and 'LoggingWorker cancelled' not in msg
+
+logging.getLogger("LiteLLM").addFilter(_LiteLLMCancelledFilter())
 
 
 # Skill Provider System - Lazy loaded via cache dict (no globals)
@@ -240,31 +227,20 @@ def _create_mas_learning(sm):
 
 class SwarmManager:
     """
-    World-Class Swarm Orchestrator.
+    Composable swarm orchestrator with lazy initialization.
 
     All heavyweight components are lazy-loaded via descriptors.
     Init is fast (~10ms). Components are created on first access.
-
-    MAS-ZERO enhancements (Ke et al., NeurIPS 2025):
-        - Building blocks: multiple strategies run in parallel
-        - Meta-feedback: solvability + completeness evaluation
-        - Candidate verification: LLM-based best answer selection
-        - Dynamic reduction: multi -> single when simpler is better
-        - Iterative refinement: MAS-Evolve loop with experience library
-        - TOO_HARD escalation: agents signal unsolvable sub-tasks
-
-    AIOS-inspired scheduling (Mei et al., COLM 2025):
-        - Concurrency semaphore: limits parallel LLM calls during multi-agent fan-out
-        - Prevents API rate-limit errors and controls cost
-        - Configurable via max_concurrent_agents (default 3)
 
     Modes:
         - single: 1 AutoAgent (default)
         - multi: N agents with SwarmTaskBoard coordination
 
-    Integration:
-        - ModeRouter.workflow() -> SwarmManager.run() for multi-step planning
-        - ModeRouter.chat() -> UnifiedExecutor for direct tool-calling
+    Key features:
+        - MAS-ZERO: parallel strategies, meta-feedback, candidate verification
+        - Concurrency semaphore: limits parallel LLM calls (default 3)
+        - Learning pipeline: TD(λ), credit assignment, memory consolidation
+        - Effectiveness tracking: measures actual improvement over time
     """
 
     # =========================================================================
@@ -521,72 +497,53 @@ class SwarmManager:
         logger.info(f"Runners built: {list(self.runners.keys())}")
 
     # =========================================================================
-    # LEARNING PIPELINE ACCESSORS (backward compat - delegate to learning)
+    # DELEGATION: Single __getattr__ replaces 15+ @property boilerplate
     # =========================================================================
+    #
+    # Learning sub-components (sm.learning_manager, sm.swarm_intelligence, etc.)
+    # are forwarded to self.learning.xxx automatically.
+    # Composed manager methods (_execute_ensemble, etc.) are forwarded to the
+    # appropriate composed manager.
+    #
+    # This eliminates ~120 lines of repetitive @property definitions while
+    # maintaining full backward compatibility.
 
-    @property
-    def learning_manager(self):
-        return self.learning.learning_manager
+    # Attributes forwarded to self.learning
+    _LEARNING_ATTRS = frozenset({
+        'learning_manager', 'transfer_learning', 'swarm_intelligence',
+        'credit_weights', 'trajectory_predictor', 'divergence_memory',
+        'cooperative_credit', 'brain_state', 'agent_abstractor',
+        'swarm_learner', 'agent_slack', 'feedback_channel',
+    })
 
-    @property
-    def transfer_learning(self):
-        return self.learning.transfer_learning
+    def __getattr__(self, name: str):
+        """
+        Delegate attribute access to composed managers.
 
-    @property
-    def swarm_intelligence(self):
-        return self.learning.swarm_intelligence
+        Order: learning pipeline attrs → _providers → raise AttributeError.
+        Only called when normal attribute lookup fails (i.e., LazyComponent
+        descriptors and instance __dict__ are checked first).
+        """
+        # Learning pipeline sub-components
+        if name in self._LEARNING_ATTRS:
+            return getattr(self.learning, name)
 
-    @property
-    def credit_weights(self):
-        return self.learning.credit_weights
+        # Provider registry
+        if name == 'provider_registry':
+            return self._providers.provider_registry
 
-    @credit_weights.setter
-    def credit_weights(self, value):
-        self.learning.credit_weights = value
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
-    @property
-    def trajectory_predictor(self):
-        return self.learning.trajectory_predictor
+    def __setattr__(self, name: str, value):
+        """Handle setting delegated attributes (credit_weights, provider_registry)."""
+        if name == 'credit_weights' and '_lazy_learning' in self.__dict__:
+            self.learning.credit_weights = value
+        elif name == 'provider_registry' and '_lazy__providers' in self.__dict__:
+            self._providers.provider_registry = value
+        else:
+            super().__setattr__(name, value)
 
-    @property
-    def divergence_memory(self):
-        return self.learning.divergence_memory
-
-    @property
-    def cooperative_credit(self):
-        return self.learning.cooperative_credit
-
-    @property
-    def brain_state(self):
-        return self.learning.brain_state
-
-    @property
-    def agent_abstractor(self):
-        return self.learning.agent_abstractor
-
-    @property
-    def swarm_learner(self):
-        return self.learning.swarm_learner
-
-    @property
-    def agent_slack(self):
-        return self.learning.agent_slack
-
-    @property
-    def feedback_channel(self):
-        return self.learning.feedback_channel
-    
-    # =========================================================================
-    # COMPOSED MANAGER DELEGATION (backward compat)
-    # =========================================================================
-
-    @property
-    def provider_registry(self):
-        return self._providers.provider_registry
-
-    @provider_registry.setter
-    def provider_registry(self, value):
-        self._providers.provider_registry = value
+    # --- Composed manager delegation (thin methods, not properties) ---
 
     async def execute_with_provider(self, category, task, context=None, provider_name=None):
         return await self._providers.execute_with_provider(category, task, context, provider_name)
@@ -594,7 +551,6 @@ class SwarmManager:
     def get_provider_summary(self):
         return self._providers.get_provider_summary()
 
-    # Ensemble delegation
     async def _execute_ensemble(self, goal, strategy='multi_perspective',
                                 status_callback=None, max_perspectives=4):
         return await self._ensemble.execute_ensemble(goal, strategy, status_callback, max_perspectives)
@@ -602,25 +558,122 @@ class SwarmManager:
     def _should_auto_ensemble(self, goal):
         return self._ensemble.should_auto_ensemble(goal)
 
-    # Learning delegation
     def _auto_load_learnings(self):
         self._learning_ops.auto_load_learnings()
-        self.credit_weights = self.learning.credit_weights
 
     def _auto_save_learnings(self):
         self._learning_ops.auto_save_learnings(
             mas_learning=getattr(self, 'mas_learning', None),
             swarm_terminal=getattr(self, 'swarm_terminal', None),
-            provider_registry=self.provider_registry,
+            provider_registry=self._providers.provider_registry,
             memory_persistence=getattr(self, 'memory_persistence', None),
         )
 
     def _save_learnings(self):
-        """Alias for _auto_save_learnings (used in fast-path)."""
         self._auto_save_learnings()
 
     def load_relevant_learnings(self, task_description, agent_types=None):
         return self._learning_ops.load_relevant_learnings(task_description, agent_types)
+
+    async def train(
+        self,
+        num_tasks: int = 5,
+        status_callback=None,
+    ) -> Dict[str, Any]:
+        """
+        Run self-curriculum training: generate tasks from weaknesses and execute them.
+
+        This is the CONSUMER for CurriculumGenerator. Without this method,
+        generated curriculum tasks have no execution path.
+
+        DrZero loop: generate task → execute → record outcome → adjust difficulty.
+
+        Args:
+            num_tasks: Number of training tasks to run (default 5)
+            status_callback: Optional progress callback
+
+        Returns:
+            Dict with training results and improvement metrics
+        """
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
+            logger.info(f"🎓 {stage}: {detail}")
+
+        _status("Training", f"starting {num_tasks} curriculum tasks")
+
+        lp = self.learning
+        curriculum = lp.curriculum_generator
+        si = lp.swarm_intelligence
+        profiles = si.agent_profiles
+
+        # Pre-training effectiveness snapshot
+        pre_report = lp.effectiveness.improvement_report()
+
+        results = []
+        for i in range(num_tasks):
+            # Generate a task targeting weaknesses
+            task = curriculum.generate_smart_task(
+                profiles=profiles,
+                collective_memory=list(si.collective_memory),
+            )
+            _status(f"Task {i+1}/{num_tasks}", f"[{task.task_type}] {task.description[:60]}")
+
+            try:
+                result = await self.run(
+                    goal=task.description,
+                    skip_autonomous_setup=True,
+                    status_callback=status_callback,
+                )
+                results.append({
+                    'task_id': task.task_id,
+                    'task_type': task.task_type,
+                    'difficulty': task.difficulty,
+                    'success': result.success,
+                    'execution_time': getattr(result, 'execution_time', 0),
+                })
+
+                # Feed result back to curriculum for difficulty adjustment
+                curriculum.update_from_result(
+                    task=task,
+                    success=result.success,
+                    execution_time=getattr(result, 'execution_time', 0.0),
+                )
+
+                _status(
+                    f"Task {i+1} {'passed' if result.success else 'failed'}",
+                    f"type={task.task_type}, difficulty={task.difficulty:.1f}"
+                )
+            except Exception as e:
+                logger.warning(f"Training task {i+1} failed: {e}")
+                results.append({
+                    'task_id': task.task_id,
+                    'task_type': task.task_type,
+                    'difficulty': task.difficulty,
+                    'success': False,
+                    'error': str(e),
+                })
+
+        # Post-training effectiveness snapshot
+        post_report = lp.effectiveness.improvement_report()
+
+        # Save all learnings
+        self._auto_save_learnings()
+
+        successes = sum(1 for r in results if r.get('success'))
+        _status("Training complete", f"{successes}/{num_tasks} passed")
+
+        return {
+            'total_tasks': num_tasks,
+            'successes': successes,
+            'success_rate': successes / max(1, num_tasks),
+            'results': results,
+            'pre_effectiveness': pre_report.get('_global', {}),
+            'post_effectiveness': post_report.get('_global', {}),
+        }
 
     def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0):
         self._learning_ops.record_agent_result(agent_name, task_type, success, time_taken, output_quality)
@@ -644,7 +697,6 @@ class SwarmManager:
     def get_best_agent_for_task(self, query):
         return self._learning_ops.get_best_agent_for_task(query)
 
-    # MAS-ZERO delegation
     def _mas_zero_verify(self, goal, results):
         return self._mas_zero.verify(goal, results)
 
@@ -689,6 +741,9 @@ class SwarmManager:
         Safe to call multiple times.
         """
         try:
+            # Await any in-flight background learning tasks
+            await self._drain_background_tasks()
+
             # Persist all learnings
             if '_lazy_learning' in self.__dict__:
                 self._auto_save_learnings()
@@ -1181,7 +1236,11 @@ class SwarmManager:
                 _fast_start = _time.time()
 
                 # Try multiple calling conventions (DSPy 3.x is finicky)
+                # Fast path: NO aggressive retry on rate limits.
+                # If rate limited, fall through to full pipeline immediately.
+                # Fast path must be FAST — wasting 56s on retries defeats the purpose.
                 response = None
+                _rate_limited = False
                 for call_fn in [
                     lambda: lm(messages=[{"role": "user", "content": goal}]),
                     lambda: lm(prompt=goal),
@@ -1191,11 +1250,19 @@ class SwarmManager:
                         response = call_fn()
                         if response:
                             break
-                    except Exception:
+                    except Exception as e:
+                        err_str = str(e)
+                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
+                                         'rate limit' in err_str.lower())
+                        if is_rate_limit:
+                            logger.info("Fast path rate limited — falling through to full pipeline (no retry)")
+                            _rate_limited = True
+                            break
                         continue
 
                 if response is None:
-                    raise RuntimeError("All LM calling conventions failed")
+                    raise RuntimeError("All LM calling conventions failed" +
+                                       (" (rate limited)" if _rate_limited else ""))
 
                 if isinstance(response, list):
                     response = response[0] if response else ""
@@ -1256,7 +1323,10 @@ class SwarmManager:
                 logger.debug(f"Model tier routing skipped: {e}")
 
         # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
-        if self.enable_zero_config and self.mode == "single":
+        # SKIP when gate already classified as DIRECT — it's a simple task, no need
+        # to burn an LLM call deciding single vs multi-agent.
+        _gate_is_direct = (_gate_decision and _gate_decision.mode == ValidationMode.DIRECT)
+        if self.enable_zero_config and self.mode == "single" and not _gate_is_direct:
             _status("Analyzing task", "deciding single vs multi-agent")
             new_agents = self._create_zero_config_agents(goal, status_callback)
             if len(new_agents) > 1:
@@ -1467,14 +1537,105 @@ class SwarmManager:
         """
         # Remove ensemble_context from kwargs before passing to runner
         kwargs.pop('ensemble_context', None)
+        status_callback = kwargs.pop('status_callback', None)
+
+        def _status(stage: str, detail: str = ""):
+            if status_callback:
+                try:
+                    status_callback(stage, detail)
+                except Exception:
+                    pass
 
         agent_config = self.agents[0]
         runner = self.runners[agent_config.name]
 
-        # NOTE: MAS-ZERO building blocks (MAS-Init) are NOT used in single-agent
-        # mode. AutoAgent already has its own ensemble pipeline internally, so
-        # building blocks would duplicate LLM calls. In multi-agent mode,
-        # MAS-Verify + MAS-Evolve provide the cross-candidate selection instead.
+        # ── READ LEARNED INTELLIGENCE (closes the learning loop) ──────────
+        # Post-episode writes: stigmergy outcomes, byzantine trust, morph scores.
+        # Pre-execution reads them back to influence this run.
+        # Without this read, the write side is wasted — learning never loops.
+        learned_hints = []
+        try:
+            lp = self.learning
+            task_type = lp.transfer_learning.extractor.extract_task_type(goal)
+
+            # 1. Stigmergy: what worked/failed for this task type before?
+            route_agent = lp.get_stigmergy_route(task_type)
+            if route_agent:
+                learned_hints.append(
+                    f"[Learned] Best agent for '{task_type}' tasks: {route_agent}"
+                )
+
+            warnings = lp.get_stigmergy_warnings(task_type)
+            if warnings:
+                warn_msgs = [
+                    getattr(w, 'content', {}).get('goal', 'unknown')
+                    if isinstance(getattr(w, 'content', None), dict) else str(w)
+                    for w in warnings[:3]
+                ]
+                learned_hints.append(
+                    f"[Learned] Previous failures on '{task_type}': {'; '.join(warn_msgs)}"
+                )
+
+            # 2. Effectiveness: are we improving or degrading on this type?
+            eff_report = lp.effectiveness.improvement_report()
+            task_eff = eff_report.get(task_type)
+            if task_eff and task_eff.get('trend') is not None:
+                trend = task_eff['trend']
+                if trend < -0.1:
+                    learned_hints.append(
+                        f"[Learned] Performance DECLINING on '{task_type}' "
+                        f"(recent={task_eff['recent_rate']:.0%} vs "
+                        f"historical={task_eff['historical_rate']:.0%}). "
+                        f"Consider a different approach."
+                    )
+                elif trend > 0.1:
+                    learned_hints.append(
+                        f"[Learned] Performance IMPROVING on '{task_type}' — "
+                        f"current approach is working."
+                    )
+
+            # 3. Transfer learning: relevant past learnings
+            learnings = lp.transfer_learning.get_relevant_learnings(goal, top_k=2)
+            for exp in learnings.get('similar_experiences', []):
+                query_text = exp.get('query', '') if isinstance(exp, dict) else str(exp)
+                success = exp.get('success', True) if isinstance(exp, dict) else True
+                if success:
+                    learned_hints.append(
+                        f"[Learned] Succeeded on similar task: {query_text[:100]}"
+                    )
+                else:
+                    err = (exp.get('error', '')[:80]) if isinstance(exp, dict) else ''
+                    learned_hints.append(
+                        f"[Learned] Failed on similar task: {query_text[:80]}"
+                        + (f" (error: {err})" if err else "")
+                    )
+            if learnings.get('task_pattern'):
+                learned_hints.append(
+                    f"[Learned] Pattern: {str(learnings['task_pattern'])[:150]}"
+                )
+            for err_pat in learnings.get('error_patterns', [])[:2]:
+                learned_hints.append(
+                    f"[Learned] Common error: {str(err_pat)[:120]}"
+                )
+
+            # Inject learned context into kwargs for the agent
+            if learned_hints:
+                existing_ctx = kwargs.get('learning_context', '')
+                kwargs['learning_context'] = (
+                    existing_ctx + "\n\n" + "\n".join(learned_hints)
+                ).strip()
+                _status("Intelligence", f"{len(learned_hints)} learned hints applied")
+                logger.info(
+                    f"📚 Single-agent intelligence: {len(learned_hints)} hints "
+                    f"for task_type='{task_type}'"
+                )
+
+        except Exception as e:
+            logger.warning(f"Pre-execution intelligence read failed: {e}")
+
+        # Pass status_callback back for downstream
+        if status_callback:
+            kwargs['status_callback'] = status_callback
 
         # Standard single-agent execution
         import time as _t
@@ -1516,11 +1677,8 @@ class SwarmManager:
         if result.success:
             self._learn_from_result(result, agent_config)
 
-        # Post-episode learning
-        self._post_episode_learning(result, goal)
-
-        # Auto-save learnings (persist across sessions)
-        self._auto_save_learnings()
+        # Post-episode learning + auto-save (fire-and-forget background)
+        self._schedule_background_learning(result, goal)
 
         return result
 
@@ -1579,8 +1737,46 @@ class SwarmManager:
                 top = self.agents[0].name if self.agents else '?'
                 logger.info(f"🐜 Stigmergy: reordered agents for '{task_type}', lead={top}")
                 _intelligence_applied = True
+
+            # 3. MorphAgent TRAS: score task-role alignment for each agent.
+            #    Agents with higher TRAS for this task_type get priority.
+            #    This uses historical performance data (no LLM call).
+            si = lp.swarm_intelligence
+            if si and len(self.agents) >= 2:
+                morph_scorer = si.morph_scorer
+                profiles = si.agent_profiles
+                tras_scores = {}
+                for agent_cfg in self.agents:
+                    name = agent_cfg.name
+                    if name in profiles:
+                        profile = profiles[name]
+                        # compute_tras(task, task_type, profile, use_llm)
+                        # use_llm=False avoids an LLM call; uses capability match only
+                        tras, _ = morph_scorer.compute_tras(
+                            task=goal, task_type=task_type,
+                            profile=profile, use_llm=False
+                        )
+                        tras_scores[name] = tras
+
+                if tras_scores and max(tras_scores.values()) > min(tras_scores.values()):
+                    # Combine stigmergy route strength with TRAS score
+                    # Both are 0-1 range; weighted average favoring recent performance
+                    def _combined_score(a):
+                        route_s = routes.get(a.name, 0.0) if routes else 0.0
+                        tras_s = tras_scores.get(a.name, 0.5)
+                        return 0.6 * route_s + 0.4 * tras_s
+
+                    self.agents.sort(key=_combined_score, reverse=True)
+                    top_name = self.agents[0].name
+                    top_tras = tras_scores.get(top_name, 0)
+                    logger.info(
+                        f"📊 MorphAgent TRAS: reranked agents, "
+                        f"lead={top_name} (TRAS={top_tras:.2f})"
+                    )
+                    _intelligence_applied = True
+
         except Exception as e:
-            logger.debug(f"Intelligence-guided selection skipped: {e}")
+            logger.warning(f"Intelligence-guided selection failed: {e}")
 
         # Track guidance for A/B effectiveness metrics (per task_type)
         self._last_run_guided = _intelligence_applied
@@ -1950,12 +2146,9 @@ class SwarmManager:
         # Cooperative credit assignment
         self._assign_cooperative_credit(all_results, goal)
 
-        # Post-episode learning
+        # Post-episode learning + auto-save (fire-and-forget background)
         combined_result = self._aggregate_results(all_results, goal)
-        self._post_episode_learning(combined_result, goal)
-
-        # Auto-save learnings (persist across sessions)
-        self._auto_save_learnings()
+        self._schedule_background_learning(combined_result, goal)
 
         # Observability: record per-agent metrics
         try:
@@ -2029,7 +2222,25 @@ class SwarmManager:
                     )
                     sub_goal = hook_ctx.get('goal', sub_goal)
 
-                    response = lm(prompt=sub_goal)
+                    # LLM call with retry on rate limits
+                    _last_err = None
+                    response = None
+                    for _attempt in range(4):
+                        try:
+                            response = lm(prompt=sub_goal)
+                            break
+                        except Exception as _e:
+                            _err_s = str(_e)
+                            if ('429' in _err_s or 'RateLimit' in _err_s or
+                                    'rate limit' in _err_s.lower()):
+                                _delay = 8.0 * (2 ** _attempt)
+                                logger.info(f"Paradigm fast-path rate limited, retry in {_delay:.0f}s")
+                                _time.sleep(_delay)
+                                _last_err = _e
+                            else:
+                                raise
+                    if response is None and _last_err:
+                        raise _last_err
                     if isinstance(response, list):
                         response = response[0] if response else ""
                     response = str(response).strip()
@@ -2110,8 +2321,7 @@ class SwarmManager:
                 logger.warning(f"Relay: {agent_config.name} failed, continuing with original goal")
 
         combined = self._aggregate_results(all_results, goal)
-        self._post_episode_learning(combined, goal)
-        self._auto_save_learnings()
+        self._schedule_background_learning(combined, goal)
         return combined
 
     async def _paradigm_debate(self, goal: str, **kwargs) -> EpisodeResult:
@@ -2171,8 +2381,7 @@ class SwarmManager:
         if len(drafts) < 2:
             # Not enough drafts to debate — fall back to fanout result
             combined = self._aggregate_results(all_results, goal)
-            self._post_episode_learning(combined, goal)
-            self._auto_save_learnings()
+            self._schedule_background_learning(combined, goal)
             return combined
 
         # Rounds 2+: Critique — each agent sees all other drafts and refines
@@ -2218,8 +2427,7 @@ class SwarmManager:
                     drafts[name] = str(result.output)[:1500]
 
         combined = self._aggregate_results(all_results, goal)
-        self._post_episode_learning(combined, goal)
-        self._auto_save_learnings()
+        self._schedule_background_learning(combined, goal)
         return combined
 
     async def _paradigm_refinement(self, goal: str, **kwargs) -> EpisodeResult:
@@ -2307,8 +2515,7 @@ class SwarmManager:
                     current_draft = str(ref_result.output)[:3000]
 
         combined = self._aggregate_results(all_results, goal)
-        self._post_episode_learning(combined, goal)
-        self._auto_save_learnings()
+        self._schedule_background_learning(combined, goal)
         return combined
 
     def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
@@ -2464,6 +2671,56 @@ class SwarmManager:
                     self.learning.record_paradigm_result(paradigm, result.success)
                 except Exception:
                     pass
+
+    def _schedule_background_learning(self, result: EpisodeResult, goal: str):
+        """
+        Fire-and-forget: run post-episode learning + auto-save in a background task.
+        
+        Users get their result immediately. Learning/saving happens concurrently.
+        If the event loop shuts down before completion, learnings are best-effort
+        (next successful run will re-save).
+        """
+        import asyncio
+
+        async def _background():
+            try:
+                self._post_episode_learning(result, goal)
+            except Exception as e:
+                logger.warning(f"Background post-episode learning failed: {e}")
+            try:
+                self._auto_save_learnings()
+            except Exception as e:
+                logger.warning(f"Background auto-save failed: {e}")
+
+        try:
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(_background())
+            # Track background tasks so shutdown() can await them
+            if not hasattr(self, '_background_tasks'):
+                self._background_tasks = set()
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+        except RuntimeError:
+            # No running event loop — fall back to synchronous
+            self._post_episode_learning(result, goal)
+            self._auto_save_learnings()
+
+    async def _drain_background_tasks(self, timeout: float = 10.0):
+        """Await all pending background learning tasks (with timeout)."""
+        import asyncio
+        tasks = getattr(self, '_background_tasks', set())
+        if tasks:
+            pending = [t for t in tasks if not t.done()]
+            if pending:
+                logger.info(f"⏳ Waiting for {len(pending)} background learning task(s)...")
+                done, still_pending = await asyncio.wait(pending, timeout=timeout)
+                if still_pending:
+                    logger.warning(
+                        f"⚠️  {len(still_pending)} background task(s) didn't finish in {timeout}s, "
+                        f"cancelling (learnings will be saved next run)"
+                    )
+                    for t in still_pending:
+                        t.cancel()
 
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
         """Delegate to SwarmLearningPipeline."""

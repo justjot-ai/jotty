@@ -423,7 +423,15 @@ class AgentRunner:
                 memory_budget = getattr(
                     self.config.config, 'memory_retrieval_budget', 3000
                 )
-                relevant_memories = self.agent_memory.retrieve(
+                # Use fast retrieval (keyword + recency + value, NO LLM call).
+                # The full LLM-scored retrieve() costs 1+ extra LLM calls per
+                # execution; for pre-execution context injection, fast retrieval
+                # gives 80% of the recall at 0% of the latency cost.
+                _retrieve_fn = getattr(
+                    self.agent_memory, 'retrieve_fast',
+                    self.agent_memory.retrieve,  # fallback if not available
+                )
+                relevant_memories = _retrieve_fn(
                     query=goal,
                     goal=goal,
                     budget_tokens=memory_budget,

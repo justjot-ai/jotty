@@ -18,50 +18,50 @@ def should_auto_ensemble(goal: str) -> Tuple[bool, int]:
     """
     Determine if ensemble should be auto-enabled and with how many perspectives.
 
-    Optima-inspired adaptive sizing (Chen et al., 2024):
-    - Simple comparison: 2 perspectives (fast, saves ~80s)
-    - Complex analysis/decision: 4 perspectives (thorough)
-    - Creation tasks: 0 (no ensemble)
+    CONSERVATIVE: Only triggers for EXPLICIT debate/brainstorm/comparison tasks.
+    Most tasks should NOT use ensemble — it burns 5-6 LLM calls and is slow
+    and expensive, especially on rate-limited free providers.
+
+    Ensemble is for:
+    - Explicit "debate", "brainstorm", "devil's advocate" requests
+    - Explicit "pros and cons" / "advantages and disadvantages" analysis
+    - Multi-option decision-making ("should I X vs Y")
+
+    Ensemble is NOT for:
+    - Simple questions, lookups, summaries
+    - Creation/generation tasks
+    - Single-option evaluations ("evaluate X")
+    - Research tasks
 
     Returns:
         (should_ensemble, max_perspectives) tuple
     """
     goal_lower = goal.lower()
 
-    # EXCLUSION: Don't auto-ensemble for creation/generation tasks
-    creation_keywords = [
-        'create ', 'generate ', 'write ', 'build ', 'make ',
-        'checklist', 'template', 'document', 'report',
-        'draft ', 'prepare ', 'compile ',
+    # Only trigger for EXPLICIT multi-perspective requests
+    # These are phrases where the user is clearly asking for multiple viewpoints
+    explicit_debate_keywords = [
+        'debate ', 'brainstorm',
+        'devil\'s advocate', 'devils advocate',
+        'multiple perspectives', 'multi-perspective',
+        'pros and cons of', 'advantages and disadvantages of',
     ]
-    for keyword in creation_keywords:
-        if keyword in goal_lower:
-            logger.debug(f"Auto-ensemble SKIPPED for creation task: {keyword}")
-            return False, 0
 
-    # Complex decision indicators → 4 perspectives (thorough)
-    complex_keywords = [
-        'should i ', 'should we ',
-        'which is better', 'what is best',
+    # Explicit comparison between two named alternatives
+    explicit_comparison_keywords = [
+        ' vs ', ' versus ',
         'choose between', 'decide between',
-        'evaluate ', 'assess ', 'recommend',
     ]
 
-    # Simple comparison indicators → 2 perspectives (fast)
-    simple_comparison_keywords = [
-        ' vs ', ' versus ', 'compare ',
-        'difference between', 'differences between',
-        'pros and cons', 'advantages and disadvantages',
-    ]
-
-    for keyword in complex_keywords:
+    for keyword in explicit_debate_keywords:
         if keyword in goal_lower:
-            logger.debug(f"Auto-ensemble: 4 perspectives (complex decision: {keyword})")
+            logger.debug(f"Auto-ensemble: 4 perspectives (explicit debate: {keyword})")
             return True, 4
 
-    for keyword in simple_comparison_keywords:
+    for keyword in explicit_comparison_keywords:
         if keyword in goal_lower:
-            logger.debug(f"Auto-ensemble: 2 perspectives (simple comparison: {keyword})")
+            logger.debug(f"Auto-ensemble: 2 perspectives (explicit comparison: {keyword})")
             return True, 2
 
+    # Everything else: NO ensemble
     return False, 0

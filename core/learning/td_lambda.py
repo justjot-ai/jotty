@@ -1,7 +1,9 @@
 """
-TD(Lambda) Learner and HRPO-style Grouped Value Baseline.
+TD(λ) Learner and Grouped Value Baseline.
 
-Core temporal-difference learning algorithms.
+Core temporal-difference learning:
+- TDLambdaLearner: Episode-based TD(λ) with eligibility traces + single-step TD(0)
+- GroupedValueBaseline: Task-type grouped baselines for variance reduction
 """
 
 import math
@@ -318,40 +320,72 @@ class TDLambdaLearner:
     
     def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any]):
         """
-        Simple update method for compatibility with agent runners.
-        
-        This is a simplified interface for single-step updates.
-        For proper TD(λ) learning, use start_episode/record_access/end_episode.
-        
+        Single-step TD(0) update for compatibility with agent runners.
+
+        Performs a real value update using a state key derived from the goal
+        and action. This is simpler than the full episode-based TD(λ) path
+        but actually learns — the grouped baseline and state values are updated.
+
+        For multi-step episodes with eligibility traces, use
+        start_episode/record_access/end_episode instead.
+
         Args:
-            state: Current state dict (e.g., {'goal': '...'})
-            action: Action taken (e.g., {'output': '...'})
-            reward: Reward received (typically 0.0 or 1.0)
-            next_state: Next state dict (e.g., {'goal': '...', 'completed': True})
-        
-        Note: This method does a simple update without full TD(λ) traces.
-        For episode-based learning, use the proper episode methods.
+            state: Current state dict (must contain 'goal')
+            action: Action taken (e.g., {'output': '...', 'type': '...'})
+            reward: Reward received (0.0 = failure, 1.0 = success)
+            next_state: Next state dict (e.g., {'completed': True})
         """
-        # Extract goal from state
         goal = state.get('goal', 'general')
-        
-        # If this is a new episode (goal changed), start it
+
+        # Start new episode if goal changed
         if goal != self.current_goal:
             self.start_episode(goal)
-        
-        # For simple updates, we'll just record that learning happened
-        # Full TD(λ) updates should use end_episode() with memories
-        # This is a compatibility method - actual learning happens in end_episode()
-        
-        # Store reward for potential use in end_episode
-        if reward > 0:
+
+        # Derive a state key from goal + action type (KISS: no hashing, just concat)
+        action_type = action.get('type', action.get('action', 'default'))
+        state_key = f"{self.current_task_type}:{action_type}"
+
+        # Get adapted learning rate
+        alpha = self.adaptive_lr.get_adapted_alpha() if self.adaptive_lr else self.alpha
+
+        # Get current value estimate for this state-goal pair
+        old_value = self.grouped_baseline.group_baselines.get(state_key, 0.5)
+
+        # TD(0) update: V(s) ← V(s) + α(R - V(s))
+        # At terminal step (next_state.completed), V(s') = 0 so δ = R - V(s)
+        is_terminal = next_state.get('completed', False)
+        if is_terminal:
+            td_error = reward - old_value
+        else:
+            # Non-terminal: δ = R + γV(s') - V(s), but we don't know V(s')
+            # so use the group baseline as a proxy for V(s')
+            next_value = self.grouped_baseline.get_baseline(self.current_task_type)
+            td_error = reward + self.gamma * next_value - old_value
+
+        new_value = old_value + alpha * td_error
+        new_value = max(0.0, min(1.0, new_value))
+
+        # Update the state-level baseline
+        self.grouped_baseline.group_baselines[state_key] = new_value
+        self.grouped_baseline.group_counts[state_key] = (
+            self.grouped_baseline.group_counts.get(state_key, 0) + 1
+        )
+
+        # Also update task-type group baseline (for transfer to related states)
+        self.grouped_baseline.update_group(self.current_task_type, reward, self.current_domain)
+
+        # Record intermediate reward for episode-level aggregation
+        if reward != 0:
             self.intermediate_calc.step_rewards.append(reward)
-        
-        # Log that update was called (for debugging)
-        logger.debug(f"TDLambdaLearner.update called: goal={goal}, reward={reward}")
-        
-        # Note: Actual value updates require memories and should use end_episode()
-        # This method exists for compatibility but doesn't perform full TD(λ) updates
+
+        # Adaptive learning rate feedback
+        if self.adaptive_lr:
+            self.adaptive_lr.record_td_error(td_error)
+
+        logger.debug(
+            f"TD(0) update: state={state_key}, V: {old_value:.3f}→{new_value:.3f}, "
+            f"δ={td_error:.3f}, α={alpha:.4f}"
+        )
     
     def record_access(self, memory: MemoryEntry, step_reward: float = 0.0) -> float:
         """

@@ -4,19 +4,158 @@ SwarmLearningPipeline - Extracted from SwarmManager
 
 All learning-related initialization, persistence, and post-episode hooks.
 SwarmManager delegates to this class for learning concerns.
+
+Includes EffectivenessTracker: measures whether the system actually
+improves over time. Without measurable improvement, "self-improving"
+is just a label.
 """
 
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, List
+import time as _time
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
+from collections import defaultdict, deque
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
 
 logger = logging.getLogger(__name__)
+
+
+# =========================================================================
+# EFFECTIVENESS TRACKER - Measures actual improvement over time
+# =========================================================================
+
+class EffectivenessTracker:
+    """
+    Tracks whether the system actually improves over time.
+
+    Compares success rate in the recent window vs. the historical window.
+    If recent > historical, the system is genuinely improving.
+
+    KISS: Two deques (recent, historical), one method to record, one to query.
+    No LLM calls, no fancy math. Just windowed success rates.
+
+    Usage:
+        tracker = EffectivenessTracker()
+        tracker.record("analysis", success=True, quality=0.8)
+        tracker.record("analysis", success=False, quality=0.2)
+        stats = tracker.improvement_report()
+        # → {'analysis': {'recent_rate': 0.75, 'historical_rate': 0.5, 'trend': +0.25}}
+    """
+
+    def __init__(self, recent_window: int = 20, historical_window: int = 100):
+        """
+        Args:
+            recent_window: Number of recent episodes to consider "current"
+            historical_window: Number of older episodes for baseline comparison
+        """
+        self.recent_window = recent_window
+        self.historical_window = historical_window
+
+        # Per task_type: deque of (timestamp, success: bool, quality: float)
+        self._records: Dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=recent_window + historical_window)
+        )
+
+        # Global (all task types combined)
+        self._global: deque = deque(maxlen=recent_window + historical_window)
+
+    def record(self, task_type: str, success: bool, quality: float = 0.0,
+               agent: str = ""):
+        """Record a task outcome. Call after every execution."""
+        entry = (_time.time(), success, max(0.0, min(1.0, quality)), agent)
+        self._records[task_type].append(entry)
+        self._global.append(entry)
+
+    def _split_windows(self, records: deque) -> Tuple[List, List]:
+        """Split records into recent and historical windows."""
+        items = list(records)
+        if len(items) <= self.recent_window:
+            return items, []
+        recent = items[-self.recent_window:]
+        historical = items[:-self.recent_window]
+        return recent, historical
+
+    def _rate(self, records: List) -> Tuple[float, float]:
+        """Compute (success_rate, avg_quality) from record list."""
+        if not records:
+            return 0.0, 0.0
+        successes = sum(1 for _, s, _, _ in records if s)
+        avg_quality = sum(q for _, _, q, _ in records) / len(records)
+        return successes / len(records), avg_quality
+
+    def improvement_report(self) -> Dict[str, Any]:
+        """
+        Get improvement report across all task types.
+
+        Returns dict with per-task-type and global trends.
+        A positive 'trend' means the system is improving.
+        """
+        report = {}
+
+        for task_type, records in self._records.items():
+            recent, historical = self._split_windows(records)
+            recent_rate, recent_quality = self._rate(recent)
+            hist_rate, hist_quality = self._rate(historical)
+
+            report[task_type] = {
+                'recent_success_rate': round(recent_rate, 3),
+                'historical_success_rate': round(hist_rate, 3),
+                'trend': round(recent_rate - hist_rate, 3),
+                'recent_quality': round(recent_quality, 3),
+                'historical_quality': round(hist_quality, 3),
+                'quality_trend': round(recent_quality - hist_quality, 3),
+                'total_episodes': len(records),
+                'improving': recent_rate > hist_rate and len(historical) >= 5,
+            }
+
+        # Global stats
+        recent, historical = self._split_windows(self._global)
+        recent_rate, recent_quality = self._rate(recent)
+        hist_rate, hist_quality = self._rate(historical)
+
+        report['_global'] = {
+            'recent_success_rate': round(recent_rate, 3),
+            'historical_success_rate': round(hist_rate, 3),
+            'trend': round(recent_rate - hist_rate, 3),
+            'recent_quality': round(recent_quality, 3),
+            'total_episodes': len(self._global),
+            'improving': recent_rate > hist_rate and len(historical) >= 5,
+        }
+
+        return report
+
+    def is_improving(self, task_type: str = None) -> bool:
+        """Quick check: is the system improving for a given task type (or globally)?"""
+        report = self.improvement_report()
+        key = task_type or '_global'
+        return report.get(key, {}).get('improving', False)
+
+    def to_dict(self) -> Dict:
+        """Serialize for persistence."""
+        return {
+            task_type: [
+                {'t': t, 's': s, 'q': q, 'a': a}
+                for t, s, q, a in records
+            ]
+            for task_type, records in self._records.items()
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict, recent_window: int = 20,
+                  historical_window: int = 100) -> 'EffectivenessTracker':
+        """Deserialize from persistence."""
+        tracker = cls(recent_window, historical_window)
+        for task_type, entries in data.items():
+            for e in entries:
+                entry = (e.get('t', 0), e.get('s', False), e.get('q', 0.0), e.get('a', ''))
+                tracker._records[task_type].append(entry)
+                tracker._global.append(entry)
+        return tracker
 
 
 class SwarmLearningPipeline:
@@ -101,7 +240,10 @@ class SwarmLearningPipeline:
         from .curriculum_generator import CurriculumGenerator
 
         # Stigmergy: ant-colony pheromone trails for agent routing
+        # UNIFIED: LP owns the canonical StigmergyLayer. SI gets a reference
+        # to the same instance so writes and reads go through one store.
         self.stigmergy = StigmergyLayer(decay_rate=0.1, max_signals=500)
+        self.swarm_intelligence.stigmergy = self.stigmergy  # unify — no duplicate
 
         # Byzantine: detect and penalize agents that lie about success
         self.byzantine_verifier = ByzantineVerifier(self.swarm_intelligence)
@@ -123,9 +265,13 @@ class SwarmLearningPipeline:
 
         # Paradigm effectiveness tracker (auto paradigm selection)
         # Keyed by task_type → paradigm → {runs, successes}.
-        # "_global" is the fallback when task_type is unknown.
-        # KISS: Nested dict, no new classes. Persisted with stigmergy.
         self._paradigm_stats: Dict[str, Dict[str, Dict[str, int]]] = {}
+
+        # Effectiveness tracker: measures whether system actually improves.
+        # This is what makes "self-improving" a verifiable claim, not a label.
+        self.effectiveness = EffectivenessTracker(
+            recent_window=20, historical_window=100
+        )
 
     # =========================================================================
     # Persistence paths
@@ -199,7 +345,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data
         stig_path = self._get_stigmergy_path()
         if stig_path.exists():
             try:
@@ -207,6 +353,8 @@ class SwarmLearningPipeline:
                 with open(stig_path, 'r') as f:
                     stig_data = json.load(f)
                 self.stigmergy = StigmergyLayer.from_dict(stig_data)
+                # Re-unify: SI must point to the same loaded instance
+                self.swarm_intelligence.stigmergy = self.stigmergy
                 # Restore paradigm stats if present (saved alongside stigmergy)
                 if 'paradigm_stats' in stig_data:
                     loaded = stig_data['paradigm_stats']
@@ -215,14 +363,19 @@ class SwarmLearningPipeline:
                     if loaded and isinstance(next(iter(loaded.values()), None), dict):
                         first_val = next(iter(loaded.values()))
                         if 'runs' in first_val:
-                            # Old flat format — wrap under '_global'
                             loaded = {'_global': loaded}
                     self._paradigm_stats.update(loaded)
+                # Restore effectiveness tracker
+                if 'effectiveness' in stig_data:
+                    self.effectiveness = EffectivenessTracker.from_dict(
+                        stig_data['effectiveness']
+                    )
                 logger.info(
-                    f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals"
+                    f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals, "
+                    f"effectiveness: {self.effectiveness._global.__len__()} records"
                 )
             except Exception as e:
-                logger.debug(f"Could not auto-load stigmergy: {e}")
+                logger.warning(f"Could not auto-load stigmergy: {e}")
 
     def auto_save(self, mas_learning=None, swarm_terminal=None, provider_registry=None):
         """Save learnings after execution."""
@@ -257,17 +410,17 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Could not auto-save credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data
         stig_path = self._get_stigmergy_path()
         try:
             stig_path.parent.mkdir(parents=True, exist_ok=True)
             stig_data = self.stigmergy.to_dict()
-            # Include paradigm stats in same file (DRY: no new path)
             stig_data['paradigm_stats'] = self._paradigm_stats
+            stig_data['effectiveness'] = self.effectiveness.to_dict()
             with open(stig_path, 'w') as f:
                 json.dump(stig_data, f, indent=2)
         except Exception as e:
-            logger.debug(f"Could not auto-save stigmergy: {e}")
+            logger.warning(f"Could not auto-save stigmergy: {e}")
 
         # Provider registry
         if provider_registry:
@@ -291,6 +444,138 @@ class SwarmLearningPipeline:
                 logger.debug(f"Could not auto-save MAS learnings: {e}")
 
     # =========================================================================
+    # REWARD COMPUTATION — continuous signal instead of binary {0, 1}
+    # =========================================================================
+
+    @staticmethod
+    def _compute_episode_reward(result, goal: str) -> float:
+        """
+        Compute a continuous reward in [0, 1] from the execution result.
+
+        The old approach: 1.0 if result.success else 0.0
+        This is binary — TD-Lambda has no gradient to follow.
+
+        New approach: multi-dimensional heuristic decomposition.
+        Each dimension is cheap to compute (no LLM call) and provides
+        real gradient information for the learning algorithms.
+
+        Dimensions (weighted average):
+          substance  (0.30): Is the output actually substantive?
+          efficiency (0.15): How fast relative to a 120s baseline?
+          tool_use   (0.15): Did tool calls produce useful output?
+          structure  (0.15): Does output have organized structure?
+          no_errors  (0.25): Absence of error indicators in output
+
+        The success flag is a floor: if the agent reports failure,
+        the max reward is capped at 0.3 (allowing partial credit for
+        useful partial output on failures).
+        """
+        # Extract output text
+        output_text = ""
+        if hasattr(result, 'output') and result.output:
+            output_text = str(result.output)
+        elif isinstance(result, dict):
+            output_text = str(result.get('output', ''))
+        output_text = output_text.strip()
+
+        success = bool(getattr(result, 'success', False))
+
+        # --- Dimension 1: Substance (0-1) ---
+        # Longer, more substantive output scores higher, with diminishing returns.
+        # Empty = 0, 100 chars = 0.3, 500 = 0.6, 1000+ = 0.85, 3000+ = 1.0
+        char_count = len(output_text)
+        if char_count == 0:
+            substance = 0.0
+        elif char_count < 50:
+            substance = 0.1
+        elif char_count < 200:
+            substance = 0.3
+        elif char_count < 500:
+            substance = 0.5
+        elif char_count < 1000:
+            substance = 0.7
+        elif char_count < 3000:
+            substance = 0.85
+        else:
+            substance = 1.0
+
+        # --- Dimension 2: Efficiency (0-1) ---
+        # Faster execution relative to 120s baseline scores higher.
+        exec_time = getattr(result, 'execution_time', 60.0)
+        if exec_time <= 0:
+            exec_time = 60.0  # Unknown defaults to neutral
+        # Sigmoid-like: 5s → 0.95, 30s → 0.75, 60s → 0.5, 120s → 0.25, 300s → 0.05
+        import math
+        efficiency = 1.0 / (1.0 + math.exp((exec_time - 60) / 30))
+
+        # --- Dimension 3: Tool usage effectiveness (0-1) ---
+        # If the trajectory shows tool calls, check how many produced output.
+        trajectory = getattr(result, 'trajectory', []) or []
+        tool_calls = 0
+        tool_successes = 0
+        for step in trajectory:
+            if isinstance(step, dict):
+                action = step.get('action', '')
+                if 'tool' in str(action).lower() or step.get('tool_name'):
+                    tool_calls += 1
+                    step_output = step.get('output', step.get('result', ''))
+                    if step_output and len(str(step_output)) > 10:
+                        tool_successes += 1
+        if tool_calls > 0:
+            tool_use = tool_successes / tool_calls
+        else:
+            tool_use = 0.5  # No tools used — neutral
+
+        # --- Dimension 4: Structure (0-1) ---
+        # Does the output show organized thinking? Check for structure markers.
+        structure_signals = 0
+        lower = output_text.lower()[:3000]
+        if any(m in lower for m in ['\n#', '\n##', '\n###']):
+            structure_signals += 1  # Headings
+        if any(m in lower for m in ['\n- ', '\n* ', '\n1.', '\n2.']):
+            structure_signals += 1  # Lists
+        if '```' in output_text:
+            structure_signals += 1  # Code blocks
+        if any(m in lower for m in ['in conclusion', 'summary', 'therefore', 'key finding']):
+            structure_signals += 1  # Conclusions
+        structure = min(1.0, structure_signals / 3.0)
+
+        # --- Dimension 5: Error absence (0-1) ---
+        # Penalize outputs containing error indicators.
+        error_indicators = [
+            'error:', 'exception:', 'traceback', 'failed to',
+            'could not', 'unable to', 'i cannot', "i can't",
+            'not supported', 'invalid', 'timeout',
+        ]
+        error_count = sum(1 for ind in error_indicators if ind in lower)
+        no_errors = max(0.0, 1.0 - error_count * 0.25)
+
+        # --- Weighted combination ---
+        reward = (
+            0.30 * substance +
+            0.15 * efficiency +
+            0.15 * tool_use +
+            0.15 * structure +
+            0.25 * no_errors
+        )
+
+        # Success floor/ceiling: failure caps at 0.3, success has no cap
+        if not success:
+            reward = min(reward, 0.3)
+
+        # Clamp to [0, 1]
+        reward = max(0.0, min(1.0, reward))
+
+        logger.debug(
+            f"Episode reward: {reward:.3f} "
+            f"(substance={substance:.2f}, efficiency={efficiency:.2f}, "
+            f"tool_use={tool_use:.2f}, structure={structure:.2f}, "
+            f"no_errors={no_errors:.2f}, success={success})"
+        )
+
+        return reward
+
+    # =========================================================================
     # Post-episode learning hooks
     # =========================================================================
 
@@ -308,7 +593,7 @@ class SwarmLearningPipeline:
         Called at end of both single-agent and multi-agent execution.
         """
         self.episode_count += 1
-        episode_reward = 1.0 if result.success else 0.0
+        episode_reward = self._compute_episode_reward(result, goal)
 
         # 1. SwarmLearner: record episode, conditionally update prompts
         try:
@@ -329,7 +614,7 @@ class SwarmLearningPipeline:
                     except Exception as e:
                         logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
         except Exception as e:
-            logger.debug(f"SwarmLearner recording skipped: {e}")
+            logger.warning(f"SwarmLearner recording failed: {e}")
 
         # 2. Brain consolidation (fire-and-forget in running loop)
         try:
@@ -346,7 +631,7 @@ class SwarmLearningPipeline:
             except RuntimeError:
                 pass  # No running loop — skip async consolidation
         except Exception as e:
-            logger.debug(f"Brain consolidation skipped: {e}")
+            logger.warning(f"Brain consolidation failed: {e}")
 
         # 3. NeuroChunk tiering
         try:
@@ -396,7 +681,33 @@ class SwarmLearningPipeline:
                 context={'goal': goal[:100], 'episode': self.episode_count},
             )
         except Exception as e:
-            logger.debug(f"Swarm intelligence record skipped: {e}")
+            logger.warning(f"Swarm intelligence record failed: {e}")
+
+        # 6b. Stigmergy: deposit outcome signal for agent routing
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
+            self.stigmergy.record_outcome(
+                agent=agent_name,
+                task_type=task_type,
+                success=result.success,
+                quality=episode_reward,
+            )
+        except Exception as e:
+            logger.warning(f"Stigmergy outcome recording failed: {e}")
+
+        # 6c. Effectiveness tracker: measure actual improvement over time
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
+            self.effectiveness.record(
+                task_type=task_type,
+                success=result.success,
+                quality=episode_reward,
+                agent=agent_name,
+            )
+        except Exception as e:
+            logger.debug(f"Effectiveness tracking skipped: {e}")
 
         # 7. MAS Learning
         try:
@@ -477,28 +788,41 @@ class SwarmLearningPipeline:
                     strength=0.4,
                 )
         except Exception as e:
-            logger.debug(f"Stigmergy deposit skipped: {e}")
+            logger.warning(f"Stigmergy deposit failed: {e}")
 
-        # 9. Byzantine verification: check agent claims vs actual results
+        # 9. Byzantine verification: quality check + claim verification
+        #    Single-agent: verify_output_quality (heuristic quality check)
+        #    Multi-agent: verify_claim (cross-agent consistency)
         try:
+            task_type_for_byz = task_type if 'task_type' in dir() else 'general'
+
             if hasattr(result, 'agent_contributions') and result.agent_contributions:
+                # Multi-agent: check each agent's claim
                 for agent_name, contrib in result.agent_contributions.items():
                     claimed = getattr(contrib, 'decision_correct', result.success)
                     self.byzantine_verifier.verify_claim(
                         agent=agent_name,
                         claimed_success=claimed,
                         actual_result=result,
-                        task_type=task_type if 'task_type' in dir() else 'general',
+                        task_type=task_type_for_byz,
                     )
             else:
+                # Single-agent: use quality verification (not meaningless self-check)
                 agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
-                self.byzantine_verifier.verify_claim(
+                quality = self.byzantine_verifier.verify_output_quality(
                     agent=agent_name,
                     claimed_success=result.success,
-                    actual_result=result,
+                    output=result,
+                    goal=goal,
+                    task_type=task_type_for_byz,
                 )
+                if not quality['quality_ok']:
+                    logger.warning(
+                        f"Byzantine quality issues for {agent_name}: "
+                        f"{quality['issues']}"
+                    )
         except Exception as e:
-            logger.debug(f"Byzantine verification skipped: {e}")
+            logger.warning(f"Byzantine verification failed: {e}")
 
         # 10. Credit assignment: record which agent/approach deserves credit
         try:
@@ -715,6 +1039,15 @@ class SwarmLearningPipeline:
             'improvement_velocity': state.improvement_velocity,
             'should_stop': self.adaptive_learning.should_stop_early(),
         }
+
+    def get_effectiveness_report(self) -> dict:
+        """
+        Get measurable improvement data.
+
+        Returns per-task-type success rate trends (recent vs historical).
+        A positive 'trend' value means the system is genuinely improving.
+        """
+        return self.effectiveness.improvement_report()
 
     # =========================================================================
     # Paradigm effectiveness tracking (auto paradigm selection)

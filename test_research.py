@@ -1,0 +1,1 @@
+{"task": "Research the latest AI agent frameworks in 2025, compare their architectures, and summarize the top 3 with pros and cons", "filename": "test_research.py"}

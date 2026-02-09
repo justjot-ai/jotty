@@ -1,22 +1,20 @@
 """
-World-Class Swarm Intelligence Module
-=====================================
+Swarm Intelligence Module
+==========================
 
-Implements advanced swarm intelligence patterns:
+Multi-agent coordination with learning and specialization.
 
-1. EMERGENT SPECIALIZATION: Agents naturally specialize based on performance
-2. SWARM CONSENSUS: Agents vote on decisions for better outcomes
-3. ONLINE ADAPTATION: Learn during execution, not just after
-4. COLLECTIVE MEMORY: Shared experiences across all agents
-5. DYNAMIC ROUTING: Route tasks to best-fit agents automatically
-6. SESSION ISOLATION: Per-context isolated agent sessions (moltbot pattern)
-7. AGENT-TO-AGENT MESSAGING: Direct inter-agent communication tools
-8. SELF-CURRICULUM: DrZero-inspired self-generated training tasks
-9. MORPHAGENT SCORES: RCS/RDS/TRAS for profile optimization (NEW)
+Capabilities:
+1. Emergent specialization: agents specialize based on performance history
+2. Consensus voting: trust-weighted decisions across agents
+3. Online adaptation: learn during execution, not just after
+4. Collective memory: shared experience buffer across agents
+5. Dynamic routing: route tasks to best-fit agents via stigmergy + trust
+6. Session isolation: per-context isolated agent sessions
+7. Self-curriculum: generate training tasks targeting agent weaknesses
+8. MorphAgent scoring: RCS/RDS/TRAS alignment metrics
 
-Inspired by: biological swarms, moltbot architecture, multi-agent RL, DrZero, MorphAgent
-
-Architecture: Classes are extracted into sub-modules for maintainability.
+Architecture: Sub-modules are extracted for maintainability.
 All classes are re-exported here for backward compatibility.
 """
 
@@ -83,9 +81,8 @@ from ._morph_mixin import MorphMixin
 
 class SwarmIntelligence:
     """
-    World-class swarm intelligence coordinator.
+    Swarm intelligence coordinator using composition.
 
-    Architecture: Uses composition instead of mixin inheritance.
     Each concern is a delegate object whose methods are accessible
     via __getattr__ forwarding for backward compatibility.
 
@@ -95,8 +92,8 @@ class SwarmIntelligence:
     - _resilience: failure recovery, backpressure
     - _lifecycle: agent lifecycle management
     - _consensus: swarm consensus voting
-    - _session: session management (moltbot pattern)
-    - _morph: MorphAgent scoring integration
+    - _session: session management
+    - _morph: MorphAgent scoring
 
     Features:
     - Emergent specialization
@@ -177,62 +174,94 @@ class SwarmIntelligence:
         self._td_learner = None
 
         # =================================================================
-        # ARXIV SWARM ENHANCEMENTS
+        # EXPERIMENTAL COORDINATION PROTOCOLS
+        # =================================================================
+        # Status: DATA STRUCTURES ONLY — not wired into SwarmManager.run().
+        #
+        # These implement patterns from arXiv swarm papers but are NOT
+        # called from the main execution path. They exist for future use
+        # or direct API access. Do not assume they affect task execution.
+        #
+        # Wired:   handoff (relay paradigm), coalition (fanout paradigm)
+        # Unwired: auctions, gossip, supervisor_tree
         # =================================================================
 
         # Handoff management (SwarmAgentic pattern)
+        # WIRED: Used by _paradigm_relay in SwarmManager._execute_multi_agent
         self.pending_handoffs: Dict[str, HandoffContext] = {}
         self.handoff_history: deque = deque(maxlen=200)
 
         # Coalition management (SwarmAgentic pattern)
+        # WIRED: Used by fanout paradigm in SwarmManager._execute_multi_agent
         self.coalitions: Dict[str, Coalition] = {}
         self.agent_coalitions: Dict[str, str] = {}  # agent -> coalition_id
 
         # Auction management (SwarmSys contract-net)
+        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
         self.active_auctions: Dict[str, List[AuctionBid]] = {}  # task_id -> bids
 
         # Gossip protocol (SwarmSys O(log n) dissemination)
+        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
         self.gossip_inbox: Dict[str, List[GossipMessage]] = {}  # agent -> messages
         self.gossip_seen: Dict[str, bool] = {}  # message_id -> seen globally
 
         # Hierarchical supervisor tree (SwarmSys O(log n) coordination)
+        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
         self.supervisor_tree: Dict[str, SupervisorNode] = {}
         self._tree_built = False
 
         # ================================================================
-        # COMPOSED DELEGATES (replaces mixin inheritance)
-        # Each delegate gets a reference to self so it can access shared state.
-        # Methods are accessible via __getattr__ for backward compatibility.
+        # PROTOCOL METHODS (via composition)
+        #
+        # Methods from these mixin classes are accessible on SwarmIntelligence
+        # via __getattr__ forwarding. All methods receive `self` (the SI
+        # instance) as their first argument, so they access SI's shared state
+        # directly. This is effectively multiple inheritance with explicit
+        # dispatch — chosen to keep the class declaration flat.
+        #
+        # Wired into execution:
+        #   CoordinationMixin: initiate_handoff, form_coalition
+        #   RoutingMixin:      smart_route, get_best_agent_for_task
+        #   ConsensusMixin:    swarm_consensus
+        #   SessionMixin:      get_or_create_session
+        #   MorphMixin:        compute_morph_scores, get_morph_report
+        #
+        # Infrastructure only (not called from SwarmManager.run):
+        #   ResilienceMixin:   handle_agent_failure, apply_backpressure
+        #   LifecycleMixin:    agent_lifecycle management
         # ================================================================
-        self._delegates = []
-        for MixinClass in (CoordinationMixin, RoutingMixin, ResilienceMixin,
-                           LifecycleMixin, ConsensusMixin, SessionMixin, MorphMixin):
-            delegate = MixinClass.__new__(MixinClass)
-            # Point delegate's __dict__ lookups to self for shared state
-            delegate.__dict__['_host'] = self
-            self._delegates.append(delegate)
+        self._delegate_classes = (
+            CoordinationMixin, RoutingMixin, ResilienceMixin,
+            LifecycleMixin, ConsensusMixin, SessionMixin, MorphMixin,
+        )
+        # Build a flat method lookup table (name → unbound method)
+        # for O(1) dispatch instead of O(n) delegate iteration.
+        self._method_table: Dict[str, Any] = {}
+        for MixinClass in self._delegate_classes:
+            for attr_name in dir(MixinClass):
+                if attr_name.startswith('_'):
+                    continue
+                method = getattr(MixinClass, attr_name, None)
+                if callable(method) and attr_name not in self._method_table:
+                    self._method_table[attr_name] = method
 
         logger.info("SwarmIntelligence initialized (DrZero + MorphAgent + arXiv Swarm patterns)")
 
     def __getattr__(self, name: str):
-        """Forward attribute lookups to composed delegates for backward compatibility.
+        """Forward attribute lookups to protocol mixin methods.
 
-        This allows code like `si.initiate_handoff(...)` to work even though
-        initiate_handoff is defined on CoordinationMixin, not SwarmIntelligence.
+        Methods are bound to self (SwarmIntelligence instance) so they
+        access shared state directly.
         """
-        # Avoid infinite recursion on _delegates itself
-        if name == '_delegates':
+        # Avoid infinite recursion
+        if name in ('_method_table', '_delegate_classes'):
             raise AttributeError(name)
-        for delegate in self._delegates:
-            # Look up in the delegate's class (not instance, since instance __dict__
-            # points to _host=self which would recurse)
-            method = getattr(type(delegate), name, None)
-            if method is not None:
-                # Bind the method to self (not delegate) so it accesses shared state
-                import types
-                if callable(method):
-                    return types.MethodType(method, self)
-                return method
+
+        table = self.__dict__.get('_method_table')
+        if table and name in table:
+            import types
+            return types.MethodType(table[name], self)
+
         raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
 
     def connect_td_learner(self, td_learner):
@@ -888,9 +917,15 @@ class SwarmIntelligence:
 
             self.collective_memory = deque(data.get('collective_memory', []), maxlen=self.collective_memory_limit)
 
-            # Load stigmergy state
+            # Load stigmergy state into the EXISTING instance (don't replace
+            # the object reference — SwarmLearningPipeline may share it).
             if 'stigmergy' in data:
-                self.stigmergy = StigmergyLayer.from_dict(data['stigmergy'])
+                loaded_stig = StigmergyLayer.from_dict(data['stigmergy'])
+                # Merge loaded signals into existing stigmergy (LP may have
+                # already loaded its own copy; avoid clobbering the reference)
+                for sig_id, sig in loaded_stig.signals.items():
+                    if sig_id not in self.stigmergy.signals:
+                        self.stigmergy.signals[sig_id] = sig
 
             # Load benchmarks
             if 'benchmarks' in data:

@@ -761,8 +761,8 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if not lm:
             return {'success': False, 'error': 'No LLM configured in DSPy'}
 
-        # Direct LLM call
-        response = lm(prompt=full_prompt)
+        # Direct LLM call (with rate-limit retry)
+        response = _call_lm_with_retry(lm, prompt=full_prompt)
 
         # Extract text from response
         if isinstance(response, list):
@@ -814,8 +814,8 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if not lm:
             return {'success': False, 'error': 'No LLM configured in DSPy'}
 
-        # Direct LLM call
-        response = lm(prompt=prompt)
+        # Direct LLM call (with rate-limit retry)
+        response = _call_lm_with_retry(lm, prompt=prompt)
 
         # Extract text from response
         if isinstance(response, list):
@@ -873,12 +873,12 @@ def claude_cli_llm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 'synthesis_style': params.get('synthesis_style', 'detailed')
             })
 
-        # Standard single LLM call
+        # Standard single LLM call (with rate-limit retry)
         lm = dspy.settings.lm
         if not lm:
             return {'success': False, 'error': 'No LLM configured in DSPy'}
 
-        response = lm(prompt=prompt)
+        response = _call_lm_with_retry(lm, prompt=prompt)
         text = response[0] if isinstance(response, list) else str(response)
 
         return {

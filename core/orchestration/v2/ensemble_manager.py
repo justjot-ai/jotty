@@ -84,27 +84,35 @@ class EnsembleManager:
             ]
             perspectives = all_perspectives[:max_perspectives]
 
-            from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
 
-            def _gen_perspective(name, prefix):
-                prompt = f"{prefix}\n\n{goal}"
-                response = lm(prompt=prompt)
-                return name, response[0] if isinstance(response, list) else str(response)
-
-            with ThreadPoolExecutor(max_workers=min(len(perspectives), 4)) as executor:
-                futures = {
-                    executor.submit(_gen_perspective, name, prefix): name
-                    for name, prefix in perspectives
-                }
-                for future in as_completed(futures):
+            def _call_with_retry(prompt, max_retries=4, base_delay=8.0):
+                """Call LM with exponential backoff on rate-limit errors."""
+                import time
+                for attempt in range(max_retries + 1):
                     try:
-                        name, text = future.result()
-                        responses[name] = text
-                        _status(f"  {name}", "done")
+                        return lm(prompt=prompt)
                     except Exception as e:
-                        name = futures[future]
-                        logger.warning(f"Perspective '{name}' failed: {e}")
+                        err_str = str(e)
+                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
+                                         'rate limit' in err_str.lower())
+                        if is_rate_limit and attempt < max_retries:
+                            delay = base_delay * (2 ** attempt)
+                            logger.info(f"Rate limited, retrying in {delay:.0f}s...")
+                            time.sleep(delay)
+                        else:
+                            raise
+
+            # Sequential execution with retry (safe for rate-limited providers)
+            for name, prefix in perspectives:
+                prompt = f"{prefix}\n\n{goal}"
+                try:
+                    response = _call_with_retry(prompt)
+                    text = response[0] if isinstance(response, list) else str(response)
+                    responses[name] = text
+                    _status(f"  {name}", "done")
+                except Exception as e:
+                    logger.warning(f"Perspective '{name}' failed: {e}")
 
             if not responses:
                 return {'success': False, 'error': 'All perspectives failed'}
@@ -122,7 +130,7 @@ class EnsembleManager:
                 "4. **Recommendation**: Balanced conclusion"
             )
 
-            synthesis = lm(prompt=synthesis_prompt)
+            synthesis = _call_with_retry(synthesis_prompt)
             final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
             return {

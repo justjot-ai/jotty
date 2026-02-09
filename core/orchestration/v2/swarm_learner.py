@@ -159,9 +159,14 @@ class SwarmLearner:
             logger.warning(f"Prompt update failed: {e}")
             return current_prompt, []
 
-    def _extract_pattern(self, trajectory: List[Dict]) -> str:
-        """Extract pattern from trajectory."""
-        steps = [step.get('step', 'unknown') for step in trajectory[:5]]
+    def _extract_pattern(self, trajectory: List) -> str:
+        """Extract pattern from trajectory (handles dicts, strings, ints, etc.)."""
+        steps = []
+        for step in trajectory[:5]:
+            if isinstance(step, dict):
+                steps.append(str(step.get('step', 'unknown')))
+            else:
+                steps.append(str(step))
         return " -> ".join(steps)
 
     def get_learned_patterns(self) -> List[Dict]:

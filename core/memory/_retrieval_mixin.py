@@ -22,7 +22,112 @@ class RetrievalMixin:
     """Mixin providing retrieval methods for HierarchicalMemory."""
 
     # =========================================================================
-    # RETRIEVAL
+    # FAST RETRIEVAL (no LLM call — keyword + recency + value only)
+    # =========================================================================
+
+    def retrieve_fast(
+        self,
+        query: str,
+        goal: str,
+        budget_tokens: int,
+        top_k: int = 10,
+        levels: List[MemoryLevel] = None,
+    ) -> List[MemoryEntry]:
+        """
+        Fast retrieval using keyword overlap + recency + value ranking.
+
+        Zero LLM calls. Designed for pre-execution intelligence reads
+        in the learning pipeline where latency matters more than recall.
+
+        Scoring formula per memory:
+          score = 0.4 * keyword_overlap + 0.3 * recency + 0.3 * value
+
+        Returns up to `top_k` memories within budget_tokens.
+        """
+        if levels is None:
+            levels = list(MemoryLevel)
+
+        all_memories: List[MemoryEntry] = []
+        for level in levels:
+            all_memories.extend(self.memories[level].values())
+        if not all_memories:
+            return []
+
+        # Build query keyword set (lowercased, split on whitespace/punct)
+        import re as _re
+        query_words: Set[str] = set(
+            w for w in _re.split(r'[\s\W]+', query.lower()) if len(w) > 2
+        )
+        if not query_words:
+            # Fallback: just take most recent memories
+            all_memories.sort(
+                key=lambda m: m.last_accessed or m.created_at or datetime.min,
+                reverse=True,
+            )
+            selected = []
+            tokens = 0
+            for m in all_memories[:top_k]:
+                if tokens + m.token_count <= budget_tokens:
+                    selected.append(m)
+                    tokens += m.token_count
+            return selected
+
+        # Score every memory cheaply
+        now = datetime.now()
+        scored = []
+        for mem in all_memories:
+            # 1. Keyword overlap (Jaccard-like)
+            content_text = (mem.content or '').lower()
+            mem_words = set(
+                w for w in _re.split(r'[\s\W]+', content_text) if len(w) > 2
+            )
+            if mem_words:
+                overlap = len(query_words & mem_words) / len(query_words)
+            else:
+                overlap = 0.0
+
+            # 2. Recency: exponential decay, half-life = 24h
+            age_hours = 24.0  # default neutral
+            ts = mem.last_accessed or mem.created_at
+            if ts:
+                try:
+                    delta = (now - ts).total_seconds() / 3600.0
+                    age_hours = max(0.01, delta)
+                except Exception:
+                    pass
+            import math
+            recency = math.exp(-0.029 * age_hours)  # half-life ~24h
+
+            # 3. Value for this goal
+            value = mem.get_value(goal) if goal else mem.default_value
+
+            # Combined score
+            score = 0.4 * overlap + 0.3 * recency + 0.3 * value
+            scored.append((mem, score))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        # Budget-aware selection
+        selected = []
+        tokens_used = 0
+        for mem, _score in scored[:top_k * 2]:
+            if tokens_used + mem.token_count <= budget_tokens:
+                selected.append(mem)
+                tokens_used += mem.token_count
+            if len(selected) >= top_k:
+                break
+
+        # Update access tracking
+        self.total_accesses += 1
+        for mem in selected:
+            mem.access_count += 1
+            mem.ucb_visits += 1
+            mem.last_accessed = now
+
+        return selected
+
+    # =========================================================================
+    # FULL RETRIEVAL (LLM-scored — high quality, expensive)
     # =========================================================================
     
     def retrieve(self,
