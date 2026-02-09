@@ -90,11 +90,17 @@ class JottyDefaults:
     ValidationGate classifier only needs ~10 tokens).
     """
 
-    LLM_PLANNING_MAX_TOKENS: int = 1024
-    """Max tokens for lightweight planning / classification LLM calls.
+    LLM_PLANNING_MAX_TOKENS: int = 4096
+    """Max tokens for planning / classification LLM calls.
 
-    Used by AgenticPlanner fast-path and ValidationGate where responses
-    are short JSON structs, not full-length content.
+    Used by AgenticPlanner for execution plan generation, task-type
+    classification, skill selection, and by ValidationGate.
+
+    Must be large enough for multi-step execution plans (JSON arrays
+    with params, descriptions, verification, fallback fields).  1024
+    truncated plans for 3+ step tasks — causing parse failures and
+    degraded fallback plans.  Classification responses are short and
+    won't consume extra tokens just because the limit is higher.
     """
 
     LLM_TIMEOUT_SECONDS: int = 120

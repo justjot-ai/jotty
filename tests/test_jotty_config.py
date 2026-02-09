@@ -733,6 +733,7 @@ def test_config_backward_compatibility():
 # TEST 27: Integration Tests
 # =============================================================================
 
+@pytest.mark.skip(reason="V1 orchestrators removed in V2 - SwarmManager is the unified entry point")
 def test_config_can_be_used_by_both_orchestrators():
     """Test that config works with both SAS and MAS."""
     from core.orchestration import SingleAgentOrchestrator, MultiAgentsOrchestrator

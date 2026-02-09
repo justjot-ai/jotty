@@ -13,7 +13,7 @@ class TestAgentConfigInitialization:
     @pytest.mark.unit
     def test_minimal_agent_config(self, mock_dspy_agent):
         """Test creating AgentConfig with minimal parameters."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="MinimalAgent",
@@ -30,7 +30,7 @@ class TestAgentConfigInitialization:
     @pytest.mark.unit
     def test_full_agent_config(self, mock_dspy_agent):
         """Test creating AgentConfig with all parameters."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="FullAgent",
@@ -64,7 +64,7 @@ class TestParameterMappings:
     @pytest.mark.unit
     def test_context_parameter_mapping(self, mock_dspy_agent):
         """Test parameter mapping from context."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="ContextAgent",
@@ -84,7 +84,7 @@ class TestParameterMappings:
     @pytest.mark.unit
     def test_agent_output_parameter_mapping(self, mock_dspy_agent):
         """Test parameter mapping from other agent outputs."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="DependentAgent",
@@ -108,7 +108,7 @@ class TestToolConfiguration:
     @pytest.mark.unit
     def test_architect_tools(self, mock_dspy_agent):
         """Test adding Architect tools."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         mock_tool1 = Mock(name="tool1")
         mock_tool2 = Mock(name="tool2")
@@ -128,7 +128,7 @@ class TestToolConfiguration:
     @pytest.mark.unit
     def test_auditor_tools(self, mock_dspy_agent):
         """Test adding Auditor tools."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         mock_tool1 = Mock(name="validation_tool")
         mock_tool2 = Mock(name="quality_check_tool")
@@ -152,7 +152,7 @@ class TestValidationControl:
     @pytest.mark.unit
     def test_disable_validation(self, mock_dspy_agent):
         """Test disabling validation."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="NoValidationAgent",
@@ -169,7 +169,7 @@ class TestValidationControl:
     @pytest.mark.unit
     def test_enable_architect_only(self, mock_dspy_agent):
         """Test enabling only Architect."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="ArchitectOnlyAgent",
@@ -186,7 +186,7 @@ class TestValidationControl:
     @pytest.mark.unit
     def test_validation_modes(self, mock_dspy_agent):
         """Test different validation modes."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         for mode in ["quick", "standard", "thorough"]:
             config = AgentConfig(
@@ -206,7 +206,7 @@ class TestDependencies:
     @pytest.mark.unit
     def test_single_dependency(self, mock_dspy_agent):
         """Test agent with single dependency."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="DependentAgent",
@@ -222,7 +222,7 @@ class TestDependencies:
     @pytest.mark.unit
     def test_multiple_dependencies(self, mock_dspy_agent):
         """Test agent with multiple dependencies."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="MultiDependentAgent",
@@ -240,7 +240,7 @@ class TestDependencies:
     @pytest.mark.unit
     def test_no_dependencies(self, mock_dspy_agent):
         """Test independent agent."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="IndependentAgent",
@@ -258,7 +258,7 @@ class TestExecutorFlag:
     @pytest.mark.unit
     def test_executor_agent(self, mock_dspy_agent):
         """Test marking agent as executor."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="ExecutorAgent",
@@ -273,7 +273,7 @@ class TestExecutorFlag:
     @pytest.mark.unit
     def test_non_executor_agent(self, mock_dspy_agent):
         """Test non-executor agent."""
-        from core.agent_config import AgentConfig
+        from Jotty.core.foundation.agent_config import AgentConfig
 
         config = AgentConfig(
             name="PlannerAgent",

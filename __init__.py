@@ -1,43 +1,19 @@
 """
-JOTTY v10.0 - SYnergistic Neural Agent Processing & Self-organizing Execution
-================================================================================
+JOTTY - Multi-Agent AI Framework
+==================================
 
-Production-Ready Multi-Agent RL Wrapper for DSPy
+V2 Architecture: SwarmManager + Skills + Learning
 
-🎯 SINGLE ENTRY POINT (A-Team Consensus 2026-01-07):
-----------------------------------------------------
-    from Jotty import Conductor, AgentConfig
-    
-    swarm = Conductor(
-        actors=[
-            AgentConfig(
-                name="my_agent", 
-                agent=my_dspy_module,  # NOTE: 'agent' field
-                architect_prompts=["plan.md"],
-                auditor_prompts=["validate.md"]
-            )
-        ],
-    )
-    result = await swarm.run("Process this")
+    from Jotty import SwarmManager, AgentConfig
 
-Key Features:
-- Works with ANY DSPy module (ChainOfThought, ReAct, Predict, custom)
-- Never runs out of context (auto-chunking + compression)
-- Cooperative reward (helps swarm cooperation)
-- 5-level hierarchical memory
-- Zero hardcoding (all decisions by LLM agents)
+    # Or use the high-level entry points:
+    from Jotty.core.agents import AutoAgent      # Workflow execution
+    from Jotty.core.agents import ChatAssistant   # Chat mode
+    from Jotty.core.api import ModeRouter         # Programmatic API
 
-JOTTY Naming Convention:
-- Conductor = Main orchestrator
-- JottyCore = Core execution engine
-- Architect = Pre-execution planner
-- Auditor = Post-execution validator
-- AgentConfig = Agent configuration (uses 'agent' field)
-- Cortex = Hierarchical memory system
-- Axon = Agent communication layer
-- Roadmap = Markovian TODO system
+See docs/JOTTY_ARCHITECTURE.md for complete documentation.
 
-See README.md for complete documentation.
+All heavy imports are lazy — ``import Jotty`` is lightweight (~50ms).
 """
 
 # =============================================================================
@@ -45,35 +21,25 @@ See README.md for complete documentation.
 # =============================================================================
 import os
 import warnings
+import importlib as _importlib
 
 # Suppress Pydantic serialization warnings from LiteLLM
-# These occur due to LiteLLM's response format not matching Pydantic's expected structure
-# Versions are synced (Pydantic 2.12.5, LiteLLM 1.80.16) but warnings may still occur
 os.environ.setdefault('PYDANTIC_WARNINGS', 'none')
 
-# Filter specific Pydantic serialization warnings
 warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.main',
+    'ignore', category=UserWarning, module='pydantic.main',
     message='.*PydanticSerializationUnexpectedValue.*'
 )
 warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.*',
+    'ignore', category=UserWarning, module='pydantic.*',
     message='.*serialized value may not be as expected.*'
 )
 warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
-    module='pydantic.*',
+    'ignore', category=UserWarning, module='pydantic.*',
     message='.*Expected.*fields but got.*'
 )
-# Catch all Pydantic serializer warnings
 warnings.filterwarnings(
-    'ignore',
-    category=UserWarning,
+    'ignore', category=UserWarning,
     message='.*Pydantic serializer warnings.*'
 )
 
@@ -81,303 +47,131 @@ __version__ = "10.0.0"
 __author__ = "Soham Acharya & Anshul Chauhan"
 
 # =============================================================================
-# 🎯 PRIMARY EXPORTS - What pipelines use
+# ALL IMPORTS ARE LAZY — resolved on first attribute access
 # =============================================================================
 
-# Main Entry Points (V2: SwarmManager)
-from .core.orchestration import SwarmManager
-from .core.orchestration.v2.swarm_roadmap import TodoItem
+_LAZY_IMPORTS: dict[str, str] = {
+    # --- PRIMARY EXPORTS ---
+    "SwarmManager": ".core.orchestration",
+    "TodoItem": ".core.orchestration.v2.swarm_roadmap",
+    "AgentConfig": ".core.foundation.agent_config",
+    "JottyConfig": ".core.foundation.data_structures",
+    "MemoryLevel": ".core.foundation.data_structures",
+    "ValidationResult": ".core.foundation.data_structures",
+    "MemoryEntry": ".core.foundation.data_structures",
+    "GoalValue": ".core.foundation.data_structures",
+    "EpisodeResult": ".core.foundation.data_structures",
+    "TaggedOutput": ".core.foundation.data_structures",
+    "OutputTag": ".core.foundation.data_structures",
+    "StoredEpisode": ".core.foundation.data_structures",
+    "LearningMetrics": ".core.foundation.data_structures",
+    "GoalHierarchy": ".core.foundation.data_structures",
+    "GoalNode": ".core.foundation.data_structures",
+    "CausalLink": ".core.foundation.data_structures",
+    "SwarmResult": ".core.data.io_manager",
 
-# Agent Configuration (THE one - uses 'agent' field)
-from .core.foundation.agent_config import AgentConfig
+    # --- TOOL MANAGEMENT ---
+    "ToolShed": ".core.metadata.tool_shed",
+    "ToolSchema": ".core.metadata.tool_shed",
+    "ToolResult": ".core.metadata.tool_shed",
+    "CapabilityIndex": ".core.metadata.tool_shed",
 
-# Jotty Configuration (THE one)
-from .core.foundation.data_structures import (
-    JottyConfig,
-    MemoryLevel,
-    ValidationResult,
-    MemoryEntry,
-    GoalValue,
-    EpisodeResult,
-    TaggedOutput,
-    OutputTag,
-    StoredEpisode,
-    LearningMetrics,
-    GoalHierarchy,
-    GoalNode,
-    CausalLink
-)
+    # --- SHAPED REWARDS ---
+    "ShapedRewardManager": ".core.learning.shaped_rewards",
+    "RewardCondition": ".core.learning.shaped_rewards",
 
-# Result type
-from .core.data.io_manager import SwarmResult
+    # --- MEMORY ---
+    "HierarchicalMemory": ".core.memory.cortex",
+    "MemoryCluster": ".core.memory.cortex",
 
-# =============================================================================
-# 🎯 CLEAN INTERFACE - For new code (wraps Conductor)
-# =============================================================================
+    # --- LEARNING ---
+    "TDLambdaLearner": ".core.learning.learning",
+    "AdaptiveLearningRate": ".core.learning.learning",
+    "ReasoningCreditAssigner": ".core.learning.learning",
 
-from .interface import (
-    Jotty,                    # Thin wrapper to Conductor
-    ValidationMode,             # NONE, ARCHITECT, AUDITOR, BOTH
-    LearningMode,               # DISABLED, CONTEXTUAL, PERSISTENT
-    CooperationMode,            # INDEPENDENT, SHARED_REWARD, NASH
-    MetadataProtocol,           # Protocol for metadata providers
-)
+    # --- CONTEXT ---
+    "GlobalContextGuard": ".core.context.global_context_guard",
+    "patch_dspy_with_guard": ".core.context.global_context_guard",
+    "unpatch_dspy": ".core.context.global_context_guard",
 
-# =============================================================================
-# SECONDARY EXPORTS (Advanced Usage)
-# =============================================================================
+    # --- UNIVERSAL WRAPPER ---
+    "JottyUniversal": ".core.integration.universal_wrapper",
+    "SmartConfig": ".core.integration.universal_wrapper",
+    "jotty_universal": ".core.integration.universal_wrapper",
 
-# Simple Brain (Recommended for quick setup)
-# NOTE: simple_brain module may not exist in all versions
-try:
-    from .core.memory.simple_brain import (
-        SimpleBrain,
-        BrainPreset,
-        calculate_chunk_size,
-        get_model_context
-    )
-except ImportError:
-    # Module not available - define placeholders or skip
-    SimpleBrain = None
-    BrainPreset = None
-    calculate_chunk_size = None
-    get_model_context = None
+    # --- STATE ---
+    "AgenticState": ".core.orchestration.v2.swarm_roadmap",
+    "TrajectoryStep": ".core.orchestration.v2.swarm_roadmap",
+    "DecomposedQFunction": ".core.orchestration.v2.swarm_roadmap",
+    "MarkovianTODO": ".core.orchestration.v2.swarm_roadmap",
+    "SubtaskState": ".core.orchestration.v2.swarm_roadmap",
+    "TaskStatus": ".core.orchestration.v2.swarm_roadmap",
 
-# Tool Management
-from .core.metadata.tool_shed import (
-    ToolShed,
-    ToolSchema,
-    ToolResult,
-    CapabilityIndex,
-)
+    # --- PREDICTIVE MARL ---
+    "LLMTrajectoryPredictor": ".core.learning.predictive_marl",
+    "DivergenceMemory": ".core.learning.predictive_marl",
+    "CooperativeCreditAssigner": ".core.learning.predictive_marl",
+    "AgentModel": ".core.learning.predictive_marl",
 
-# Shaped Rewards (per GRF MARL paper)
-from .core.learning.shaped_rewards import (
-    ShapedRewardManager,
-    RewardCondition,
-)
+    # --- CLI ---
+    "JottyCLI": ".cli.app",
 
-# Memory System
-from .core.memory.cortex import (
-    HierarchicalMemory,
-    MemoryCluster
-)
+    # --- SDK ---
+    "JottyClient": ".sdk.client",
+    "JottySync": ".sdk.client",
+    "ExecutionContext": ".core.foundation.types.sdk_types",
+    "SDKResponse": ".core.foundation.types.sdk_types",
+    "SDKEvent": ".core.foundation.types.sdk_types",
+    "ModeRouter": ".core.api.mode_router",
+    "get_mode_router": ".core.api.mode_router",
+}
 
-# Learning Components
-from .core.learning.learning import (
-    TDLambdaLearner,
-    AdaptiveLearningRate,
-    ReasoningCreditAssigner
-)
+# Optional modules that may not exist
+_OPTIONAL_IMPORTS: dict[str, str] = {
+    "SimpleBrain": ".core.memory.simple_brain",
+    "BrainPreset": ".core.memory.simple_brain",
+    "calculate_chunk_size": ".core.memory.simple_brain",
+    "get_model_context": ".core.memory.simple_brain",
+    "BrainMode": ".core.brain_modes",
+    "HippocampalExtractor": ".core.brain_modes",
+    "SharpWaveRippleConsolidator": ".core.brain_modes",
+    "BrainStateMachine": ".core.brain_modes",
+    "UniversalRetryHandler": ".core.modern_agents",
+    "PatternDetector": ".core.modern_agents",
+    "LLMCounterfactualCritic": ".core.modern_agents",
+    "SelfRAGMemoryRetriever": ".core.modern_agents",
+    "LLMSurpriseEstimator": ".core.modern_agents",
+    "parse_float_robust": ".core.robust_parsing",
+    "parse_bool_robust": ".core.robust_parsing",
+    "parse_json_robust": ".core.robust_parsing",
+    "AdaptiveThreshold": ".core.robust_parsing",
+    "safe_hash": ".core.robust_parsing",
+}
 
-# Context Protection
-from .core.context.global_context_guard import (
-    GlobalContextGuard,
-    patch_dspy_with_guard,
-    unpatch_dspy
-)
 
-# Universal Wrapper (for wrapping single modules)
-from .core.integration.universal_wrapper import (
-    JottyUniversal,
-    SmartConfig,
-    jotty_universal
-)
+def __getattr__(name: str):
+    # Standard lazy imports
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        # Special alias: sdk.client exports "Jotty" class as JottyClient
+        attr_name = "Jotty" if name == "JottyClient" else name
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
 
-# =============================================================================
-# ADVANCED EXPORTS (For Custom Implementations)
-# =============================================================================
+    # Optional lazy imports (return None if module missing)
+    if name in _OPTIONAL_IMPORTS:
+        module_path = _OPTIONAL_IMPORTS[name]
+        try:
+            module = _importlib.import_module(module_path, __name__)
+            value = getattr(module, name)
+        except (ImportError, AttributeError):
+            value = None
+        globals()[name] = value
+        return value
 
-# Enhanced State (V2: swarm_roadmap)
-from .core.orchestration.v2.swarm_roadmap import (
-    AgenticState,
-    TrajectoryStep,
-    DecomposedQFunction,
-    MarkovianTODO,
-    SubtaskState,
-    TaskStatus
-)
-
-# Predictive MARL
-from .core.learning.predictive_marl import (
-    LLMTrajectoryPredictor,
-    DivergenceMemory,
-    CooperativeCreditAssigner,
-    AgentModel
-)
-
-# Brain Modes (optional - may not exist in all versions)
-try:
-    from .core.brain_modes import (
-        BrainMode,
-        HippocampalExtractor,
-        SharpWaveRippleConsolidator,
-        BrainStateMachine
-    )
-except ImportError:
-    BrainMode = None
-    HippocampalExtractor = None
-    SharpWaveRippleConsolidator = None
-    BrainStateMachine = None
-
-# Modern Agents (v9.0 - No Heuristics) (optional)
-try:
-    from .core.modern_agents import (
-        UniversalRetryHandler,
-        PatternDetector,
-        LLMCounterfactualCritic,
-        SelfRAGMemoryRetriever,
-        LLMSurpriseEstimator
-    )
-except ImportError:
-    UniversalRetryHandler = None
-    PatternDetector = None
-    LLMCounterfactualCritic = None
-    SelfRAGMemoryRetriever = None
-    LLMSurpriseEstimator = None
-
-# Robust Parsing (optional)
-try:
-    from .core.robust_parsing import (
-        parse_float_robust,
-        parse_bool_robust,
-        parse_json_robust,
-        AdaptiveThreshold,
-        safe_hash
-    )
-except ImportError:
-    parse_float_robust = None
-    parse_bool_robust = None
-    parse_json_robust = None
-    AdaptiveThreshold = None
-    safe_hash = None
-
-# =============================================================================
-# ALL EXPORTS
-# =============================================================================
-
-__all__ = [
-    # 🎯 PRIMARY (What pipelines use)
-    "Conductor",
-    "AgentConfig",          # Uses 'agent' field
-    "JottyConfig",
-    "SwarmResult",
-    "TodoItem",
-    "create_conductor",
-    
-    # 🎯 CLEAN INTERFACE (Wrapper for Conductor)
-    "Jotty",
-    "ValidationMode",
-    "LearningMode",
-    "CooperationMode",
-    "MetadataProtocol",
-    
-    # Memory & Data Structures
-    "MemoryLevel",
-    "ValidationResult",
-    "MemoryEntry",
-    "EpisodeResult",
-    "TaggedOutput",
-    "OutputTag",
-    "GoalHierarchy",
-    
-    # Simple Brain
-    "SimpleBrain",
-    "BrainPreset",
-    "calculate_chunk_size",
-    "get_model_context",
-    
-    # Tool Management
-    "ToolShed",
-    "ToolSchema",
-    "CapabilityIndex",
-    
-    # Shaped Rewards
-    "ShapedRewardManager",
-    "RewardCondition",
-    
-    # Memory
-    "HierarchicalMemory",
-    "MemoryCluster",
-    
-    # Learning
-    "TDLambdaLearner",
-    "AdaptiveLearningRate",
-    "ReasoningCreditAssigner",
-    
-    # Context
-    "GlobalContextGuard",
-    "patch_dspy_with_guard",
-    
-    # Universal Wrapper
-    "JottyUniversal",
-    "SmartConfig",
-    "jotty_universal",
-    
-    # State
-    "AgenticState",
-    "MarkovianTODO",
-    
-    # MARL
-    "LLMTrajectoryPredictor",
-    "CooperativeCreditAssigner",
-    
-    # Brain
-    "BrainMode",
-    "HippocampalExtractor",
-    
-    # Modern Agents
-    "UniversalRetryHandler",
-    "PatternDetector",
-    "LLMCounterfactualCritic",
-    
-    # Utilities
-    "parse_float_robust",
-    "parse_json_robust",
-    "AdaptiveThreshold",
-
-    # CLI
-    "JottyCLI",
-
-    # SDK (lazy loaded)
-    "JottyClient",
-    "JottySync",
-    "ExecutionContext",
-    "SDKResponse",
-    "SDKEvent",
-    "ModeRouter",
-    "get_mode_router",
-]
-
-# =============================================================================
-# CLI EXPORTS (Lazy import for faster startup)
-# =============================================================================
-
-def __getattr__(name):
-    """Lazy import for CLI and SDK components."""
-    if name == "JottyCLI":
-        from .cli.app import JottyCLI
-        return JottyCLI
-    # SDK exports (lazy for fast startup)
-    if name == "JottyClient":
-        from .sdk.client import Jotty as JottyClient
-        return JottyClient
-    if name == "JottySync":
-        from .sdk.client import JottySync
-        return JottySync
-    if name == "ExecutionContext":
-        from .core.foundation.types.sdk_types import ExecutionContext
-        return ExecutionContext
-    if name == "SDKResponse":
-        from .core.foundation.types.sdk_types import SDKResponse
-        return SDKResponse
-    if name == "SDKEvent":
-        from .core.foundation.types.sdk_types import SDKEvent
-        return SDKEvent
-    if name == "ModeRouter":
-        from .core.api.mode_router import ModeRouter
-        return ModeRouter
-    if name == "get_mode_router":
-        from .core.api.mode_router import get_mode_router
-        return get_mode_router
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = [*_LAZY_IMPORTS.keys(), *_OPTIONAL_IMPORTS.keys()]
