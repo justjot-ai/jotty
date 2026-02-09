@@ -285,7 +285,7 @@ class AutoMLSkill(MLSkill):
                 score = accuracy_score(val_y, pred)
                 try:
                     auc = roc_auc_score(val_y, proba[1])
-                except:
+                except Exception:
                     auc = score
             else:
                 score = r2_score(val_y, pred)
@@ -325,7 +325,7 @@ class AutoMLSkill(MLSkill):
                 from imblearn.over_sampling import SMOTE
                 smote = SMOTE(random_state=42)
                 X_train, y_train = smote.fit_resample(X_train, y_train)
-            except:
+            except Exception:
                 pass
 
         automl = AutoML()
@@ -345,7 +345,7 @@ class AutoMLSkill(MLSkill):
             score = accuracy_score(y_val, pred)
             try:
                 auc = roc_auc_score(y_val, proba[:, 1])
-            except:
+            except Exception:
                 auc = score
         else:
             score = r2_score(y_val, pred)
@@ -396,7 +396,7 @@ class AutoMLSkill(MLSkill):
                     best_score = score
                     best_pipeline = pipeline
                     best_name = name
-            except:
+            except Exception:
                 continue
 
         if best_pipeline:

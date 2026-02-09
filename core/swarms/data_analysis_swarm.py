@@ -386,7 +386,7 @@ class DataProfilerAgent(BaseDataAgent):
 
             try:
                 column_profiles = json.loads(result.column_profiles)
-            except:
+            except Exception:
                 column_profiles = {}
 
             quality_issues = [q.strip() for q in str(result.quality_issues).split('|') if q.strip()]
@@ -478,7 +478,7 @@ class StatisticalAgent(BaseDataAgent):
 
             try:
                 descriptive = json.loads(result.descriptive)
-            except:
+            except Exception:
                 # If not valid JSON, create a simple dict
                 descriptive = {'raw': str(result.descriptive)}
 
@@ -526,7 +526,7 @@ class InsightAgent(BaseDataAgent):
 
             try:
                 insights_data = json.loads(result.insights)
-            except:
+            except Exception:
                 insights_data = []
 
             insights = []
@@ -626,7 +626,7 @@ class VisualizationAgent(BaseDataAgent):
 
             try:
                 viz_data = json.loads(result.visualizations)
-            except:
+            except Exception:
                 viz_data = []
 
             visualizations = []
@@ -634,7 +634,7 @@ class VisualizationAgent(BaseDataAgent):
                 viz_type = viz.get('type', 'distribution')
                 try:
                     viz_enum = VisualizationType(viz_type)
-                except:
+                except Exception:
                     viz_enum = VisualizationType.DISTRIBUTION
 
                 visualizations.append(Visualization(

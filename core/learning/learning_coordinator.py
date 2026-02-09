@@ -473,7 +473,7 @@ class LearningCoordinator:
         if self._shared_q_learner:
             try:
                 q_value, _, _ = self._shared_q_learner.predict_q_value(state, action)
-            except:
+            except Exception:
                 pass
 
         return LearningUpdate(

@@ -1,4 +1,5 @@
 """HierarchicalMemory mixin — consolidation, serialization, and statistics."""
+from __future__ import annotations
 
 import json
 import hashlib
@@ -15,14 +16,31 @@ from ..foundation.data_structures import (
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 
-import dspy
-
-from .consolidation import (
-    PatternExtractionSignature, ProceduralExtractionSignature, MetaWisdomSignature,
-    MemoryLevelClassificationSignature, ConsolidationValidationSignature,
-    ConsolidationValidator, MemoryLevelClassifier, MemoryCluster,
-)
 from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
+
+_consolidation_loaded = False
+_consolidation_cache = {}
+
+def _get_consolidation():
+    global _consolidation_loaded, _consolidation_cache
+    if not _consolidation_loaded:
+        from .consolidation import (
+            PatternExtractionSignature, ProceduralExtractionSignature, MetaWisdomSignature,
+            MemoryLevelClassificationSignature, ConsolidationValidationSignature,
+            ConsolidationValidator, MemoryLevelClassifier, MemoryCluster,
+        )
+        _consolidation_cache.update({
+            'PatternExtractionSignature': PatternExtractionSignature,
+            'ProceduralExtractionSignature': ProceduralExtractionSignature,
+            'MetaWisdomSignature': MetaWisdomSignature,
+            'MemoryLevelClassificationSignature': MemoryLevelClassificationSignature,
+            'ConsolidationValidationSignature': ConsolidationValidationSignature,
+            'ConsolidationValidator': ConsolidationValidator,
+            'MemoryLevelClassifier': MemoryLevelClassifier,
+            'MemoryCluster': MemoryCluster,
+        })
+        _consolidation_loaded = True
+    return _consolidation_cache
 
 
 class ConsolidationMixin:
@@ -65,8 +83,10 @@ class ConsolidationMixin:
         # 6. Prune old episodic memories
         self._prune_episodic()
     
-    def _cluster_episodic_memories(self) -> List[MemoryCluster]:
+    def _cluster_episodic_memories(self) -> List:
         """Cluster episodic memories by goal signature."""
+        cons = _get_consolidation()
+        _MemoryCluster = cons['MemoryCluster']
         episodic = self.memories[MemoryLevel.EPISODIC]
         
         # Group by first goal in goal_values
@@ -83,7 +103,7 @@ class ConsolidationMixin:
         # Create clusters
         clusters = []
         for sig, mems in goal_groups.items():
-            cluster = MemoryCluster(
+            cluster = _MemoryCluster(
                 cluster_id=hashlib.md5(sig.encode()).hexdigest(),
                 goal_signature=sig,
                 memories=mems
@@ -93,7 +113,7 @@ class ConsolidationMixin:
         
         return clusters
     
-    async def _extract_semantic_pattern(self, cluster: MemoryCluster):
+    async def _extract_semantic_pattern(self, cluster):
         """Extract semantic pattern from episodic cluster."""
         # Format memories for LLM
         memory_data = []

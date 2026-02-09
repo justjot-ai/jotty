@@ -392,12 +392,12 @@ class InfrastructureArchitect(BaseDevOpsAgent):
 
             try:
                 compute = json.loads(result.compute_spec)
-            except:
+            except Exception:
                 compute = {}
 
             try:
                 networking = json.loads(result.networking_spec)
-            except:
+            except Exception:
                 networking = {}
 
             self._broadcast("infrastructure_designed", {
@@ -444,7 +444,7 @@ class CICDDesigner(BaseDevOpsAgent):
 
             try:
                 stages = json.loads(result.pipeline_stages)
-            except:
+            except Exception:
                 stages = []
 
             triggers = [t.strip() for t in str(result.triggers).split('|') if t.strip()]
@@ -548,12 +548,12 @@ class SecurityHardener(BaseDevOpsAgent):
 
             try:
                 iam_policies = json.loads(result.iam_policies)
-            except:
+            except Exception:
                 iam_policies = []
 
             try:
                 network_policies = json.loads(result.network_policies)
-            except:
+            except Exception:
                 network_policies = []
 
             self._broadcast("security_configured", {
@@ -606,7 +606,7 @@ class MonitoringSpecialist(BaseDevOpsAgent):
 
             try:
                 alerts = json.loads(result.alerts)
-            except:
+            except Exception:
                 alerts = []
 
             self._broadcast("monitoring_configured", {

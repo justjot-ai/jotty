@@ -493,12 +493,12 @@ class RatioAnalysisAgent(BaseFundamentalAgent):
             # Parse ratios
             try:
                 profitability = json.loads(result.profitability_ratios)
-            except:
+            except Exception:
                 profitability = {}
 
             try:
                 valuation = json.loads(result.valuation_ratios)
-            except:
+            except Exception:
                 valuation = {}
 
             self._broadcast("ratios_calculated", {

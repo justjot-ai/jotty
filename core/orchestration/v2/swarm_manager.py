@@ -57,7 +57,6 @@ import asyncio
 import logging
 import time
 from typing import List, Dict, Any, Optional, Union
-from pathlib import Path
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
@@ -69,6 +68,7 @@ from .provider_manager import ProviderManager
 from .ensemble_manager import EnsembleManager
 from .learning_delegate import LearningDelegate
 from .mas_zero_controller import MASZeroController
+from .model_tier_router import ModelTierRouter
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +414,24 @@ class SwarmManager:
         # KISS: Just a dict, no new classes. Reset each run().
         self._efficiency_stats: Dict[str, float] = {}
 
+        # Background training daemon state (instance-level, not class-level)
+        self._training_daemon: Optional[asyncio.Task] = None
+        self._training_daemon_results: list = []
+
+        # Intelligence effectiveness A/B metrics:
+        # Tracks whether stigmergy/byzantine guidance improves success rate.
+        # KISS: Just counters, no classes. Persists across runs.
+        self._intelligence_metrics: Dict[str, int] = {
+            'guided_runs': 0,          # runs where intelligence reordered/filtered
+            'guided_successes': 0,     # guided runs that succeeded
+            'unguided_runs': 0,        # runs with no intelligence guidance
+            'unguided_successes': 0,   # unguided runs that succeeded
+        }
+
+        # Model tier router: maps task complexity -> cheap/balanced/quality LM
+        # Lazy-init on first use. Integrates with ValidationGate decisions.
+        self._model_tier_router: Optional[ModelTierRouter] = None
+
         logger.info(f"SwarmManager: {self.mode} mode, {len(self.agents)} agents (lazy init)")
 
     # =========================================================================
@@ -739,6 +757,37 @@ class SwarmManager:
             except Exception:
                 result['learning'] = {'status': 'error'}
 
+        # Training daemon status
+        result['training_daemon'] = self.training_daemon_status()
+
+        # Intelligence effectiveness A/B metrics
+        im = self._intelligence_metrics
+        guided_rate = (
+            im['guided_successes'] / im['guided_runs']
+            if im['guided_runs'] > 0 else None
+        )
+        unguided_rate = (
+            im['unguided_successes'] / im['unguided_runs']
+            if im['unguided_runs'] > 0 else None
+        )
+        result['intelligence_effectiveness'] = {
+            **im,
+            'guided_success_rate': guided_rate,
+            'unguided_success_rate': unguided_rate,
+            'guidance_lift': (
+                guided_rate - unguided_rate
+                if guided_rate is not None and unguided_rate is not None
+                else None
+            ),
+        }
+
+        # Paradigm effectiveness stats
+        if '_lazy_learning' in self.__dict__:
+            try:
+                result['paradigm_stats'] = self.learning.get_paradigm_stats()
+            except Exception:
+                pass
+
         # Add LOTUS stats if active
         if self.lotus:
             result['lotus_stats'] = self.get_lotus_stats()
@@ -763,6 +812,10 @@ class SwarmManager:
                 }
         except (ImportError, Exception):
             pass
+
+        # Add model tier routing stats
+        if self._model_tier_router:
+            result['model_tier_routing'] = self._model_tier_router.get_savings_estimate()
 
         return result
 
@@ -1075,12 +1128,21 @@ class SwarmManager:
         if _gate_decision and _gate_decision.mode == ValidationMode.DIRECT and self.mode == "single":
             _status("Fast path", f"DIRECT mode — bypassing agent pipeline ({_gate_decision.reason})")
 
-            # Ensure DSPy LM is available (already done above)
+            # Model tier routing: use cheapest LM for DIRECT tasks
             try:
-                import dspy as _dspy
-                lm = _dspy.settings.lm
-                if lm is None:
-                    raise RuntimeError("No LM configured")
+                if self._model_tier_router is None:
+                    self._model_tier_router = ModelTierRouter()
+                tier_decision = self._model_tier_router.get_model_for_mode(ValidationMode.DIRECT)
+                tier_lm = self._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)
+                if tier_lm:
+                    import dspy as _dspy
+                    lm = tier_lm
+                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model}) — cost ratio {tier_decision.estimated_cost_ratio:.1f}x")
+                else:
+                    import dspy as _dspy
+                    lm = _dspy.settings.lm
+                    if lm is None:
+                        raise RuntimeError("No LM configured")
 
                 _fast_start = _time.time()
 
@@ -1143,6 +1205,21 @@ class SwarmManager:
 
         # Store gate decision for downstream use (AgentRunner will also gate architect/auditor)
         kwargs['_swarm_gate_decision'] = _gate_decision
+
+        # ── MODEL TIER ROUTING: Select LM quality based on task complexity ──
+        # DIRECT → cheap (Haiku), AUDIT_ONLY → balanced (Sonnet), FULL → quality (Opus/Sonnet)
+        if _gate_decision and _gate_decision.mode != ValidationMode.DIRECT:
+            try:
+                if self._model_tier_router is None:
+                    self._model_tier_router = ModelTierRouter()
+                tier_decision = self._model_tier_router.get_model_for_mode(_gate_decision.mode)
+                tier_lm = self._model_tier_router.get_lm_for_mode(_gate_decision.mode)
+                if tier_lm:
+                    import dspy
+                    dspy.configure(lm=tier_lm)
+                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
+            except Exception as e:
+                logger.debug(f"Model tier routing skipped: {e}")
 
         # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
         if self.enable_zero_config and self.mode == "single":
@@ -1439,6 +1516,7 @@ class SwarmManager:
         # ── Intelligence-guided agent selection ──
         # Read stigmergy trails + byzantine trust to reorder/filter agents.
         # This closes the learning loop: post_episode writes → run() reads.
+        _intelligence_applied = False
         try:
             lp = self.learning
             task_type = lp.transfer_learning.extractor.extract_task_type(goal)
@@ -1453,9 +1531,9 @@ class SwarmManager:
                 skipped = [a.name for a in self.agents if a not in trusted_agents]
                 logger.info(f"🛡️ Byzantine: skipped untrusted agents: {skipped}")
                 self.agents = trusted_agents
-                # Rebuild runners for filtered agent set
                 self._runners_built = False
                 self._ensure_runners()
+                _intelligence_applied = True
 
             # 2. Reorder agents by stigmergy pheromone strength (strongest first)
             routes = lp.stigmergy.get_route_signals(task_type)
@@ -1466,8 +1544,27 @@ class SwarmManager:
                 )
                 top = self.agents[0].name if self.agents else '?'
                 logger.info(f"🐜 Stigmergy: reordered agents for '{task_type}', lead={top}")
+                _intelligence_applied = True
         except Exception as e:
             logger.debug(f"Intelligence-guided selection skipped: {e}")
+
+        # Track guidance for A/B effectiveness metrics
+        self._last_run_guided = _intelligence_applied
+        if _intelligence_applied:
+            self._intelligence_metrics['guided_runs'] += 1
+        else:
+            self._intelligence_metrics['unguided_runs'] += 1
+
+        # Auto paradigm selection: use learning data to pick the best paradigm
+        if discussion_paradigm == 'auto':
+            try:
+                discussion_paradigm = self.learning.recommend_paradigm()
+                logger.info(f"🧠 Auto paradigm: selected '{discussion_paradigm}'")
+            except Exception:
+                discussion_paradigm = 'fanout'
+
+        # Track which paradigm is used (for _post_episode_learning)
+        self._last_paradigm = discussion_paradigm
 
         # MALLM-inspired: Dispatch to alternative paradigms before fan-out
         if discussion_paradigm == 'relay':
@@ -2256,7 +2353,7 @@ class SwarmManager:
     # _should_auto_ensemble — see _ensemble_mixin.py
 
     def _post_episode_learning(self, result: EpisodeResult, goal: str):
-        """Delegate to SwarmLearningPipeline."""
+        """Delegate to SwarmLearningPipeline + update intelligence metrics."""
         self.learning.post_episode(
             result=result,
             goal=goal,
@@ -2266,6 +2363,20 @@ class SwarmManager:
             swarm_terminal=getattr(self, 'swarm_terminal', None),
         )
         self.episode_count = self.learning.episode_count
+
+        # Track intelligence A/B effectiveness
+        if result.success and getattr(self, '_last_run_guided', False):
+            self._intelligence_metrics['guided_successes'] += 1
+        elif result.success:
+            self._intelligence_metrics['unguided_successes'] += 1
+
+        # Track paradigm effectiveness (for auto paradigm selection)
+        paradigm = getattr(self, '_last_paradigm', None)
+        if paradigm:
+            try:
+                self.learning.record_paradigm_result(paradigm, result.success)
+            except Exception:
+                pass
 
     def _learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig):
         """Delegate to SwarmLearningPipeline."""
@@ -2432,7 +2543,7 @@ class SwarmManager:
             return 0
 
     # =========================================================================
-    # Autonomous training scheduler
+    # Autonomous training scheduler (background daemon)
     # =========================================================================
 
     async def start_training_loop(
@@ -2442,17 +2553,14 @@ class SwarmManager:
         stop_on_convergence: bool = True,
     ) -> list:
         """
-        Autonomous self-improvement loop.
+        Autonomous self-improvement loop (synchronous / awaitable).
 
         Drains the curriculum queue, running training tasks until:
         - Queue is empty, OR
         - max_tasks reached, OR
         - Adaptive learning says stop (convergence)
 
-        Args:
-            max_tasks: Max training tasks to run in this loop
-            interval_seconds: Pause between tasks (0 = no pause)
-            stop_on_convergence: Stop if adaptive learning says converged
+        For a background (fire-and-forget) version, use start_training_daemon().
 
         Returns:
             List of EpisodeResults from training runs
@@ -2486,3 +2594,84 @@ class SwarmManager:
             f"{sum(1 for r in results if r.success)}/{len(results)} succeeded"
         )
         return results
+
+    # ---- Background training daemon (asyncio.Task) ----
+
+    def start_training_daemon(
+        self,
+        max_tasks: int = 10,
+        interval_seconds: float = 2.0,
+        stop_on_convergence: bool = True,
+    ) -> bool:
+        """
+        Start a background training daemon as an asyncio.Task.
+
+        The daemon calls start_training_loop() and runs asynchronously
+        without blocking the caller. Results accumulate in
+        training_daemon_status()['results'].
+
+        DRY: Delegates to start_training_loop(). KISS: One Task, no threads.
+
+        Returns:
+            True if daemon was started, False if already running.
+        """
+        if self._training_daemon and not self._training_daemon.done():
+            logger.info("🎓 Training daemon already running")
+            return False
+
+        self._training_daemon_results = []
+
+        async def _daemon():
+            try:
+                results = await self.start_training_loop(
+                    max_tasks=max_tasks,
+                    interval_seconds=interval_seconds,
+                    stop_on_convergence=stop_on_convergence,
+                )
+                self._training_daemon_results = results
+            except asyncio.CancelledError:
+                logger.info("🎓 Training daemon cancelled")
+            except Exception as e:
+                logger.warning(f"🎓 Training daemon error: {e}")
+
+        self._training_daemon = asyncio.ensure_future(_daemon())
+        logger.info(
+            f"🎓 Training daemon started (max_tasks={max_tasks}, "
+            f"interval={interval_seconds}s)"
+        )
+        return True
+
+    def stop_training_daemon(self) -> bool:
+        """
+        Cancel the background training daemon.
+
+        Returns:
+            True if daemon was cancelled, False if not running.
+        """
+        if not self._training_daemon or self._training_daemon.done():
+            return False
+        self._training_daemon.cancel()
+        logger.info("🎓 Training daemon stop requested")
+        return True
+
+    def training_daemon_status(self) -> Dict[str, Any]:
+        """
+        Get the status of the background training daemon.
+
+        Returns:
+            Dict with running state, completed count, success rate.
+        """
+        running = (
+            self._training_daemon is not None
+            and not self._training_daemon.done()
+        )
+        results = self._training_daemon_results or []
+        succeeded = sum(1 for r in results if r and r.success)
+
+        return {
+            'running': running,
+            'completed': len(results),
+            'succeeded': succeeded,
+            'success_rate': succeeded / len(results) if results else 0.0,
+            'pending_tasks': self.pending_training_tasks,
+        }

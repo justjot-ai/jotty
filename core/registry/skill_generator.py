@@ -73,7 +73,7 @@ class SkillGenerator:
             # Try to get from DSPy configuration (may already be configured)
             try:
                 self.lm = dspy.LM()
-            except:
+            except Exception:
                 self.lm = None
             
             # If not configured, use UnifiedLMProvider (same as supervisor)

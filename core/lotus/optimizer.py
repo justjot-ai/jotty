@@ -340,7 +340,7 @@ class LotusOptimizer:
             try:
                 parsed = json.loads(response)
                 return parsed, 0.9
-            except:
+            except Exception:
                 return {"raw": response}, 0.5
 
         return await self.execute(

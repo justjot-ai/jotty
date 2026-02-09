@@ -137,7 +137,7 @@ class ModelPipelineMixin:
                             oof_predictions[name] = oof[:, 1] if oof.ndim > 1 else oof
                         else:
                             oof_predictions[name] = cross_val_predict(model, X_scaled, y, cv=cv)
-                    except:
+                    except Exception:
                         pass
 
                 if mean_score > best_score:

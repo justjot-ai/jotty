@@ -22,9 +22,11 @@ from typing import Dict, List, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from collections import defaultdict
-import dspy
-
 logger = logging.getLogger(__name__)
+
+def _get_dspy():
+    import dspy
+    return dspy
 
 from ..foundation.data_structures import (
     MemoryEntry, MemoryLevel, GoalValue, JottyConfig,
@@ -33,11 +35,30 @@ from ..foundation.data_structures import (
 from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
 
 
-from .consolidation import (
-    PatternExtractionSignature, ProceduralExtractionSignature, MetaWisdomSignature,
-    MemoryLevelClassificationSignature, ConsolidationValidationSignature,
-    ConsolidationValidator, MemoryLevelClassifier, MemoryCluster,
-)
+_consolidation_loaded = False
+_consolidation_cache = {}
+
+def _get_consolidation():
+    global _consolidation_loaded, _consolidation_cache
+    if not _consolidation_loaded:
+        from .consolidation import (
+            PatternExtractionSignature, ProceduralExtractionSignature, MetaWisdomSignature,
+            MemoryLevelClassificationSignature, ConsolidationValidationSignature,
+            ConsolidationValidator, MemoryLevelClassifier, MemoryCluster,
+        )
+        _consolidation_cache.update({
+            'PatternExtractionSignature': PatternExtractionSignature,
+            'ProceduralExtractionSignature': ProceduralExtractionSignature,
+            'MetaWisdomSignature': MetaWisdomSignature,
+            'MemoryLevelClassificationSignature': MemoryLevelClassificationSignature,
+            'ConsolidationValidationSignature': ConsolidationValidationSignature,
+            'ConsolidationValidator': ConsolidationValidator,
+            'MemoryLevelClassifier': MemoryLevelClassifier,
+            'MemoryCluster': MemoryCluster,
+        })
+        _consolidation_loaded = True
+    return _consolidation_cache
+
 from ._retrieval_mixin import RetrievalMixin
 from ._consolidation_mixin import ConsolidationMixin
 
@@ -94,10 +115,12 @@ class HierarchicalMemory(RetrievalMixin, ConsolidationMixin):
         self.deduplicator = DeduplicationEngine(config)
         self.causal_extractor = CausalExtractor(config)
         
-        # LLM consolidators
-        self.pattern_extractor = dspy.ChainOfThought(PatternExtractionSignature)
-        self.procedural_extractor = dspy.ChainOfThought(ProceduralExtractionSignature)
-        self.meta_extractor = dspy.ChainOfThought(MetaWisdomSignature)
+        # LLM consolidators (lazy — DSPy loaded on first use)
+        dspy = _get_dspy()
+        cons = _get_consolidation()
+        self.pattern_extractor = dspy.ChainOfThought(cons['PatternExtractionSignature'])
+        self.procedural_extractor = dspy.ChainOfThought(cons['ProceduralExtractionSignature'])
+        self.meta_extractor = dspy.ChainOfThought(cons['MetaWisdomSignature'])
         
         # Statistics
         self.total_accesses = 0

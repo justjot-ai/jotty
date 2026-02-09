@@ -1104,7 +1104,7 @@ class OptimizationPipeline:
                     try:
                         with open(self.improvements_file, 'r', encoding='utf-8') as f:
                             existing = json.load(f)
-                    except:
+                    except Exception:
                         existing = []
                 
                 # Append new improvement

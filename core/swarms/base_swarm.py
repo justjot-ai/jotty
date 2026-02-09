@@ -38,12 +38,10 @@ Date: February 2026
 import asyncio
 import logging
 import json
-import hashlib
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple, Callable, Type
-from dataclasses import dataclass, field, asdict
+from typing import Dict, Any, Optional, List, Type
+from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -965,7 +963,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
                         results.append(await func(item))
                     else:
                         results.append(func(item))
-                except:
+                except Exception:
                     results.append(None)
             return results
 

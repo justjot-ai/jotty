@@ -61,7 +61,8 @@ class AISDKProviderLM(BaseLM):
         self.provider = provider
         self.model = model
         self.api_key = api_key
-        self.base_url = base_url or os.getenv('JUSTJOT_API_URL', 'http://localhost:3000')
+        from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+        self.base_url = base_url or os.getenv('JUSTJOT_API_URL', _DEFAULTS.JUSTJOT_API_URL)
         self.history = []
         
         # Validate provider

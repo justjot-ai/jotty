@@ -320,7 +320,7 @@ def consolidate_improvements(
                 if pattern_type not in pattern_groups:
                     pattern_groups[pattern_type] = []
                 pattern_groups[pattern_type].append(entry)
-            except:
+            except Exception:
                 continue
         
         consolidated_count = 0
@@ -337,7 +337,7 @@ def consolidate_improvements(
                         pattern = improvement_data.get('learned_pattern', '')
                         if pattern:
                             patterns.append(pattern)
-                    except:
+                    except Exception:
                         continue
                 
                 if patterns:
@@ -358,7 +358,7 @@ def consolidate_improvements(
                         
                         if synthesized and len(synthesized) > 50:  # Valid synthesis
                             consolidated_pattern = synthesized
-                    except:
+                    except Exception:
                         # Fallback to simple consolidation
                         pass
                     

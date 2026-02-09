@@ -872,7 +872,7 @@ class UnifiedToolGenerator:
                 try:
                     size_bytes = Path(file_path).stat().st_size
                     size_str = self._format_file_size(size_bytes)
-                except:
+                except Exception:
                     size_str = None
 
                 # Return file-download section for UI display
@@ -926,7 +926,7 @@ class UnifiedToolGenerator:
                 try:
                     size_bytes = Path(file_path).stat().st_size
                     size_str = self._format_file_size(size_bytes)
-                except:
+                except Exception:
                     size_str = None
 
                 # Return file-download section for UI display
@@ -977,7 +977,7 @@ class UnifiedToolGenerator:
                     try:
                         size_bytes = Path(file_path).stat().st_size
                         size_str = self._format_file_size(size_bytes)
-                    except:
+                    except Exception:
                         size_str = None
 
                     # Determine format from file extension

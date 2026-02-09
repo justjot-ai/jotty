@@ -760,7 +760,7 @@ class OutlineAgent(BaseWriterAgent):
             # Parse sections
             try:
                 sections = json.loads(result.sections)
-            except:
+            except Exception:
                 sections = [{'title': 'Main Content', 'key_points': []}]
 
             key_points = [kp.strip() for kp in str(result.key_points).split('|') if kp.strip()]

@@ -7,7 +7,6 @@ and runs the workflow automatically.
 
 Refactored to inherit from AutonomousAgent for unified infrastructure.
 """
-import asyncio
 import logging
 import inspect
 from typing import Dict, Any, List, Optional, Callable
@@ -16,7 +15,13 @@ from enum import Enum
 from datetime import datetime
 
 from .agentic_planner import AgenticPlanner
-from .base import AutonomousAgent, AutonomousAgentConfig, ExecutionStep
+from .base import AutonomousAgent, AutonomousAgentConfig
+from Jotty.core.foundation.exceptions import (
+    AgentExecutionError,
+    ToolExecutionError,
+    LLMError,
+    DSPyError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -410,11 +415,33 @@ Provide:
                 learning_context=learning_context,
                 **kwargs
             )
-        except Exception as e:
-            logger.error(f"AutoAgent execution failed: {e}")
+        except (AgentExecutionError, ToolExecutionError) as e:
+            logger.error(f"AutoAgent execution error: {e}")
             result = {
                 'success': False,
-                'errors': [str(e)],
+                'errors': [f"{type(e).__name__}: {e}"],
+                'skills_used': [],
+                'steps_executed': 0,
+                'outputs': {},
+                'final_output': None,
+            }
+        except (LLMError, DSPyError) as e:
+            logger.error(f"AutoAgent LLM/DSPy error: {e}")
+            result = {
+                'success': False,
+                'errors': [f"{type(e).__name__}: {e}"],
+                'skills_used': [],
+                'steps_executed': 0,
+                'outputs': {},
+                'final_output': None,
+            }
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception as e:
+            logger.error(f"AutoAgent unexpected error ({type(e).__name__}): {e}", exc_info=True)
+            result = {
+                'success': False,
+                'errors': [f"{type(e).__name__}: {e}"],
                 'skills_used': [],
                 'steps_executed': 0,
                 'outputs': {},

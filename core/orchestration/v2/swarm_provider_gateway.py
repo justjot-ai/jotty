@@ -157,7 +157,7 @@ class SwarmProviderGateway:
                     if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
                         self._configured_lm = dspy.settings.lm
                         logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration")
-            except:
+            except Exception:
                 logger.warning("⚠️  No LM provider configured")
     
     def get_lm(self) -> Optional[BaseLM]:
@@ -198,7 +198,7 @@ class SwarmProviderGateway:
                 # Not in async context
                 if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
                     return dspy.settings.lm
-        except:
+        except Exception:
             pass
         
         return None

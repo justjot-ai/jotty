@@ -10,8 +10,6 @@ Clients (like JustJot.ai) get this for free by using Jotty.
 """
 
 import logging
-import json
-import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -627,7 +625,7 @@ class ChatAssistant:
                         'label': 'Created',
                         'value': created.strftime('%Y-%m-%d')
                     })
-                except:
+                except Exception:
                     pass
 
             if task.get('priority'):

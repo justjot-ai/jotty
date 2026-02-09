@@ -374,7 +374,7 @@ class CodeReviewer(BaseReviewAgent):
 
             try:
                 issues = json.loads(result.issues)
-            except:
+            except Exception:
                 issues = []
 
             positives = [p.strip() for p in str(result.positives).split('|') if p.strip()]
@@ -421,7 +421,7 @@ class SecurityScanner(BaseReviewAgent):
 
             try:
                 vulnerabilities = json.loads(result.vulnerabilities)
-            except:
+            except Exception:
                 vulnerabilities = []
 
             recommendations = [r.strip() for r in str(result.recommendations).split('|') if r.strip()]
@@ -465,7 +465,7 @@ class PerformanceAnalyzer(BaseReviewAgent):
 
             try:
                 issues = json.loads(result.issues)
-            except:
+            except Exception:
                 issues = []
 
             optimizations = [o.strip() for o in str(result.optimizations).split('|') if o.strip()]
@@ -509,7 +509,7 @@ class ArchitectureReviewer(BaseReviewAgent):
 
             try:
                 concerns = json.loads(result.concerns)
-            except:
+            except Exception:
                 concerns = []
 
             patterns = [p.strip() for p in str(result.patterns_found).split('|') if p.strip()]
@@ -555,7 +555,7 @@ class StyleChecker(BaseReviewAgent):
 
             try:
                 violations = json.loads(result.violations)
-            except:
+            except Exception:
                 violations = []
 
             formatting_issues = [f.strip() for f in str(result.formatting_issues).split('|') if f.strip()]
@@ -785,7 +785,7 @@ class ReviewSwarm(DomainSwarm):
                 severity_str = issue.get('severity', 'medium').lower()
                 try:
                     severity = Severity(severity_str)
-                except:
+                except Exception:
                     severity = Severity.MEDIUM
 
                 comments.append(ReviewComment(
@@ -802,7 +802,7 @@ class ReviewSwarm(DomainSwarm):
                 severity_str = vuln.get('severity', 'medium').lower()
                 try:
                     severity = Severity(severity_str)
-                except:
+                except Exception:
                     severity = Severity.MEDIUM
 
                 security_findings.append(SecurityFinding(
@@ -819,7 +819,7 @@ class ReviewSwarm(DomainSwarm):
                 severity_str = issue.get('severity', 'medium').lower()
                 try:
                     severity = Severity(severity_str)
-                except:
+                except Exception:
                     severity = Severity.MEDIUM
 
                 performance_findings.append(PerformanceFinding(

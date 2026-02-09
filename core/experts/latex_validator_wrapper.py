@@ -32,11 +32,16 @@ try:
     if result.returncode == 0:
         NODE_AVAILABLE = True
         logger.debug(f"Node.js available: {result.stdout.decode().strip()}")
-except:
+except Exception:
     pass
 
-# Server URL (default: localhost:8080)
-LATEX_VALIDATION_SERVER_URL = os.getenv('LATEX_VALIDATION_SERVER_URL', 'http://localhost:8080')
+# Server URL (centralized default, overridable via env var)
+try:
+    from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+    _DEFAULT_LATEX_URL = _DEFAULTS.LATEX_VALIDATION_URL
+except ImportError:
+    _DEFAULT_LATEX_URL = 'http://localhost:8080'
+LATEX_VALIDATION_SERVER_URL = os.getenv('LATEX_VALIDATION_SERVER_URL', _DEFAULT_LATEX_URL)
 
 
 def validate_via_http_server(

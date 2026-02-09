@@ -616,7 +616,7 @@ class TemplateExecutor:
         """Evaluate a condition string against context."""
         try:
             return eval(condition, {"__builtins__": {}}, self._context)
-        except:
+        except Exception:
             return False
 
     def _should_loop(self, stage: StageConfig) -> bool:

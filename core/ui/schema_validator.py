@@ -32,7 +32,15 @@ class SectionSchemaRegistry:
     Provides validation and transformation for all section types.
     """
 
-    def __init__(self, api_url: str = "http://localhost:3000/api/sections/schemas", lazy_load: bool = True):
+    def __init__(self, api_url: str = None, lazy_load: bool = True):
+        if api_url is None:
+            import os
+            try:
+                from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+                _base = os.getenv('JUSTJOT_API_URL', _DEFAULTS.JUSTJOT_API_URL)
+            except ImportError:
+                _base = os.getenv('JUSTJOT_API_URL', 'http://localhost:3000')
+            api_url = f"{_base}/api/sections/schemas"
         self.api_url = api_url
         self.schemas: Dict[str, Any] = {}
         self.cache_file = Path(__file__).parent / 'section_schemas_cache.json'

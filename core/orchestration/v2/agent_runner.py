@@ -17,6 +17,18 @@ from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.exceptions import (
+    AgentExecutionError,
+    ToolExecutionError,
+    LLMError,
+    DSPyError,
+    MemoryRetrievalError,
+    MemoryStorageError,
+    ConsolidationError,
+    LearningError,
+    TimeoutError as JottyTimeoutError,
+    wrap_exception,
+)
 from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
 from Jotty.core.memory.cortex import HierarchicalMemory
 from Jotty.core.utils.prompt_selector import get_prompt_selector, PromptSelector
@@ -442,8 +454,10 @@ class AgentRunner:
                     context = "\n".join([m.content for m in relevant_memories[:5]])
                     learning_context_parts.append(f"Relevant past experience:\n{context}")
                     logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
-            except Exception as e:
+            except (MemoryRetrievalError, KeyError, TypeError) as e:
                 logger.debug(f"Memory retrieval skipped: {e}")
+            except Exception as e:
+                logger.warning(f"Memory retrieval unexpected error: {type(e).__name__}: {e}")
 
         # Inject Q-learning context from swarm-level learner
         if self.learning_manager:
@@ -452,7 +466,7 @@ class AgentRunner:
                 q_context = self.learning_manager.get_learned_context(state)
                 if q_context:
                     learning_context_parts.append(f"Learned Insights:\n{q_context}")
-            except Exception as e:
+            except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Q-learning context injection skipped: {e}")
 
         # Inject transferable learning context (cross-swarm, cross-goal)
@@ -461,7 +475,7 @@ class AgentRunner:
                 transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
                 if transfer_context and 'Transferable Learnings' in transfer_context:
                     learning_context_parts.append(transfer_context)
-            except Exception as e:
+            except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
 
         # Pass learning context as separate kwarg — NOT in the task string
@@ -785,7 +799,7 @@ class AgentRunner:
                     q_action = {'actor': self.agent_name, 'task': goal[:100]}
                     q_reward = final_reward if 'final_reward' in locals() else (1.0 if success else -0.5)
                     self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
-                except Exception as e:
+                except (LearningError, KeyError, AttributeError) as e:
                     logger.debug(f"Swarm Q-learning record skipped: {e}")
 
             # 8. Memory consolidation: promote episodic -> semantic/procedural
@@ -793,8 +807,10 @@ class AgentRunner:
                 try:
                     await self.agent_memory.consolidate()
                     logger.debug("Memory consolidation completed")
-                except Exception as e:
+                except (ConsolidationError, MemoryStorageError) as e:
                     logger.debug(f"Memory consolidation skipped: {e}")
+                except Exception as e:
+                    logger.warning(f"Memory consolidation unexpected error: {type(e).__name__}: {e}")
             
             duration = time.time() - start_time
             
@@ -881,17 +897,42 @@ class AgentRunner:
 
             return episode_result
             
+        except (AgentExecutionError, ToolExecutionError) as e:
+            # Known execution errors — log cleanly, skip auto-fix (structural issue)
+            logger.error(f"❌ Agent execution error: {e}")
+            error_str = str(e)
+            error_type = type(e).__name__
+            fix_applied = False
+            fix_description = ""
+
+        except (LLMError, DSPyError) as e:
+            # LLM provider or DSPy failures — potentially transient
+            logger.error(f"❌ LLM/DSPy error during execution: {e}")
+            error_str = str(e)
+            error_type = type(e).__name__
+            fix_applied = False
+            fix_description = ""
+
+        except asyncio.TimeoutError as e:
+            logger.error(f"❌ Agent timed out: {e}")
+            error_str = f"Agent timed out: {e}"
+            error_type = "TimeoutError"
+            fix_applied = False
+            fix_description = ""
+
+        except (KeyboardInterrupt, SystemExit):
+            raise  # Never swallow these
+
         except Exception as e:
-            logger.error(f"❌ Agent execution failed: {e}", exc_info=True)
-            import traceback
-            logger.debug(traceback.format_exc())
+            # Unexpected errors — log full traceback, attempt auto-fix
+            logger.error(f"❌ Agent execution failed (unexpected {type(e).__name__}): {e}", exc_info=True)
 
             error_str = str(e)
             error_type = type(e).__name__
             fix_applied = False
             fix_description = ""
 
-            # Try auto-fix using SwarmTerminal
+            # Try auto-fix using SwarmTerminal (only for unexpected errors)
             if self.swarm_terminal:
                 try:
                     logger.info(f"🔧 Attempting auto-fix via SwarmTerminal...")
@@ -924,59 +965,61 @@ class AgentRunner:
                 except Exception as fix_error:
                     logger.debug(f"Auto-fix attempt failed: {fix_error}")
 
-            # Track error in state
-            if self.swarm_state_manager:
-                self.agent_tracker.record_error(
-                    error=error_str,
-                    error_type=error_type,
-                    context={'goal': goal, 'kwargs': kwargs, 'fix_applied': fix_applied}
-                )
-                # Record swarm-level error step
-                self.swarm_state_manager.record_swarm_step({
-                    'agent': self.agent_name,
-                    'step': 'error',
-                    'error': error_str,
-                    'error_type': error_type,
-                    'success': False,
-                    'fix_applied': fix_applied,
-                    'fix_description': fix_description
-                })
-
-            # Return failed EpisodeResult with correct structure
-            duration = time.time() - start_time
-
-            # Agent0: Send executor feedback for failed execution
-            if self.swarm_intelligence:
-                try:
-                    detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
-                    self.swarm_intelligence.receive_executor_feedback(
-                        task_id=f"{self.agent_name}_{int(time.time())}",
-                        success=False,
-                        tools_used=[],  # No tools tracked in error case
-                        execution_time=duration,
-                        error_type=error_type,
-                        task_type=detected_task_type
-                    )
-                    logger.debug(f"Executor feedback sent: success=False, error_type={error_type}")
-                except Exception as fb_err:
-                    logger.debug(f"Executor feedback skipped: {fb_err}")
-
-            # Record gate outcome for failure
-            if self._validation_gate and 'gate_decision' in locals():
-                self._validation_gate.record_outcome(gate_decision.mode, False)
-
-            return EpisodeResult(
-                output=None,
-                success=False,
-                trajectory=[{'step': 0, 'action': 'error', 'error': error_str, 'fix_applied': fix_applied}],
-                tagged_outputs=[],
-                episode=0,
-                execution_time=duration,
-                architect_results=architect_results if 'architect_results' in locals() else [],
-                auditor_results=[],
-                agent_contributions={},
-                alerts=[f"Execution failed: {error_str[:100]}" + (f" (fix applied: {fix_description})" if fix_applied else "")]
+        # ── ERROR RECORDING (shared by all except branches) ───────────
+        # If we reach here, execution failed (successful path returns above).
+        # Track error in state
+        if self.swarm_state_manager:
+            self.agent_tracker.record_error(
+                error=error_str,
+                error_type=error_type,
+                context={'goal': goal, 'kwargs': kwargs, 'fix_applied': fix_applied}
             )
+            # Record swarm-level error step
+            self.swarm_state_manager.record_swarm_step({
+                'agent': self.agent_name,
+                'step': 'error',
+                'error': error_str,
+                'error_type': error_type,
+                'success': False,
+                'fix_applied': fix_applied,
+                'fix_description': fix_description
+            })
+
+        # Return failed EpisodeResult with correct structure
+        duration = time.time() - start_time
+
+        # Agent0: Send executor feedback for failed execution
+        if self.swarm_intelligence:
+            try:
+                detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                self.swarm_intelligence.receive_executor_feedback(
+                    task_id=f"{self.agent_name}_{int(time.time())}",
+                    success=False,
+                    tools_used=[],  # No tools tracked in error case
+                    execution_time=duration,
+                    error_type=error_type,
+                    task_type=detected_task_type
+                )
+                logger.debug(f"Executor feedback sent: success=False, error_type={error_type}")
+            except Exception as fb_err:
+                logger.debug(f"Executor feedback skipped: {fb_err}")
+
+        # Record gate outcome for failure
+        if self._validation_gate and 'gate_decision' in locals():
+            self._validation_gate.record_outcome(gate_decision.mode, False)
+
+        return EpisodeResult(
+            output=None,
+            success=False,
+            trajectory=[{'step': 0, 'action': 'error', 'error': error_str, 'error_type': error_type, 'fix_applied': fix_applied}],
+            tagged_outputs=[],
+            episode=0,
+            execution_time=duration,
+            architect_results=architect_results if 'architect_results' in locals() else [],
+            auditor_results=[],
+            agent_contributions={},
+            alerts=[f"{error_type}: {error_str[:100]}" + (f" (fix applied: {fix_description})" if fix_applied else "")]
+        )
 
     @property
     def gate_stats(self) -> dict:

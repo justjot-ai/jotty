@@ -7,18 +7,12 @@ Brain-inspired memory with 5 levels and consolidation.
 RECOMMENDED ENTRY POINT:
     from Jotty.core.memory import MemorySystem
     memory = MemorySystem()  # Zero-config, auto-detects best backend
-
-Modules:
---------
-- memory_system: MemorySystem facade (PREFERRED - single entry point)
-- cortex: 5-level hierarchical memory (EPISODIC → SEMANTIC → PROCEDURAL → META → CAUSAL)
-- consolidation_engine: Hippocampal extraction, sharp-wave ripple consolidation
-- memory_orchestrator: Unified memory API (SimpleBrain + BrainInspiredMemoryManager)
-- llm_rag: LLM-based retrieval, deduplication, causal extraction
 """
 
+import importlib as _importlib
+
+# ── Eager imports (lightweight, no DSPy) ────────────────────────────
 from .memory_orchestrator import (
-    # SimpleBrain API
     BrainPreset,
     ConsolidationTrigger,
     Experience,
@@ -26,7 +20,6 @@ from .memory_orchestrator import (
     calculate_chunk_size,
     get_model_context,
     load_brain_config,
-    # BrainInspiredMemoryManager
     BrainInspiredMemoryManager,
     EpisodicMemory,
     SemanticPattern,
@@ -41,15 +34,6 @@ from .consolidation_engine import (
     HippocampalExtractor,
     MemoryCandidate,
     SharpWaveRippleConsolidator,
-)
-from .cortex import (
-    HierarchicalMemory,
-    MemoryCluster,
-    MemoryLevelClassificationSignature,
-    MemoryLevelClassifier,
-    MetaWisdomSignature,
-    PatternExtractionSignature,
-    ProceduralExtractionSignature,
 )
 from .llm_rag import (
     CausalExtractor,
@@ -69,6 +53,30 @@ from .memory_system import (
     MemoryBackend,
     MemoryResult,
 )
+
+# ── Lazy imports (DSPy-dependent, loaded on first access) ───────────
+_LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    # cortex (HierarchicalMemory itself is lightweight once consolidation is deferred)
+    "HierarchicalMemory": (".cortex", "HierarchicalMemory"),
+    # Consolidation signatures/classes (heavy DSPy)
+    "MemoryCluster": (".consolidation", "MemoryCluster"),
+    "MemoryLevelClassificationSignature": (".consolidation", "MemoryLevelClassificationSignature"),
+    "MemoryLevelClassifier": (".consolidation", "MemoryLevelClassifier"),
+    "MetaWisdomSignature": (".consolidation", "MetaWisdomSignature"),
+    "PatternExtractionSignature": (".consolidation", "PatternExtractionSignature"),
+    "ProceduralExtractionSignature": (".consolidation", "ProceduralExtractionSignature"),
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path, attr_name = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, attr_name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # memory_system (PREFERRED entry point)

@@ -116,7 +116,7 @@ class JottyClaudeProvider:
                 timeout=2
             )
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
     def _start_server(self) -> bool:
@@ -169,7 +169,7 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
                 os.killpg(os.getpgid(self._server_process.pid), signal.SIGTERM)
                 self._server_process = None
                 logger.info("🛑 Wrapper server stopped")
-            except:
+            except Exception:
                 pass
 
     def _ensure_server_running(self) -> bool:

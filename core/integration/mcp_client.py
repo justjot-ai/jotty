@@ -245,7 +245,7 @@ async def call_justjot_mcp_tool(
                 text_content = content[0].get('text', '')
                 try:
                     return json.loads(text_content)
-                except:
+                except Exception:
                     return {'text': text_content}
         return result
 

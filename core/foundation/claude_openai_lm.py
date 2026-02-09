@@ -27,8 +27,13 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Default wrapper endpoint
-DEFAULT_WRAPPER_URL = "http://127.0.0.1:8765/v1"
+# Default wrapper endpoint (centralized default, overridable via env var)
+try:
+    from .config_defaults import DEFAULTS as _DEFAULTS
+    _PROXY_BASE = os.getenv("CLAUDE_OPENAI_PROXY_URL", _DEFAULTS.CLAUDE_OPENAI_PROXY_URL)
+except ImportError:
+    _PROXY_BASE = os.getenv("CLAUDE_OPENAI_PROXY_URL", "http://127.0.0.1:8765")
+DEFAULT_WRAPPER_URL = f"{_PROXY_BASE}/v1"
 DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
 
@@ -38,7 +43,7 @@ def is_wrapper_running(base_url: str = DEFAULT_WRAPPER_URL) -> bool:
         health_url = base_url.replace("/v1", "/health")
         response = requests.get(health_url, timeout=2)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 

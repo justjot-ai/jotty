@@ -268,7 +268,7 @@ class FeatureSelectionSkill(MLSkill):
                 null_imp = pd.Series(lgb_model.feature_importances_, index=X.columns)
                 for feat in X.columns:
                     null_importance_scores[feat].append(null_imp[feat])
-            except:
+            except Exception:
                 pass
 
         null_passed = set()
@@ -310,7 +310,7 @@ class FeatureSelectionSkill(MLSkill):
 
                 for feat in top_features:
                     stability_counts[feat] += 1
-            except:
+            except Exception:
                 pass
 
         stable_features = {f for f, c in stability_counts.items() if c >= n_runs * 0.6}
@@ -906,7 +906,7 @@ class FeatureSelectionSkill(MLSkill):
                 try:
                     score = cross_val_score(model, X[selected_feats], y, cv=cv, scoring=scoring).mean()
                     return score
-                except:
+                except Exception:
                     return -1.0
 
             # BOHB brackets
@@ -1069,7 +1069,7 @@ class FeatureSelectionSkill(MLSkill):
 
                     score = cross_val_score(model, X[selected_feats], y, cv=cv_temp, scoring=scoring).mean()
                     return config_idx, score
-                except:
+                except Exception:
                     return config_idx, -1.0
 
             # PASHA main loop

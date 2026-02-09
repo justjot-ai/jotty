@@ -498,7 +498,7 @@ class MLflowTrackerSkill(MLSkill):
             try:
                 from mlflow import sklearn as mlflow_sklearn
                 return mlflow_sklearn.load_model(uri)
-            except:
+            except Exception:
                 pass
 
             # Try pyfunc as fallback
@@ -588,7 +588,7 @@ class MLflowTrackerSkill(MLSkill):
                 run = self._mlflow.get_run(run_id)
                 row = {'run_id': run_id, **run.data.metrics, **run.data.params}
                 comparison.append(row)
-            except:
+            except Exception:
                 continue
 
         df = pd.DataFrame(comparison)

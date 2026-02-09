@@ -24,7 +24,13 @@ from datetime import datetime
 from pathlib import Path
 import json
 import hashlib
-import dspy
+_dspy_module = None
+def _get_dspy():
+    global _dspy_module
+    if _dspy_module is None:
+        import dspy
+        _dspy_module = dspy
+    return _dspy_module
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
 from Jotty.core.foundation.types import TaskStatus
@@ -1271,18 +1277,23 @@ class StateCheckpointer:
 # TRAJECTORY PREDICTOR
 # =============================================================================
 
-class TrajectoryPredictorSignature(dspy.Signature):
-    """Predict next action and outcome given current state."""
-    
-    state_summary: str = dspy.InputField(desc="Current state summary")
-    trajectory_history: str = dspy.InputField(desc="Recent trajectory steps")
-    available_actions: str = dspy.InputField(desc="Possible actions")
-    
-    reasoning: str = dspy.OutputField(desc="Analysis of likely next steps")
-    predicted_action: str = dspy.OutputField(desc="Most likely next action")
-    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
-    predicted_outcome: str = dspy.OutputField(desc="Expected outcome")
-    uncertainty_factors: str = dspy.OutputField(desc="What could go wrong")
+_TrajectoryPredictorSignature = None
+def _get_trajectory_predictor_signature():
+    global _TrajectoryPredictorSignature
+    if _TrajectoryPredictorSignature is None:
+        dspy = _get_dspy()
+        class TrajectoryPredictorSignature(dspy.Signature):
+            """Predict next action and outcome given current state."""
+            state_summary: str = dspy.InputField(desc="Current state summary")
+            trajectory_history: str = dspy.InputField(desc="Recent trajectory steps")
+            available_actions: str = dspy.InputField(desc="Possible actions")
+            reasoning: str = dspy.OutputField(desc="Analysis of likely next steps")
+            predicted_action: str = dspy.OutputField(desc="Most likely next action")
+            confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+            predicted_outcome: str = dspy.OutputField(desc="Expected outcome")
+            uncertainty_factors: str = dspy.OutputField(desc="What could go wrong")
+        _TrajectoryPredictorSignature = TrajectoryPredictorSignature
+    return _TrajectoryPredictorSignature
 
 
 class TrajectoryPredictor:
@@ -1294,7 +1305,7 @@ class TrajectoryPredictor:
     """
     
     def __init__(self):
-        self.predictor = dspy.ChainOfThought(TrajectoryPredictorSignature)
+        self.predictor = _get_dspy().ChainOfThought(_get_trajectory_predictor_signature())
         self.prediction_history: List[Dict] = []
     
     def predict(self, 

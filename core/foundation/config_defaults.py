@@ -217,6 +217,25 @@ class JottyDefaults:
     """Maximum rounds of iterative validation."""
 
     # =========================================================================
+    # SERVICE URLS (centralized — override via env vars)
+    # =========================================================================
+
+    JUSTJOT_API_URL: str = "http://localhost:3000"
+    """JustJot.ai API base URL. Override: JUSTJOT_API_URL env var."""
+
+    LATEX_VALIDATION_URL: str = "http://localhost:8080"
+    """LaTeX validation server URL. Override: LATEX_VALIDATION_SERVER_URL env var."""
+
+    OLLAMA_URL: str = "http://localhost:11434"
+    """Ollama local LLM server URL. Override: OLLAMA_URL env var."""
+
+    JOTTY_GATEWAY_URL: str = "http://localhost:8766"
+    """Jotty web gateway URL. Override: JOTTY_GATEWAY_URL env var."""
+
+    CLAUDE_OPENAI_PROXY_URL: str = "http://127.0.0.1:8765"
+    """Claude-to-OpenAI proxy URL. Override: CLAUDE_OPENAI_PROXY_URL env var."""
+
+    # =========================================================================
     # LOGGING & MONITORING
     # =========================================================================
 

@@ -24,16 +24,23 @@ Our approach:
 4. Budget-aware selection (no truncation)
 """
 
-import dspy
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
 import re
 import hashlib
 import json
+
+logger = logging.getLogger(__name__)
+
+_dspy_module = None
+def _get_dspy():
+    global _dspy_module
+    if _dspy_module is None:
+        import dspy
+        _dspy_module = dspy
+    return _dspy_module
 
 from ..foundation.data_structures import (
     MemoryEntry, MemoryLevel, JottyConfig,
@@ -227,40 +234,40 @@ class RecencyValueRanker:
 # LLM RELEVANCE SCORER (Pure Semantic - No Keywords!)
 # =============================================================================
 
-class RelevanceSignature(dspy.Signature):
-    """Score relevance of memories to a query using pure semantic understanding."""
+_RelevanceSignature = None
+def _get_relevance_signature():
+    global _RelevanceSignature
+    if _RelevanceSignature is None:
+        dspy = _get_dspy()
+        class RelevanceSignature(dspy.Signature):
+            """Score relevance of memories to a query using pure semantic understanding."""
+            query: str = dspy.InputField(desc="The current query/goal - can be ANY language or format")
+            memory_batch: str = dspy.InputField(desc="Batch of memories to score (JSON)")
+            context_hints: str = dspy.InputField(desc="Additional context about the task domain")
+            reasoning: str = dspy.OutputField(desc="Step-by-step semantic analysis of each memory's relevance")
+            scores: str = dspy.OutputField(desc="JSON dict mapping memory_key to relevance score 0.0-1.0")
+        _RelevanceSignature = RelevanceSignature
+    return _RelevanceSignature
 
-    query: str = dspy.InputField(desc="The current query/goal - can be ANY language or format")
-    memory_batch: str = dspy.InputField(desc="Batch of memories to score (JSON)")
-    context_hints: str = dspy.InputField(desc="Additional context about the task domain")
 
-    reasoning: str = dspy.OutputField(desc="Step-by-step semantic analysis of each memory's relevance")
-    scores: str = dspy.OutputField(desc="JSON dict mapping memory_key to relevance score 0.0-1.0")
-
-
-class MemorySynthesisSignature(dspy.Signature):
-    """
-    🧠 Brain-Inspired Memory Synthesis (Neuroscience-Aligned!)
-
-    Synthesizes wisdom from multiple memories like human neocortex does:
-    - Integrates episodic experiences into semantic schemas
-    - Finds emergent patterns across memories
-    - Resolves contradictions
-    - Extracts causal insights
-
-    This is how human memory ACTUALLY works - not discrete retrieval!
-    """
-
-    query: str = dspy.InputField(desc="Current task/question")
-    goal: str = dspy.InputField(desc="Overall goal context")
-    memories: str = dspy.InputField(desc="All relevant memories (JSON list with level, content, value)")
-    context_hints: str = dspy.InputField(desc="Additional context about task domain")
-
-    analysis: str = dspy.OutputField(desc="Deep analysis: patterns across memories, contradictions, causal relationships")
-    core_principles: str = dspy.OutputField(desc="Key principles synthesized from experiences (what we learned)")
-    anti_patterns: str = dspy.OutputField(desc="What to avoid based on failures and mistakes")
-    recommendations: str = dspy.OutputField(desc="Specific actionable recommendations for current task")
-    wisdom: str = dspy.OutputField(desc="Integrated wisdom - coherent schema combining all insights")
+_MemorySynthesisSignature = None
+def _get_memory_synthesis_signature():
+    global _MemorySynthesisSignature
+    if _MemorySynthesisSignature is None:
+        dspy = _get_dspy()
+        class MemorySynthesisSignature(dspy.Signature):
+            """Brain-Inspired Memory Synthesis (Neuroscience-Aligned)."""
+            query: str = dspy.InputField(desc="Current task/question")
+            goal: str = dspy.InputField(desc="Overall goal context")
+            memories: str = dspy.InputField(desc="All relevant memories (JSON list with level, content, value)")
+            context_hints: str = dspy.InputField(desc="Additional context about task domain")
+            analysis: str = dspy.OutputField(desc="Deep analysis: patterns across memories, contradictions, causal relationships")
+            core_principles: str = dspy.OutputField(desc="Key principles synthesized from experiences (what we learned)")
+            anti_patterns: str = dspy.OutputField(desc="What to avoid based on failures and mistakes")
+            recommendations: str = dspy.OutputField(desc="Specific actionable recommendations for current task")
+            wisdom: str = dspy.OutputField(desc="Integrated wisdom - coherent schema combining all insights")
+        _MemorySynthesisSignature = MemorySynthesisSignature
+    return _MemorySynthesisSignature
 
 
 class LLMRelevanceScorer:
@@ -306,11 +313,13 @@ class LLMRelevanceScorer:
         self.window_size = config.rag_window_size
         self.use_cot = config.rag_use_cot
         
-        # Create the scorer agent
+        # Create the scorer agent (DSPy loaded on first use)
+        dspy = _get_dspy()
+        sig = _get_relevance_signature()
         if self.use_cot:
-            self.scorer = dspy.ChainOfThought(RelevanceSignature)
+            self.scorer = dspy.ChainOfThought(sig)
         else:
-            self.scorer = dspy.Predict(RelevanceSignature)
+            self.scorer = dspy.Predict(sig)
     
     def score_batch(self, query: str, memories: List[MemoryEntry],
                     context_hints: str = "") -> Dict[str, float]:
@@ -427,7 +436,7 @@ class MemorySynthesizer:
 
     def __init__(self, config: JottyConfig):
         self.config = config
-        self.synthesizer = dspy.ChainOfThought(MemorySynthesisSignature)
+        self.synthesizer = _get_dspy().ChainOfThought(_get_memory_synthesis_signature())
 
     def synthesize_wisdom(self,
                           query: str,
@@ -510,17 +519,22 @@ class MemorySynthesizer:
 # DEDUPLICATION ENGINE (Shannon Enhancement)
 # =============================================================================
 
-class DeduplicationSignature(dspy.Signature):
-    """Check if two memories are semantically similar enough to merge."""
-    
-    memory_a: str = dspy.InputField(desc="First memory content")
-    memory_b: str = dspy.InputField(desc="Second memory content")
-    context: str = dspy.InputField(desc="Context about memory purpose")
-    
-    reasoning: str = dspy.OutputField(desc="Analysis of similarity")
-    is_duplicate: bool = dspy.OutputField(desc="True if memories convey same information")
-    similarity_score: float = dspy.OutputField(desc="Similarity 0.0-1.0")
-    merged_content: str = dspy.OutputField(desc="If duplicate, the merged content preserving all info")
+_DeduplicationSignature = None
+def _get_dedup_signature():
+    global _DeduplicationSignature
+    if _DeduplicationSignature is None:
+        dspy = _get_dspy()
+        class DeduplicationSignature(dspy.Signature):
+            """Check if two memories are semantically similar enough to merge."""
+            memory_a: str = dspy.InputField(desc="First memory content")
+            memory_b: str = dspy.InputField(desc="Second memory content")
+            context: str = dspy.InputField(desc="Context about memory purpose")
+            reasoning: str = dspy.OutputField(desc="Analysis of similarity")
+            is_duplicate: bool = dspy.OutputField(desc="True if memories convey same information")
+            similarity_score: float = dspy.OutputField(desc="Similarity 0.0-1.0")
+            merged_content: str = dspy.OutputField(desc="If duplicate, the merged content preserving all info")
+        _DeduplicationSignature = DeduplicationSignature
+    return _DeduplicationSignature
 
 
 class DeduplicationEngine:
@@ -539,7 +553,7 @@ class DeduplicationEngine:
     def __init__(self, config: JottyConfig):
         self.config = config
         self.threshold = config.similarity_threshold
-        self.checker = dspy.ChainOfThought(DeduplicationSignature) if not self.SKIP_LLM_DEDUP else None
+        self.checker = _get_dspy().ChainOfThought(_get_dedup_signature()) if not self.SKIP_LLM_DEDUP else None
     
     def check_duplicate(self, mem_a: MemoryEntry, mem_b: MemoryEntry) -> Tuple[bool, float, str]:
         """
@@ -652,15 +666,20 @@ class DeduplicationEngine:
 # CAUSAL EXTRACTOR (Aristotle Enhancement)
 # =============================================================================
 
-class CausalExtractionSignature(dspy.Signature):
-    """Extract causal relationships from episode experiences."""
-    
-    success_episodes: str = dspy.InputField(desc="Summary of successful episodes")
-    failure_episodes: str = dspy.InputField(desc="Summary of failed episodes")
-    domain_context: str = dspy.InputField(desc="Domain information")
-    
-    reasoning: str = dspy.OutputField(desc="Analysis of what caused success vs failure")
-    causal_links: str = dspy.OutputField(desc="JSON list of {cause, effect, conditions, confidence}")
+_CausalExtractionSignature = None
+def _get_causal_signature():
+    global _CausalExtractionSignature
+    if _CausalExtractionSignature is None:
+        dspy = _get_dspy()
+        class CausalExtractionSignature(dspy.Signature):
+            """Extract causal relationships from episode experiences."""
+            success_episodes: str = dspy.InputField(desc="Summary of successful episodes")
+            failure_episodes: str = dspy.InputField(desc="Summary of failed episodes")
+            domain_context: str = dspy.InputField(desc="Domain information")
+            reasoning: str = dspy.OutputField(desc="Analysis of what caused success vs failure")
+            causal_links: str = dspy.OutputField(desc="JSON list of {cause, effect, conditions, confidence}")
+        _CausalExtractionSignature = CausalExtractionSignature
+    return _CausalExtractionSignature
 
 
 class CausalExtractor:
@@ -674,7 +693,7 @@ class CausalExtractor:
     
     def __init__(self, config: JottyConfig):
         self.config = config
-        self.extractor = dspy.ChainOfThought(CausalExtractionSignature)
+        self.extractor = _get_dspy().ChainOfThought(_get_causal_signature())
         self.min_evidence = config.causal_min_support
     
     def extract_from_episodes(self, 

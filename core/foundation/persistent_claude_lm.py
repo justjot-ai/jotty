@@ -93,7 +93,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
             try:
                 self._process.terminate()
                 await asyncio.wait_for(self._process.wait(), timeout=5)
-            except:
+            except Exception:
                 self._process.kill()
 
         # Start claude in interactive mode with JSON output
@@ -316,7 +316,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
             if cls._instance and cls._instance._process:
                 try:
                     cls._instance._process.terminate()
-                except:
+                except Exception:
                     pass
             cls._instance = None
 

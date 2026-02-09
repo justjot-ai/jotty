@@ -379,7 +379,7 @@ class SemExtract(SemanticOperator):
                 try:
                     # Try to parse as JSON
                     parsed = json.loads(result)
-                except:
+                except Exception:
                     # Fall back to raw text
                     parsed = {"raw": result}
 
@@ -458,7 +458,7 @@ class SemTopK(SemanticOperator):
                     score = int(numbers[0])
                     confidence = 0.8 if score > 0 else 0.5
                     return score, confidence
-            except:
+            except Exception:
                 pass
             return 50, 0.3
 

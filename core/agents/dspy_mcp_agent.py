@@ -217,7 +217,7 @@ class DSPyMCPAgent:
                     tool_call = json.loads(match)
                     if "name" in tool_call:
                         tool_calls.append(tool_call)
-                except:
+                except Exception:
                     continue
             return tool_calls
 

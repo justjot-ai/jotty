@@ -444,7 +444,7 @@ class FundamentalFeaturesSkill(MLSkill):
                 s_pe = s_info.get('trailingPE')
                 if s_pe and 0 < s_pe < 200:
                     sector_pes.append(s_pe)
-            except:
+            except Exception:
                 continue
 
         if sector_pes and 'fund_trailing_pe' in fund_df.columns:

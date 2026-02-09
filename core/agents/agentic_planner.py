@@ -11,9 +11,7 @@ Supports both:
 
 import json
 import logging
-import asyncio
-import traceback
-from typing import Dict, Any, List, Optional, Union, TYPE_CHECKING
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
 
 try:
@@ -42,7 +40,7 @@ def _get_dspy():
 
 # Pydantic model for typed DSPy output - accepts common field name variations
 if PYDANTIC_AVAILABLE:
-    from pydantic import field_validator, model_validator
+    from pydantic import model_validator
 
     class ExecutionStepSchema(BaseModel):
         """Schema for execution plan steps - accepts common LLM field name variations."""
@@ -140,7 +138,7 @@ except ImportError:
 # Import ExecutionStep and TaskType at runtime (after module initialization)
 def _get_execution_step():
     """Lazy import to avoid circular dependency."""
-    from .auto_agent import ExecutionStep
+    from .base.autonomous_agent import ExecutionStep
     return ExecutionStep
 
 def _get_task_type():

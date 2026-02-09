@@ -474,7 +474,7 @@ class ComponentAutoGenerator:
             # Parse example data
             try:
                 example_data = json.loads(result.example_data)
-            except:
+            except Exception:
                 example_data = {}
 
             return result.python_method_code, example_data

@@ -45,8 +45,13 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# Configurable URLs via environment variables
-JUSTJOT_API_URL = os.environ.get('JUSTJOT_API_URL', 'http://localhost:3000')
+# Configurable URLs via environment variables (centralized default)
+try:
+    from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+    _DEFAULT_JUSTJOT_URL = _DEFAULTS.JUSTJOT_API_URL
+except ImportError:
+    _DEFAULT_JUSTJOT_URL = 'http://localhost:3000'
+JUSTJOT_API_URL = os.environ.get('JUSTJOT_API_URL', _DEFAULT_JUSTJOT_URL)
 
 # Import Jotty types
 try:
@@ -504,8 +509,9 @@ class JustJotMemorySyncAdapter:
                         return False
 
         except ImportError:
-            logger.warning("aiohttp not available, using requests")
-            return self._push_sync(memory_entry)
+            logger.warning("aiohttp not available, using requests in thread")
+            import asyncio
+            return await asyncio.to_thread(self._push_sync, memory_entry)
         except Exception as e:
             self._sync_errors.append(f"Push error: {str(e)}")
             logger.error(f"Push to JustJot failed: {e}", exc_info=True)
@@ -574,8 +580,9 @@ class JustJotMemorySyncAdapter:
                         return []
 
         except ImportError:
-            logger.warning("aiohttp not available, using requests")
-            return self._pull_sync(entity_id, limit)
+            logger.warning("aiohttp not available, using requests in thread")
+            import asyncio
+            return await asyncio.to_thread(self._pull_sync, entity_id, limit)
         except Exception as e:
             self._sync_errors.append(f"Pull error: {str(e)}")
             logger.error(f"Pull from JustJot failed: {e}", exc_info=True)

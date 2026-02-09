@@ -158,7 +158,7 @@ class EDASkill(MLSkill):
                         'is_strong': abs(corr) > 0.3,
                         'is_weak': abs(corr) < 0.1,
                     }
-            except:
+            except Exception:
                 pass
 
         # Feature-feature correlations
@@ -230,7 +230,7 @@ class EDASkill(MLSkill):
                     target_rates = X.groupby(col).apply(lambda g: y.iloc[g.index].mean())
                     cat_info[col]['target_rate_range'] = float(target_rates.max() - target_rates.min())
                     cat_info[col]['is_predictive'] = cat_info[col]['target_rate_range'] > 0.2
-                except:
+                except Exception:
                     pass
 
         return cat_info
@@ -302,7 +302,7 @@ class EDASkill(MLSkill):
                             'correlation': float(ratio_corr),
                             'improvement': float(ratio_corr - max_base)
                         })
-                except:
+                except Exception:
                     pass
 
         interactions.sort(key=lambda x: x['improvement'], reverse=True)

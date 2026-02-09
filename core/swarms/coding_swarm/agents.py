@@ -119,7 +119,7 @@ class ArchitectAgent(BaseCodeAgent):
             # Parse components
             try:
                 components = json.loads(result.components)
-            except:
+            except Exception:
                 components = []
 
             self._broadcast("architecture_designed", {

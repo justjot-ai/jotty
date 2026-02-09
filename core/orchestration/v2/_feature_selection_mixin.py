@@ -116,7 +116,7 @@ class FeatureSelectionMixin:
                 null_imp = pd.Series(lgb_model.feature_importances_, index=X_filtered.columns)
                 for feat in X_filtered.columns:
                     null_importance_scores[feat].append(null_imp[feat])
-            except:
+            except Exception:
                 pass
 
         # Features where real importance > 95th percentile of null importance
@@ -157,7 +157,7 @@ class FeatureSelectionMixin:
 
                 for feat in top_features:
                     stability_counts[feat] += 1
-            except:
+            except Exception:
                 pass
 
         # Features selected in majority of runs

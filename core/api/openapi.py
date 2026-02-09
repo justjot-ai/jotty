@@ -118,7 +118,7 @@ def generate_openapi_spec(
     title: str = "Jotty API",
     version: str = "2.0.0",
     description: str = "AI Agent Framework - Multi-agent orchestration API",
-    base_url: str = "http://localhost:8766"
+    base_url: str = None
 ) -> Dict[str, Any]:
     """
     Generate OpenAPI 3.0 spec from sdk_types.py dataclasses.
@@ -126,6 +126,14 @@ def generate_openapi_spec(
     Introspects ExecutionContext, SDKEvent, SDKSession, SDKResponse, SDKRequest
     and generates schemas automatically. Endpoints defined declaratively.
     """
+    import os
+    if base_url is None:
+        try:
+            from Jotty.core.foundation.config_defaults import DEFAULTS as _DEFAULTS
+            base_url = os.getenv("JOTTY_GATEWAY_URL", _DEFAULTS.JOTTY_GATEWAY_URL)
+        except ImportError:
+            base_url = os.getenv("JOTTY_GATEWAY_URL", "http://localhost:8766")
+
     from Jotty.core.foundation.types.sdk_types import (
         ExecutionMode, ChannelType, SDKEventType, ResponseFormat,
         ExecutionContext, SDKEvent, SDKSession, SDKResponse, SDKRequest,

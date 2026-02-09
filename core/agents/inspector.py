@@ -13,7 +13,6 @@ Agent types:
 - Multi-round refinement loop
 """
 
-import dspy
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,51 +34,74 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# SIGNATURES (Optimized for speed - matching AutoAgent pattern)
+# SIGNATURES (Lazy-loaded to defer DSPy import)
 # =============================================================================
 
-class PlannerSignature(dspy.Signature):
-    """Pre-validation: Quick check if task inputs are sufficient.
+_dspy_module = None
 
-    You are a VALIDATOR, not an executor. Analyze inputs and decide if task can proceed.
-    Keep response concise - this is a fast validation step.
-    """
-    task: str = dspy.InputField(desc="Task description to validate")
-    context: str = dspy.InputField(desc="Available context and inputs")
+def _get_dspy():
+    global _dspy_module
+    if _dspy_module is None:
+        import dspy
+        _dspy_module = dspy
+    return _dspy_module
 
-    # Only 3 essential output fields (like AutoAgent)
-    should_proceed: bool = dspy.OutputField(desc="True if inputs are sufficient, False if missing critical info")
-    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
-    reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
+_PlannerSignature = None
+_ReviewerSignature = None
+_RefinementSignature = None
 
+def _get_planner_signature():
+    global _PlannerSignature
+    if _PlannerSignature is None:
+        dspy = _get_dspy()
+        class PlannerSignature(dspy.Signature):
+            """Pre-validation: Quick check if task inputs are sufficient.
 
-class ReviewerSignature(dspy.Signature):
-    """Post-validation: Quick check if task output is valid.
+            You are a VALIDATOR, not an executor. Analyze inputs and decide if task can proceed.
+            Keep response concise - this is a fast validation step.
+            """
+            task: str = dspy.InputField(desc="Task description to validate")
+            context: str = dspy.InputField(desc="Available context and inputs")
+            should_proceed: bool = dspy.OutputField(desc="True if inputs are sufficient, False if missing critical info")
+            confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+            reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
+        _PlannerSignature = PlannerSignature
+    return _PlannerSignature
 
-    You are a VALIDATOR. Check if task succeeded and output meets requirements.
-    CRITICAL: If success=False or output is incomplete/wrong, mark is_valid=False.
-    """
-    task: str = dspy.InputField(desc="Original task that was executed")
-    context: str = dspy.InputField(desc="Execution result and output to validate")
+def _get_reviewer_signature():
+    global _ReviewerSignature
+    if _ReviewerSignature is None:
+        dspy = _get_dspy()
+        class ReviewerSignature(dspy.Signature):
+            """Post-validation: Quick check if task output is valid.
 
-    # Only 4 essential output fields
-    is_valid: bool = dspy.OutputField(desc="True if task succeeded with correct output, False otherwise")
-    confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
-    output_tag: str = dspy.OutputField(desc="useful (valid), fail (invalid), or enquiry (uncertain)")
-    reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
+            You are a VALIDATOR. Check if task succeeded and output meets requirements.
+            CRITICAL: If success=False or output is incomplete/wrong, mark is_valid=False.
+            """
+            task: str = dspy.InputField(desc="Original task that was executed")
+            context: str = dspy.InputField(desc="Execution result and output to validate")
+            is_valid: bool = dspy.OutputField(desc="True if task succeeded with correct output, False otherwise")
+            confidence: float = dspy.OutputField(desc="Confidence 0.0-1.0")
+            output_tag: str = dspy.OutputField(desc="useful (valid), fail (invalid), or enquiry (uncertain)")
+            reasoning: str = dspy.OutputField(desc="Brief explanation (1-2 sentences)")
+        _ReviewerSignature = ReviewerSignature
+    return _ReviewerSignature
 
-
-class RefinementSignature(dspy.Signature):
-    """Refinement: Improve decision based on feedback."""
-    
-    original_decision: str = dspy.InputField(desc="Original validation decision and reasoning")
-    feedback: str = dspy.InputField(desc="Feedback from other agents or round results")
-    additional_context: str = dspy.InputField(desc="New context gathered")
-    
-    refined_reasoning: str = dspy.OutputField(desc="Updated reasoning incorporating feedback")
-    refined_decision: bool = dspy.OutputField(desc="Refined should_proceed/is_valid")
-    refined_confidence: float = dspy.OutputField(desc="Updated confidence")
-    changes_made: str = dspy.OutputField(desc="What changed and why")
+def _get_refinement_signature():
+    global _RefinementSignature
+    if _RefinementSignature is None:
+        dspy = _get_dspy()
+        class RefinementSignature(dspy.Signature):
+            """Refinement: Improve decision based on feedback."""
+            original_decision: str = dspy.InputField(desc="Original validation decision and reasoning")
+            feedback: str = dspy.InputField(desc="Feedback from other agents or round results")
+            additional_context: str = dspy.InputField(desc="New context gathered")
+            refined_reasoning: str = dspy.OutputField(desc="Updated reasoning incorporating feedback")
+            refined_decision: bool = dspy.OutputField(desc="Refined should_proceed/is_valid")
+            refined_confidence: float = dspy.OutputField(desc="Updated confidence")
+            changes_made: str = dspy.OutputField(desc="What changed and why")
+        _RefinementSignature = RefinementSignature
+    return _RefinementSignature
 
 
 # =============================================================================
@@ -252,7 +274,7 @@ class InspectorAgent:
         # with caching, param resolution, etc. Don't wrap them again!
         self.user_tools = tools
         
-        # Check if tools are already dspy.Tool objects (from new architecture)
+        # Check if tools are already DSPy Tool objects (from new architecture)
         if tools and len(tools) > 0 and hasattr(tools[0], 'func'):
             # New architecture: Individual DSPy tools with smart wrappers
             # NO additional wrapping needed!
@@ -272,14 +294,15 @@ class InspectorAgent:
         
         # Create DSPy agent with ChainOfThought for fast validation
         # Optimized: Single LLM call like AutoAgent (not iterative ReAct)
-        self.signature = PlannerSignature if is_architect else ReviewerSignature
+        dspy = _get_dspy()
+        self.signature = _get_planner_signature() if is_architect else _get_reviewer_signature()
 
         logger.debug(f"⚡ [{self.agent_name}] ChainOfThought validation (fast mode)")
         self.agent = dspy.ChainOfThought(self.signature)
         
         # Refinement agent
         if config.enable_multi_round:
-            self.refiner = dspy.ChainOfThought(RefinementSignature)
+            self.refiner = dspy.ChainOfThought(_get_refinement_signature())
         
         # Statistics
         self.total_calls = 0
@@ -1304,8 +1327,8 @@ class MultiRoundValidator:
 # REFACTORING PHASE 1.3: Deprecation aliases for renamed signature classes
 # These will be removed in a future version.
 
-# Architect → Planner renaming
-ArchitectSignature = PlannerSignature
+# Architect → Planner renaming (lazy)
+ArchitectSignature = _get_planner_signature
 
-# Auditor → Reviewer renaming
-AuditorSignature = ReviewerSignature
+# Auditor → Reviewer renaming (lazy)
+AuditorSignature = _get_reviewer_signature

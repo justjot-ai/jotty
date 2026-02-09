@@ -22,12 +22,20 @@ import time
 
 logger = logging.getLogger(__name__)
 
-# Try DSPy for agentic reward evaluation
-try:
-    import dspy
-    DSPY_AVAILABLE = True
-except ImportError:
-    DSPY_AVAILABLE = False
+# DSPy loaded lazily for agentic reward evaluation
+_dspy_module = None
+DSPY_AVAILABLE = None  # Determined on first access
+
+def _get_dspy():
+    global _dspy_module, DSPY_AVAILABLE
+    if DSPY_AVAILABLE is None:
+        try:
+            import dspy
+            _dspy_module = dspy
+            DSPY_AVAILABLE = True
+        except ImportError:
+            DSPY_AVAILABLE = False
+    return _dspy_module
 
 
 # =============================================================================
@@ -72,21 +80,24 @@ class RewardCondition:
 # AGENTIC REWARD EVALUATOR
 # =============================================================================
 
-if DSPY_AVAILABLE:
-    class RewardConditionSignature(dspy.Signature):
-        """
-        Evaluate if a reward condition is met based on current state.
-        
-        🔬 NO REGEX/KEYWORDS - Pure LLM reasoning about progress.
-        """
-        condition_name = dspy.InputField(desc="Name of the condition to check")
-        condition_description = dspy.InputField(desc="Description of what needs to be true")
-        current_state = dspy.InputField(desc="Current state including outputs, context, trajectory")
-        trajectory_summary = dspy.InputField(desc="What has been done so far")
-        
-        is_met = dspy.OutputField(desc="YES or NO - is the condition met?")
-        evidence = dspy.OutputField(desc="Evidence supporting the decision")
-        confidence = dspy.OutputField(desc="Confidence 0.0-1.0")
+_RewardConditionSignature = None
+def _get_reward_condition_signature():
+    global _RewardConditionSignature
+    if _RewardConditionSignature is None:
+        dspy = _get_dspy()
+        if dspy is None:
+            return None
+        class RewardConditionSignature(dspy.Signature):
+            """Evaluate if a reward condition is met based on current state."""
+            condition_name = dspy.InputField(desc="Name of the condition to check")
+            condition_description = dspy.InputField(desc="Description of what needs to be true")
+            current_state = dspy.InputField(desc="Current state including outputs, context, trajectory")
+            trajectory_summary = dspy.InputField(desc="What has been done so far")
+            is_met = dspy.OutputField(desc="YES or NO - is the condition met?")
+            evidence = dspy.OutputField(desc="Evidence supporting the decision")
+            confidence = dspy.OutputField(desc="Confidence 0.0-1.0")
+        _RewardConditionSignature = RewardConditionSignature
+    return _RewardConditionSignature
 
 
 class AgenticRewardEvaluator:
@@ -98,8 +109,10 @@ class AgenticRewardEvaluator:
     """
     
     def __init__(self):
-        if DSPY_AVAILABLE:
-            self.evaluator = dspy.ChainOfThought(RewardConditionSignature)
+        sig = _get_reward_condition_signature()
+        if sig is not None:
+            dspy = _get_dspy()
+            self.evaluator = dspy.ChainOfThought(sig)
         else:
             self.evaluator = None
         logger.info("🎁 AgenticRewardEvaluator initialized (pure LLM, no regex)")

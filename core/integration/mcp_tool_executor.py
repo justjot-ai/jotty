@@ -28,7 +28,7 @@ class MCPToolExecutor:
 
         Args:
             mcp_config_path: Path to mcp.json or claude_desktop_config.json
-            base_url: Base URL for JustJot API (default: http://localhost:3000)
+            base_url: Base URL for JustJot API (default: JUSTJOT_API_URL env var)
         """
         self.mcp_config_path = mcp_config_path or self._find_mcp_config()
         # Use environment variable or cmd.dev or Docker service name as fallback

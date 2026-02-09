@@ -121,6 +121,15 @@ class SwarmLearningPipeline:
         # Training task queue (filled by post_episode when exploration needed)
         self._pending_training_tasks: list = []
 
+        # Paradigm effectiveness tracker (auto paradigm selection)
+        # KISS: Simple dict, no new classes. Persisted with stigmergy.
+        self._paradigm_stats: Dict[str, Dict[str, int]] = {
+            'fanout': {'runs': 0, 'successes': 0},
+            'relay': {'runs': 0, 'successes': 0},
+            'debate': {'runs': 0, 'successes': 0},
+            'refinement': {'runs': 0, 'successes': 0},
+        }
+
     # =========================================================================
     # Persistence paths
     # =========================================================================
@@ -193,7 +202,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
-        # Stigmergy pheromone trails
+        # Stigmergy pheromone trails + paradigm stats
         stig_path = self._get_stigmergy_path()
         if stig_path.exists():
             try:
@@ -201,6 +210,9 @@ class SwarmLearningPipeline:
                 with open(stig_path, 'r') as f:
                     stig_data = json.load(f)
                 self.stigmergy = StigmergyLayer.from_dict(stig_data)
+                # Restore paradigm stats if present (saved alongside stigmergy)
+                if 'paradigm_stats' in stig_data:
+                    self._paradigm_stats.update(stig_data['paradigm_stats'])
                 logger.info(
                     f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals"
                 )
@@ -240,12 +252,15 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Could not auto-save credit weights: {e}")
 
-        # Stigmergy pheromone trails
+        # Stigmergy pheromone trails + paradigm stats
         stig_path = self._get_stigmergy_path()
         try:
             stig_path.parent.mkdir(parents=True, exist_ok=True)
+            stig_data = self.stigmergy.to_dict()
+            # Include paradigm stats in same file (DRY: no new path)
+            stig_data['paradigm_stats'] = self._paradigm_stats
             with open(stig_path, 'w') as f:
-                json.dump(self.stigmergy.to_dict(), f, indent=2)
+                json.dump(stig_data, f, indent=2)
         except Exception as e:
             logger.debug(f"Could not auto-save stigmergy: {e}")
 
@@ -694,6 +709,63 @@ class SwarmLearningPipeline:
             'improvement_velocity': state.improvement_velocity,
             'should_stop': self.adaptive_learning.should_stop_early(),
         }
+
+    # =========================================================================
+    # Paradigm effectiveness tracking (auto paradigm selection)
+    # =========================================================================
+
+    def record_paradigm_result(self, paradigm: str, success: bool):
+        """Record the outcome of a discussion paradigm run."""
+        if paradigm not in self._paradigm_stats:
+            self._paradigm_stats[paradigm] = {'runs': 0, 'successes': 0}
+        self._paradigm_stats[paradigm]['runs'] += 1
+        if success:
+            self._paradigm_stats[paradigm]['successes'] += 1
+
+    def recommend_paradigm(self, task_type: str = None) -> str:
+        """
+        Recommend the best discussion paradigm based on historical success rates.
+
+        Uses Thompson Sampling (beta distribution) for explore/exploit:
+        - Paradigms with more successes are preferred.
+        - Paradigms with few runs get explored.
+        - Falls back to 'fanout' if no data yet.
+
+        KISS: ~15 lines, no external deps. DRY: Uses existing _paradigm_stats.
+        """
+        import random
+
+        best_paradigm = 'fanout'
+        best_score = -1.0
+
+        for paradigm, stats in self._paradigm_stats.items():
+            runs = stats['runs']
+            successes = stats['successes']
+            if runs == 0:
+                # Unexplored paradigm gets a random draw from uniform prior
+                score = random.random()
+            else:
+                # Thompson sampling: draw from Beta(successes+1, failures+1)
+                failures = runs - successes
+                score = random.betavariate(successes + 1, failures + 1)
+
+            if score > best_score:
+                best_score = score
+                best_paradigm = paradigm
+
+        return best_paradigm
+
+    def get_paradigm_stats(self) -> Dict[str, Any]:
+        """Get paradigm effectiveness stats with success rates."""
+        stats = {}
+        for paradigm, data in self._paradigm_stats.items():
+            runs = data['runs']
+            successes = data['successes']
+            stats[paradigm] = {
+                **data,
+                'success_rate': successes / runs if runs > 0 else None,
+            }
+        return stats
 
     # =========================================================================
     # Curriculum generation

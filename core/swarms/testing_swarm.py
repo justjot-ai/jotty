@@ -366,12 +366,12 @@ class CodeAnalyzerAgent(BaseTestAgent):
             # Parse results
             try:
                 testable_units = json.loads(result.testable_units)
-            except:
+            except Exception:
                 testable_units = []
 
             try:
                 dependencies = json.loads(result.dependencies)
-            except:
+            except Exception:
                 dependencies = []
 
             edge_cases = [e.strip() for e in str(result.edge_cases).split('|') if e.strip()]

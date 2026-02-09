@@ -105,7 +105,7 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
                         error_data = json.loads(response.read().decode('utf-8'))
                         error_msg = error_data.get('error', f'HTTP {status_code}')
                         return False, f"POST error: {error_msg}", metadata
-                    except:
+                    except Exception:
                         return False, f"POST HTTP {status_code}: {content_type}", metadata
                 else:
                     return False, f"POST HTTP {status_code}", metadata
@@ -163,7 +163,7 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
                     error_data = json.loads(response.read().decode('utf-8'))
                     error_msg = error_data.get('error', f'HTTP {status_code}')
                     return False, error_msg, metadata
-                except:
+                except Exception:
                     return False, f"HTTP {status_code}", metadata
             
             # Unexpected response
@@ -191,7 +191,7 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
             # Try to extract error message
             if 'error' in error_body.lower():
                 return False, f"Rendering error: {error_body[:200]}", metadata
-        except:
+        except Exception:
             pass
         return False, f"HTTP {e.code}: {e.reason}", metadata
     

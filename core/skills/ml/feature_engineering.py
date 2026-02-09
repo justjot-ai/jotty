@@ -181,7 +181,7 @@ class FeatureEngineeringSkill(MLSkill):
                         X[f'{grp_col}_{agg_col}_grp_std'] = grp_std
                         X[f'{grp_col}_{agg_col}_grp_cnt'] = grp_count
                         X[f'{grp_col}_{agg_col}_dev'] = X[agg_col] - grp_mean
-                    except:
+                    except Exception:
                         pass
 
         self._techniques_used.append('groupby_aggregations')
@@ -192,7 +192,7 @@ class FeatureEngineeringSkill(MLSkill):
         for col in numeric_cols[:5]:
             try:
                 X[f'{col}_qbin'] = pd.qcut(X[col], q=5, labels=False, duplicates='drop')
-            except:
+            except Exception:
                 pass
 
             if X[col].std() > 0:
@@ -244,7 +244,7 @@ class FeatureEngineeringSkill(MLSkill):
                 try:
                     max_val = X[col2].max() + 1
                     X[f'{col1}_{col2}_comb'] = (X[col1] + 1) + (X[col2] + 1) / max_val
-                except:
+                except Exception:
                     pass
 
         self._techniques_used.append('cat_combinations')
@@ -289,7 +289,7 @@ class FeatureEngineeringSkill(MLSkill):
                 q75 = X[col].quantile(0.75)
                 X[f'{col}_below_q25'] = (X[col] < q25).astype(int)
                 X[f'{col}_above_q75'] = (X[col] > q75).astype(int)
-            except:
+            except Exception:
                 pass
 
         self._techniques_used.append('quantiles')
@@ -395,6 +395,6 @@ class FeatureEngineeringSkill(MLSkill):
                 try:
                     le = LabelEncoder()
                     X[col] = le.fit_transform(X[col].astype(str))
-                except:
+                except Exception:
                     X = X.drop(columns=[col])
         return X

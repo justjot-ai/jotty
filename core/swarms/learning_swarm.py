@@ -406,7 +406,7 @@ class GoldCurator(BaseLearningAgent):
 
             try:
                 gold_data = json.loads(result.gold_standards)
-            except:
+            except Exception:
                 gold_data = []
 
             criteria_list = [c.strip() for c in str(result.evaluation_criteria).split('|') if c.strip()]
@@ -557,7 +557,7 @@ class ParameterTuner(BaseLearningAgent):
 
             try:
                 optimized = json.loads(result.optimized_params)
-            except:
+            except Exception:
                 optimized = current_params
 
             self._broadcast("parameters_tuned", {

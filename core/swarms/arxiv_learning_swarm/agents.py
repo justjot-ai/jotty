@@ -740,7 +740,7 @@ class UnifiedLearningAgent(BaseLearningAgent):
                 if start >= 0 and end > start:
                     try:
                         content = json.loads(raw[start:end])
-                    except:
+                    except Exception:
                         content = self._fallback_content(paper, concepts, celebration_word)
                 else:
                     content = self._fallback_content(paper, concepts, celebration_word)

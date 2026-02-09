@@ -102,7 +102,7 @@ class FeatureEngineeringMixin:
 
                         # Deviation from group mean
                         X_eng[f'{grp_col}_{agg_col}_dev'] = X_eng[agg_col] - grp_mean
-                    except:
+                    except Exception:
                         pass
 
         # ================================================================
@@ -112,7 +112,7 @@ class FeatureEngineeringMixin:
             try:
                 # Quantile-based binning (5 bins)
                 X_eng[f'{col}_qbin'] = pd.qcut(X_eng[col], q=5, labels=False, duplicates='drop')
-            except:
+            except Exception:
                 pass
 
             # Round-based binning
@@ -162,7 +162,7 @@ class FeatureEngineeringMixin:
                 try:
                     max_val = X_eng[col2].max() + 1
                     X_eng[f'{col1}_{col2}_comb'] = (X_eng[col1] + 1) + (X_eng[col2] + 1) / max_val
-                except:
+                except Exception:
                     pass
 
         # ================================================================
@@ -199,7 +199,7 @@ class FeatureEngineeringMixin:
                 q75 = X_eng[col].quantile(0.75)
                 X_eng[f'{col}_below_q25'] = (X_eng[col] < q25).astype(int)
                 X_eng[f'{col}_above_q75'] = (X_eng[col] > q75).astype(int)
-            except:
+            except Exception:
                 pass
 
         # ================================================================
@@ -310,7 +310,7 @@ class FeatureEngineeringMixin:
                 try:
                     le = LabelEncoder()
                     X_eng[col] = le.fit_transform(X_eng[col].astype(str))
-                except:
+                except Exception:
                     # If encoding fails, drop the column
                     X_eng = X_eng.drop(columns=[col])
 
