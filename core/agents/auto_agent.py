@@ -109,7 +109,9 @@ class AutoAgent(AutonomousAgent):
         max_steps: int = 10,
         timeout: int = 300,
         planner: Optional[AgenticPlanner] = None,
-        skill_filter: Optional[str] = None
+        skill_filter: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         """
         Initialize AutoAgent.
@@ -121,10 +123,13 @@ class AutoAgent(AutonomousAgent):
             max_steps: Maximum execution steps
             timeout: Default timeout for operations
             planner: Optional AgenticPlanner instance (creates new if None)
+            system_prompt: Optional system prompt to customize agent behavior
+                (essential for multi-agent scenarios where agents need different roles)
+            name: Optional agent name (default: "AutoAgent")
         """
         # Create config for base class
         config = AutonomousAgentConfig(
-            name="AutoAgent",
+            name=name or "AutoAgent",
             max_steps=max_steps,
             timeout=float(timeout),
             enable_replanning=True,  # Retry with reflective replanning on failure
@@ -132,6 +137,7 @@ class AutoAgent(AutonomousAgent):
             skill_filter=skill_filter,
             default_output_skill=default_output_skill,
             enable_output=enable_output and default_output_skill is not None,
+            system_prompt=system_prompt or "",
         )
         super().__init__(config)
 
@@ -154,66 +160,73 @@ class AutoAgent(AutonomousAgent):
         self,
         task: str,
         strategy: str = 'multi_perspective',
-        status_fn: Optional[Callable] = None
+        status_fn: Optional[Callable] = None,
+        max_perspectives: int = 4,
     ) -> Dict[str, Any]:
         """
         Execute prompt ensembling for multi-perspective analysis.
 
-        Strategies:
-        - self_consistency: Same prompt, N samples, synthesis
-        - multi_perspective: Different expert personas (default)
-        - gsa: Generative Self-Aggregation
-        - debate: Multi-round argumentation
+        DRY: Uses the ensemble_prompt_tool skill (which already handles
+        parallel execution and adaptive sizing). Only falls back to
+        inline DSPy if the skill is unavailable.
         """
         def _status(stage: str, detail: str = ""):
             if status_fn:
                 status_fn(stage, detail)
 
         try:
-            # Try to use the ensemble skill
+            # Use the ensemble skill (preferred — parallel + adaptive)
             if self.skills_registry:
                 skill = self.skills_registry.get_skill('claude-cli-llm')
                 if skill:
                     ensemble_tool = skill.tools.get('ensemble_prompt_tool')
                     if ensemble_tool:
-                        _status("Ensemble", f"using {strategy} strategy")
+                        _status("Ensemble", f"{strategy} ({max_perspectives} perspectives)")
                         result = ensemble_tool({
                             'prompt': task,
                             'strategy': strategy,
-                            'synthesis_style': 'structured'
+                            'synthesis_style': 'structured',
+                            'max_perspectives': max_perspectives,
                         })
                         return result
 
-            # Fallback: Use DSPy directly
+            # Fallback: Use DSPy directly (parallel via ThreadPoolExecutor)
             import dspy
             if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
                 return {'success': False, 'error': 'No LLM configured'}
 
             lm = dspy.settings.lm
 
-            # Simple multi-perspective implementation
-            perspectives = [
+            all_perspectives = [
                 ("analytical", "Analyze this from a data-driven, logical perspective:"),
                 ("creative", "Consider unconventional angles and innovative solutions:"),
                 ("critical", "Play devil's advocate - identify risks and problems:"),
                 ("practical", "Focus on feasibility and actionable steps:"),
             ]
+            perspectives = all_perspectives[:max_perspectives]
 
+            # Optima-inspired: parallel perspective generation
+            from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
-            for name, prefix in perspectives:
-                _status(f"  {name}", "analyzing...")
-                try:
-                    prompt = f"{prefix}\n\n{task}"
-                    response = lm(prompt=prompt)
-                    text = response[0] if isinstance(response, list) else str(response)
-                    responses[name] = text
-                except Exception as e:
-                    logger.warning(f"Perspective '{name}' failed: {e}")
+
+            def _gen(name, prefix):
+                prompt = f"{prefix}\n\n{task}"
+                response = lm(prompt=prompt)
+                return name, response[0] if isinstance(response, list) else str(response)
+
+            with ThreadPoolExecutor(max_workers=min(len(perspectives), 4)) as executor:
+                futures = {executor.submit(_gen, n, p): n for n, p in perspectives}
+                for future in as_completed(futures):
+                    try:
+                        name, text = future.result()
+                        responses[name] = text
+                        _status(f"  {name}", "done")
+                    except Exception as e:
+                        logger.warning(f"Perspective '{futures[future]}' failed: {e}")
 
             if not responses:
                 return {'success': False, 'error': 'All perspectives failed'}
 
-            # Synthesize
             _status("Synthesizing", f"{len(responses)} perspectives")
             synthesis_prompt = f"""Synthesize these {len(responses)} expert perspectives:
 
@@ -242,44 +255,17 @@ Provide:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
-    def _should_auto_ensemble(self, task: str) -> bool:
+    def _should_auto_ensemble(self, task: str):
         """
-        Determine if ensemble should be auto-enabled based on task type.
+        Determine if ensemble should be auto-enabled and with how many perspectives.
 
-        BE CONSERVATIVE - ensemble adds significant latency (4x LLM calls).
-        Only enable for tasks that genuinely benefit from multiple perspectives.
+        DRY: Delegates to the single source of truth in swarm_ensemble.py.
+
+        Returns:
+            (bool, int) tuple: (should_ensemble, max_perspectives)
         """
-        task_lower = task.lower()
-
-        # EXCLUSION: Don't auto-ensemble for creation/generation tasks
-        creation_keywords = [
-            'create ', 'generate ', 'write ', 'build ', 'make ',
-            'checklist', 'template', 'document', 'report',
-            'draft ', 'prepare ', 'compile ',
-        ]
-        for keyword in creation_keywords:
-            if keyword in task_lower:
-                return False
-
-        # Comparison indicators (STRONG signal)
-        comparison_keywords = [
-            ' vs ', ' versus ', 'compare ',
-            'difference between', 'differences between',
-            'pros and cons', 'advantages and disadvantages',
-        ]
-
-        # Decision indicators (STRONG signal)
-        decision_keywords = [
-            'should i ', 'should we ',
-            'which is better', 'what is best',
-            'choose between', 'decide between',
-        ]
-
-        for keyword in comparison_keywords + decision_keywords:
-            if keyword in task_lower:
-                return True
-
-        return False
+        from Jotty.core.orchestration.v2.swarm_ensemble import should_auto_ensemble
+        return should_auto_ensemble(task)
 
     # =========================================================================
     # TASK TYPE INFERENCE (Override for TaskType enum)
@@ -365,17 +351,26 @@ Provide:
         except Exception as e:
             logger.warning(f"Pre-hook failed: {e}")
 
+        # Optima-inspired deduplication (Chen et al., 2024):
+        # If caller already enriched the task with ensemble context (e.g. SwarmManager),
+        # skip re-ensembling to avoid 2x LLM calls for the same thing.
+        already_ensembled = '[Multi-Perspective Analysis' in task or kwargs.get('ensemble_context') is not None
+
         # Auto-detect ensemble for certain task types
-        if ensemble is None:
-            ensemble = self._should_auto_ensemble(task)
+        max_perspectives = 4  # default
+        if ensemble is None and not already_ensembled:
+            ensemble, max_perspectives = self._should_auto_ensemble(task)
             if ensemble:
-                _status("Auto-ensemble", "enabled for analysis/comparison task")
+                _status("Auto-ensemble", f"enabled ({max_perspectives} perspectives)")
+        elif already_ensembled:
+            ensemble = False
+            logger.debug("Ensemble skipped: caller already provided ensemble context")
 
         # Optional: Ensemble pre-analysis for enriched context
         enriched_task = task
         if ensemble:
-            _status("Ensembling", f"strategy={ensemble_strategy}")
-            ensemble_result = await self._execute_ensemble(task, ensemble_strategy, _status)
+            _status("Ensembling", f"strategy={ensemble_strategy}, perspectives={max_perspectives}")
+            ensemble_result = await self._execute_ensemble(task, ensemble_strategy, _status, max_perspectives=max_perspectives)
             if ensemble_result.get('success'):
                 _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
 

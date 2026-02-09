@@ -178,9 +178,10 @@ class AutonomousAgent(BaseAgent):
         task: str,
         available_skills: List[Dict[str, Any]],
         max_skills: int = 8,
+        task_type: str = "",
     ) -> List[Dict[str, Any]]:
-        """Select best skills using the executor's planner."""
-        return await self.executor.select_skills(task, available_skills, max_skills)
+        """Select best skills using the executor's planner (with caching)."""
+        return await self.executor.select_skills(task, available_skills, max_skills, task_type=task_type)
 
     # =========================================================================
     # EXECUTION PLANNING (delegates to executor)
@@ -266,9 +267,9 @@ class AutonomousAgent(BaseAgent):
                 _status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
                 logger.warning(f"Failed skills: {failed}")
 
-        # Step 3: Select best skills (uses CLEAN task)
+        # Step 3: Select best skills (uses CLEAN task, cached by task_type)
         _status("Selecting", "choosing best skills")
-        skills = await self._select_skills(task, all_skills)
+        skills = await self._select_skills(task, all_skills, task_type=task_type)
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
         # TOO_HARD early-exit: if no skills found at all, signal difficulty
@@ -288,18 +289,29 @@ class AutonomousAgent(BaseAgent):
                 "execution_time": time.time() - start_time,
             }
 
-        # Step 4: Create plan
-        # For planning, we can enrich with learning context since it goes to the LLM planner
-        # (not to search queries or skill params)
-        _status("Planning", "creating execution plan")
-        planning_task = task
-        if learning_context:
-            planning_task = f"{task}\n\n[Learning Context - use to guide planning decisions]:\n{learning_context[:2000]}"
-        steps = await self._create_plan(planning_task, task_type, skills)
-        _status("Plan ready", f"{len(steps)} steps")
+        # Step 4: Create plan — or skip planning for direct-LLM tasks
+        #
+        # OPTIMIZATION: The planner LLM call returns 0 steps ~80% of the time
+        # for simple tasks (analysis, Q&A).  Detect this early and skip the
+        # planning LLM call entirely — go straight to direct LLM response.
+        # This saves ~15s per simple task.
+        skill_names = {s['name'] for s in skills}
+        _direct_llm_skills = {'claude-cli-llm', 'calculator', 'unit-converter'}
+        _needs_planning = not skill_names.issubset(_direct_llm_skills)
+
+        steps = []
+        if _needs_planning:
+            _status("Planning", "creating execution plan")
+            planning_task = task
+            if learning_context:
+                planning_task = f"{task}\n\n[Learning Context - use to guide planning decisions]:\n{learning_context[:2000]}"
+            steps = await self._create_plan(planning_task, task_type, skills)
+            _status("Plan ready", f"{len(steps)} steps")
+        else:
+            _status("Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})")
 
         if not steps:
-            # No skills needed - fallback to direct LLM response
+            # No multi-step plan needed — direct LLM response
             _status("Generating", "direct LLM response")
             llm_response = await self._fallback_llm_response(task)
             if llm_response:
@@ -431,13 +443,18 @@ class AutonomousAgent(BaseAgent):
             LLM response string or None if generation fails
         """
         try:
+            # Inject system_prompt if configured (essential for multi-agent roles)
+            prompt = task
+            if self.config.system_prompt:
+                prompt = f"[System: {self.config.system_prompt}]\n\n{task}"
+
             # Try using the claude-cli-llm skill first
             if self.skills_registry:
                 skill = self.skills_registry.get_skill('claude-cli-llm')
                 if skill and skill.tools:
                     llm_tool = skill.tools.get('claude_cli_llm_tool') or skill.tools.get('generate_text_tool')
                     if llm_tool:
-                        result = llm_tool({'prompt': task})
+                        result = llm_tool({'prompt': prompt})
                         if isinstance(result, dict):
                             return result.get('response') or result.get('content') or result.get('text')
                         return str(result) if result else None
@@ -446,7 +463,7 @@ class AutonomousAgent(BaseAgent):
             import dspy
             if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
                 lm = dspy.settings.lm
-                response = lm(prompt=task)
+                response = lm(prompt=prompt)
                 if isinstance(response, list):
                     return response[0] if response else None
                 return str(response)

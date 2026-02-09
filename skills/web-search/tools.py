@@ -127,10 +127,19 @@ def _ddg_html_search(query: str, max_results: int) -> List[Dict[str, str]]:
 
 
 def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
-    """Scrape content from a URL."""
-    response = requests.get(url, headers=HEADERS, timeout=15)
-    response.raise_for_status()
-    html = response.text
+    """
+    Scrape content from a URL with intelligent 403 handling.
+
+    Uses SmartFetcher: direct → proxy retry on 403/429 → graceful skip.
+    """
+    from Jotty.core.utils.smart_fetcher import smart_fetch
+
+    result = smart_fetch(url, timeout=15)
+
+    if result.skipped or not result.success:
+        raise requests.RequestException(result.error)
+
+    html = result.content
 
     title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
     title = title_match.group(1).strip() if title_match else 'Untitled'
@@ -148,7 +157,8 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
     if len(text) > max_length:
         text = text[:max_length] + '...'
 
-    return {'title': title, 'content': text}
+    proxy_note = ' (via proxy)' if result.used_proxy else ''
+    return {'title': title, 'content': text, 'fetched_via': 'proxy' if result.used_proxy else 'direct'}
 
 
 @tool_wrapper(required_params=['query'])
@@ -234,30 +244,18 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f'URL contains unresolved template variables: {url}')
 
     max_length = params.get('max_length', 10000)
-    max_retries = params.get('max_retries', 3)
 
-    last_error = None
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, headers=HEADERS, timeout=15)
-            response.raise_for_status()
-            break
-        except requests.Timeout:
-            last_error = f'Request timed out (attempt {attempt + 1}/{max_retries})'
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
-            else:
-                return tool_error(f'Request timed out after {max_retries} attempts')
-        except requests.RequestException as e:
-            last_error = f'Network error: {str(e)}'
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
-            else:
-                return tool_error(f'Network error after {max_retries} attempts: {str(e)}')
-    else:
-        return tool_error(last_error or f'Failed after {max_retries} attempts')
+    # Smart fetch: direct → proxy on 403/429 → graceful skip
+    from Jotty.core.utils.smart_fetcher import smart_fetch
+    result = smart_fetch(url, timeout=15, max_proxy_attempts=2)
 
-    html = response.text
+    if result.skipped:
+        return tool_error(result.error)
+
+    if not result.success:
+        return tool_error(f'Failed to fetch: {result.error}')
+
+    html = result.content
 
     title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
     title = title_match.group(1).strip() if title_match else 'Untitled'
@@ -275,7 +273,10 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if len(text) > max_length:
         text = text[:max_length] + '...'
 
-    return tool_response(url=url, title=title, content=text, length=len(text))
+    return tool_response(
+        url=url, title=title, content=text, length=len(text),
+        fetched_via='proxy' if result.used_proxy else 'direct',
+    )
 
 
 @tool_wrapper(required_params=['query'])
@@ -308,20 +309,32 @@ def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     results = search_result.get('results', [])
     scraped_count = 0
 
-    for result in results[:scrape_top]:
-        url = result.get('url')
-        if not url:
-            continue
+    # Parallelize URL scraping — biggest latency win (22s → ~5s for 3 URLs)
+    to_scrape = [(i, r) for i, r in enumerate(results[:scrape_top]) if r.get('url')]
+    if to_scrape:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        try:
-            scraped = _scrape_url(url, max_content_length)
-            result['content'] = scraped.get('content', '')
-            result['content_length'] = len(result['content'])
-            scraped_count += 1
-        except Exception as e:
-            logger.warning(f"Failed to scrape {url}: {e}")
-            result['content'] = ''
-            result['scrape_error'] = str(e)
+        def _scrape_one(idx_result):
+            idx, result = idx_result
+            url = result['url']
+            try:
+                scraped = _scrape_url(url, max_content_length)
+                return idx, scraped.get('content', ''), None
+            except Exception as e:
+                return idx, '', str(e)
+
+        with ThreadPoolExecutor(max_workers=min(len(to_scrape), 5)) as executor:
+            futures = {executor.submit(_scrape_one, item): item for item in to_scrape}
+            for future in as_completed(futures):
+                idx, content, error = future.result()
+                if content:
+                    results[idx]['content'] = content
+                    results[idx]['content_length'] = len(content)
+                    scraped_count += 1
+                elif error:
+                    logger.warning(f"Failed to scrape {results[idx].get('url')}: {error}")
+                    results[idx]['content'] = ''
+                    results[idx]['scrape_error'] = error
 
     return tool_response(
         query=query,

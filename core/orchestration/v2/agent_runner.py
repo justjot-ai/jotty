@@ -24,6 +24,9 @@ from Jotty.core.learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate,
 )
 from Jotty.core.learning.shaped_rewards import ShapedRewardManager
+from Jotty.core.orchestration.v2.validation_gate import (
+    ValidationGate, ValidationMode, GateDecision, get_validation_gate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +190,13 @@ class AgentRunner:
         self._current_task_type: str = 'default'
         self._scratchpad = scratchpad  # Store for validator recreation
 
+        # Intelligent validation gate (Haiku-powered)
+        # Replaces boolean skip_validation with per-task LLM classification:
+        #   DIRECT     → actor only  (simple Q&A, lookups)
+        #   AUDIT_ONLY → actor + auditor  (medium: summaries, analysis)
+        #   FULL       → architect + actor + auditor  (complex: code, multi-step)
+        self._validation_gate: Optional[ValidationGate] = None
+
         # AgentScope-inspired lifecycle hooks (pluggable middleware)
         self._hooks: Dict[str, List[Callable]] = {ht: [] for ht in HOOK_TYPES}
 
@@ -337,6 +347,7 @@ class AgentRunner:
 
         # Extract flags
         skip_validation = kwargs.pop('skip_validation', False)
+        validation_mode_override = kwargs.pop('validation_mode', None)
         status_callback = kwargs.pop('status_callback', None)
 
         def _status(stage: str, detail: str = ""):
@@ -348,18 +359,58 @@ class AgentRunner:
                     pass
             logger.info(f"  📍 {stage}" + (f": {detail}" if detail else ""))
 
-        logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}..." + (" [FAST]" if skip_validation else ""))
+        # ── Intelligent Validation Gate ───────────────────────────────
+        # Instead of a boolean skip_validation, use a cheap Haiku call
+        # to classify task complexity into DIRECT / AUDIT_ONLY / FULL.
+        #
+        # Backward compat: skip_validation=True → force DIRECT mode.
+        # New: validation_mode="direct"|"audit"|"full" for explicit control.
+        if skip_validation:
+            force_mode = ValidationMode.DIRECT
+        elif validation_mode_override:
+            mode_map = {"direct": ValidationMode.DIRECT, "audit": ValidationMode.AUDIT_ONLY, "full": ValidationMode.FULL}
+            force_mode = mode_map.get(str(validation_mode_override).lower(), None)
+        else:
+            force_mode = None
+
+        # Lazy-init the gate (singleton, shared across runs)
+        if self._validation_gate is None:
+            self._validation_gate = get_validation_gate()
+
+        gate_decision: GateDecision = await self._validation_gate.decide(
+            goal=goal,
+            agent_name=self.agent_name,
+            force_mode=force_mode,
+        )
+
+        # Derive skip flags from gate decision
+        skip_architect = gate_decision.mode in (ValidationMode.DIRECT, ValidationMode.AUDIT_ONLY)
+        skip_auditor = gate_decision.mode == ValidationMode.DIRECT
+
+        mode_labels = {
+            ValidationMode.DIRECT: "DIRECT (actor only)",
+            ValidationMode.AUDIT_ONLY: "AUDIT (actor + auditor)",
+            ValidationMode.FULL: "FULL (architect + actor + auditor)",
+        }
+        mode_label = mode_labels[gate_decision.mode]
+        logger.info(
+            f"AgentRunner.run: {self.agent_name} - {goal[:50]}... "
+            f"[{mode_label}] gate={gate_decision.confidence:.0%} "
+            f"({gate_decision.reason}) {gate_decision.latency_ms:.0f}ms"
+        )
+        _status("ValidationGate", f"{mode_label} — {gate_decision.reason}")
 
         # Hook: pre_run — modify goal, inject context, log start
         hook_ctx = self._run_hooks(
             'pre_run',
             goal=goal, agent_name=self.agent_name,
-            skip_validation=skip_validation, kwargs=kwargs,
+            skip_validation=skip_architect and skip_auditor,
+            gate_decision=gate_decision, kwargs=kwargs,
         )
         goal = hook_ctx.get('goal', goal)  # allow hooks to modify goal
 
         # Dynamic prompt selection based on task type
-        if not skip_validation:
+        if not skip_architect:
             task_type = self._update_validators_for_task(goal)
             logger.debug(f"Task type detected: {task_type}")
 
@@ -421,12 +472,12 @@ class AgentRunner:
         # Keep enriched_goal = goal (NO concatenation — task string stays clean)
         enriched_goal = goal
 
-        # 1. Architect (pre-execution planning) - skip in fast mode
+        # 1. Architect (pre-execution planning) - skip if gate says DIRECT or AUDIT_ONLY
         architect_results = []
         proceed = True
         architect_shaped_reward = 0.0
 
-        if not skip_validation:
+        if not skip_architect:
             # Hook: pre_architect
             self._run_hooks('pre_architect', goal=goal, agent_name=self.agent_name)
 
@@ -480,7 +531,7 @@ class AgentRunner:
                     trajectory=[]
                 )
         else:
-            logger.info("⚡ Fast mode: skipping architect validation")
+            logger.info(f"⚡ Skipping architect: gate={gate_decision.mode.value}")
 
         # 2. Agent execution (use enriched goal with memory context)
         # Hook: pre_execute — last chance to modify goal before agent runs
@@ -535,8 +586,10 @@ class AgentRunner:
                 agent_output=agent_output, inner_success=inner_success,
             )
 
-            # 3. Auditor (post-execution validation) - skip in fast mode
-            if not skip_validation:
+            # 3. Auditor (post-execution validation) - skip if gate says DIRECT
+            #    MALLM-inspired judge intervention: if auditor rejects,
+            #    retry agent once with auditor feedback injected (Becker et al. 2025).
+            if not skip_auditor:
                 auditor_results, passed = await self.auditor_validator.validate(
                     goal=goal,
                     inputs={'goal': goal, 'output': str(agent_output)},
@@ -549,6 +602,82 @@ class AgentRunner:
                 # ValidationResult has 'reasoning', not 'feedback'
                 auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
                 auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
+
+                # ----------------------------------------------------------
+                # JUDGE INTERVENTION (MALLM-inspired turn regeneration)
+                # If auditor rejects with concrete feedback and we haven't
+                # retried yet, re-run the agent with auditor critique.
+                # KISS: max 1 retry, reuse existing execute path.
+                # ----------------------------------------------------------
+                _judge_retried = kwargs.get('_judge_retried', False)
+                if (
+                    not success
+                    and not _judge_retried
+                    and auditor_confidence < 0.6
+                    and auditor_reasoning
+                    and auditor_reasoning != "No feedback"
+                ):
+                    logger.info(
+                        f"🧑‍⚖️ Judge intervention: auditor rejected "
+                        f"(confidence={auditor_confidence:.2f}), retrying with feedback"
+                    )
+                    _status("Judge intervention", f"retrying with auditor feedback")
+
+                    # Hook: allow external observers to see intervention
+                    self._run_hooks(
+                        'post_execute', goal=enriched_goal,
+                        agent_name=self.agent_name,
+                        agent_output=agent_output, inner_success=False,
+                        judge_intervention=True,
+                        auditor_reasoning=auditor_reasoning,
+                    )
+
+                    # Build enriched goal with auditor critique
+                    judge_goal = (
+                        f"{enriched_goal}\n\n"
+                        f"[Judge feedback — your previous attempt was rejected]:\n"
+                        f"{auditor_reasoning}\n\n"
+                        f"Please address the feedback and try again."
+                    )
+
+                    # Re-run execution with feedback (mark as retried)
+                    if hasattr(self.agent, 'execute'):
+                        retry_kwargs = dict(kwargs)
+                        retry_kwargs['_judge_retried'] = True
+                        if status_callback:
+                            retry_kwargs['status_callback'] = status_callback
+                        agent_output = await self.agent.execute(judge_goal, **retry_kwargs)
+                    elif hasattr(self.agent, 'forward'):
+                        agent_output = self.agent(goal=judge_goal, **kwargs)
+                    else:
+                        agent_output = (
+                            await self.agent(judge_goal, **kwargs)
+                            if asyncio.iscoroutinefunction(self.agent)
+                            else self.agent(judge_goal, **kwargs)
+                        )
+
+                    # Re-validate after retry
+                    inner_success = True
+                    if hasattr(agent_output, 'success'):
+                        inner_success = bool(agent_output.success)
+                    elif isinstance(agent_output, dict):
+                        inner_success = bool(agent_output.get('success', True))
+
+                    auditor_results, passed = await self.auditor_validator.validate(
+                        goal=goal,
+                        inputs={'goal': goal, 'output': str(agent_output)},
+                        trajectory=trajectory,
+                        is_architect=False
+                    )
+                    success = passed and inner_success
+                    auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
+                    auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
+
+                    logger.info(
+                        f"🧑‍⚖️ Judge retry result: "
+                        f"{'✅ passed' if success else '❌ still failed'} "
+                        f"(confidence={auditor_confidence:.2f})"
+                    )
 
                 # Track auditor validation in state
                 if self.swarm_state_manager:
@@ -571,10 +700,10 @@ class AgentRunner:
                         'auditor_confidence': auditor_confidence
                     })
             else:
-                # Fast mode: skip auditor, but respect inner execution result
-                logger.info("⚡ Fast mode: skipping auditor validation")
+                # DIRECT mode: skip auditor, but respect inner execution result
+                logger.info(f"⚡ Skipping auditor: gate={gate_decision.mode.value}")
                 success = inner_success
-                auditor_reasoning = "Fast mode: validation skipped"
+                auditor_reasoning = f"Gate={gate_decision.mode.value}: auditor skipped"
                 auditor_confidence = 1.0
                 auditor_results = []
                 passed = True
@@ -737,10 +866,17 @@ class AgentRunner:
                 agent_contributions=agent_contributions
             )
 
+            # Record gate outcome for drift detection
+            # This lets the gate learn whether DIRECT/AUDIT routing
+            # leads to successful outcomes over time.
+            if self._validation_gate:
+                self._validation_gate.record_outcome(gate_decision.mode, success)
+
             # Hook: post_run — record metrics, log results, send notifications
             self._run_hooks(
                 'post_run', goal=goal, agent_name=self.agent_name,
                 result=episode_result, success=success, elapsed=duration,
+                gate_decision=gate_decision,
             )
 
             return episode_result
@@ -825,6 +961,10 @@ class AgentRunner:
                 except Exception as fb_err:
                     logger.debug(f"Executor feedback skipped: {fb_err}")
 
+            # Record gate outcome for failure
+            if self._validation_gate and 'gate_decision' in locals():
+                self._validation_gate.record_outcome(gate_decision.mode, False)
+
             return EpisodeResult(
                 output=None,
                 success=False,
@@ -837,3 +977,10 @@ class AgentRunner:
                 agent_contributions={},
                 alerts=[f"Execution failed: {error_str[:100]}" + (f" (fix applied: {fix_description})" if fix_applied else "")]
             )
+
+    @property
+    def gate_stats(self) -> dict:
+        """Get validation gate statistics for introspection."""
+        if self._validation_gate:
+            return self._validation_gate.stats()
+        return {"status": "not initialized"}

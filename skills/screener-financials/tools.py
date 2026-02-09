@@ -19,144 +19,18 @@ from Jotty.core.utils.skill_status import SkillStatus
 logger = logging.getLogger(__name__)
 
 
-# Free proxy sources (rotated automatically)
-FREE_PROXY_SOURCES = [
-    # Free proxy list APIs
-    "https://api.proxyscrape.com/v2/?request=get&protocol=http",
-    "https://www.proxy-list.download/api/v1/get?type=http",
-]
-
-# User agents for rotation
+# DRY: Use shared ProxyRotator from core (same logic, single source of truth)
+from Jotty.core.utils.smart_fetcher import get_proxy_rotator, USER_AGENTS
 
 # Status emitter for progress updates
 status = SkillStatus("screener-financials")
 
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
-]
-
-
-class ProxyRotator:
-    """Manages free proxy rotation for screener.in requests."""
-    
-    def __init__(self):
-        self.proxies: List[str] = []
-        self.current_proxy_index = 0
-        self.failed_proxies: set = set()
-        self.last_fetch_time = 0
-        self.proxy_cache_duration = 3600  # 1 hour
-    
-    def _fetch_free_proxies(self) -> List[str]:
-        """Fetch free proxies from public sources."""
-        proxies = []
-        
-        # Try multiple free proxy sources
-        proxy_sources = [
-            # Geonode API (free tier) - Most reliable
-            ("https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http", "geonode"),
-            # ProxyScrape API (alternative format)
-            ("https://api.proxyscrape.com/v2/?request=get&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all", "proxyscrape"),
-            # FreeProxyList API
-            ("https://www.proxy-list.download/api/v1/get?type=http", "proxy-list"),
-        ]
-        
-        for url, source_name in proxy_sources:
-            try:
-                response = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
-                if response.status_code == 200:
-                    content = response.text.strip()
-                    
-                    # Parse different formats
-                    if source_name == "geonode":
-                        # JSON format
-                        try:
-                            data = response.json()
-                            for proxy in data.get('data', [])[:15]:
-                                ip = proxy.get('ip')
-                                port = proxy.get('port')
-                                if ip and port:
-                                    proxies.append(f"http://{ip}:{port}")
-                        except Exception as e:
-                            logger.debug(f"Failed to parse Geonode JSON: {e}")
-                    else:
-                        # Text format (IP:PORT per line)
-                        proxy_list = content.split('\n')
-                        for proxy in proxy_list[:15]:
-                            proxy = proxy.strip()
-                            # Skip invalid responses
-                            if 'invalid' in proxy.lower() or 'error' in proxy.lower():
-                                continue
-                            if proxy and ':' in proxy and not proxy.startswith('http'):
-                                proxies.append(f"http://{proxy}")
-                            elif proxy and proxy.startswith('http'):
-                                proxies.append(proxy)
-                    
-                    if proxies:
-                        logger.info(f"Fetched {len(proxies)} proxies from {source_name}")
-                        break
-            except Exception as e:
-                logger.debug(f"Failed to fetch proxies from {source_name}: {e}")
-                continue
-        
-        # If no proxies found, return empty list (will use direct connection)
-        if not proxies:
-            logger.info("No free proxies available, using direct connection")
-        
-        return proxies[:20]  # Limit to 20 proxies
-    
-    def get_proxy(self) -> Optional[Dict[str, str]]:
-        """Get next proxy in rotation."""
-        current_time = time.time()
-        
-        # Refresh proxy list if cache expired
-        if not self.proxies or (current_time - self.last_fetch_time) > self.proxy_cache_duration:
-            self.proxies = self._fetch_free_proxies()
-            self.last_fetch_time = current_time
-            self.failed_proxies.clear()
-        
-        if not self.proxies:
-            return None
-        
-        # Try next proxy
-        attempts = 0
-        while attempts < len(self.proxies):
-            proxy = self.proxies[self.current_proxy_index % len(self.proxies)]
-            self.current_proxy_index += 1
-            
-            if proxy not in self.failed_proxies:
-                return {
-                    'http': proxy,
-                    'https': proxy
-                }
-            
-            attempts += 1
-        
-        # All proxies failed, reset and try again
-        self.failed_proxies.clear()
-        if self.proxies:
-            proxy = self.proxies[0]
-            return {
-                'http': proxy,
-                'https': proxy
-            }
-        
-        return None
-    
-    def mark_proxy_failed(self, proxy: str):
-        """Mark a proxy as failed."""
-        self.failed_proxies.add(proxy)
-
-
-# Global proxy rotator instance
-_proxy_rotator = ProxyRotator()
+# Use the shared global proxy rotator
+_proxy_rotator = get_proxy_rotator()
 
 
 def _get_random_user_agent() -> str:
-    """Get random user agent."""
+    """Get random user agent. Uses shared USER_AGENTS list."""
     return random.choice(USER_AGENTS)
 
 
@@ -197,7 +71,7 @@ def _make_request(url: str, use_proxy: bool = True, max_retries: int = 3) -> Opt
             # Check if blocked
             if response.status_code == 403 or 'blocked' in response.text.lower():
                 if current_proxies:
-                    _proxy_rotator.mark_proxy_failed(current_proxies.get('http', ''))
+                    _proxy_rotator.mark_failed(current_proxies.get('http', ''))
                     proxy_attempts += 1
                     if proxy_attempts < max_proxy_attempts:
                         proxies = _proxy_rotator.get_proxy()
@@ -220,7 +94,7 @@ def _make_request(url: str, use_proxy: bool = True, max_retries: int = 3) -> Opt
             # If proxy error, try direct connection
             if current_proxies and ('proxy' in str(e).lower() or 'tunnel' in str(e).lower()):
                 if current_proxies:
-                    _proxy_rotator.mark_proxy_failed(current_proxies.get('http', ''))
+                    _proxy_rotator.mark_failed(current_proxies.get('http', ''))
                 proxy_attempts += 1
                 
                 if proxy_attempts < max_proxy_attempts:

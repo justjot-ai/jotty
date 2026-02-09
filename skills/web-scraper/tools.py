@@ -31,12 +31,33 @@ def _scrape_single_page(
     proxies: Optional[Dict[str, str]],
     timeout: int
 ) -> Dict[str, Any]:
-    """Scrape a single page."""
-    try:
-        response = requests.get(url, headers=headers, proxies=proxies, timeout=timeout)
-        response.raise_for_status()
+    """
+    Scrape a single page with intelligent 403 handling.
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+    Uses SmartFetcher: direct → proxy retry on 403/429.
+    If caller already provided a proxy, uses that directly.
+    """
+    try:
+        # If caller provided explicit proxy, use traditional path
+        if proxies:
+            response = requests.get(url, headers=headers, proxies=proxies, timeout=timeout)
+            response.raise_for_status()
+            html_content = response.text
+            used_proxy = True
+        else:
+            # Smart fetch: handles 403 → proxy retry automatically
+            from Jotty.core.utils.smart_fetcher import smart_fetch
+            result = smart_fetch(url, timeout=timeout, headers=headers)
+
+            if result.skipped:
+                return tool_error(f'Skipped: {result.error}')
+            if not result.success:
+                return tool_error(f'Failed: {result.error}')
+
+            html_content = result.content
+            used_proxy = result.used_proxy
+
+        soup = BeautifulSoup(html_content, 'html.parser')
 
         # Extract title
         title = ''
@@ -77,7 +98,8 @@ def _scrape_single_page(
             title=title,
             content=content[:100000],
             content_length=len(content),
-            pages_scraped=1
+            pages_scraped=1,
+            fetched_via='proxy' if used_proxy else 'direct',
         )
 
     except requests.RequestException as e:

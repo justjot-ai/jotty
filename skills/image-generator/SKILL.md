@@ -1,27 +1,31 @@
-# image-generator
+python
+# Generate an image with default SDXL model
+generate_image(
+    prompt="A serene mountain landscape at sunset with snow-capped peaks"
+)
 
-## Description
-Generate images using open-source models like Stable Diffusion, Flux, or SDXL. No API key required.
+# Use FLUX model for generation
+generate_image(
+    prompt="A cyberpunk city with neon lights and flying cars",
+    model="black-forest-labs/FLUX.1-dev"
+)
 
-## Tools
+# Customize generation parameters
+generate_image(
+    prompt="A cute cat wearing a wizard hat",
+    model="runwayml/stable-diffusion-v1-5",
+    width=512,
+    height=512,
+    num_inference_steps=30,
+    guidance_scale=8.0,
+    output_path="wizard_cat.png"
+)
 
-### generate_image
-Generate an image from a text prompt using open-source diffusion models.
-
-**Parameters:**
-- `prompt` (string, required): Text description of the image to generate
-- `model` (string, optional): Model to use. Options:
-  - `stabilityai/stable-diffusion-xl-base-1.0` (default)
-  - `black-forest-labs/FLUX.1-dev`
-  - `runwayml/stable-diffusion-v1-5`
-- `output_path` (string, optional): Path to save the generated image (default: `generated_image.png`)
-- `num_inference_steps` (integer, optional): Number of denoising steps (default: 50)
-- `guidance_scale` (float, optional): How closely to follow the prompt (default: 7.5)
-- `width` (integer, optional): Image width in pixels (default: 1024)
-- `height` (integer, optional): Image height in pixels (default: 1024)
-- `seed` (integer, optional): Random seed for reproducibility
-
-**Returns:**
-- Path to the generated image file
-
-## Usage
+# High-quality generation with SDXL
+generate_image(
+    prompt="Photorealistic portrait of an astronaut on Mars",
+    model="stabilityai/stable-diffusion-xl-base-1.0",
+    width=1024,
+    height=1024,
+    num_inference_steps=75
+)

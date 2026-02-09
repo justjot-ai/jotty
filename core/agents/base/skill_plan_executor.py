@@ -58,6 +58,11 @@ class SkillPlanExecutor:
         self._planner = planner
         self._excluded_skills: set = set()
 
+        # Skill selection cache: task_type → selected skill names
+        # Avoids redundant LLM calls when the same type of task is seen again.
+        # Cache is keyed by (task_type, frozenset(available_skill_names)).
+        self._skill_cache: Dict[tuple, List[Dict[str, Any]]] = {}
+
     # =========================================================================
     # LAZY INITIALIZATION
     # =========================================================================
@@ -83,20 +88,33 @@ class SkillPlanExecutor:
         task: str,
         available_skills: List[Dict[str, Any]],
         max_skills: int = 8,
+        task_type: str = "",
     ) -> List[Dict[str, Any]]:
         """
         Select best skills for a task using the planner.
+
+        Caches results by task_type to avoid redundant LLM calls.
+        Same task type with same available skills → same selection.
 
         Args:
             task: Task description
             available_skills: List of discovered skill dicts
             max_skills: Maximum skills to select
+            task_type: Inferred task type (used as cache key)
 
         Returns:
             List of selected skill dicts
         """
         if self.planner is None:
             return available_skills[:max_skills]
+
+        # Cache lookup: same task_type + same available skills → reuse
+        avail_names = frozenset(s.get('name', '') for s in available_skills)
+        cache_key = (task_type, avail_names)
+        if cache_key in self._skill_cache:
+            cached = self._skill_cache[cache_key]
+            logger.info(f"Skill selection cache HIT: {task_type} → {[s['name'] for s in cached]}")
+            return cached
 
         try:
             selected, reasoning = self.planner.select_skills(
@@ -105,6 +123,12 @@ class SkillPlanExecutor:
                 max_skills=max_skills,
             )
             logger.debug(f"Skill selection reasoning: {reasoning}")
+
+            # Cache the result (bounded to 50 entries)
+            if task_type and len(self._skill_cache) < 50:
+                self._skill_cache[cache_key] = selected
+                logger.debug(f"Skill selection cached: {task_type}")
+
             return selected
         except Exception as e:
             logger.warning(f"Skill selection failed: {e}")

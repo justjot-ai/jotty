@@ -19,10 +19,14 @@ class EnsembleMixin:
         self,
         goal: str,
         strategy: str = 'multi_perspective',
-        status_callback=None
+        status_callback=None,
+        max_perspectives: int = 4,
     ) -> Dict[str, Any]:
         """
         Execute prompt ensembling for multi-perspective analysis.
+
+        Optima-inspired (Chen et al., 2024): max_perspectives controls
+        cost vs. quality tradeoff. Fewer perspectives = faster + cheaper.
 
         Strategies:
         - self_consistency: Same prompt, N samples, synthesis
@@ -48,12 +52,13 @@ class EnsembleMixin:
                 if skill:
                     ensemble_tool = skill.tools.get('ensemble_prompt_tool')
                     if ensemble_tool:
-                        _status("Ensemble", f"using {strategy} strategy (domain-aware)")
+                        _status("Ensemble", f"{strategy} ({max_perspectives} perspectives)")
                         result = ensemble_tool({
                             'prompt': goal,
                             'strategy': strategy,
                             'synthesis_style': 'structured',
-                            'verbose': True
+                            'verbose': True,
+                            'max_perspectives': max_perspectives,
                         })
                         if result.get('success') and result.get('quality_scores'):
                             for name, score in result['quality_scores'].items():
@@ -62,30 +67,43 @@ class EnsembleMixin:
             except ImportError:
                 pass
 
-            # Fallback: Use DSPy directly for multi-perspective
+            # Fallback: Use DSPy directly for multi-perspective (also parallel)
             import dspy
             if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
                 return {'success': False, 'error': 'No LLM configured'}
 
             lm = dspy.settings.lm
 
-            perspectives = [
+            all_perspectives = [
                 ("analytical", "Analyze this from a data-driven, logical perspective:"),
                 ("creative", "Consider unconventional angles and innovative solutions:"),
                 ("critical", "Play devil's advocate - identify risks and problems:"),
                 ("practical", "Focus on feasibility and actionable steps:"),
             ]
+            perspectives = all_perspectives[:max_perspectives]
 
+            # Optima-inspired: parallel perspective generation
+            from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
-            for name, prefix in perspectives:
-                _status(f"  {name}", "analyzing...")
-                try:
-                    prompt = f"{prefix}\n\n{goal}"
-                    response = lm(prompt=prompt)
-                    text = response[0] if isinstance(response, list) else str(response)
-                    responses[name] = text
-                except Exception as e:
-                    logger.warning(f"Perspective '{name}' failed: {e}")
+
+            def _gen_perspective(name, prefix):
+                prompt = f"{prefix}\n\n{goal}"
+                response = lm(prompt=prompt)
+                return name, response[0] if isinstance(response, list) else str(response)
+
+            with ThreadPoolExecutor(max_workers=min(len(perspectives), 4)) as executor:
+                futures = {
+                    executor.submit(_gen_perspective, name, prefix): name
+                    for name, prefix in perspectives
+                }
+                for future in as_completed(futures):
+                    try:
+                        name, text = future.result()
+                        responses[name] = text
+                        _status(f"  {name}", "done")
+                    except Exception as e:
+                        name = futures[future]
+                        logger.warning(f"Perspective '{name}' failed: {e}")
 
             if not responses:
                 return {'success': False, 'error': 'All perspectives failed'}
@@ -119,9 +137,12 @@ Provide a structured synthesis with:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
-    def _should_auto_ensemble(self, goal: str) -> bool:
-        """Decide if auto-ensemble is beneficial for this task."""
-        analysis_keywords = ['compare', 'analyze', 'evaluate', 'assess', 'review',
-                             'pros and cons', 'vs', 'versus', 'trade-off']
-        goal_lower = goal.lower()
-        return any(kw in goal_lower for kw in analysis_keywords)
+    def _should_auto_ensemble(self, goal: str):
+        """
+        Decide if auto-ensemble is beneficial and with how many perspectives.
+
+        Returns:
+            (bool, int) tuple: (should_ensemble, max_perspectives)
+        """
+        from .swarm_ensemble import should_auto_ensemble
+        return should_auto_ensemble(goal)

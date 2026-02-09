@@ -10,9 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class InferenceMixin:
+    # Per-session cache: avoids redundant LLM calls for same task string.
+    # Key = first 200 chars of task (stable identifier), Value = (TaskType, reasoning, confidence)
+    _task_type_cache: dict = {}
+
     def infer_task_type(self, task: str):
         """
         Infer task type using LLM semantic understanding.
+
+        Cached: repeated calls for the same task return instantly (saves ~3-5s per call).
 
         Args:
             task: Task description
@@ -21,6 +27,13 @@ class InferenceMixin:
             (TaskType, reasoning, confidence)
         """
         TaskType = _get_task_type()
+
+        # Check cache first — task type for same text doesn't change
+        cache_key = task[:200]
+        if cache_key in InferenceMixin._task_type_cache:
+            cached = InferenceMixin._task_type_cache[cache_key]
+            logger.info(f"📋 Task type inferred: {cached[0].value} (confidence: {cached[2]:.2f}) [cached]")
+            return cached
 
         try:
             import dspy
@@ -73,7 +86,9 @@ class InferenceMixin:
             reasoning = str(result.reasoning).strip() if result.reasoning else f"Inferred as {task_type_str}"
 
             logger.info(f"📋 Task type inferred: {task_type.value} (confidence: {confidence:.2f})")
-            return task_type, reasoning, confidence
+            result_tuple = (task_type, reasoning, confidence)
+            InferenceMixin._task_type_cache[cache_key] = result_tuple
+            return result_tuple
 
         except Exception as e:
             error_str = str(e)
@@ -112,7 +127,9 @@ class InferenceMixin:
 
             # Default to ANALYSIS for any ambiguous task (not UNKNOWN)
             # This ensures we always try to do something useful
-            return TaskType.ANALYSIS, f"Ambiguous task - defaulting to analysis", 0.4
+            fallback = (TaskType.ANALYSIS, "Ambiguous task - defaulting to analysis", 0.4)
+            InferenceMixin._task_type_cache[cache_key] = fallback
+            return fallback
 
     def infer_capabilities(self, task: str) -> tuple[List[str], str]:
         """

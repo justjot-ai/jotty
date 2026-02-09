@@ -179,32 +179,36 @@ def _multi_perspective_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]
     synthesis_style = params.get('synthesis_style', 'detailed')
     verbose = params.get('verbose', False)
 
+    # Optima-inspired adaptive ensemble sizing (Chen et al., 2024):
+    # Simple tasks get fewer perspectives (less token waste).
+    # max_perspectives param lets callers control cost vs. quality tradeoff.
+    max_perspectives = params.get('max_perspectives', 4)
+
     # Detect domain and select appropriate perspectives using LLM
     perspectives = params.get('perspectives')
     if not perspectives:
-        perspectives = _select_domain_perspectives(prompt, lm=lm)
+        perspectives = _select_domain_perspectives(prompt, lm=lm, max_perspectives=max_perspectives)
+    else:
+        perspectives = perspectives[:max_perspectives]
 
     individual_responses = {}
     quality_scores = {}
 
-    # Show progress as perspectives are generated
+    # Optima-inspired: Run perspectives in PARALLEL (Chen et al., 2024)
+    # Original: sequential loop (~30s × 4 = 120s)
+    # Optimized: concurrent threads (~30s total = 4x speedup)
     total = len(perspectives)
-    print(f"  → Ensemble: generating {total} perspectives...")
+    print(f"  → Ensemble: generating {total} perspectives in parallel...")
 
-    for idx, perspective in enumerate(perspectives):
-        # Handle both dict format (standard) and string format (fallback)
+    def _generate_one(idx, perspective):
+        """Generate a single perspective (runs in thread pool)."""
         if isinstance(perspective, dict):
             name = perspective.get('name', 'expert')
             system = perspective.get('system', '')
         else:
-            # String perspective: use as both name and system prompt
             name = str(perspective) if perspective else f'expert_{idx+1}'
             system = f"You are a {name}. Provide your expert analysis."
 
-        # Show which perspective is being generated
-        print(f"    [{idx+1}/{total}] {name}...", end=" ", flush=True)
-
-        # Enhanced prompt with quality requirements
         perspective_prompt = f"""{system}
 
 Analyze the following from your unique perspective. Be specific and provide concrete insights, not generic observations.
@@ -222,17 +226,25 @@ Your analysis:"""
         try:
             response = lm(prompt=perspective_prompt)
             text = response[0] if isinstance(response, list) else str(response)
-            individual_responses[name] = text
-
-            # Score quality (simple heuristics + length check)
             score = _score_perspective_quality(text, prompt)
-            quality_scores[name] = score
-            print(f"done (quality: {score:.0%})")
+            print(f"    [{idx+1}/{total}] {name}... done (quality: {score:.0%})")
+            return name, text, score
         except Exception as e:
             logger.warning(f"Perspective '{name}' failed: {e}")
-            individual_responses[name] = f"[Failed: {e}]"
-            quality_scores[name] = 0.0
-            print(f"failed: {e}")
+            print(f"    [{idx+1}/{total}] {name}... failed: {e}")
+            return name, f"[Failed: {e}]", 0.0
+
+    # Parallel execution using ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=min(total, 4)) as executor:
+        futures = {
+            executor.submit(_generate_one, idx, p): idx
+            for idx, p in enumerate(perspectives)
+        }
+        for future in as_completed(futures):
+            name, text, score = future.result()
+            individual_responses[name] = text
+            quality_scores[name] = score
 
     if not individual_responses:
         return {'success': False, 'error': 'All perspectives failed'}
@@ -300,11 +312,13 @@ Synthesized Answer:"""
     return result
 
 
-def _select_domain_perspectives(prompt: str, lm=None) -> List[Dict[str, str]]:
+def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4) -> List[Dict[str, str]]:
     """
     Use LLM to generate domain-appropriate perspectives dynamically.
 
-    No hardcoded keywords - LLM determines the best expert personas for the task.
+    Optima-inspired adaptive sizing (Chen et al., 2024):
+    - For 2 perspectives: skip LLM call, use fast heuristic (saves ~10s)
+    - For 3-4 perspectives: full LLM-driven perspective selection
     """
     import dspy
 
@@ -315,12 +329,22 @@ def _select_domain_perspectives(prompt: str, lm=None) -> List[Dict[str, str]]:
     if not lm:
         # Fallback to defaults if no LLM
         print("  → Ensemble: using default perspectives (no LLM)")
-        return DEFAULT_PERSPECTIVES
+        return DEFAULT_PERSPECTIVES[:max_perspectives]
+
+    # Adaptive: For 2 perspectives, use fast heuristic (skip LLM call for perspective selection)
+    # This saves ~10s by avoiding the "generate perspectives" LLM call.
+    if max_perspectives <= 2:
+        fast_perspectives = [
+            {"name": "domain_expert", "system": f"You are a senior domain expert. Provide deep, practical analysis."},
+            {"name": "critical_reviewer", "system": f"You are a critical reviewer. Identify risks, gaps, and overlooked considerations."},
+        ]
+        print(f"  → Ensemble: fast mode ({max_perspectives} perspectives, no LLM selection)")
+        return fast_perspectives[:max_perspectives]
 
     try:
         print("  → Ensemble: LLM generating domain-specific perspectives...", end=" ", flush=True)
         # Ask LLM to generate appropriate perspectives
-        perspective_prompt = f"""Generate 4 DOMAIN-EXPERT perspectives for this specific task.
+        perspective_prompt = f"""Generate {max_perspectives} DOMAIN-EXPERT perspectives for this specific task.
 
 Task: {prompt}
 
@@ -371,7 +395,7 @@ JSON array for the given task:"""
                     for p in perspectives
                 )
                 if valid:
-                    perspectives = perspectives[:4]  # Max 4 perspectives
+                    perspectives = perspectives[:max_perspectives]
                     names = [p['name'] for p in perspectives]
                     print(f"done")
                     print(f"  → Perspectives: {', '.join(names)}")
