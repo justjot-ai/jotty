@@ -135,6 +135,76 @@ from .adaptive_learning import AdaptiveLearning, LearningState
 from .policy_explorer import PolicyExplorer, PolicyExplorerSignature
 from Jotty.core.learning.learning_coordinator import LearningCoordinator as LearningManager, LearningUpdate
 
+
+# =========================================================================
+# PIPELINE UTILITIES (AgentScope-inspired convenience functions)
+# =========================================================================
+# These extract common patterns from SwarmManager._execute_multi_agent
+# into thin, reusable functions.  KISS: ~20 lines total.
+
+import asyncio
+from typing import List as _List
+from .agent_runner import AgentRunner as _AgentRunner
+from Jotty.core.foundation.data_structures import EpisodeResult as _EpisodeResult
+
+
+async def sequential_pipeline(
+    runners: _List[_AgentRunner],
+    goal: str,
+    **kwargs,
+) -> _EpisodeResult:
+    """
+    Run agents sequentially, chaining output.
+
+    Each agent receives the previous agent's output as additional context.
+    Useful for: research → summarize → format pipelines.
+
+    DRY: Reuses AgentRunner.run() for each step.
+
+    Args:
+        runners: List of AgentRunner instances
+        goal: Initial goal
+        **kwargs: Passed to each runner
+
+    Returns:
+        Final EpisodeResult (last agent's output)
+    """
+    result = None
+    for runner in runners:
+        enriched = goal
+        if result and result.output:
+            enriched = f"{goal}\n\nPrevious output:\n{str(result.output)[:2000]}"
+        result = await runner.run(goal=enriched, **kwargs)
+        if not result.success:
+            break  # Stop pipeline on failure
+    return result
+
+
+async def fanout_pipeline(
+    runners: _List[_AgentRunner],
+    goal: str,
+    **kwargs,
+) -> _List[_EpisodeResult]:
+    """
+    Run agents in parallel on the same input.
+
+    Useful for: getting multiple perspectives / ensemble approaches.
+
+    DRY: Reuses AgentRunner.run() and asyncio.gather.
+
+    Args:
+        runners: List of AgentRunner instances
+        goal: Goal for all agents
+        **kwargs: Passed to each runner
+
+    Returns:
+        List of EpisodeResult (one per agent, preserving order)
+    """
+    return await asyncio.gather(
+        *(r.run(goal=goal, **kwargs) for r in runners)
+    )
+
+
 # Export components
 __all__ = [
     'SwarmTaskBoard',
@@ -198,4 +268,7 @@ __all__ = [
     'PolicyExplorerSignature',
     'LearningManager',
     'LearningUpdate',
+    # Pipeline utilities (AgentScope-inspired)
+    'sequential_pipeline',
+    'fanout_pipeline',
 ]

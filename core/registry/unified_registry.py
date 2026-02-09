@@ -318,6 +318,63 @@ class UnifiedRegistry:
         }
 
     # =========================================================================
+    # CONTEXT-SCOPED TOOLS (AgentScope tool-groups inspired)
+    # =========================================================================
+
+    def get_scoped_tools(
+        self,
+        task_description: str,
+        max_tools: int = 10,
+        format: str = 'claude',
+    ) -> List[Any]:
+        """
+        Return a focused subset of tools relevant to the task.
+
+        AgentScope insight: Agents perform better when they see fewer,
+        more relevant tools instead of the full 126-tool catalog.
+        This reduces context pollution and improves tool selection accuracy.
+
+        DRY: Reuses existing discover_for_task() scoring + get_claude_tools().
+        KISS: One method, no group activation state to manage.
+
+        Args:
+            task_description: What the agent is trying to do
+            max_tools: Max tools to include in context (default 10)
+            format: Tool format — 'claude', 'names', or 'full' (default 'claude')
+
+        Returns:
+            Focused list of tools in requested format
+
+        Example:
+            # Before (all 126 tools in context):
+            tools = registry.get_claude_tools()
+
+            # After (only relevant tools):
+            tools = registry.get_scoped_tools("search the web for AI news", max_tools=8)
+        """
+        discovery = self.discover_for_task(task_description)
+        relevant_names = [
+            s['name'] if isinstance(s, dict) else s
+            for s in discovery.get('skills', [])
+        ][:max_tools]
+
+        if not relevant_names:
+            # Fallback: return first N skills
+            relevant_names = self.list_skills()[:max_tools]
+
+        if format == 'names':
+            return relevant_names
+        elif format == 'claude':
+            return self.get_claude_tools(relevant_names)
+        else:
+            # 'full' — return skill objects
+            return [
+                self._skills.get_skill(name)
+                for name in relevant_names
+                if self._skills.get_skill(name) is not None
+            ]
+
+    # =========================================================================
     # INTROSPECTION
     # =========================================================================
 

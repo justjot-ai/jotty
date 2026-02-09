@@ -158,7 +158,103 @@ class LLMContextManager:
         """Clear all buffers."""
         for priority in self.buffers:
             self.buffers[priority] = []
-    
+
+    # =========================================================================
+    # STRUCTURED COMPRESSION (AgentScope SummarySchema-inspired)
+    # =========================================================================
+
+    def compress_structured(
+        self,
+        content: str,
+        goal: str = "",
+        max_chars: int = 1500,
+    ) -> str:
+        """
+        Compress content into a structured summary that preserves key info.
+
+        AgentScope insight: When context is evicted, structured compression
+        retains more useful information than blind truncation.
+
+        DRY: Reuses existing compress_fn when available, falls back to
+        heuristic extraction.  Extends the priority system already in place.
+
+        KISS: A simple template with 5 slots — no schema classes needed.
+
+        Args:
+            content: Raw content to compress
+            goal: Current task goal (for relevance filtering)
+            max_chars: Max characters in output
+
+        Returns:
+            Structured compressed string
+        """
+        if len(content) <= max_chars:
+            return content
+
+        # Heuristic extraction: split into lines and score by relevance
+        lines = content.split('\n')
+        goal_words = set(goal.lower().split()) if goal else set()
+
+        scored: List[tuple] = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            score = 0.0
+            lower = stripped.lower()
+            # Boost lines with goal keywords
+            if goal_words:
+                score += sum(1 for w in goal_words if w in lower) / max(len(goal_words), 1)
+            # Boost lines that look like results / conclusions
+            if any(marker in lower for marker in ['result', 'output', 'found', 'error', 'success', 'fail', '✅', '❌']):
+                score += 0.5
+            # Boost short structural lines (headers, keys)
+            if stripped.startswith(('#', '-', '*', '•')) or ':' in stripped[:40]:
+                score += 0.3
+            scored.append((score, stripped))
+
+        # Sort by score (highest first), keep top lines
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        # Build structured output
+        sections = {
+            'task': goal[:200] if goal else '(unknown)',
+            'key_findings': [],
+            'details': [],
+        }
+
+        char_budget = max_chars - 200  # reserve for template
+        chars_used = 0
+
+        for score, line in scored:
+            if chars_used >= char_budget:
+                break
+            bucket = 'key_findings' if score >= 0.5 else 'details'
+            sections[bucket].append(line)
+            chars_used += len(line) + 1
+
+        findings = '\n'.join(f"  - {l}" for l in sections['key_findings'][:10]) or '  (none extracted)'
+        details = '\n'.join(f"  - {l}" for l in sections['details'][:8]) or '  (truncated)'
+
+        return (
+            f"[Compressed — {len(content)} chars → structured]\n"
+            f"Task: {sections['task']}\n"
+            f"Key findings:\n{findings}\n"
+            f"Details:\n{details}\n"
+            f"[{len(lines)} original lines, {len(scored)} non-empty]"
+        )
+
+    def _smart_compress(self, content: str, max_chars: int) -> str:
+        """
+        Compress content to fit max_chars.
+
+        Uses structured compression when a goal is available,
+        otherwise falls back to prefix truncation.
+        """
+        if len(content) <= max_chars:
+            return content
+        return self.compress_structured(content, max_chars=max_chars)
+
     def process_large_document(self, document: str, query: str) -> str:
         """
         A-Team Enhancement: Auto-chunk documents exceeding context limit.

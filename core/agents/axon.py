@@ -444,6 +444,63 @@ class SmartAgentSlack:
         messages = [m for m in self.message_history if m.to_agent == agent_name]
         logger.debug(f"📬 [AGENT SLACK] {agent_name} received {len(messages)} messages")
         return messages
+
+    # =========================================================================
+    # MsgHub-inspired: Broadcast to all registered agents
+    # =========================================================================
+
+    def broadcast(
+        self,
+        from_agent: str,
+        data: Any,
+        field_name: str = "broadcast",
+        metadata: Optional[Dict] = None,
+        exclude: Optional[List[str]] = None,
+    ) -> Dict[str, bool]:
+        """
+        Broadcast data to ALL registered agents (AgentScope MsgHub pattern).
+
+        When an agent produces output that all other agents should see
+        (e.g. swarm-wide announcements, shared context updates),
+        broadcast instead of N individual send() calls.
+
+        DRY: Reuses existing send() for each target with all its
+        smart format detection, transformation, chunking, and compression.
+
+        Args:
+            from_agent: Agent sending the broadcast
+            data: Data to broadcast
+            field_name: Name of the field (for metadata)
+            metadata: Optional metadata dict
+            exclude: Agent names to exclude from broadcast
+
+        Returns:
+            Dict of agent_name -> delivery success
+        """
+        exclude_set = set(exclude or [])
+        exclude_set.add(from_agent)  # Never broadcast to self
+
+        targets = [
+            name for name in self.agent_capabilities
+            if name not in exclude_set
+        ]
+
+        results = {}
+        for target in targets:
+            results[target] = self.send(
+                from_agent=from_agent,
+                to_agent=target,
+                data=data,
+                field_name=field_name,
+                metadata=metadata,
+            )
+
+        delivered = sum(1 for v in results.values() if v)
+        logger.info(
+            f"📢 [AGENT SLACK] {from_agent} broadcast to "
+            f"{delivered}/{len(targets)} agents"
+        )
+        return results
         
     def _compress_agent_context(self, agent_name: str):
         """

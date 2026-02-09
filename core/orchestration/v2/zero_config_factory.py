@@ -19,7 +19,22 @@ class ZeroConfigAgentFactory:
     """
     Zero-config: LLM decides if task needs multiple agents.
     Uses LLM to analyze task for parallel sub-goals.
+    MAS-ZERO: Also assigns per-subtask strategies.
     """
+
+    # Strategy hints: keywords -> recommended strategy (MAS-ZERO sub-MAS assignment)
+    STRATEGY_HINTS = {
+        'compare': 'ensemble',
+        'vs': 'ensemble',
+        'analyze': 'ensemble',
+        'debate': 'ensemble',
+        'create': 'direct',
+        'generate': 'direct',
+        'build': 'direct',
+        'research': 'self_refine',
+        'investigate': 'self_refine',
+        'summarize': 'direct',
+    }
 
     def create_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
         """
@@ -27,6 +42,7 @@ class ZeroConfigAgentFactory:
 
         Returns single AutoAgent for sequential workflows,
         multiple for truly independent parallel sub-goals.
+        MAS-ZERO: assigns per-subtask strategy via metadata.
         """
         from Jotty.core.agents.auto_agent import AutoAgent
         import dspy
@@ -48,14 +64,17 @@ class ZeroConfigAgentFactory:
                     for i, sub_goal in enumerate(decision):
                         agent = AutoAgent()
                         agent_name = self._derive_agent_name(sub_goal, i)
+                        # MAS-ZERO: assign per-subtask strategy
+                        strategy = self._infer_subtask_strategy(sub_goal)
                         agent_config = AgentConfig(
                             name=agent_name,
                             agent=agent,
                             capabilities=[sub_goal],
                             is_executor=True,
+                            metadata={'strategy': strategy},
                         )
                         agents.append(agent_config)
-                        _status(f"  {agent_name}", sub_goal[:60])
+                        _status(f"  {agent_name}", f"{sub_goal[:50]} (strategy={strategy})")
                     _status("Multi-agent mode", f"{len(agents)} parallel agents")
                     return agents
                 else:
@@ -65,6 +84,18 @@ class ZeroConfigAgentFactory:
             _status("Single-agent mode", "fallback (LLM decision failed)")
 
         return [AgentConfig(name="auto", agent=AutoAgent())]
+
+    def _infer_subtask_strategy(self, sub_goal: str) -> str:
+        """
+        Infer the best strategy for a sub-task (MAS-ZERO sub-MAS assignment).
+
+        KISS: Keyword-based heuristic. No LLM call needed for this.
+        """
+        goal_lower = sub_goal.lower()
+        for keyword, strategy in self.STRATEGY_HINTS.items():
+            if keyword in goal_lower:
+                return strategy
+        return 'direct'
 
     def _llm_decide_agents(self, task: str) -> List[str]:
         """Use LLM to decide if task has parallel sub-goals."""

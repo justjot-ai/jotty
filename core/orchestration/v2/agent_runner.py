@@ -2,12 +2,19 @@
 V2 AgentRunner - Executes a single agent with validation and learning
 
 Extracted from SingleAgentOrchestrator for reuse in SwarmManager.
+
+AgentScope-inspired lifecycle hooks (Gao et al., 2025):
+    Pluggable hooks at 6 lifecycle points let you add tracing, profiling,
+    rate limiting, or custom logic without editing core code.
+
+    runner.add_hook('pre_execute', my_logger)
+    runner.add_hook('post_run', my_metrics_recorder)
 """
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, Callable
+from dataclasses import dataclass, field
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
@@ -19,6 +26,20 @@ from Jotty.core.learning.learning import (
 from Jotty.core.learning.shaped_rewards import ShapedRewardManager
 
 logger = logging.getLogger(__name__)
+
+
+# =========================================================================
+# LIFECYCLE HOOK TYPES (AgentScope-inspired)
+# =========================================================================
+
+HOOK_TYPES = (
+    'pre_run',        # Before entire run() — modify goal, inject context
+    'post_run',       # After entire run() — record metrics, log results
+    'pre_architect',  # Before architect validation
+    'post_architect', # After architect — inspect/override proceed decision
+    'pre_execute',    # Before agent execution — last chance to modify goal
+    'post_execute',   # After agent execution — inspect/transform output
+)
 
 
 @dataclass
@@ -166,6 +187,79 @@ class AgentRunner:
         self._current_task_type: str = 'default'
         self._scratchpad = scratchpad  # Store for validator recreation
 
+        # AgentScope-inspired lifecycle hooks (pluggable middleware)
+        self._hooks: Dict[str, List[Callable]] = {ht: [] for ht in HOOK_TYPES}
+
+    # =========================================================================
+    # LIFECYCLE HOOKS (AgentScope-inspired)
+    # =========================================================================
+
+    def add_hook(self, hook_type: str, fn: Callable, name: str = None) -> str:
+        """
+        Register a hook at a lifecycle point.
+
+        AgentScope insight: Hooks make learning, tracing, profiling,
+        and rate limiting pluggable instead of hardcoded.
+
+        Args:
+            hook_type: One of HOOK_TYPES (pre_run, post_run, etc.)
+            fn: Callable(**context) -> Optional[dict]. If it returns a dict,
+                the context is updated (e.g. modify goal in pre_run).
+            name: Optional name for later removal.
+
+        Returns:
+            Hook name (auto-generated if not provided)
+
+        Example:
+            def log_timing(**ctx):
+                print(f"Agent {ctx.get('agent_name')} took {ctx.get('elapsed'):.1f}s")
+
+            runner.add_hook('post_run', log_timing)
+        """
+        if hook_type not in self._hooks:
+            raise ValueError(
+                f"Unknown hook type '{hook_type}'. "
+                f"Valid: {', '.join(HOOK_TYPES)}"
+            )
+        hook_name = name or f"{hook_type}_{len(self._hooks[hook_type])}"
+        fn._hook_name = hook_name  # tag for removal
+        self._hooks[hook_type].append(fn)
+        logger.info(f"🪝 Hook registered: {hook_type}/{hook_name}")
+        return hook_name
+
+    def remove_hook(self, hook_type: str, name: str) -> bool:
+        """Remove a named hook. Returns True if found."""
+        hooks = self._hooks.get(hook_type, [])
+        for i, fn in enumerate(hooks):
+            if getattr(fn, '_hook_name', None) == name:
+                hooks.pop(i)
+                return True
+        return False
+
+    def _run_hooks(self, hook_type: str, **context) -> dict:
+        """
+        Run all hooks for a lifecycle point.
+
+        KISS: Hooks receive context as kwargs and optionally return
+        a dict to update it. No complex middleware chain.
+
+        Args:
+            hook_type: Which lifecycle point
+            **context: Current execution context (goal, result, etc.)
+
+        Returns:
+            Updated context dict
+        """
+        for fn in self._hooks.get(hook_type, []):
+            try:
+                result = fn(**context)
+                if isinstance(result, dict):
+                    context.update(result)
+            except Exception as e:
+                hook_name = getattr(fn, '_hook_name', '?')
+                logger.warning(f"🪝 Hook {hook_type}/{hook_name} failed: {e}")
+        return context
+
     def _update_validators_for_task(self, goal: str) -> str:
         """
         Update validators with task-specific prompts based on goal analysis.
@@ -256,6 +350,14 @@ class AgentRunner:
 
         logger.info(f"AgentRunner.run: {self.agent_name} - {goal[:50]}..." + (" [FAST]" if skip_validation else ""))
 
+        # Hook: pre_run — modify goal, inject context, log start
+        hook_ctx = self._run_hooks(
+            'pre_run',
+            goal=goal, agent_name=self.agent_name,
+            skip_validation=skip_validation, kwargs=kwargs,
+        )
+        goal = hook_ctx.get('goal', goal)  # allow hooks to modify goal
+
         # Dynamic prompt selection based on task type
         if not skip_validation:
             task_type = self._update_validators_for_task(goal)
@@ -325,6 +427,9 @@ class AgentRunner:
         architect_shaped_reward = 0.0
 
         if not skip_validation:
+            # Hook: pre_architect
+            self._run_hooks('pre_architect', goal=goal, agent_name=self.agent_name)
+
             _status("Architect", "validating approach")
             architect_results, proceed = await self.architect_validator.validate(
                 goal=goal,
@@ -360,6 +465,13 @@ class AgentRunner:
                     f"(Decision: {'PROCEED' if proceed else 'BLOCKED'})"
                 )
 
+            # Hook: post_architect — inspect/override proceed decision
+            arch_ctx = self._run_hooks(
+                'post_architect', goal=goal, agent_name=self.agent_name,
+                architect_results=architect_results, proceed=proceed,
+            )
+            proceed = arch_ctx.get('proceed', proceed)
+
             # Shaped reward: architect validation
             if self.shaped_reward_manager and architect_results:
                 architect_shaped_reward = self.shaped_reward_manager.check_rewards(
@@ -371,6 +483,13 @@ class AgentRunner:
             logger.info("⚡ Fast mode: skipping architect validation")
 
         # 2. Agent execution (use enriched goal with memory context)
+        # Hook: pre_execute — last chance to modify goal before agent runs
+        exec_ctx = self._run_hooks(
+            'pre_execute', goal=enriched_goal, agent_name=self.agent_name,
+            architect_results=architect_results,
+        )
+        enriched_goal = exec_ctx.get('goal', enriched_goal)
+
         _status("Agent", "executing task (this may take a while)")
         try:
             # Always use AutoAgent for skill execution (skip_validation only affects architect/auditor)
@@ -410,6 +529,12 @@ class AgentRunner:
                     'success': inner_success,
                 })
             
+            # Hook: post_execute — inspect/transform output before auditor
+            self._run_hooks(
+                'post_execute', goal=enriched_goal, agent_name=self.agent_name,
+                agent_output=agent_output, inner_success=inner_success,
+            )
+
             # 3. Auditor (post-execution validation) - skip in fast mode
             if not skip_validation:
                 auditor_results, passed = await self.auditor_validator.validate(
@@ -600,7 +725,7 @@ class AgentRunner:
                 except Exception as fb_err:
                     logger.debug(f"Executor feedback skipped: {fb_err}")
 
-            return EpisodeResult(
+            episode_result = EpisodeResult(
                 output=agent_output,
                 success=success,
                 trajectory=trajectory,
@@ -611,6 +736,14 @@ class AgentRunner:
                 auditor_results=auditor_results or [],
                 agent_contributions=agent_contributions
             )
+
+            # Hook: post_run — record metrics, log results, send notifications
+            self._run_hooks(
+                'post_run', goal=goal, agent_name=self.agent_name,
+                result=episode_result, success=success, elapsed=duration,
+            )
+
+            return episode_result
             
         except Exception as e:
             logger.error(f"❌ Agent execution failed: {e}", exc_info=True)

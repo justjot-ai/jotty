@@ -50,6 +50,7 @@ from ._lazy import LazyComponent
 from ._provider_mixin import ProviderMixin
 from ._ensemble_mixin import EnsembleMixin
 from ._learning_delegation_mixin import LearningDelegationMixin
+from ._mas_zero_mixin import MASZeroMixin
 
 logger = logging.getLogger(__name__)
 
@@ -224,12 +225,25 @@ def _create_mas_learning(sm):
     )
 
 
-class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
+class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZeroMixin):
     """
     World-Class Swarm Orchestrator.
 
     All heavyweight components are lazy-loaded via descriptors.
     Init is fast (~10ms). Components are created on first access.
+
+    MAS-ZERO enhancements (Ke et al., NeurIPS 2025):
+        - Building blocks: multiple strategies run in parallel
+        - Meta-feedback: solvability + completeness evaluation
+        - Candidate verification: LLM-based best answer selection
+        - Dynamic reduction: multi -> single when simpler is better
+        - Iterative refinement: MAS-Evolve loop with experience library
+        - TOO_HARD escalation: agents signal unsolvable sub-tasks
+
+    AIOS-inspired scheduling (Mei et al., COLM 2025):
+        - Concurrency semaphore: limits parallel LLM calls during multi-agent fan-out
+        - Prevents API rate-limit errors and controls cost
+        - Configurable via max_concurrent_agents (default 3)
 
     Modes:
         - single: 1 AutoAgent (default)
@@ -293,6 +307,7 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
         auditor_prompts: Optional[List[str]] = None,
         enable_zero_config: bool = True,
         enable_lotus: bool = True,
+        max_concurrent_agents: int = 3,
     ):
         """
         Initialize SwarmManager.
@@ -306,11 +321,24 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
             auditor_prompts: Auditor prompt paths
             enable_zero_config: Enable natural language -> agent conversion
             enable_lotus: Enable LOTUS optimization layer
+            max_concurrent_agents: Max agents calling LLM concurrently (AIOS-inspired, default 3)
         """
         self.config = config or JottyConfig()
         self.enable_zero_config = enable_zero_config
         self.enable_lotus = enable_lotus
         self.episode_count = 0
+
+        # AIOS-inspired: Concurrency control for multi-agent LLM fan-out.
+        # Prevents API rate-limit errors when N agents fire in parallel.
+        # DRY: Single semaphore, no wrapper classes needed.
+        self.max_concurrent_agents = max_concurrent_agents
+        self._agent_semaphore = asyncio.Semaphore(max_concurrent_agents)
+        self._scheduling_stats: Dict[str, int] = {
+            'total_scheduled': 0,
+            'total_waited': 0,    # times an agent had to wait for a slot
+            'peak_concurrent': 0,
+            'current_concurrent': 0,
+        }
 
         # Prompts
         self.architect_prompts = architect_prompts or ["configs/prompts/architect/base_architect.md"]
@@ -553,6 +581,13 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
             },
         }
 
+        # Scheduling stats (AIOS-inspired)
+        result['scheduling'] = {
+            'max_concurrent_agents': self.max_concurrent_agents,
+            'semaphore_available': self._agent_semaphore._value,
+            **self._scheduling_stats,
+        }
+
         # Add learning stats if pipeline is active
         if '_lazy_learning' in self.__dict__:
             try:
@@ -783,6 +818,9 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
         # Lazy init: Build runners on first run
         self._ensure_runners()
 
+        # MAS-ZERO: Reset per-problem experience library
+        self._reset_experience()
+
         # Extract ExecutionContext if provided by ModeRouter
         exec_context = kwargs.pop('context', None)
 
@@ -959,15 +997,26 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
 
             # Multi-agent mode: Use SwarmTaskBoard for coordination
             else:
-                _status("Executing", f"{len(self.agents)} agents in parallel")
-                result = await self._execute_multi_agent(
-                    goal,
-                    ensemble_context=ensemble_result if ensemble else None,
-                    status_callback=status_callback,
-                    ensemble=ensemble,  # Pass to agents for per-agent ensemble
-                    ensemble_strategy=ensemble_strategy,
-                    **kwargs
-                )
+                # MAS-ZERO: Dynamic reduction — check if multi-agent is overkill
+                if self._mas_zero_should_reduce(goal):
+                    _status("MAS-ZERO reduction", "reverting to single agent (simpler is better)")
+                    self.mode = "single"
+                    result = await self._execute_single_agent(
+                        goal,
+                        skip_validation=skip_autonomous_setup,
+                        status_callback=status_callback,
+                        **kwargs
+                    )
+                else:
+                    _status("Executing", f"{len(self.agents)} agents in parallel")
+                    result = await self._execute_multi_agent(
+                        goal,
+                        ensemble_context=ensemble_result if ensemble else None,
+                        status_callback=status_callback,
+                        ensemble=ensemble,
+                        ensemble_strategy=ensemble_strategy,
+                        **kwargs
+                    )
 
                 _status("Complete", "success" if result.success else "failed")
 
@@ -989,6 +1038,10 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
         """
         Execute single-agent mode.
 
+        MAS-ZERO: For comparison/analysis tasks, runs building blocks
+        (direct + ensemble) in parallel and verifies the best answer.
+        For simple tasks, runs direct execution as before.
+
         Args:
             goal: Task goal
             **kwargs: Additional arguments
@@ -1001,6 +1054,13 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
 
         agent_config = self.agents[0]
         runner = self.runners[agent_config.name]
+
+        # NOTE: MAS-ZERO building blocks (MAS-Init) are NOT used in single-agent
+        # mode. AutoAgent already has its own ensemble pipeline internally, so
+        # building blocks would duplicate LLM calls. In multi-agent mode,
+        # MAS-Verify + MAS-Evolve provide the cross-candidate selection instead.
+
+        # Standard single-agent execution
         result = await runner.run(goal=goal, **kwargs)
 
         # Learn from execution (DRY: reuse workflow learner)
@@ -1115,35 +1175,55 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
                         logger.debug(f"Trajectory prediction skipped for {task.actor}: {e}")
 
             # Execute batch concurrently (status_callback already extracted at method start)
+            # AIOS-inspired: Semaphore limits how many agents call LLM simultaneously.
+            # Without this, N agents × (architect + agent + auditor) = 3N concurrent API calls.
             async def _run_task(task):
-                # Show which agent is executing
-                agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
-                sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
-
-                if status_callback:
-                    try:
-                        status_callback(f"Agent {task.actor}", f"starting: {sub_goal}")
-                    except Exception:
-                        pass
-
-                # Create agent-specific status callback that prefixes with agent name
-                def agent_status_callback(stage: str, detail: str = ""):
+                # Check if we'll need to wait for a slot
+                if self._agent_semaphore._value == 0:
+                    self._scheduling_stats['total_waited'] += 1
                     if status_callback:
                         try:
-                            # Prefix with agent name so user knows which agent is doing what
-                            status_callback(f"  [{task.actor}] {stage}", detail)
+                            status_callback(f"Agent {task.actor}", "waiting for LLM slot...")
                         except Exception:
                             pass
 
-                runner = self.runners[task.actor]
-                # Pass the agent-specific callback and ensemble params
-                task_kwargs = dict(kwargs)
-                task_kwargs['status_callback'] = agent_status_callback
-                # Each agent gets its own ensemble for its specific sub-goal
-                if ensemble:
-                    task_kwargs['ensemble'] = True
-                    task_kwargs['ensemble_strategy'] = ensemble_strategy
-                return task, await runner.run(goal=task.description, **task_kwargs)
+                async with self._agent_semaphore:
+                    # Track concurrency stats
+                    self._scheduling_stats['total_scheduled'] += 1
+                    self._scheduling_stats['current_concurrent'] += 1
+                    if self._scheduling_stats['current_concurrent'] > self._scheduling_stats['peak_concurrent']:
+                        self._scheduling_stats['peak_concurrent'] = self._scheduling_stats['current_concurrent']
+
+                    try:
+                        # Show which agent is executing
+                        agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
+                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
+
+                        if status_callback:
+                            try:
+                                status_callback(f"Agent {task.actor}", f"starting: {sub_goal}")
+                            except Exception:
+                                pass
+
+                        # Create agent-specific status callback that prefixes with agent name
+                        def agent_status_callback(stage: str, detail: str = ""):
+                            if status_callback:
+                                try:
+                                    status_callback(f"  [{task.actor}] {stage}", detail)
+                                except Exception:
+                                    pass
+
+                        runner = self.runners[task.actor]
+                        # Pass the agent-specific callback and ensemble params
+                        task_kwargs = dict(kwargs)
+                        task_kwargs['status_callback'] = agent_status_callback
+                        # Each agent gets its own ensemble for its specific sub-goal
+                        if ensemble:
+                            task_kwargs['ensemble'] = True
+                            task_kwargs['ensemble_strategy'] = ensemble_strategy
+                        return task, await runner.run(goal=task.description, **task_kwargs)
+                    finally:
+                        self._scheduling_stats['current_concurrent'] -= 1
 
             coro_results = await asyncio.gather(
                 *[_run_task(t) for t in batch],
@@ -1231,6 +1311,37 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
                         )
                     all_results[task.actor] = result
 
+        # MAS-ZERO: Handle TOO_HARD signals from agents
+        # If any agent signaled TOO_HARD, try re-routing its task
+        for agent_name, result in list(all_results.items()):
+            output = result.output if hasattr(result, 'output') else result
+            is_too_hard = (
+                isinstance(output, dict) and output.get('too_hard')
+            ) or (
+                hasattr(result, 'output') and isinstance(result.output, dict)
+                and result.output.get('too_hard')
+            )
+            if is_too_hard and not result.success:
+                logger.info(f"MAS-ZERO: Agent '{agent_name}' signaled TOO_HARD, "
+                           f"task may need re-decomposition")
+
+        # MAS-ZERO: Meta-feedback evaluation (solvability + completeness)
+        meta_feedback = self._mas_zero_evaluate(goal, all_results)
+
+        # MAS-ZERO: Iterative refinement if meta-feedback says refine
+        if meta_feedback.get('should_refine') and len(all_results) > 0:
+            if status_callback:
+                try:
+                    status_callback("MAS-Evolve", "refining based on meta-feedback")
+                except Exception:
+                    pass
+            all_results = await self._mas_zero_evolve(
+                goal, all_results,
+                max_iterations=2,
+                status_callback=status_callback,
+                **kwargs,
+            )
+
         # Cooperative credit assignment
         self._assign_cooperative_credit(all_results, goal)
 
@@ -1244,7 +1355,12 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
         return combined_result
 
     def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
-        """Combine all agent outputs into a single EpisodeResult."""
+        """
+        Combine all agent outputs into a single EpisodeResult.
+
+        MAS-ZERO: Uses CandidateVerifier for intelligent selection
+        instead of naive concatenation when multiple agents produce output.
+        """
         if not results:
             return EpisodeResult(
                 output=None,
@@ -1262,8 +1378,17 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
         if len(results) == 1:
             return list(results.values())[0]
 
-        # Combine outputs
-        combined_output = {name: r.output for name, r in results.items()}
+        # MAS-ZERO: Use CandidateVerifier to pick the best output
+        # Falls back to combined dict if verification fails or isn't applicable
+        verified_output = self._mas_zero_verify(goal, results)
+
+        # If verification selected a single best answer, use it
+        # Otherwise fall back to combined output dict
+        if verified_output is not None:
+            combined_output = verified_output
+        else:
+            combined_output = {name: r.output for name, r in results.items()}
+
         all_success = all(r.success for r in results.values())
 
         # Merge trajectories

@@ -18,6 +18,7 @@ Example:
     → Uses only those tables in SQL
 """
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any, Optional
@@ -237,6 +238,127 @@ class FeedbackChannel:
             }
         }
     
+    # =========================================================================
+    # MsgHub-inspired: Broadcast to multiple agents at once
+    # =========================================================================
+
+    def broadcast(
+        self,
+        source_actor: str,
+        content: str,
+        participants: Optional[List[str]] = None,
+        feedback_type: FeedbackType = FeedbackType.RESPONSE,
+        context: Optional[Dict[str, Any]] = None,
+        priority: int = 2,
+    ) -> List[str]:
+        """
+        Broadcast message to all participants (AgentScope MsgHub pattern).
+
+        When an agent produces output that all other agents should see,
+        use broadcast instead of N individual sends.
+
+        DRY: Reuses existing send() for each target.
+
+        Args:
+            source_actor: Agent sending the broadcast
+            content: Message content
+            participants: Target agents (default: all known agents)
+            feedback_type: Message type (default: RESPONSE)
+            context: Additional context dict
+            priority: Message priority (default: 2/medium)
+
+        Returns:
+            List of message IDs
+        """
+        # Default: broadcast to all agents that have ever received messages
+        targets = participants or list(self.messages.keys())
+
+        msg_ids = []
+        for target in targets:
+            if target == source_actor:
+                continue  # Don't broadcast to self
+            msg = FeedbackMessage(
+                source_actor=source_actor,
+                target_actor=target,
+                feedback_type=feedback_type,
+                content=content,
+                context=context or {},
+                requires_response=False,
+                priority=priority,
+            )
+            msg_ids.append(self.send(msg))
+
+        if msg_ids:
+            logger.info(
+                f"📢 {source_actor} broadcast to {len(msg_ids)} agents"
+            )
+        return msg_ids
+
+    # =========================================================================
+    # A2A-inspired: Request-reply with async await
+    # =========================================================================
+
+    async def request(
+        self,
+        source_actor: str,
+        target_actor: str,
+        content: str,
+        context: Optional[Dict[str, Any]] = None,
+        timeout: float = 30.0,
+        poll_interval: float = 0.1,
+    ) -> Optional[FeedbackMessage]:
+        """
+        Send request and await response (AgentScope A2A pattern).
+
+        Enables the original design intent: agents consulting each other.
+        Example: SQLGenerator asks BusinessTermResolver for relevant tables.
+
+        DRY: Reuses send() and get_for_actor(). No event system needed.
+        KISS: Simple polling with timeout.
+
+        Args:
+            source_actor: Agent asking the question
+            target_actor: Agent being asked
+            content: The question/request
+            context: Additional context
+            timeout: Max wait time in seconds (default 30s)
+            poll_interval: Poll frequency in seconds (default 0.1s)
+
+        Returns:
+            Response FeedbackMessage, or None on timeout
+        """
+        msg = FeedbackMessage(
+            source_actor=source_actor,
+            target_actor=target_actor,
+            feedback_type=FeedbackType.QUESTION,
+            content=content,
+            context=context or {},
+            requires_response=True,
+            priority=1,
+        )
+        msg_id = self.send(msg)
+
+        # Poll for response (KISS: no event/Future infrastructure needed)
+        deadline = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < deadline:
+            # Check for responses to our message
+            pending = self.messages.get(source_actor, [])
+            for i, response in enumerate(pending):
+                if response.original_message_id == msg_id:
+                    # Found our response — remove from queue and return
+                    pending.pop(i)
+                    logger.info(
+                        f"📨 {source_actor} got reply from {target_actor} "
+                        f"({(asyncio.get_event_loop().time() - (deadline - timeout)):.1f}s)"
+                    )
+                    return response
+            await asyncio.sleep(poll_interval)
+
+        logger.warning(
+            f"⏰ {source_actor} request to {target_actor} timed out ({timeout}s)"
+        )
+        return None
+
     def clear_all(self):
         """Clear all pending messages (but keep history)."""
         self.messages.clear()

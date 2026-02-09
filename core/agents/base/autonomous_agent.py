@@ -271,6 +271,23 @@ class AutonomousAgent(BaseAgent):
         skills = await self._select_skills(task, all_skills)
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
+        # TOO_HARD early-exit: if no skills found at all, signal difficulty
+        # rather than wasting a full execution attempt (MAS-ZERO inspired)
+        if not all_skills and not skills:
+            _status("TOO_HARD", "no relevant skills found for this sub-task")
+            return {
+                "success": False,
+                "task": task,
+                "task_type": task_type,
+                "too_hard": True,
+                "skills_used": [],
+                "steps_executed": 0,
+                "outputs": {},
+                "final_output": None,
+                "errors": ["TOO_HARD: No relevant skills found for this sub-task"],
+                "execution_time": time.time() - start_time,
+            }
+
         # Step 4: Create plan
         # For planning, we can enrich with learning context since it goes to the LLM planner
         # (not to search queries or skill params)
