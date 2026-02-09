@@ -261,15 +261,18 @@ class PatternExtractor:
     """
 
     # Task type keywords (domain-agnostic)
+    # Order matters: more specific types checked first.
+    # Uses word-boundary matching (see extract_task_type) to prevent
+    # "sum" matching "summarize", "search" matching "research", etc.
     TASK_TYPES = {
-        'aggregation': ['count', 'sum', 'avg', 'average', 'total', 'aggregate', 'tally'],
-        'filtering': ['filter', 'where', 'find', 'search', 'select', 'get'],
+        'comparison': ['compare', 'comparing', 'diff', 'contrast', 'versus', 'vs', 'pros and cons'],
+        'analysis': ['analyze', 'analyse', 'examining', 'investigate', 'explore', 'research'],
+        'aggregation': ['count', 'sum up', 'avg', 'average', 'total', 'aggregate', 'tally'],
+        'filtering': ['filter', 'where', 'find', 'select'],
         'transformation': ['transform', 'convert', 'map', 'process', 'clean'],
-        'analysis': ['analyze', 'analyse', 'examine', 'investigate', 'explore'],
         'prediction': ['predict', 'forecast', 'estimate', 'project'],
         'validation': ['validate', 'verify', 'check', 'confirm', 'audit'],
-        'generation': ['generate', 'create', 'produce', 'build', 'make'],
-        'comparison': ['compare', 'diff', 'contrast', 'versus', 'vs'],
+        'generation': ['generate', 'create', 'produce', 'build', 'make', 'write', 'summarize', 'summarise'],
     }
 
     # Time pattern keywords
@@ -292,11 +295,24 @@ class PatternExtractor:
     }
 
     def extract_task_type(self, query: str) -> str:
-        """Extract abstract task type from query."""
+        """Extract abstract task type from query using word-boundary matching.
+        
+        Prevents false positives like 'sum' matching 'summarize' or
+        'search' matching 'research'. Multi-word keywords (like 'pros and cons')
+        use plain substring matching since they're already specific enough.
+        """
+        import re
         query_lower = query.lower()
         for task_type, keywords in self.TASK_TYPES.items():
-            if any(kw in query_lower for kw in keywords):
-                return task_type
+            for kw in keywords:
+                if ' ' in kw:
+                    # Multi-word: substring match is fine (already specific)
+                    if kw in query_lower:
+                        return task_type
+                else:
+                    # Single-word: use word boundary to prevent partial matches
+                    if re.search(r'\b' + re.escape(kw) + r'\b', query_lower):
+                        return task_type
         return 'general'
 
     def extract_time_pattern(self, query: str) -> str:

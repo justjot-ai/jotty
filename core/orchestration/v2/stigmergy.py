@@ -255,6 +255,132 @@ class StigmergyLayer:
         """
         return dict(self.recommend_agent(task_type))
 
+    # =====================================================================
+    # APPROACH TRACKING (useful in single-agent mode)
+    # =====================================================================
+    #
+    # In single-agent mode, agent routing is meaningless — there's one agent.
+    # What IS useful: tracking which *approach* worked for which task type.
+    # An "approach" is a summary of what the agent actually did:
+    #   - which tools/skills it called
+    #   - what strategy it used (e.g., "used web-search then summarized")
+    #   - what failed (e.g., "tried code execution but hit timeout")
+    #
+    # These signals are deposited via record_approach_outcome() and read
+    # via recommend_approach() to give the single agent actionable guidance
+    # for the *next* execution of a similar task type.
+
+    def record_approach_outcome(
+        self,
+        task_type: str,
+        approach_summary: str,
+        tools_used: List[str],
+        success: bool,
+        quality: float = 0.5,
+        agent: str = "default",
+    ) -> str:
+        """
+        Record what approach/tools worked (or failed) for a task type.
+
+        Unlike record_outcome which just says "agent X on task Y",
+        this records HOW the task was done, making the signal useful
+        even when there's only one agent.
+
+        Args:
+            task_type: Type of task (e.g., 'analysis', 'coding')
+            approach_summary: Short description of the approach taken
+            tools_used: List of tool/skill names used during execution
+            success: Whether the approach succeeded
+            quality: Output quality 0-1
+            agent: Agent name (for tracking, even if there's only one)
+
+        Returns:
+            Signal ID
+        """
+        content = {
+            'task_type': task_type,
+            'approach': approach_summary[:200],
+            'tools': tools_used[:10],
+            'success': success,
+            'quality': quality,
+        }
+
+        if success:
+            strength = 0.5 + 0.5 * max(0.0, min(1.0, quality))
+            signal_type = 'approach_success'
+        else:
+            strength = 0.3
+            signal_type = 'approach_warning'
+
+        # Check for existing approach signal for this task_type + approach combo
+        approach_key = f"{task_type}:{approach_summary[:50]}"
+        for sid, signal in self.signals.items():
+            if (signal.signal_type in ('approach_success', 'approach_warning')
+                    and isinstance(signal.content, dict)
+                    and signal.content.get('task_type') == task_type
+                    and signal.content.get('approach', '')[:50] == approach_summary[:50]):
+                if success:
+                    self.reinforce(sid, amount=0.15 + 0.1 * quality)
+                else:
+                    signal.strength = max(0.01, signal.strength - 0.1)
+                return sid
+
+        return self.deposit(
+            signal_type=signal_type,
+            content=content,
+            agent=agent,
+            strength=strength,
+        )
+
+    def recommend_approach(self, task_type: str, top_k: int = 3) -> Dict[str, Any]:
+        """
+        Get approach recommendations for a task type.
+
+        Returns actionable guidance: what tools to use, what approaches
+        worked, and what to avoid. This is the single-agent analog of
+        recommend_agent().
+
+        Args:
+            task_type: Type of task
+            top_k: Number of top approaches to return
+
+        Returns:
+            Dict with 'use' (successful approaches) and 'avoid' (failed ones).
+            Each entry has approach summary, tools used, and signal strength.
+        """
+        self._apply_decay()
+
+        successes = []
+        failures = []
+
+        for signal in self.signals.values():
+            if not isinstance(signal.content, dict):
+                continue
+            if signal.content.get('task_type') != task_type:
+                continue
+            if signal.strength < 0.05:
+                continue
+
+            entry = {
+                'approach': signal.content.get('approach', ''),
+                'tools': signal.content.get('tools', []),
+                'quality': signal.content.get('quality', 0.5),
+                'strength': signal.strength,
+            }
+
+            if signal.signal_type == 'approach_success':
+                successes.append(entry)
+            elif signal.signal_type == 'approach_warning':
+                failures.append(entry)
+
+        successes.sort(key=lambda x: x['strength'], reverse=True)
+        failures.sort(key=lambda x: x['strength'], reverse=True)
+
+        return {
+            'use': successes[:top_k],
+            'avoid': failures[:top_k],
+        }
+
     def evaporate(self, decay_rate: float = None) -> int:
         """
         Public evaporation method — decay all signals and prune dead ones.

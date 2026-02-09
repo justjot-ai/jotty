@@ -1558,23 +1558,36 @@ class SwarmManager:
             lp = self.learning
             task_type = lp.transfer_learning.extractor.extract_task_type(goal)
 
-            # 1. Stigmergy: what worked/failed for this task type before?
-            route_agent = lp.get_stigmergy_route(task_type)
-            if route_agent:
+            # 1. Stigmergy APPROACH guidance (single-agent-aware).
+            #    Instead of "use agent X" (useless with one agent),
+            #    inject "use these tools/approaches" and "avoid these".
+            approach_rec = lp.stigmergy.recommend_approach(task_type, top_k=2)
+            for good in approach_rec.get('use', []):
+                tools_str = ', '.join(good['tools'][:5]) if good.get('tools') else 'N/A'
                 learned_hints.append(
-                    f"[Learned] Best agent for '{task_type}' tasks: {route_agent}"
+                    f"[Learned] Successful approach for '{task_type}': "
+                    f"{good['approach'][:120]} (tools: {tools_str}, "
+                    f"quality: {good.get('quality', 0):.0%})"
                 )
-
-            warnings = lp.get_stigmergy_warnings(task_type)
-            if warnings:
-                warn_msgs = [
-                    getattr(w, 'content', {}).get('goal', 'unknown')
-                    if isinstance(getattr(w, 'content', None), dict) else str(w)
-                    for w in warnings[:3]
-                ]
+            for bad in approach_rec.get('avoid', []):
+                tools_str = ', '.join(bad['tools'][:5]) if bad.get('tools') else 'N/A'
                 learned_hints.append(
-                    f"[Learned] Previous failures on '{task_type}': {'; '.join(warn_msgs)}"
+                    f"[Learned] Failed approach for '{task_type}': "
+                    f"{bad['approach'][:120]} — avoid this"
                 )
+            # Fallback: if no approach data yet, use old agent-routing signals
+            if not approach_rec.get('use') and not approach_rec.get('avoid'):
+                warnings = lp.get_stigmergy_warnings(task_type)
+                if warnings:
+                    warn_msgs = [
+                        getattr(w, 'content', {}).get('goal', 'unknown')
+                        if isinstance(getattr(w, 'content', None), dict) else str(w)
+                        for w in warnings[:3]
+                    ]
+                    learned_hints.append(
+                        f"[Learned] Previous failures on '{task_type}': "
+                        f"{'; '.join(warn_msgs)}"
+                    )
 
             # 2. Effectiveness: are we improving or degrading on this type?
             eff_report = lp.effectiveness.improvement_report()
@@ -1629,6 +1642,8 @@ class SwarmManager:
                     f"📚 Single-agent intelligence: {len(learned_hints)} hints "
                     f"for task_type='{task_type}'"
                 )
+                for i, hint in enumerate(learned_hints, 1):
+                    logger.info(f"  📚 Hint {i}: {hint[:200]}")
 
         except Exception as e:
             logger.warning(f"Pre-execution intelligence read failed: {e}")

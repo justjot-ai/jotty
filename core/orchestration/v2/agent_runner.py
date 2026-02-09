@@ -492,6 +492,8 @@ class AgentRunner:
             except Exception as e:
                 logger.debug(f"Warm-start context skipped: {e}")
 
+        for i, p in enumerate(parts, 1):
+            logger.info(f"  📖 Context {i}: {p[:200]}")
         return parts
 
     async def _record_post_execution_learning(
@@ -582,10 +584,16 @@ class AgentRunner:
         if self.swarm_intelligence:
             try:
                 detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                # Extract skills actually used from agent output
+                _tools_used = []
+                if isinstance(agent_output, dict):
+                    _tools_used = list(agent_output.get('skills_used', []))
+                if not _tools_used and hasattr(agent_output, 'skills_used'):
+                    _tools_used = list(getattr(agent_output, 'skills_used', []))
                 self.swarm_intelligence.receive_executor_feedback(
                     task_id=f"{self.agent_name}_{int(time.time())}",
                     success=success,
-                    tools_used=[],
+                    tools_used=_tools_used,
                     execution_time=duration,
                     error_type=None,
                     task_type=detected_task_type

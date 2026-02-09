@@ -62,37 +62,45 @@ class CurriculumGenerator:
         self._state_manager = state_manager  # SwarmStateManager for tool stats
         self._memory_system = memory_system  # HierarchicalMemory for context
 
-        # Task type templates (domain-agnostic)
+        # Task type templates — CONCRETE, EXECUTABLE tasks.
+        # Every template must be a real instruction an LLM agent can
+        # attempt without additional context.  No {placeholder} strings
+        # that produce "Analyze patterns in: users" (non-executable).
         self.task_templates: Dict[str, List[str]] = {
             'aggregation': [
-                "Count items matching criteria: {criteria}",
-                "Sum values where: {condition}",
-                "Calculate average of: {field}",
+                "How many countries in the world have a population over 100 million?",
+                "What is the approximate total market cap of the top 5 US tech companies?",
+                "List the 3 most common programming languages on GitHub and their approximate usage share.",
             ],
             'analysis': [
-                "Analyze patterns in: {domain}",
-                "Find correlations between: {field_a} and {field_b}",
-                "Identify anomalies in: {dataset}",
+                "Compare the pros and cons of Python vs Rust for web backend development.",
+                "Analyze why SQLite is preferred for mobile apps over PostgreSQL.",
+                "What are the key differences between REST and GraphQL APIs? Give concrete examples.",
             ],
             'transformation': [
-                "Transform data from {format_a} to {format_b}",
-                "Normalize values in: {field}",
-                "Merge datasets: {dataset_a} and {dataset_b}",
+                "Convert this CSV header row into a SQL CREATE TABLE statement: name,age,email,created_at",
+                "Rewrite this Python 2 code to Python 3: print 'hello'; raw_input('name: ')",
+                "Convert this JSON to YAML: {\"name\": \"test\", \"version\": 1, \"tags\": [\"a\", \"b\"]}",
             ],
             'validation': [
-                "Validate data quality for: {field}",
-                "Check constraints: {constraints}",
-                "Verify consistency between: {source_a} and {source_b}",
+                "Is this a valid email address? Explain why or why not: user@.example.com",
+                "Check if this SQL query has any syntax errors: SELECT * FROM users WHERE name = 'John AND age > 30",
+                "Is this JSON valid? If not, fix it: {name: 'test', items: [1, 2,]}",
             ],
-            'filtering': [
-                "Filter records where: {condition}",
-                "Select top {n} by: {criteria}",
-                "Remove duplicates from: {dataset}",
+            'coding': [
+                "Write a Python function that checks if a string is a palindrome.",
+                "Write a bash one-liner that finds all .py files modified in the last 24 hours.",
+                "Write a Python function that flattens a nested list of arbitrary depth.",
+            ],
+            'research': [
+                "What are the main differences between Docker and Podman?",
+                "Explain how HTTPS/TLS handshake works in simple terms.",
+                "What is the CAP theorem and how does it apply to distributed databases?",
             ],
             'planning': [
-                "Plan execution steps for: {goal}",
-                "Decompose task: {complex_task}",
-                "Prioritize items: {items}",
+                "Create a step-by-step plan to migrate a monolith web app to microservices.",
+                "Plan the steps needed to set up CI/CD for a Python project using GitHub Actions.",
+                "Outline the steps to debug a memory leak in a Node.js application.",
             ],
         }
 
@@ -107,25 +115,26 @@ class CurriculumGenerator:
         self.total_generated = 0
         self.tasks_by_difficulty: Dict[str, int] = defaultdict(int)
 
-        # Agent0: Tool-aware task templates (uses existing tools, doesn't duplicate)
+        # Agent0: Tool-aware task templates — CONCRETE tasks that exercise
+        # specific tool categories. No placeholders.
         self.tool_task_templates: Dict[str, Dict[str, Any]] = {
             'search_analyze': {
-                'description': "Search for {topic} and analyze the results",
+                'description': "Search the web for the latest Python 3.13 release notes and summarize the top 3 new features.",
                 'tools_hint': ['search', 'web_search', 'grep'],
                 'complexity': 'chain',
             },
             'read_transform': {
-                'description': "Read {source} and transform to {format}",
+                'description': "Read the file /etc/hostname and convert its content to uppercase.",
                 'tools_hint': ['read', 'file_read', 'converter'],
                 'complexity': 'chain',
             },
             'execute_validate': {
-                'description': "Execute {command} and validate output matches {criteria}",
+                'description': "Run 'python3 --version' and verify the output contains 'Python 3'.",
                 'tools_hint': ['bash', 'execute', 'validate'],
                 'complexity': 'chain',
             },
             'multi_source': {
-                'description': "Gather information from multiple sources about {topic}",
+                'description': "Find the current weather in Tokyo and the current USD/JPY exchange rate, then present both together.",
                 'tools_hint': ['search', 'read', 'fetch'],
                 'complexity': 'parallel',
             },
@@ -241,22 +250,21 @@ class CurriculumGenerator:
 
     def _generate_description(self, task_type: str, difficulty: float) -> str:
         """
-        Generate task description from template with difficulty scaling.
+        Pick a concrete, executable task from the template pool.
+
+        Templates are already complete sentences — no placeholder substitution.
+        Difficulty is used only for logging/tracking, not to generate harder
+        phrasing (that would require an LLM call).
         """
         import random
 
-        templates = self.task_templates.get(task_type, ["Perform {task_type} task"])
-        template = random.choice(templates)
+        templates = self.task_templates.get(task_type)
+        if not templates:
+            # If task_type doesn't match any template category, pick from any
+            all_templates = [t for ts in self.task_templates.values() for t in ts]
+            return random.choice(all_templates)
 
-        # Generate placeholder values based on difficulty
-        placeholders = self._generate_placeholders(difficulty)
-
-        try:
-            description = template.format(**placeholders)
-        except KeyError:
-            description = f"Perform {task_type} task (difficulty: {difficulty:.1%})"
-
-        return description
+        return random.choice(templates)
 
     def _generate_placeholders(self, difficulty: float) -> Dict[str, str]:
         """
@@ -504,12 +512,8 @@ class CurriculumGenerator:
         recent_success_rate = self._get_recent_success_rate()
         difficulty = min(1.0, base_difficulty + (recent_success_rate - 0.5) * 0.2)
 
-        # Generate description
-        placeholders = self._generate_placeholders(difficulty)
-        try:
-            description = template['description'].format(**placeholders)
-        except KeyError:
-            description = template['description']
+        # Templates are now concrete — no placeholder substitution needed
+        description = template['description']
 
         # Create task with tool hints in metadata
         task = SyntheticTask(
@@ -700,8 +704,9 @@ class CurriculumGenerator:
         Returns:
             SyntheticTask (from replay or template)
         """
-        # Try replay buffer first
-        if collective_memory and len(list(collective_memory)) > 5:
+        # Try replay buffer first — even 1 real past task is better than
+        # a template because it's a task the system actually encountered.
+        if collective_memory and len(list(collective_memory)) > 0:
             replay_task = self.generate_replay_task(
                 collective_memory=collective_memory,
                 profiles=profiles,

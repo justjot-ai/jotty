@@ -202,6 +202,8 @@ class PlanUtilsMixin:
         """
         # Markers that indicate enrichment context (to be stripped)
         context_markers = [
+            '\n[Learning Context',         # From autonomous_agent learning injection
+            '\n\n[Learning Context',        # With double newline prefix
             '\n[Multi-Perspective Analysis',
             '\n[Multi-Perspective',
             '\nLearned Insights:',
@@ -218,6 +220,7 @@ class PlanUtilsMixin:
             '\n[Consensus]:',
             '\n[Tensions]:',
             '\n[Blind Spots]:',
+            '\n[Learned]',                  # From SwarmManager intelligence hints
         ]
 
         cleaned = task

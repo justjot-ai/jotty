@@ -345,7 +345,7 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats + effectiveness data
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count
         stig_path = self._get_stigmergy_path()
         if stig_path.exists():
             try:
@@ -370,6 +370,9 @@ class SwarmLearningPipeline:
                     self.effectiveness = EffectivenessTracker.from_dict(
                         stig_data['effectiveness']
                     )
+                # Restore episode count (cumulative across sessions)
+                if 'episode_count' in stig_data:
+                    self.episode_count = stig_data['episode_count']
                 logger.info(
                     f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals, "
                     f"effectiveness: {self.effectiveness._global.__len__()} records"
@@ -410,13 +413,14 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Could not auto-save credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats + effectiveness data
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count
         stig_path = self._get_stigmergy_path()
         try:
             stig_path.parent.mkdir(parents=True, exist_ok=True)
             stig_data = self.stigmergy.to_dict()
             stig_data['paradigm_stats'] = self._paradigm_stats
             stig_data['effectiveness'] = self.effectiveness.to_dict()
+            stig_data['episode_count'] = self.episode_count
             with open(stig_path, 'w') as f:
                 json.dump(stig_data, f, indent=2)
         except Exception as e:
@@ -696,6 +700,40 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.warning(f"Stigmergy outcome recording failed: {e}")
 
+        # 6b-ii. Stigmergy APPROACH tracking (useful in single-agent mode).
+        #        Extract which tools/skills were used from the trajectory,
+        #        then record approach outcome so future executions of the same
+        #        task type get actionable "use X, avoid Y" guidance.
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
+            trajectory = getattr(result, 'trajectory', []) or []
+            tools_used = []
+            for step in trajectory:
+                if isinstance(step, dict):
+                    tool = step.get('tool_name', '') or step.get('tool', '')
+                    if tool and tool not in tools_used:
+                        tools_used.append(str(tool))
+            # Build a short approach summary from trajectory actions
+            actions = []
+            for step in trajectory[:5]:
+                if isinstance(step, dict):
+                    action = step.get('action', step.get('description', ''))
+                    if action:
+                        actions.append(str(action)[:60])
+            approach_summary = ' → '.join(actions) if actions else goal[:100]
+
+            self.stigmergy.record_approach_outcome(
+                task_type=task_type,
+                approach_summary=approach_summary,
+                tools_used=tools_used,
+                success=result.success,
+                quality=episode_reward,
+                agent=agent_name,
+            )
+        except Exception as e:
+            logger.warning(f"Stigmergy approach recording failed: {e}")
+
         # 6c. Effectiveness tracker: measure actual improvement over time
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(goal)
@@ -918,13 +956,40 @@ class SwarmLearningPipeline:
         if not workflow_learner:
             return
 
-        metadata = getattr(agent_config, 'metadata', {}) or {}
+        # Extract task_type from result first, then agent_config, then infer
+        task_type = 'unknown'
+        if hasattr(result, 'task_type') and result.task_type:
+            task_type = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
+        elif hasattr(result, 'task') and result.task:
+            try:
+                task_type = self.transfer_learning.extractor.extract_task_type(str(result.task))
+            except Exception:
+                pass
+
+        # Extract skills/tools actually used from result
+        skills_used = []
+        if hasattr(result, 'skills_used') and result.skills_used:
+            skills_used = list(result.skills_used)
+        elif hasattr(result, 'output') and isinstance(result.output, dict):
+            skills_used = list(result.output.get('skills_used', []))
+
+        # Extract operations from trajectory steps
+        operations = []
+        trajectory = getattr(result, 'trajectory', []) or []
+        for step in trajectory[:10]:
+            if isinstance(step, dict):
+                action = step.get('action') or step.get('skill') or step.get('step', '')
+                if action:
+                    operations.append(str(action))
+            elif step:
+                operations.append(str(step))
+
         workflow_learner.learn_from_execution(
-            task_type=metadata.get('task_type', 'unknown'),
-            operations=metadata.get('operations', []),
-            tools_used=metadata.get('integrations', []),
+            task_type=task_type,
+            operations=operations,
+            tools_used=skills_used,
             success=True,
-            execution_time=getattr(result, 'duration', 0.0),
+            execution_time=getattr(result, 'execution_time', 0.0),
             metadata={'agent': agent_config.name},
         )
 
