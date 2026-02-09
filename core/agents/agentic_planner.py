@@ -844,6 +844,229 @@ JSON:"""
 
             return [], f"Planning failed: {e}"
 
+    async def aplan_execution(
+        self,
+        task: str,
+        task_type,
+        skills: List[Dict[str, Any]],
+        previous_outputs: Optional[Dict[str, Any]] = None,
+        max_steps: int = 10
+    ):
+        """
+        Async version of plan_execution using DSPy .acall().
+
+        Non-blocking: uses _acall_with_retry (asyncio.sleep for backoff,
+        module.acall for LLM calls). No thread pool needed.
+
+        Shares ALL parsing/fallback logic with the sync version.
+        """
+        try:
+            # Pre-processing (CPU-only, identical to sync version)
+            if not skills:
+                task_type_value = task_type.value if hasattr(task_type, 'value') else str(task_type)
+                if task_type_value in ['creation', 'unknown']:
+                    skills = [{
+                        'name': 'file-operations',
+                        'description': 'Create, read, write files',
+                        'tools': [
+                            {'name': 'write_file_tool', 'params': {'path': 'string', 'content': 'string'}},
+                            {'name': 'read_file_tool', 'params': {'path': 'string'}}
+                        ]
+                    }]
+                else:
+                    return [], f"No skills available for task type '{task_type_value}'"
+
+            # Format skills (reuse sync method — pure CPU)
+            formatted_skills = self._format_skills_for_planner(skills)
+            skills_json = json.dumps(formatted_skills, indent=2)
+            outputs_json = json.dumps(previous_outputs or {}, indent=2)
+
+            abstracted_task = self._abstract_task_for_planning(task)
+            task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+
+            planner_kwargs = {
+                'task_description': abstracted_task,
+                'task_type': task_type_str,
+                'available_skills': skills_json,
+                'previous_outputs': outputs_json,
+                'max_steps': max_steps,
+                'config': {"response_format": {"type": "json_object"}}
+            }
+
+            logger.info(f"📤 Calling LLM for execution plan (async)...")
+
+            # ── ASYNC LLM CALL ─────────────────────────────────
+            result = await self._acall_with_retry(
+                module=self.execution_planner,
+                kwargs=planner_kwargs,
+                compressible_fields=['available_skills', 'previous_outputs'],
+                max_retries=self._max_compression_retries,
+                lm=self._fast_lm,
+            )
+
+            logger.info(f"📥 LLM response received (async)")
+
+            # Post-processing: parse plan (reuse sync method — pure CPU)
+            raw_plan = getattr(result, 'execution_plan', None)
+            steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, max_steps)
+
+            if not steps:
+                logger.warning("Async plan resulted in 0 steps, using fallback plan")
+                fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
+                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                reasoning = f"Fallback plan created: {len(steps)} steps"
+            else:
+                reasoning = result.reasoning or f"Planned {len(steps)} steps"
+
+            # Post-plan quality check
+            decomposed = self._maybe_decompose_plan(steps, skills, task, task_type)
+            if decomposed is not None:
+                logger.info(f"Plan decomposed: {len(steps)} steps -> {len(decomposed)} steps")
+                steps = decomposed
+                reasoning = f"Decomposed for quality: {reasoning}"
+
+            logger.info(f"Planned {len(steps)} execution steps (async)")
+            return steps, reasoning
+
+        except Exception as e:
+            logger.error(f"Async execution planning failed: {e}", exc_info=True)
+            try:
+                fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
+                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                if steps:
+                    return steps, f"Fallback plan (async planning failed: {str(e)[:100]})"
+            except Exception as fallback_e:
+                logger.error(f"Async fallback plan also failed: {fallback_e}")
+            return [], f"Planning failed: {e}"
+
+    async def areplan_with_reflection(
+        self,
+        task: str,
+        task_type,
+        skills: List[Dict[str, Any]],
+        failed_steps: List[Dict[str, Any]],
+        completed_outputs: Optional[Dict[str, Any]] = None,
+        excluded_skills: Optional[List[str]] = None,
+        max_steps: int = 5,
+    ):
+        """
+        Async version of replan_with_reflection using DSPy .acall().
+
+        Non-blocking: uses _acall_with_retry for the LLM call.
+        """
+        excluded_set = set(excluded_skills or [])
+        filtered_skills = [s for s in skills if s.get('name') not in excluded_set]
+        abstracted_task = self._abstract_task_for_planning(task)
+        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+
+        formatted_skills = []
+        for s in filtered_skills:
+            formatted_skills.append({
+                'name': s.get('name', ''),
+                'description': s.get('description', ''),
+                'tools': s.get('tools', []),
+            })
+        skills_json = json.dumps(formatted_skills, indent=2)
+        failed_json = json.dumps(failed_steps, default=str)
+        outputs_json = json.dumps(completed_outputs or {}, default=str)
+        excluded_json = json.dumps(list(excluded_set))
+
+        try:
+            # ── ASYNC LLM CALL ─────────────────────────────────
+            result = await self._acall_with_retry(
+                module=self.reflective_planner,
+                kwargs={
+                    'task_description': abstracted_task,
+                    'task_type': task_type_str,
+                    'available_skills': skills_json,
+                    'failed_steps': failed_json,
+                    'completed_outputs': outputs_json,
+                    'excluded_skills': excluded_json,
+                    'max_steps': max_steps,
+                },
+                compressible_fields=['available_skills', 'completed_outputs'],
+                max_retries=self._max_compression_retries,
+                lm=self._fast_lm,
+            )
+
+            raw_plan = getattr(result, 'corrected_plan', None)
+            reflection = str(getattr(result, 'reflection', ''))
+            reasoning = str(getattr(result, 'reasoning', ''))
+            steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
+
+            if steps:
+                logger.info(f"Reflective replan produced {len(steps)} new steps (async)")
+                return steps, reflection, reasoning
+
+        except Exception as e:
+            logger.warning(f"Async reflective replanning failed: {e}, falling back")
+
+        # Fallback to async plan_execution
+        try:
+            steps, reasoning = await self.aplan_execution(
+                task=task,
+                task_type=task_type,
+                skills=filtered_skills,
+                previous_outputs=completed_outputs,
+                max_steps=max_steps,
+            )
+            return steps, "Fallback: regular replanning (reflection failed)", reasoning
+        except Exception as e:
+            logger.error(f"Async fallback replanning failed: {e}")
+            return [], f"All replanning failed: {e}", ""
+
+    def _format_skills_for_planner(self, skills: List[Dict[str, Any]]) -> list:
+        """
+        Format skills with tool schemas for the planner LLM.
+
+        Extracted from plan_execution() so both sync and async versions
+        share the same formatting logic.
+        """
+        formatted_skills = []
+        for s in skills:
+            skill_name = s.get('name', '')
+            skill_dict = {
+                'name': skill_name,
+                'description': s.get('description', ''),
+                'tools': []
+            }
+
+            tools_raw = s.get('tools', [])
+            if isinstance(tools_raw, dict):
+                tool_names = list(tools_raw.keys())
+            elif isinstance(tools_raw, list):
+                tool_names = [t.get('name') if isinstance(t, dict) else t for t in tools_raw]
+            else:
+                tool_names = []
+
+            try:
+                from ..registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                if registry:
+                    skill_obj = registry.get_skill(skill_name)
+                    if skill_obj and hasattr(skill_obj, 'tools') and skill_obj.tools:
+                        if not tool_names:
+                            tool_names = list(skill_obj.tools.keys())
+                        for tool_name in tool_names:
+                            tool_func = skill_obj.tools.get(tool_name)
+                            if tool_func:
+                                tool_schema = self._extract_tool_schema(tool_func, tool_name)
+                                skill_dict['tools'].append(tool_schema)
+                            else:
+                                skill_dict['tools'].append({'name': tool_name})
+                    else:
+                        skill_dict['tools'] = [{'name': name} for name in tool_names]
+                else:
+                    skill_dict['tools'] = [{'name': name} for name in tool_names]
+            except Exception as e:
+                logger.warning(f"Could not enrich tool schemas for {skill_name}: {e}")
+                skill_dict['tools'] = [{'name': name} for name in tool_names]
+
+            formatted_skills.append(skill_dict)
+
+        logger.info(f"Formatted {len(formatted_skills)} skills with tool schemas for LLM")
+        return formatted_skills
+
     def _parse_plan_to_steps(
         self,
         raw_plan,

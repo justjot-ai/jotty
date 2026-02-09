@@ -93,17 +93,10 @@ class SkillPlanExecutor:
         """
         Select best skills for a task using the planner.
 
+        Uses native async DSPy (.acall) when available, falling back to
+        run_in_executor for sync planners. Non-blocking either way.
+
         Caches results by task_type to avoid redundant LLM calls.
-        Same task type with same available skills → same selection.
-
-        Args:
-            task: Task description
-            available_skills: List of discovered skill dicts
-            max_skills: Maximum skills to select
-            task_type: Inferred task type (used as cache key)
-
-        Returns:
-            List of selected skill dicts
         """
         if self.planner is None:
             return available_skills[:max_skills]
@@ -116,22 +109,35 @@ class SkillPlanExecutor:
             logger.info(f"Skill selection cache HIT: {task_type} → {[s['name'] for s in cached]}")
             return cached
 
-        SKILL_SELECT_TIMEOUT = 30.0  # Skill selection should never take >30s
+        SKILL_SELECT_TIMEOUT = 30.0
 
         try:
-            loop = asyncio.get_event_loop()
-            selected, reasoning = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: self.planner.select_skills(
+            # Prefer native async (no thread pool overhead)
+            if hasattr(self.planner, 'aselect_skills'):
+                selected, reasoning = await asyncio.wait_for(
+                    self.planner.aselect_skills(
                         task=task,
                         available_skills=available_skills,
                         max_skills=max_skills,
                         task_type=task_type,
                     ),
-                ),
-                timeout=SKILL_SELECT_TIMEOUT,
-            )
+                    timeout=SKILL_SELECT_TIMEOUT,
+                )
+            else:
+                # Fallback: run sync planner in thread pool
+                loop = asyncio.get_event_loop()
+                selected, reasoning = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: self.planner.select_skills(
+                            task=task,
+                            available_skills=available_skills,
+                            max_skills=max_skills,
+                            task_type=task_type,
+                        ),
+                    ),
+                    timeout=SKILL_SELECT_TIMEOUT,
+                )
             logger.debug(f"Skill selection reasoning: {reasoning}")
 
             # Cache the result (bounded to 50 entries)
@@ -161,37 +167,44 @@ class SkillPlanExecutor:
         """
         Create an execution plan using the planner.
 
-        Args:
-            task: Task description
-            task_type: Inferred task type string
-            skills: Available skills
-            previous_outputs: Outputs from previous steps (for replanning)
-
-        Returns:
-            List of ExecutionStep objects
+        Uses native async DSPy (.acall) when available, falling back to
+        run_in_executor for sync planners. Non-blocking either way.
         """
         if self.planner is None:
             logger.warning("No planner available, returning empty plan")
             return []
 
-        PLAN_TIMEOUT = 45.0  # Planning should never take >45s
+        PLAN_TIMEOUT = 45.0
 
         try:
-            # Run sync planner in executor with timeout to prevent hangs
-            loop = asyncio.get_event_loop()
-            steps, reasoning = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: self.planner.plan_execution(
+            # Prefer native async (no thread pool overhead)
+            if hasattr(self.planner, 'aplan_execution'):
+                steps, reasoning = await asyncio.wait_for(
+                    self.planner.aplan_execution(
                         task=task,
                         task_type=task_type,
                         skills=skills,
                         previous_outputs=previous_outputs,
                         max_steps=self._max_steps,
                     ),
-                ),
-                timeout=PLAN_TIMEOUT,
-            )
+                    timeout=PLAN_TIMEOUT,
+                )
+            else:
+                # Fallback: run sync planner in thread pool
+                loop = asyncio.get_event_loop()
+                steps, reasoning = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: self.planner.plan_execution(
+                            task=task,
+                            task_type=task_type,
+                            skills=skills,
+                            previous_outputs=previous_outputs,
+                            max_steps=self._max_steps,
+                        ),
+                    ),
+                    timeout=PLAN_TIMEOUT,
+                )
             logger.debug(f"Plan reasoning: {reasoning}")
             return steps
         except asyncio.TimeoutError:
@@ -235,8 +248,32 @@ class SkillPlanExecutor:
 
         REPLAN_TIMEOUT = 30.0  # Replanning should be fast; if it takes >30s, skip it
 
-        # Use reflective replanning if planner supports it
-        if hasattr(self.planner, 'replan_with_reflection'):
+        # Prefer native async reflective replanning
+        if hasattr(self.planner, 'areplan_with_reflection'):
+            try:
+                excluded = list(self._excluded_skills)
+                steps, reflection, reasoning = await asyncio.wait_for(
+                    self.planner.areplan_with_reflection(
+                        task=task,
+                        task_type=task_type,
+                        skills=skills,
+                        failed_steps=failed_steps,
+                        completed_outputs=completed_outputs,
+                        excluded_skills=excluded,
+                        max_steps=remaining_steps,
+                    ),
+                    timeout=REPLAN_TIMEOUT,
+                )
+                logger.info(f"Reflective replan: {len(steps)} steps, reflection: {reflection[:80]}")
+                return steps, reflection, reasoning
+            except asyncio.TimeoutError:
+                logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
+                return [], "Replan timed out", ""
+            except Exception as e:
+                logger.warning(f"Async reflective replanning failed: {e}, falling back")
+
+        # Fallback: sync reflective replanning via thread pool
+        elif hasattr(self.planner, 'replan_with_reflection'):
             try:
                 excluded = list(self._excluded_skills)
                 loop = asyncio.get_event_loop()
@@ -263,22 +300,34 @@ class SkillPlanExecutor:
             except Exception as e:
                 logger.warning(f"Reflective replanning failed: {e}, falling back")
 
-        # Fallback to regular plan_execution (also with timeout)
+        # Final fallback: regular plan_execution (prefer async)
         try:
-            loop = asyncio.get_event_loop()
-            steps, reasoning = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: self.planner.plan_execution(
+            if hasattr(self.planner, 'aplan_execution'):
+                steps, reasoning = await asyncio.wait_for(
+                    self.planner.aplan_execution(
                         task=task,
                         task_type=task_type,
                         skills=skills,
                         previous_outputs=completed_outputs,
                         max_steps=remaining_steps,
                     ),
-                ),
-                timeout=REPLAN_TIMEOUT,
-            )
+                    timeout=REPLAN_TIMEOUT,
+                )
+            else:
+                loop = asyncio.get_event_loop()
+                steps, reasoning = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: self.planner.plan_execution(
+                            task=task,
+                            task_type=task_type,
+                            skills=skills,
+                            previous_outputs=completed_outputs,
+                            max_steps=remaining_steps,
+                        ),
+                    ),
+                    timeout=REPLAN_TIMEOUT,
+                )
             return steps, "Regular replanning (no reflection)", reasoning
         except asyncio.TimeoutError:
             logger.warning(f"Fallback replanning timed out after {REPLAN_TIMEOUT}s")

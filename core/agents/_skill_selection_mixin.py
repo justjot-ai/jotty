@@ -172,6 +172,80 @@ class SkillSelectionMixin:
         logger.info(f"Selected {len(selected)} skills: {[s.get('name') for s in selected]}")
         return selected, reasoning
 
+    async def aselect_skills(
+        self,
+        task: str,
+        available_skills: List[Dict[str, Any]],
+        max_skills: int = 8,
+        task_type: str = "",
+    ) -> tuple[List[Dict[str, Any]], str]:
+        """
+        Async version of select_skills using DSPy .acall().
+
+        Non-blocking: uses _acall_with_retry (asyncio.sleep for backoff,
+        module.acall for LLM calls). No thread pool needed.
+        """
+        if not available_skills:
+            return [], "No skills available"
+
+        # Pre-filter + format (CPU-only, fast)
+        relevant_skills = self._prefilter_skills(task, available_skills, task_type)
+        reliable = [s for s in relevant_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
+        deprioritized = [s for s in relevant_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
+        ordered_skills = reliable + deprioritized
+        formatted = self._format_skills_compact(ordered_skills)
+        skills_json = json.dumps(formatted, separators=(',', ':'))
+
+        llm_selected_names = []
+        llm_reasoning = ""
+        skill_priorities = {}
+
+        try:
+            result = await self._acall_with_retry(
+                module=self.skill_selector,
+                kwargs={
+                    'task_description': task,
+                    'available_skills': skills_json,
+                    'max_skills': max_skills,
+                },
+                compressible_fields=['available_skills'],
+                max_retries=self._max_compression_retries,
+                lm=self._fast_lm,
+            )
+
+            llm_selected_names = self._parse_selected_skills(result.selected_skills)
+            llm_reasoning = result.reasoning or "LLM selection"
+
+            try:
+                priorities_str = str(result.skill_priorities).strip()
+                if priorities_str.startswith('{'):
+                    skill_priorities = json.loads(priorities_str)
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+            logger.info(f"LLM selected {len(llm_selected_names)} skills (async): {llm_selected_names}")
+
+        except Exception as e:
+            logger.warning(f"Async LLM selection failed: {e}")
+
+        # Resolve + order (CPU-only)
+        if llm_selected_names:
+            final_names = list(set(llm_selected_names))[:max_skills]
+            reasoning = llm_reasoning
+        else:
+            final_names, reasoning = self._keyword_fallback(task, ordered_skills, max_skills)
+
+        name_set = set(final_names)
+        selected = [s for s in ordered_skills if s.get('name') in name_set]
+        if not selected and ordered_skills:
+            selected = ordered_skills[:max_skills]
+
+        selected.sort(key=lambda s: -skill_priorities.get(s.get('name'), 0.5))
+        selected = self._enrich_skills_with_tools(selected)
+        selected = selected[:max_skills]
+        logger.info(f"Selected {len(selected)} skills (async): {[s.get('name') for s in selected]}")
+        return selected, reasoning
+
     def _format_skills_compact(self, skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Format skills compactly for LLM context (~5K tokens for 126 skills).
