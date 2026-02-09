@@ -920,6 +920,24 @@ class SwarmIntelligence:
             if 'consensus_history' in data:
                 self.consensus_history = deque(data['consensus_history'], maxlen=200)
 
+            # Load handoff history
+            if 'handoff_history' in data:
+                self.handoff_history = deque(maxlen=200)
+                for h_data in data['handoff_history']:
+                    try:
+                        handoff = HandoffContext(
+                            task_id=h_data.get('task_id', ''),
+                            from_agent=h_data.get('from', ''),
+                            to_agent=h_data.get('to', ''),
+                            task_type=h_data.get('task_type', ''),
+                            progress=h_data.get('progress', 0.0),
+                            handoff_chain=h_data.get('chain', []),
+                            timestamp=h_data.get('timestamp', 0.0) or 0.0,
+                        )
+                        self.handoff_history.append(handoff)
+                    except Exception:
+                        pass  # Skip malformed entries
+
             # Load arXiv swarm state
             self._tree_built = data.get('tree_built', False)
             if self._tree_built and self.agent_profiles:

@@ -444,12 +444,20 @@ class SwarmLearningMixin:
 
             # 5. Agent retirement: check if any agents have degraded enough
             # to warrant retirement (low trust, high failure rate, circuit open).
+            # Retired agents get their circuit opened permanently so they stop
+            # receiving tasks until manually reset or trust recovers.
             try:
                 for agent_name in list(si.agent_profiles.keys()):
                     if si.should_retire_agent(agent_name):
+                        trust = si.agent_profiles[agent_name].trust_score
                         logger.warning(
-                            f"Agent {agent_name} recommended for retirement "
-                            f"(trust={si.agent_profiles[agent_name].trust_score:.2f})"
+                            f"Retiring agent {agent_name} "
+                            f"(trust={trust:.2f}) — circuit opened"
+                        )
+                        # Actually block the agent by opening its circuit
+                        si.record_circuit_failure(agent_name, threshold=1)
+                        si.metrics.record_coordination(
+                            'retirement', agent=agent_name, success=True
                         )
             except Exception as e:
                 logger.debug(f"Retirement check failed: {e}")
@@ -1385,8 +1393,8 @@ class SwarmLearningMixin:
                     actual_result=output_data,
                     task_type=task_type_label
                 )
-            except Exception:
-                pass  # Non-blocking — don't break trace on verification failure
+            except Exception as e:
+                logger.debug(f"Byzantine verification failed for {agent_name}: {e}")
 
             # Circuit breaker: track per-agent failures so repeatedly failing
             # agents get temporarily blocked from receiving new tasks.
@@ -1395,8 +1403,8 @@ class SwarmLearningMixin:
                     si.record_circuit_success(agent_name)
                 else:
                     si.record_circuit_failure(agent_name)
-            except Exception:
-                pass  # Non-blocking
+            except Exception as e:
+                logger.debug(f"Circuit breaker update failed for {agent_name}: {e}")
 
         # Store in memory for learning
         if self._memory and self.config.enable_learning:

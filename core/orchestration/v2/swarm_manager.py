@@ -422,6 +422,10 @@ class SwarmManager:
         # awaited by run() to prevent operating with partially-loaded state.
         self._learning_ready = asyncio.Event()
 
+        # Composed ExecutionOrchestrator — separates "how to run" from "how to manage"
+        from Jotty.core.orchestration.v2.execution_orchestrator import ExecutionOrchestrator
+        self._execution = ExecutionOrchestrator(self)
+
         # Intelligence effectiveness A/B metrics:
         # Tracks whether stigmergy/byzantine guidance improves success rate.
         # Keyed by task_type for fine-grained analysis.
@@ -1078,6 +1082,7 @@ class SwarmManager:
         # MAS-ZERO: Reset per-problem experience library
         self._reset_experience()
         self._efficiency_stats = {}  # Reset per-run
+        self._execution._efficiency_stats = {}  # Reset orchestrator stats too
 
         # Extract ExecutionContext if provided by ModeRouter
         exec_context = kwargs.pop('context', None)
@@ -1613,12 +1618,39 @@ class SwarmManager:
 
         # MALLM-inspired: Dispatch to alternative paradigms before fan-out
         if discussion_paradigm == 'relay':
+            # Wire coordination: initiate handoff between relay agents
+            if self.swarm_intelligence:
+                try:
+                    available = [a.name for a in self.agents]
+                    if len(available) >= 2:
+                        self.swarm_intelligence.initiate_handoff(
+                            from_agent=available[0],
+                            to_agent=available[1],
+                            task=goal,
+                            context={'paradigm': 'relay', 'agents': available}
+                        )
+                except Exception as e:
+                    logger.debug(f"Relay handoff coordination skipped: {e}")
             return await self._paradigm_relay(goal, status_callback=status_callback, **kwargs)
         elif discussion_paradigm == 'debate':
             return await self._paradigm_debate(goal, status_callback=status_callback, **kwargs)
         elif discussion_paradigm == 'refinement':
             return await self._paradigm_refinement(goal, status_callback=status_callback, **kwargs)
         # else: 'fanout' — fall through to existing parallel execution below
+
+        # Wire coordination: form coalition for fanout tasks (agents collaborate)
+        if self.swarm_intelligence and len(self.agents) >= 2:
+            try:
+                available = [a.name for a in self.agents]
+                _task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
+                self.swarm_intelligence.form_coalition(
+                    task_type=_task_type,
+                    min_agents=min(2, len(available)),
+                    available_agents=available
+                )
+                logger.info(f"🤝 Coalition formed for '{_task_type}' with {len(available)} agents")
+            except Exception as e:
+                logger.debug(f"Coalition formation skipped: {e}")
 
         # Status update at method start
         if status_callback:

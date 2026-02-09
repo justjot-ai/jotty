@@ -477,23 +477,7 @@ class UnifiedLMProvider:
             return lm
         
         # Auto-detect provider priority:
-        # 1. CLI providers FIRST (Claude CLI is more reliable than API keys)
-        # This avoids issues with invalid/expired API keys
-        # Use JottyClaudeProvider (auto-manages wrapper server)
-        try:
-            from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
-            if is_claude_available():
-                jotty_provider = JottyClaudeProvider(auto_start=True)
-                raw_lm = jotty_provider.configure_dspy()
-                # Wrap with context injection
-                lm = ContextAwareLM(raw_lm)
-                dspy.configure(lm=lm)
-                logger.debug("DSPy configured with JottyClaudeProvider")
-                return lm
-        except Exception as e:
-            logger.debug(f"JottyClaudeProvider not available: {e}")
-
-        # 2. OpenCode Zen free models (if API key available)
+        # 1. OpenCode Zen free models FIRST (free, no cost)
         zen_key = os.getenv('OPENCODE_ZEN_API_KEY')
         if zen_key:
             try:
@@ -504,7 +488,20 @@ class UnifiedLMProvider:
             except Exception as e:
                 logger.debug(f"OpenCode Zen not available: {e}")
 
-        # 3. API providers (fallback if CLI not available)
+        # 2. CLI providers (Claude CLI)
+        try:
+            from .jotty_claude_provider import JottyClaudeProvider, is_claude_available
+            if is_claude_available():
+                jotty_provider = JottyClaudeProvider(auto_start=True)
+                raw_lm = jotty_provider.configure_dspy()
+                lm = ContextAwareLM(raw_lm)
+                dspy.configure(lm=lm)
+                logger.debug("DSPy configured with JottyClaudeProvider")
+                return lm
+        except Exception as e:
+            logger.debug(f"JottyClaudeProvider not available: {e}")
+
+        # 3. API providers (fallback)
         # Check for API keys and use native DSPy support
         api_providers = [
             ('anthropic', 'ANTHROPIC_API_KEY', 'sonnet'),

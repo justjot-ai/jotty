@@ -83,25 +83,40 @@ class SwarmProviderGateway:
                     # User specified a provider
                     self._configured_lm = UnifiedLMProvider.create_lm(provider=self.provider)
                 else:
-                    # Auto-detect: Try API providers first, then CLI
-                    api_providers = [
-                        ('anthropic', 'ANTHROPIC_API_KEY'),
-                        ('openai', 'OPENAI_API_KEY'),
-                        ('google', 'GOOGLE_API_KEY'),
-                        ('groq', 'GROQ_API_KEY'),
-                        ('openrouter', 'OPENROUTER_API_KEY'),
-                    ]
+                    # Auto-detect priority:
+                    # 1. OpenCode Zen free models (no cost)
+                    # 2. API providers (anthropic, openai, etc.)
+                    # 3. CLI providers (claude-cli, cursor-cli)
+                    # 4. Legacy OpenCode
 
-                    for provider_name, env_key in api_providers:
-                        if os.getenv(env_key):
-                            try:
-                                self._configured_lm = UnifiedLMProvider.create_lm(provider=provider_name)
-                                logger.info(f"🌐 SwarmProviderGateway (async): Using {provider_name} API")
-                                break
-                            except Exception:
-                                continue
+                    # 1. Zen free models first (free, no cost)
+                    if os.getenv('OPENCODE_ZEN_API_KEY'):
+                        try:
+                            self._configured_lm = UnifiedLMProvider.create_lm(provider='zen')
+                            logger.info("🌐 SwarmProviderGateway (async): Using OpenCode Zen (free)")
+                        except Exception as e:
+                            logger.debug(f"Zen failed: {e}")
 
-                    # If no API key, use JottyClaudeProvider (auto-manages wrapper)
+                    # 2. API providers
+                    if not self._configured_lm:
+                        api_providers = [
+                            ('anthropic', 'ANTHROPIC_API_KEY'),
+                            ('openai', 'OPENAI_API_KEY'),
+                            ('google', 'GOOGLE_API_KEY'),
+                            ('groq', 'GROQ_API_KEY'),
+                            ('openrouter', 'OPENROUTER_API_KEY'),
+                        ]
+
+                        for provider_name, env_key in api_providers:
+                            if os.getenv(env_key):
+                                try:
+                                    self._configured_lm = UnifiedLMProvider.create_lm(provider=provider_name)
+                                    logger.info(f"🌐 SwarmProviderGateway (async): Using {provider_name} API")
+                                    break
+                                except Exception:
+                                    continue
+
+                    # 3. JottyClaudeProvider (auto-manages wrapper)
                     if not self._configured_lm:
                         try:
                             from Jotty.core.foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
@@ -112,16 +127,16 @@ class SwarmProviderGateway:
                         except Exception as e:
                             logger.debug(f"JottyClaudeProvider failed: {e}")
 
-                    # Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
+                    # 4. DirectClaudeCLI (simple subprocess, ~3s per call)
                     if not self._configured_lm and shutil.which('claude'):
                         try:
                             from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
-                            self._configured_lm = DirectClaudeCLI()  # model resolved from config_defaults
+                            self._configured_lm = DirectClaudeCLI()
                             logger.info("🌐 SwarmProviderGateway (async): Using DirectClaudeCLI")
                         except Exception as e:
                             logger.debug(f"DirectClaudeCLI failed: {e}")
 
-                    # If still nothing, try OpenCode
+                    # 5. Legacy OpenCode fallback
                     if not self._configured_lm:
                         try:
                             from Jotty.core.foundation.opencode_lm import OpenCodeLM
