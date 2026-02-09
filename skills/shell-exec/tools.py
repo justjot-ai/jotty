@@ -42,7 +42,7 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     status.set_callback(params.pop('_status_callback', None))
 
-    timeout = params.get('timeout', 30)
+    timeout = int(params.get('timeout', 60))  # 60s default (was 30 — too low for network scripts)
     working_directory = params.get('working_directory')
     use_shell = params.get('shell', True)
 
@@ -54,12 +54,33 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                       'develop a', 'implement a', 'design a', 'analyze the',
                       'research the', 'scrape the', 'fetch the')
     if len(command) > 100 and any(command.lower().startswith(nl) for nl in _nl_indicators):
-        return tool_error(
-            f'Command appears to be a task description, not a shell command. '
-            f'Use execute_script_tool for Python code, or pass a real command like '
-            f'"python script.py"',
-            command=command[:80] + '...'
+        # Auto-recovery: look for a recently written .py file in cwd
+        import glob as _glob
+        import time as _time
+        _cwd = cwd or os.getcwd()
+        _recent_py = sorted(
+            _glob.glob(os.path.join(_cwd, '*.py')),
+            key=os.path.getmtime, reverse=True
         )
+        # Find a file written in the last 120 seconds
+        _now = _time.time()
+        _candidate = None
+        for _f in _recent_py:
+            if _now - os.path.getmtime(_f) < 120:
+                _candidate = _f
+                break
+        if _candidate:
+            # Auto-fix: run the recently created script instead
+            params['command'] = f'{sys.executable} {_candidate}'
+            command = params['command']
+            status.emit("Auto-fixed", f"🔧 Running {os.path.basename(_candidate)} instead of task description")
+        else:
+            return tool_error(
+                f'Command appears to be a task description, not a shell command. '
+                f'Use execute_script_tool for Python code, or pass a real command like '
+                f'"python script.py"',
+                command=command[:80] + '...'
+            )
 
     cwd = None
     if working_directory:
@@ -106,7 +127,7 @@ def execute_script_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     status.set_callback(params.pop('_status_callback', None))
 
-    timeout = params.get('timeout', 30)
+    timeout = int(params.get('timeout', 60))  # 60s default (was 30)
 
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(params['script'])
