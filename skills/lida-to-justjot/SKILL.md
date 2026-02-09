@@ -174,8 +174,7 @@ The skill supports ALL JustJot section types via the registry:
 
 - `core.semantic.visualization.VisualizationLayer` - LIDA integration
 - `core.semantic.visualization.justjot` - Section registry and transformers
-- `mcp-justjot-mcp-client` skill - Idea creation via MCP
-- `mcp-justjot` skill - Fallback HTTP API
+- `mcp-justjot` skill - JustJot.ai idea creation via HTTP API
 
 ## Example Usage
 
@@ -234,8 +233,8 @@ asyncio.run(main())
               +--------------+--------------+
                              |
               +--------------v--------------+
-              |   MCP Client                |
-              |  (mcp-justjot-mcp-client)   |
+              |   mcp-justjot               |
+              |  (HTTP API)                 |
               +--------------+--------------+
                              |
                     +--------v---------+

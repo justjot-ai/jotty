@@ -442,18 +442,26 @@ Filename: {filename}
         task_lower = task.lower()
 
         # Detect file type from task keywords
+        # Priority: Python backends > HTML frontends (most code tasks are Python)
+        # Only use .html when the task is EXPLICITLY about HTML/frontend
         file_ext = '.py'  # Default to Python
-        if any(w in task_lower for w in ['html', 'webpage', 'website', 'web page', 'frontend', 'ui']):
+        _is_python_backend = any(w in task_lower for w in [
+            'python', 'fastapi', 'flask', 'django', 'api', 'endpoint', 'server',
+            'backend', 'script', 'class', 'function', 'module', '.py',
+        ])
+        if _is_python_backend:
+            file_ext = '.py'  # Explicit Python — don't let 'web' override
+        elif any(w in task_lower for w in ['html page', 'webpage', 'web page', 'html file', '.html']):
             file_ext = '.html'
         elif any(w in task_lower for w in ['javascript', 'react', 'node', '.js']):
             file_ext = '.js'
         elif any(w in task_lower for w in ['typescript', '.ts']):
             file_ext = '.ts'
-        elif any(w in task_lower for w in ['css', 'stylesheet', 'style']):
+        elif any(w in task_lower for w in ['css', 'stylesheet']):
             file_ext = '.css'
-        elif any(w in task_lower for w in ['json', 'config']):
+        elif any(w in task_lower for w in ['json config', '.json']):
             file_ext = '.json'
-        elif any(w in task_lower for w in ['markdown', 'readme', 'documentation']):
+        elif any(w in task_lower for w in ['markdown', 'readme', 'documentation', '.md']):
             file_ext = '.md'
 
         # Try to extract a meaningful name from the task

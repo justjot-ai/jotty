@@ -1,6 +1,6 @@
 # AutoML Skill
 
-**Description:** Automatic machine learning - model selection, training, and optimization.
+Automatic machine learning — model selection, training, and optimization using scikit-learn.
 
 
 ## Type

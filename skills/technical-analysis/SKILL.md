@@ -1,6 +1,16 @@
 # technical-analysis
 
-Multi-timeframe technical analysis skill for NSE stocks using pandas_ta / ta libraries.
+Multi-timeframe technical analysis for NSE stocks — 30+ indicators, buy/sell signals, support/resistance.
+
+## Type
+base
+
+## Capabilities
+- analyze
+- data-fetch
+
+## Use When
+User wants technical analysis, stock indicators, buy/sell signals, or chart patterns
 
 ## Tools
 

@@ -218,9 +218,6 @@ class InferenceMixin:
     # These are deprioritized in skill selection to prefer more reliable alternatives
     DEPRIORITIZED_SKILLS = {
         'search-to-justjot-idea',      # JustJot API issues
-        'mcp-justjot-mcp-client',      # MCP timeout issues
-        'mcp-justjot',                 # MCP timeout issues
-        'justjot-mcp-http',            # JustJot API issues
         'notion-research-documentation',  # Requires Notion API setup
         'reddit-trending-to-justjot',  # JustJot API issues
         'notebooklm-pdf',              # Requires browser sign-in

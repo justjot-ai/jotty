@@ -173,7 +173,7 @@ class SandboxManager:
             else:
                 return SandboxConfig(
                     sandbox_type=SandboxType.SUBPROCESS,
-                    timeout=60,  # Shorter for subprocess
+                    timeout=min(self.default_timeout, 60),
                     network_enabled=False,
                 )
 
@@ -480,12 +480,13 @@ class SandboxManager:
                     if any(s in key.upper() for s in ['SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'CREDENTIAL']):
                         del env[key]
 
-                # Run with timeout
+                # Run with timeout (start_new_session for clean kill)
                 process = await asyncio.create_subprocess_exec(
                     sys.executable, code_file,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     env=env,
+                    start_new_session=True,
                 )
 
                 try:
@@ -494,7 +495,16 @@ class SandboxManager:
                         timeout=config.timeout
                     )
                 except asyncio.TimeoutError:
-                    process.kill()
+                    # Kill entire process group for clean teardown
+                    import signal as _sig
+                    try:
+                        os.killpg(os.getpgid(process.pid), _sig.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        process.kill()
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=2)
+                    except asyncio.TimeoutError:
+                        pass
                     return SandboxResult(
                         success=False,
                         output=None,

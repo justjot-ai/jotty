@@ -1,14 +1,48 @@
 import os
-import torch
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline
-from PIL import Image
 import io
 import base64
-from typing import Dict, Any, Optional
 import gc
+import logging
+from typing import Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# Lazy imports: diffusers/torch/PIL are heavy and can fail with circular
+# import errors (accelerate.big_modeling).  Import at function call time
+# so skill discovery still succeeds even without GPU libraries.
+torch = None
+Image = None
+StableDiffusionPipeline = None
+StableDiffusionXLPipeline = None
+FluxPipeline = None
+
+def _ensure_imports():
+    """Lazy-load heavy GPU libraries on first use."""
+    global torch, Image, StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline
+    if torch is not None:
+        return True
+    try:
+        import torch as _torch
+        torch = _torch
+        from diffusers import (
+            StableDiffusionPipeline as _sdp,
+            StableDiffusionXLPipeline as _sdxl,
+            FluxPipeline as _flux,
+        )
+        StableDiffusionPipeline = _sdp
+        StableDiffusionXLPipeline = _sdxl
+        FluxPipeline = _flux
+        from PIL import Image as _img
+        Image = _img
+        return True
+    except Exception as e:
+        logger.warning(f"image-generator: GPU libraries unavailable ({e})")
+        return False
 
 def _get_device():
     """Determine the best available device for inference."""
+    if not _ensure_imports():
+        return "cpu"
     if torch.cuda.is_available():
         return "cuda"
     elif torch.backends.mps.is_available():
@@ -19,10 +53,10 @@ def _get_device():
 def _cleanup_memory():
     """Clean up GPU/memory after generation."""
     gc.collect()
-    if torch.cuda.is_available():
+    if torch is not None and torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-def _image_to_base64(image: Image.Image) -> str:
+def _image_to_base64(image) -> str:
     """Convert PIL Image to base64 string."""
     buffered = io.BytesIO()
     image.save(buffered, format="PNG")
@@ -52,6 +86,9 @@ def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dict with success status, message, output_path, and optionally base64_image
     """
     try:
+        if not _ensure_imports():
+            return {"success": False, "error": "GPU libraries (torch/diffusers) not available on this system"}
+
         prompt = params.get("prompt")
         if not prompt:
             return {"success": False, "error": "Missing required parameter: prompt"}

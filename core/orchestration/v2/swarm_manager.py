@@ -3,16 +3,23 @@ SwarmManager - World-Class Orchestrator
 ========================================
 
 Lazy-initialized, composable swarm orchestration.
+Uses composition (has-a) instead of mixin inheritance (is-a) for all
+cross-cutting concerns: providers, ensemble, learning, MAS-ZERO.
 
 All components are lazy-loaded via descriptors - only created when first
 accessed. This means SwarmManager.__init__ is < 50ms regardless of how
 many components are registered.
 
 Architecture:
-    SwarmManager
+    SwarmManager (flat class, no mixins)
     ├── Core (always created)
     │   ├── config, agents, mode
     │   └── runners (AgentRunners for each agent)
+    ├── Composed Managers (lazy, explicit dependencies)
+    │   ├── _providers - ProviderManager (skill provider registry)
+    │   ├── _ensemble - EnsembleManager (multi-perspective analysis)
+    │   ├── _learning_ops - LearningDelegate (learning operations)
+    │   └── _mas_zero - MASZeroController (MAS-ZERO capabilities)
     ├── Planning (lazy)
     │   ├── swarm_planner - AgenticPlanner
     │   ├── swarm_task_board - SwarmTaskBoard
@@ -23,18 +30,27 @@ Architecture:
     ├── Learning (lazy)
     │   ├── learning - SwarmLearningPipeline
     │   └── mas_learning - MASLearning
+    ├── Observability (integrated)
+    │   ├── TracingContext - span trees for debugging
+    │   └── MetricsCollector - per-agent execution metrics
     ├── Autonomous (lazy, only on autonomous_setup)
     │   ├── swarm_researcher, swarm_installer
     │   ├── swarm_configurator, swarm_code_generator
     │   └── swarm_terminal
     └── Feature (lazy, only when needed)
         ├── swarm_ui_registry, swarm_profiler
-        ├── swarm_tool_registry, provider_registry
+        ├── swarm_tool_registry
         └── lotus (optimization layer)
 
 Usage:
     sm = SwarmManager()  # Fast: ~10ms
     result = await sm.run("Research AI trends")  # Components init on demand
+
+    # Observability
+    from Jotty.core.observability import get_tracer, get_metrics
+    trace = get_tracer().get_current_trace()
+    print(trace.summary())  # Span tree with timing + cost
+    print(get_metrics().get_summary())  # Per-agent stats
 """
 
 import asyncio
@@ -47,10 +63,12 @@ from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 
 from ._lazy import LazyComponent
-from ._provider_mixin import ProviderMixin
-from ._ensemble_mixin import EnsembleMixin
-from ._learning_delegation_mixin import LearningDelegationMixin
-from ._mas_zero_mixin import MASZeroMixin
+
+# Composed managers (has-a, not is-a) — replaces mixin inheritance
+from .provider_manager import ProviderManager
+from .ensemble_manager import EnsembleManager
+from .learning_delegate import LearningDelegate
+from .mas_zero_controller import MASZeroController
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +243,7 @@ def _create_mas_learning(sm):
     )
 
 
-class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZeroMixin):
+class SwarmManager:
     """
     World-Class Swarm Orchestrator.
 
@@ -294,6 +312,26 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
     # Learning (single pipeline, components accessed via .learning.xxx)
     learning = LazyComponent(lambda self: _create_learning_pipeline(self.config))
     mas_learning = LazyComponent(lambda self: _create_mas_learning(self))
+
+    # =========================================================================
+    # COMPOSED MANAGERS (has-a, not is-a) — replaces mixin inheritance
+    # Each manager takes explicit dependencies instead of implicit self.xxx
+    # =========================================================================
+
+    _providers = LazyComponent(lambda self: ProviderManager(
+        config=self.config,
+        get_swarm_intelligence=lambda: self.swarm_intelligence,
+    ))
+    _ensemble = LazyComponent(lambda self: EnsembleManager())
+    _learning_ops = LazyComponent(lambda self: LearningDelegate(
+        get_learning=lambda: self.learning,
+        get_mas_learning=lambda: self.mas_learning,
+        get_agents=lambda: self.agents,
+    ))
+    _mas_zero = LazyComponent(lambda self: MASZeroController(
+        get_agents=lambda: self.agents,
+        get_runners=lambda: self.runners,
+    ))
 
     # =========================================================================
     # INIT - Fast, minimal, no I/O
@@ -365,8 +403,8 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         self.lotus = None
         self.lotus_optimizer = None
 
-        # Provider registry (lazy)
-        self.provider_registry = None
+        # Provider registry (delegated to _providers manager)
+        # Backward compat: self.provider_registry -> self._providers.provider_registry
 
         # Setup cache
         self._setup_cache = {}
@@ -436,7 +474,7 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
 
         # Init providers if available
         if _load_providers():
-            self._init_provider_registry()
+            self._providers.init_provider_registry()
 
         self._runners_built = True
         logger.info(f"Runners built: {list(self.runners.keys())}")
@@ -497,6 +535,93 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
     def feedback_channel(self):
         return self.learning.feedback_channel
     
+    # =========================================================================
+    # COMPOSED MANAGER DELEGATION (backward compat)
+    # =========================================================================
+
+    @property
+    def provider_registry(self):
+        return self._providers.provider_registry
+
+    @provider_registry.setter
+    def provider_registry(self, value):
+        self._providers.provider_registry = value
+
+    async def execute_with_provider(self, category, task, context=None, provider_name=None):
+        return await self._providers.execute_with_provider(category, task, context, provider_name)
+
+    def get_provider_summary(self):
+        return self._providers.get_provider_summary()
+
+    # Ensemble delegation
+    async def _execute_ensemble(self, goal, strategy='multi_perspective',
+                                status_callback=None, max_perspectives=4):
+        return await self._ensemble.execute_ensemble(goal, strategy, status_callback, max_perspectives)
+
+    def _should_auto_ensemble(self, goal):
+        return self._ensemble.should_auto_ensemble(goal)
+
+    # Learning delegation
+    def _auto_load_learnings(self):
+        self._learning_ops.auto_load_learnings()
+        self.credit_weights = self.learning.credit_weights
+
+    def _auto_save_learnings(self):
+        self._learning_ops.auto_save_learnings(
+            mas_learning=getattr(self, 'mas_learning', None),
+            swarm_terminal=getattr(self, 'swarm_terminal', None),
+            provider_registry=self.provider_registry,
+            memory_persistence=getattr(self, 'memory_persistence', None),
+        )
+
+    def _save_learnings(self):
+        """Alias for _auto_save_learnings (used in fast-path)."""
+        self._auto_save_learnings()
+
+    def load_relevant_learnings(self, task_description, agent_types=None):
+        return self._learning_ops.load_relevant_learnings(task_description, agent_types)
+
+    def record_agent_result(self, agent_name, task_type, success, time_taken, output_quality=0.0):
+        self._learning_ops.record_agent_result(agent_name, task_type, success, time_taken, output_quality)
+
+    def record_session_result(self, task_description, agent_performances,
+                              total_time, success, fixes_applied=None, stigmergy_signals=0):
+        self._learning_ops.record_session_result(
+            task_description, agent_performances, total_time, success,
+            fixes_applied, stigmergy_signals,
+        )
+
+    def get_transferable_context(self, query, agent=None):
+        return self._learning_ops.get_transferable_context(query, agent)
+
+    def get_swarm_wisdom(self, query):
+        return self._learning_ops.get_swarm_wisdom(query)
+
+    def get_agent_specializations(self):
+        return self._learning_ops.get_agent_specializations()
+
+    def get_best_agent_for_task(self, query):
+        return self._learning_ops.get_best_agent_for_task(query)
+
+    # MAS-ZERO delegation
+    def _mas_zero_verify(self, goal, results):
+        return self._mas_zero.verify(goal, results)
+
+    def _mas_zero_evaluate(self, goal, results):
+        return self._mas_zero.evaluate(goal, results)
+
+    def _mas_zero_should_reduce(self, goal):
+        return self._mas_zero.should_reduce(goal)
+
+    async def _mas_zero_evolve(self, goal, initial_results, max_iterations=2,
+                               status_callback=None, **kwargs):
+        return await self._mas_zero.evolve(
+            goal, initial_results, max_iterations, status_callback, **kwargs
+        )
+
+    def _reset_experience(self):
+        self._mas_zero.reset_experience()
+
     # =========================================================================
     # LIFECYCLE MANAGEMENT
     # =========================================================================
@@ -601,9 +726,15 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         # Add learning stats if pipeline is active
         if '_lazy_learning' in self.__dict__:
             try:
+                lp = self.learning
                 result['learning'] = {
-                    'episode_count': self.learning.episode_count,
+                    'episode_count': lp.episode_count,
                     'has_intelligence': self.swarm_intelligence is not None,
+                    'stigmergy_signals': len(lp.stigmergy.signals),
+                    'byzantine_verifications': lp.byzantine_verifier.verified_count,
+                    'byzantine_inconsistencies': lp.byzantine_verifier.inconsistent_count,
+                    'credit_stats': lp.get_credit_stats(),
+                    'adaptive_learning': lp.get_learning_state(),
                 }
             except Exception:
                 result['learning'] = {'status': 'error'}
@@ -611,6 +742,27 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         # Add LOTUS stats if active
         if self.lotus:
             result['lotus_stats'] = self.get_lotus_stats()
+
+        # Add observability metrics
+        try:
+            from Jotty.core.observability import get_metrics, get_tracer
+            _metrics = get_metrics()
+            result['observability'] = {
+                'metrics': _metrics.get_summary(),
+                'cost_breakdown': _metrics.get_cost_breakdown(),
+            }
+            _tracer = get_tracer()
+            _trace = _tracer.get_current_trace()
+            if _trace:
+                result['observability']['last_trace'] = {
+                    'trace_id': _trace.trace_id[:8],
+                    'spans': _trace.span_count,
+                    'duration_ms': round(_trace.duration_ms, 0),
+                    'total_cost_usd': round(_trace.total_cost, 6),
+                    'total_tokens': _trace.total_tokens,
+                }
+        except (ImportError, Exception):
+            pass
 
         return result
 
@@ -828,6 +980,16 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         import time as _time
         run_start_time = _time.time()
 
+        # Observability: Start trace and root span
+        try:
+            from Jotty.core.observability import get_tracer, get_metrics
+            _tracer = get_tracer()
+            _metrics = get_metrics()
+            _tracer.new_trace(metadata={'goal': goal[:200], 'mode': self.mode})
+        except ImportError:
+            _tracer = None
+            _metrics = None
+
         # Lazy init: Build runners on first run
         self._ensure_runners()
 
@@ -921,7 +1083,24 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
                     raise RuntimeError("No LM configured")
 
                 _fast_start = _time.time()
-                response = lm(prompt=goal)
+
+                # Try multiple calling conventions (DSPy 3.x is finicky)
+                response = None
+                for call_fn in [
+                    lambda: lm(messages=[{"role": "user", "content": goal}]),
+                    lambda: lm(prompt=goal),
+                    lambda: lm(goal),
+                ]:
+                    try:
+                        response = call_fn()
+                        if response:
+                            break
+                    except Exception:
+                        continue
+
+                if response is None:
+                    raise RuntimeError("All LM calling conventions failed")
+
                 if isinstance(response, list):
                     response = response[0] if response else ""
                 elif hasattr(response, 'text'):
@@ -1158,7 +1337,7 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
                 profile_context.__exit__(type(e), e, None)
             raise
     
-    # _execute_ensemble and _should_auto_ensemble — see _ensemble_mixin.py
+    # _execute_ensemble and _should_auto_ensemble — delegated to EnsembleManager
 
     async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
@@ -1187,7 +1366,40 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         # MAS-Verify + MAS-Evolve provide the cross-candidate selection instead.
 
         # Standard single-agent execution
-        result = await runner.run(goal=goal, **kwargs)
+        import time as _t
+        _exec_start = _t.time()
+
+        # Observability: trace agent execution
+        _tracer = None
+        try:
+            from Jotty.core.observability import get_tracer, get_metrics
+            _tracer = get_tracer()
+        except ImportError:
+            pass
+
+        if _tracer:
+            with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:
+                result = await runner.run(goal=goal, **kwargs)
+                _exec_elapsed = _t.time() - _exec_start
+                _span.set_attribute("success", result.success)
+                _span.set_attribute("execution_time_s", round(_exec_elapsed, 2))
+                if hasattr(result, 'execution_time'):
+                    _span.set_attribute("inner_time_s", round(result.execution_time, 2))
+        else:
+            result = await runner.run(goal=goal, **kwargs)
+            _exec_elapsed = _t.time() - _exec_start
+
+        # Observability: record metrics
+        try:
+            from Jotty.core.observability import get_metrics
+            get_metrics().record_execution(
+                agent_name=agent_config.name,
+                task_type="single_agent",
+                duration_s=_exec_elapsed,
+                success=result.success,
+            )
+        except (ImportError, Exception):
+            pass
 
         # Learn from execution (DRY: reuse workflow learner)
         if result.success:
@@ -1223,6 +1435,39 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
         ensemble = kwargs.pop('ensemble', False)
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
         discussion_paradigm = kwargs.pop('discussion_paradigm', 'fanout')
+
+        # ── Intelligence-guided agent selection ──
+        # Read stigmergy trails + byzantine trust to reorder/filter agents.
+        # This closes the learning loop: post_episode writes → run() reads.
+        try:
+            lp = self.learning
+            task_type = lp.transfer_learning.extractor.extract_task_type(goal)
+
+            # 1. Filter out untrusted agents (byzantine trust < 0.2)
+            original_count = len(self.agents)
+            trusted_agents = [
+                a for a in self.agents
+                if lp.is_agent_trusted(a.name, threshold=0.2)
+            ]
+            if trusted_agents and len(trusted_agents) < original_count:
+                skipped = [a.name for a in self.agents if a not in trusted_agents]
+                logger.info(f"🛡️ Byzantine: skipped untrusted agents: {skipped}")
+                self.agents = trusted_agents
+                # Rebuild runners for filtered agent set
+                self._runners_built = False
+                self._ensure_runners()
+
+            # 2. Reorder agents by stigmergy pheromone strength (strongest first)
+            routes = lp.stigmergy.get_route_signals(task_type)
+            if routes:
+                self.agents.sort(
+                    key=lambda a: routes.get(a.name, 0.0),
+                    reverse=True,
+                )
+                top = self.agents[0].name if self.agents else '?'
+                logger.info(f"🐜 Stigmergy: reordered agents for '{task_type}', lead={top}")
+        except Exception as e:
+            logger.debug(f"Intelligence-guided selection skipped: {e}")
 
         # MALLM-inspired: Dispatch to alternative paradigms before fan-out
         if discussion_paradigm == 'relay':
@@ -1366,12 +1611,53 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
                         # per-agent architect/auditor if the swarm already decided
                         if '_swarm_gate_decision' in task_kwargs:
                             task_kwargs.pop('_swarm_gate_decision')  # clean up internal flag
+
+                        # MULTI-AGENT OPTIMIZATION: Sub-agents with system_prompt
+                        # are specialized for analysis/synthesis — they don't need
+                        # the full skill pipeline (saves ~100s per agent).
+                        # Use direct_llm=True to bypass skill discovery/selection/planning.
+                        if agent_cfg and hasattr(agent_cfg, 'agent') and agent_cfg.agent:
+                            _agent_obj = agent_cfg.agent
+                            _has_system_prompt = (
+                                hasattr(_agent_obj, 'config')
+                                and hasattr(_agent_obj.config, 'system_prompt')
+                                and _agent_obj.config.system_prompt
+                            )
+                            if _has_system_prompt:
+                                task_kwargs['direct_llm'] = True
+
                         return task, await runner.run(goal=task.description, **task_kwargs)
                     finally:
                         self._scheduling_stats['current_concurrent'] -= 1
 
+            # Per-agent timeout: prevent any single agent from blocking the entire swarm.
+            # Direct-LLM sub-agents should finish in ~30s. Full pipeline agents in ~120s.
+            PER_AGENT_TIMEOUT = 120.0
+
+            async def _run_task_with_timeout(task):
+                try:
+                    return await asyncio.wait_for(_run_task(task), timeout=PER_AGENT_TIMEOUT)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT}s")
+                    if status_callback:
+                        try:
+                            status_callback(f"Agent {task.actor}", f"TIMEOUT ({PER_AGENT_TIMEOUT:.0f}s)")
+                        except Exception:
+                            pass
+                    return task, EpisodeResult(
+                        output=f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT:.0f}s",
+                        success=False,
+                        trajectory=[{'step': 0, 'action': 'timeout'}],
+                        tagged_outputs=[],
+                        episode=self.episode_count,
+                        execution_time=PER_AGENT_TIMEOUT,
+                        architect_results=[],
+                        auditor_results=[],
+                        agent_contributions={},
+                    )
+
             coro_results = await asyncio.gather(
-                *[_run_task(t) for t in batch],
+                *[_run_task_with_timeout(t) for t in batch],
                 return_exceptions=True
             )
 
@@ -1496,6 +1782,20 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
 
         # Auto-save learnings (persist across sessions)
         self._auto_save_learnings()
+
+        # Observability: record per-agent metrics
+        try:
+            from Jotty.core.observability import get_metrics
+            _metrics = get_metrics()
+            for agent_name, result in all_results.items():
+                _metrics.record_execution(
+                    agent_name=agent_name,
+                    task_type="multi_agent",
+                    duration_s=getattr(result, 'execution_time', 0.0),
+                    success=result.success if hasattr(result, 'success') else False,
+                )
+        except (ImportError, Exception):
+            pass
 
         return combined_result
 
@@ -1790,6 +2090,17 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
                 logger.info(f"Refinement: converged at iteration {iteration}")
                 break
 
+            # Adaptive learning: check if the system recommends stopping early
+            try:
+                if self.learning.adaptive_learning.should_stop_early(min_iterations=2):
+                    logger.info(
+                        f"Refinement: adaptive learning recommends early stop "
+                        f"at iteration {iteration}"
+                    )
+                    break
+            except Exception:
+                pass
+
             prev_draft = current_draft
 
             for agent_config in self.agents[1:]:  # skip first (already drafted)
@@ -2077,3 +2388,100 @@ class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin, MASZer
             from Jotty.core.orchestration.v2.swarm_dag_executor import SwarmDAGExecutor
             self._dag_executor = SwarmDAGExecutor(self)
         return self._dag_executor.get_agents()
+
+    # =========================================================================
+    # Self-improvement: training task consumption
+    # =========================================================================
+
+    async def run_training_task(self) -> Optional[EpisodeResult]:
+        """
+        Pop and execute the next queued training task (curriculum-generated).
+
+        Call this during idle cycles to let the swarm self-improve.
+        Returns None if no training tasks are pending.
+        """
+        task = self.learning.pop_training_task()
+        if task is None:
+            return None
+
+        logger.info(
+            f"🎓 Running training task: {task.description[:60]} "
+            f"(difficulty={task.difficulty:.2f})"
+        )
+        try:
+            result = await self.run(
+                goal=task.description,
+                skip_autonomous_setup=True,
+                skip_validation=True,
+            )
+            logger.info(
+                f"🎓 Training task {'passed' if result.success else 'failed'}: "
+                f"{task.description[:40]}"
+            )
+            return result
+        except Exception as e:
+            logger.warning(f"Training task failed: {e}")
+            return None
+
+    @property
+    def pending_training_tasks(self) -> int:
+        """Number of curriculum-generated training tasks waiting."""
+        try:
+            return self.learning.pending_training_count()
+        except Exception:
+            return 0
+
+    # =========================================================================
+    # Autonomous training scheduler
+    # =========================================================================
+
+    async def start_training_loop(
+        self,
+        max_tasks: int = 5,
+        interval_seconds: float = 0.0,
+        stop_on_convergence: bool = True,
+    ) -> list:
+        """
+        Autonomous self-improvement loop.
+
+        Drains the curriculum queue, running training tasks until:
+        - Queue is empty, OR
+        - max_tasks reached, OR
+        - Adaptive learning says stop (convergence)
+
+        Args:
+            max_tasks: Max training tasks to run in this loop
+            interval_seconds: Pause between tasks (0 = no pause)
+            stop_on_convergence: Stop if adaptive learning says converged
+
+        Returns:
+            List of EpisodeResults from training runs
+        """
+        results = []
+        for i in range(max_tasks):
+            # Check convergence
+            if stop_on_convergence:
+                try:
+                    if self.learning.adaptive_learning.should_stop_early():
+                        logger.info(
+                            f"🎓 Training loop: converged after {i} tasks, stopping"
+                        )
+                        break
+                except Exception:
+                    pass
+
+            result = await self.run_training_task()
+            if result is None:
+                logger.info(f"🎓 Training loop: queue empty after {i} tasks")
+                break
+
+            results.append(result)
+
+            if interval_seconds > 0:
+                await asyncio.sleep(interval_seconds)
+
+        logger.info(
+            f"🎓 Training loop complete: {len(results)} tasks, "
+            f"{sum(1 for r in results if r.success)}/{len(results)} succeeded"
+        )
+        return results

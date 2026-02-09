@@ -82,6 +82,14 @@ class ByzantineVerifier:
         is_consistent = claimed_success == actual_success
         self.verified_count += 1
 
+        if is_consistent:
+            # Reward honesty: small trust boost for consistent claims
+            self.si.register_agent(agent)
+            profile = self.si.agent_profiles[agent]
+            if profile.trust_score < 1.0:
+                boost = 0.05  # Small, asymmetric with penalty (penalize faster than reward)
+                profile.trust_score = min(1.0, profile.trust_score + boost)
+
         if not is_consistent:
             self.inconsistent_count += 1
 

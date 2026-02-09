@@ -59,7 +59,7 @@ result = await search_and_create_idea_tool({
 
 - `web-search` skill
 - `claude-cli-llm` skill
-- `mcp-justjot-mcp-client` skill (or `mcp-justjot` for HTTP API fallback)
+- `mcp-justjot` skill
 
 ## Example
 

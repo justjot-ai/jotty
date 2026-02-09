@@ -4,8 +4,13 @@ Memory Layer - Hierarchical Memory Systems
 
 Brain-inspired memory with 5 levels and consolidation.
 
+RECOMMENDED ENTRY POINT:
+    from Jotty.core.memory import MemorySystem
+    memory = MemorySystem()  # Zero-config, auto-detects best backend
+
 Modules:
 --------
+- memory_system: MemorySystem facade (PREFERRED - single entry point)
 - cortex: 5-level hierarchical memory (EPISODIC → SEMANTIC → PROCEDURAL → META → CAUSAL)
 - consolidation_engine: Hippocampal extraction, sharp-wave ripple consolidation
 - memory_orchestrator: Unified memory API (SimpleBrain + BrainInspiredMemoryManager)
@@ -58,8 +63,19 @@ from .mongodb_backend import (
     MongoDBMemoryBackend,
     enable_mongodb_memory,
 )
+from .memory_system import (
+    MemorySystem,
+    MemoryConfig,
+    MemoryBackend,
+    MemoryResult,
+)
 
 __all__ = [
+    # memory_system (PREFERRED entry point)
+    'MemorySystem',
+    'MemoryConfig',
+    'MemoryBackend',
+    'MemoryResult',
     # memory_orchestrator
     'SimpleBrain',
     'BrainPreset',

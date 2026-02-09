@@ -39,7 +39,6 @@ import asyncio
 import logging
 import json
 import hashlib
-import dspy
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple, Callable, Type
 from dataclasses import dataclass, field, asdict
@@ -66,14 +65,9 @@ from .swarm_types import (
     SwarmResult,
 )
 
-from .swarm_signatures import (
-    ExpertEvaluationSignature,
-    ReviewerAnalysisSignature,
-    PlannerOptimizationSignature,
-    ActorExecutionSignature,
-    AuditorVerificationSignature,
-    LearnerExtractionSignature,
-)
+# Signatures are in swarm_signatures.py (loaded lazily by swarms/__init__.py)
+# They're not imported here to avoid triggering DSPy at module load time.
+# Direct importers should use: from core.swarms.swarm_signatures import ...
 
 from .evaluation import (
     GoldStandardDB,
@@ -151,14 +145,18 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             return
 
         # Auto-configure DSPy if needed
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            try:
-                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
-                lm = DirectClaudeCLI(model="sonnet")
-                dspy.configure(lm=lm)
-                logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
-            except Exception as e:
-                logger.warning(f"Could not configure DSPy LM: {e}")
+        try:
+            import dspy
+            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+                try:
+                    from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                    lm = DirectClaudeCLI(model="sonnet")
+                    dspy.configure(lm=lm)
+                    logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
+                except Exception as e:
+                    logger.warning(f"Could not configure DSPy LM: {e}")
+        except ImportError:
+            logger.warning("DSPy not available, skipping LM auto-configuration")
 
         # Initialize shared resources
         try:

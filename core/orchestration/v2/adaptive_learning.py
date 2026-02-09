@@ -103,16 +103,20 @@ class AdaptiveLearning:
         }
     
     def _detect_plateau(self):
-        """Detect if learning has plateaued."""
+        """Detect if learning has plateaued (stuck at low/medium scores)."""
         if len(self.state.score_history) < 5:
             self.state.is_plateau = False
             return
         
         recent_scores = list(self.state.score_history)[-5:]
         score_variance = statistics.variance(recent_scores) if len(recent_scores) > 1 else 0.0
+        score_mean = statistics.mean(recent_scores)
         
-        # Plateau if variance is very low and no improvement
-        if score_variance < 0.01 and self.state.improvement_velocity <= 0.01:
+        # Plateau = low variance AND low/medium scores AND no improvement
+        # High stable scores (mean >= 0.9) are CONVERGENCE, not plateau
+        if (score_variance < 0.01
+                and self.state.improvement_velocity <= 0.01
+                and score_mean < 0.9):
             self.state.is_plateau = True
             self.state.consecutive_no_improvement += 1
         else:
@@ -120,17 +124,20 @@ class AdaptiveLearning:
             self.state.consecutive_no_improvement = 0
     
     def _detect_convergence(self):
-        """Detect if learning is converging."""
+        """Detect if learning is converging (high stable scores)."""
         if len(self.state.score_history) < 3:
             self.state.is_converging = False
             return
         
         recent_scores = list(self.state.score_history)[-3:]
         
-        # Converging if scores are improving and stabilizing
-        if (recent_scores[-1] >= 0.9 and  # High score
-            abs(recent_scores[-1] - recent_scores[-2]) < 0.05 and  # Stable
-            self.state.improvement_velocity > 0):  # Still improving
+        # Converging if scores are high and stable
+        # (velocity > 0 OR already at high stable plateau)
+        high_and_stable = (
+            recent_scores[-1] >= 0.9
+            and abs(recent_scores[-1] - recent_scores[-2]) < 0.05
+        )
+        if high_and_stable:
             self.state.is_converging = True
             self.state.consecutive_improvement += 1
         else:

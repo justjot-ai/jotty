@@ -1023,8 +1023,7 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('justjot-mcp-http') or \
-                self.skills_registry.get_skill('justjot')
+        skill = self.skills_registry.get_skill('mcp-justjot')
         if not skill:
             return {"success": False, "error": "JustJot skill not found"}
 

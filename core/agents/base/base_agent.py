@@ -191,7 +191,10 @@ class BaseAgent(ABC):
                 try:
                     from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
                     if is_api_key_available():
-                        self._lm = DirectAnthropicLM(model=self.config.model)
+                        self._lm = DirectAnthropicLM(
+                            model=self.config.model,
+                            max_tokens=min(int(self.config.max_tokens), 8192),
+                        )
                         dspy.configure(lm=self._lm)
                         logger.info(f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest")
                         return

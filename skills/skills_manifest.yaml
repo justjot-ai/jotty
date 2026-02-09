@@ -93,7 +93,6 @@ categories:
       - trello
       - obsidian
       - mcp-justjot
-      - mcp-justjot-mcp-client
       - changelog-generator
       - file-organizer
       - invoice-organizer
@@ -271,16 +270,12 @@ skill_types:
       base_skills: [file-operations]
     - name: justjot-converters
       base_skills: [document-converter]
-    - name: justjot-mcp-http
-      base_skills: [mcp-justjot]
     - name: last30days-claude-cli
       base_skills: [claude-cli-llm]
     - name: lead-research-assistant
       base_skills: [web-search]
     - name: mcp-builder
       base_skills: [file-operations]
-    - name: mcp-justjot-mcp-client
-      base_skills: [mcp-justjot]
     - name: meeting-insights-analyzer
       base_skills: [claude-cli-llm]
     - name: model-metrics
@@ -408,7 +403,7 @@ tags:
 
   justjot:
     description: "JustJot.ai integration"
-    skills: [mcp-justjot, mcp-justjot-mcp-client, reddit-trending-to-justjot, search-to-justjot-idea, trending-topics-to-ideas]
+    skills: [mcp-justjot, reddit-trending-to-justjot, search-to-justjot-idea, trending-topics-to-ideas]
 
 # Skill metadata overrides (for skills that need extra info)
 skill_metadata:

@@ -22,11 +22,22 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 import logging
 
-try:
-    import dspy
-    DSPY_AVAILABLE = True
-except ImportError:
-    DSPY_AVAILABLE = False
+# DSPy loaded lazily — saves ~6s on module import
+# Use _get_dspy() to access the module when needed
+DSPY_AVAILABLE = True  # Assumed available; checked on first use
+_dspy_module = None
+
+def _get_dspy():
+    """Lazy-load DSPy on first use."""
+    global _dspy_module, DSPY_AVAILABLE
+    if _dspy_module is None:
+        try:
+            import dspy as _dspy
+            _dspy_module = _dspy
+        except ImportError:
+            DSPY_AVAILABLE = False
+            _dspy_module = False  # Sentinel: tried and failed
+    return _dspy_module if _dspy_module else None
 
 logger = logging.getLogger(__name__)
 
@@ -60,33 +71,25 @@ class Coalition:
 # SHAPLEY VALUE ESTIMATOR
 # =============================================================================
 
-class ShapleyEstimatorSignature(dspy.Signature):
-    """
-    Estimate the value of a coalition of agents.
-    
-    Think about: If only these agents worked together, what would the outcome be?
-    Consider their individual capabilities and how they complement each other.
-    """
-    
-    coalition_agents = dspy.InputField(
-        desc="List of agents in this coalition and their capabilities"
-    )
-    task_description = dspy.InputField(
-        desc="The task being performed"
-    )
-    trajectory_context = dspy.InputField(
-        desc="What happened during execution"
-    )
-    full_agent_list = dspy.InputField(
-        desc="All available agents for reference"
-    )
-    
-    coalition_value = dspy.OutputField(
-        desc="Estimated value (0.0 to 1.0) of this coalition achieving the goal"
-    )
-    reasoning = dspy.OutputField(
-        desc="Why this coalition would achieve this value"
-    )
+_ShapleyEstimatorSignature = None
+
+def _get_shapley_signature():
+    """Lazy-create the DSPy Signature class (avoids module-level dspy import)."""
+    global _ShapleyEstimatorSignature
+    if _ShapleyEstimatorSignature is None:
+        dspy = _get_dspy()
+        if not dspy:
+            return None
+        class ShapleyEstimatorSignature(dspy.Signature):
+            """Estimate the value of a coalition of agents."""
+            coalition_agents = dspy.InputField(desc="List of agents in this coalition and their capabilities")
+            task_description = dspy.InputField(desc="The task being performed")
+            trajectory_context = dspy.InputField(desc="What happened during execution")
+            full_agent_list = dspy.InputField(desc="All available agents for reference")
+            coalition_value = dspy.OutputField(desc="Estimated value (0.0 to 1.0) of this coalition achieving the goal")
+            reasoning = dspy.OutputField(desc="Why this coalition would achieve this value")
+        _ShapleyEstimatorSignature = ShapleyEstimatorSignature
+    return _ShapleyEstimatorSignature
 
 
 class ShapleyValueEstimator:
@@ -113,10 +116,7 @@ class ShapleyValueEstimator:
         self.max_samples = max_samples
         self.coalition_cache: Dict[frozenset, float] = {}
         
-        if DSPY_AVAILABLE:
-            self.coalition_estimator = dspy.ChainOfThought(ShapleyEstimatorSignature)
-        else:
-            self.coalition_estimator = None
+        self.coalition_estimator = None  # Lazy-created on first use
         
         logger.info(f"📊 ShapleyValueEstimator initialized (base_samples={num_samples}, auto-tuned)")
     
@@ -241,8 +241,15 @@ class ShapleyValueEstimator:
             self.coalition_cache[coalition] = 0.0
             return 0.0
         
+        # Lazy-create DSPy estimator on first use
+        if self.coalition_estimator is None:
+            dspy = _get_dspy()
+            sig = _get_shapley_signature()
+            if dspy and sig:
+                self.coalition_estimator = dspy.ChainOfThought(sig)
+
         if not self.coalition_estimator:
-            # Fallback: uniform distribution
+            # Fallback: uniform distribution (DSPy not available)
             value = len(coalition) / max(len(capabilities), 1)
             self.coalition_cache[coalition] = value
             return value
@@ -298,26 +305,26 @@ class ShapleyValueEstimator:
 # DIFFERENCE REWARD ESTIMATOR
 # =============================================================================
 
-class CounterfactualSignature(dspy.Signature):
-    """
-    Estimate what would have happened WITHOUT a specific agent's action.
-    
-    This is counterfactual reasoning: "If agent X had done nothing, 
-    what would the outcome have been?"
-    """
-    
-    agent_name = dspy.InputField(desc="Agent whose action we're evaluating")
-    agent_action = dspy.InputField(desc="What the agent actually did")
-    state_before = dspy.InputField(desc="State before the action")
-    state_after = dspy.InputField(desc="State after the action (what actually happened)")
-    other_agents = dspy.InputField(desc="Other agents and their roles")
-    
-    counterfactual_outcome = dspy.OutputField(
-        desc="What would the outcome be (0.0-1.0) if this agent did nothing?"
-    )
-    reasoning = dspy.OutputField(
-        desc="Explain your counterfactual reasoning"
-    )
+_CounterfactualSignature = None
+
+def _get_counterfactual_signature():
+    """Lazy-create the CounterfactualSignature DSPy class."""
+    global _CounterfactualSignature
+    if _CounterfactualSignature is None:
+        dspy = _get_dspy()
+        if not dspy:
+            return None
+        class CounterfactualSignature(dspy.Signature):
+            """Estimate what would have happened WITHOUT a specific agent's action."""
+            agent_name = dspy.InputField(desc="Agent whose action we're evaluating")
+            agent_action = dspy.InputField(desc="What the agent actually did")
+            state_before = dspy.InputField(desc="State before the action")
+            state_after = dspy.InputField(desc="State after the action (what actually happened)")
+            other_agents = dspy.InputField(desc="Other agents and their roles")
+            counterfactual_outcome = dspy.OutputField(desc="What would the outcome be (0.0-1.0) if this agent did nothing?")
+            reasoning = dspy.OutputField(desc="Explain your counterfactual reasoning")
+        _CounterfactualSignature = CounterfactualSignature
+    return _CounterfactualSignature
 
 
 class DifferenceRewardEstimator:
@@ -335,10 +342,7 @@ class DifferenceRewardEstimator:
     """
     
     def __init__(self):
-        if DSPY_AVAILABLE:
-            self.counterfactual_estimator = dspy.ChainOfThought(CounterfactualSignature)
-        else:
-            self.counterfactual_estimator = None
+        self.counterfactual_estimator = None  # Lazy-created on first use
         
         logger.info("🔄 DifferenceRewardEstimator initialized")
     
@@ -384,8 +388,15 @@ class DifferenceRewardEstimator:
         other_agents: List[str]
     ) -> float:
         """Estimate reward without this agent's action."""
+        # Lazy-create DSPy estimator on first use
+        if self.counterfactual_estimator is None:
+            dspy = _get_dspy()
+            sig = _get_counterfactual_signature()
+            if dspy and sig:
+                self.counterfactual_estimator = dspy.ChainOfThought(sig)
+
         if not self.counterfactual_estimator:
-            # Fallback: assume agent contributed proportionally
+            # Fallback: assume agent contributed proportionally (DSPy not available)
             return 0.5
         
         try:

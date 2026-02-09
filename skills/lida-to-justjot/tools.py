@@ -367,29 +367,8 @@ class LidaToJustJotSkill:
         if result.get('success') and result.get('id'):
             return result
 
-        # Fallback to MCP client
-        logger.info("Trying MCP client skill...")
-        try:
-            mcp_skill = self.registry.get_skill('mcp-justjot-mcp-client')
-            if mcp_skill:
-                create_tool = mcp_skill.tools.get('create_idea_mcp_tool')
-                if create_tool:
-                    if inspect.iscoroutinefunction(create_tool):
-                        mcp_result = await create_tool(mcp_data)
-                    else:
-                        mcp_result = create_tool(mcp_data)
-
-                    if mcp_result.get('success') and (mcp_result.get('id') or mcp_result.get('idea', {}).get('id')):
-                        idea_id = mcp_result.get('id') or mcp_result.get('idea', {}).get('id') or mcp_result.get('idea', {}).get('_id')
-                        mcp_result['id'] = idea_id
-                        mcp_result['method'] = 'mcp-client'
-                        return mcp_result
-
-        except Exception as e:
-            logger.warning(f"MCP client failed: {e}")
-
-        # Final fallback to HTTP API
-        logger.info("Trying HTTP API...")
+        # Fallback to mcp-justjot HTTP API skill
+        logger.info("Trying mcp-justjot HTTP API...")
         return await self._create_idea_http(mcp_data)
 
     async def _create_idea_mongodb(self, mcp_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -486,28 +465,13 @@ class LidaToJustJotSkill:
             return {'success': False, 'error': str(e)}
 
     async def _create_idea_http(self, mcp_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create idea via HTTP API skill."""
+        """Create idea via mcp-justjot HTTP API skill."""
         try:
-            # Try justjot-mcp-http first (direct HTTP to JustJot API)
-            http_skill = self.registry.get_skill('justjot-mcp-http')
-            if http_skill:
-                create_tool = http_skill.tools.get('create_idea_tool')
-                if create_tool:
-                    logger.info("Using justjot-mcp-http skill...")
-                    if inspect.iscoroutinefunction(create_tool):
-                        result = await create_tool(mcp_data)
-                    else:
-                        result = create_tool(mcp_data)
-                    if result.get('success') and result.get('id'):
-                        result['method'] = 'http-api'
-                        return result
+            skill = self.registry.get_skill('mcp-justjot')
+            if not skill:
+                return {'success': False, 'error': 'mcp-justjot skill not found'}
 
-            # Fallback to mcp-justjot
-            http_skill = self.registry.get_skill('mcp-justjot')
-            if not http_skill:
-                return {'success': False, 'error': 'No JustJot HTTP skill available'}
-
-            create_tool = http_skill.tools.get('create_idea_tool')
+            create_tool = skill.tools.get('create_idea_tool')
             if not create_tool:
                 return {'success': False, 'error': 'create_idea_tool not found'}
 

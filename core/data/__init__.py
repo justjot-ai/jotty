@@ -3,76 +3,48 @@ Data Layer - Data Management & Parameter Resolution
 ===================================================
 
 Data processing, parameter resolution, and data discovery.
-
-Modules:
---------
-- data_registry: Agentic data discovery and registration
-- io_manager: Input/output management
-- parameter_resolver: LLM-based parameter matching
-- feedback_router: Route feedback to agents
-- data_transformer: Data format transformation
-- data_extractor: Extract structured data
-- information_storage: Information persistence
-- agentic_discovery/: Agentic data discovery orchestrator
+All imports are lazy to avoid pulling in DSPy at module load time.
 """
 
-from .feedback_router import (
-    AgenticFeedbackRouter,
-    AgenticFeedbackSignature,
-)
-from .parameter_resolver import (
-    AgenticParameterResolver,
-    ParameterMatchingSignature,
-)
-from .data_registry import (
-    DataArtifact,
-    DataRegistry,
-    DataRegistryTool,
-)
-from .information_storage import (
-    InformationTheoreticStorage,
-    InformationWeightedMemory,
-    SurpriseEstimator,
-    SurpriseSignature,
-)
-from .io_manager import (
-    ActorOutput,
-    IOManager,
-    KnowledgeProvenance,
-    SwarmResult,
-)
-from .data_extractor import (
-    SmartDataExtractor,
-)
-from .data_transformer import (
-    FormatTools,
-    SmartDataTransformer,
-)
+import importlib as _importlib
 
-__all__ = [
+_LAZY_IMPORTS: dict[str, str] = {
     # feedback_router
-    'AgenticFeedbackRouter',
-    'AgenticFeedbackSignature',
+    "AgenticFeedbackRouter": ".feedback_router",
+    "AgenticFeedbackSignature": ".feedback_router",
     # parameter_resolver
-    'AgenticParameterResolver',
-    'ParameterMatchingSignature',
+    "AgenticParameterResolver": ".parameter_resolver",
+    "ParameterMatchingSignature": ".parameter_resolver",
     # data_registry
-    'DataArtifact',
-    'DataRegistry',
-    'DataRegistryTool',
+    "DataArtifact": ".data_registry",
+    "DataRegistry": ".data_registry",
+    "DataRegistryTool": ".data_registry",
     # information_storage
-    'InformationTheoreticStorage',
-    'InformationWeightedMemory',
-    'SurpriseEstimator',
-    'SurpriseSignature',
+    "InformationTheoreticStorage": ".information_storage",
+    "InformationWeightedMemory": ".information_storage",
+    "SurpriseEstimator": ".information_storage",
+    "SurpriseSignature": ".information_storage",
     # io_manager
-    'ActorOutput',
-    'IOManager',
-    'KnowledgeProvenance',
-    'SwarmResult',
+    "ActorOutput": ".io_manager",
+    "IOManager": ".io_manager",
+    "KnowledgeProvenance": ".io_manager",
+    "SwarmResult": ".io_manager",
     # data_extractor
-    'SmartDataExtractor',
+    "SmartDataExtractor": ".data_extractor",
     # data_transformer
-    'FormatTools',
-    'SmartDataTransformer',
-]
+    "FormatTools": ".data_transformer",
+    "SmartDataTransformer": ".data_transformer",
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = list(_LAZY_IMPORTS.keys())

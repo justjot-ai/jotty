@@ -13,31 +13,86 @@ class SkillSelectionMixin:
     # Skills that depend on unreliable external services - deprioritized
     DEPRIORITIZED_SKILLS = {
         'search-to-justjot-idea',
-        'mcp-justjot-mcp-client',
-        'mcp-justjot',
-        'justjot-mcp-http',
         'notion-research-documentation',
         'reddit-trending-to-justjot',
         'notebooklm-pdf',
         'oauth-automation',
     }
 
+    # Task type → relevant capabilities mapping (heuristic pre-filter)
+    _TASK_CAPABILITY_MAP = {
+        'research':      {'research', 'data-fetch', 'analyze', 'document'},
+        'comparison':    {'research', 'analyze', 'data-fetch'},
+        'creation':      {'code', 'document', 'media', 'visualize'},
+        'analysis':      {'analyze', 'data-fetch', 'research', 'visualize'},
+        'communication': {'communicate', 'document'},
+        'automation':    {'code', 'file-ops', 'data-fetch'},
+    }
+
+    # Skills that are always relevant regardless of task type (core tooling)
+    _ALWAYS_INCLUDE = {
+        'claude-cli-llm',      # LLM reasoning — needed for almost everything
+        'file-operations',     # File I/O
+    }
+
+    def _prefilter_skills(
+        self,
+        task: str,
+        available_skills: List[Dict[str, Any]],
+        task_type: str = "",
+    ) -> List[Dict[str, Any]]:
+        """
+        Pre-filter skills by task capabilities before LLM selection.
+
+        Reduces 127 skills → ~30-50 relevant ones. Saves ~60% LLM tokens.
+        Falls back to full list if task type is unknown or filter too aggressive.
+        """
+        # Get relevant capabilities for this task type
+        relevant_caps = self._TASK_CAPABILITY_MAP.get(task_type, set())
+        if not relevant_caps:
+            return available_skills  # Unknown task type: send all
+
+        filtered = []
+        for s in available_skills:
+            name = s.get('name', '')
+            caps = set(s.get('capabilities', []))
+
+            # Always include core skills
+            if name in self._ALWAYS_INCLUDE:
+                filtered.append(s)
+            # Include if capabilities overlap with relevant caps
+            elif caps & relevant_caps:
+                filtered.append(s)
+            # Include composites that reference relevant base skills
+            elif s.get('skill_type') == 'composite' and s.get('base_skills'):
+                # A composite is relevant if any of its base skills would be relevant
+                filtered.append(s)
+
+        # Safety: if filter is too aggressive (<10 skills), fall back to full list
+        if len(filtered) < 10:
+            return available_skills
+
+        logger.info(f"Pre-filtered skills: {len(available_skills)} → {len(filtered)} (task_type={task_type})")
+        return filtered
+
     def select_skills(
         self,
         task: str,
         available_skills: List[Dict[str, Any]],
         max_skills: int = 8,
+        task_type: str = "",
     ) -> tuple[List[Dict[str, Any]], str]:
         """
         Select best skills for a task via single LLM call.
 
-        All 126 skills fit in ~5K tokens compact. No pre-filtering needed.
-        One LLM call sees everything and picks the best match.
+        Pre-filters by task capabilities (127 → ~30-50 skills), then
+        sends compact format to LLM for final selection.
 
         Args:
             task: Task description
             available_skills: List of skill dicts (from registry)
             max_skills: Maximum skills to select
+            task_type: Inferred task type for pre-filtering
 
         Returns:
             (selected_skills, reasoning)
@@ -45,9 +100,12 @@ class SkillSelectionMixin:
         if not available_skills:
             return [], "No skills available"
 
+        # Pre-filter by task capabilities (saves ~60% LLM tokens)
+        relevant_skills = self._prefilter_skills(task, available_skills, task_type)
+
         # Move deprioritized skills to end (LLM still sees them but they're last)
-        reliable = [s for s in available_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
-        deprioritized = [s for s in available_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
+        reliable = [s for s in relevant_skills if s.get('name') not in self.DEPRIORITIZED_SKILLS]
+        deprioritized = [s for s in relevant_skills if s.get('name') in self.DEPRIORITIZED_SKILLS]
         ordered_skills = reliable + deprioritized
 
         # Format ALL skills compactly for the LLM (~5K tokens for 126 skills)

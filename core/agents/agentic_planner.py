@@ -23,11 +23,21 @@ except ImportError:
     PYDANTIC_AVAILABLE = False
     BaseModel = None
 
-try:
-    import dspy
-    DSPY_AVAILABLE = True
-except ImportError:
-    DSPY_AVAILABLE = False
+# DSPy loaded lazily to avoid ~6s import at module level
+DSPY_AVAILABLE = True  # Assumed; checked on first use
+_dspy_module = None
+
+def _get_dspy():
+    """Lazy-load DSPy on first use."""
+    global _dspy_module, DSPY_AVAILABLE
+    if _dspy_module is None:
+        try:
+            import dspy as _dspy
+            _dspy_module = _dspy
+        except ImportError:
+            DSPY_AVAILABLE = False
+            _dspy_module = False
+    return _dspy_module if _dspy_module else None
 
 
 # Pydantic model for typed DSPy output - accepts common field name variations
@@ -143,14 +153,33 @@ def _get_task_type():
 # DSPy Signatures (extracted to planner_signatures.py)
 # =============================================================================
 
-if DSPY_AVAILABLE:
+# Signatures imported lazily to avoid DSPy import at module level
+_signatures_loaded = False
+TaskTypeInferenceSignature = None
+CapabilityInferenceSignature = None
+ExecutionPlanningSignature = None
+SkillSelectionSignature = None
+ReflectivePlanningSignature = None
+
+def _load_signatures():
+    """Load DSPy signatures on first use."""
+    global _signatures_loaded, TaskTypeInferenceSignature, CapabilityInferenceSignature
+    global ExecutionPlanningSignature, SkillSelectionSignature, ReflectivePlanningSignature
+    if _signatures_loaded:
+        return
+    _signatures_loaded = True
     from .planner_signatures import (
-        TaskTypeInferenceSignature,
-        CapabilityInferenceSignature,
-        ExecutionPlanningSignature,
-        SkillSelectionSignature,
-        ReflectivePlanningSignature,
+        TaskTypeInferenceSignature as _TT,
+        CapabilityInferenceSignature as _CI,
+        ExecutionPlanningSignature as _EP,
+        SkillSelectionSignature as _SS,
+        ReflectivePlanningSignature as _RP,
     )
+    TaskTypeInferenceSignature = _TT
+    CapabilityInferenceSignature = _CI
+    ExecutionPlanningSignature = _EP
+    SkillSelectionSignature = _SS
+    ReflectivePlanningSignature = _RP
 
 
 # =============================================================================
@@ -198,8 +227,10 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             fast_model: Model for fast classification tasks (default: haiku).
                         Use 'haiku' for speed, 'sonnet' for accuracy.
         """
-        if not DSPY_AVAILABLE:
+        dspy = _get_dspy()
+        if not dspy:
             raise RuntimeError("DSPy required for AgenticPlanner")
+        _load_signatures()
 
         # Use ChainOfThought for execution planning (research: Plan-and-Solve benefits from explicit reasoning)
         self.execution_planner = dspy.ChainOfThought(ExecutionPlanningSignature)
@@ -286,7 +317,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 with semaphore:
                     # Use specified LM or default
                     if lm:
-                        with dspy.context(lm=lm):
+                        with _get_dspy().context(lm=lm):
                             return module(**kwargs)
                     else:
                         return module(**kwargs)
@@ -469,7 +500,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             
             # Execute planning - signature is already baked into the module
             # No need to set it globally (which causes async task errors)
-            import dspy
+            dspy = _get_dspy()
             
             # Abstract the task description to avoid LLM confusion
             # Clean task for planning (remove injected context)
@@ -570,8 +601,8 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 if not plan_data:  # None or empty list
                     logger.warning(f"DSPy returned text, retrying with direct LLM call for JSON...")
                     try:
-                        import dspy
-                        lm = dspy.settings.lm
+                        dspy = _get_dspy()
+                        lm = dspy.settings.lm if dspy else None
                         if lm:
                             # Get ALL skills with their first tool for the prompt
                             skill_info = []

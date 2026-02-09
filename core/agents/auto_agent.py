@@ -354,7 +354,13 @@ Provide:
         # Optima-inspired deduplication (Chen et al., 2024):
         # If caller already enriched the task with ensemble context (e.g. SwarmManager),
         # skip re-ensembling to avoid 2x LLM calls for the same thing.
-        already_ensembled = '[Multi-Perspective Analysis' in task or kwargs.get('ensemble_context') is not None
+        # Also skip for direct_llm sub-agents — they're specialized, no need for ensemble.
+        _is_direct_llm = kwargs.get('direct_llm', False)
+        already_ensembled = (
+            '[Multi-Perspective Analysis' in task
+            or kwargs.get('ensemble_context') is not None
+            or _is_direct_llm
+        )
 
         # Auto-detect ensemble for certain task types
         max_perspectives = 4  # default
@@ -388,7 +394,12 @@ Provide:
         _status("AutoAgent", "starting task execution")
 
         # Get task type enum for result
-        task_type_enum = self._infer_task_type_enum(task)
+        # OPTIMIZATION: skip LLM-based inference for direct_llm mode (sub-agents)
+        direct_llm = kwargs.get('direct_llm', False)
+        if direct_llm:
+            task_type_enum = TaskType.UNKNOWN
+        else:
+            task_type_enum = self._infer_task_type_enum(task)
 
         # Execute via AutonomousAgent._execute_impl (handles its own replanning)
         # Pass learning_context separately so it can enrich LLM prompts without polluting task string

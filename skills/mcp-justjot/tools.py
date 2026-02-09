@@ -1,10 +1,11 @@
 """
-MCP JustJot.ai Skill
+JustJot.ai Skill — Single source of truth for all JustJot.ai integration.
 
-Wraps JustJot.ai MCP tools as Jotty skills.
-Integrates ideas, templates, sections, and tags management.
+Manages ideas, templates, sections, and tags via JustJot.ai REST API.
+Supports multiple auth methods (internal service header, Clerk API key, bearer token).
+
+Replaces the old justjot-mcp-http and mcp-justjot-mcp-client skills (DRY merge).
 """
-import asyncio
 import logging
 import os
 from typing import Dict, Any, Optional
@@ -14,28 +15,46 @@ from Jotty.core.utils.skill_status import SkillStatus
 
 logger = logging.getLogger(__name__)
 
-# Default JustJot.ai API URL
-# Priority: JUSTJOT_API_URL > NEXT_PUBLIC_API_URL > JUSTJOT_BASE_URL > cmd.dev > localhost
-
 # Status emitter for progress updates
 status = SkillStatus("mcp-justjot")
 
+
 def _get_api_url() -> str:
     """Get JustJot.ai API URL with fallback priority."""
-    # Check environment variables in priority order
-    url = (
-        os.getenv("JUSTJOT_API_URL") or 
-        os.getenv("NEXT_PUBLIC_API_URL") or 
-        os.getenv("JUSTJOT_BASE_URL")
+    return (
+        os.getenv("JUSTJOT_API_URL")
+        or os.getenv("NEXT_PUBLIC_API_URL")
+        or os.getenv("JUSTJOT_BASE_URL")
+        or "https://justjot.ai"
     )
-    
-    if url:
-        return url
-    
-    # Fallback to cmd.dev (production deployment)
-    return "https://justjot.ai.cmd.dev"
+
 
 DEFAULT_API_URL = _get_api_url()
+
+
+def _get_auth_headers() -> Dict[str, str]:
+    """
+    Build auth headers with priority:
+      1. Clerk API Key + User ID (service-to-service, best for Jotty)
+      2. Internal service header (localhost / same-network)
+      3. Bearer token (Clerk session, browser-based)
+    """
+    headers: Dict[str, str] = {"Content-Type": "application/json"}
+
+    api_key = os.getenv("JUSTJOT_API_KEY") or os.getenv("CLERK_SECRET_KEY")
+    user_id = os.getenv("JUSTJOT_USER_ID")
+    auth_token = os.getenv("JUSTJOT_AUTH_TOKEN")
+
+    if api_key and user_id:
+        headers["x-api-key"] = api_key
+        headers["x-user-id"] = user_id
+    else:
+        # Internal service header (works when on same network / localhost)
+        headers["x-internal-service"] = "true"
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
+
+    return headers
 
 
 def _call_justjot_api(
@@ -43,79 +62,45 @@ def _call_justjot_api(
     endpoint: str,
     params: Optional[Dict[str, Any]] = None,
     data: Optional[Dict[str, Any]] = None,
-    headers: Optional[Dict[str, str]] = None
 ) -> Dict[str, Any]:
     """
     Call JustJot.ai API endpoint.
-    
-    Uses /api/internal/* endpoints for service-to-service calls (no auth required).
-    Falls back to /api/* endpoints if internal not available.
-    
-    Args:
-        method: HTTP method (GET, POST, PUT, DELETE)
-        endpoint: API endpoint path
-        params: Query parameters
-        data: Request body data
-        headers: Request headers
-    
-    Returns:
-        API response as dictionary
+
+    Uses /api/internal/* endpoints for service-to-service calls when using
+    internal service header auth. Falls back to /api/* for Clerk API key auth.
     """
-    # Use internal API endpoints for service-to-service calls
-    # These bypass authentication (use x-internal-service header)
-    internal_endpoint = endpoint
-    if endpoint.startswith('/api/ideas'):
-        internal_endpoint = endpoint.replace('/api/ideas', '/api/internal/ideas')
-    elif endpoint.startswith('/api/templates'):
-        internal_endpoint = endpoint.replace('/api/templates', '/api/internal/templates')
-    elif endpoint.startswith('/api/tags'):
-        internal_endpoint = endpoint.replace('/api/tags', '/api/internal/tags')
-    
-    url = f"{DEFAULT_API_URL}{internal_endpoint}"
-    
-    default_headers = {
-        "Content-Type": "application/json",
-        "x-internal-service": "true"  # Service-to-service call (bypasses auth)
-    }
-    
-    # Add auth token if available (fallback)
-    auth_token = os.getenv("JUSTJOT_AUTH_TOKEN")
-    if auth_token:
-        default_headers["Authorization"] = f"Bearer {auth_token}"
-    
-    if headers:
-        default_headers.update(headers)
-    
+    auth_headers = _get_auth_headers()
+
+    # Use internal endpoints when authenticating via service header
+    if "x-internal-service" in auth_headers:
+        if endpoint.startswith('/api/ideas'):
+            endpoint = endpoint.replace('/api/ideas', '/api/internal/ideas', 1)
+        elif endpoint.startswith('/api/templates'):
+            endpoint = endpoint.replace('/api/templates', '/api/internal/templates', 1)
+        elif endpoint.startswith('/api/tags'):
+            endpoint = endpoint.replace('/api/tags', '/api/internal/tags', 1)
+
+    url = f"{DEFAULT_API_URL}{endpoint}"
+
     try:
         response = requests.request(
             method=method,
             url=url,
             params=params,
             json=data,
-            headers=default_headers,
-            timeout=30
+            headers=auth_headers,
+            timeout=30,
         )
-        
         response.raise_for_status()
-        
-        # Try to parse JSON
+
         try:
-            return {
-                'success': True,
-                'data': response.json()
-            }
+            return {'success': True, 'data': response.json()}
         except ValueError:
-            return {
-                'success': True,
-                'data': response.text
-            }
-    
+            return {'success': True, 'data': response.text}
+
     except requests.exceptions.RequestException as e:
         logger.error(f"JustJot API call failed: {e}")
-        return {
-            'success': False,
-            'error': f'API call failed: {str(e)}'
-        }
+        return {'success': False, 'error': f'API call failed: {str(e)}'}
 
 
 # ============================================
@@ -469,15 +454,55 @@ async def list_tags_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
 
 
+# ============================================
+# Ideas by Tag (merged from justjot-mcp-http)
+# ============================================
+
+async def get_ideas_by_tag_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get ideas filtered by tag.
+
+    Args:
+        params: Dictionary containing:
+            - tag (str, required): Tag to filter by
+            - limit (int, optional): Maximum results
+
+    Returns:
+        Dictionary with filtered ideas list
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    tag = params.get('tag')
+    if not tag:
+        return {'success': False, 'error': 'tag parameter is required'}
+
+    query_params = {'tag': tag}
+    if params.get('limit'):
+        query_params['limit'] = str(params['limit'])
+
+    result = _call_justjot_api('GET', '/api/ideas', params=query_params)
+
+    if result.get('success'):
+        ideas = result.get('data', [])
+        return {
+            'success': True,
+            'tag': tag,
+            'ideas': ideas,
+            'count': len(ideas) if isinstance(ideas, list) else 0,
+        }
+    return result
+
+
 __all__ = [
     'list_ideas_tool',
     'create_idea_tool',
     'get_idea_tool',
     'update_idea_tool',
     'delete_idea_tool',
+    'get_ideas_by_tag_tool',
     'list_templates_tool',
     'get_template_tool',
     'add_section_tool',
     'update_section_tool',
-    'list_tags_tool'
+    'list_tags_tool',
 ]

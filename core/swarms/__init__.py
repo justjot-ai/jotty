@@ -43,10 +43,6 @@ from .base_swarm import (
     ExecutionTrace,
     SwarmConfig,
     SwarmResult,
-    ExpertEvaluationSignature,
-    ReviewerAnalysisSignature,
-    PlannerOptimizationSignature,
-    ActorExecutionSignature,
     GoldStandardDB,
     ImprovementHistory,
     ExpertAgent,
@@ -63,6 +59,13 @@ from .base_swarm import (
 # =========================================================================
 
 _LAZY_IMPORTS: dict[str, str] = {
+    # --- swarm_signatures (DSPy-dependent, loaded lazily) ---
+    "ExpertEvaluationSignature": ".swarm_signatures",
+    "ReviewerAnalysisSignature": ".swarm_signatures",
+    "PlannerOptimizationSignature": ".swarm_signatures",
+    "ActorExecutionSignature": ".swarm_signatures",
+    "AuditorVerificationSignature": ".swarm_signatures",
+    "LearnerExtractionSignature": ".swarm_signatures",
     # --- research_swarm ---
     "ResearchSwarm": ".research_swarm",
     "ResearchConfig": ".research_swarm",

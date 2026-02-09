@@ -21,17 +21,25 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import asdict
 
-import dspy
-
 from .swarm_types import (
     AgentConfig as SwarmAgentConfig, AgentRole, Evaluation, EvaluationResult,
     ImprovementSuggestion, ImprovementType
 )
-from .swarm_signatures import (
-    ExpertEvaluationSignature, ReviewerAnalysisSignature,
-    PlannerOptimizationSignature, ActorExecutionSignature,
-    AuditorVerificationSignature, LearnerExtractionSignature,
-)
+# Signatures loaded lazily to avoid DSPy import at module level
+def _lazy_sig(name):
+    from .swarm_signatures import (
+        ExpertEvaluationSignature, ReviewerAnalysisSignature,
+        PlannerOptimizationSignature, ActorExecutionSignature,
+        AuditorVerificationSignature, LearnerExtractionSignature,
+    )
+    return {
+        'ExpertEvaluationSignature': ExpertEvaluationSignature,
+        'ReviewerAnalysisSignature': ReviewerAnalysisSignature,
+        'PlannerOptimizationSignature': PlannerOptimizationSignature,
+        'ActorExecutionSignature': ActorExecutionSignature,
+        'AuditorVerificationSignature': AuditorVerificationSignature,
+        'LearnerExtractionSignature': LearnerExtractionSignature,
+    }[name]
 from .evaluation import GoldStandardDB, ImprovementHistory
 
 # Import base class
@@ -77,7 +85,7 @@ class ExpertAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=ExpertEvaluationSignature,
+            signature=_lazy_sig('ExpertEvaluationSignature'),
             config=meta_config,
             gold_db=gold_db,
         )
@@ -148,7 +156,7 @@ class ReviewerAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=ReviewerAnalysisSignature,
+            signature=_lazy_sig('ReviewerAnalysisSignature'),
             config=meta_config,
             improvement_history=history,
         )
@@ -217,7 +225,7 @@ class PlannerAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=PlannerOptimizationSignature,
+            signature=_lazy_sig('PlannerOptimizationSignature'),
             config=meta_config,
             improvement_history=history,
         )
@@ -304,7 +312,7 @@ class ActorAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=ActorExecutionSignature,
+            signature=_lazy_sig('ActorExecutionSignature'),
             config=meta_config,
             improvement_history=history,
         )
@@ -385,7 +393,7 @@ class AuditorAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=AuditorVerificationSignature,
+            signature=_lazy_sig('AuditorVerificationSignature'),
             config=meta_config,
         )
         self.swarm_config = config
@@ -459,7 +467,7 @@ class LearnerAgent(MetaAgent):
             max_tokens=config.max_tokens,
         )
         super().__init__(
-            signature=LearnerExtractionSignature,
+            signature=_lazy_sig('LearnerExtractionSignature'),
             config=meta_config,
         )
         self.swarm_config = config

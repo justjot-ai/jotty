@@ -193,6 +193,15 @@ class SwarmTerminal:
         self._fix_db_path = Path.home() / '.jotty' / 'fix_database.json'
         self._load_fix_database()
 
+        # Sandbox guard for untrusted code execution
+        self._sandbox = None
+        try:
+            from .sandbox_manager import SandboxManager
+            self._sandbox = SandboxManager()
+            logger.debug("SandboxManager attached to SwarmTerminal")
+        except Exception as e:
+            logger.debug(f"SandboxManager unavailable: {e}")
+
         # DSPy modules for intelligent analysis
         if DSPY_AVAILABLE:
             self.command_analyzer = dspy.ChainOfThought(CommandAnalyzerSignature)
@@ -440,6 +449,57 @@ class SwarmTerminal:
 
         return result
 
+    async def execute_sandboxed(
+        self,
+        code: str,
+        language: str = "python",
+        timeout: int = 30,
+    ) -> 'CommandResult':
+        """
+        Execute code in a sandbox (if SandboxManager is available).
+
+        Falls back to _execute_raw if sandbox is unavailable.
+
+        Args:
+            code: Code string to execute
+            language: Programming language (default: python)
+            timeout: Execution timeout in seconds
+
+        Returns:
+            CommandResult
+        """
+        if self._sandbox:
+            try:
+                from .sandbox_manager import TrustLevel
+                # Override default timeout for this call
+                old_timeout = self._sandbox.default_timeout
+                self._sandbox.default_timeout = timeout
+                try:
+                    sb_result = await self._sandbox.execute_sandboxed(
+                        code=code,
+                        trust_level=TrustLevel.SANDBOXED,
+                        language=language,
+                    )
+                finally:
+                    self._sandbox.default_timeout = old_timeout
+                out_text = getattr(sb_result, 'stdout', '') or str(sb_result.output or '')
+                err_text = getattr(sb_result, 'stderr', '') or sb_result.error or ''
+                return CommandResult(
+                    command=f"[sandbox:{language}] {code[:80]}...",
+                    success=sb_result.success,
+                    output=out_text,
+                    error=err_text,
+                )
+            except Exception as e:
+                logger.warning(f"Sandbox execution failed, falling back: {e}")
+
+        # Fallback: run via _execute_raw (less isolated, but with timeout)
+        if language == "python":
+            cmd = f'python3 -c {repr(code)}'
+        else:
+            cmd = code
+        return await self._execute_raw(cmd, timeout=timeout)
+
     async def _execute_raw(
         self,
         command: str,
@@ -448,41 +508,68 @@ class SwarmTerminal:
     ) -> CommandResult:
         """Execute command without error handling."""
         import subprocess
+        import asyncio
+        import signal
 
-        try:
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=working_dir
-            )
+        def _run_sync():
+            proc = None
+            try:
+                proc = subprocess.Popen(
+                    command,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=working_dir,
+                    start_new_session=True,
+                )
+                stdout, stderr = proc.communicate(timeout=timeout)
+                return CommandResult(
+                    success=proc.returncode == 0,
+                    command=command,
+                    output=stdout.decode(errors='replace') if stdout else "",
+                    error=stderr.decode(errors='replace') if stderr else "",
+                    exit_code=proc.returncode,
+                )
+            except subprocess.TimeoutExpired:
+                if proc:
+                    # Kill entire process group (shell + children)
+                    try:
+                        pgid = os.getpgid(proc.pid)
+                        os.killpg(pgid, signal.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        try:
+                            proc.kill()
+                        except OSError:
+                            pass
+                    # Close pipes explicitly (don't drain — may block)
+                    for pipe in (proc.stdout, proc.stderr, proc.stdin):
+                        if pipe:
+                            try:
+                                pipe.close()
+                            except OSError:
+                                pass
+                    try:
+                        proc.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        pass
+                return CommandResult(
+                    success=False,
+                    command=command,
+                    output="",
+                    error=f"Command timed out after {timeout}s",
+                    exit_code=-1,
+                )
+            except Exception as e:
+                return CommandResult(
+                    success=False,
+                    command=command,
+                    output="",
+                    error=str(e),
+                    exit_code=-1,
+                )
 
-            return CommandResult(
-                success=result.returncode == 0,
-                command=command,
-                output=result.stdout,
-                error=result.stderr,
-                exit_code=result.returncode
-            )
-
-        except subprocess.TimeoutExpired:
-            return CommandResult(
-                success=False,
-                command=command,
-                output="",
-                error=f"Command timed out after {timeout}s",
-                exit_code=-1
-            )
-        except Exception as e:
-            return CommandResult(
-                success=False,
-                command=command,
-                output="",
-                error=str(e),
-                exit_code=-1
-            )
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _run_sync)
 
     async def write_file(self, path: str, content: str, mode: str = 'w') -> CommandResult:
         """

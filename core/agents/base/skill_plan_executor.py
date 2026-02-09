@@ -116,11 +116,21 @@ class SkillPlanExecutor:
             logger.info(f"Skill selection cache HIT: {task_type} → {[s['name'] for s in cached]}")
             return cached
 
+        SKILL_SELECT_TIMEOUT = 30.0  # Skill selection should never take >30s
+
         try:
-            selected, reasoning = self.planner.select_skills(
-                task=task,
-                available_skills=available_skills,
-                max_skills=max_skills,
+            loop = asyncio.get_event_loop()
+            selected, reasoning = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.planner.select_skills(
+                        task=task,
+                        available_skills=available_skills,
+                        max_skills=max_skills,
+                        task_type=task_type,
+                    ),
+                ),
+                timeout=SKILL_SELECT_TIMEOUT,
             )
             logger.debug(f"Skill selection reasoning: {reasoning}")
 
@@ -130,6 +140,9 @@ class SkillPlanExecutor:
                 logger.debug(f"Skill selection cached: {task_type}")
 
             return selected
+        except asyncio.TimeoutError:
+            logger.warning(f"Skill selection timed out after {SKILL_SELECT_TIMEOUT}s — using top skills")
+            return available_skills[:max_skills]
         except Exception as e:
             logger.warning(f"Skill selection failed: {e}")
             return available_skills[:max_skills]
@@ -161,16 +174,29 @@ class SkillPlanExecutor:
             logger.warning("No planner available, returning empty plan")
             return []
 
+        PLAN_TIMEOUT = 45.0  # Planning should never take >45s
+
         try:
-            steps, reasoning = self.planner.plan_execution(
-                task=task,
-                task_type=task_type,
-                skills=skills,
-                previous_outputs=previous_outputs,
-                max_steps=self._max_steps,
+            # Run sync planner in executor with timeout to prevent hangs
+            loop = asyncio.get_event_loop()
+            steps, reasoning = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.planner.plan_execution(
+                        task=task,
+                        task_type=task_type,
+                        skills=skills,
+                        previous_outputs=previous_outputs,
+                        max_steps=self._max_steps,
+                    ),
+                ),
+                timeout=PLAN_TIMEOUT,
             )
             logger.debug(f"Plan reasoning: {reasoning}")
             return steps
+        except asyncio.TimeoutError:
+            logger.warning(f"Planning timed out after {PLAN_TIMEOUT}s — using direct LLM fallback")
+            return []
         except Exception as e:
             logger.error(f"Planning failed: {e}")
             return []
@@ -207,34 +233,56 @@ class SkillPlanExecutor:
             logger.warning("No planner available for reflective replanning")
             return [], "No planner available", ""
 
+        REPLAN_TIMEOUT = 30.0  # Replanning should be fast; if it takes >30s, skip it
+
         # Use reflective replanning if planner supports it
         if hasattr(self.planner, 'replan_with_reflection'):
             try:
                 excluded = list(self._excluded_skills)
-                steps, reflection, reasoning = self.planner.replan_with_reflection(
-                    task=task,
-                    task_type=task_type,
-                    skills=skills,
-                    failed_steps=failed_steps,
-                    completed_outputs=completed_outputs,
-                    excluded_skills=excluded,
-                    max_steps=remaining_steps,
+                loop = asyncio.get_event_loop()
+                steps, reflection, reasoning = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda: self.planner.replan_with_reflection(
+                            task=task,
+                            task_type=task_type,
+                            skills=skills,
+                            failed_steps=failed_steps,
+                            completed_outputs=completed_outputs,
+                            excluded_skills=excluded,
+                            max_steps=remaining_steps,
+                        ),
+                    ),
+                    timeout=REPLAN_TIMEOUT,
                 )
                 logger.info(f"Reflective replan: {len(steps)} steps, reflection: {reflection[:80]}")
                 return steps, reflection, reasoning
+            except asyncio.TimeoutError:
+                logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
+                return [], "Replan timed out", ""
             except Exception as e:
                 logger.warning(f"Reflective replanning failed: {e}, falling back")
 
-        # Fallback to regular plan_execution
+        # Fallback to regular plan_execution (also with timeout)
         try:
-            steps, reasoning = self.planner.plan_execution(
-                task=task,
-                task_type=task_type,
-                skills=skills,
-                previous_outputs=completed_outputs,
-                max_steps=remaining_steps,
+            loop = asyncio.get_event_loop()
+            steps, reasoning = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self.planner.plan_execution(
+                        task=task,
+                        task_type=task_type,
+                        skills=skills,
+                        previous_outputs=completed_outputs,
+                        max_steps=remaining_steps,
+                    ),
+                ),
+                timeout=REPLAN_TIMEOUT,
             )
             return steps, "Regular replanning (no reflection)", reasoning
+        except asyncio.TimeoutError:
+            logger.warning(f"Fallback replanning timed out after {REPLAN_TIMEOUT}s")
+            return [], "Replan timed out", ""
         except Exception as e:
             logger.error(f"Fallback replanning failed: {e}")
             return [], f"Replanning failed: {e}", ""
@@ -338,10 +386,12 @@ class SkillPlanExecutor:
         try:
             import asyncio as _asyncio
 
-            # Determine per-step timeout (default 120s, web skills 60s)
-            step_timeout = 120.0
+            # Determine per-step timeout (default 90s, web skills 30s)
+            # Reduced from 120s/60s — smart_fetch now has a 20s hard budget per URL,
+            # so even search_and_scrape (3 URLs parallel) finishes within ~25s.
+            step_timeout = 90.0
             if any(kw in step.skill_name.lower() for kw in ['web', 'search', 'http', 'scrape']):
-                step_timeout = 60.0
+                step_timeout = 30.0
 
             if inspect.iscoroutinefunction(tool):
                 result = await _asyncio.wait_for(tool(resolved_params), timeout=step_timeout)
@@ -618,9 +668,9 @@ class SkillPlanExecutor:
         task_type = self.infer_task_type(task)
         _status("Task type", task_type)
 
-        # Step 2: Select best skills
+        # Step 2: Select best skills (pre-filtered by task type capabilities)
         _status("Selecting", "choosing best skills")
-        skills = await self.select_skills(task, discovered_skills)
+        skills = await self.select_skills(task, discovered_skills, task_type=task_type)
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
         # Step 3: Create plan
@@ -642,16 +692,30 @@ class SkillPlanExecutor:
                 "execution_time": time.time() - start_time,
             }
 
-        # Step 4: Execute steps
+        # Step 4: Execute steps with total execution budget
+        # Instead of letting individual steps pile up to a full timeout,
+        # enforce a total wall-clock budget. When exhausted, return partial
+        # results (what we have so far) instead of a full timeout failure.
+        TOTAL_EXECUTION_BUDGET = 240.0  # 4 minutes hard cap for all steps
         outputs = {}
         skills_used = []
         errors = []
         replan_count = 0
+        budget_exhausted = False
 
         for i, step in enumerate(steps):
+            # Check total budget before starting each step
+            elapsed = time.time() - start_time
+            remaining_budget = TOTAL_EXECUTION_BUDGET - elapsed
+            if remaining_budget < 5.0:
+                _status("Budget", f"execution budget exhausted ({elapsed:.0f}s) — returning partial results")
+                errors.append(f"Budget exhausted after step {i}/{len(steps)} ({elapsed:.0f}s)")
+                budget_exhausted = True
+                break
+
             _status(
                 f"Step {i + 1}/{len(steps)}",
-                f"{step.skill_name}: {step.description[:100]}",
+                f"{step.skill_name}: {step.description[:100]} (budget: {remaining_budget:.0f}s left)",
             )
 
             result = await self.execute_step(step, outputs, status_callback)
@@ -679,7 +743,7 @@ class SkillPlanExecutor:
                     ]
                     if any(kw in error_msg.lower() for kw in exclusion_keywords):
                         self._excluded_skills.add(step.skill_name)
-                        logger.info(f"🚫 Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
+                        logger.info(f"Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
 
                     # For transient errors, retry once before replanning
                     transient_keywords = ['timeout', 'connection', 'rate limit', 'retry']
@@ -692,6 +756,11 @@ class SkillPlanExecutor:
                             skills_used.append(step.skill_name)
                             _status(f"Step {i + 1}", "retry succeeded")
                             continue
+
+                    # Check budget before replanning (replanning = LLM call = expensive)
+                    if (time.time() - start_time) > (TOTAL_EXECUTION_BUDGET * 0.75):
+                        _status("Skip replan", "budget low — continuing with remaining steps")
+                        continue
 
                     _status("Replanning", "adapting to failure with reflection")
                     failed_step_info = {
@@ -721,6 +790,7 @@ class SkillPlanExecutor:
             "outputs": outputs,
             "final_output": final_output,
             "errors": errors,
+            "budget_exhausted": budget_exhausted,
             "execution_time": time.time() - start_time,
         }
 

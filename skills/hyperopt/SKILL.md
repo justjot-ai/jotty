@@ -1,6 +1,6 @@
 # Hyperopt Skill
 
-**Description:** Hyperparameter optimization using Optuna Bayesian optimization.
+Hyperparameter optimization using Optuna Bayesian search for ML models.
 
 
 ## Type

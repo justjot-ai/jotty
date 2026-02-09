@@ -228,6 +228,9 @@ class AutonomousAgent(BaseAgent):
         Args:
             task: Task description
             **kwargs: Additional arguments
+                direct_llm: If True, bypass skill pipeline entirely and use
+                    LLM directly with system_prompt. Used by multi-agent mode
+                    for specialized sub-agents that do analysis/synthesis.
 
         Returns:
             Dict with execution results
@@ -238,6 +241,7 @@ class AutonomousAgent(BaseAgent):
         # Learning context is kept separate from task to prevent pollution
         # of search queries, entity extraction, and skill params
         learning_context = kwargs.pop('learning_context', None)
+        direct_llm = kwargs.pop('direct_llm', False)
 
         def _status(stage: str, detail: str = ""):
             if status_callback:
@@ -247,17 +251,54 @@ class AutonomousAgent(BaseAgent):
                     pass
             logger.info(f"{stage}: {detail}" if detail else stage)
 
+        # ── DIRECT LLM MODE ────────────────────────────────────────────
+        # For multi-agent sub-agents that are specialized via system_prompt:
+        # Skip the entire skill pipeline (task inference, skill discovery,
+        # skill selection, planning) and call the LLM directly.
+        # This turns a ~120s pipeline into a ~15-20s direct LLM call.
+        if direct_llm:
+            _status("Direct LLM", "bypassing skill pipeline (multi-agent sub-agent)")
+            llm_response = await self._fallback_llm_response(task)
+            if llm_response:
+                return {
+                    "success": True,
+                    "task": task,
+                    "task_type": "direct_llm",
+                    "skills_used": ["direct-llm"],
+                    "steps_executed": 1,
+                    "outputs": {"llm_response": llm_response},
+                    "final_output": llm_response,
+                    "errors": [],
+                    "execution_time": time.time() - start_time,
+                }
+            return {
+                "success": False,
+                "task": task,
+                "error": "Direct LLM response failed",
+                "skills_used": [],
+                "steps_executed": 0,
+                "outputs": {},
+                "execution_time": time.time() - start_time,
+            }
+
         # Reset excluded skills for new execution (single source of truth: executor)
         self.executor.clear_exclusions()
 
-        # Step 1: Infer task type (uses CLEAN task — no learning context)
-        _status("Analyzing", "inferring task type")
-        task_type = self._infer_task_type(task)
-        _status("Task type", task_type)
+        # Steps 1+2: Infer task type AND discover skills IN PARALLEL
+        # These are independent: task_type uses LLM/keywords, discovery queries registry.
+        # Running them concurrently saves ~5-10s vs sequential.
+        import asyncio as _asyncio
 
-        # Step 2: Discover skills (uses CLEAN task — no learning context)
-        _status("Discovering", "finding relevant skills")
-        all_skills = await self._discover_skills(task)
+        _status("Analyzing", "inferring task type + discovering skills (parallel)")
+
+        async def _infer_type_async():
+            return self._infer_task_type(task)
+
+        task_type, all_skills = await _asyncio.gather(
+            _infer_type_async(),
+            self._discover_skills(task),
+        )
+        _status("Task type", task_type)
         _status("Skills found", f"{len(all_skills)} potential")
 
         # Report any skills that failed to load (helps debugging)
@@ -270,6 +311,52 @@ class AutonomousAgent(BaseAgent):
         # Step 3: Select best skills (uses CLEAN task, cached by task_type)
         _status("Selecting", "choosing best skills")
         skills = await self._select_skills(task, all_skills, task_type=task_type)
+
+        # OPTIMIZATION: Strip heavy/irrelevant skills for knowledge-only tasks.
+        # Tasks about design, architecture, algorithms, explanations etc. don't
+        # need web research, arxiv papers, slideshows, or mindmaps — the LLM
+        # already knows the answer. These tools add 60-300s of latency and
+        # lead the planner to create unnecessarily complex multi-step plans.
+        _KNOWLEDGE_TASK_TYPES = {'analysis', 'explanation', 'design', 'architecture',
+                                 'algorithm', 'tutorial', 'comparison', 'review'}
+        _HEAVY_SKILLS = {
+            'web-search', 'web-scraper',           # web scraping: 30-120s waste
+            'arxiv-downloader',                     # paper download: unnecessary for design
+            'mindmap-generator', 'pptx-editor',    # presentation tools: not needed
+            'image-generator',                      # image gen: not needed
+            'screener-financials',                  # finance: irrelevant
+        }
+        # Skills that ARE useful for knowledge tasks — keep these
+        _KNOWLEDGE_USEFUL = {'claude-cli-llm', 'file-operations', 'calculator',
+                             'text-utils', 'shell-exec', 'unit-converter'}
+        _task_lower = task.lower()
+        _is_knowledge_task = (
+            task_type in _KNOWLEDGE_TASK_TYPES
+            or any(kw in _task_lower for kw in [
+                'design', 'architect', 'explain', 'compare', 'review',
+                'algorithm', 'pattern', 'best practice', 'how to implement',
+                'trade-off', 'pros and cons', 'what is', 'describe',
+            ])
+        )
+        # Only strip if the user didn't explicitly ask for web/papers/slides
+        _wants_heavy = any(kw in _task_lower for kw in [
+            'search', 'find online', 'latest', 'recent', 'news', 'current',
+            'scrape', 'fetch', 'url', 'http', 'website', 'browse',
+            'arxiv', 'paper', 'slides', 'presentation', 'mindmap',
+        ])
+        if _is_knowledge_task and not _wants_heavy:
+            _before = len(skills)
+            # For pure knowledge/design tasks: keep ONLY useful skills, strip everything else
+            # The LLM knows the content; we just need to generate text and optionally save it.
+            _remaining = [s for s in skills if s.get('name') in _KNOWLEDGE_USEFUL]
+            if not _remaining:
+                # Ensure at least claude-cli-llm is available
+                _remaining = [s for s in all_skills if s.get('name') == 'claude-cli-llm'][:1]
+            if _remaining and len(_remaining) < _before:
+                skills = _remaining
+                _stripped = _before - len(skills)
+                _status("Optimized", f"kept {len(skills)} useful skills for knowledge task (stripped {_stripped} heavy)")
+
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
         # TOO_HARD early-exit: if no skills found at all, signal difficulty
@@ -295,9 +382,15 @@ class AutonomousAgent(BaseAgent):
         # for simple tasks (analysis, Q&A).  Detect this early and skip the
         # planning LLM call entirely — go straight to direct LLM response.
         # This saves ~15s per simple task.
+        #
+        # Extended: Also skip planning when only LLM + simple utility skills
+        # are selected. The planner adds no value for "think + write to file" tasks.
         skill_names = {s['name'] for s in skills}
-        _direct_llm_skills = {'claude-cli-llm', 'calculator', 'unit-converter'}
-        _needs_planning = not skill_names.issubset(_direct_llm_skills)
+        # Skills that don't need a multi-step LLM plan — they're simple enough
+        # for direct invocation or heuristic routing.
+        _direct_llm_only = {'claude-cli-llm', 'calculator', 'unit-converter',
+                            'text-utils', 'file-operations', 'shell-exec'}
+        _needs_planning = not skill_names.issubset(_direct_llm_only)
 
         steps = []
         if _needs_planning:
@@ -315,6 +408,24 @@ class AutonomousAgent(BaseAgent):
             _status("Generating", "direct LLM response")
             llm_response = await self._fallback_llm_response(task)
             if llm_response:
+                # If file-operations was selected and task wants output saved,
+                # write the LLM response to a file automatically.
+                if 'file-operations' in skill_names:
+                    try:
+                        _save_kws = ['save', 'write to', 'create a file', 'output to']
+                        if any(kw in task.lower() for kw in _save_kws) and self.skills_registry:
+                            fo_skill = self.skills_registry.get_skill('file-operations')
+                            if fo_skill and fo_skill.tools:
+                                write_tool = fo_skill.tools.get('write_file_tool')
+                                if write_tool:
+                                    # Infer filename from planner utility
+                                    from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+                                    _fname = PlanUtilsMixin._infer_filename_from_task(None, task) or 'output.md'
+                                    write_tool({'path': _fname, 'content': llm_response})
+                                    _status("Saved", f"output written to {_fname}")
+                    except Exception as e:
+                        logger.debug(f"Auto-save failed (non-critical): {e}")
+
                 return {
                     "success": True,
                     "task": task,
@@ -436,19 +547,40 @@ class AutonomousAgent(BaseAgent):
         Used for simple conversational queries where no execution plan
         is required - the LLM can respond directly.
 
+        Priority: DSPy API (fast, ~10-30s) > claude-cli-llm skill (slow, shells out to CLI)
+
         Args:
             task: The user's query/task
 
         Returns:
             LLM response string or None if generation fails
         """
-        try:
-            # Inject system_prompt if configured (essential for multi-agent roles)
-            prompt = task
-            if self.config.system_prompt:
-                prompt = f"[System: {self.config.system_prompt}]\n\n{task}"
+        # Inject system_prompt if configured (essential for multi-agent roles)
+        prompt = task
+        if self.config.system_prompt:
+            prompt = f"[System: {self.config.system_prompt}]\n\n{task}"
 
-            # Try using the claude-cli-llm skill first
+        # 1. Try DSPy API first (fastest — direct HTTP to Anthropic/OpenAI)
+        # Run in executor so sync HTTP doesn't block the event loop
+        # (critical for multi-agent parallel execution)
+        try:
+            import dspy
+            import asyncio as _aio
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+                lm = dspy.settings.lm
+                loop = _aio.get_event_loop()
+                response = await loop.run_in_executor(None, lambda: lm(prompt=prompt))
+                if isinstance(response, list):
+                    text = response[0] if response else None
+                else:
+                    text = str(response) if response else None
+                if text and len(text.strip()) > 10:
+                    return text.strip()
+        except Exception as e:
+            logger.debug(f"DSPy LLM call failed: {e}")
+
+        # 2. Fallback to claude-cli-llm skill (slower — shells out to CLI binary)
+        try:
             if self.skills_registry:
                 skill = self.skills_registry.get_skill('claude-cli-llm')
                 if skill and skill.tools:
@@ -458,16 +590,6 @@ class AutonomousAgent(BaseAgent):
                         if isinstance(result, dict):
                             return result.get('response') or result.get('content') or result.get('text')
                         return str(result) if result else None
-
-            # Fallback to direct DSPy call
-            import dspy
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
-                lm = dspy.settings.lm
-                response = lm(prompt=prompt)
-                if isinstance(response, list):
-                    return response[0] if response else None
-                return str(response)
-
         except Exception as e:
             logger.warning(f"Fallback LLM response failed: {e}")
 

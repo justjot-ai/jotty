@@ -179,47 +179,25 @@ Provide the summary in markdown format with clear sections."""
         # Step 3: Sink - Create Idea on JustJot.ai
         logger.info("💡 Step 3: Creating idea on JustJot.ai...")
         
-        # Try MCP client first, fallback to HTTP API
+        # Create idea via mcp-justjot skill (single source of truth)
         idea_created = False
         idea_result = None
-        
-        if use_mcp_client:
-            try:
-                mcp_skill = registry.get_skill('mcp-justjot-mcp-client')
-                if mcp_skill:
-                    create_tool = mcp_skill.tools.get('create_idea_mcp_tool')
-                    if create_tool:
-                        logger.info("   Using MCP client (direct MongoDB)...")
-                        idea_result = await create_tool({
-                            'title': title or f"Research: {topic.title()}",
-                            'description': description or f"Research and analysis on {topic}",
-                            'tags': tags + ['research', 'ai-generated'],
-                            'userId': params.get('userId') or 'user_36W0zSjAkJe54fkRtDWLb4qMrpH',  # Use provided userId or default to setia.naveen@gmail.com
-                            'author': params.get('author') or 'Jotty MCP Client',
-                            'sections': _create_sections_from_summary(summary_text, search_results)
-                        })
-                        if idea_result.get('success'):
-                            idea_created = True
-            except Exception as e:
-                logger.warning(f"   MCP client failed: {e}, falling back to HTTP API")
-        
-        # Fallback to HTTP API if MCP client failed
-        if not idea_created:
-            logger.info("   Using HTTP API...")
-            http_skill = registry.get_skill('mcp-justjot')
-            if http_skill:
-                create_tool = http_skill.tools.get('create_idea_tool')
-                if create_tool:
-                    idea_result = await create_tool({
-                        'title': title or f"Research: {topic.title()}",
-                        'description': description or f"Research and analysis on {topic}",
-                        'tags': tags + ['research', 'ai-generated'],
-                        'userId': params.get('userId') or 'user_36W0zSjAkJe54fkRtDWLb4qMrpH',  # Use provided userId or default to setia.naveen@gmail.com
-                        'author': params.get('author') or 'Jotty MCP Client',
-                        'sections': _create_sections_from_summary(summary_text, search_results)
-                    })
-                    if idea_result.get('success'):
-                        idea_created = True
+
+        justjot_skill = registry.get_skill('mcp-justjot')
+        if justjot_skill:
+            create_tool = justjot_skill.tools.get('create_idea_tool')
+            if create_tool:
+                logger.info("   Using mcp-justjot skill...")
+                idea_result = await create_tool({
+                    'title': title or f"Research: {topic.title()}",
+                    'description': description or f"Research and analysis on {topic}",
+                    'tags': tags + ['research', 'ai-generated'],
+                    'userId': params.get('userId') or 'user_36W0zSjAkJe54fkRtDWLb4qMrpH',
+                    'author': params.get('author') or 'Jotty',
+                    'sections': _create_sections_from_summary(summary_text, search_results)
+                })
+                if idea_result.get('success'):
+                    idea_created = True
         
         if not idea_created:
             return {

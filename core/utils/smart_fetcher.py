@@ -253,10 +253,11 @@ class FetchResult:
 
 def smart_fetch(
     url: str,
-    timeout: int = 15,
-    max_proxy_attempts: int = 2,
+    timeout: int = 8,
+    max_proxy_attempts: int = 1,
     headers: Optional[Dict[str, str]] = None,
     method: str = 'GET',
+    total_budget: float = 20.0,
 ) -> FetchResult:
     """
     Intelligently fetch a URL with proven escalation chain.
@@ -271,15 +272,25 @@ def smart_fetch(
 
     Args:
         url: URL to fetch
-        timeout: Request timeout in seconds
-        max_proxy_attempts: Max proxy retries (level 4)
+        timeout: Request timeout in seconds per attempt (default: 8s, was 15s)
+        max_proxy_attempts: Max proxy retries (default: 1, was 2)
         headers: Custom headers (defaults to randomized)
         method: HTTP method (default: GET)
+        total_budget: Hard wall-clock budget for ALL escalation attempts (default: 20s).
+                      Prevents cascade from burning 60s+ on a single URL.
 
     Returns:
         FetchResult with success, content, source, etc.
     """
+    _fetch_start = time.time()
     domain = urlparse(url).netloc.lower()
+
+    def _budget_remaining() -> float:
+        """Seconds left in total budget."""
+        return max(0, total_budget - (time.time() - _fetch_start))
+
+    def _budget_exhausted() -> bool:
+        return _budget_remaining() < 1.0
 
     # Quick skip: truly unfetchable domains
     if any(d in domain for d in UNFETCHABLE_DOMAINS):
@@ -304,8 +315,9 @@ def smart_fetch(
     # ── Level 1: Direct request (skip for known-blocked domains) ──
     if not is_blocked_domain and not is_aggressively_blocked:
         try:
+            _t = min(timeout, _budget_remaining())
             resp = requests.request(method, url, headers=req_headers,
-                                    timeout=timeout, allow_redirects=True)
+                                    timeout=_t, allow_redirects=True)
             if resp.status_code < 400:
                 return FetchResult(
                     success=True, response=resp, content=resp.text,
@@ -327,8 +339,17 @@ def smart_fetch(
     else:
         logger.debug(f"SmartFetch: {domain} is known-blocked, skipping direct")
 
+    # ── Budget check before Level 2 ──
+    if _budget_exhausted():
+        _blocked_cache.add(domain)
+        return FetchResult(
+            success=False,
+            error=f"Budget exhausted ({total_budget:.0f}s) after direct attempt for {domain}",
+            status_code=0,
+        )
+
     # ── Level 2: archive.org Wayback Machine API ──
-    archive_html = _try_archive_org(url, timeout=timeout)
+    archive_html = _try_archive_org(url, timeout=min(timeout, _budget_remaining()))
     if archive_html:
         return FetchResult(
             success=True, content=archive_html,
@@ -345,8 +366,19 @@ def smart_fetch(
             error=f"{domain} blocks scrapers — archive.org had no snapshot. Content unavailable.",
         )
 
+    # ── Budget check before Level 3 ──
+    if _budget_exhausted():
+        _blocked_cache.add(domain)
+        return FetchResult(
+            success=False,
+            error=f"Budget exhausted ({total_budget:.0f}s) before proxy for {domain}",
+            status_code=0,
+        )
+
     rotator = get_proxy_rotator()
     for attempt in range(max_proxy_attempts):
+        if _budget_exhausted():
+            break
         proxy_dict = rotator.get_proxy()
         if not proxy_dict:
             break
@@ -354,10 +386,11 @@ def smart_fetch(
         proxy_url = proxy_dict.get('http', '')
         try:
             req_headers['User-Agent'] = random.choice(USER_AGENTS)
+            _t = min(timeout, _budget_remaining())
             resp = requests.request(
                 method, url,
                 headers=req_headers, proxies=proxy_dict,
-                timeout=timeout, allow_redirects=True,
+                timeout=_t, allow_redirects=True,
             )
             if resp.status_code < 400:
                 logger.info(f"SmartFetch: {domain} via proxy (attempt {attempt + 1})")

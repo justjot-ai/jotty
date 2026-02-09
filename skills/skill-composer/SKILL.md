@@ -1,6 +1,6 @@
 # Skill Composer
 
-Dynamically compose multiple skills into complex workflows.
+Compose multiple skills into sequential, parallel, or conditional workflows.
 
 
 ## Type

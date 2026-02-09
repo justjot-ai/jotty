@@ -15,93 +15,63 @@ Plus domain-specific agents:
 - ModelChatAgent: ML model interaction
 - TaskBreakdownAgent: DAG workflow creation
 - TodoCreatorAgent: Actor assignment and validation
+
+Heavy imports (DSPy, etc.) are lazy-loaded on first attribute access.
 """
 
-# Base classes (unified hierarchy)
-from .base import (
-    # Core
-    BaseAgent,
-    AgentConfig,
-    AgentResult,
-    # Domain
-    DomainAgent,
-    DomainAgentConfig,
-    create_domain_agent,
-    # Meta
-    MetaAgent,
-    MetaAgentConfig,
-    create_meta_agent,
-    # Validation
-    ValidationAgent,
-    ValidationConfig,
-    ValidationResult,
-    ValidationRound,
-    OutputTag,
-    SharedScratchpad,
-    AgentMessage,
-    create_validation_agent,
-    # Autonomous
-    AutonomousAgent,
-    AutonomousAgentConfig,
-    ExecutionStep,
-    create_autonomous_agent,
-)
+import importlib as _importlib
 
-# Domain-specific agents
-from .chat_assistant import ChatAssistant, create_chat_assistant
-from .auto_agent import AutoAgent, run_task, TaskType, ExecutionResult
-from .model_chat_agent import ModelChatAgent
-from .dag_agents import (
-    TaskBreakdownAgent,
-    TodoCreatorAgent,
-    ExecutableDAG,
-    Actor,
-    create_task_breakdown_agent,
-    create_todo_creator_agent,
-)
-
-__all__ = [
-    # Base classes
-    'BaseAgent',
-    'AgentConfig',
-    'AgentResult',
-    # Domain
-    'DomainAgent',
-    'DomainAgentConfig',
-    'create_domain_agent',
-    # Meta
-    'MetaAgent',
-    'MetaAgentConfig',
-    'create_meta_agent',
-    # Validation
-    'ValidationAgent',
-    'ValidationConfig',
-    'ValidationResult',
-    'ValidationRound',
-    'OutputTag',
-    'SharedScratchpad',
-    'AgentMessage',
-    'create_validation_agent',
-    # Autonomous
-    'AutonomousAgent',
-    'AutonomousAgentConfig',
-    'ExecutionStep',
-    'create_autonomous_agent',
+_LAZY_IMPORTS: dict[str, str] = {
+    # Base classes (unified hierarchy)
+    "BaseAgent": ".base",
+    "AgentConfig": ".base",
+    "AgentResult": ".base",
+    "DomainAgent": ".base",
+    "DomainAgentConfig": ".base",
+    "create_domain_agent": ".base",
+    "MetaAgent": ".base",
+    "MetaAgentConfig": ".base",
+    "create_meta_agent": ".base",
+    "ValidationAgent": ".base",
+    "ValidationConfig": ".base",
+    "ValidationResult": ".base",
+    "ValidationRound": ".base",
+    "OutputTag": ".base",
+    "SharedScratchpad": ".base",
+    "AgentMessage": ".base",
+    "create_validation_agent": ".base",
+    "AutonomousAgent": ".base",
+    "AutonomousAgentConfig": ".base",
+    "ExecutionStep": ".base",
+    "create_autonomous_agent": ".base",
     # Chat
-    'ChatAssistant',
-    'create_chat_assistant',
+    "ChatAssistant": ".chat_assistant",
+    "create_chat_assistant": ".chat_assistant",
     # Auto
-    'AutoAgent',
-    'run_task',
-    'TaskType',
-    'ExecutionResult',
+    "AutoAgent": ".auto_agent",
+    "run_task": ".auto_agent",
+    "TaskType": ".auto_agent",
+    "ExecutionResult": ".auto_agent",
     # ML
-    'ModelChatAgent',
+    "ModelChatAgent": ".model_chat_agent",
     # DAG Agents
-    'TaskBreakdownAgent',
-    'TodoCreatorAgent',
-    'ExecutableDAG',
-    'Actor',
-    'create_task_breakdown_agent',
-    'create_todo_creator_agent',
-]
+    "TaskBreakdownAgent": ".dag_agents",
+    "TodoCreatorAgent": ".dag_agents",
+    "ExecutableDAG": ".dag_agents",
+    "Actor": ".dag_agents",
+    "create_task_breakdown_agent": ".dag_agents",
+    "create_todo_creator_agent": ".dag_agents",
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = list(_LAZY_IMPORTS.keys())

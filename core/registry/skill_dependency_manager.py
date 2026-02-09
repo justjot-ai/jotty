@@ -21,6 +21,7 @@ class SkillDependencyManager:
     Manages skill dependencies and auto-installation.
     
     Reads requirements from skills and installs them automatically.
+    Caches results per-session so each skill's deps are checked at most once.
     """
     
     def __init__(self, venv_manager=None):
@@ -32,6 +33,9 @@ class SkillDependencyManager:
         """
         from .skill_venv_manager import get_venv_manager
         self.venv_manager = venv_manager or get_venv_manager()
+        # Per-session cache: skill_name -> result dict
+        # Avoids re-checking deps every time a skill's tools are loaded
+        self._checked_cache: Dict[str, Dict[str, Any]] = {}
     
     def extract_requirements_from_code(self, code: str) -> List[str]:
         """
@@ -152,7 +156,7 @@ class SkillDependencyManager:
         """
         Ensure skill dependencies are installed.
         
-        Checks for requirements.txt or extracts from tools.py.
+        Cached per-session: each skill checked at most once.
         
         Args:
             skill_name: Skill name
@@ -161,6 +165,10 @@ class SkillDependencyManager:
         Returns:
             Dict with installation status
         """
+        # Cache hit — skip disk reads + pip check entirely
+        if skill_name in self._checked_cache:
+            return self._checked_cache[skill_name]
+
         tools_py = skill_dir / "tools.py"
         requirements_txt = skill_dir / "requirements.txt"
         
@@ -168,11 +176,15 @@ class SkillDependencyManager:
         if tools_py.exists():
             tools_code = tools_py.read_text()
         
-        return self.check_and_install_dependencies(
+        result = self.check_and_install_dependencies(
             skill_name=skill_name,
             tools_code=tools_code,
             requirements_file=requirements_txt if requirements_txt.exists() else None
         )
+        
+        # Cache the result
+        self._checked_cache[skill_name] = result
+        return result
 
 
 # Singleton instance

@@ -3,140 +3,70 @@ Learning Layer - Reinforcement Learning
 =======================================
 
 RL components including TD(λ), Q-learning, and multi-agent credit assignment.
-
-Modules:
---------
-- learning: TD(λ) learner, adaptive learning rate
-- q_learning: Q-learning with LLM Q-predictor
-- rl_components: Core RL building blocks
-- offline_learning: Offline training
-- shaped_rewards: Reward shaping
-- predictive_marl: Predictive multi-agent RL
-- predictive_cooperation: Cooperation prediction
-- algorithmic_credit: Credit assignment algorithms
+All imports are lazy to avoid pulling in DSPy/OpenAI/Anthropic at module load time.
 """
 
-# REFACTORING PHASE 5: Base learning manager interfaces
-from .base_learning_manager import (
-    BaseLearningManager,
-    ValueBasedLearningManager,
-    RewardShapingManager,
-    MultiAgentLearningManager,
-)
+import importlib as _importlib
 
-from .algorithmic_credit import (
-    AgentContribution,
-    AlgorithmicCreditAssigner,
-    Coalition,
-    CounterfactualSignature as AlgorithmicCounterfactualSignature,
-    DifferenceRewardEstimator,
-    ShapleyEstimatorSignature,
-    ShapleyValueEstimator,
-)
-from .learning import (
-    AdaptiveExploration,
-    AdaptiveLearningRate,
-    DynamicBudgetManager,
-    IntermediateRewardCalculator,
-    LearningHealthMonitor,
-    ReasoningCreditAssigner,
-    TDLambdaLearner,
-)
-from .offline_learning import (
-    CounterfactualLearner,
-    CounterfactualSignature as OfflineCounterfactualSignature,
-    OfflineLearner,
-    PatternDiscovery,
-    PatternDiscoverySignature,
-    PrioritizedEpisodeBuffer,
-)
-from .predictive_cooperation import (
-    CooperationPrinciples,
-    CooperationReasoningSignature,
-    CooperationReasoner,
-    CooperationState,
-    NashBargainingSignature,
-    NashBargainingSolver,
-    PredictiveCooperativeAgent,
-)
-from .predictive_marl import (
-    ActualTrajectory,
-    AgentModel,
-    CooperativeCreditAssigner,
-    Divergence,
-    DivergenceMemory,
-    LLMTrajectoryPredictor,
-    PredictedAction,
-    PredictedTrajectory,
-    TrajectoryPredictionSignature,
-)
-from .q_learning import (
-    LLMQPredictor,
-    LLMQPredictorSignature,
-)
-from .rl_components import (
-    RLComponents,
-)
-from .shaped_rewards import (
-    AgenticRewardEvaluator,
-    RewardCondition,
-    ShapedRewardManager,
-)
-
-__all__ = [
-    # base_learning_manager (Phase 5)
-    'BaseLearningManager',
-    'ValueBasedLearningManager',
-    'RewardShapingManager',
-    'MultiAgentLearningManager',
+_LAZY_IMPORTS: dict[str, str] = {
+    # base_learning_manager
+    "BaseLearningManager": ".base_learning_manager",
+    "ValueBasedLearningManager": ".base_learning_manager",
+    "RewardShapingManager": ".base_learning_manager",
+    "MultiAgentLearningManager": ".base_learning_manager",
     # algorithmic_credit
-    'AgentContribution',
-    'AlgorithmicCounterfactualSignature',
-    'AlgorithmicCreditAssigner',
-    'Coalition',
-    'DifferenceRewardEstimator',
-    'ShapleyEstimatorSignature',
-    'ShapleyValueEstimator',
+    "AgentContribution": ".algorithmic_credit",
+    "AlgorithmicCreditAssigner": ".algorithmic_credit",
+    "Coalition": ".algorithmic_credit",
+    "DifferenceRewardEstimator": ".algorithmic_credit",
+    "ShapleyValueEstimator": ".algorithmic_credit",
     # learning
-    'AdaptiveExploration',
-    'AdaptiveLearningRate',
-    'DynamicBudgetManager',
-    'IntermediateRewardCalculator',
-    'LearningHealthMonitor',
-    'ReasoningCreditAssigner',
-    'TDLambdaLearner',
+    "AdaptiveExploration": ".learning",
+    "AdaptiveLearningRate": ".learning",
+    "DynamicBudgetManager": ".learning",
+    "IntermediateRewardCalculator": ".learning",
+    "LearningHealthMonitor": ".learning",
+    "ReasoningCreditAssigner": ".learning",
+    "TDLambdaLearner": ".learning",
     # offline_learning
-    'CounterfactualLearner',
-    'OfflineCounterfactualSignature',
-    'OfflineLearner',
-    'PatternDiscovery',
-    'PatternDiscoverySignature',
-    'PrioritizedEpisodeBuffer',
+    "CounterfactualLearner": ".offline_learning",
+    "OfflineLearner": ".offline_learning",
+    "PatternDiscovery": ".offline_learning",
+    "PrioritizedEpisodeBuffer": ".offline_learning",
     # predictive_cooperation
-    'CooperationPrinciples',
-    'CooperationReasoningSignature',
-    'CooperationReasoner',
-    'CooperationState',
-    'NashBargainingSignature',
-    'NashBargainingSolver',
-    'PredictiveCooperativeAgent',
+    "CooperationPrinciples": ".predictive_cooperation",
+    "CooperationReasoner": ".predictive_cooperation",
+    "CooperationState": ".predictive_cooperation",
+    "NashBargainingSolver": ".predictive_cooperation",
+    "PredictiveCooperativeAgent": ".predictive_cooperation",
     # predictive_marl
-    'ActualTrajectory',
-    'AgentModel',
-    'CooperativeCreditAssigner',
-    'Divergence',
-    'DivergenceMemory',
-    'LLMTrajectoryPredictor',
-    'PredictedAction',
-    'PredictedTrajectory',
-    'TrajectoryPredictionSignature',
+    "ActualTrajectory": ".predictive_marl",
+    "AgentModel": ".predictive_marl",
+    "CooperativeCreditAssigner": ".predictive_marl",
+    "Divergence": ".predictive_marl",
+    "DivergenceMemory": ".predictive_marl",
+    "LLMTrajectoryPredictor": ".predictive_marl",
+    "PredictedAction": ".predictive_marl",
+    "PredictedTrajectory": ".predictive_marl",
     # q_learning
-    'LLMQPredictor',
-    'LLMQPredictorSignature',
+    "LLMQPredictor": ".q_learning",
     # rl_components
-    'RLComponents',
+    "RLComponents": ".rl_components",
     # shaped_rewards
-    'AgenticRewardEvaluator',
-    'RewardCondition',
-    'ShapedRewardManager',
-]
+    "AgenticRewardEvaluator": ".shaped_rewards",
+    "RewardCondition": ".shaped_rewards",
+    "ShapedRewardManager": ".shaped_rewards",
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+__all__ = list(_LAZY_IMPORTS.keys())

@@ -1,8 +1,6 @@
 # research-to-pdf
 
-Research any topic and generate a **comprehensive PDF report** with AI-synthesized analysis.
-
-## Description
+Research any topic and generate a comprehensive PDF report with AI-synthesized analysis.
 
 
 ## Type

@@ -209,15 +209,11 @@ class JustJotCommand(BaseCommand):
         email: str,
         cli: "JottyCLI"
     ) -> dict:
-        """Try submitting via JustJot MCP HTTP skill."""
+        """Try submitting via mcp-justjot skill."""
         try:
             registry = cli.get_skills_registry()
 
-            # Try justjot-mcp-http first (full MCP integration)
-            skill = registry.get_skill('justjot-mcp-http')
-            if not skill:
-                skill = registry.get_skill('justjot')
-
+            skill = registry.get_skill('mcp-justjot')
             if skill:
                 tool = skill.tools.get('create_idea_tool') or skill.tools.get('create_idea')
                 if tool:
