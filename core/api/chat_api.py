@@ -7,11 +7,11 @@ Simplified API for chat interactions.
 from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
-from ..use_cases.chat import ChatUseCase, ChatMessage
-from ..orchestration import SwarmManager
-from ..foundation.data_structures import JottyConfig
-from ..foundation.agent_config import AgentSpec
-from ..agents.chat_assistant import create_chat_assistant
+from Jotty.core.use_cases.chat import ChatUseCase, ChatMessage
+from Jotty.core.orchestration import SwarmManager
+from Jotty.core.foundation.data_structures import JottyConfig
+from Jotty.core.foundation.agent_config import AgentSpec
+from Jotty.core.agents.chat_assistant import create_chat_assistant
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class ChatAPI:
                 # Initialize local_memories for ChatAssistant (required by SwarmManager)
                 if hasattr(self.conductor, 'local_memories') and isinstance(self.conductor.local_memories, dict):
                     try:
-                        from ..memory.hierarchical_memory import HierarchicalMemory
+                        from Jotty.core.memory.hierarchical_memory import HierarchicalMemory
                         self.conductor.local_memories["ChatAssistant"] = HierarchicalMemory(
                             config=self.conductor.config,
                             agent_name="ChatAssistant"

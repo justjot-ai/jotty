@@ -1,8 +1,16 @@
 """World-Class Report Mixin - Professional and world-class report generation."""
+from __future__ import annotations
 
 import logging
 from typing import Dict, Any, List, Tuple, Optional
 from pathlib import Path
+
+try:
+    import pandas as pd
+    import numpy as np
+except ImportError:
+    pd = None  # type: ignore
+    np = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 

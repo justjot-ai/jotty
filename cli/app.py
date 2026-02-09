@@ -13,6 +13,8 @@ from typing import Optional, Any
 from .config.loader import ConfigLoader
 from .config.schema import CLIConfig
 from .ui.renderer import RichRenderer, MarkdownStreamRenderer, DesktopNotifier, REPLState
+from .ui.status import create_status_callback
+from .ui.result_display import display_result
 from .repl.engine import REPLEngine, SimpleREPL
 from .repl.session import SessionManager
 from .repl.history import HistoryManager
@@ -411,88 +413,8 @@ class JottyCLI:
         try:
             swarm = await self.get_swarm_manager()
 
-            # Agent Activity Panel - World-class CLI experience
-            # Shows real-time agent activity with beautiful icons
-            agent_icons = {
-                'analyze': '🧠', 'analyzing': '🧠',
-                'search': '🔍', 'searching': '🔍',
-                'generate': '📝', 'generating': '📝',
-                'write': '✍️', 'writing': '✍️',
-                'read': '📖', 'reading': '📖',
-                'save': '💾', 'saving': '💾',
-                'send': '📤', 'sending': '📤',
-                'decision': '🎯', 'deciding': '🎯',
-                'output': '📦', 'created': '✅',
-            }
-
-            def get_agent_icon(stage: str) -> str:
-                """Get icon for agent activity."""
-                stage_lower = stage.lower()
-                for key, icon in agent_icons.items():
-                    if key in stage_lower:
-                        return icon
-                return '→'
-
-            def status_callback(stage: str, detail: str = ""):
-                import sys
-                stage_lower = stage.lower()
-                icon = get_agent_icon(stage)
-
-                # Search results - show with icons
-                if 'search' in stage_lower and 'result' in stage_lower:
-                    count = 0
-                    if detail:
-                        import re
-                        match = re.search(r'(\d+)\s*results?', detail)
-                        if match:
-                            count = int(match.group(1))
-                    self.renderer.search_query(detail or stage, count if count else None)
-
-                # Step progress
-                elif stage_lower.startswith('step '):
-                    import re
-                    match = re.match(r'step\s+(\d+)/(\d+)', stage_lower)
-                    if match:
-                        step_num = int(match.group(1))
-                        total = int(match.group(2))
-                        status = 'done' if '✓' in detail or 'succeeded' in detail.lower() else 'running'
-                        if '✗' in detail or 'failed' in detail.lower():
-                            status = 'failed'
-                        self.renderer.step_progress(step_num, total, detail, status)
-                    else:
-                        self.renderer.print(f"  [{self.renderer.theme.muted}]{icon}[/{self.renderer.theme.muted}] {stage}: {detail}" if detail else f"  {icon} {stage}")
-
-                # File operations - beautiful cards
-                elif any(x in stage_lower for x in ['writing', 'creating file', 'saving']):
-                    self.renderer.print(f"  [bold green]{icon}[/bold green] [dim]{stage}[/dim]")
-                    if detail:
-                        self.renderer.print(f"     [cyan]{detail}[/cyan]")
-
-                elif any(x in stage_lower for x in ['reading', 'loading']):
-                    self.renderer.print(f"  [bold blue]{icon}[/bold blue] [dim]{stage}[/dim]")
-                    if detail:
-                        self.renderer.print(f"     [cyan]{detail}[/cyan]")
-
-                # Agent activity cards - the beautiful part
-                elif any(x in stage_lower for x in ['analyz', 'decision', 'generat', 'search']):
-                    self.renderer.print(f"  [bold yellow]{icon}[/bold yellow] [white]{stage}[/white]")
-                    if detail:
-                        # Truncate long details
-                        display_detail = detail[:80] + "..." if len(detail) > 80 else detail
-                        self.renderer.print(f"     [dim]{display_detail}[/dim]")
-
-                # Tool success with output path
-                elif '✓' in stage and detail:
-                    self.renderer.tool_output(stage.replace('✓', '').strip(), detail if '/' in detail else None)
-
-                # Default format with icon
-                else:
-                    if detail:
-                        self.renderer.print(f"  [cyan]{icon}[/cyan] {stage}: {detail}")
-                    else:
-                        self.renderer.print(f"  [cyan]{icon}[/cyan] {stage}")
-
-                sys.stdout.flush()  # Force flush for real-time output
+            # Status callback from extracted module
+            status_callback = create_status_callback(self.renderer)
 
             # LEAN MODE: All queries go through UnifiedExecutor
             # LLM intelligently decides: needs_external_data, output_format, etc.
@@ -506,116 +428,20 @@ class JottyCLI:
             output_text = str(result.output) if result.output else "Task completed"
             self.session.add_message("assistant", output_text)
 
-            # Display result with clear success/failure
-            self.renderer.newline()
+            # Display result using extracted module
+            if not hasattr(self, '_output_history'):
+                self._output_history = []
 
-            if result.success:
-                # Show steps taken if available (UnifiedExecutor)
-                steps = getattr(result, 'steps_taken', None)
-                if steps:
-                    self.renderer.success(f"Completed in {elapsed:.1f}s ({len(steps)} steps: {' → '.join(steps)})")
-                else:
-                    self.renderer.success(f"Completed in {elapsed:.1f}s")
+            file_paths = display_result(self.renderer, result, elapsed, self._output_history)
 
-                # Extract output - handle LeanResult, EpisodeResult, ExecutionResult, dict, or string
-                output = result.output if hasattr(result, 'output') else result
-
-                file_paths = []
-                summary = {}
-
-                # Check for direct output_path attribute (LeanResult)
-                if hasattr(result, 'output_path') and result.output_path:
-                    fmt = getattr(result, 'output_format', 'file')
-                    file_paths.append((fmt.upper(), result.output_path))
-
-                # For ExecutionResult (from AutoAgent), extract outputs dict
-                elif hasattr(output, 'outputs') and hasattr(output, 'final_output'):
-                    # ExecutionResult from AutoAgent
-                    outputs_dict = output.outputs or {}
-
-                    # Extract file paths from all step outputs (deduplicated)
-                    seen_paths = set()
-                    for step_key, step_result in outputs_dict.items():
-                        if isinstance(step_result, dict):
-                            for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
-                                if key in step_result and step_result[key]:
-                                    path = step_result[key]
-                                    if path not in seen_paths:
-                                        file_paths.append((key.replace('_', ' ').title(), path))
-                                        seen_paths.add(path)
-                            # Also extract summary info
-                            for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
-                                if key in step_result and step_result[key]:
-                                    summary[key] = step_result[key]
-
-                elif isinstance(output, dict):
-                    for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
-                        if key in output and output[key]:
-                            file_paths.append((key.replace('_', ' ').title(), output[key]))
-                    for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
-                        if key in output and output[key]:
-                            summary[key] = output[key]
-
-                elif isinstance(output, str) and not file_paths:
-                    # Look for paths in string output
-                    path_matches = re.findall(r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg|docx))', output)
-                    for match in path_matches:
-                        file_paths.append(('Output', match[0]))
-
-                # Display file paths prominently with inline preview
-                if file_paths:
-                    self.renderer.newline()
-                    self.renderer.print("[bold green]📁 Generated Files:[/bold green]")
-                    for label, path in file_paths:
-                        self.renderer.print(f"   {label}: [cyan]{path}[/cyan]")
-
-                    # Store last output path for /preview last
-                    self._last_output_path = file_paths[0][1]
-
-                    # Auto-preview first file (inline, truncated)
-                    await self._auto_preview_file(file_paths[0][1])
-
-                # Show summary
-                if summary:
-                    self.renderer.newline()
-                    self.renderer.panel(
-                        "\n".join([f"• {k}: {v}" for k, v in summary.items()]),
-                        title="Summary",
-                        style="green"
-                    )
-                elif not file_paths:
-                    # No summary and no files
-                    full_content = str(output)
-
-                    # Check if content was already streamed (don't re-render)
-                    was_streamed = getattr(result, 'was_streamed', False)
-
-                    if not was_streamed:
-                        # Not streamed, render markdown content beautifully
-                        self.renderer.newline()
-                        self.renderer.markdown(full_content)
-
-                    # Store content in history for export (always)
-                    if not hasattr(self, '_output_history'):
-                        self._output_history = []
-                    self._output_history.append(full_content)
-                    # Keep last 20 outputs
-                    if len(self._output_history) > 20:
-                        self._output_history = self._output_history[-20:]
-
-                    # Show interactive export options
+            if file_paths:
+                self._last_output_path = file_paths[0][1]
+                await self._auto_preview_file(file_paths[0][1])
+            elif result.success and not file_paths:
+                full_content = str(result.output if hasattr(result, 'output') else result)
+                if not getattr(result, 'was_streamed', False):
                     self.renderer.newline()
                     await self._show_export_options(full_content)
-            else:
-                self.renderer.error(f"Failed after {elapsed:.1f}s")
-
-                # Show error details
-                error_msg = getattr(result, 'error', None)
-                if not error_msg and hasattr(result, 'alerts') and result.alerts:
-                    error_msg = "; ".join(result.alerts[:3])
-
-                if error_msg:
-                    self.renderer.panel(error_msg, title="Error Details", style="red")
 
             # Desktop notification for long tasks
             if self.config.ui.enable_notifications:
@@ -645,9 +471,10 @@ class JottyCLI:
 
     async def _execute_lean_mode(self, task: str, status_callback=None) -> Any:
         """
-        Execute task via UnifiedExecutor - native LLM tool calling.
+        Execute task via ModeRouter (CHAT mode) - native LLM tool calling.
 
         The LLM decides what tools to call: web search, file read, save docx, etc.
+        All execution flows through ModeRouter for consistent behavior.
 
         Args:
             task: Task description
@@ -656,6 +483,11 @@ class JottyCLI:
         Returns:
             Result with content and output path
         """
+        from Jotty.core.api.mode_router import get_mode_router
+        from Jotty.core.foundation.types.sdk_types import (
+            ExecutionContext, ExecutionMode, ChannelType,
+        )
+
         # Clean task: Remove any accumulated context pollution
         clean_task = self._clean_task_for_lean_execution(task)
 
@@ -677,13 +509,16 @@ class JottyCLI:
             md_stream.feed(chunk)
             streaming_content.append(chunk)
 
-        # Execute via UnifiedExecutor directly (peer to SwarmManager, not child)
-        from core.orchestration.v2.unified_executor import UnifiedExecutor
-        executor = UnifiedExecutor(
+        # Execute via ModeRouter (canonical path)
+        context = ExecutionContext(
+            mode=ExecutionMode.CHAT,
+            channel=ChannelType.CLI,
             status_callback=status_callback,
             stream_callback=stream_callback,
         )
-        result = await executor.execute(clean_task)
+
+        router = get_mode_router()
+        route_result = await router.chat(clean_task, context)
 
         # Flush remaining markdown buffer and end streaming section
         if stream_started:
@@ -691,19 +526,19 @@ class JottyCLI:
             self.renderer.newline()
             self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
-        # Convert to EpisodeResult-like object for compatibility
+        # Convert RouteResult to EpisodeResult-like object for display compatibility
         class LeanResult:
-            def __init__(self, exec_result, streamed=False):
-                self.success = exec_result.success
-                self.output = exec_result.content
-                self.error = exec_result.error
-                self.alerts = [exec_result.error] if exec_result.error else []
-                self.output_path = exec_result.output_path
-                self.output_format = exec_result.output_format
-                self.steps_taken = exec_result.steps_taken
+            def __init__(self, rr, streamed=False):
+                self.success = rr.success
+                self.output = rr.content
+                self.error = rr.error
+                self.alerts = [rr.error] if rr.error else []
+                self.output_path = rr.metadata.get("output_path") if rr.metadata else None
+                self.output_format = rr.metadata.get("output_format", "markdown") if rr.metadata else "markdown"
+                self.steps_taken = rr.steps_executed
                 self.was_streamed = streamed  # Flag to skip re-rendering
 
-        return LeanResult(result, streamed=stream_started)
+        return LeanResult(route_result, streamed=stream_started)
 
     def _clean_task_for_lean_execution(self, task: str) -> str:
         """

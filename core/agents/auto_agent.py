@@ -127,7 +127,7 @@ class AutoAgent(AutonomousAgent):
             name="AutoAgent",
             max_steps=max_steps,
             timeout=float(timeout),
-            enable_replanning=False,  # Stop on failure, don't try replanning
+            enable_replanning=True,  # Retry with reflective replanning on failure
             max_replans=3,
             skill_filter=skill_filter,
             default_output_skill=default_output_skill,
@@ -344,6 +344,8 @@ Provide:
         status_callback = kwargs.pop('status_callback', None)
         ensemble = kwargs.pop('ensemble', None)  # None = auto-detect
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+        # Learning context: kept separate from task string to prevent pollution
+        learning_context = kwargs.pop('learning_context', None)
 
         def _status(stage: str, detail: str = ""):
             """Report progress if callback provided."""
@@ -394,8 +396,14 @@ Provide:
         task_type_enum = self._infer_task_type_enum(task)
 
         # Execute via AutonomousAgent._execute_impl (handles its own replanning)
+        # Pass learning_context separately so it can enrich LLM prompts without polluting task string
         try:
-            result = await super()._execute_impl(task=enriched_task, status_callback=status_callback, **kwargs)
+            result = await super()._execute_impl(
+                task=enriched_task,
+                status_callback=status_callback,
+                learning_context=learning_context,
+                **kwargs
+            )
         except Exception as e:
             logger.error(f"AutoAgent execution failed: {e}")
             result = {

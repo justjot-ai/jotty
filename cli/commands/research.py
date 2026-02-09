@@ -99,8 +99,11 @@ class ResearchCommand(BaseCommand):
         cli.renderer.info(f"Output: {output_format}")
 
         try:
-            # Execute via UnifiedExecutor directly (peer to SwarmManager, not child)
-            from core.orchestration.v2.unified_executor import UnifiedExecutor
+            # Execute via ModeRouter (canonical path)
+            from Jotty.core.api.mode_router import get_mode_router
+            from Jotty.core.foundation.types.sdk_types import (
+                ExecutionContext, ExecutionMode, ChannelType,
+            )
 
             # Check if renderer supports async status (Telegram)
             has_async_status = hasattr(cli.renderer, 'send_status_async')
@@ -120,8 +123,14 @@ class ResearchCommand(BaseCommand):
             # Use async callback if available (Telegram), else sync (CLI)
             status_cb = async_status_callback if has_async_status else sync_status_callback
 
-            executor = UnifiedExecutor(status_callback=status_cb)
-            result = await executor.execute(task)
+            context = ExecutionContext(
+                mode=ExecutionMode.CHAT,
+                channel=ChannelType.CLI,
+                status_callback=status_cb,
+            )
+
+            router = get_mode_router()
+            result = await router.chat(task, context)
 
             # Clear status message after completion (Telegram)
             if has_async_status and hasattr(cli.renderer, 'clear_status_message'):
@@ -142,15 +151,16 @@ class ResearchCommand(BaseCommand):
                 cli.renderer.newline()
                 cli.renderer.success("Research complete")
 
-                if result.output_path:
-                    cli.renderer.info(f"Saved to: {result.output_path}")
+                output_path = result.metadata.get("output_path") if result.metadata else None
+                if output_path:
+                    cli.renderer.info(f"Saved to: {output_path}")
 
                 return CommandResult.ok(
                     output=result.content,
                     data={
                         "topic": topic,
                         "output_format": output_format,
-                        "output_path": result.output_path,
+                        "output_path": output_path,
                     }
                 )
             else:

@@ -271,6 +271,13 @@ class PlanUtilsMixin:
                         # Use CLEAN task for search queries to avoid polluting URLs
                         if param_name in ['query', 'topic', 'search_query', 'q']:
                             params[param_name] = clean_task
+                        elif param_name == 'expression':
+                            # Extract math expression from task text
+                            import re as _re
+                            math_match = _re.search(
+                                r'([\d\.\+\-\*/\(\)\^\s%]+(?:[\d\.\)])\s*)', clean_task
+                            )
+                            params[param_name] = math_match.group(1).strip() if math_match else clean_task
                         elif param_name in ['message', 'text', 'content', 'body']:
                             # For write_file_tool, try to get generated content
                             if tool_name == 'write_file_tool':
@@ -326,15 +333,22 @@ class PlanUtilsMixin:
                         return params
 
         except Exception as e:
-            logger.debug(f"Could not build params from registry for {skill_name}: {e}")
+            logger.warning(f"Could not build params from registry for {skill_name}: {e}")
 
         # Fallback: generic params covering common required fields
         # Use CLEAN task for query/topic to avoid polluting search URLs
         clean_task = self._clean_task_for_query(task)
+
+        # Extract math expression for calculator-like skills
+        import re as _re
+        math_match = _re.search(r'([\d\.\+\-\*/\(\)\^\s%]+(?:[\d\.\)]))\s*', clean_task)
+        expression_val = math_match.group(1).strip() if math_match else clean_task
+
         return {
             'task': clean_task,
             'query': clean_task,
             'topic': clean_task,  # For research skills
+            'expression': expression_val,  # For calculator skills
             'input': prev_ref,
             'content': prev_ref,
             'text': prev_ref,
@@ -519,19 +533,19 @@ Filename: {filename}
         # Get priority list for this task type (claude-cli-llm is always a safe fallback)
         priority_skills = priority_map.get(task_type, ['claude-cli-llm', 'web-search', 'calculator'])
 
-        # Sort skills by priority
+        # Sort skills: originally selected skills FIRST, then priority skills
         skill_names = {s.get('name', ''): s for s in skills}
         sorted_skills = []
 
-        # Add priority skills first (if available)
-        for ps in priority_skills:
-            if ps in skill_names:
-                sorted_skills.append(skill_names[ps])
-
-        # Add remaining skills
+        # Add originally selected skills first (respect LLM's selection)
         for s in skills:
             if s not in sorted_skills:
                 sorted_skills.append(s)
+
+        # Then add priority skills that weren't already selected
+        for ps in priority_skills:
+            if ps in skill_names and skill_names[ps] not in sorted_skills:
+                sorted_skills.append(skill_names[ps])
 
         plan = []
 
@@ -599,7 +613,9 @@ Filename: {filename}
                 'optional': len(plan) > 0  # First step required, rest optional
             })
 
-            if len(plan) >= 3:
+            # For simple tasks with few selected skills, limit fallback steps
+            max_fallback = min(3, max(1, len(skills)))
+            if len(plan) >= max_fallback:
                 break
 
         logger.info(f"Fallback plan: {len(plan)} steps from selected skills")

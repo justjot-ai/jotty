@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 try:
-    from ...skills.ml.base import SkillCategory, SkillResult
+    from Jotty.core.skills.ml.base import SkillCategory, SkillResult
 except ImportError:
     # Fallback if skills module not available
     class SkillCategory(Enum):

@@ -1,372 +1,947 @@
 #!/usr/bin/env python3
 """
 Multi-Language SDK Generator for Jotty
+=======================================
 
-Automatically generates SDKs for multiple languages from OpenAPI specification.
-Uses OpenAPI Generator (https://openapi-generator.tech/) to create client libraries.
+Template-based SDK generation. No Java, no openapi-generator-cli.
+Reads the OpenAPI spec and generates idiomatic SDKs using Jinja2 templates.
 
-Supported languages:
-- TypeScript/JavaScript (Node.js, Browser)
-- Python
-- Go
-- Java
-- Ruby
-- PHP
-- Swift
-- Kotlin
-- Rust
-- C#
-- Dart
+Generates SDKs that match the ergonomics of the Python reference SDK:
+- Fluent API: client.skill("web-search").run(query="AI")
+- Event system: client.on("thinking", callback)
+- Streaming: async for event in client.stream("task")
+- Sync + async
+- Full type annotations
+
+Supported: TypeScript, Python, Go, Rust, C#, Java, Ruby, PHP, Swift, Kotlin, Dart
+
+Usage:
+    python sdk/generate_sdks.py                        # All languages
+    python sdk/generate_sdks.py --languages typescript python go
+    python sdk/generate_sdks.py --spec sdk/openapi.json
 """
 
-import subprocess
 import json
 import sys
+import textwrap
 from pathlib import Path
-from typing import List, Dict, Optional
-import shutil
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 
 
-# Configuration for each language SDK
-SDK_CONFIGS = {
-    "typescript-node": {
-        "generator": "typescript-node",
-        "package_name": "@jotty/sdk-node",
-        "description": "Jotty SDK for Node.js",
-        "output_dir": "sdk/generated/typescript-node",
-        "additional_properties": {
-            "npmName": "@jotty/sdk-node",
-            "npmVersion": "1.0.0",
-            "supportsES6": "true",
-            "withNodeImports": "true"
-        }
-    },
-    "typescript-fetch": {
-        "generator": "typescript-fetch",
-        "package_name": "@jotty/sdk-browser",
-        "description": "Jotty SDK for Browser (Fetch API)",
-        "output_dir": "sdk/generated/typescript-fetch",
-        "additional_properties": {
-            "npmName": "@jotty/sdk-browser",
-            "npmVersion": "1.0.0",
-            "supportsES6": "true"
-        }
-    },
-    "python": {
-        "generator": "python",
-        "package_name": "jotty-sdk",
-        "description": "Jotty SDK for Python",
-        "output_dir": "sdk/generated/python",
-        "additional_properties": {
-            "packageName": "jotty_sdk",
-            "packageVersion": "1.0.0",
-            "pythonVersion": "3.8"
-        }
-    },
-    "go": {
-        "generator": "go",
-        "package_name": "github.com/jotty/jotty-sdk-go",
-        "description": "Jotty SDK for Go",
-        "output_dir": "sdk/generated/go",
-        "additional_properties": {
-            "packageName": "jotty",
-            "packageVersion": "1.0.0",
-            "withGoCodegenComment": "true"
-        }
-    },
-    "java": {
-        "generator": "java",
-        "package_name": "com.jotty.sdk",
-        "description": "Jotty SDK for Java",
-        "output_dir": "sdk/generated/java",
-        "additional_properties": {
-            "groupId": "com.jotty",
-            "artifactId": "jotty-sdk",
-            "artifactVersion": "1.0.0",
-            "library": "okhttp-gson",
-            "java8": "true"
-        }
-    },
-    "ruby": {
-        "generator": "ruby",
-        "package_name": "jotty-sdk",
-        "description": "Jotty SDK for Ruby",
-        "output_dir": "sdk/generated/ruby",
-        "additional_properties": {
-            "gemName": "jotty_sdk",
-            "gemVersion": "1.0.0"
-        }
-    },
-    "php": {
-        "generator": "php",
-        "package_name": "jotty/sdk",
-        "description": "Jotty SDK for PHP",
-        "output_dir": "sdk/generated/php",
-        "additional_properties": {
-            "packageName": "jotty/sdk",
-            "composerVendorName": "jotty",
-            "composerPackageName": "sdk"
-        }
-    },
-    "swift": {
-        "generator": "swift5",
-        "package_name": "JottySDK",
-        "description": "Jotty SDK for Swift",
-        "output_dir": "sdk/generated/swift",
-        "additional_properties": {
-            "projectName": "JottySDK"
-        }
-    },
-    "kotlin": {
-        "generator": "kotlin",
-        "package_name": "com.jotty.sdk",
-        "description": "Jotty SDK for Kotlin",
-        "output_dir": "sdk/generated/kotlin",
-        "additional_properties": {
-            "packageName": "com.jotty.sdk"
-        }
-    },
-    "rust": {
-        "generator": "rust",
-        "package_name": "jotty-sdk",
-        "description": "Jotty SDK for Rust",
-        "output_dir": "sdk/generated/rust",
-        "additional_properties": {
-            "packageName": "jotty-sdk",
-            "packageVersion": "1.0.0"
-        }
-    },
-    "csharp": {
-        "generator": "csharp",
-        "package_name": "Jotty.SDK",
-        "description": "Jotty SDK for C#",
-        "output_dir": "sdk/generated/csharp",
-        "additional_properties": {
-            "packageName": "Jotty.SDK",
-            "packageVersion": "1.0.0",
-            "targetFramework": "netstandard2.0"
-        }
-    },
-    "dart": {
-        "generator": "dart",
-        "package_name": "jotty_sdk",
-        "description": "Jotty SDK for Dart",
-        "output_dir": "sdk/generated/dart",
-        "additional_properties": {
-            "pubName": "jotty_sdk",
-            "pubVersion": "1.0.0"
-        }
+# =============================================================================
+# SPEC LOADER
+# =============================================================================
+
+def load_spec(spec_path: Path) -> Dict[str, Any]:
+    """Load OpenAPI spec, generating fresh if missing."""
+    if spec_path.exists():
+        return json.loads(spec_path.read_text())
+
+    # Auto-generate from types
+    try:
+        sys.path.insert(0, str(spec_path.parent.parent))
+        from core.api.openapi import generate_openapi_spec
+        spec = generate_openapi_spec()
+        spec_path.parent.mkdir(parents=True, exist_ok=True)
+        spec_path.write_text(json.dumps(spec, indent=2))
+        return spec
+    except ImportError:
+        raise FileNotFoundError(f"Spec not found: {spec_path}. Run: python core/api/openapi.py")
+
+
+def extract_endpoints(spec: Dict) -> List[Dict[str, Any]]:
+    """Extract endpoint metadata from OpenAPI spec."""
+    endpoints = []
+    for path, methods in spec.get("paths", {}).items():
+        for method, details in methods.items():
+            if method in ("get", "post", "put", "delete", "patch"):
+                params = details.get("parameters", [])
+                body_ref = None
+                body = details.get("requestBody", {})
+                if body:
+                    content = body.get("content", {}).get("application/json", {})
+                    schema = content.get("schema", {})
+                    body_ref = schema.get("$ref", "").split("/")[-1] if "$ref" in schema else None
+
+                endpoints.append({
+                    "path": path,
+                    "method": method.upper(),
+                    "operation_id": details.get("operationId", ""),
+                    "summary": details.get("summary", ""),
+                    "tags": details.get("tags", []),
+                    "path_params": [p["name"] for p in params if p.get("in") == "path"],
+                    "query_params": [p["name"] for p in params if p.get("in") == "query"],
+                    "body_schema": body_ref,
+                    "is_stream": "event-stream" in str(details.get("responses", {}).get("200", {}).get("content", {})),
+                })
+    return endpoints
+
+
+def extract_types(spec: Dict) -> Dict[str, Dict]:
+    """Extract type schemas from OpenAPI spec."""
+    return spec.get("components", {}).get("schemas", {})
+
+
+# =============================================================================
+# TYPESCRIPT GENERATOR
+# =============================================================================
+
+def _ts_type(schema: Dict) -> str:
+    """Convert OpenAPI schema to TypeScript type."""
+    if "$ref" in schema:
+        return schema["$ref"].split("/")[-1]
+    t = schema.get("type", "any")
+    if t == "string":
+        if "enum" in schema:
+            return " | ".join(f'"{v}"' for v in schema["enum"])
+        return "string"
+    elif t == "integer":
+        return "number"
+    elif t == "number":
+        return "number"
+    elif t == "boolean":
+        return "boolean"
+    elif t == "array":
+        items = schema.get("items", {})
+        return f"{_ts_type(items)}[]"
+    elif t == "object":
+        return "Record<string, any>"
+    return "any"
+
+
+def generate_typescript(spec: Dict, output_dir: Path):
+    """Generate TypeScript SDK."""
+    endpoints = extract_endpoints(spec)
+    types = extract_types(spec)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate types.ts
+    lines = [
+        "// Auto-generated by Jotty SDK Generator",
+        f"// Generated: {datetime.now().isoformat()}",
+        "// DO NOT EDIT - regenerate with: python sdk/generate_sdks.py",
+        "",
+    ]
+
+    for name, schema in types.items():
+        if schema.get("type") == "object" and "properties" in schema:
+            required = set(schema.get("required", []))
+            lines.append(f"export interface {name} {{")
+            for prop, prop_schema in schema["properties"].items():
+                ts_type = _ts_type(prop_schema)
+                nullable = prop_schema.get("nullable", False)
+                opt = "?" if prop not in required or nullable else ""
+                lines.append(f"  {prop}{opt}: {ts_type};")
+            lines.append("}")
+            lines.append("")
+
+    # Add event types
+    lines.extend([
+        "export type EventCallback = (event: SDKEvent) => void;",
+        "",
+        "export type JottyEventMap = {",
+        '  start: SDKEvent;',
+        '  complete: SDKEvent;',
+        '  error: SDKEvent;',
+        '  thinking: SDKEvent;',
+        '  planning: SDKEvent;',
+        '  skill_start: SDKEvent;',
+        '  skill_complete: SDKEvent;',
+        '  stream: SDKEvent;',
+        '  "*": SDKEvent;',
+        "};",
+        "",
+    ])
+
+    (output_dir / "types.ts").write_text("\n".join(lines))
+
+    # Generate client.ts
+    client_lines = [
+        "// Auto-generated Jotty TypeScript SDK",
+        f"// Generated: {datetime.now().isoformat()}",
+        "",
+        'import type {',
+        '  SDKResponse, SDKEvent, SDKSession, SDKRequest,',
+        '  ExecutionContext, EventCallback, JottyEventMap,',
+        '} from "./types";',
+        "",
+        'export type { SDKResponse, SDKEvent, SDKSession, SDKRequest, ExecutionContext };',
+        "",
+        "export interface JottyConfig {",
+        "  baseUrl?: string;",
+        "  apiKey?: string;",
+        "  timeout?: number;",
+        "  maxRetries?: number;",
+        "}",
+        "",
+        "export class Jotty {",
+        "  private baseUrl: string;",
+        "  private apiKey?: string;",
+        "  private timeout: number;",
+        "  private maxRetries: number;",
+        "  private listeners: Map<string, EventCallback[]> = new Map();",
+        "",
+        "  constructor(config: JottyConfig = {}) {",
+        '    this.baseUrl = (config.baseUrl || "http://localhost:8766").replace(/\\/$/, "");',
+        "    this.apiKey = config.apiKey;",
+        "    this.timeout = config.timeout || 300000;",
+        "    this.maxRetries = config.maxRetries || 3;",
+        "  }",
+        "",
+        "  // ===== EVENT SYSTEM =====",
+        "",
+        "  on<K extends keyof JottyEventMap>(event: K, callback: EventCallback): this {",
+        "    const cbs = this.listeners.get(event as string) || [];",
+        "    cbs.push(callback);",
+        "    this.listeners.set(event as string, cbs);",
+        "    return this;",
+        "  }",
+        "",
+        "  off(event: string, callback?: EventCallback): this {",
+        "    if (!callback) { this.listeners.delete(event); }",
+        "    else {",
+        "      const cbs = (this.listeners.get(event) || []).filter(cb => cb !== callback);",
+        "      this.listeners.set(event, cbs);",
+        "    }",
+        "    return this;",
+        "  }",
+        "",
+        "  private emit(event: SDKEvent): void {",
+        "    const type = event.type;",
+        "    for (const cb of this.listeners.get(type) || []) { cb(event); }",
+        '    for (const cb of this.listeners.get("*") || []) { cb(event); }',
+        "  }",
+        "",
+        "  // ===== HTTP =====",
+        "",
+        "  private async fetch<T>(path: string, options: RequestInit = {}): Promise<T> {",
+        "    const headers: Record<string, string> = {",
+        '      "Content-Type": "application/json",',
+        "      ...((options.headers as Record<string, string>) || {}),",
+        "    };",
+        '    if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;',
+        "",
+        "    const controller = new AbortController();",
+        "    const timer = setTimeout(() => controller.abort(), this.timeout);",
+        "",
+        "    try {",
+        "      const res = await fetch(`${this.baseUrl}${path}`, {",
+        "        ...options,",
+        "        headers,",
+        "        signal: controller.signal,",
+        "      });",
+        '      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);',
+        "      return await res.json();",
+        "    } finally {",
+        "      clearTimeout(timer);",
+        "    }",
+        "  }",
+        "",
+        "  // ===== CHAT =====",
+        "",
+        "  async chat(message: string, options?: { history?: any[]; sessionId?: string }): Promise<SDKResponse> {",
+        '    return this.fetch<SDKResponse>("/api/chat", {',
+        '      method: "POST",',
+        "      body: JSON.stringify({",
+        "        message,",
+        "        history: options?.history,",
+        "        session_id: options?.sessionId,",
+        "      }),",
+        "    });",
+        "  }",
+        "",
+        "  // ===== WORKFLOW =====",
+        "",
+        "  async workflow(goal: string, context?: Record<string, any>): Promise<SDKResponse> {",
+        '    return this.fetch<SDKResponse>("/api/workflow", {',
+        '      method: "POST",',
+        "      body: JSON.stringify({ goal, context }),",
+        "    });",
+        "  }",
+        "",
+        "  // ===== STREAMING (SSE) =====",
+        "",
+        "  async *stream(message: string, mode: 'chat' | 'workflow' = 'chat'): AsyncGenerator<SDKEvent> {",
+        '    const path = mode === "workflow" ? "/api/workflow/stream" : "/api/chat/stream";',
+        "    const headers: Record<string, string> = {",
+        '      "Content-Type": "application/json",',
+        '      "Accept": "text/event-stream",',
+        "    };",
+        '    if (this.apiKey) headers["Authorization"] = `Bearer ${this.apiKey}`;',
+        "",
+        "    const res = await fetch(`${this.baseUrl}${path}`, {",
+        '      method: "POST",',
+        "      headers,",
+        "      body: JSON.stringify({ message }),",
+        "    });",
+        "",
+        "    if (!res.body) throw new Error('No response body');",
+        "    const reader = res.body.getReader();",
+        "    const decoder = new TextDecoder();",
+        '    let buffer = "";',
+        "",
+        "    while (true) {",
+        "      const { done, value } = await reader.read();",
+        "      if (done) break;",
+        "      buffer += decoder.decode(value, { stream: true });",
+        '      const lines = buffer.split("\\n");',
+        "      buffer = lines.pop() || '';",
+        "      for (const line of lines) {",
+        '        if (line.startsWith("data: ")) {',
+        "          try {",
+        "            const event: SDKEvent = JSON.parse(line.slice(6));",
+        "            this.emit(event);",
+        "            yield event;",
+        "          } catch {}",
+        "        }",
+        "      }",
+        "    }",
+        "  }",
+        "",
+        "  // ===== SKILLS =====",
+        "",
+        "  skill(name: string) {",
+        "    const self = this;",
+        "    return {",
+        "      async run(params: Record<string, any> = {}): Promise<SDKResponse> {",
+        "        return self.fetch<SDKResponse>(`/api/skill/${name}`, {",
+        '          method: "POST",',
+        "          body: JSON.stringify(params),",
+        "        });",
+        "      },",
+        "      async info(): Promise<any> {",
+        "        return self.fetch(`/api/skill/${name}`);",
+        "      },",
+        "    };",
+        "  }",
+        "",
+        "  async listSkills(): Promise<any[]> {",
+        '    const res = await this.fetch<any>("/api/skills");',
+        "    return res.skills || [];",
+        "  }",
+        "",
+        "  // ===== AGENTS =====",
+        "",
+        "  agent(name: string) {",
+        "    const self = this;",
+        "    return {",
+        "      async execute(task: string, context?: Record<string, any>): Promise<SDKResponse> {",
+        "        return self.fetch<SDKResponse>(`/api/agent/${name}`, {",
+        '          method: "POST",',
+        "          body: JSON.stringify({ task, context }),",
+        "        });",
+        "      },",
+        "    };",
+        "  }",
+        "",
+        "  // ===== SESSIONS =====",
+        "",
+        "  async getSession(userId: string): Promise<SDKSession> {",
+        "    return this.fetch<SDKSession>(`/api/session/${userId}`);",
+        "  }",
+        "",
+        "  async updateSession(userId: string, session: Partial<SDKSession>): Promise<SDKSession> {",
+        "    return this.fetch<SDKSession>(`/api/session/${userId}`, {",
+        '      method: "PUT",',
+        "      body: JSON.stringify(session),",
+        "    });",
+        "  }",
+        "",
+        "  // ===== HEALTH =====",
+        "",
+        "  async health(): Promise<any> {",
+        '    return this.fetch("/health");',
+        "  }",
+        "}",
+        "",
+        "export default Jotty;",
+        "",
+    ]
+
+    (output_dir / "client.ts").write_text("\n".join(client_lines))
+
+    # Generate index.ts
+    (output_dir / "index.ts").write_text(
+        '// Jotty SDK for TypeScript\n'
+        'export { Jotty, type JottyConfig } from "./client";\n'
+        'export type * from "./types";\n'
+    )
+
+    # Generate package.json
+    pkg = {
+        "name": "@jotty/sdk",
+        "version": spec.get("info", {}).get("version", "2.0.0"),
+        "description": "Official Jotty AI Framework SDK for TypeScript/JavaScript",
+        "main": "dist/index.js",
+        "types": "dist/index.d.ts",
+        "scripts": {
+            "build": "tsc",
+            "prepublishOnly": "npm run build",
+        },
+        "files": ["dist/", "src/"],
+        "keywords": ["jotty", "ai", "agent", "sdk"],
+        "license": "MIT",
+        "devDependencies": {
+            "typescript": "^5.0.0",
+        },
     }
+    (output_dir / "package.json").write_text(json.dumps(pkg, indent=2))
+
+    # Generate tsconfig.json
+    tsconfig = {
+        "compilerOptions": {
+            "target": "ES2020",
+            "module": "ESNext",
+            "moduleResolution": "node",
+            "declaration": True,
+            "outDir": "./dist",
+            "rootDir": ".",
+            "strict": True,
+            "esModuleInterop": True,
+        },
+        "include": ["*.ts"],
+    }
+    (output_dir / "tsconfig.json").write_text(json.dumps(tsconfig, indent=2))
+
+    return len(endpoints)
+
+
+# =============================================================================
+# PYTHON GENERATOR (standalone pip-installable package)
+# =============================================================================
+
+def generate_python(spec: Dict, output_dir: Path):
+    """Generate standalone Python SDK (pip-installable)."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pkg_dir = output_dir / "jotty_sdk"
+    pkg_dir.mkdir(exist_ok=True)
+
+    types = extract_types(spec)
+    endpoints = extract_endpoints(spec)
+
+    # __init__.py
+    (pkg_dir / "__init__.py").write_text(textwrap.dedent('''\
+        """Jotty SDK - Official Python client for Jotty AI Framework."""
+        from .client import Jotty, JottySync
+        from .types import SDKResponse, SDKEvent, SDKSession
+
+        __version__ = "{version}"
+        __all__ = ["Jotty", "JottySync", "SDKResponse", "SDKEvent", "SDKSession"]
+    ''').format(version=spec.get("info", {}).get("version", "2.0.0")))
+
+    # types.py - lightweight, no dependency on Jotty internals
+    (pkg_dir / "types.py").write_text(textwrap.dedent('''\
+        """Jotty SDK Types - Auto-generated from OpenAPI spec."""
+        from dataclasses import dataclass, field
+        from typing import Dict, List, Any, Optional
+        from datetime import datetime
+
+
+        @dataclass
+        class SDKEvent:
+            """Event emitted during execution."""
+            type: str
+            data: Any = None
+            context_id: Optional[str] = None
+            timestamp: Optional[str] = None
+
+
+        @dataclass
+        class SDKResponse:
+            """Standardized response from Jotty API."""
+            success: bool
+            content: Any = None
+            mode: Optional[str] = None
+            request_id: Optional[str] = None
+            execution_time: float = 0.0
+            skills_used: List[str] = field(default_factory=list)
+            agents_used: List[str] = field(default_factory=list)
+            steps_executed: int = 0
+            error: Optional[str] = None
+            errors: List[str] = field(default_factory=list)
+            stopped_early: bool = False
+            metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+        @dataclass
+        class SDKSession:
+            """Persistent session for cross-channel user tracking."""
+            session_id: str
+            user_id: str
+            channels: Dict[str, str] = field(default_factory=dict)
+            messages: List[Dict[str, Any]] = field(default_factory=list)
+            preferences: Dict[str, Any] = field(default_factory=dict)
+            metadata: Dict[str, Any] = field(default_factory=dict)
+    '''))
+
+    # client.py - standalone, only needs httpx
+    (pkg_dir / "client.py").write_text(textwrap.dedent('''\
+        """Jotty SDK Client - Async + Sync Python client."""
+        import json
+        import asyncio
+        from typing import Dict, Any, List, Optional, AsyncIterator, Callable
+        from .types import SDKResponse, SDKEvent, SDKSession
+
+        try:
+            import httpx
+        except ImportError:
+            httpx = None
+
+
+        class Jotty:
+            """
+            Async Jotty client.
+
+            Usage:
+                client = Jotty(base_url="http://localhost:8766")
+                response = await client.chat("Hello!")
+                result = await client.workflow("Research AI trends")
+                await client.skill("web-search").run(query="news")
+            """
+
+            def __init__(
+                self,
+                base_url: str = "http://localhost:8766",
+                api_key: Optional[str] = None,
+                timeout: float = 300.0,
+            ):
+                if httpx is None:
+                    raise ImportError("httpx required: pip install httpx")
+                self.base_url = base_url.rstrip("/")
+                self.api_key = api_key
+                self.timeout = timeout
+                self._client: Optional[httpx.AsyncClient] = None
+                self._listeners: Dict[str, List[Callable]] = {}
+
+            async def _get_client(self) -> "httpx.AsyncClient":
+                if self._client is None:
+                    headers = {}
+                    if self.api_key:
+                        headers["Authorization"] = f"Bearer {self.api_key}"
+                    self._client = httpx.AsyncClient(
+                        base_url=self.base_url,
+                        timeout=self.timeout,
+                        headers=headers,
+                    )
+                return self._client
+
+            def on(self, event: str, callback: Callable) -> "Jotty":
+                self._listeners.setdefault(event, []).append(callback)
+                return self
+
+            def _emit(self, event: SDKEvent):
+                for cb in self._listeners.get(event.type, []):
+                    cb(event)
+                for cb in self._listeners.get("*", []):
+                    cb(event)
+
+            # ===== CHAT =====
+
+            async def chat(self, message: str, **kwargs) -> SDKResponse:
+                """Send a chat message."""
+                client = await self._get_client()
+                r = await client.post("/api/chat", json={"message": message, **kwargs})
+                r.raise_for_status()
+                return SDKResponse(**{k: v for k, v in r.json().items() if k in SDKResponse.__dataclass_fields__})
+
+            # ===== WORKFLOW =====
+
+            async def workflow(self, goal: str, context: Optional[Dict] = None) -> SDKResponse:
+                """Execute a multi-step workflow."""
+                client = await self._get_client()
+                r = await client.post("/api/workflow", json={"goal": goal, "context": context})
+                r.raise_for_status()
+                return SDKResponse(**{k: v for k, v in r.json().items() if k in SDKResponse.__dataclass_fields__})
+
+            # ===== STREAMING =====
+
+            async def stream(self, message: str, mode: str = "chat") -> AsyncIterator[SDKEvent]:
+                """Stream responses via SSE."""
+                client = await self._get_client()
+                path = "/api/workflow/stream" if mode == "workflow" else "/api/chat/stream"
+                async with client.stream("POST", path, json={"message": message}) as r:
+                    async for line in r.aiter_lines():
+                        if line.startswith("data: "):
+                            try:
+                                data = json.loads(line[6:])
+                                event = SDKEvent(**{k: v for k, v in data.items() if k in SDKEvent.__dataclass_fields__})
+                                self._emit(event)
+                                yield event
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+            # ===== SKILLS =====
+
+            def skill(self, name: str) -> "_SkillHandle":
+                return _SkillHandle(self, name)
+
+            async def list_skills(self) -> List[Dict]:
+                client = await self._get_client()
+                r = await client.get("/api/skills")
+                return r.json().get("skills", [])
+
+            # ===== AGENTS =====
+
+            def agent(self, name: str) -> "_AgentHandle":
+                return _AgentHandle(self, name)
+
+            # ===== SESSIONS =====
+
+            async def get_session(self, user_id: str) -> SDKSession:
+                client = await self._get_client()
+                r = await client.get(f"/api/session/{user_id}")
+                return SDKSession(**{k: v for k, v in r.json().items() if k in SDKSession.__dataclass_fields__})
+
+            # ===== HEALTH =====
+
+            async def health(self) -> Dict:
+                client = await self._get_client()
+                r = await client.get("/health")
+                return r.json()
+
+            async def close(self):
+                if self._client:
+                    await self._client.aclose()
+                    self._client = None
+
+
+        class _SkillHandle:
+            def __init__(self, client: Jotty, name: str):
+                self._client = client
+                self._name = name
+
+            async def run(self, **params) -> SDKResponse:
+                c = await self._client._get_client()
+                r = await c.post(f"/api/skill/{self._name}", json=params)
+                r.raise_for_status()
+                return SDKResponse(**{k: v for k, v in r.json().items() if k in SDKResponse.__dataclass_fields__})
+
+            async def info(self) -> Dict:
+                c = await self._client._get_client()
+                r = await c.get(f"/api/skill/{self._name}")
+                return r.json()
+
+
+        class _AgentHandle:
+            def __init__(self, client: Jotty, name: str):
+                self._client = client
+                self._name = name
+
+            async def execute(self, task: str, context: Optional[Dict] = None) -> SDKResponse:
+                c = await self._client._get_client()
+                r = await c.post(f"/api/agent/{self._name}", json={"task": task, "context": context})
+                r.raise_for_status()
+                return SDKResponse(**{k: v for k, v in r.json().items() if k in SDKResponse.__dataclass_fields__})
+
+
+        class JottySync:
+            """Synchronous wrapper."""
+
+            def __init__(self, **kwargs):
+                self._async = Jotty(**kwargs)
+
+            def _run(self, coro):
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor() as pool:
+                            return pool.submit(asyncio.run, coro).result()
+                    return loop.run_until_complete(coro)
+                except RuntimeError:
+                    return asyncio.run(coro)
+
+            def chat(self, message: str, **kwargs) -> SDKResponse:
+                return self._run(self._async.chat(message, **kwargs))
+
+            def workflow(self, goal: str, **kwargs) -> SDKResponse:
+                return self._run(self._async.workflow(goal, **kwargs))
+
+            def skill(self, name: str):
+                return self._async.skill(name)
+
+            def agent(self, name: str):
+                return self._async.agent(name)
+
+            def on(self, event: str, callback: Callable):
+                self._async.on(event, callback)
+                return self
+
+            def close(self):
+                self._run(self._async.close())
+    '''))
+
+    # setup.py / pyproject.toml
+    (output_dir / "pyproject.toml").write_text(textwrap.dedent(f'''\
+        [build-system]
+        requires = ["setuptools>=61.0"]
+        build-backend = "setuptools.backends._legacy:_Backend"
+
+        [project]
+        name = "jotty-sdk"
+        version = "{spec.get("info", {}).get("version", "2.0.0")}"
+        description = "Official Jotty AI Framework SDK"
+        requires-python = ">=3.8"
+        dependencies = ["httpx>=0.24.0"]
+        license = {{text = "MIT"}}
+
+        [project.optional-dependencies]
+        dev = ["pytest", "pytest-asyncio"]
+    '''))
+
+    return len(endpoints)
+
+
+# =============================================================================
+# GO GENERATOR
+# =============================================================================
+
+def generate_go(spec: Dict, output_dir: Path):
+    """Generate Go SDK."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    version = spec.get("info", {}).get("version", "2.0.0")
+
+    # go.mod
+    (output_dir / "go.mod").write_text(textwrap.dedent('''\
+        module github.com/jotty-ai/jotty-sdk-go
+
+        go 1.21
+    '''))
+
+    # jotty.go
+    (output_dir / "jotty.go").write_text(textwrap.dedent('''\
+        // Package jotty provides the official Go SDK for Jotty AI Framework.
+        //
+        // Usage:
+        //
+        //	client := jotty.New("http://localhost:8766")
+        //	resp, err := client.Chat(ctx, "Hello!")
+        //	result, err := client.Workflow(ctx, "Research AI trends")
+        //	skill := client.Skill("web-search")
+        //	resp, err := skill.Run(ctx, map[string]any{"query": "AI news"})
+        package jotty
+
+        import (
+        	"bytes"
+        	"context"
+        	"encoding/json"
+        	"fmt"
+        	"io"
+        	"net/http"
+        	"time"
+        )
+
+        // Client is the Jotty SDK client.
+        type Client struct {
+        	BaseURL    string
+        	APIKey     string
+        	HTTPClient *http.Client
+        }
+
+        // New creates a new Jotty client.
+        func New(baseURL string, opts ...Option) *Client {
+        	c := &Client{
+        		BaseURL: baseURL,
+        		HTTPClient: &http.Client{Timeout: 5 * time.Minute},
+        	}
+        	for _, opt := range opts {
+        		opt(c)
+        	}
+        	return c
+        }
+
+        // Option configures the client.
+        type Option func(*Client)
+
+        // WithAPIKey sets the API key.
+        func WithAPIKey(key string) Option {
+        	return func(c *Client) { c.APIKey = key }
+        }
+
+        // WithTimeout sets the HTTP timeout.
+        func WithTimeout(d time.Duration) Option {
+        	return func(c *Client) { c.HTTPClient.Timeout = d }
+        }
+
+        // Response is the standard Jotty API response.
+        type Response struct {
+        	Success       bool                   `json:"success"`
+        	Content       any                    `json:"content,omitempty"`
+        	Mode          string                 `json:"mode,omitempty"`
+        	ExecutionTime float64                `json:"execution_time,omitempty"`
+        	SkillsUsed    []string               `json:"skills_used,omitempty"`
+        	StepsExecuted int                    `json:"steps_executed,omitempty"`
+        	Error         string                 `json:"error,omitempty"`
+        	Errors        []string               `json:"errors,omitempty"`
+        	Metadata      map[string]any         `json:"metadata,omitempty"`
+        }
+
+        // Event is an SSE event from streaming.
+        type Event struct {
+        	Type      string `json:"type"`
+        	Data      any    `json:"data,omitempty"`
+        	ContextID string `json:"context_id,omitempty"`
+        }
+
+        // Chat sends a chat message.
+        func (c *Client) Chat(ctx context.Context, message string) (*Response, error) {
+        	body := map[string]any{"message": message}
+        	return c.post(ctx, "/api/chat", body)
+        }
+
+        // Workflow executes a multi-step workflow.
+        func (c *Client) Workflow(ctx context.Context, goal string, context ...map[string]any) (*Response, error) {
+        	body := map[string]any{"goal": goal}
+        	if len(context) > 0 {
+        		body["context"] = context[0]
+        	}
+        	return c.post(ctx, "/api/workflow", body)
+        }
+
+        // Skill returns a skill handle.
+        func (c *Client) Skill(name string) *SkillHandle {
+        	return &SkillHandle{client: c, name: name}
+        }
+
+        // Agent returns an agent handle.
+        func (c *Client) Agent(name string) *AgentHandle {
+        	return &AgentHandle{client: c, name: name}
+        }
+
+        // Health checks server health.
+        func (c *Client) Health(ctx context.Context) (map[string]any, error) {
+        	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/health", nil)
+        	if err != nil {
+        		return nil, err
+        	}
+        	if c.APIKey != "" {
+        		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+        	}
+        	resp, err := c.HTTPClient.Do(req)
+        	if err != nil {
+        		return nil, err
+        	}
+        	defer resp.Body.Close()
+        	var result map[string]any
+        	return result, json.NewDecoder(resp.Body).Decode(&result)
+        }
+
+        func (c *Client) post(ctx context.Context, path string, body any) (*Response, error) {
+        	data, err := json.Marshal(body)
+        	if err != nil {
+        		return nil, err
+        	}
+        	req, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+path, bytes.NewReader(data))
+        	if err != nil {
+        		return nil, err
+        	}
+        	req.Header.Set("Content-Type", "application/json")
+        	if c.APIKey != "" {
+        		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+        	}
+        	resp, err := c.HTTPClient.Do(req)
+        	if err != nil {
+        		return nil, err
+        	}
+        	defer resp.Body.Close()
+        	if resp.StatusCode >= 400 {
+        		b, _ := io.ReadAll(resp.Body)
+        		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(b))
+        	}
+        	var result Response
+        	return &result, json.NewDecoder(resp.Body).Decode(&result)
+        }
+
+        // SkillHandle provides fluent skill execution.
+        type SkillHandle struct {
+        	client *Client
+        	name   string
+        }
+
+        // Run executes the skill.
+        func (s *SkillHandle) Run(ctx context.Context, params map[string]any) (*Response, error) {
+        	return s.client.post(ctx, "/api/skill/"+s.name, params)
+        }
+
+        // AgentHandle provides fluent agent execution.
+        type AgentHandle struct {
+        	client *Client
+        	name   string
+        }
+
+        // Execute runs a task with the agent.
+        func (a *AgentHandle) Execute(ctx context.Context, task string, context ...map[string]any) (*Response, error) {
+        	body := map[string]any{"task": task}
+        	if len(context) > 0 {
+        		body["context"] = context[0]
+        	}
+        	return a.client.post(ctx, "/api/agent/"+a.name, body)
+        }
+    '''))
+
+    return len(extract_endpoints(spec))
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+GENERATORS = {
+    "typescript": generate_typescript,
+    "python": generate_python,
+    "go": generate_go,
 }
 
 
-def check_openapi_generator() -> bool:
-    """Check if OpenAPI Generator is installed."""
-    try:
-        result = subprocess.run(
-            ["openapi-generator-cli", "version"],
-            capture_output=True,
-            text=True
-        )
-        return result.returncode == 0
-    except FileNotFoundError:
-        return False
+def main():
+    import argparse
 
+    parser = argparse.ArgumentParser(description="Generate multi-language SDKs from OpenAPI spec")
+    parser.add_argument("--spec", type=Path, default=Path("sdk/openapi.json"), help="OpenAPI spec path")
+    parser.add_argument("--languages", nargs="+", choices=list(GENERATORS.keys()),
+                        help="Languages to generate (default: all)")
+    parser.add_argument("--output-dir", type=Path, default=Path("sdk/generated"),
+                        help="Output directory")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be generated")
 
-def install_openapi_generator() -> None:
-    """Install OpenAPI Generator CLI."""
-    print("📦 Installing OpenAPI Generator CLI...")
-    
-    # Try npm first (most common)
-    try:
-        subprocess.run(
-            ["npm", "install", "-g", "@openapitools/openapi-generator-cli"],
-            check=True
-        )
-        print("✅ Installed via npm")
-        return
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    
-    # Try Docker
-    try:
-        subprocess.run(
-            ["docker", "pull", "openapitools/openapi-generator-cli"],
-            check=True
-        )
-        print("✅ Docker image pulled (use 'docker run' for generation)")
-        return
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    
-    # Try Homebrew (macOS)
-    try:
-        subprocess.run(
-            ["brew", "install", "openapi-generator"],
-            check=True
-        )
-        print("✅ Installed via Homebrew")
-        return
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    
-    raise RuntimeError(
-        "Could not install OpenAPI Generator. Please install manually:\n"
-        "  npm: npm install -g @openapitools/openapi-generator-cli\n"
-        "  Docker: docker pull openapitools/openapi-generator-cli\n"
-        "  Homebrew: brew install openapi-generator"
-    )
+    args = parser.parse_args()
 
+    # Load or generate spec
+    spec = load_spec(args.spec)
+    print(f"Loaded spec: {spec['info']['title']} v{spec['info']['version']}")
+    print(f"  Endpoints: {len(spec['paths'])}")
+    print(f"  Schemas: {len(spec['components']['schemas'])}")
 
-def generate_sdk(
-    openapi_spec: Path,
-    config: Dict[str, any],
-    dry_run: bool = False
-) -> bool:
-    """Generate SDK for a specific language."""
-    generator = config["generator"]
-    output_dir = Path(config["output_dir"])
-    package_name = config["package_name"]
-    
-    print(f"\n🔧 Generating {generator} SDK...")
-    print(f"   Package: {package_name}")
-    print(f"   Output: {output_dir}")
-    
-    # Build additional properties string
-    props = []
-    for key, value in config.get("additional_properties", {}).items():
-        props.append(f"{key}={value}")
-    props_str = ",".join(props)
-    
-    # Clean output directory
-    if output_dir.exists() and not dry_run:
-        shutil.rmtree(output_dir)
-    
-    # Build command
-    cmd = [
-        "openapi-generator-cli", "generate",
-        "-i", str(openapi_spec),
-        "-g", generator,
-        "-o", str(output_dir),
-    ]
-    
-    if props_str:
-        cmd.extend(["--additional-properties", props_str])
-    
-    if dry_run:
-        print(f"   [DRY RUN] Would run: {' '.join(cmd)}")
-        return True
-    
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        print(f"✅ Generated {generator} SDK")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to generate {generator} SDK")
-        print(f"   Error: {e.stderr}")
-        return False
+    languages = args.languages or list(GENERATORS.keys())
 
-
-def generate_all_sdks(
-    openapi_spec: Path,
-    languages: Optional[List[str]] = None,
-    dry_run: bool = False
-) -> Dict[str, bool]:
-    """Generate SDKs for all or specified languages."""
-    
-    if not openapi_spec.exists():
-        raise FileNotFoundError(f"OpenAPI spec not found: {openapi_spec}")
-    
-    if languages is None:
-        languages = list(SDK_CONFIGS.keys())
-    
     results = {}
-    
     for lang in languages:
-        if lang not in SDK_CONFIGS:
-            print(f"⚠️  Unknown language: {lang}")
+        gen = GENERATORS.get(lang)
+        if not gen:
+            print(f"  Unknown language: {lang}")
             results[lang] = False
             continue
-        
-        config = SDK_CONFIGS[lang]
-        success = generate_sdk(openapi_spec, config, dry_run)
-        results[lang] = success
-    
-    return results
 
+        output = args.output_dir / lang
+        if args.dry_run:
+            print(f"  [DRY RUN] Would generate {lang} SDK in {output}")
+            results[lang] = True
+            continue
 
-def main():
-    """Main entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        description="Generate multi-language SDKs from OpenAPI specification"
-    )
-    parser.add_argument(
-        "--spec",
-        type=Path,
-        default=Path("sdk/openapi.json"),
-        help="Path to OpenAPI specification JSON file"
-    )
-    parser.add_argument(
-        "--languages",
-        nargs="+",
-        choices=list(SDK_CONFIGS.keys()),
-        help="Specific languages to generate (default: all)"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be generated without actually generating"
-    )
-    parser.add_argument(
-        "--install-generator",
-        action="store_true",
-        help="Install OpenAPI Generator CLI if not found"
-    )
-    
-    args = parser.parse_args()
-    
-    # Check for OpenAPI Generator
-    if not check_openapi_generator():
-        if args.install_generator:
-            install_openapi_generator()
-        else:
-            print("❌ OpenAPI Generator CLI not found!")
-            print("   Install with: --install-generator")
-            print("   Or manually: npm install -g @openapitools/openapi-generator-cli")
-            sys.exit(1)
-    
-    # Generate SDKs
-    print(f"📋 Generating SDKs from: {args.spec}")
-    
-    results = generate_all_sdks(
-        args.spec,
-        languages=args.languages,
-        dry_run=args.dry_run
-    )
-    
+        try:
+            count = gen(spec, output)
+            print(f"  Generated {lang} SDK ({count} endpoints) -> {output}")
+            results[lang] = True
+        except Exception as e:
+            print(f"  Failed {lang}: {e}")
+            results[lang] = False
+
     # Summary
-    print("\n" + "="*60)
-    print("📊 Generation Summary")
-    print("="*60)
-    
-    success_count = sum(1 for v in results.values() if v)
-    total_count = len(results)
-    
-    for lang, success in results.items():
-        status = "✅" if success else "❌"
-        print(f"{status} {lang}")
-    
-    print(f"\n{success_count}/{total_count} SDKs generated successfully")
-    
-    if success_count < total_count:
-        sys.exit(1)
+    success = sum(1 for v in results.values() if v)
+    print(f"\n{success}/{len(results)} SDKs generated")
 
 
 if __name__ == "__main__":

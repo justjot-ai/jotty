@@ -69,8 +69,8 @@ For more information, see: V2_QUICK_START.md
 
 # Phase 1: Import V1 components and rename
 from .swarm_roadmap import MarkovianTODO, SubtaskState, TaskStatus
-from ...agents.agentic_planner import AgenticPlanner, ExecutionPlan
-from ...memory.cortex import HierarchicalMemory
+from Jotty.core.agents.agentic_planner import AgenticPlanner, ExecutionPlan
+from Jotty.core.memory.cortex import HierarchicalMemory
 
 # Swarm-level User-Friendly Names (consistent naming)
 SwarmTaskBoard = MarkovianTODO  # Swarm-level task tracking
@@ -84,10 +84,10 @@ from .agent_runner import AgentRunner, AgentRunnerConfig
 from .swarm_manager import SwarmManager
 
 # Feature Components (Swarm-level, consistent naming)
-from ...registry.agui_component_registry import AGUIComponentRegistry
-from ...monitoring.profiler import PerformanceProfiler
-from ...registry.tool_validation import ToolValidator
-from ...registry.tools_registry import ToolsRegistry
+from Jotty.core.registry.agui_component_registry import AGUIComponentRegistry
+from Jotty.core.monitoring.profiler import PerformanceProfiler
+from Jotty.core.registry.tool_validation import ToolValidator
+from Jotty.core.registry.tools_registry import ToolsRegistry
 
 # User-friendly aliases with Swarm prefix for consistency
 SwarmUIRegistry = AGUIComponentRegistry  # Swarm-level UI component registry
@@ -133,7 +133,7 @@ from .optimization_pipeline import (
 from .credit_assignment import CreditAssignment, ImprovementCredit
 from .adaptive_learning import AdaptiveLearning, LearningState
 from .policy_explorer import PolicyExplorer, PolicyExplorerSignature
-from ...learning.learning_coordinator import LearningCoordinator as LearningManager, LearningUpdate
+from Jotty.core.learning.learning_coordinator import LearningCoordinator as LearningManager, LearningUpdate
 
 # Export components
 __all__ = [

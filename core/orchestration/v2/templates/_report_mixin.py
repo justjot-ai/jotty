@@ -1,19 +1,24 @@
 """Report Mixin - PDF report generation with sections and figures."""
+from __future__ import annotations
 
 import logging
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import ReportConfig
 
 logger = logging.getLogger(__name__)
 
 
 class ReportMixin:
-    def init_report(self, config: ReportConfig = None):
+    def init_report(self, config: "ReportConfig" = None):
         """
         Initialize PDF report generation.
 
         Args:
             config: Report configuration (uses default if None)
         """
+        from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import ReportConfig
         self._report_config = config or ReportConfig()
         self._report_data = {
             'sections': [],

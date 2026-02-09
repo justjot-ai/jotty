@@ -1,6 +1,10 @@
 """
 Reasoning-based credit assignment (Dr. Chen Enhancement).
 
+STATUS: UNUSED — ReasoningCreditAssigner is imported but never instantiated.
+See algorithmic_credit.py for the actively used credit assignment system.
+See MODULE_STATUS.md for details.
+
 Credit assignment using reasoning quality analysis.
 """
 

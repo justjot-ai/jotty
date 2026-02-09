@@ -80,13 +80,13 @@ class JottyAPIServer:
         if self._router is None:
             # Use absolute imports — works both when run as Jotty.cli.api.server
             # and when run standalone (background process with sys.path insert)
-            from core.api.mode_router import get_mode_router
+            from Jotty.core.api.mode_router import get_mode_router
             self._router = get_mode_router()
         return self._router
 
     def _make_context(self, mode: str = "chat", **kwargs):
         """Create an ExecutionContext for ModeRouter calls."""
-        from core.foundation.types.sdk_types import (
+        from Jotty.core.foundation.types.sdk_types import (
             ExecutionMode, ChannelType, ExecutionContext, ResponseFormat,
         )
         mode_map = {
@@ -197,7 +197,7 @@ class JottyAPIServer:
         @app.post("/api/skills/{skill_name}")
         async def execute_skill(skill_name: str, params: Dict[str, Any] = {}):
             """Execute a specific skill via ModeRouter."""
-            from core.foundation.types.sdk_types import SDKRequest, ExecutionMode
+            from Jotty.core.foundation.types.sdk_types import SDKRequest, ExecutionMode
 
             router = self._get_mode_router()
             context = self._make_context("skill")

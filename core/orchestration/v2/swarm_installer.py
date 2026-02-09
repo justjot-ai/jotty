@@ -45,7 +45,7 @@ class SwarmInstaller:
     def _init_dependencies(self):
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._skills_registry is None:
-            from ...registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
     

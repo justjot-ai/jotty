@@ -312,10 +312,22 @@ class SkillPlanExecutor:
             _status("Executing", f"🔧 Running {step.skill_name}...")
 
         try:
+            import asyncio as _asyncio
+
+            # Determine per-step timeout (default 120s, web skills 60s)
+            step_timeout = 120.0
+            if any(kw in step.skill_name.lower() for kw in ['web', 'search', 'http', 'scrape']):
+                step_timeout = 60.0
+
             if inspect.iscoroutinefunction(tool):
-                result = await tool(resolved_params)
+                result = await _asyncio.wait_for(tool(resolved_params), timeout=step_timeout)
             else:
-                result = tool(resolved_params)
+                # Run sync tools in executor with timeout
+                loop = _asyncio.get_event_loop()
+                result = await _asyncio.wait_for(
+                    loop.run_in_executor(None, tool, resolved_params),
+                    timeout=step_timeout,
+                )
 
             if result is None:
                 result = {'success': False, 'error': 'Tool returned None'}
@@ -324,6 +336,11 @@ class SkillPlanExecutor:
 
             _status("Done", f"✓ {step.skill_name}")
             return result
+
+        except _asyncio.TimeoutError:
+            logger.error(f"Tool execution timed out after {step_timeout}s: {step.skill_name}")
+            _status("Timeout", f"✗ {step.skill_name} ({step_timeout}s)")
+            return {'success': False, 'error': f'Tool timed out after {step_timeout}s'}
 
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
@@ -362,7 +379,9 @@ class SkillPlanExecutor:
 
                 def replacer(match):
                     path = match.group(1)
-                    return self.resolve_path(path, outputs)
+                    resolved = self.resolve_path(path, outputs)
+                    # Escape backslashes so re.sub doesn't interpret \u etc.
+                    return resolved.replace('\\', '\\\\')
 
                 value = re.sub(pattern, replacer, value)
 
@@ -379,6 +398,22 @@ class SkillPlanExecutor:
                             aggregated,
                             value,
                         )
+
+                # Fallback: detect unresolved placeholder-like strings
+                # (e.g. "{CONTENT_FROM_STEP_1}", "{PREVIOUS_OUTPUT}") and
+                # replace with the most recent output if available.
+                unresolved_pattern = r'\{[A-Z_]+\}'
+                if re.search(unresolved_pattern, value) and outputs:
+                    last_output = list(outputs.values())[-1]
+                    if isinstance(last_output, dict):
+                        import json as _json
+                        replacement = _json.dumps(last_output, default=str)[:8000]
+                    else:
+                        replacement = str(last_output)[:8000]
+                    # Escape backslashes so re.sub doesn't interpret \u etc.
+                    replacement = replacement.replace('\\', '\\\\')
+                    value = re.sub(unresolved_pattern, replacement, value)
+                    logger.info(f"Resolved unrecognised placeholder in param '{key}' with last step output")
 
                 resolved[key] = value
 

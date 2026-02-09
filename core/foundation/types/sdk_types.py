@@ -136,6 +136,8 @@ class ExecutionContext:
 
     # Callbacks (set at runtime, not serialized)
     event_callback: Optional[Callable] = field(default=None, repr=False)
+    status_callback: Optional[Callable] = field(default=None, repr=False)
+    stream_callback: Optional[Callable] = field(default=None, repr=False)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -198,6 +200,8 @@ class ExecutionContext:
             metadata=self.metadata.copy(),
             raw_data=self.raw_data.copy(),
             event_callback=self.event_callback,
+            status_callback=self.status_callback,
+            stream_callback=self.stream_callback,
         )
 
     def emit_event(self, event_type: SDKEventType, data: Any = None):

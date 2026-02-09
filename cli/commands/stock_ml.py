@@ -268,7 +268,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         if use_fundamentals:
             try:
                 import pandas as pd
-                from core.skills.ml import FundamentalFeaturesSkill
+                from Jotty.core.skills.ml import FundamentalFeaturesSkill
                 cli.renderer.status(f"Downloading fundamental data for {symbol}...")
 
                 fund_skill = FundamentalFeaturesSkill()
@@ -822,7 +822,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         mlflow_tracker = None
         if use_mlflow:
             try:
-                from core.skills.ml import MLflowTrackerSkill
+                from Jotty.core.skills.ml import MLflowTrackerSkill
                 from .ml import MLCommand
 
                 mlflow_tracker = MLflowTrackerSkill()
@@ -1259,7 +1259,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 cli.renderer.info("")
                 cli.renderer.status("Generating backtest report...")
 
-                from core.skills.ml.backtest_report import (
+                from Jotty.core.skills.ml.backtest_report import (
                     BacktestReportSkill,
                     BacktestResult,
                     BacktestMetrics,
@@ -1371,7 +1371,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
                     # Try to send via Telegram
                     try:
-                        from core.skills.notification import TelegramNotifierSkill
+                        from Jotty.core.skills.notification import TelegramNotifierSkill
                         telegram = TelegramNotifierSkill()
                         if report_paths.get('pdf'):
                             await telegram.send_document(
@@ -1399,11 +1399,11 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 cli.renderer.info("")
                 cli.renderer.status("Running World-Class Backtest Engine...")
 
-                from core.skills.ml.backtest_engine import (
+                from Jotty.core.skills.ml.backtest_engine import (
                     WorldClassBacktestEngine,
                     TransactionCosts,
                 )
-                from core.skills.ml.comprehensive_backtest_report import (
+                from Jotty.core.skills.ml.comprehensive_backtest_report import (
                     ComprehensiveBacktestReportGenerator,
                 )
 

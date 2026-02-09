@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .swarm_roadmap import MarkovianTODO, TodoItem
 
-from ...foundation.data_structures import JottyConfig
+from Jotty.core.foundation.data_structures import JottyConfig
 
 try:
     import dspy

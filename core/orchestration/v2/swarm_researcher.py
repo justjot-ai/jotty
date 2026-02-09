@@ -65,16 +65,16 @@ class SwarmResearcher:
     def _init_dependencies(self):
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._skills_registry is None:
-            from ...registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
         
         if self._tools_registry is None:
-            from ...registry.tools_registry import get_tools_registry
+            from Jotty.core.registry.tools_registry import get_tools_registry
             self._tools_registry = get_tools_registry()
         
         if self._planner is None:
-            from ...agents.agentic_planner import AgenticPlanner
+            from Jotty.core.agents.agentic_planner import AgenticPlanner
             self._planner = AgenticPlanner()
     
     async def research(

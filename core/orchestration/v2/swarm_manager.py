@@ -1,17 +1,40 @@
 """
-SwarmManager - Unified Orchestrator with User-Friendly Names
+SwarmManager - World-Class Orchestrator
+========================================
 
-Uses user-friendly components:
-- SwarmTaskBoard (replaces MarkovianTODO) - swarm-level task tracking
-- SwarmPlanner (replaces AgenticPlanner) - swarm-level planning
-- SwarmMemory (replaces HierarchicalMemory) - swarm-level memory
-- AgentRunner (executes agents with validation)
+Lazy-initialized, composable swarm orchestration.
 
-Handles both single-agent (N=1) and multi-agent (N>1) cases.
+All components are lazy-loaded via descriptors - only created when first
+accessed. This means SwarmManager.__init__ is < 50ms regardless of how
+many components are registered.
 
-Skills Integration:
-- AutoAgent (used in AgentRunner) automatically discovers and executes skills
-- Skills are integrated via AutoAgent's skill discovery and execution
+Architecture:
+    SwarmManager
+    ├── Core (always created)
+    │   ├── config, agents, mode
+    │   └── runners (AgentRunners for each agent)
+    ├── Planning (lazy)
+    │   ├── swarm_planner - AgenticPlanner
+    │   ├── swarm_task_board - SwarmTaskBoard
+    │   └── swarm_intent_parser - IntentParser
+    ├── Memory (lazy)
+    │   ├── swarm_memory - HierarchicalMemory
+    │   └── swarm_state_manager - SwarmStateManager
+    ├── Learning (lazy)
+    │   ├── learning - SwarmLearningPipeline
+    │   └── mas_learning - MASLearning
+    ├── Autonomous (lazy, only on autonomous_setup)
+    │   ├── swarm_researcher, swarm_installer
+    │   ├── swarm_configurator, swarm_code_generator
+    │   └── swarm_terminal
+    └── Feature (lazy, only when needed)
+        ├── swarm_ui_registry, swarm_profiler
+        ├── swarm_tool_registry, provider_registry
+        └── lotus (optimization layer)
+
+Usage:
+    sm = SwarmManager()  # Fast: ~10ms
+    result = await sm.run("Research AI trends")  # Components init on demand
 """
 
 import asyncio
@@ -20,41 +43,18 @@ import time
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 
-from ...foundation.data_structures import JottyConfig, EpisodeResult
-from ...foundation.agent_config import AgentConfig
-from .agent_runner import AgentRunner, AgentRunnerConfig
-# Import from v2 local modules (no v1 dependencies)
-from .swarm_roadmap import MarkovianTODO as SwarmTaskBoard, TaskStatus
-from ...agents.agentic_planner import AgenticPlanner as SwarmPlanner
-from ...memory.cortex import HierarchicalMemory as SwarmMemory
-# Feature components (using Swarm prefix for consistency)
-from ...registry.agui_component_registry import get_agui_registry, AGUIComponentRegistry as SwarmUIRegistry
-from ...monitoring.profiler import PerformanceProfiler as SwarmProfiler
-from ...registry.tool_validation import ToolValidator as SwarmToolValidator
-from ...registry.tools_registry import get_tools_registry, ToolsRegistry as SwarmToolRegistry
-# Autonomous components (DRY: reuse existing, logical naming)
-from ...autonomous.intent_parser import IntentParser
-from ...agents.auto_agent import AutoAgent
-from .swarm_researcher import SwarmResearcher
-from .swarm_installer import SwarmInstaller
-from .swarm_configurator import SwarmConfigurator
-from .swarm_code_generator import SwarmCodeGenerator
-from .swarm_workflow_learner import SwarmWorkflowLearner
-from .swarm_integrator import SwarmIntegrator
-from .swarm_terminal import SwarmTerminal
-# Unified Provider Gateway (DRY: reuse existing provider system)
-from .swarm_provider_gateway import SwarmProviderGateway
-# State Management (V1 capabilities integrated)
-from .swarm_state_manager import SwarmStateManager
-# V2 Learning Pipeline (extracted to SwarmLearningPipeline)
-from .learning_pipeline import SwarmLearningPipeline
-from ...learning.predictive_marl import ActualTrajectory
-from ...agents.feedback_channel import FeedbackChannel, FeedbackMessage, FeedbackType
-from .swarm_intelligence import SyntheticTask, CurriculumGenerator
-# MAS Learning - Persistent learning across sessions
-from .mas_learning import MASLearning, get_mas_learning
+from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.agent_config import AgentConfig
 
-# Skill Provider System (V2 World-Class) - Lazy imported to avoid circular deps
+from ._lazy import LazyComponent
+from ._provider_mixin import ProviderMixin
+from ._ensemble_mixin import EnsembleMixin
+from ._learning_delegation_mixin import LearningDelegationMixin
+
+logger = logging.getLogger(__name__)
+
+
+# Skill Provider System - Lazy loaded
 PROVIDERS_AVAILABLE = False
 ProviderRegistry = None
 SkillCategory = None
@@ -77,12 +77,12 @@ def _load_providers():
         return True
 
     try:
-        from ...skills.providers import ProviderRegistry as PR, SkillCategory as SC
-        from ...skills.providers.browser_use_provider import BrowserUseProvider as BUP
-        from ...skills.providers.openhands_provider import OpenHandsProvider as OHP
-        from ...skills.providers.agent_s_provider import AgentSProvider as ASP
-        from ...skills.providers.open_interpreter_provider import OpenInterpreterProvider as OIP
-        from ...skills.providers.composite_provider import (
+        from Jotty.core.skills.providers import ProviderRegistry as PR, SkillCategory as SC
+        from Jotty.core.skills.providers.browser_use_provider import BrowserUseProvider as BUP
+        from Jotty.core.skills.providers.openhands_provider import OpenHandsProvider as OHP
+        from Jotty.core.skills.providers.agent_s_provider import AgentSProvider as ASP
+        from Jotty.core.skills.providers.open_interpreter_provider import OpenInterpreterProvider as OIP
+        from Jotty.core.skills.providers.composite_provider import (
             ResearchAndAnalyzeProvider as RAP,
             AutomateWorkflowProvider as AWP,
             FullStackAgentProvider as FSP,
@@ -104,48 +104,187 @@ def _load_providers():
         logger.debug(f"Skill providers not available: {e}")
         return False
 
-logger = logging.getLogger(__name__)
+
+# =========================================================================
+# LAZY FACTORY FUNCTIONS - Called by LazyComponent descriptors
+# =========================================================================
+
+def _create_task_board():
+    from Jotty.core.orchestration.v2.swarm_roadmap import MarkovianTODO
+    return MarkovianTODO()
+
+def _create_planner():
+    from Jotty.core.agents.agentic_planner import AgenticPlanner
+    return AgenticPlanner()
+
+def _create_intent_parser(planner):
+    from Jotty.core.autonomous.intent_parser import IntentParser
+    return IntentParser(planner=planner)
+
+def _create_memory(config):
+    from Jotty.core.memory.cortex import HierarchicalMemory
+    return HierarchicalMemory(config=config, agent_name="SwarmShared")
+
+def _create_provider_gateway(config):
+    from Jotty.core.orchestration.v2.swarm_provider_gateway import SwarmProviderGateway
+    provider_preference = getattr(config, 'provider', None)
+    return SwarmProviderGateway(config=config, provider=provider_preference)
+
+def _create_researcher(config):
+    from Jotty.core.orchestration.v2.swarm_researcher import SwarmResearcher
+    return SwarmResearcher(config=config)
+
+def _create_installer(config):
+    from Jotty.core.orchestration.v2.swarm_installer import SwarmInstaller
+    return SwarmInstaller(config=config)
+
+def _create_configurator(config):
+    from Jotty.core.orchestration.v2.swarm_configurator import SwarmConfigurator
+    return SwarmConfigurator(config=config)
+
+def _create_code_generator(config):
+    from Jotty.core.orchestration.v2.swarm_code_generator import SwarmCodeGenerator
+    return SwarmCodeGenerator(config=config)
+
+def _create_workflow_learner(memory):
+    from Jotty.core.orchestration.v2.swarm_workflow_learner import SwarmWorkflowLearner
+    return SwarmWorkflowLearner(swarm_memory=memory)
+
+def _create_integrator(config):
+    from Jotty.core.orchestration.v2.swarm_integrator import SwarmIntegrator
+    return SwarmIntegrator(config=config)
+
+def _create_terminal(config):
+    from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+    return SwarmTerminal(config=config, auto_fix=True, max_fix_attempts=3)
+
+def _create_ui_registry():
+    from Jotty.core.registry.agui_component_registry import get_agui_registry
+    return get_agui_registry()
+
+def _create_tool_validator():
+    from Jotty.core.registry.tool_validation import ToolValidator
+    return ToolValidator()
+
+def _create_tool_registry():
+    from Jotty.core.registry.tools_registry import get_tools_registry
+    return get_tools_registry()
+
+def _create_profiler(config):
+    enable = getattr(config, 'enable_profiling', False)
+    if not enable:
+        return None
+    from Jotty.core.monitoring.profiler import PerformanceProfiler
+    return PerformanceProfiler(enable_cprofile=True)
+
+def _create_state_manager(sm):
+    from Jotty.core.orchestration.v2.swarm_state_manager import SwarmStateManager
+    agents_dict = {a.name: a for a in sm.agents}
+    return SwarmStateManager(
+        swarm_task_board=sm.swarm_task_board,
+        swarm_memory=sm.swarm_memory,
+        io_manager=sm.io_manager,
+        data_registry=sm.data_registry,
+        shared_context=sm.shared_context,
+        context_guard=sm.context_guard,
+        config=sm.config,
+        agents=agents_dict,
+        agent_signatures={},
+    )
+
+def _create_shared_context():
+    from Jotty.core.persistence.shared_context import SharedContext
+    return SharedContext()
+
+def _create_io_manager():
+    from Jotty.core.data.io_manager import IOManager
+    return IOManager()
+
+def _create_data_registry():
+    from Jotty.core.data.data_registry import DataRegistry
+    return DataRegistry()
+
+def _create_context_guard():
+    from Jotty.core.context.context_guard import SmartContextGuard
+    return SmartContextGuard()
+
+def _create_learning_pipeline(config):
+    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    return SwarmLearningPipeline(config)
+
+def _create_mas_learning(sm):
+    from Jotty.core.orchestration.v2.mas_learning import MASLearning
+    workspace_path = getattr(sm.config, 'base_path', None)
+    return MASLearning(
+        config=sm.config,
+        workspace_path=workspace_path,
+        swarm_intelligence=sm.swarm_intelligence,
+        learning_manager=sm.learning_manager,
+        transfer_learning=sm.transfer_learning,
+    )
 
 
-class SwarmManager:
+class SwarmManager(ProviderMixin, EnsembleMixin, LearningDelegationMixin):
     """
-    SwarmManager - Unified Orchestrator with User-Friendly Names
-    
-    Manages a swarm of agents with unified orchestration.
-    Handles both single-agent and multi-agent cases.
-    Uses intuitive component names (SwarmTaskBoard, SwarmPlanner, SwarmMemory).
-    
-    Skills Integration:
-    - AutoAgent (used in AgentRunner) automatically discovers and executes skills
-    - No manual skill-to-agent conversion needed for basic usage
-    - Skills work seamlessly through AutoAgent
-    
-    AGUI Integration:
-    - AGUI Component Registry for UI generation
-    - Agents can generate UI components using registered adapters
-    - Supports A2UI and AGUI protocols
-    
-    Feature Components (Swarm-level):
-    - SwarmUIRegistry: UI component registry for agent-generated UI
-    - SwarmProfiler: Performance profiler for identifying bottlenecks
-    - SwarmToolValidator: Tool validation before registration
-    - SwarmToolRegistry: Tool registration and discovery
-    
-    Autonomous Components (Zero-Config):
-    - SwarmIntentParser: Natural language → AgentConfig conversion
-    - SwarmResearcher: Autonomous research (APIs, tools, solutions)
-    - SwarmInstaller: Auto-install dependencies
-    - SwarmConfigurator: Smart configuration management
-    - SwarmCodeGenerator: Glue code and integration code generation
-    - SwarmWorkflowLearner: Pattern learning and reuse
-    - SwarmIntegrator: Scheduling, monitoring, notifications
-    
-    Unified Provider Gateway:
-    - SwarmProviderGateway: Unified provider gateway (reuses UnifiedLMProvider)
-    - Auto-configures DSPy with best available provider
-    - Supports all providers: OpenCode, OpenRouter, Claude CLI, Cursor CLI, Anthropic, OpenAI, Google, Groq
+    World-Class Swarm Orchestrator.
+
+    All heavyweight components are lazy-loaded via descriptors.
+    Init is fast (~10ms). Components are created on first access.
+
+    Modes:
+        - single: 1 AutoAgent (default)
+        - multi: N agents with SwarmTaskBoard coordination
+
+    Integration:
+        - ModeRouter.workflow() -> SwarmManager.run() for multi-step planning
+        - ModeRouter.chat() -> UnifiedExecutor for direct tool-calling
     """
-    
+
+    # =========================================================================
+    # LAZY COMPONENTS - Only created when first accessed
+    # =========================================================================
+
+    # Planning
+    swarm_task_board = LazyComponent(lambda self: _create_task_board())
+    swarm_planner = LazyComponent(lambda self: _create_planner())
+    swarm_intent_parser = LazyComponent(lambda self: _create_intent_parser(self.swarm_planner))
+
+    # Memory
+    swarm_memory = LazyComponent(lambda self: _create_memory(self.config))
+
+    # Provider Gateway
+    swarm_provider_gateway = LazyComponent(lambda self: _create_provider_gateway(self.config))
+
+    # Autonomous (only used in autonomous_setup)
+    swarm_researcher = LazyComponent(lambda self: _create_researcher(self.config))
+    swarm_installer = LazyComponent(lambda self: _create_installer(self.config))
+    swarm_configurator = LazyComponent(lambda self: _create_configurator(self.config))
+    swarm_code_generator = LazyComponent(lambda self: _create_code_generator(self.config))
+    swarm_workflow_learner = LazyComponent(lambda self: _create_workflow_learner(self.swarm_memory))
+    swarm_integrator = LazyComponent(lambda self: _create_integrator(self.config))
+    swarm_terminal = LazyComponent(lambda self: _create_terminal(self.config))
+
+    # Feature components
+    swarm_ui_registry = LazyComponent(lambda self: _create_ui_registry())
+    swarm_tool_validator = LazyComponent(lambda self: _create_tool_validator())
+    swarm_tool_registry = LazyComponent(lambda self: _create_tool_registry())
+    swarm_profiler = LazyComponent(lambda self: _create_profiler(self.config))
+
+    # State management
+    swarm_state_manager = LazyComponent(lambda self: _create_state_manager(self))
+    shared_context = LazyComponent(lambda self: _create_shared_context())
+    io_manager = LazyComponent(lambda self: _create_io_manager())
+    data_registry = LazyComponent(lambda self: _create_data_registry())
+    context_guard = LazyComponent(lambda self: _create_context_guard())
+
+    # Learning (single pipeline, components accessed via .learning.xxx)
+    learning = LazyComponent(lambda self: _create_learning_pipeline(self.config))
+    mas_learning = LazyComponent(lambda self: _create_mas_learning(self))
+
+    # =========================================================================
+    # INIT - Fast, minimal, no I/O
+    # =========================================================================
+
     def __init__(
         self,
         agents: Optional[Union[AgentConfig, List[AgentConfig], str]] = None,
@@ -153,180 +292,83 @@ class SwarmManager:
         architect_prompts: Optional[List[str]] = None,
         auditor_prompts: Optional[List[str]] = None,
         enable_zero_config: bool = True,
-        enable_lotus: bool = True,  # LOTUS optimization (cascade, cache, adaptive validation)
+        enable_lotus: bool = True,
     ):
         """
         Initialize SwarmManager.
 
+        Fast init (~10ms). All heavyweight components are lazy-loaded.
+
         Args:
-            agents: Single AgentConfig, list of AgentConfigs, or natural language string (zero-config)
+            agents: AgentConfig, list of AgentConfigs, or natural language (zero-config)
             config: JottyConfig (defaults if None)
-            architect_prompts: Architect prompt paths (optional)
-            auditor_prompts: Auditor prompt paths (optional)
-            enable_zero_config: Enable zero-config mode (natural language → AgentConfig)
-            enable_lotus: Enable LOTUS optimization (model cascade, semantic cache, adaptive validation)
+            architect_prompts: Architect prompt paths
+            auditor_prompts: Auditor prompt paths
+            enable_zero_config: Enable natural language -> agent conversion
+            enable_lotus: Enable LOTUS optimization layer
         """
         self.config = config or JottyConfig()
         self.enable_zero_config = enable_zero_config
-        
-        # Initialize core components first (needed for zero-config)
-        self.swarm_task_board = SwarmTaskBoard()
-        self.swarm_planner = SwarmPlanner()
-        self.swarm_memory = SwarmMemory(
-            config=self.config,
-            agent_name="SwarmShared"
-        )
-        
-        # Initialize intent parser early (needed for zero-config conversion)
-        self.swarm_intent_parser = IntentParser(planner=self.swarm_planner)
-        
-        # Unified Provider Gateway (DRY: reuse existing UnifiedLMProvider)
-        provider_preference = getattr(self.config, 'provider', None)
-        self.swarm_provider_gateway = SwarmProviderGateway(
-            config=self.config,
-            provider=provider_preference
-        )
-        
-        # Zero-config: Intelligently decide single vs multi-agent
+        self.enable_lotus = enable_lotus
+        self.episode_count = 0
+
+        # Prompts
+        self.architect_prompts = architect_prompts or ["configs/prompts/architect/base_architect.md"]
+        self.auditor_prompts = auditor_prompts or ["configs/prompts/auditor/base_auditor.md"]
+
+        # Zero-config: natural language -> agents
         if isinstance(agents, str) and enable_zero_config:
-            logger.info(f"🔮 Zero-config mode: Analyzing task for agent configuration")
+            logger.info("Zero-config mode: analyzing task for agent configuration")
             agents = self._create_zero_config_agents(agents)
 
-        # Normalize agents to list
+        # Normalize agents
         if agents is None:
-            # Default: Single AutoAgent
+            from Jotty.core.agents.auto_agent import AutoAgent
             agents = [AgentConfig(name="auto", agent=AutoAgent())]
         elif isinstance(agents, AgentConfig):
             agents = [agents]
 
         self.agents = agents
         self.mode = "multi" if len(agents) > 1 else "single"
-        logger.info(f"🤖 Agent mode: {self.mode} ({len(self.agents)} agents)")
-        
-        # Default prompts - use evolved prompts from configs/prompts/ directory
-        self.architect_prompts = architect_prompts or ["configs/prompts/architect/base_architect.md"]
-        self.auditor_prompts = auditor_prompts or ["configs/prompts/auditor/base_auditor.md"]
-        
-        # Swarm-level Feature Components (consistent naming)
-        # UI Component Registry
-        self.swarm_ui_registry = get_agui_registry()
-        logger.info(f"🎨 SwarmUIRegistry initialized - {len(self.swarm_ui_registry.list_section_types())} components available")
-        
-        # Performance Profiler
-        enable_profiling = getattr(self.config, 'enable_profiling', False)
-        self.swarm_profiler = SwarmProfiler(enable_cprofile=enable_profiling) if enable_profiling else None
-        if self.swarm_profiler:
-            logger.info("⏱️  SwarmProfiler enabled")
-        
-        # Tool Validation & Registry
-        self.swarm_tool_validator = SwarmToolValidator()
-        self.swarm_tool_registry = get_tools_registry()
-        logger.info("✅ SwarmToolValidator initialized")
-        
-        # Autonomous Components (DRY: reuse existing, logical naming)
-        self.swarm_researcher = SwarmResearcher(config=self.config)
-        self.swarm_installer = SwarmInstaller(config=self.config)
-        self.swarm_configurator = SwarmConfigurator(config=self.config)
-        self.swarm_code_generator = SwarmCodeGenerator(config=self.config)
-        self.swarm_workflow_learner = SwarmWorkflowLearner(swarm_memory=self.swarm_memory)
-        self.swarm_integrator = SwarmIntegrator(config=self.config)
 
-        # Intelligent Terminal (auto-fix, web search, skill generation)
-        self.swarm_terminal = SwarmTerminal(
-            config=self.config,
-            auto_fix=True,
-            max_fix_attempts=3
-        )
-        logger.info("🤖 Autonomous components initialized (including SwarmTerminal)")
+        # Runner and LOTUS state (created lazily in _ensure_runners)
+        self.runners: Dict[str, 'AgentRunner'] = {}
+        self._runners_built = False
+        self.lotus = None
+        self.lotus_optimizer = None
 
-        # MAS Learning initialization moved after _init_learning_pipeline() for DRY delegation
-        
-        # Initialize shared context and supporting components for state management
-        from ...persistence.shared_context import SharedContext
-        self.shared_context = SharedContext()
-        
-        # Initialize IOManager for output tracking (if not already present)
-        from ...data.io_manager import IOManager
-        self.io_manager = IOManager()
-        
-        # Initialize DataRegistry for artifact registration (if not already present)
-        from ...data.data_registry import DataRegistry
-        self.data_registry = DataRegistry()
-        
-        # Initialize ContextGuard for context management (if not already present)
-        from ...context.context_guard import SmartContextGuard
-        self.context_guard = SmartContextGuard()
-        
-        # Convert agents list to dict for state manager
-        agents_dict = {agent.name: agent for agent in self.agents}
-        
-        # Initialize SwarmStateManager (V1 state management integrated)
-        self.swarm_state_manager = SwarmStateManager(
-            swarm_task_board=self.swarm_task_board,
-            swarm_memory=self.swarm_memory,
-            io_manager=self.io_manager,
-            data_registry=self.data_registry,
-            shared_context=self.shared_context,
-            context_guard=self.context_guard,
-            config=self.config,
-            agents=agents_dict,
-            agent_signatures={}  # Will be populated during execution
-        )
-        logger.info("📊 SwarmStateManager initialized (swarm + agent-level tracking)")
-
-        # Learning Pipeline (extracted from SwarmManager)
-        self.learning = SwarmLearningPipeline(self.config)
-
-        # Expose learning components for backward compat (used by AgentRunner, callers, etc.)
-        self.learning_manager = self.learning.learning_manager
-        self.transfer_learning = self.learning.transfer_learning
-        self.swarm_intelligence = self.learning.swarm_intelligence
-        self.credit_weights = self.learning.credit_weights
-        self.trajectory_predictor = self.learning.trajectory_predictor
-        self.divergence_memory = self.learning.divergence_memory
-        self.cooperative_credit = self.learning.cooperative_credit
-        self.brain_state = self.learning.brain_state
-        self.agent_abstractor = self.learning.agent_abstractor
-        self.swarm_learner = self.learning.swarm_learner
-        self.agent_slack = self.learning.agent_slack
-        self.feedback_channel = self.learning.feedback_channel
-        self.episode_count = 0
-        logger.info("Learning pipeline initialized (SwarmLearningPipeline)")
-
-        # Skill Provider Registry (lazy loaded)
+        # Provider registry (lazy)
         self.provider_registry = None
-        if _load_providers():
-            self._init_provider_registry()
-        # Caching for autonomous_setup
+
+        # Setup cache
         self._setup_cache = {}
 
-        # MAS Learning - DRY: delegates to existing components
-        workspace_path = getattr(self.config, 'base_path', None)
-        self.mas_learning = MASLearning(
-            config=self.config,
-            workspace_path=workspace_path,
-            swarm_intelligence=self.swarm_intelligence,
-            learning_manager=self.learning_manager,
-            transfer_learning=self.transfer_learning,
-        )
-        self.mas_learning.integrate_with_terminal(self.swarm_terminal)
-        logger.info("🧠 MASLearning initialized")
+        logger.info(f"SwarmManager: {self.mode} mode, {len(self.agents)} agents (lazy init)")
 
-        # Auto-load previous learnings
-        self.learning.auto_load()
+    # =========================================================================
+    # LAZY RUNNER CREATION
+    # =========================================================================
 
-        # Create AgentRunners for each agent
-        self.runners: Dict[str, AgentRunner] = {}
+    def _ensure_runners(self):
+        """Build AgentRunners on first run() call (not in __init__)."""
+        if self._runners_built:
+            return
+
+        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
+
         for agent_config in self.agents:
+            if agent_config.name in self.runners:
+                continue
+
             runner_config = AgentRunnerConfig(
                 architect_prompts=self.architect_prompts,
                 auditor_prompts=self.auditor_prompts,
                 config=self.config,
                 agent_name=agent_config.name,
                 enable_learning=True,
-                enable_memory=True
+                enable_memory=True,
             )
-            
+
             runner = AgentRunner(
                 agent=agent_config.agent,
                 config=runner_config,
@@ -336,31 +378,86 @@ class SwarmManager:
                 swarm_state_manager=self.swarm_state_manager,
                 learning_manager=self.learning_manager,
                 transfer_learning=self.transfer_learning,
-                swarm_terminal=self.swarm_terminal,  # Shared intelligent terminal
-                swarm_intelligence=self.swarm_intelligence,  # Curriculum feedback (Agent0)
+                swarm_terminal=self.swarm_terminal,
+                swarm_intelligence=self.swarm_intelligence,
             )
-
             self.runners[agent_config.name] = runner
 
-        # Register agents with Axon (SmartAgentSlack) for inter-agent communication
+        # Register agents with Axon for inter-agent communication
         self._register_agents_with_axon()
 
-        # LOTUS Optimization Layer (cascade, cache, adaptive validation)
-        self.enable_lotus = enable_lotus
-        self.lotus = None
-        self.lotus_optimizer = None
-        if enable_lotus:
+        # LOTUS optimization
+        if self.enable_lotus:
             self._init_lotus_optimization()
 
-        # Extracted components (lazy, lightweight references to self)
-        from .zero_config_factory import ZeroConfigAgentFactory
-        from .swarm_warmup import SwarmWarmup
-        from .swarm_dag_executor import SwarmDAGExecutor
-        self._zero_config_factory = ZeroConfigAgentFactory()
-        self._warmup = SwarmWarmup(self)
-        self._dag_executor = SwarmDAGExecutor(self)
+        # Auto-load previous learnings
+        self.learning.auto_load()
 
-        logger.info(f"SwarmManager initialized: {self.mode} mode, {len(self.agents)} agents")
+        # Integrate MAS learning with terminal
+        self.mas_learning.integrate_with_terminal(self.swarm_terminal)
+
+        # Init providers if available
+        if _load_providers():
+            self._init_provider_registry()
+
+        self._runners_built = True
+        logger.info(f"Runners built: {list(self.runners.keys())}")
+
+    # =========================================================================
+    # LEARNING PIPELINE ACCESSORS (backward compat - delegate to learning)
+    # =========================================================================
+
+    @property
+    def learning_manager(self):
+        return self.learning.learning_manager
+
+    @property
+    def transfer_learning(self):
+        return self.learning.transfer_learning
+
+    @property
+    def swarm_intelligence(self):
+        return self.learning.swarm_intelligence
+
+    @property
+    def credit_weights(self):
+        return self.learning.credit_weights
+
+    @credit_weights.setter
+    def credit_weights(self, value):
+        self.learning.credit_weights = value
+
+    @property
+    def trajectory_predictor(self):
+        return self.learning.trajectory_predictor
+
+    @property
+    def divergence_memory(self):
+        return self.learning.divergence_memory
+
+    @property
+    def cooperative_credit(self):
+        return self.learning.cooperative_credit
+
+    @property
+    def brain_state(self):
+        return self.learning.brain_state
+
+    @property
+    def agent_abstractor(self):
+        return self.learning.agent_abstractor
+
+    @property
+    def swarm_learner(self):
+        return self.learning.swarm_learner
+
+    @property
+    def agent_slack(self):
+        return self.learning.agent_slack
+
+    @property
+    def feedback_channel(self):
+        return self.learning.feedback_channel
     
     # _init_learning_pipeline removed — now handled by SwarmLearningPipeline
 
@@ -377,7 +474,7 @@ class SwarmManager:
         DRY: Uses centralized LotusConfig for all optimization settings.
         """
         try:
-            from ...lotus.integration import LotusEnhancement, _enhance_agent_runner
+            from Jotty.core.lotus.integration import LotusEnhancement, _enhance_agent_runner
 
             # Create LOTUS enhancement with default config
             self.lotus = LotusEnhancement(
@@ -454,220 +551,15 @@ class SwarmManager:
             pass
         return False
 
-    def _init_provider_registry(self):
-        """Initialize the skill provider registry with all available providers."""
-        global ProviderRegistry, BrowserUseProvider, OpenHandsProvider
-        global AgentSProvider, OpenInterpreterProvider
-        global ResearchAndAnalyzeProvider, AutomateWorkflowProvider, FullStackAgentProvider
-
-        if not ProviderRegistry:
-            logger.warning("Skill providers not available")
-            return
-
-        try:
-            # Create registry with swarm intelligence for learning
-            self.provider_registry = ProviderRegistry(
-                swarm_intelligence=self.swarm_intelligence
-            )
-
-            # Register external providers
-            providers_to_register = [
-                BrowserUseProvider({'headless': True}),
-                OpenHandsProvider({'sandbox': True}),
-                AgentSProvider({'safe_mode': True}),
-                OpenInterpreterProvider({'auto_run': True}),
-            ]
-
-            for provider in providers_to_register:
-                try:
-                    self.provider_registry.register(provider)
-                except Exception as e:
-                    logger.debug(f"Could not register {provider.name}: {e}")
-
-            # Register composite providers
-            composite_providers = [
-                ResearchAndAnalyzeProvider(),
-                AutomateWorkflowProvider(),
-                FullStackAgentProvider(),
-            ]
-
-            for provider in composite_providers:
-                try:
-                    provider.set_registry(self.provider_registry)
-                    if hasattr(provider, 'set_swarm_intelligence'):
-                        provider.set_swarm_intelligence(self.swarm_intelligence)
-                    self.provider_registry.register(provider)
-                except Exception as e:
-                    logger.debug(f"Could not register composite {provider.name}: {e}")
-
-            # Load learned provider preferences
-            provider_path = self._get_provider_registry_path()
-            if provider_path.exists():
-                self.provider_registry.load_state(str(provider_path))
-                logger.info(f"Loaded provider learnings from {provider_path}")
-
-            logger.info(f"✅ Provider registry initialized: {list(self.provider_registry.get_all_providers().keys())}")
-
-        except Exception as e:
-            logger.error(f"Failed to initialize provider registry: {e}")
-            self.provider_registry = None
-
-    def _get_provider_registry_path(self) -> Path:
-        """Get path for provider registry persistence."""
-        base = getattr(self.config, 'base_path', None)
-        if base:
-            return Path(base) / 'provider_learnings.json'
-        return Path.home() / '.jotty' / 'provider_learnings.json'
-
-    async def execute_with_provider(
-        self,
-        category: str,
-        task: str,
-        context: Dict[str, Any] = None,
-        provider_name: str = None
-    ):
-        """
-        Execute a task using the skill provider system.
-
-        Args:
-            category: Skill category (browser, terminal, computer_use, etc.)
-            task: Task description in natural language
-            context: Additional context
-            provider_name: Optional specific provider to use
-
-        Returns:
-            ProviderResult with execution output
-        """
-        global SkillCategory
-
-        if not self.provider_registry:
-            logger.warning("Provider registry not available")
-            return None
-
-        try:
-            # Convert string category to enum
-            cat_enum = SkillCategory(category) if isinstance(category, str) and SkillCategory else category
-
-            # Execute via registry (uses learned selection)
-            result = await self.provider_registry.execute(
-                category=cat_enum,
-                task=task,
-                context=context,
-                provider_name=provider_name,
-            )
-
-            # Record in swarm intelligence
-            if result.success:
-                self.swarm_intelligence.record_task_result(
-                    agent_name=result.provider_name,
-                    task_type=category,
-                    success=result.success,
-                    execution_time=result.execution_time,
-                )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Provider execution error: {e}")
-            return None
-
-    def get_provider_summary(self) -> Dict[str, Any]:
-        """Get summary of provider registry state."""
-        if not self.provider_registry:
-            return {'available': False}
-
-        return {
-            'available': True,
-            **self.provider_registry.get_registry_summary(),
-        }
-
     # =========================================================================
-    # Intelligent Terminal Methods (SwarmTerminal)
+    # Provider, Ensemble, Learning methods — see _provider_mixin.py,
+    # _ensemble_mixin.py, _learning_delegation_mixin.py
     # =========================================================================
-
-    # terminal_* methods removed — use self.swarm_terminal directly
-
-    # =========================================================================
-    # Learning delegation (SwarmLearningPipeline handles persistence & hooks)
-    # =========================================================================
-
-    def _auto_load_learnings(self):
-        """Delegate to SwarmLearningPipeline."""
-        self.learning.auto_load()
-        # Sync credit_weights reference after load (may have been replaced)
-        self.credit_weights = self.learning.credit_weights
-        # Log MAS stats
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            try:
-                stats = self.mas_learning.get_statistics()
-                logger.info(f"MAS Learning ready: {stats['fix_database']['total_fixes']} fixes, "
-                           f"{stats['sessions']['total_sessions']} sessions")
-            except Exception:
-                pass
-
-    def _auto_save_learnings(self):
-        """Delegate to SwarmLearningPipeline."""
-        self.learning.auto_save(
-            mas_learning=getattr(self, 'mas_learning', None),
-            swarm_terminal=getattr(self, 'swarm_terminal', None),
-            provider_registry=getattr(self, 'provider_registry', None),
-        )
-        # Save HierarchicalMemory persistence
-        if hasattr(self, 'memory_persistence') and self.memory_persistence:
-            try:
-                self.memory_persistence.save()
-            except Exception as e:
-                logger.debug(f"Could not auto-save memory: {e}")
-
-    def load_relevant_learnings(self, task_description: str, agent_types: List[str] = None) -> Dict[str, Any]:
-        """Load learnings relevant to the current task."""
-        if not hasattr(self, 'mas_learning') or not self.mas_learning:
-            return {}
-        return self.mas_learning.load_relevant_learnings(
-            task_description=task_description,
-            agent_types=agent_types or [a.name for a in self.agents],
-        )
-
-    def record_agent_result(self, agent_name: str, task_type: str, success: bool,
-                            time_taken: float, output_quality: float = 0.0):
-        """Record an agent's task result for learning."""
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            self.mas_learning.record_agent_task(
-                agent_type=agent_name, task_type=task_type,
-                success=success, time_taken=time_taken, output_quality=output_quality,
-            )
-
-    def record_session_result(self, task_description: str,
-                              agent_performances: Dict[str, Dict[str, Any]],
-                              total_time: float, success: bool,
-                              fixes_applied: List[Dict[str, Any]] = None,
-                              stigmergy_signals: int = 0):
-        """Record session results for future learning."""
-        if hasattr(self, 'mas_learning') and self.mas_learning:
-            self.mas_learning.record_session(
-                task_description=task_description, agent_performances=agent_performances,
-                fixes_applied=fixes_applied or [], stigmergy_signals=stigmergy_signals,
-                total_time=total_time, success=success,
-            )
-
-    def get_transferable_context(self, query: str, agent: str = None) -> str:
-        """Get transferable learnings as context for an agent."""
-        return self.learning.get_transferable_context(query, agent)
-
-    def get_swarm_wisdom(self, query: str) -> str:
-        """Get collective swarm wisdom for a task."""
-        return self.learning.get_swarm_wisdom(query)
-
-    def get_agent_specializations(self) -> Dict[str, str]:
-        """Get current specializations of all agents."""
-        return self.learning.get_agent_specializations()
-
-    def get_best_agent_for_task(self, query: str) -> Optional[str]:
-        """Recommend the best agent for a task."""
-        return self.learning.get_best_agent_for_task(query)
 
     def _register_agents_with_axon(self):
         """Register all agents with SmartAgentSlack for inter-agent messaging."""
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+
         def _make_slack_callback(target_actor_name: str):
             def _callback(message):
                 try:
@@ -753,6 +645,7 @@ class SwarmManager:
 
         Args:
             goal: Task goal/description (natural language supported)
+            context: Optional ExecutionContext from ModeRouter
             skip_autonomous_setup: If True, skip research/install/configure (fast mode)
             status_callback: Optional callback(stage, detail) for progress updates
             ensemble: Enable prompt ensembling for multi-perspective analysis
@@ -762,17 +655,36 @@ class SwarmManager:
         Returns:
             EpisodeResult with output and metadata
         """
+        # Lazy init: Build runners on first run
+        self._ensure_runners()
+
+        # Extract ExecutionContext if provided by ModeRouter
+        exec_context = kwargs.pop('context', None)
+
         # Extract special kwargs
         skip_autonomous_setup = kwargs.pop('skip_autonomous_setup', False)
         status_callback = kwargs.pop('status_callback', None)
         ensemble = kwargs.pop('ensemble', None)  # None = auto-detect, True/False = explicit
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
 
+        # If ExecutionContext provided, extract callbacks from it
+        if exec_context is not None:
+            if status_callback is None and hasattr(exec_context, 'status_callback'):
+                status_callback = exec_context.status_callback
+            # Emit start event
+            if hasattr(exec_context, 'emit_event'):
+                from Jotty.core.foundation.types.sdk_types import SDKEventType
+                exec_context.emit_event(SDKEventType.PLANNING, {
+                    "goal": goal,
+                    "mode": self.mode,
+                    "agents": len(self.agents),
+                })
+
         # Auto-detect ensemble for certain task types (if not explicitly set)
         if ensemble is None:
             ensemble = self._should_auto_ensemble(goal)
             if ensemble:
-                logger.info(f"🔮 Auto-enabled ensemble for task type (use ensemble=False to override)")
+                logger.info(f"Auto-enabled ensemble for task type (use ensemble=False to override)")
 
         # Ensure DSPy LM is configured (critical for all agent operations)
         import dspy
@@ -802,6 +714,7 @@ class SwarmManager:
                 logger.info(f"🔄 Zero-config: Upgraded to {len(self.agents)} agents for parallel execution")
 
                 # Create runners for new agents
+                from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
                 for agent_config in self.agents:
                     if agent_config.name not in self.runners:
                         runner_config = AgentRunnerConfig(
@@ -945,122 +858,7 @@ class SwarmManager:
                 profile_context.__exit__(type(e), e, None)
             raise
     
-    async def _execute_ensemble(
-        self,
-        goal: str,
-        strategy: str = 'multi_perspective',
-        status_callback=None
-    ) -> Dict[str, Any]:
-        """
-        Execute prompt ensembling for multi-perspective analysis.
-
-        Uses the ensemble_prompt_tool from claude-cli-llm skill.
-
-        Strategies:
-        - self_consistency: Same prompt, N samples, synthesis
-        - multi_perspective: Different expert personas (default)
-        - gsa: Generative Self-Aggregation
-        - debate: Multi-round argumentation
-
-        Args:
-            goal: The task/question to analyze
-            strategy: Ensembling strategy
-            status_callback: Optional progress callback
-
-        Returns:
-            Dict with ensemble results including synthesized response
-        """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-
-        try:
-            # Try to use the skill
-            try:
-                from ...registry.skills_registry import get_skills_registry
-                registry = get_skills_registry()
-                registry.init()
-                skill = registry.get_skill('claude-cli-llm')
-
-                if skill:
-                    ensemble_tool = skill.tools.get('ensemble_prompt_tool')
-                    if ensemble_tool:
-                        _status("Ensemble", f"using {strategy} strategy (domain-aware)")
-                        result = ensemble_tool({
-                            'prompt': goal,
-                            'strategy': strategy,
-                            'synthesis_style': 'structured',
-                            'verbose': True  # Get quality scores and summaries
-                        })
-                        # Show individual perspective status
-                        if result.get('success') and result.get('quality_scores'):
-                            for name, score in result['quality_scores'].items():
-                                _status(f"  {name}", f"quality={score:.0%}")
-                        return result
-            except ImportError:
-                pass
-
-            # Fallback: Use DSPy directly for multi-perspective
-            import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                return {'success': False, 'error': 'No LLM configured'}
-
-            lm = dspy.settings.lm
-
-            # Simple multi-perspective implementation
-            perspectives = [
-                ("analytical", "Analyze this from a data-driven, logical perspective:"),
-                ("creative", "Consider unconventional angles and innovative solutions:"),
-                ("critical", "Play devil's advocate - identify risks and problems:"),
-                ("practical", "Focus on feasibility and actionable steps:"),
-            ]
-
-            responses = {}
-            for name, prefix in perspectives:
-                _status(f"  {name}", "analyzing...")
-                try:
-                    prompt = f"{prefix}\n\n{goal}"
-                    response = lm(prompt=prompt)
-                    text = response[0] if isinstance(response, list) else str(response)
-                    responses[name] = text
-                except Exception as e:
-                    logger.warning(f"Perspective '{name}' failed: {e}")
-
-            if not responses:
-                return {'success': False, 'error': 'All perspectives failed'}
-
-            # Synthesize
-            _status("Synthesizing", f"{len(responses)} perspectives")
-            synthesis_prompt = f"""Synthesize these {len(responses)} expert perspectives into a comprehensive analysis:
-
-Question: {goal}
-
-{chr(10).join(f'**{k.upper()}:** {v[:600]}' for k, v in responses.items())}
-
-Provide a structured synthesis with:
-1. **Consensus**: Where perspectives agree
-2. **Tensions**: Where they diverge
-3. **Blind Spots**: Unique insights from each
-4. **Recommendation**: Balanced conclusion"""
-
-            synthesis = lm(prompt=synthesis_prompt)
-            final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
-
-            return {
-                'success': True,
-                'response': final_response,
-                'perspectives_used': list(responses.keys()),
-                'individual_responses': responses,
-                'strategy': strategy,
-                'confidence': len(responses) / len(perspectives)
-            }
-
-        except Exception as e:
-            logger.error(f"Ensemble execution failed: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
+    # _execute_ensemble and _should_auto_ensemble — see _ensemble_mixin.py
 
     async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
         """
@@ -1099,6 +897,10 @@ Provide a structured synthesis with:
         Agents are executed in order (research → generate → notify) with each
         agent's output passed to the next. Uses retry on failure.
         """
+        from Jotty.core.orchestration.v2.swarm_roadmap import TaskStatus
+        from Jotty.core.learning.predictive_marl import ActualTrajectory
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+
         # Extract callbacks and ensemble params before passing to runners
         kwargs.pop('ensemble_context', None)
         status_callback = kwargs.pop('status_callback', None)
@@ -1413,12 +1215,12 @@ Provide a structured synthesis with:
 
     def _create_zero_config_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
         """Delegate to ZeroConfigAgentFactory."""
+        if not hasattr(self, '_zero_config_factory') or self._zero_config_factory is None:
+            from Jotty.core.orchestration.v2.zero_config_factory import ZeroConfigAgentFactory
+            self._zero_config_factory = ZeroConfigAgentFactory()
         return self._zero_config_factory.create_agents(task, status_callback)
 
-    def _should_auto_ensemble(self, goal: str) -> bool:
-        """Delegate to swarm_ensemble module."""
-        from .swarm_ensemble import should_auto_ensemble
-        return should_auto_ensemble(goal)
+    # _should_auto_ensemble — see _ensemble_mixin.py
 
     def _post_episode_learning(self, result: EpisodeResult, goal: str):
         """Delegate to SwarmLearningPipeline."""
@@ -1524,10 +1326,16 @@ Provide a structured synthesis with:
 
     async def warmup(self, **kwargs) -> Dict[str, Any]:
         """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
+        if not hasattr(self, '_warmup') or self._warmup is None:
+            from Jotty.core.orchestration.v2.swarm_warmup import SwarmWarmup
+            self._warmup = SwarmWarmup(self)
         return await self._warmup.warmup(**kwargs)
 
     def get_warmup_recommendation(self) -> Dict[str, Any]:
         """Check if warmup would be beneficial."""
+        if not hasattr(self, '_warmup') or self._warmup is None:
+            from Jotty.core.orchestration.v2.swarm_warmup import SwarmWarmup
+            self._warmup = SwarmWarmup(self)
         return self._warmup.get_recommendation()
 
     # =====================================================================
@@ -1536,8 +1344,14 @@ Provide a structured synthesis with:
 
     async def run_with_dag(self, implementation_plan: str, **kwargs) -> EpisodeResult:
         """Execute via DAG-based orchestration. See SwarmDAGExecutor."""
+        if not hasattr(self, '_dag_executor') or self._dag_executor is None:
+            from Jotty.core.orchestration.v2.swarm_dag_executor import SwarmDAGExecutor
+            self._dag_executor = SwarmDAGExecutor(self)
         return await self._dag_executor.run(implementation_plan, **kwargs)
 
     def get_dag_agents(self):
         """Get DAG agents for external use."""
+        if not hasattr(self, '_dag_executor') or self._dag_executor is None:
+            from Jotty.core.orchestration.v2.swarm_dag_executor import SwarmDAGExecutor
+            self._dag_executor = SwarmDAGExecutor(self)
         return self._dag_executor.get_agents()

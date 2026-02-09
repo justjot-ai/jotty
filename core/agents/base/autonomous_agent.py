@@ -233,7 +233,10 @@ class AutonomousAgent(BaseAgent):
         """
         config: AutonomousAgentConfig = self.config
         start_time = time.time()
-        status_callback = kwargs.get('status_callback')
+        status_callback = kwargs.pop('status_callback', None)
+        # Learning context is kept separate from task to prevent pollution
+        # of search queries, entity extraction, and skill params
+        learning_context = kwargs.pop('learning_context', None)
 
         def _status(stage: str, detail: str = ""):
             if status_callback:
@@ -246,12 +249,12 @@ class AutonomousAgent(BaseAgent):
         # Reset excluded skills for new execution (single source of truth: executor)
         self.executor.clear_exclusions()
 
-        # Step 1: Infer task type
+        # Step 1: Infer task type (uses CLEAN task — no learning context)
         _status("Analyzing", "inferring task type")
         task_type = self._infer_task_type(task)
         _status("Task type", task_type)
 
-        # Step 2: Discover skills (with autonomous filtering)
+        # Step 2: Discover skills (uses CLEAN task — no learning context)
         _status("Discovering", "finding relevant skills")
         all_skills = await self._discover_skills(task)
         _status("Skills found", f"{len(all_skills)} potential")
@@ -263,14 +266,19 @@ class AutonomousAgent(BaseAgent):
                 _status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
                 logger.warning(f"Failed skills: {failed}")
 
-        # Step 3: Select best skills
+        # Step 3: Select best skills (uses CLEAN task)
         _status("Selecting", "choosing best skills")
         skills = await self._select_skills(task, all_skills)
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
         # Step 4: Create plan
+        # For planning, we can enrich with learning context since it goes to the LLM planner
+        # (not to search queries or skill params)
         _status("Planning", "creating execution plan")
-        steps = await self._create_plan(task, task_type, skills)
+        planning_task = task
+        if learning_context:
+            planning_task = f"{task}\n\n[Learning Context - use to guide planning decisions]:\n{learning_context[:2000]}"
+        steps = await self._create_plan(planning_task, task_type, skills)
         _status("Plan ready", f"{len(steps)} steps")
 
         if not steps:
@@ -301,7 +309,8 @@ class AutonomousAgent(BaseAgent):
         # Step 5: Execute steps (using while loop to support dynamic step modification)
         outputs = {}
         skills_used = []
-        errors = []
+        errors = []          # Unrecovered fatal errors
+        warnings = []        # Recovered errors (replanning fixed them)
         replan_count = 0
         execution_stopped = False
         i = 0
@@ -358,6 +367,9 @@ class AutonomousAgent(BaseAgent):
                         # Splice new steps into remaining execution
                         steps = steps[:i + 1] + new_steps
                         replan_count += 1
+                        # Move error to warnings since replanning is recovering
+                        if errors:
+                            warnings.append(errors.pop())
                         _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:60]})")
                         i += 1
                         continue
@@ -370,8 +382,8 @@ class AutonomousAgent(BaseAgent):
         # Determine final output
         final_output = list(outputs.values())[-1] if outputs else None
 
-        # Success only if no errors occurred (or all errors were from optional steps)
-        # If execution was stopped due to failure, it's not a success
+        # Success if we produced output and didn't stop early from unrecovered errors
+        # Recovered errors (replanning fixed them) are warnings, not failures
         is_success = len(outputs) > 0 and not execution_stopped and len(errors) == 0
 
         return {
@@ -383,6 +395,7 @@ class AutonomousAgent(BaseAgent):
             "outputs": outputs,
             "final_output": final_output,
             "errors": errors,
+            "warnings": warnings,
             "execution_time": time.time() - start_time,
             "stopped_early": execution_stopped,
         }

@@ -1,6 +1,10 @@
 """
 RL Components for ReVal.
 
+STATUS: UNUSED — RLComponents class has 0 external imports.
+Only re-exported via __init__.py. Candidate for archival.
+See MODULE_STATUS.md for details.
+
 Provides reinforcement learning functionality including:
 - Semantic experience retrieval
 - TD learning with explanations

@@ -18,6 +18,12 @@ def register_sharing_routes(app, api):
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
     from pydantic import BaseModel
 
+    class CreateShareLinkRequest(BaseModel):
+        session_id: str
+        title: Optional[str] = None
+        expires_in_days: int = 30
+        branch_id: Optional[str] = None
+
     @app.post("/api/share/create")
     async def create_share_link(request: CreateShareLinkRequest):
         """Create a shareable link for a conversation."""

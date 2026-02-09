@@ -2,28 +2,35 @@
 API Layer for Jotty
 ===================
 
-Unified entry points for all use cases.
+Primary entry point: ModeRouter - unified request routing with ExecutionContext.
+All entry points (CLI, Gateway, Web, SDK) flow through ModeRouter.
 
 Components:
-- JottyAPI: Main unified API (chat + workflow)
-- ChatAPI: Chat-specific API
-- WorkflowAPI: Workflow-specific API
-- ModeRouter: Unified mode routing with ExecutionContext
-- OpenAPI: OpenAPI 3.0 spec generator for SDK generation
+- ModeRouter: Canonical execution path (chat + workflow + skill + agent)
+- OpenAPI: Auto-generated spec from sdk_types.py dataclasses
+
+Legacy (kept for backward compatibility, prefer ModeRouter):
+- JottyAPI: Old unified API (uses SwarmManager/UseCases)
+- ChatAPI: Old chat-specific API
+- WorkflowAPI: Old workflow-specific API
 """
 
+from .mode_router import ModeRouter, get_mode_router, RouteResult
+from .openapi import generate_openapi_spec
+
+# Legacy imports (backward compatibility)
 from .unified import JottyAPI
 from .chat_api import ChatAPI
 from .workflow_api import WorkflowAPI
-from .openapi import generate_openapi_spec
-from .mode_router import ModeRouter, get_mode_router, RouteResult
 
 __all__ = [
-    "JottyAPI",
-    "ChatAPI",
-    "WorkflowAPI",
+    # Primary
     "ModeRouter",
     "get_mode_router",
     "RouteResult",
     "generate_openapi_spec",
+    # Legacy
+    "JottyAPI",
+    "ChatAPI",
+    "WorkflowAPI",
 ]

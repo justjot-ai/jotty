@@ -7,9 +7,9 @@ Simplified API for workflow execution.
 from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
-from ..use_cases.workflow import WorkflowUseCase
-from ..orchestration import SwarmManager
-from ..foundation.data_structures import JottyConfig
+from Jotty.core.use_cases.workflow import WorkflowUseCase
+from Jotty.core.orchestration import SwarmManager
+from Jotty.core.foundation.data_structures import JottyConfig
 
 logger = logging.getLogger(__name__)
 

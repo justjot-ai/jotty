@@ -190,7 +190,7 @@ Test the SDK client with real-time event visualization.
 
         try:
             from ...sdk.client import Jotty
-            from core.foundation.types.sdk_types import SDKEventType
+            from Jotty.core.foundation.types.sdk_types import SDKEventType
 
             # Create client
             client = Jotty().use_local()
@@ -406,7 +406,7 @@ Test the SDK client with real-time event visualization.
         """Basic chat fallback when prompt_toolkit is not available."""
         try:
             from ...sdk.client import Jotty
-            from core.foundation.types.sdk_types import SDKEventType
+            from Jotty.core.foundation.types.sdk_types import SDKEventType
 
             client = Jotty().use_local()
             conv_history = []
@@ -641,7 +641,7 @@ Test the SDK client with real-time event visualization.
 
         try:
             from ...sdk.client import Jotty
-            from core.foundation.types.sdk_types import SDKEventType
+            from Jotty.core.foundation.types.sdk_types import SDKEventType
 
             client = Jotty().use_local()
 
@@ -692,7 +692,7 @@ Test the SDK client with real-time event visualization.
 
         try:
             from ...sdk.client import Jotty
-            from core.foundation.types.sdk_types import SDKEventType
+            from Jotty.core.foundation.types.sdk_types import SDKEventType
 
             client = Jotty().use_local()
 
@@ -774,7 +774,7 @@ Test the SDK client with real-time event visualization.
 
         try:
             from ...sdk.client import Jotty
-            from core.foundation.types.sdk_types import SDKEventType
+            from Jotty.core.foundation.types.sdk_types import SDKEventType
 
             client = Jotty().use_local()
 

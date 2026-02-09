@@ -39,7 +39,7 @@ class ModelChatCommand(BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute model chat command."""
-        from core.agents.model_chat_agent import ModelChatAgent
+        from Jotty.core.agents.model_chat_agent import ModelChatAgent
 
         # Show help if no query and not interactive
         if not args.positional and "interactive" not in args.flags and "i" not in args.flags:

@@ -39,99 +39,12 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-# Import SDK types
-try:
-    from core.foundation.types.sdk_types import (
-        ChannelType,
-        SDKSession,
-        ExecutionContext,
-    )
-    SDK_TYPES_AVAILABLE = True
-except ImportError:
-    # Fallback for standalone usage
-    SDK_TYPES_AVAILABLE = False
-    from enum import Enum
-    class ChannelType(Enum):
-        CLI = "cli"
-        TELEGRAM = "telegram"
-        SLACK = "slack"
-        DISCORD = "discord"
-        WHATSAPP = "whatsapp"
-        WEBSOCKET = "websocket"
-        HTTP = "http"
-        SDK = "sdk"
-        WEB = "web"
-        CUSTOM = "custom"
-
-    # Minimal SDKSession fallback
-    from dataclasses import dataclass, field
-    from typing import Dict, List, Any, Optional
-    from datetime import datetime
-
-    @dataclass
-    class SDKSession:
-        session_id: str
-        user_id: str
-        channels: Dict[str, str] = field(default_factory=dict)
-        primary_channel: Optional[ChannelType] = None
-        messages: List[Dict[str, Any]] = field(default_factory=list)
-        max_history: int = 50
-        user_name: Optional[str] = None
-        preferences: Dict[str, Any] = field(default_factory=dict)
-        created_at: datetime = field(default_factory=datetime.now)
-        updated_at: datetime = field(default_factory=datetime.now)
-        last_active: datetime = field(default_factory=datetime.now)
-        metadata: Dict[str, Any] = field(default_factory=dict)
-
-        def add_message(self, role: str, content: str, metadata: Optional[Dict] = None):
-            self.messages.append({
-                "role": role,
-                "content": content,
-                "timestamp": datetime.now().isoformat(),
-                "metadata": metadata or {}
-            })
-            if len(self.messages) > self.max_history:
-                self.messages = self.messages[-self.max_history:]
-            self.last_active = datetime.now()
-
-        def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
-            return self.messages[-limit:]
-
-        def link_channel(self, channel: ChannelType, channel_id: str):
-            self.channels[channel.value] = channel_id
-            if self.primary_channel is None:
-                self.primary_channel = channel
-
-        def to_dict(self) -> Dict[str, Any]:
-            return {
-                "session_id": self.session_id,
-                "user_id": self.user_id,
-                "channels": self.channels,
-                "primary_channel": self.primary_channel.value if self.primary_channel else None,
-                "messages": self.messages,
-                "user_name": self.user_name,
-                "preferences": self.preferences,
-                "created_at": self.created_at.isoformat(),
-                "updated_at": self.updated_at.isoformat(),
-                "last_active": self.last_active.isoformat(),
-                "metadata": self.metadata,
-            }
-
-        @classmethod
-        def from_dict(cls, data: Dict[str, Any]) -> "SDKSession":
-            return cls(
-                session_id=data["session_id"],
-                user_id=data["user_id"],
-                channels=data.get("channels", {}),
-                primary_channel=ChannelType(data["primary_channel"]) if data.get("primary_channel") else None,
-                messages=data.get("messages", []),
-                user_name=data.get("user_name"),
-                preferences=data.get("preferences", {}),
-                created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(),
-                updated_at=datetime.fromisoformat(data["updated_at"]) if "updated_at" in data else datetime.now(),
-                last_active=datetime.fromisoformat(data["last_active"]) if "last_active" in data else datetime.now(),
-                metadata=data.get("metadata", {}),
-            )
+# Absolute imports - single source of truth
+from Jotty.core.foundation.types.sdk_types import (
+    ChannelType,
+    SDKSession,
+    ExecutionContext,
+)
 
 
 class PersistentSessionManager:

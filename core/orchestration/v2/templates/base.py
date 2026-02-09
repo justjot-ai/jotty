@@ -586,7 +586,7 @@ class TemplateExecutor:
         try:
             # Import skill classes
             try:
-                from ....skills.ml import (
+                from Jotty.core.skills.ml import (
                     EDASkill, LLMFeatureReasonerSkill, FeatureEngineeringSkill,
                     FeatureSelectionSkill, ModelSelectionSkill, HyperoptSkill,
                     EnsembleSkill

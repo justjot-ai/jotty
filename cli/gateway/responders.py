@@ -21,31 +21,8 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 
-# Import SDK types
-try:
-    from core.foundation.types.sdk_types import (
-        ChannelType as SDKChannelType,
-        ExecutionContext
-    )
-    # Use SDK ChannelType
-    ChannelType = SDKChannelType
-except ImportError:
-    # Fallback: import from local channels module
-    try:
-        from .channels import ChannelType
-    except ImportError:
-        from enum import Enum
-        class ChannelType(Enum):
-            TELEGRAM = "telegram"
-            SLACK = "slack"
-            DISCORD = "discord"
-            WHATSAPP = "whatsapp"
-            WEBSOCKET = "websocket"
-            HTTP = "http"
-            CLI = "cli"
-            WEB = "web"
-            SDK = "sdk"
-    ExecutionContext = None
+# Absolute imports - single source of truth
+from Jotty.core.foundation.types.sdk_types import ChannelType, ExecutionContext
 
 
 @dataclass
@@ -96,7 +73,7 @@ class ChannelResponderRegistry:
         try:
             # Try to import from skills dynamically
             # This avoids hardcoded imports
-            from core.registry import get_unified_registry
+            from Jotty.core.registry import get_unified_registry
             registry = get_unified_registry()
 
             # Get the skill

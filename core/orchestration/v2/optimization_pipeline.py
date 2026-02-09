@@ -26,8 +26,8 @@ except ImportError:
     DSPY_AVAILABLE = False
     dspy = None
 
-from ...foundation.data_structures import JottyConfig, EpisodeResult
-from ...foundation.agent_config import AgentConfig
+from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.agent_config import AgentConfig
 
 # Import credit assignment and adaptive learning (core RL features)
 from .credit_assignment import CreditAssignment

@@ -10,7 +10,7 @@ import re
 import json
 from typing import List, Optional
 
-from ...foundation.agent_config import AgentConfig
+from Jotty.core.foundation.agent_config import AgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class ZeroConfigAgentFactory:
         Returns single AutoAgent for sequential workflows,
         multiple for truly independent parallel sub-goals.
         """
-        from ...agents.auto_agent import AutoAgent
+        from Jotty.core.agents.auto_agent import AutoAgent
         import dspy
 
         def _status(stage: str, detail: str = ""):
@@ -51,7 +51,7 @@ class ZeroConfigAgentFactory:
                         agent_config = AgentConfig(
                             name=agent_name,
                             agent=agent,
-                            capabilities=[sub_goal[:50]],
+                            capabilities=[sub_goal],
                             is_executor=True,
                         )
                         agents.append(agent_config)
@@ -101,7 +101,7 @@ class ZeroConfigAgentFactory:
             logger.info(f"🤖 LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}")
 
             if result.is_parallel:
-                sub_goals = json.loads(result.sub_goals)
+                sub_goals = self._parse_sub_goals(result.sub_goals)
                 if isinstance(sub_goals, list) and len(sub_goals) > 1:
                     sub_goals = self._deduplicate_sub_goals(sub_goals)
                     sub_goals = sub_goals[:4]
@@ -114,6 +114,41 @@ class ZeroConfigAgentFactory:
                 logger.info("📝 LLM detected sequential workflow - single agent optimal")
         except Exception as e:
             logger.debug(f"Agent decision parsing failed: {e}")
+
+        return []
+
+    def _parse_sub_goals(self, raw: str) -> List[str]:
+        """Parse sub-goals from LLM output — handles JSON, numbered lists, etc."""
+        import re
+        raw = str(raw).strip()
+
+        # Method 1: JSON parse
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(g).strip() for g in parsed if str(g).strip()]
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Method 2: Extract JSON array from text
+        json_match = re.search(r'\[.*?\]', raw, re.DOTALL)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+                if isinstance(parsed, list):
+                    return [str(g).strip() for g in parsed if str(g).strip()]
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Method 3: Numbered list (1. ..., 2. ...)
+        numbered = re.findall(r'^\s*\d+[\.\)]\s*(.+)$', raw, re.MULTILINE)
+        if len(numbered) >= 2:
+            return [g.strip() for g in numbered if g.strip()]
+
+        # Method 4: Bullet list (- ..., * ...)
+        bullets = re.findall(r'^\s*[-*]\s+(.+)$', raw, re.MULTILINE)
+        if len(bullets) >= 2:
+            return [g.strip() for g in bullets if g.strip()]
 
         return []
 

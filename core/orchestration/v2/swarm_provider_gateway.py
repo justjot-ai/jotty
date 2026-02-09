@@ -44,7 +44,7 @@ class SwarmProviderGateway:
         self._configured_lm: Optional[BaseLM] = None
         
         # DRY: Reuse existing UnifiedLMProvider
-        from ...foundation.unified_lm_provider import UnifiedLMProvider, configure_dspy_lm
+        from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider, configure_dspy_lm
         self._unified_provider = UnifiedLMProvider
         self._configure_fn = configure_dspy_lm
         
@@ -77,7 +77,7 @@ class SwarmProviderGateway:
             if in_async_context:
                 # In async context, create LM but don't configure DSPy globally
                 # Auto-detect best available provider (same logic as configure_dspy_lm)
-                from ...foundation.unified_lm_provider import UnifiedLMProvider
+                from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
 
                 if self.provider:
                     # User specified a provider
@@ -104,7 +104,7 @@ class SwarmProviderGateway:
                     # If no API key, use JottyClaudeProvider (auto-manages wrapper)
                     if not self._configured_lm:
                         try:
-                            from ...foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
+                            from Jotty.core.foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
                             if is_claude_available():
                                 provider = JottyClaudeProvider(auto_start=True)
                                 self._configured_lm = provider.get_lm()
@@ -115,7 +115,7 @@ class SwarmProviderGateway:
                     # Fallback to DirectClaudeCLI (simple subprocess, ~3s per call)
                     if not self._configured_lm and shutil.which('claude'):
                         try:
-                            from ...integration.direct_claude_cli_lm import DirectClaudeCLI
+                            from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
                             self._configured_lm = DirectClaudeCLI(model="sonnet")
                             logger.info("🌐 SwarmProviderGateway (async): Using DirectClaudeCLI")
                         except Exception as e:
@@ -124,7 +124,7 @@ class SwarmProviderGateway:
                     # If still nothing, try OpenCode
                     if not self._configured_lm:
                         try:
-                            from ...foundation.opencode_lm import OpenCodeLM
+                            from Jotty.core.foundation.opencode_lm import OpenCodeLM
                             self._configured_lm = OpenCodeLM(model="glm-4")
                             logger.info("🌐 SwarmProviderGateway (async): Using OpenCode GLM")
                         except Exception as e:

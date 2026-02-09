@@ -1,6 +1,9 @@
 """
-🎮 PREDICTIVE COOPERATIVE SWARM
+PREDICTIVE COOPERATIVE SWARM
 ================================
+
+STATUS: UNUSED — No classes in this module are instantiated outside core/learning/.
+Candidate for archival. See MODULE_STATUS.md for details.
 
 Breakthrough swarm architecture combining:
 - Game Theory (Von Neumann, Nash)
@@ -10,8 +13,7 @@ Breakthrough swarm architecture combining:
 
 Key Innovation: Agents optimize for SYSTEM reward, not individual reward!
 
-Author: A-Team (Von Neumann, Nash, Anthropic, Cursor engineers)
-Date: Dec 29, 2025
+See also: predictive_marl.py (the actively used multi-agent RL module).
 """
 
 import dspy

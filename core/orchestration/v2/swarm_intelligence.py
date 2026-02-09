@@ -70,13 +70,20 @@ from .tool_management import ToolManager
 
 # Protocol mixins (extracted from this file for modularity)
 from .protocols import CoordinationMixin, RoutingMixin, ResilienceMixin, LifecycleMixin
+# Feature mixins (extracted for maintainability)
+from ._consensus_mixin import ConsensusMixin
+from ._session_mixin import SessionMixin
+from ._morph_mixin import MorphMixin
 
 
 # =============================================================================
 # SWARM INTELLIGENCE ENGINE
 # =============================================================================
 
-class SwarmIntelligence(CoordinationMixin, RoutingMixin, ResilienceMixin, LifecycleMixin):
+class SwarmIntelligence(
+    CoordinationMixin, RoutingMixin, ResilienceMixin, LifecycleMixin,
+    ConsensusMixin, SessionMixin, MorphMixin
+):
     """
     World-class swarm intelligence coordinator.
 
@@ -438,88 +445,7 @@ class SwarmIntelligence(CoordinationMixin, RoutingMixin, ResilienceMixin, Lifecy
     # SWARM CONSENSUS
     # =========================================================================
 
-    async def gather_consensus(
-        self,
-        question: str,
-        options: List[str],
-        agents: List[str],
-        vote_func: Callable[[str, str, List[str]], Tuple[str, float, str]]
-    ) -> SwarmDecision:
-        """
-        Gather consensus from multiple agents.
-
-        Args:
-            question: The question to decide
-            options: Available options
-            agents: Agents participating in consensus
-            vote_func: Function(agent_name, question, options) -> (decision, confidence, reasoning)
-
-        Returns:
-            SwarmDecision with final consensus
-        """
-        votes = []
-
-        # Gather votes (can be parallelized)
-        for agent_name in agents:
-            try:
-                decision, confidence, reasoning = vote_func(agent_name, question, options)
-                votes.append(ConsensusVote(
-                    agent_name=agent_name,
-                    decision=decision,
-                    confidence=confidence,
-                    reasoning=reasoning
-                ))
-            except Exception as e:
-                logger.warning(f"Agent {agent_name} failed to vote: {e}")
-
-        if not votes:
-            return SwarmDecision(
-                question=question,
-                votes=[],
-                final_decision=options[0] if options else "",
-                consensus_strength=0.0,
-                dissenting_views=[]
-            )
-
-        # Weighted voting based on confidence and trust
-        vote_weights = defaultdict(float)
-        for vote in votes:
-            self.register_agent(vote.agent_name)
-            trust = self.agent_profiles[vote.agent_name].trust_score
-            weight = vote.confidence * trust
-            vote_weights[vote.decision] += weight
-
-        # Find winner
-        final_decision = max(vote_weights.keys(), key=lambda k: vote_weights[k])
-        total_weight = sum(vote_weights.values())
-        consensus_strength = vote_weights[final_decision] / total_weight if total_weight > 0 else 0.0
-
-        # Find dissenting views
-        dissenting = [
-            f"{v.agent_name}: {v.reasoning}"
-            for v in votes
-            if v.decision != final_decision
-        ]
-
-        decision = SwarmDecision(
-            question=question,
-            votes=votes,
-            final_decision=final_decision,
-            consensus_strength=consensus_strength,
-            dissenting_views=dissenting
-        )
-
-        # Update consensus stats
-        for vote in votes:
-            profile = self.agent_profiles[vote.agent_name]
-            if vote.decision == final_decision:
-                profile.consensus_agreements += 1
-            else:
-                profile.consensus_disagreements += 1
-
-        self.consensus_history.append(decision)
-
-        return decision
+    # gather_consensus — see _consensus_mixin.py
 
     # =========================================================================
     # ONLINE ADAPTATION
@@ -559,50 +485,7 @@ class SwarmIntelligence(CoordinationMixin, RoutingMixin, ResilienceMixin, Lifecy
     # SESSION MANAGEMENT (moltbot pattern)
     # =========================================================================
 
-    def create_session(self, agent_name: str, context: str = "main") -> str:
-        """Create isolated session for an agent."""
-        session_id = hashlib.md5(f"{agent_name}:{context}:{time.time()}".encode()).hexdigest()[:12]
-
-        self.sessions[session_id] = AgentSession(
-            session_id=session_id,
-            agent_name=agent_name,
-            context=context
-        )
-
-        return session_id
-
-    def get_session(self, session_id: str) -> Optional[AgentSession]:
-        """Get session by ID."""
-        return self.sessions.get(session_id)
-
-    def session_send(self, session_id: str, from_agent: str, content: str, metadata: Dict = None):
-        """Send message to a session (moltbot sessions_send pattern)."""
-        session = self.sessions.get(session_id)
-        if session:
-            session.add_message(from_agent, content, metadata)
-            return True
-        return False
-
-    def session_history(self, session_id: str, limit: int = 20) -> List[Dict]:
-        """Get session history (moltbot sessions_history pattern)."""
-        session = self.sessions.get(session_id)
-        if session:
-            return session.messages[-limit:]
-        return []
-
-    def sessions_list(self, agent_name: str = None) -> List[Dict]:
-        """List sessions (moltbot sessions_list pattern)."""
-        sessions = []
-        for sid, session in self.sessions.items():
-            if agent_name is None or session.agent_name == agent_name:
-                sessions.append({
-                    'session_id': sid,
-                    'agent': session.agent_name,
-                    'context': session.context,
-                    'message_count': len(session.messages),
-                    'last_active': session.last_active
-                })
-        return sessions
+    # create_session, get_session, session_send, session_history, sessions_list — see _session_mixin.py
 
     # =========================================================================
     # STIGMERGY INTEGRATION
@@ -758,241 +641,8 @@ class SwarmIntelligence(CoordinationMixin, RoutingMixin, ResilienceMixin, Lifecy
     # MORPHAGENT SCORING INTEGRATION
     # =========================================================================
 
-    def compute_morph_scores(self, task: str = None, task_type: str = None) -> Dict[str, MorphScores]:
-        """
-        Compute MorphAgent scores (RCS/RDS/TRAS) for all agents.
+    # compute_morph_scores, get_swarm_health, optimize_profiles_morph, format_morph_report — see _morph_mixin.py
 
-        Args:
-            task: Optional task description for TRAS computation
-            task_type: Optional task type for TRAS computation
-
-        Returns:
-            Dict of agent_name -> MorphScores
-        """
-        if not self.morph_scorer:
-            return {}
-
-        scores = self.morph_scorer.compute_all_scores(
-            profiles=self.agent_profiles,
-            task=task,
-            task_type=task_type
-        )
-
-        # Record in history
-        self.morph_score_history.append({
-            'timestamp': time.time(),
-            'scores': {name: {'rcs': s.rcs, 'rds': s.rds, 'tras': s.tras} for name, s in scores.items()},
-            'task_context': task[:50] if task else ''
-        })
-
-        # Keep bounded
-        if len(self.morph_score_history) > 100:
-            self.morph_score_history = self.morph_score_history[-100:]
-
-        return scores
-
-    def get_swarm_health(self) -> Dict[str, Any]:
-        """
-        Get overall swarm health using MorphAgent metrics.
-
-        Returns comprehensive health assessment:
-        - avg_rcs: Average Role Clarity (are roles well-defined?)
-        - rds: Role Differentiation (is swarm diverse?)
-        - avg_trust: Average trust score
-        - specialization_coverage: How many specializations are covered
-        - recommendations: Improvement suggestions
-        """
-        health = {
-            'avg_rcs': 0.5,
-            'rds': 0.5,
-            'avg_trust': 0.5,
-            'specialization_coverage': 0.0,
-            'agent_count': len(self.agent_profiles),
-            'total_tasks': sum(p.total_tasks for p in self.agent_profiles.values()),
-            'recommendations': []
-        }
-
-        if not self.agent_profiles:
-            health['recommendations'].append("No agents registered - add agents to swarm")
-            return health
-
-        # Compute MorphAgent scores
-        if self.morph_scorer:
-            # RCS for each agent
-            rcs_scores = []
-            for profile in self.agent_profiles.values():
-                rcs, _ = self.morph_scorer.compute_rcs(profile)
-                rcs_scores.append(rcs)
-            health['avg_rcs'] = sum(rcs_scores) / len(rcs_scores) if rcs_scores else 0.5
-
-            # RDS (swarm-level)
-            health['rds'] = self.morph_scorer.compute_rds(self.agent_profiles)
-
-        # Average trust
-        trust_scores = [p.trust_score for p in self.agent_profiles.values()]
-        health['avg_trust'] = sum(trust_scores) / len(trust_scores) if trust_scores else 0.5
-
-        # Specialization coverage
-        unique_specs = set(p.specialization for p in self.agent_profiles.values())
-        health['specialization_coverage'] = len(unique_specs) / len(AgentSpecialization)
-
-        # Generate recommendations
-        if health['avg_rcs'] < 0.4:
-            health['recommendations'].append(
-                "Low role clarity - consider warmup training to specialize agents"
-            )
-
-        if health['rds'] < 0.4:
-            health['recommendations'].append(
-                "Low role differentiation - agents are too similar, consider diversifying"
-            )
-
-        if health['avg_trust'] < 0.5:
-            health['recommendations'].append(
-                "Low average trust - some agents have inconsistent performance"
-            )
-
-        if health['total_tasks'] < 10:
-            health['recommendations'].append(
-                "Limited task history - consider warmup() for self-training"
-            )
-
-        if not health['recommendations']:
-            health['recommendations'].append("Swarm health is good - no issues detected")
-
-        return health
-
-    def optimize_profiles_morph(self, num_iterations: int = 5, threshold: float = 0.1) -> Dict[str, Any]:
-        """
-        MorphAgent-inspired profile optimization.
-
-        Iteratively improves agent profiles by:
-        1. Computing RCS/RDS scores
-        2. Identifying low-scoring agents
-        3. Generating curriculum tasks targeting weaknesses
-        4. Simulating improvement through task type rebalancing
-
-        This is used during warmup phase to optimize agent differentiation.
-
-        Args:
-            num_iterations: Max optimization iterations
-            threshold: Convergence threshold for score improvement
-
-        Returns:
-            Optimization results with before/after scores
-        """
-        if not self.agent_profiles:
-            return {'success': False, 'reason': 'No agents to optimize'}
-
-        results = {
-            'iterations': 0,
-            'initial_rds': 0.0,
-            'final_rds': 0.0,
-            'initial_avg_rcs': 0.0,
-            'final_avg_rcs': 0.0,
-            'improvements': []
-        }
-
-        # Initial scores
-        if self.morph_scorer:
-            results['initial_rds'] = self.morph_scorer.compute_rds(self.agent_profiles)
-            rcs_scores = [self.morph_scorer.compute_rcs(p)[0] for p in self.agent_profiles.values()]
-            results['initial_avg_rcs'] = sum(rcs_scores) / len(rcs_scores) if rcs_scores else 0.5
-
-        prev_score = results['initial_rds'] + results['initial_avg_rcs']
-
-        for iteration in range(num_iterations):
-            results['iterations'] = iteration + 1
-
-            # Find agents with low RCS (unclear roles)
-            low_rcs_agents = []
-            for name, profile in self.agent_profiles.items():
-                if self.morph_scorer:
-                    rcs, components = self.morph_scorer.compute_rcs(profile)
-                    if rcs < 0.5:
-                        low_rcs_agents.append((name, rcs, components))
-
-            # Generate curriculum tasks targeting low-RCS agents
-            for agent_name, rcs, components in low_rcs_agents[:3]:  # Top 3 worst
-                # Identify which component is lowest
-                if components.get('focus', 1.0) < 0.5:
-                    # Agent needs to focus - generate tasks in their best type
-                    profile = self.agent_profiles[agent_name]
-                    if profile.task_success:
-                        best_type = max(
-                            profile.task_success.keys(),
-                            key=lambda t: profile.task_success[t][0] / max(1, profile.task_success[t][1])
-                        )
-                        results['improvements'].append(
-                            f"{agent_name}: Focus training on {best_type} (RCS: {rcs:.2f})"
-                        )
-
-            # Compute new scores
-            if self.morph_scorer:
-                new_rds = self.morph_scorer.compute_rds(self.agent_profiles)
-                new_rcs_scores = [self.morph_scorer.compute_rcs(p)[0] for p in self.agent_profiles.values()]
-                new_avg_rcs = sum(new_rcs_scores) / len(new_rcs_scores) if new_rcs_scores else 0.5
-
-                new_score = new_rds + new_avg_rcs
-
-                # Check convergence
-                if abs(new_score - prev_score) < threshold:
-                    break
-
-                prev_score = new_score
-                results['final_rds'] = new_rds
-                results['final_avg_rcs'] = new_avg_rcs
-
-        return results
-
-    def format_morph_report(self) -> str:
-        """Generate human-readable MorphAgent scores report."""
-        lines = [
-            "# MorphAgent Scores Report",
-            "=" * 50,
-            ""
-        ]
-
-        if not self.agent_profiles:
-            lines.append("No agents registered.")
-            return "\n".join(lines)
-
-        # Swarm-level RDS
-        if self.morph_scorer:
-            rds = self.morph_scorer.compute_rds(self.agent_profiles)
-            lines.append(f"## Swarm Role Differentiation (RDS): {rds:.2f}")
-            lines.append(f"   {'✓ Good diversity' if rds >= 0.5 else '⚠️ Agents too similar'}")
-            lines.append("")
-
-        # Per-agent RCS
-        lines.append("## Per-Agent Role Clarity (RCS)")
-        lines.append("-" * 40)
-
-        for name, profile in self.agent_profiles.items():
-            if self.morph_scorer:
-                rcs, components = self.morph_scorer.compute_rcs(profile)
-                status = "✓" if rcs >= 0.5 else "⚠️"
-                lines.append(f"  {status} {name}: RCS={rcs:.2f}")
-                lines.append(f"      Focus: {components.get('focus', 0):.2f}, "
-                           f"Consistency: {components.get('consistency', 0):.2f}, "
-                           f"Specialization: {components.get('specialization', 0):.2f}")
-
-        # Health summary
-        lines.append("")
-        health = self.get_swarm_health()
-        lines.append("## Health Summary")
-        lines.append(f"  - Average RCS: {health['avg_rcs']:.2f}")
-        lines.append(f"  - RDS: {health['rds']:.2f}")
-        lines.append(f"  - Average Trust: {health['avg_trust']:.2f}")
-        lines.append(f"  - Specialization Coverage: {health['specialization_coverage']:.1%}")
-
-        if health['recommendations']:
-            lines.append("")
-            lines.append("## Recommendations")
-            for rec in health['recommendations']:
-                lines.append(f"  - {rec}")
-
-        return "\n".join(lines)
     def get_swarm_status(self) -> Dict[str, Any]:
         """
         Get comprehensive swarm status.

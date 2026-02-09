@@ -228,6 +228,25 @@ def register_chat_routes(app, api):
             }
         )
 
+    class ChatRequest(BaseModel):
+        message: str
+        session_id: Optional[str] = None
+
+    class ChatResponse(BaseModel):
+        success: bool = True
+        message_id: Optional[str] = None
+        content: Optional[str] = None
+        output_format: Optional[str] = None
+        output_path: Optional[str] = None
+        steps: Optional[int] = None
+        error: Optional[str] = None
+
+    class ChatWithContextRequest(BaseModel):
+        message: str
+        session_id: Optional[str] = None
+        context_type: str = "document"  # "document" or "folder"
+        context_id: Optional[str] = None
+
     @app.post("/api/chat", response_model=ChatResponse)
     async def chat(request: ChatRequest):
         """
@@ -235,6 +254,7 @@ def register_chat_routes(app, api):
 
         Non-streaming endpoint for simple integrations.
         """
+        import uuid
         session_id = request.session_id or str(uuid.uuid4())[:8]
 
         result = await api.process_message(

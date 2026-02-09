@@ -48,7 +48,7 @@ class SwarmCodeGenerator:
     def _init_dependencies(self):
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._planner is None:
-            from ...agents.agentic_planner import AgenticPlanner
+            from Jotty.core.agents.agentic_planner import AgenticPlanner
             self._planner = AgenticPlanner()
     
     def generate_glue_code(

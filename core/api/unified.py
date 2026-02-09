@@ -7,10 +7,10 @@ Single entry point for all use cases (chat, workflow).
 from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
-from ..foundation.agent_config import AgentConfig
-from ..use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
-from ..orchestration import SwarmManager
-from ..foundation.data_structures import JottyConfig
+from Jotty.core.foundation.agent_config import AgentConfig
+from Jotty.core.use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
+from Jotty.core.orchestration import SwarmManager
+from Jotty.core.foundation.data_structures import JottyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class JottyAPI:
             conductor: Optional pre-configured conductor (if None, creates one)
         """
         if conductor is None:
-            from ..jotty import create_swarm_manager
+            from Jotty.core.jotty import create_swarm_manager
             self.conductor = create_swarm_manager(agents, config)
         else:
             self.conductor = conductor
@@ -70,7 +70,7 @@ class JottyAPI:
     def chat(self) -> ChatUseCase:
         """Get chat use case (lazy initialization)."""
         if self._chat_use_case is None:
-            from ..use_cases.base import UseCaseType
+            from Jotty.core.use_cases.base import UseCaseType
             self._chat_use_case = ChatUseCase(
                 conductor=self.conductor,
                 config=UseCaseConfig(
@@ -83,7 +83,7 @@ class JottyAPI:
     def workflow(self) -> WorkflowUseCase:
         """Get workflow use case (lazy initialization)."""
         if self._workflow_use_case is None:
-            from ..use_cases.base import UseCaseType
+            from Jotty.core.use_cases.base import UseCaseType
             self._workflow_use_case = WorkflowUseCase(
                 conductor=self.conductor,
                 config=UseCaseConfig(
@@ -152,7 +152,7 @@ class JottyAPI:
         """
         # Create chat use case with specific agent if provided
         if agent_id:
-            from ..use_cases.base import UseCaseType
+            from Jotty.core.use_cases.base import UseCaseType
             chat = ChatUseCase(
                 conductor=self.conductor,
                 agent_id=agent_id,
@@ -193,7 +193,7 @@ class JottyAPI:
         """
         # Create workflow use case with specific mode if provided
         if mode != "dynamic" or agent_order:
-            from ..use_cases.base import UseCaseType
+            from Jotty.core.use_cases.base import UseCaseType
             workflow = WorkflowUseCase(
                 conductor=self.conductor,
                 mode=mode,
@@ -236,7 +236,7 @@ class JottyAPI:
         """
         # Create workflow use case with specific mode if provided
         if mode != "dynamic" or agent_order:
-            from ..use_cases.base import UseCaseType
+            from Jotty.core.use_cases.base import UseCaseType
             workflow = WorkflowUseCase(
                 conductor=self.conductor,
                 mode=mode,

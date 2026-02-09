@@ -3,9 +3,10 @@ Channel Router
 ==============
 
 Routes messages between external channels (Telegram, Slack, Discord)
-and Jotty agents.
+and Jotty agents via ModeRouter.
 
 Integrates with:
+- ModeRouter for unified request processing (not JottyCLI)
 - PersistentSessionManager for cross-channel session persistence
 - ExecutionContext for unified context passing
 - ChannelResponderRegistry for registry-based responses
@@ -17,31 +18,13 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable, List
-from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-# Import SDK types for ExecutionContext
-try:
-    from core.foundation.types.sdk_types import (
-        ExecutionContext,
-        ExecutionMode,
-        ChannelType as SDKChannelType,
-        ResponseFormat,
-    )
-    SDK_TYPES_AVAILABLE = True
-except ImportError:
-    SDK_TYPES_AVAILABLE = False
-
-
-class ChannelType(Enum):
-    """Supported channel types."""
-    TELEGRAM = "telegram"
-    SLACK = "slack"
-    DISCORD = "discord"
-    WHATSAPP = "whatsapp"
-    WEBSOCKET = "websocket"
-    HTTP = "http"
+# Absolute imports - single source of truth
+from Jotty.core.foundation.types.sdk_types import (
+    ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
+)
 
 
 @dataclass
@@ -277,16 +260,53 @@ class ChannelRouter:
         context: Optional[Any] = None
     ) -> str:
         """
-        Process message with Jotty CLI.
+        Process message via ModeRouter (preferred) or JottyCLI (fallback).
+
+        ModeRouter is the canonical execution path - routes directly to
+        AutoAgent without going through CLI abstractions.
 
         Args:
             event: The incoming message event
             session: Session data with history
             context: Optional ExecutionContext for enhanced processing
         """
+        # ModeRouter: canonical execution path
+        try:
+            from Jotty.core.api.mode_router import get_mode_router
+            router = get_mode_router()
+
+            # Create ExecutionContext if not provided
+            if context is None:
+                context = ExecutionContext(
+                    mode=ExecutionMode.CHAT,
+                    channel=event.channel,
+                    session_id=event.session_id or "gateway",
+                    user_id=event.user_id,
+                    user_name=event.user_name,
+                    channel_id=event.channel_id,
+                    message_id=event.message_id,
+                )
+
+            # Add conversation history to context
+            history = session.get("context", [])
+            if history:
+                context.metadata["conversation_history"] = history[-6:]
+
+            result = await router.chat(event.content, context)
+
+            if result.success and result.content:
+                return str(result.content)
+            elif result.error:
+                return f"Error: {result.error}"
+            else:
+                return str(result.content or "Task completed")
+
+        except Exception as e:
+            logger.warning(f"ModeRouter failed, falling back to CLI: {e}")
+
+        # Fallback: JottyCLI
         try:
             if self._cli:
-                # Run message through Jotty with context if available
                 if context and hasattr(self._cli, 'run_once_with_context'):
                     result = await self._cli.run_once_with_context(
                         event.content,
@@ -306,7 +326,15 @@ class ChannelRouter:
             return f"Error processing message: {str(e)}"
 
     async def _send_response(self, response: ResponseEvent):
-        """Send response to the appropriate channel."""
+        """Send response to the appropriate channel with formatting."""
+        # Apply channel-specific formatting before sending
+        try:
+            from .responders import get_responder_registry
+            registry = get_responder_registry()
+            response.content = registry.format_for_channel(response.content, response.channel)
+        except Exception:
+            pass  # Send unformatted if formatting fails
+
         responder = self._responders.get(response.channel)
         if responder:
             try:

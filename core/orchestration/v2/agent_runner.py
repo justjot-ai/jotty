@@ -9,15 +9,14 @@ import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from ...foundation.data_structures import JottyConfig, EpisodeResult
-from ...agents.inspector import InspectorAgent, MultiRoundValidator
-from ...memory.cortex import HierarchicalMemory
-from ...utils.prompt_selector import get_prompt_selector, PromptSelector
-from ...learning.learning import (
-    TDLambdaLearner, AdaptiveLearningRate, IntermediateRewardCalculator,
-    ReasoningCreditAssigner, AdaptiveExploration
+from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
+from Jotty.core.memory.cortex import HierarchicalMemory
+from Jotty.core.utils.prompt_selector import get_prompt_selector, PromptSelector
+from Jotty.core.learning.learning import (
+    TDLambdaLearner, AdaptiveLearningRate,
 )
-from ...learning.shaped_rewards import ShapedRewardManager
+from Jotty.core.learning.shaped_rewards import ShapedRewardManager
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +103,7 @@ class AgentRunner:
         
         from pathlib import Path
         
-        from ...foundation.data_structures import SharedScratchpad
+        from Jotty.core.foundation.data_structures import SharedScratchpad
         
         # Shared scratchpad for agent communication
         scratchpad = SharedScratchpad()
@@ -146,7 +145,7 @@ class AgentRunner:
             )
         
         # Per-agent learning
-        from ...learning.learning import AdaptiveLearningRate
+        from Jotty.core.learning.learning import AdaptiveLearningRate
         self.agent_learner: Optional[TDLambdaLearner] = None
         if config.enable_learning:
             adaptive_lr = AdaptiveLearningRate(config.config)
@@ -272,11 +271,14 @@ class AgentRunner:
 
         _status("Preparing", "retrieving context")
 
-        # Retrieve relevant memories and enrich goal context
-        enriched_goal = goal
+        # Retrieve learning context as SEPARATE data (not concatenated into task string)
+        # This prevents context pollution in search queries, entity extraction, and skill params.
+        # The learning_context is passed as a kwarg and only injected into LLM planning prompts.
+        learning_context_parts = []
+
         if self.agent_memory:
             try:
-                from ...foundation.data_structures import MemoryLevel
+                from Jotty.core.foundation.data_structures import MemoryLevel
                 relevant_memories = self.agent_memory.retrieve(
                     query=goal,
                     goal=goal,
@@ -285,7 +287,7 @@ class AgentRunner:
                 )
                 if relevant_memories:
                     context = "\n".join([m.content for m in relevant_memories[:5]])
-                    enriched_goal = f"{goal}\n\nRelevant past experience:\n{context}"
+                    learning_context_parts.append(f"Relevant past experience:\n{context}")
                     logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
             except Exception as e:
                 logger.debug(f"Memory retrieval skipped: {e}")
@@ -296,7 +298,7 @@ class AgentRunner:
                 state = {'query': goal, 'agent': self.agent_name}
                 q_context = self.learning_manager.get_learned_context(state)
                 if q_context:
-                    enriched_goal = f"{enriched_goal}\n\nLearned Insights:\n{q_context}"
+                    learning_context_parts.append(f"Learned Insights:\n{q_context}")
             except Exception as e:
                 logger.debug(f"Q-learning context injection skipped: {e}")
 
@@ -305,9 +307,17 @@ class AgentRunner:
             try:
                 transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
                 if transfer_context and 'Transferable Learnings' in transfer_context:
-                    enriched_goal = f"{enriched_goal}\n\n{transfer_context}"
+                    learning_context_parts.append(transfer_context)
             except Exception as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
+
+        # Pass learning context as separate kwarg — NOT in the task string
+        if learning_context_parts:
+            kwargs['learning_context'] = "\n\n".join(learning_context_parts)
+            logger.info(f"Learning context: {len(learning_context_parts)} sections ({sum(len(p) for p in learning_context_parts)} chars)")
+
+        # Keep enriched_goal = goal (NO concatenation — task string stays clean)
+        enriched_goal = goal
 
         # 1. Architect (pre-execution planning) - skip in fast mode
         architect_results = []
@@ -378,19 +388,26 @@ class AgentRunner:
             
             # Build trajectory BEFORE auditor validation (so auditor can see execution history)
             trajectory = []
+            # Determine inner success from agent output (ExecutionResult or dict)
+            inner_success = True
+            if hasattr(agent_output, 'success'):
+                inner_success = bool(agent_output.success)
+            elif isinstance(agent_output, dict):
+                inner_success = bool(agent_output.get('success', True))
+
             if hasattr(agent_output, '__dict__'):
                 trajectory.append({
                     'step': 1,
                     'action': 'execute',
                     'output': str(agent_output)[:500],
-                    'success': True  # Will be updated after validation
+                    'success': inner_success,
                 })
             else:
                 trajectory.append({
                     'step': 1,
                     'action': 'execute',
                     'output': str(agent_output)[:500] if agent_output else None,
-                    'success': True  # Will be updated after validation
+                    'success': inner_success,
                 })
             
             # 3. Auditor (post-execution validation) - skip in fast mode
@@ -402,7 +419,8 @@ class AgentRunner:
                     is_architect=False
                 )
 
-                success = passed
+                # If inner execution already failed, don't let auditor override
+                success = passed and inner_success
                 # ValidationResult has 'reasoning', not 'feedback'
                 auditor_reasoning = auditor_results[0].reasoning if auditor_results else "No feedback"
                 auditor_confidence = auditor_results[0].confidence if auditor_results else 0.0
@@ -428,9 +446,9 @@ class AgentRunner:
                         'auditor_confidence': auditor_confidence
                     })
             else:
-                # Fast mode: skip auditor, assume success
+                # Fast mode: skip auditor, but respect inner execution result
                 logger.info("⚡ Fast mode: skipping auditor validation")
-                success = True
+                success = inner_success
                 auditor_reasoning = "Fast mode: validation skipped"
                 auditor_confidence = 1.0
                 auditor_results = []
@@ -448,7 +466,7 @@ class AgentRunner:
             # 4. Memory storage (if enabled) - store before learning so we can use it
             episode_memory_entry = None
             if self.agent_memory:
-                from ...foundation.data_structures import MemoryLevel
+                from Jotty.core.foundation.data_structures import MemoryLevel
                 episode_memory_entry = self.agent_memory.store(
                     content=f"Goal: {goal}\nOutput: {str(agent_output)[:500]}",
                     level=MemoryLevel.EPISODIC,
@@ -527,8 +545,8 @@ class AgentRunner:
             duration = time.time() - start_time
             
             # Extract tagged outputs from auditor results
-            from ...foundation.types.learning_types import TaggedOutput
-            from ...foundation.types.enums import OutputTag
+            from Jotty.core.foundation.types.learning_types import TaggedOutput
+            from Jotty.core.foundation.types.enums import OutputTag
             tagged_outputs = []
             if auditor_results:
                 for result in auditor_results:
@@ -544,7 +562,7 @@ class AgentRunner:
             agent_contributions = {}
             if architect_results:
                 for result in architect_results:
-                    from ...foundation.types.agent_types import AgentContribution
+                    from Jotty.core.foundation.types.agent_types import AgentContribution
                     agent_contributions[result.agent_name] = AgentContribution(
                         agent_name=result.agent_name,
                         contribution_score=result.confidence if result.should_proceed else -result.confidence,

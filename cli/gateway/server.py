@@ -19,7 +19,7 @@ import hmac
 import hashlib
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional, Set, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -175,26 +175,231 @@ class UnifiedGateway:
         async def pwa_app():
             return FileResponse(static_dir / "index.html")
 
-        # Health check
+        # ============ HEALTH CHECK (enriched) ============
         @app.get("/health")
         async def health():
             result = {
                 "status": "healthy",
                 "service": "jotty-gateway",
+                "version": "2.0.0",
                 "active_sessions": self.router.active_sessions,
-                "websocket_clients": len(self._websocket_clients)
+                "websocket_clients": len(self._websocket_clients),
+                "lm_configured": False,
+                "skills_loaded": 0,
             }
+            # Check LLM availability
+            try:
+                import dspy
+                if dspy.settings.lm:
+                    result["lm_configured"] = True
+                    result["lm_model"] = str(getattr(dspy.settings.lm, 'model', 'unknown'))
+            except Exception:
+                pass
+            # Check skills
+            try:
+                from Jotty.core.registry import get_unified_registry
+                registry = get_unified_registry()
+                result["skills_loaded"] = len(registry.list_skills()) if hasattr(registry, 'list_skills') else 0
+            except Exception:
+                pass
             if self.trust:
                 result["trust"] = self.trust.stats
             return result
 
-        # Gateway stats
         @app.get("/stats")
         async def stats():
             return {
                 **self.router.stats,
                 "websocket_clients": len(self._websocket_clients)
             }
+
+        # ============ REST API (for SDKs) ============
+
+        @app.post("/api/chat")
+        async def api_chat(request: Request):
+            """Execute chat via ModeRouter."""
+            try:
+                data = await request.json()
+                message = data.get("message") or ""
+
+                # Extract from useChat format
+                if not message and "messages" in data:
+                    msgs = data["messages"]
+                    if msgs:
+                        message = msgs[-1].get("content", "")
+
+                if not message:
+                    return {"success": False, "error": "No message provided"}
+
+                from Jotty.core.api.mode_router import get_mode_router
+                from Jotty.core.foundation.types.sdk_types import (
+                    ExecutionContext, ExecutionMode, ChannelType as CTType,
+                )
+
+                router = get_mode_router()
+                context = ExecutionContext(
+                    mode=ExecutionMode.CHAT,
+                    channel=CTType.HTTP,
+                    session_id=data.get("session_id", "http"),
+                )
+                if data.get("history"):
+                    context.metadata["conversation_history"] = data["history"][-6:]
+
+                result = await router.chat(message, context)
+                return result.to_sdk_response().to_dict()
+
+            except Exception as e:
+                logger.error(f"API chat error: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+
+        @app.post("/api/workflow")
+        async def api_workflow(request: Request):
+            """Execute workflow via ModeRouter."""
+            try:
+                data = await request.json()
+                goal = data.get("goal", "")
+                if not goal:
+                    return {"success": False, "error": "No goal provided"}
+
+                from Jotty.core.api.mode_router import get_mode_router
+                from Jotty.core.foundation.types.sdk_types import (
+                    ExecutionContext, ExecutionMode, ChannelType as CTType,
+                )
+
+                router = get_mode_router()
+                context = ExecutionContext(
+                    mode=ExecutionMode.WORKFLOW,
+                    channel=CTType.HTTP,
+                    session_id=data.get("session_id", "http"),
+                )
+                result = await router.workflow(goal, context)
+                return result.to_sdk_response().to_dict()
+
+            except Exception as e:
+                logger.error(f"API workflow error: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+
+        @app.post("/api/chat/stream")
+        async def api_chat_stream(request: Request):
+            """Stream chat response via SSE."""
+            from starlette.responses import StreamingResponse
+
+            data = await request.json()
+            message = data.get("message", "")
+
+            async def event_generator():
+                try:
+                    from Jotty.core.api.mode_router import get_mode_router
+                    from Jotty.core.foundation.types.sdk_types import (
+                        ExecutionContext, ExecutionMode, ChannelType as CTType,
+                    )
+
+                    router = get_mode_router()
+                    context = ExecutionContext(
+                        mode=ExecutionMode.CHAT,
+                        channel=CTType.HTTP,
+                        streaming=True,
+                    )
+
+                    async for event in router.stream(message, context):
+                        yield f"data: {json.dumps(event.to_dict())}\n\n"
+
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'data': {'error': str(e)}})}\n\n"
+
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+        @app.get("/api/skills")
+        async def api_list_skills():
+            """List available skills."""
+            try:
+                from Jotty.core.registry import get_unified_registry
+                registry = get_unified_registry()
+                skills = registry.list_skills()
+                return {"success": True, "skills": skills, "count": len(skills)}
+            except Exception as e:
+                return {"success": False, "error": str(e), "skills": [], "count": 0}
+
+        @app.post("/api/skill/{name}")
+        async def api_execute_skill(name: str, request: Request):
+            """Execute a skill."""
+            try:
+                params = await request.json()
+
+                from Jotty.core.api.mode_router import get_mode_router
+                router = get_mode_router()
+                result = await router.skill(name, params)
+                return result.to_sdk_response().to_dict()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+        @app.get("/api/skill/{name}")
+        async def api_skill_info(name: str):
+            """Get skill info."""
+            try:
+                from Jotty.core.registry import get_unified_registry
+                registry = get_unified_registry()
+                skill = registry.get_skill(name)
+                if skill:
+                    return {
+                        "name": skill.name,
+                        "description": getattr(skill, 'description', ''),
+                        "skill_type": getattr(skill, 'skill_type', 'base'),
+                        "capabilities": getattr(skill, 'capabilities', []),
+                    }
+                return {"error": f"Skill not found: {name}"}
+            except Exception as e:
+                return {"error": str(e)}
+
+        @app.post("/api/agent/{name}")
+        async def api_execute_agent(name: str, request: Request):
+            """Execute with a specific agent."""
+            try:
+                data = await request.json()
+                task = data.get("task", "")
+
+                from Jotty.core.api.mode_router import get_mode_router
+                from Jotty.core.foundation.types.sdk_types import (
+                    ExecutionContext, ExecutionMode, ChannelType as CTType,
+                )
+
+                router = get_mode_router()
+                context = ExecutionContext(mode=ExecutionMode.AGENT, channel=CTType.HTTP)
+                result = await router.route(task, context)
+                return result.to_sdk_response().to_dict()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+        # ============ RATE LIMITING (simple in-memory) ============
+        _rate_limits: Dict[str, List[float]] = {}
+
+        @app.middleware("http")
+        async def rate_limit_middleware(request: Request, call_next):
+            """Simple rate limiting: 60 req/min per IP for API endpoints."""
+            import time
+
+            if request.url.path.startswith("/api/") or request.url.path == "/message":
+                client_ip = request.client.host if request.client else "unknown"
+                now = time.time()
+                window = 60  # 1 minute
+                max_requests = 60
+
+                # Clean old entries
+                if client_ip in _rate_limits:
+                    _rate_limits[client_ip] = [t for t in _rate_limits[client_ip] if now - t < window]
+                else:
+                    _rate_limits[client_ip] = []
+
+                if len(_rate_limits[client_ip]) >= max_requests:
+                    from starlette.responses import JSONResponse
+                    return JSONResponse(
+                        {"success": False, "error": "Rate limit exceeded (60/min)"},
+                        status_code=429,
+                    )
+
+                _rate_limits[client_ip].append(now)
+
+            return await call_next(request)
 
         # ============ TELEGRAM WEBHOOK ============
         @app.post("/webhook/telegram")

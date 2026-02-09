@@ -130,7 +130,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow if enabled
         if use_mlflow:
-            from core.skills.ml import MLflowTrackerSkill
+            from Jotty.core.skills.ml import MLflowTrackerSkill
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()
@@ -650,7 +650,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow if enabled
         if use_mlflow:
-            from core.skills.ml import MLflowTrackerSkill
+            from Jotty.core.skills.ml import MLflowTrackerSkill
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()
@@ -990,7 +990,7 @@ class StockMLTrainingMixin:
 
         # Log to MLflow
         if use_mlflow:
-            from core.skills.ml import MLflowTrackerSkill
+            from Jotty.core.skills.ml import MLflowTrackerSkill
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()

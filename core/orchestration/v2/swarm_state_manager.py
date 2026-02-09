@@ -31,10 +31,10 @@ import json
 
 if TYPE_CHECKING:
     from .swarm_roadmap import MarkovianTODO, SubtaskState, TaskStatus
-    from ...foundation.agent_config import AgentConfig
-    from ...data.data_registry import DataRegistry
-    from ...data.io_manager import IOManager
-    from ...context.context_guard import SmartContextGuard
+    from Jotty.core.foundation.agent_config import AgentConfig
+    from Jotty.core.data.data_registry import DataRegistry
+    from Jotty.core.data.io_manager import IOManager
+    from Jotty.core.context.context_guard import SmartContextGuard
 else:
     MarkovianTODO = Any
     SubtaskState = Any

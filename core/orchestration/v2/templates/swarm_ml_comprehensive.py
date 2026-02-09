@@ -482,8 +482,8 @@ JSON only:""",
             return
 
         try:
-            from ...learning.transfer_learning import TransferableLearningStore
-            from ...learning.learning_coordinator import LearningCoordinator
+            from Jotty.core.learning.transfer_learning import TransferableLearningStore
+            from Jotty.core.learning.learning_coordinator import LearningCoordinator
 
             self._transfer_store = TransferableLearningStore()
             store_path = os.path.join('Jotty', 'outputs', 'transfer_store.json')

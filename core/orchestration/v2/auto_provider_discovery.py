@@ -125,7 +125,7 @@ class AutoProviderDiscovery:
             self._code_generator = SwarmCodeGenerator(self.config)
 
         if self._registry is None:
-            from ...skills.providers.provider_registry import ProviderRegistry
+            from Jotty.core.skills.providers.provider_registry import ProviderRegistry
             self._registry = ProviderRegistry()
 
     async def discover_and_integrate(
@@ -408,7 +408,7 @@ class AutoProviderDiscovery:
                 provider = module.create_provider()
             else:
                 # Find first SkillProvider subclass
-                from ...skills.providers.base import SkillProvider
+                from Jotty.core.skills.providers.base import SkillProvider
                 for name in dir(module):
                     obj = getattr(module, name)
                     if (isinstance(obj, type) and

@@ -14,6 +14,9 @@ from typing import Dict, Any, List
 from unittest.mock import Mock, MagicMock, AsyncMock
 import pytest
 
+# Exclude V1 archived tests from collection
+collect_ignore_glob = ["_v1_archive/*"]
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

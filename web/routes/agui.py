@@ -14,9 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 def register_agui_routes(app, api):
+    import uuid
     from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
     from pydantic import BaseModel
+
+    class AGUIRunRequest(BaseModel):
+        threadId: str
+        runId: str
+        messages: List[Dict[str, Any]] = []
 
     @app.post("/api/agui/run")
     async def agui_run(request: AGUIRunRequest):

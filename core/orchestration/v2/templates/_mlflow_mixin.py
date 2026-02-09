@@ -1,19 +1,24 @@
 """MLflow Tracking Mixin - Experiment tracking and model logging."""
+from __future__ import annotations
 
 import logging
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import MLflowConfig
 
 logger = logging.getLogger(__name__)
 
 
 class MLflowMixin:
-    def init_mlflow(self, config: MLflowConfig = None):
+    def init_mlflow(self, config: "MLflowConfig" = None):
         """
         Initialize MLflow tracking for this swarm execution.
 
         Args:
             config: MLflow configuration (uses default if None)
         """
+        from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import MLflowConfig
         self._mlflow_config = config or MLflowConfig()
         self._mlflow_run = None
         self._mlflow_available = False

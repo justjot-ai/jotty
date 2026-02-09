@@ -44,8 +44,8 @@ from .skill_types import (
 
 # Import ML skills from proper location (core/skills/ml/)
 try:
-    from ...skills.ml.eda import EDASkill as EDAAnalyzer
-    from ...skills.ml.llm_reasoner import LLMFeatureReasonerSkill as LLMFeatureReasoner
+    from Jotty.core.skills.ml.eda import EDASkill as EDAAnalyzer
+    from Jotty.core.skills.ml.llm_reasoner import LLMFeatureReasonerSkill as LLMFeatureReasoner
 except ImportError:
     # Fallback: use inline implementations if skills not available
     EDAAnalyzer = None
@@ -166,8 +166,8 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             return
 
         try:
-            from ...registry.skills_registry import get_skills_registry
-            from ...registry.tools_registry import get_tools_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.tools_registry import get_tools_registry
 
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()

@@ -261,7 +261,7 @@ class MLCommand(BaseCommand):
 
         # Use ConnectorX loader
         try:
-            from core.semantic.query.data_loader import DataLoaderFactory, OutputFormat
+            from Jotty.core.semantic.query.data_loader import DataLoaderFactory, OutputFormat
 
             loader = DataLoaderFactory.create(
                 db_type=db_type,
@@ -455,7 +455,7 @@ class MLCommand(BaseCommand):
         from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 
         # Import skills
-        from core.skills.ml import (
+        from Jotty.core.skills.ml import (
             FeatureEngineeringSkill, FeatureSelectionSkill,
             ModelSelectionSkill, HyperoptSkill, EnsembleSkill,
             LLMFeatureReasonerSkill, MLflowTrackerSkill

@@ -12,9 +12,9 @@ import logging
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
-from ...foundation.data_structures import JottyConfig, EpisodeResult
-from ...foundation.agent_config import AgentConfig
-from ...foundation.robust_parsing import AdaptiveWeightGroup
+from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.agent_config import AgentConfig
+from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
 
 logger = logging.getLogger(__name__)
 
@@ -34,18 +34,18 @@ class SwarmLearningPipeline:
 
     def _init_components(self):
         """Initialize all learning components."""
-        from ...learning.learning_coordinator import LearningCoordinator as LearningManager
-        from ...learning.predictive_marl import (
+        from Jotty.core.learning.learning_coordinator import LearningCoordinator as LearningManager
+        from Jotty.core.learning.predictive_marl import (
             LLMTrajectoryPredictor, DivergenceMemory,
             CooperativeCreditAssigner,
         )
-        from ...memory.consolidation_engine import (
+        from Jotty.core.memory.consolidation_engine import (
             BrainStateMachine, BrainModeConfig, AgentAbstractor,
         )
-        from ...agents.axon import SmartAgentSlack
-        from ...agents.feedback_channel import FeedbackChannel
-        from .swarm_learner import SwarmLearner
-        from ...learning.transfer_learning import TransferableLearningStore
+        from Jotty.core.agents.axon import SmartAgentSlack
+        from Jotty.core.agents.feedback_channel import FeedbackChannel
+        from Jotty.core.orchestration.v2.swarm_learner import SwarmLearner
+        from Jotty.core.learning.transfer_learning import TransferableLearningStore
         from .swarm_intelligence import SwarmIntelligence
 
         # Core learning manager (wraps Q-learner)

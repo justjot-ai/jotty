@@ -27,7 +27,7 @@ import hashlib
 import dspy
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
-from ...foundation.types import TaskStatus
+from Jotty.core.foundation.types import TaskStatus
 
 
 # =============================================================================

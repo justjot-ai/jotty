@@ -18,10 +18,11 @@ def register_system_routes(app, api):
     from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
     from pydantic import BaseModel
 
+    static_dir = Path(__file__).parent / "static"
+
     @app.get("/")
     async def root():
         """Serve chat UI."""
-        static_dir = Path(__file__).parent / "static"
         index_file = static_dir / "index.html"
         if index_file.exists():
             return FileResponse(index_file)

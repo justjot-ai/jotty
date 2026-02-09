@@ -139,12 +139,21 @@ if DSPY_AVAILABLE:
         - description: What this step accomplishes
         - verification: How to confirm this step succeeded (e.g., "output contains weather data")
         - fallback_skill: Alternative skill if this one fails (e.g., "http-client")
-        - output_key: A unique key for this step's output (e.g., "paytm_research", "comparison_pdf")
-        - depends_on: List of output_keys from previous steps this step needs
+        - output_key: A unique key for this step's output (e.g., "step_0", "step_1", "search_results")
+        - depends_on: List of step INDICES (0-based integers) this step needs
+
+        REFERENCING PREVIOUS STEP OUTPUTS (CRITICAL):
+        When a step needs output from a previous step, use ${output_key} syntax in params.
+        Examples:
+        - Step 0 has output_key "step_0" -> Step 1 references it as "${step_0}"
+        - Step 0 has output_key "search_results" -> Step 1 references it as "${search_results}"
+        - To access a specific field: "${step_0.results}" or "${search_results.content}"
+        NEVER use placeholder names like "CONTENT_FROM_STEP_1" — always use ${output_key}.
 
         PHASE 4 - VERIFY (Self-Refine):
         Before outputting, self-check: Are all dependencies satisfied? Any missing steps?
         Are params populated (not empty)? Does every skill_name exist in available_skills?
+        Do all inter-step references use ${output_key} syntax?
 
         PARAMETER EXTRACTION (CRITICAL - you will be penalized for empty params):
         - "Delhi weather" -> params: {"location": "Delhi"}

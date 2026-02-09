@@ -104,7 +104,7 @@ class UnifiedToolGenerator:
         """Lazy-load schema registry."""
         if self._schema_registry is None:
             try:
-                from ...ui.schema_validator import schema_registry
+                from Jotty.core.ui.schema_validator import schema_registry
                 self._schema_registry = schema_registry
             except ImportError:
                 logger.warning("Schema registry not available")
@@ -115,7 +115,7 @@ class UnifiedToolGenerator:
         """Lazy-load skills registry."""
         if self._skills_registry is None:
             try:
-                from ...registry.skills_registry import get_skills_registry
+                from Jotty.core.registry.skills_registry import get_skills_registry
                 self._skills_registry = get_skills_registry()
                 self._skills_registry.init()
             except ImportError:
@@ -1051,7 +1051,7 @@ class UnifiedToolGenerator:
     async def _execute_return_file_download(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute return_file_download tool - displays a file inline in chat."""
         try:
-            from ...ui import return_file_download
+            from Jotty.core.ui import return_file_download
             return return_file_download(
                 url=params.get('url', ''),
                 filename=params.get('filename', 'file'),
@@ -1088,7 +1088,7 @@ class UnifiedToolGenerator:
         inline in the chat with download buttons.
         """
         try:
-            from ...ui import return_file_download
+            from Jotty.core.ui import return_file_download
             return return_file_download(
                 url=file_path,
                 filename=filename,
@@ -1124,7 +1124,7 @@ class UnifiedToolGenerator:
         """Create executor for visualization tool."""
         async def executor(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
-                from ...ui import return_section
+                from Jotty.core.ui import return_section
                 return return_section(
                     section_type=section_type,
                     content=params.get('content'),

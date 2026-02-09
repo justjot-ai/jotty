@@ -215,7 +215,7 @@ class SwarmTerminal:
     def _load_web_search(self):
         """Load web search capability."""
         try:
-            from ....skills import get_skills_registry
+            from Jotty.core.skills import get_skills_registry
             registry = get_skills_registry()
             skill = registry.get_skill('web-search')
             if skill and skill.tools:
@@ -239,7 +239,7 @@ class SwarmTerminal:
     def _load_file_operations(self):
         """Load file operations for safe file writing (instead of shell echo/cat)."""
         try:
-            from ....registry.skills_registry import get_skills_registry
+            from Jotty.core.registry.skills_registry import get_skills_registry
             registry = get_skills_registry()
             registry.init()  # Ensure registry is initialized
             skill = registry.get_skill('file-operations')
@@ -354,7 +354,7 @@ class SwarmTerminal:
 
         try:
             # Try to use terminal-session skill
-            from ....skills import get_skills_registry
+            from Jotty.core.skills import get_skills_registry
             registry = get_skills_registry()
             skill = registry.get_skill('terminal-session')
             if skill and skill.tools:

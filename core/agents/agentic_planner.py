@@ -1052,7 +1052,9 @@ JSON:"""
             # Multi-step plans are already decomposed
             return None
 
-        task_lower = task.lower()
+        # Clean task: strip injected learning context before entity extraction
+        clean_task = self._clean_task_for_query(task) if hasattr(self, '_clean_task_for_query') else task
+        task_lower = clean_task.lower()
 
         # Detect comparison tasks
         comparison_markers = ['vs', 'versus', 'compare', 'comparison', 'difference between', 'vs.']
@@ -1074,7 +1076,7 @@ JSON:"""
             return None  # Already granular enough
 
         # Extract entities from comparison task (e.g., "Paytm vs PhonePe")
-        entities = self._extract_comparison_entities(task)
+        entities = self._extract_comparison_entities(clean_task)
         if not entities:
             entities = [task]  # Fallback: treat whole task as one entity
 
@@ -1101,21 +1103,58 @@ JSON:"""
         task_wants_slack = 'slack' in task_lower
 
         # Extract the topic/context from the task (e.g., "payment gateway" from "Paytm vs PhonePe payment gateway")
+        # Strategy: look for domain terms that appear near the entities
+        import re as _re
+        stop_words = {
+            'vs', 'vs.', 'versus', 'compare', 'comparison', 'research', 'create',
+            'generate', 'send', 'via', 'telegram', 'slack', 'pdf', 'report',
+            'and', 'the', 'a', 'an', 'on', 'for', 'with', 'difference', 'between',
+            'it', 'its', 'to', 'of', 'in', 'is', 'be', 'document', 'make', 'build',
+        }
+        # All words from entity names (lowercased)
+        entity_words = set()
+        for e in entities:
+            for w in e.lower().split():
+                entity_words.add(w)
+
         topic_words = []
-        for w in task_lower.split():
-            if w not in {'vs', 'vs.', 'versus', 'compare', 'comparison', 'research', 'create',
-                        'generate', 'send', 'via', 'telegram', 'slack', 'pdf', 'report',
-                        'and', 'the', 'a', 'an', 'on', 'for', 'with', 'difference', 'between'}:
-                # Skip entity names themselves
-                if not any(w.lower() in e.lower() for e in entities):
-                    topic_words.append(w)
+        for w in clean_task.lower().split():
+            w_clean = w.strip('.,;!?')
+            if len(w_clean) <= 2:
+                continue
+            if w_clean in stop_words:
+                continue
+            if w_clean in entity_words:
+                continue
+            topic_words.append(w_clean)
         topic_context = ' '.join(topic_words[:3])  # e.g., "payment gateway"
+
+        # If one entity is longer (contains domain context like "payment gateway"),
+        # extract the shared domain words to enrich shorter entities
+        domain_context = ''
+        if len(entities) >= 2:
+            # Find the longest entity — it likely has the domain context
+            longest = max(entities, key=len)
+            shortest = min(entities, key=len)
+            if len(longest.split()) > len(shortest.split()):
+                # Extract domain words from longest that aren't in the shortest
+                shortest_words = {w.lower() for w in shortest.split()}
+                domain_words = [w for w in longest.split() if w.lower() not in shortest_words
+                               and w.lower() not in {e.split()[0].lower() for e in entities}]
+                domain_context = ' '.join(domain_words)
+
+        # If no domain context from entities, use topic_context from task
+        if not domain_context:
+            domain_context = topic_context
 
         # Step(s): Research each entity separately
         for i, entity in enumerate(entities[:4]):  # Max 4 entities
             entity_clean = entity.strip()
-            # Build a richer search query
-            search_query = f'{entity_clean} {topic_context}'.strip() if topic_context else entity_clean
+            # Enrich short entities with domain context
+            if domain_context and domain_context.lower() not in entity_clean.lower():
+                search_query = f'{entity_clean} {domain_context}'.strip()
+            else:
+                search_query = entity_clean
             search_params = {
                 'query': search_query,
                 'max_results': 5,

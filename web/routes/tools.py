@@ -416,6 +416,10 @@ def register_tools_routes(app, api):
 
     # ===== CONVERSATION BRANCHING ENDPOINTS =====
 
+    class WebSearchRequest(BaseModel):
+        query: str
+        max_results: int = 10
+
     @app.post("/api/search")
     async def web_search(request: WebSearchRequest):
         """

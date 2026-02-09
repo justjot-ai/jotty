@@ -193,7 +193,7 @@ class SwarmCommand(BaseCommand):
                 from Jotty.cli.ui.progress import SwarmDashboard
 
             try:
-                from core.swarms.coding_swarm import CodingSwarm, CodingConfig
+                from Jotty.core.swarms.coding_swarm import CodingSwarm, CodingConfig
             except ImportError:
                 from Jotty.core.swarms.coding_swarm import CodingSwarm, CodingConfig
 

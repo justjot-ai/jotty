@@ -10,7 +10,7 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
-from ...foundation.data_structures import EpisodeResult
+from Jotty.core.foundation.data_structures import EpisodeResult
 
 if TYPE_CHECKING:
     from .swarm_manager import SwarmManager
@@ -47,8 +47,8 @@ class SwarmDAGExecutor:
         Returns:
             EpisodeResult with execution output and metadata
         """
-        from ...agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
-        from ...agents.auto_agent import AutoAgent
+        from Jotty.core.agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+        from Jotty.core.agents.auto_agent import AutoAgent
 
         def _status(stage: str, detail: str = ""):
             if status_callback:
@@ -167,7 +167,7 @@ class SwarmDAGExecutor:
         status_callback=None,
     ) -> Dict[str, Dict[str, Any]]:
         """Execute a stage of tasks (potentially in parallel)."""
-        from ...agents.auto_agent import AutoAgent
+        from Jotty.core.agents.auto_agent import AutoAgent
 
         results = {}
 
@@ -222,7 +222,7 @@ class SwarmDAGExecutor:
 
     def get_agents(self):
         """Get DAG agents for external use."""
-        from ...agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+        from Jotty.core.agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
         import dspy
 
         if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:

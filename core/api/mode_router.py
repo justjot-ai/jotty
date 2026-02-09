@@ -28,8 +28,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Import SDK types
-from ..foundation.types.sdk_types import (
+# Absolute imports - single source of truth
+from Jotty.core.foundation.types.sdk_types import (
     ExecutionMode,
     ChannelType,
     SDKEventType,
@@ -111,7 +111,7 @@ class ModeRouter:
             return True
 
         try:
-            from ..foundation.unified_lm_provider import configure_dspy_lm
+            from Jotty.core.foundation.unified_lm_provider import configure_dspy_lm
             lm = configure_dspy_lm()
             if lm:
                 self._lm_configured = True
@@ -129,17 +129,27 @@ class ModeRouter:
         self._ensure_lm_configured()
 
         try:
-            from ..registry import get_unified_registry
+            from Jotty.core.registry import get_unified_registry
             self._registry = get_unified_registry()
         except Exception as e:
             logger.warning(f"Could not initialize registry: {e}")
 
         self._initialized = True
 
+    def _get_executor(self, context: Optional[ExecutionContext] = None):
+        """Get UnifiedExecutor with callbacks from context."""
+        from Jotty.core.orchestration.v2.unified_executor import UnifiedExecutor
+        status_cb = context.status_callback if context else None
+        stream_cb = context.stream_callback if context else None
+        return UnifiedExecutor(
+            status_callback=status_cb,
+            stream_callback=stream_cb,
+        )
+
     def _get_auto_agent(self, context: Optional[ExecutionContext] = None):
         """Get or create AutoAgent."""
         try:
-            from ..agents.auto_agent import AutoAgent
+            from Jotty.core.agents.auto_agent import AutoAgent
             return AutoAgent(
                 max_steps=context.max_steps if context else 10,
                 timeout=int(context.timeout) if context else 300
@@ -230,16 +240,45 @@ class ModeRouter:
         context: ExecutionContext
     ) -> RouteResult:
         """
-        Handle chat mode - all requests go through AutoAgent.
+        Handle chat mode via UnifiedExecutor.
 
-        AutoAgent automatically handles:
-        - Simple conversational queries (falls back to direct LLM)
-        - Complex multi-step tasks (uses skill discovery and execution)
+        UnifiedExecutor provides native LLM tool-calling:
+        - Direct, low-latency single-agent execution
+        - LLM decides which tools to call (web search, file ops, etc.)
+        - Streaming support via context.stream_callback
+        - Status updates via context.status_callback
 
-        No hardcoded routing - the swarm system decides what to do.
+        For multi-step planning workflows, use WORKFLOW mode instead.
         """
-        # All chat requests go through AutoAgent for unified handling
-        return await self._handle_workflow(message, context)
+        context.emit_event(SDKEventType.THINKING, {"message": message})
+
+        executor = self._get_executor(context)
+
+        try:
+            result = await executor.execute(message)
+
+            return RouteResult(
+                success=result.success,
+                content=result.content,
+                mode=ExecutionMode.CHAT,
+                skills_used=getattr(result, 'tools_used', []),
+                steps_executed=getattr(result, 'steps_taken', 1),
+                metadata={
+                    "output_format": getattr(result, 'output_format', 'markdown'),
+                    "output_path": getattr(result, 'output_path', None),
+                    "was_streamed": getattr(result, 'was_streamed', False),
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Chat execution error: {e}", exc_info=True)
+            return RouteResult(
+                success=False,
+                content=None,
+                mode=ExecutionMode.CHAT,
+                error=str(e),
+                errors=[str(e)],
+            )
 
     async def _handle_workflow(
         self,
@@ -325,7 +364,7 @@ class ModeRouter:
                 import json
                 try:
                     params = json.loads(params)
-                except:
+                except (json.JSONDecodeError, ValueError):
                     params = {"input": params}
 
             result = await skill.execute(params) if hasattr(skill, 'execute') else skill.run(params)
@@ -452,8 +491,11 @@ class ModeRouter:
         """
         Stream execution with events.
 
-        Yields SDKEvent objects for each update during execution.
+        Uses asyncio.Queue for zero-latency event delivery (no polling).
+        Events are yielded immediately as they're emitted by the execution.
         """
+        import asyncio
+
         if context is None:
             context = ExecutionContext(
                 mode=ExecutionMode.CHAT,
@@ -462,42 +504,64 @@ class ModeRouter:
                 **kwargs
             )
 
-        # Collect events
-        events = []
+        # Queue-based event delivery (instant, no polling)
+        event_queue: asyncio.Queue[Optional[SDKEvent]] = asyncio.Queue()
         original_callback = context.event_callback
 
-        def collect_event(event: SDKEvent):
-            events.append(event)
+        def queue_event(event: SDKEvent):
+            event_queue.put_nowait(event)
             if original_callback:
                 original_callback(event)
 
-        context.event_callback = collect_event
+        context.event_callback = queue_event
 
-        # Start execution (non-blocking)
-        import asyncio
+        # Start execution in background
         task = asyncio.create_task(self.route(content, context))
 
-        # Yield events as they come
-        last_yielded = 0
-        while not task.done():
-            await asyncio.sleep(0.05)  # Poll every 50ms
-            while last_yielded < len(events):
-                yield events[last_yielded]
-                last_yielded += 1
+        # Yield events as they arrive (zero-latency)
+        while True:
+            # Wait for next event or task completion
+            done, _ = await asyncio.wait(
+                [asyncio.ensure_future(event_queue.get()), task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-        # Wait for completion
-        result = await task
+            # Drain all available events from queue
+            while not event_queue.empty():
+                event = event_queue.get_nowait()
+                if event is not None:
+                    yield event
 
-        # Yield remaining events
-        while last_yielded < len(events):
-            yield events[last_yielded]
-            last_yielded += 1
+            # If a queue.get() completed, yield that event too
+            for completed in done:
+                if completed is not task:
+                    try:
+                        event = completed.result()
+                        if event is not None:
+                            yield event
+                    except Exception:
+                        pass
 
-        # Yield final result
-        yield SDKEvent(
-            type=SDKEventType.COMPLETE,
-            data=result.to_sdk_response().to_dict()
-        )
+            # If task completed, drain remaining events and exit
+            if task.done():
+                while not event_queue.empty():
+                    event = event_queue.get_nowait()
+                    if event is not None:
+                        yield event
+                break
+
+        # Get result and yield final complete event
+        try:
+            result = task.result()
+            yield SDKEvent(
+                type=SDKEventType.COMPLETE,
+                data=result.to_sdk_response().to_dict()
+            )
+        except Exception as e:
+            yield SDKEvent(
+                type=SDKEventType.ERROR,
+                data={"error": str(e)}
+            )
 
 
 # Singleton instance

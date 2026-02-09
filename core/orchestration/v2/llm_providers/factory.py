@@ -70,7 +70,7 @@ def auto_detect_provider() -> tuple:
     """
     # 1. Try JottyClaudeProvider first (uses Claude CLI, most reliable)
     try:
-        from ...foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
+        from Jotty.core.foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
         if is_claude_available():
             provider = JottyClaudeProvider(auto_start=True)
             # Return a wrapper that uses JottyClaudeProvider

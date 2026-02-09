@@ -3,6 +3,8 @@ JottyAPI - Core API business logic.
 
 Manages request processing, session integration, command execution,
 and folder management. Used by FastAPI routes in web/routes/.
+
+All execution flows through ModeRouter for consistent behavior.
 """
 
 import asyncio
@@ -15,73 +17,49 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Absolute imports - single source of truth
+from Jotty.core.api.mode_router import ModeRouter, get_mode_router, RouteResult
+from Jotty.core.foundation.types.sdk_types import (
+    ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
+)
+
 
 class JottyAPI:
     """
     Jotty API handler.
 
     Manages request processing and session integration.
-    Uses shared JottyCLI instance for command execution to ensure
-    all interfaces (CLI, Telegram, Web) have identical behavior.
+    All execution flows through ModeRouter for consistent behavior
+    across CLI, Web, Gateway, and SDK.
     """
 
     def __init__(self):
-        self._executor = None
+        self._router: Optional[ModeRouter] = None
         self._registry = None
-        self._lm_configured = False
         self._cli = None  # Shared CLI instance for commands
+
+    @property
+    def router(self) -> ModeRouter:
+        """Get ModeRouter singleton."""
+        if self._router is None:
+            self._router = get_mode_router()
+        return self._router
 
     def _get_cli(self):
         """Get shared JottyCLI instance for command execution."""
         if self._cli is None:
-            from ..cli.app import JottyCLI
+            from Jotty.cli.app import JottyCLI
             self._cli = JottyCLI(no_color=True)  # No color for web output
         return self._cli
-
-    def _ensure_lm_configured(self):
-        """Ensure DSPy LM is configured (same as CLI)."""
-        if self._lm_configured:
-            return True
-
-        import dspy
-
-        # Check if already configured
-        if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
-            self._lm_configured = True
-            return True
-
-        try:
-            # Use the same unified_lm_provider as CLI
-            from ..core.foundation.unified_lm_provider import configure_dspy_lm
-
-            # Auto-detect: tries claude-cli first (free), then API providers
-            lm = configure_dspy_lm()
-            if lm:
-                self._lm_configured = True
-                model_name = getattr(lm, 'model', None) or getattr(lm, 'model_name', 'unknown')
-                logger.info(f"LLM configured: {model_name}")
-                return True
-        except Exception as e:
-            logger.error(f"Failed to configure LLM: {e}")
-
-        return False
-
-    def _get_executor(self, status_callback=None, stream_callback=None):
-        """Get UnifiedExecutor with callbacks (auto-detects provider)."""
-        from ..core.orchestration.v2.unified_executor import UnifiedExecutor
-        return UnifiedExecutor(
-            status_callback=status_callback,
-            stream_callback=stream_callback
-        )
 
     def _get_session_registry(self):
         """Get session registry."""
         if self._registry is None:
-            from ..cli.repl.session import get_session_registry
+            from Jotty.cli.repl.session import get_session_registry
             self._registry = get_session_registry()
         return self._registry
 
-    async def _execute_with_images(self, executor, task: str, images: List[str], status_cb=None):
+    async def _execute_with_images(self, task: str, images: List[str], status_cb=None):
         """
         Execute task with image attachments using multimodal LLM.
 
@@ -255,12 +233,16 @@ class JottyAPI:
             # Fallback: describe that images were provided but couldn't be processed
             logger.warning("No vision-capable API available, falling back to text-only")
             enhanced_task = f"[Note: User attached {len(images)} image(s) but no vision API is configured. Please respond to: {task}]"
-            return await executor.execute(enhanced_task)
+            fallback_ctx = ExecutionContext(mode=ExecutionMode.CHAT, channel=ChannelType.WEB)
+            result = await self.router.chat(enhanced_task, fallback_ctx)
+            return ImageResult(success=result.success, content=result.content or "", error=result.error)
 
         except Exception as e:
             logger.error(f"Image processing error: {e}", exc_info=True)
-            # Fallback to text-only execution
-            return await executor.execute(task)
+            # Fallback to text-only execution via ModeRouter
+            fallback_ctx = ExecutionContext(mode=ExecutionMode.CHAT, channel=ChannelType.WEB)
+            result = await self.router.chat(task, fallback_ctx)
+            return ImageResult(success=result.success, content=result.content or "", error=result.error)
 
     async def process_message(
         self,
@@ -274,6 +256,8 @@ class JottyAPI:
         """
         Process a chat message with optional image attachments.
 
+        Routes through ModeRouter for consistent execution.
+
         Args:
             message: User message
             session_id: Session ID
@@ -285,7 +269,7 @@ class JottyAPI:
         Returns:
             Response dict with content, output_path, etc.
         """
-        from ..cli.repl.session import InterfaceType
+        from Jotty.cli.repl.session import InterfaceType
 
         # Get session
         registry = self._get_session_registry()
@@ -303,17 +287,14 @@ class JottyAPI:
         if attachments:
             for att in attachments:
                 if att.get("type") == "image" and att.get("data"):
-                    # Image: use for multimodal vision
                     image_data_list.append(att["data"])
                     image_descriptions.append(f"[Attached image: {att.get('name', 'image')}]")
                 elif att.get("type") == "document" and att.get("docId"):
-                    # Document: extract text for context
                     try:
-                        from .documents import get_document_processor
+                        from Jotty.web.documents import get_document_processor
                         processor = get_document_processor()
                         doc_text = processor.get_document_text(att["docId"])
                         if doc_text:
-                            # Truncate if too long
                             max_len = 8000
                             if len(doc_text) > max_len:
                                 doc_text = doc_text[:max_len] + f"\n\n[... truncated, {len(doc_text) - max_len} more chars ...]"
@@ -322,8 +303,6 @@ class JottyAPI:
                         logger.error(f"Failed to extract document text: {e}")
 
         # Build message content with attachments context
-        # NOTE: Web search is handled by UnifiedExecutor via LLM tool calling (not regex)
-        # The LLM uses web_search tool when it needs current info
         full_message = message
         context_parts = []
 
@@ -336,7 +315,7 @@ class JottyAPI:
         if context_parts:
             full_message = "\n\n".join(context_parts) + f"\n\nUSER REQUEST: {message}" if message else "\n\n".join(context_parts)
 
-        # Add user message
+        # Add user message to session
         message_id = str(uuid.uuid4())[:12]
         session.add_message(
             role="user",
@@ -346,8 +325,8 @@ class JottyAPI:
             metadata={"message_id": message_id, "has_images": len(image_data_list) > 0}
         )
 
-        # Create status callback that calls both logger and external callback
-        def status_cb(stage, detail):
+        # Wrap status callback to log + forward
+        def status_cb(stage, detail=""):
             logger.debug(f"Status: {stage} - {detail}")
             if status_callback:
                 try:
@@ -355,80 +334,95 @@ class JottyAPI:
                 except Exception as e:
                     logger.debug(f"Status callback error: {e}")
 
-        executor = self._get_executor(
-            status_callback=status_cb,
-            stream_callback=stream_callback
-        )
-
         # Build task with conversation context
         history = session.get_history()
         if len(history) > 1:
-            # Include recent conversation for context (last 5 exchanges max)
-            context_messages = history[-10:-1]  # Exclude current message
+            context_messages = history[-10:-1]
             if context_messages:
                 context_str = "\n".join([
                     f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content', '')[:500]}"
                     for m in context_messages
                 ])
-                task_with_context = f"""Previous conversation:
-{context_str}
-
-Current request: {full_message}"""
+                task_with_context = f"Previous conversation:\n{context_str}\n\nCurrent request: {full_message}"
             else:
                 task_with_context = full_message
         else:
             task_with_context = full_message
 
         try:
-            # Execute with context and images
-            # If we have images, try to use multimodal LLM
+            # Handle images separately (multimodal - needs direct API call)
             if image_data_list:
-                result = await self._execute_with_images(executor, task_with_context, image_data_list, status_cb)
-            else:
-                result = await executor.execute(task_with_context)
+                result = await self._execute_with_images(task_with_context, image_data_list, status_cb)
+                response_id = str(uuid.uuid4())[:12]
+
+                if result.success:
+                    session.add_message(
+                        role="assistant",
+                        content=result.content,
+                        interface=InterfaceType.WEB,
+                        metadata={"message_id": response_id}
+                    )
+                    return {
+                        "success": True,
+                        "message_id": response_id,
+                        "content": result.content,
+                        "output_format": getattr(result, 'output_format', 'markdown'),
+                        "output_path": getattr(result, 'output_path', None),
+                        "steps": getattr(result, 'steps_taken', 1),
+                    }
+                else:
+                    return {"success": False, "error": getattr(result, 'error', 'Unknown error')}
+
+            # Route through ModeRouter (canonical path)
+            context = ExecutionContext(
+                mode=ExecutionMode.CHAT,
+                channel=ChannelType.WEB,
+                session_id=session_id,
+                user_id=user_id,
+                status_callback=status_cb,
+                stream_callback=stream_callback,
+            )
+
+            route_result = await self.router.chat(task_with_context, context)
 
             response_id = str(uuid.uuid4())[:12]
 
-            if result.success:
-                # Add assistant response
+            if route_result.success:
                 session.add_message(
                     role="assistant",
-                    content=result.content,
+                    content=route_result.content,
                     interface=InterfaceType.WEB,
                     metadata={
                         "message_id": response_id,
-                        "output_format": result.output_format,
-                        "output_path": result.output_path,
-                        "steps": result.steps_taken,
+                        "output_format": route_result.metadata.get("output_format", "markdown"),
+                        "output_path": route_result.metadata.get("output_path"),
+                        "steps": route_result.steps_executed,
                     }
                 )
 
                 return {
                     "success": True,
                     "message_id": response_id,
-                    "content": result.content,
-                    "output_format": result.output_format,
-                    "output_path": result.output_path,
-                    "steps": result.steps_taken,
+                    "content": route_result.content,
+                    "output_format": route_result.metadata.get("output_format", "markdown"),
+                    "output_path": route_result.metadata.get("output_path"),
+                    "steps": route_result.steps_executed,
                 }
             else:
                 return {
                     "success": False,
-                    "error": result.error or "Unknown error",
-                    "steps": result.steps_taken,
+                    "error": route_result.error or "Unknown error",
+                    "steps": route_result.steps_executed,
                 }
 
         except Exception as e:
             logger.error(f"Processing error: {e}", exc_info=True)
-            return {
-                "success": False,
-                "error": str(e),
-            }
+            return {"success": False, "error": str(e)}
 
     def get_commands(self) -> List[Dict[str, Any]]:
         """Get available CLI commands."""
-        from ..cli.commands import CommandRegistry
-        from ..cli.commands import register_all_commands
+        from Jotty.cli.commands import CommandRegistry
+        from Jotty.cli.commands import register_all_commands
 
         registry = CommandRegistry()
         register_all_commands(registry)
@@ -544,7 +538,7 @@ Current request: {full_message}"""
 
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions with metadata."""
-        from ..cli.repl.session import SessionManager
+        from Jotty.cli.repl.session import SessionManager
         import json
 
         manager = SessionManager()
@@ -567,7 +561,7 @@ Current request: {full_message}"""
 
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get session details."""
-        from ..cli.repl.session import InterfaceType
+        from Jotty.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
         session = registry.get_session(
@@ -585,7 +579,7 @@ Current request: {full_message}"""
 
     def clear_session(self, session_id: str) -> bool:
         """Clear session history."""
-        from ..cli.repl.session import InterfaceType
+        from Jotty.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
         session = registry.get_session(
@@ -602,7 +596,7 @@ Current request: {full_message}"""
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session."""
-        from ..cli.repl.session import SessionManager
+        from Jotty.cli.repl.session import SessionManager
 
         registry = self._get_session_registry()
         registry.remove_session(session_id)
@@ -613,7 +607,7 @@ Current request: {full_message}"""
 
     def update_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update session metadata (title, isPinned, isArchived, folderId)."""
-        from ..cli.repl.session import SessionManager, InterfaceType
+        from Jotty.cli.repl.session import SessionManager, InterfaceType
 
         manager = SessionManager()
         session_file = manager.session_dir / f"{session_id}.json"
