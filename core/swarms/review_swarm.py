@@ -690,6 +690,9 @@ class ReviewSwarm(DomainSwarm):
         """
         Perform comprehensive code review.
 
+        Delegates to _safe_execute_domain which handles try/except,
+        timing, and post-execution learning automatically via PhaseExecutor.
+
         Args:
             code: Code to review
             context: Context about the code/PR
@@ -698,219 +701,224 @@ class ReviewSwarm(DomainSwarm):
         Returns:
             ReviewResult with all findings
         """
-        start_time = datetime.now()
-
         config = self.config
         lang = language or config.language
 
-        logger.info(f"🔍 ReviewSwarm starting: {lang}")
+        logger.info(f"ReviewSwarm starting: {lang}")
 
-        try:
-            # =================================================================
-            # PHASE 1: PARALLEL REVIEWS
-            # =================================================================
-            logger.info("📋 Phase 1: Running parallel reviews...")
+        return await self._safe_execute_domain(
+            task_type='code_review',
+            default_tools=['code_review', 'security_review', 'performance_review'],
+            result_class=ReviewResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, code, context, lang, config
+            ),
+            output_data_fn=lambda result: self._build_output_data(result),
+            input_data_fn=lambda: {
+                'language': lang,
+                'context': context,
+                'code_length': len(code),
+                'strictness': config.strictness,
+                'style_guide': config.style_guide,
+                'review_types': [rt.value for rt in config.review_types],
+            },
+        )
 
-            code_task = self._code_reviewer.review(
-                code, lang, context or "Code review", config.strictness
-            )
-            security_task = self._security_scanner.scan(code, lang, context)
-            performance_task = self._performance_analyzer.analyze(code, lang)
-            architecture_task = self._architecture_reviewer.review(code, context)
+    async def _execute_phases(self, executor, code, context, lang, config):
+        """Execute all review phases using PhaseExecutor.
 
-            results = await asyncio.gather(
-                code_task, security_task, performance_task, architecture_task,
-                return_exceptions=True
-            )
+        Args:
+            executor: PhaseExecutor instance (provided by _safe_execute_domain)
+            code: Code to review
+            context: Context about the code/PR
+            lang: Programming language
+            config: ReviewConfig instance
 
-            code_result = results[0] if not isinstance(results[0], Exception) else {'error': str(results[0])}
-            security_result = results[1] if not isinstance(results[1], Exception) else {'error': str(results[1])}
-            performance_result = results[2] if not isinstance(results[2], Exception) else {'error': str(results[2])}
-            architecture_result = results[3] if not isinstance(results[3], Exception) else {'error': str(results[3])}
+        Returns:
+            ReviewResult with all findings
+        """
+        # =================================================================
+        # PHASE 1: PARALLEL REVIEWS
+        # =================================================================
+        parallel_results = await executor.run_parallel(1, "Parallel Reviews", [
+            (
+                "CodeReviewer", AgentRole.REVIEWER,
+                self._code_reviewer.review(code, lang, context or "Code review", config.strictness),
+                ['code_review'],
+            ),
+            (
+                "SecurityScanner", AgentRole.EXPERT,
+                self._security_scanner.scan(code, lang, context),
+                ['security_scan'],
+            ),
+            (
+                "PerformanceAnalyzer", AgentRole.EXPERT,
+                self._performance_analyzer.analyze(code, lang),
+                ['performance_analyze'],
+            ),
+            (
+                "ArchitectureReviewer", AgentRole.EXPERT,
+                self._architecture_reviewer.review(code, context),
+                ['arch_review'],
+            ),
+        ])
 
-            self._trace_phase("CodeReviewer", AgentRole.REVIEWER,
-                {'language': lang},
-                {'issues': len(code_result.get('issues', []))},
-                success='error' not in code_result, phase_start=start_time, tools_used=['code_review'])
-            self._trace_phase("SecurityScanner", AgentRole.EXPERT,
-                {'language': lang},
-                {'vulnerabilities': len(security_result.get('vulnerabilities', []))},
-                success='error' not in security_result, phase_start=start_time, tools_used=['security_scan'])
-            self._trace_phase("PerformanceAnalyzer", AgentRole.EXPERT,
-                {'language': lang},
-                {'issues': len(performance_result.get('issues', []))},
-                success='error' not in performance_result, phase_start=start_time, tools_used=['performance_analyze'])
-            self._trace_phase("ArchitectureReviewer", AgentRole.EXPERT,
-                {'has_context': bool(context)},
-                {'has_result': 'error' not in architecture_result},
-                success='error' not in architecture_result, phase_start=start_time, tools_used=['arch_review'])
+        code_result, security_result, performance_result, architecture_result = parallel_results
 
-            # =================================================================
-            # PHASE 2: STYLE CHECK
-            # =================================================================
-            logger.info("🎨 Phase 2: Style checking...")
+        # =================================================================
+        # PHASE 2: STYLE CHECK
+        # =================================================================
+        style_result = await executor.run_phase(
+            2, "Style Check", "StyleChecker", AgentRole.REVIEWER,
+            self._style_checker.check(code, lang, config.style_guide),
+            input_data={'language': lang},
+            tools_used=['style_check'],
+        )
 
-            style_result = await self._style_checker.check(code, lang, config.style_guide)
-
-            phase2_start = datetime.now()
-            self._trace_phase("StyleChecker", AgentRole.REVIEWER,
-                {'language': lang},
-                {'has_result': bool(style_result)},
-                success=True, phase_start=start_time, tools_used=['style_check'])
-
-            # =================================================================
-            # PHASE 3: SYNTHESIS
-            # =================================================================
-            logger.info("📊 Phase 3: Synthesizing reviews...")
-
-            synthesis = await self._synthesizer.synthesize(
+        # =================================================================
+        # PHASE 3: SYNTHESIS
+        # =================================================================
+        synthesis = await executor.run_phase(
+            3, "Review Synthesis", "ReviewSynthesizer", AgentRole.ORCHESTRATOR,
+            self._synthesizer.synthesize(
                 code_result, security_result, performance_result,
                 architecture_result, context
-            )
+            ),
+            input_data={'reviews_count': 4},
+            tools_used=['review_synthesize'],
+        )
 
-            self._trace_phase("ReviewSynthesizer", AgentRole.ORCHESTRATOR,
-                {'reviews_count': 4},
-                {'status': str(synthesis.get('status', '')), 'score': synthesis.get('overall_score', 0)},
-                success=True, phase_start=phase2_start, tools_used=['review_synthesize'])
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        return self._build_review_result(
+            executor, code_result, security_result,
+            performance_result, synthesis, lang
+        )
 
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
+    def _build_review_result(
+        self, executor, code_result, security_result,
+        performance_result, synthesis, lang
+    ):
+        """Build the final ReviewResult from all phase outputs.
 
-            # Convert issues to ReviewComment objects
-            comments = []
-            for issue in code_result.get('issues', []):
-                severity_str = issue.get('severity', 'medium').lower()
-                try:
-                    severity = Severity(severity_str)
-                except Exception:
-                    severity = Severity.MEDIUM
+        Args:
+            executor: PhaseExecutor (used for elapsed time)
+            code_result: Output from CodeReviewer
+            security_result: Output from SecurityScanner
+            performance_result: Output from PerformanceAnalyzer
+            synthesis: Output from ReviewSynthesizer
+            lang: Programming language
 
-                comments.append(ReviewComment(
-                    line=issue.get('line', 0),
-                    severity=severity,
-                    category="code",
-                    message=issue.get('message', ''),
-                    suggestion=issue.get('suggestion', '')
-                ))
+        Returns:
+            ReviewResult with all findings aggregated
+        """
+        # Convert issues to ReviewComment objects
+        comments = []
+        for issue in code_result.get('issues', []):
+            severity = self._parse_severity(issue.get('severity', 'medium'))
+            comments.append(ReviewComment(
+                line=issue.get('line', 0),
+                severity=severity,
+                category="code",
+                message=issue.get('message', ''),
+                suggestion=issue.get('suggestion', '')
+            ))
 
-            # Convert vulnerabilities to SecurityFinding objects
-            security_findings = []
-            for vuln in security_result.get('vulnerabilities', []):
-                severity_str = vuln.get('severity', 'medium').lower()
-                try:
-                    severity = Severity(severity_str)
-                except Exception:
-                    severity = Severity.MEDIUM
+        # Convert vulnerabilities to SecurityFinding objects
+        security_findings = []
+        for vuln in security_result.get('vulnerabilities', []):
+            severity = self._parse_severity(vuln.get('severity', 'medium'))
+            security_findings.append(SecurityFinding(
+                vulnerability_type=vuln.get('type', 'unknown'),
+                severity=severity,
+                location=vuln.get('location', ''),
+                description=vuln.get('description', ''),
+                fix_recommendation=vuln.get('fix', '')
+            ))
 
-                security_findings.append(SecurityFinding(
-                    vulnerability_type=vuln.get('type', 'unknown'),
-                    severity=severity,
-                    location=vuln.get('location', ''),
-                    description=vuln.get('description', ''),
-                    fix_recommendation=vuln.get('fix', '')
-                ))
+        # Convert performance issues
+        performance_findings = []
+        for issue in performance_result.get('issues', []):
+            severity = self._parse_severity(issue.get('severity', 'medium'))
+            performance_findings.append(PerformanceFinding(
+                issue_type=issue.get('type', 'unknown'),
+                severity=severity,
+                location=issue.get('location', ''),
+                description=issue.get('description', ''),
+                impact=issue.get('impact', ''),
+                optimization=issue.get('optimization', '')
+            ))
 
-            # Convert performance issues
-            performance_findings = []
-            for issue in performance_result.get('issues', []):
-                severity_str = issue.get('severity', 'medium').lower()
-                try:
-                    severity = Severity(severity_str)
-                except Exception:
-                    severity = Severity.MEDIUM
+        # Count by severity
+        all_findings = comments + security_findings + performance_findings
+        critical_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.CRITICAL)
+        high_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.HIGH)
+        medium_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.MEDIUM)
+        low_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.LOW)
 
-                performance_findings.append(PerformanceFinding(
-                    issue_type=issue.get('type', 'unknown'),
-                    severity=severity,
-                    location=issue.get('location', ''),
-                    description=issue.get('description', ''),
-                    impact=issue.get('impact', ''),
-                    optimization=issue.get('optimization', '')
-                ))
+        status_str = synthesis['status'].value if hasattr(synthesis['status'], 'value') else str(synthesis['status'])
+        logger.info(f"ReviewSwarm complete: {status_str}, Score: {synthesis['overall_score']:.1f}")
 
-            # Count by severity
-            all_findings = comments + security_findings + performance_findings
-            critical_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.CRITICAL)
-            high_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.HIGH)
-            medium_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.MEDIUM)
-            low_count = sum(1 for f in all_findings if hasattr(f, 'severity') and f.severity == Severity.LOW)
+        return ReviewResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'language': lang},
+            execution_time=executor.elapsed(),
+            status=synthesis['status'],
+            comments=comments,
+            security_findings=security_findings,
+            performance_findings=performance_findings,
+            architecture_findings=[],
+            summary=synthesis['summary'],
+            score=synthesis['overall_score'],
+            critical_count=critical_count,
+            high_count=high_count,
+            medium_count=medium_count,
+            low_count=low_count,
+            approved=synthesis['status'] == ReviewStatus.APPROVED
+        )
 
-            result = ReviewResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'language': lang},
-                execution_time=exec_time,
-                status=synthesis['status'],
-                comments=comments,
-                security_findings=security_findings,
-                performance_findings=performance_findings,
-                architecture_findings=[],
-                summary=synthesis['summary'],
-                score=synthesis['overall_score'],
-                critical_count=critical_count,
-                high_count=high_count,
-                medium_count=medium_count,
-                low_count=low_count,
-                approved=synthesis['status'] == ReviewStatus.APPROVED
-            )
+    @staticmethod
+    def _parse_severity(severity_str: str) -> Severity:
+        """Parse a severity string into a Severity enum value.
 
-            status_str = synthesis['status'].value if hasattr(synthesis['status'], 'value') else str(synthesis['status'])
-            logger.info(f"✅ ReviewSwarm complete: {status_str}, Score: {synthesis['overall_score']:.1f}")
+        Args:
+            severity_str: Severity string (e.g. 'medium', 'HIGH')
 
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['code_review', 'security_review', 'performance_review']),
-                task_type='code_review',
-                output_data={
-                    'status': status_str,
-                    'overall_score': synthesis['overall_score'],
-                    'comments_count': len(comments),
-                    'security_findings_count': len(security_findings),
-                    'performance_findings_count': len(performance_findings),
-                    'critical_count': critical_count,
-                    'high_count': high_count,
-                    'medium_count': medium_count,
-                    'low_count': low_count,
-                    'approved': synthesis['status'] == ReviewStatus.APPROVED,
-                    'execution_time': exec_time,
-                },
-                input_data={
-                    'language': lang,
-                    'context': context,
-                    'code_length': len(code),
-                    'strictness': config.strictness,
-                    'style_guide': config.style_guide,
-                    'review_types': [rt.value for rt in config.review_types],
-                }
-            )
+        Returns:
+            Severity enum value, defaulting to MEDIUM on parse failure
+        """
+        try:
+            return Severity(severity_str.lower())
+        except (ValueError, AttributeError):
+            return Severity.MEDIUM
 
-            return result
+    @staticmethod
+    def _build_output_data(result: 'ReviewResult') -> Dict[str, Any]:
+        """Build output data dict for post-execution learning.
 
-        except Exception as e:
-            logger.error(f"❌ ReviewSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['code_review']),
-                task_type='code_review'
-            )
-            return ReviewResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
-            )
+        Args:
+            result: The completed ReviewResult
+
+        Returns:
+            Dict with key metrics for learning
+        """
+        status_str = result.status.value if hasattr(result.status, 'value') else str(result.status)
+        return {
+            'status': status_str,
+            'overall_score': result.score,
+            'comments_count': len(result.comments),
+            'security_findings_count': len(result.security_findings),
+            'performance_findings_count': len(result.performance_findings),
+            'critical_count': result.critical_count,
+            'high_count': result.high_count,
+            'medium_count': result.medium_count,
+            'low_count': result.low_count,
+            'approved': result.approved,
+            'execution_time': result.execution_time,
+        }
 
 
 # =============================================================================

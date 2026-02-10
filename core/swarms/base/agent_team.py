@@ -274,11 +274,18 @@ class AgentTeam:
         context: Dict[str, Any],
         **kwargs
     ) -> TeamResult:
-        """Execute agents sequentially, passing output to next."""
+        """Execute agents sequentially, passing output to next.
+
+        When agents expose ``get_io_schema()``, output fields are auto-wired
+        to the next agent's input fields by name/type match.  Falls back to
+        raw output chaining when schemas are unavailable.
+        """
         outputs = {}
         errors = {}
         execution_order = []
         current_input = task
+        prev_schema = None  # AgentIOSchema of previous agent
+        prev_output_dict = None  # Dict output for schema mapping
 
         for attr_name, spec in self.get_ordered_agents():
             agent = self._instances.get(attr_name)
@@ -288,10 +295,26 @@ class AgentTeam:
             execution_order.append(spec.display_name)
 
             try:
+                # Schema-aware wiring: map previous output fields to this agent's inputs
+                extra_kwargs = {}
+                if prev_schema is not None and prev_output_dict is not None:
+                    try:
+                        if hasattr(agent, 'get_io_schema'):
+                            cur_schema = agent.get_io_schema()
+                            wired = prev_schema.map_outputs(prev_output_dict, cur_schema)
+                            if wired:
+                                extra_kwargs.update(wired)
+                                logger.debug(
+                                    f"Pipeline schema wiring: {prev_schema.agent_name} → "
+                                    f"{cur_schema.agent_name}: {list(wired.keys())}"
+                                )
+                    except Exception as e:
+                        logger.debug(f"Pipeline schema wiring skipped: {e}")
+
                 # Pass previous output as input
                 if hasattr(agent, 'execute'):
                     result = await asyncio.wait_for(
-                        agent.execute(input=current_input, context=context, **kwargs),
+                        agent.execute(input=current_input, context=context, **extra_kwargs, **kwargs),
                         timeout=self.timeout
                     )
                     output = result.output if hasattr(result, 'output') else result
@@ -302,9 +325,23 @@ class AgentTeam:
                 outputs[spec.display_name] = output
                 current_input = output  # Chain to next
 
+                # Track schema + output for next iteration's auto-wiring
+                try:
+                    if hasattr(agent, 'get_io_schema'):
+                        prev_schema = agent.get_io_schema()
+                        prev_output_dict = output if isinstance(output, dict) else {'output': str(output)}
+                    else:
+                        prev_schema = None
+                        prev_output_dict = None
+                except Exception:
+                    prev_schema = None
+                    prev_output_dict = None
+
             except Exception as e:
                 logger.error(f"Pipeline agent {spec.display_name} failed: {e}")
                 errors[spec.display_name] = str(e)
+                prev_schema = None
+                prev_output_dict = None
                 # Continue with previous input or break based on config
                 break
 

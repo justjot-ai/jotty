@@ -51,10 +51,8 @@ import asyncio
 import logging
 import json
 import dspy
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
@@ -714,11 +712,9 @@ class DataAnalysisSwarm(DomainSwarm):
         Returns:
             AnalysisResult with complete analysis
         """
-        start_time = datetime.now()
-
         # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
 
-        logger.info(f"📊 DataAnalysisSwarm starting...")
+        logger.info(f"DataAnalysisSwarm starting...")
 
         # Convert data to analyzable format
         if isinstance(data, dict):
@@ -736,7 +732,7 @@ class DataAnalysisSwarm(DomainSwarm):
             }
             sample_data = [{'text': data[:500]}]
             column_info = {'text': 'string'}
-            logger.info("📝 Received text data - will extract structured info via LLM")
+            logger.info("Received text data - will extract structured info via LLM")
         else:
             # Assume pandas DataFrame
             try:
@@ -775,232 +771,208 @@ class DataAnalysisSwarm(DomainSwarm):
 
         config = self.config
 
-        try:
-            # =================================================================
-            # PHASE 1: DATA PROFILING
-            # =================================================================
-            logger.info("📋 Phase 1: Profiling data...")
+        return await self._safe_execute_domain(
+            task_type='data_analysis',
+            default_tools=['data_profile', 'eda_analyze', 'insight_generate'],
+            result_class=AnalysisResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, data_summary, sample_data, column_info,
+                config, question, target_column, business_context
+            ),
+            output_data_fn=lambda result: {
+                'rows': result.profile.row_count if result.profile else 0,
+                'columns': result.profile.column_count if result.profile else 0,
+                'data_quality_score': result.data_quality_score,
+                'insights_count': len(result.insights),
+                'visualizations_count': len(result.visualizations),
+                'has_ml_recommendation': result.ml_recommendations is not None,
+                'hypothesis_tests_count': len(result.statistics.hypothesis_tests) if result.statistics else 0,
+                'quality_issues_count': len(result.profile.columns) if result.profile else 0,
+            },
+            input_data_fn=lambda: {
+                'question': question,
+                'target_column': target_column,
+                'business_context': business_context,
+                'row_count': data_summary.get('shape', [0, 0])[0],
+                'column_count': data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
+                'column_names': list(column_info.keys()),
+            },
+        )
 
-            profile_result = await self._profiler.profile(
-                data_summary,
-                sample_data,
-                column_info
+    async def _execute_phases(
+        self,
+        executor,
+        data_summary: Dict[str, Any],
+        sample_data: List[Dict],
+        column_info: Dict[str, str],
+        config: DataAnalysisConfig,
+        question: str,
+        target_column: str,
+        business_context: str,
+    ) -> AnalysisResult:
+        """Execute the domain-specific analysis phases using PhaseExecutor.
+
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            data_summary: Converted data summary dict
+            sample_data: Sample rows from the dataset
+            column_info: Column names mapped to types
+            config: Swarm configuration
+            question: Analysis question
+            target_column: Target variable for prediction
+            business_context: Business context for insights
+
+        Returns:
+            AnalysisResult with complete analysis
+        """
+        # =================================================================
+        # PHASE 1: DATA PROFILING
+        # =================================================================
+        profile_result = await executor.run_phase(
+            1, "Data Profiling", "DataProfiler", AgentRole.ACTOR,
+            self._profiler.profile(data_summary, sample_data, column_info),
+            input_data={'rows': data_summary.get('shape', [0, 0])[0],
+                        'cols': data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0},
+            tools_used=['data_profile'],
+        )
+
+        profile = DataProfile(
+            row_count=data_summary.get('shape', [0, 0])[0],
+            column_count=data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
+            columns=profile_result.get('column_profiles', {}),
+            missing_summary=data_summary.get('missing', {}),
+            duplicates=0,
+            memory_usage="Unknown",
+            data_types=column_info
+        )
+
+        # =================================================================
+        # PHASE 2: STATISTICAL ANALYSIS & EDA (parallel)
+        # =================================================================
+        stats_result, eda_result = await executor.run_parallel(
+            2, "Statistical Analysis & EDA",
+            [
+                ("Statistical", AgentRole.EXPERT,
+                 self._statistical_agent.analyze(
+                     json.dumps(data_summary),
+                     list(column_info.keys()),
+                     "Comprehensive analysis"
+                 ),
+                 ['stats_analyze']),
+                ("EDA", AgentRole.ACTOR,
+                 self._eda_agent.explore(
+                     profile_result.get('profile_summary', ''),
+                     json.dumps(data_summary),
+                     question or "Explore the data"
+                 ),
+                 ['eda_explore']),
+            ],
+        )
+
+        statistics = StatisticalResult(
+            descriptive_stats=stats_result.get('descriptive', {}),
+            correlations={},
+            distributions={},
+            outliers={},
+            hypothesis_tests=[{'test': t} for t in stats_result.get('hypothesis_tests', [])]
+        )
+
+        # =================================================================
+        # PHASE 3: INSIGHTS & ML RECOMMENDATIONS (parallel)
+        # =================================================================
+        analysis_summary = json.dumps({
+            'profile': profile_result,
+            'eda': eda_result,
+            'statistics': stats_result
+        })
+
+        phase3_tasks = [
+            ("Insight", AgentRole.EXPERT,
+             self._insight_agent.generate(
+                 analysis_summary, business_context, question
+             ),
+             ['insight_generate']),
+        ]
+
+        if config.include_ml_recommendations and target_column:
+            phase3_tasks.append(
+                ("MLRecommender", AgentRole.PLANNER,
+                 self._ml_recommender.recommend(
+                     profile_result.get('profile_summary', ''),
+                     target_column,
+                     f"Predict {target_column}"
+                 ),
+                 ['ml_recommend']),
             )
 
-            profile = DataProfile(
-                row_count=data_summary.get('shape', [0, 0])[0],
-                column_count=data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
-                columns=profile_result.get('column_profiles', {}),
-                missing_summary=data_summary.get('missing', {}),
-                duplicates=0,
-                memory_usage="Unknown",
-                data_types=column_info
+        phase3_results = await executor.run_parallel(
+            3, "Insights & ML Recommendations", phase3_tasks,
+        )
+
+        insights = phase3_results[0]
+        if isinstance(insights, dict) and 'error' in insights:
+            insights = []
+        ml_rec = phase3_results[1] if len(phase3_results) > 1 else None
+        if isinstance(ml_rec, dict) and 'error' in ml_rec:
+            ml_rec = None
+
+        # =================================================================
+        # PHASE 4: VISUALIZATION RECOMMENDATIONS
+        # =================================================================
+        visualizations = []
+        if config.include_visualizations:
+            insights_summary = json.dumps([
+                {'title': i.title, 'description': i.description}
+                for i in (insights if isinstance(insights, list) else [])
+            ])
+
+            visualizations = await executor.run_phase(
+                4, "Visualization Recommendations", "Visualization", AgentRole.ACTOR,
+                self._visualization_agent.recommend(
+                    json.dumps(data_summary), insights_summary, "analysts"
+                ),
+                input_data={'include_viz': config.include_visualizations},
+                tools_used=['viz_recommend'],
             )
 
-            self._trace_phase("DataProfiler", AgentRole.ACTOR,
-                {'rows': profile.row_count, 'cols': profile.column_count},
-                {'quality_issues': len(profile_result.get('quality_issues', []))},
-                success=True, phase_start=start_time, tools_used=['data_profile'])
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        exec_time = executor.elapsed()
 
-            # =================================================================
-            # PHASE 2: STATISTICAL ANALYSIS & EDA (parallel)
-            # =================================================================
-            logger.info("📈 Phase 2: Statistical analysis & EDA...")
+        # Calculate quality score
+        missing_ratio = sum(data_summary.get('missing', {}).values()) / (
+            profile.row_count * profile.column_count
+        ) if profile.row_count * profile.column_count > 0 else 0
+        quality_score = max(0, 1 - missing_ratio - len(profile_result.get('quality_issues', [])) * 0.1)
 
-            stats_task = self._statistical_agent.analyze(
-                json.dumps(data_summary),
-                list(column_info.keys()),
-                "Comprehensive analysis"
-            )
-            eda_task = self._eda_agent.explore(
-                profile_result.get('profile_summary', ''),
-                json.dumps(data_summary),
-                question or "Explore the data"
-            )
-
-            stats_result, eda_result = await asyncio.gather(
-                stats_task, eda_task, return_exceptions=True
-            )
-
-            if isinstance(stats_result, Exception):
-                stats_result = {'error': str(stats_result)}
-            if isinstance(eda_result, Exception):
-                eda_result = {'error': str(eda_result)}
-
-            statistics = StatisticalResult(
-                descriptive_stats=stats_result.get('descriptive', {}),
-                correlations={},
-                distributions={},
-                outliers={},
-                hypothesis_tests=[{'test': t} for t in stats_result.get('hypothesis_tests', [])]
-            )
-
-            phase2_start = datetime.now()
-            self._trace_phase("Statistical", AgentRole.EXPERT,
-                {'columns': len(column_info)},
-                {'has_error': 'error' in stats_result},
-                success='error' not in stats_result, phase_start=start_time, tools_used=['stats_analyze'])
-            self._trace_phase("EDA", AgentRole.ACTOR,
-                {'question': question or 'explore'},
-                {'has_error': 'error' in eda_result},
-                success='error' not in eda_result, phase_start=start_time, tools_used=['eda_explore'])
-
-            # =================================================================
-            # PHASE 3: INSIGHTS & ML RECOMMENDATIONS (parallel)
-            # =================================================================
-            logger.info("💡 Phase 3: Generating insights & ML recommendations...")
-
-            analysis_summary = json.dumps({
-                'profile': profile_result,
-                'eda': eda_result,
-                'statistics': stats_result
-            })
-
-            insight_task = self._insight_agent.generate(
-                analysis_summary,
-                business_context,
-                question
-            )
-
-            ml_task = None
-            if config.include_ml_recommendations and target_column:
-                ml_task = self._ml_recommender.recommend(
-                    profile_result.get('profile_summary', ''),
-                    target_column,
-                    f"Predict {target_column}"
-                )
-
-            if ml_task:
-                insights, ml_rec = await asyncio.gather(
-                    insight_task, ml_task, return_exceptions=True
-                )
-            else:
-                insights = await insight_task
-                ml_rec = None
-
-            if isinstance(insights, Exception):
-                insights = []
-            if isinstance(ml_rec, Exception):
-                ml_rec = None
-
-            self._trace_phase("Insight", AgentRole.EXPERT,
-                {'has_context': bool(business_context)},
-                {'insights_count': len(insights) if isinstance(insights, list) else 0},
-                success=True, phase_start=phase2_start, tools_used=['insight_generate'])
-            self._trace_phase("MLRecommender", AgentRole.PLANNER,
-                {'target_column': target_column or 'none'},
-                {'has_recommendation': ml_rec is not None},
-                success=True, phase_start=phase2_start, tools_used=['ml_recommend'])
-
-            # =================================================================
-            # PHASE 4: VISUALIZATION RECOMMENDATIONS
-            # =================================================================
-            visualizations = []
-            if config.include_visualizations:
-                logger.info("📊 Phase 4: Recommending visualizations...")
-
-                insights_summary = json.dumps([
-                    {'title': i.title, 'description': i.description}
-                    for i in (insights if isinstance(insights, list) else [])
-                ])
-
-                visualizations = await self._visualization_agent.recommend(
-                    json.dumps(data_summary),
-                    insights_summary,
-                    "analysts"
-                )
-
-            self._trace_phase("Visualization", AgentRole.ACTOR,
-                {'include_viz': config.include_visualizations},
-                {'viz_count': len(visualizations)},
-                success=True, phase_start=phase2_start, tools_used=['viz_recommend'])
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            # Calculate quality score
-            missing_ratio = sum(data_summary.get('missing', {}).values()) / (
-                profile.row_count * profile.column_count
-            ) if profile.row_count * profile.column_count > 0 else 0
-            quality_score = max(0, 1 - missing_ratio - len(profile_result.get('quality_issues', [])) * 0.1)
-
-            # Build summary
-            summary = f"""
+        # Build summary
+        insights_count = len(insights) if isinstance(insights, list) else 0
+        summary = f"""
             Data Analysis Summary:
             - Rows: {profile.row_count:,}
             - Columns: {profile.column_count}
             - Quality Score: {quality_score:.1%}
-            - Insights Generated: {len(insights) if isinstance(insights, list) else 0}
+            - Insights Generated: {insights_count}
             - Visualizations Recommended: {len(visualizations)}
             """
 
-            result = AnalysisResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'rows': profile.row_count, 'columns': profile.column_count},
-                execution_time=exec_time,
-                profile=profile,
-                statistics=statistics,
-                insights=insights if isinstance(insights, list) else [],
-                ml_recommendations=ml_rec,
-                visualizations=visualizations,
-                summary=summary.strip(),
-                data_quality_score=quality_score
-            )
+        logger.info(f"DataAnalysisSwarm complete: {insights_count} insights generated")
 
-            logger.info(f"✅ DataAnalysisSwarm complete: {len(insights) if isinstance(insights, list) else 0} insights generated")
-
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['data_profile', 'eda_analyze', 'insight_generate']),
-                task_type='data_analysis',
-                output_data={
-                    'rows': profile.row_count,
-                    'columns': profile.column_count,
-                    'data_quality_score': quality_score,
-                    'insights_count': len(insights) if isinstance(insights, list) else 0,
-                    'visualizations_count': len(visualizations),
-                    'has_ml_recommendation': ml_rec is not None,
-                    'hypothesis_tests_count': len(statistics.hypothesis_tests),
-                    'quality_issues_count': len(profile_result.get('quality_issues', [])),
-                },
-                input_data={
-                    'question': question,
-                    'target_column': target_column,
-                    'business_context': business_context,
-                    'row_count': data_summary.get('shape', [0, 0])[0],
-                    'column_count': data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
-                    'column_names': list(column_info.keys()),
-                }
-            )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ DataAnalysisSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['data_profile']),
-                task_type='data_analysis'
-            )
-            return AnalysisResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
-            )
+        return AnalysisResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'rows': profile.row_count, 'columns': profile.column_count},
+            execution_time=exec_time,
+            profile=profile,
+            statistics=statistics,
+            insights=insights if isinstance(insights, list) else [],
+            ml_recommendations=ml_rec,
+            visualizations=visualizations,
+            summary=summary.strip(),
+            data_quality_score=quality_score
+        )
 
 
 # =============================================================================

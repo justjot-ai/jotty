@@ -53,12 +53,11 @@ import json
 import dspy
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
-    register_swarm, ExecutionTrace
+    SwarmConfig, SwarmResult, AgentRole,
+    register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
 from ..agents.base import DomainAgent, DomainAgentConfig

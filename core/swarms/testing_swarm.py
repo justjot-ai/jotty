@@ -668,261 +668,231 @@ class TestingSwarm(DomainSwarm):
         Returns:
             TestingResult with test suite
         """
-        start_time = datetime.now()
-
-        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
-
         config = self.config
         lang = language or config.language
         types = test_types or config.test_types
         fw = framework or config.framework
 
-        logger.info(f"🧪 TestingSwarm starting: {lang}, {fw.value}")
+        logger.info(f"TestingSwarm starting: {lang}, {fw.value}")
 
-        try:
-            # =================================================================
-            # PHASE 1: CODE ANALYSIS
-            # =================================================================
-            logger.info("🔍 Phase 1: Analyzing code for testability...")
+        return await self._safe_execute_domain(
+            task_type='test_generation',
+            default_tools=['code_analyze', 'unit_test_generate', 'integration_test_generate'],
+            result_class=TestingResult,
+            execute_fn=lambda executor: self._execute_phases(executor, code, lang, types, fw),
+            output_data_fn=lambda result: {
+                'test_count': result.test_count,
+                'estimated_coverage': result.estimated_coverage,
+                'quality_score': result.quality_score,
+                'gaps_found': len(result.gaps_found),
+                'unit_tests': len([t for t in (result.test_suite.tests if result.test_suite else []) if t.test_type == TestType.UNIT]),
+                'integration_tests': len([t for t in (result.test_suite.tests if result.test_suite else []) if t.test_type == TestType.INTEGRATION]),
+                'e2e_tests': len([t for t in (result.test_suite.tests if result.test_suite else []) if t.test_type == TestType.E2E]),
+            },
+            input_data_fn=lambda: {
+                'code_length': len(code),
+                'language': lang,
+                'test_types': [t.value for t in types],
+                'framework': fw.value,
+            },
+        )
 
-            analysis = await self._analyzer.analyze(code, lang)
+    async def _execute_phases(
+        self,
+        executor,
+        code: str,
+        lang: str,
+        types: List[TestType],
+        fw: TestFramework
+    ) -> TestingResult:
+        """Execute all testing phases using PhaseExecutor.
 
-            if 'error' in analysis:
-                return TestingResult(
-                    success=False,
-                    swarm_name=self.config.name,
-                    domain=self.config.domain,
-                    output={},
-                    execution_time=(datetime.now() - start_time).total_seconds(),
-                    error=analysis['error']
-                )
+        Args:
+            executor: PhaseExecutor instance from _safe_execute_domain
+            code: Source code to test
+            lang: Programming language
+            types: Types of tests to generate
+            fw: Test framework to use
 
-            testable_units = analysis.get('testable_units', [])
-            dependencies = analysis.get('dependencies', [])
-            edge_cases = analysis.get('edge_cases', [])
-            integration_points = analysis.get('integration_points', [])
+        Returns:
+            TestingResult with complete test suite
+        """
+        # =================================================================
+        # PHASE 1: CODE ANALYSIS
+        # =================================================================
+        analysis = await executor.run_phase(
+            1, "Code Analysis", "CodeAnalyzer", AgentRole.EXPERT,
+            self._analyzer.analyze(code, lang),
+            input_data={'code_length': len(code)},
+            tools_used=['code_analyze'],
+        )
 
-            self._trace_phase("CodeAnalyzer", AgentRole.EXPERT,
-                {'code_length': len(code)},
-                {'testable_units': len(testable_units), 'integration_points': len(integration_points)},
-                success='error' not in analysis, phase_start=start_time, tools_used=['code_analyze'])
+        if 'error' in analysis:
+            return executor.build_error_result(
+                TestingResult, Exception(analysis['error']),
+                self.config.name, self.config.domain,
+            )
 
-            # =================================================================
-            # PHASE 2: UNIT TEST GENERATION (parallel)
-            # =================================================================
-            all_tests = []
-            all_test_code = []
+        testable_units = analysis.get('testable_units', [])
+        dependencies = analysis.get('dependencies', [])
+        integration_points = analysis.get('integration_points', [])
 
-            if TestType.UNIT in types and testable_units:
-                logger.info("🔬 Phase 2: Generating unit tests...")
+        # =================================================================
+        # PHASE 2: UNIT TEST GENERATION (parallel)
+        # =================================================================
+        all_tests = []
+        all_test_code = []
 
-                unit_tasks = []
-                for unit in testable_units[:10]:  # Limit to 10 units
-                    unit_name = unit.get('name', str(unit)) if isinstance(unit, dict) else str(unit)
-                    unit_tasks.append(
-                        self._unit_tester.generate(
-                            code=code,
-                            unit=unit_name,
-                            framework=fw.value,
-                            mocks=dependencies
-                        )
-                    )
+        if TestType.UNIT in types and testable_units:
+            unit_parallel_tasks = []
+            for unit in testable_units[:10]:  # Limit to 10 units
+                unit_name = unit.get('name', str(unit)) if isinstance(unit, dict) else str(unit)
+                unit_parallel_tasks.append((
+                    f"UnitTest({unit_name})", AgentRole.ACTOR,
+                    self._unit_tester.generate(
+                        code=code,
+                        unit=unit_name,
+                        framework=fw.value,
+                        mocks=dependencies,
+                    ),
+                    ['unit_test_generate'],
+                ))
 
-                unit_results = await asyncio.gather(*unit_tasks, return_exceptions=True)
+            unit_results = await executor.run_parallel(
+                2, "Unit Test Generation", unit_parallel_tasks,
+            )
 
-                for i, result in enumerate(unit_results):
-                    if isinstance(result, Exception):
-                        continue
-                    if 'test_code' in result:
-                        unit_name = testable_units[i].get('name', f'unit_{i}') if isinstance(testable_units[i], dict) else str(testable_units[i])
-                        all_tests.append(TestCase(
-                            name=f"test_{unit_name}",
-                            test_type=TestType.UNIT,
-                            description=f"Unit tests for {unit_name}",
-                            code=result['test_code']
-                        ))
-                        all_test_code.append(result['test_code'])
+            for i, result in enumerate(unit_results):
+                if isinstance(result, dict) and 'error' in result:
+                    continue
+                if isinstance(result, dict) and 'test_code' in result:
+                    unit_name = testable_units[i].get('name', f'unit_{i}') if isinstance(testable_units[i], dict) else str(testable_units[i])
+                    all_tests.append(TestCase(
+                        name=f"test_{unit_name}",
+                        test_type=TestType.UNIT,
+                        description=f"Unit tests for {unit_name}",
+                        code=result['test_code'],
+                    ))
+                    all_test_code.append(result['test_code'])
 
-            phase2_start = datetime.now()
-            self._trace_phase("UnitTest", AgentRole.ACTOR,
-                {'testable_units': len(testable_units)},
-                {'unit_tests': len([t for t in all_tests if t.test_type == TestType.UNIT])},
-                success=True, phase_start=start_time, tools_used=['unit_test_generate'])
+        # =================================================================
+        # PHASE 3: INTEGRATION TEST GENERATION (parallel)
+        # =================================================================
+        if TestType.INTEGRATION in types and integration_points:
+            int_parallel_tasks = []
+            for point in integration_points[:5]:  # Limit to 5 points
+                int_parallel_tasks.append((
+                    f"IntegrationTest({point})", AgentRole.ACTOR,
+                    self._integration_tester.generate(
+                        code=code,
+                        integration_point=point,
+                        framework=fw.value,
+                    ),
+                    ['integration_test_generate'],
+                ))
 
-            # =================================================================
-            # PHASE 3: INTEGRATION TEST GENERATION
-            # =================================================================
-            if TestType.INTEGRATION in types and integration_points:
-                logger.info("🔗 Phase 3: Generating integration tests...")
+            int_results = await executor.run_parallel(
+                3, "Integration Test Generation", int_parallel_tasks,
+            )
 
-                int_tasks = []
-                for point in integration_points[:5]:  # Limit to 5 points
-                    int_tasks.append(
-                        self._integration_tester.generate(
-                            code=code,
-                            integration_point=point,
-                            framework=fw.value
-                        )
-                    )
+            for i, result in enumerate(int_results):
+                if isinstance(result, dict) and 'error' in result:
+                    continue
+                if isinstance(result, dict) and 'test_code' in result:
+                    all_tests.append(TestCase(
+                        name=f"test_integration_{i}",
+                        test_type=TestType.INTEGRATION,
+                        description=f"Integration tests for {integration_points[i]}",
+                        code=result['test_code'],
+                    ))
+                    all_test_code.append(result['test_code'])
 
-                int_results = await asyncio.gather(*int_tasks, return_exceptions=True)
-
-                for i, result in enumerate(int_results):
-                    if isinstance(result, Exception):
-                        continue
-                    if 'test_code' in result:
-                        all_tests.append(TestCase(
-                            name=f"test_integration_{i}",
-                            test_type=TestType.INTEGRATION,
-                            description=f"Integration tests for {integration_points[i]}",
-                            code=result['test_code']
-                        ))
-                        all_test_code.append(result['test_code'])
-
-            self._trace_phase("IntegrationTest", AgentRole.ACTOR,
-                {'integration_points': len(integration_points)},
-                {'integration_tests': len([t for t in all_tests if t.test_type == TestType.INTEGRATION])},
-                success=True, phase_start=phase2_start, tools_used=['integration_test_generate'])
-
-            # =================================================================
-            # PHASE 4: E2E TEST GENERATION
-            # =================================================================
-            if TestType.E2E in types:
-                logger.info("🌐 Phase 4: Generating E2E tests...")
-
-                e2e_result = await self._e2e_tester.generate(
+        # =================================================================
+        # PHASE 4: E2E TEST GENERATION
+        # =================================================================
+        if TestType.E2E in types:
+            e2e_result = await executor.run_phase(
+                4, "E2E Test Generation", "E2ETest", AgentRole.ACTOR,
+                self._e2e_tester.generate(
                     code=code,
                     user_flow="Main user journey",
-                    framework="playwright"
-                )
-
-                if 'test_code' in e2e_result:
-                    all_tests.append(TestCase(
-                        name="test_e2e_main_flow",
-                        test_type=TestType.E2E,
-                        description="E2E test for main user journey",
-                        code=e2e_result['test_code']
-                    ))
-                    all_test_code.append(e2e_result['test_code'])
-
-            phase4_start = datetime.now()
-            self._trace_phase("E2ETest", AgentRole.ACTOR,
-                {'e2e_enabled': TestType.E2E in types},
-                {'e2e_tests': len([t for t in all_tests if t.test_type == TestType.E2E])},
-                success=True, phase_start=phase2_start, tools_used=['e2e_test_generate'])
-
-            # =================================================================
-            # PHASE 5: COVERAGE ANALYSIS
-            # =================================================================
-            logger.info("📊 Phase 5: Analyzing coverage...")
-
-            combined_tests = "\n\n".join(all_test_code)
-            coverage_result = await self._coverage_agent.analyze(code, combined_tests)
-
-            estimated_coverage = coverage_result.get('estimated_coverage', 0.0)
-            gaps = coverage_result.get('gaps', [])
-
-            self._trace_phase("Coverage", AgentRole.EXPERT,
-                {'test_count': len(all_tests)},
-                {'estimated_coverage': estimated_coverage, 'gaps': len(gaps)},
-                success=True, phase_start=phase4_start, tools_used=['coverage_analyze'])
-
-            # =================================================================
-            # PHASE 6: QUALITY ASSESSMENT
-            # =================================================================
-            logger.info("✨ Phase 6: Assessing quality...")
-
-            quality_result = await self._quality_agent.assess(combined_tests, code)
-            quality_score = quality_result.get('quality_score', 0.0)
-
-            self._trace_phase("Quality", AgentRole.REVIEWER,
-                {'test_count': len(all_tests)},
-                {'quality_score': quality_score},
-                success=True, phase_start=phase4_start, tools_used=['quality_assess'])
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            test_suite = TestSuite(
-                tests=all_tests,
-                fixtures={},
-                mocks={dep: f"mock_{dep}" for dep in dependencies},
-                conftest="# Pytest configuration\nimport pytest\n",
-                setup_teardown=""
+                    framework="playwright",
+                ),
+                input_data={'e2e_enabled': True},
+                tools_used=['e2e_test_generate'],
             )
 
-            coverage_report = CoverageReport(
-                line_coverage=estimated_coverage,
-                branch_coverage=estimated_coverage * 0.9,  # Estimate
-                function_coverage=estimated_coverage * 0.95,
-                uncovered_lines=[],
-                uncovered_branches=[],
-                gaps=gaps
-            )
+            if isinstance(e2e_result, dict) and 'test_code' in e2e_result:
+                all_tests.append(TestCase(
+                    name="test_e2e_main_flow",
+                    test_type=TestType.E2E,
+                    description="E2E test for main user journey",
+                    code=e2e_result['test_code'],
+                ))
+                all_test_code.append(e2e_result['test_code'])
 
-            result = TestingResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'test_count': len(all_tests)},
-                execution_time=exec_time,
-                test_suite=test_suite,
-                coverage=coverage_report,
-                test_count=len(all_tests),
-                estimated_coverage=estimated_coverage,
-                quality_score=quality_score,
-                gaps_found=gaps
-            )
+        # =================================================================
+        # PHASE 5: COVERAGE ANALYSIS
+        # =================================================================
+        combined_tests = "\n\n".join(all_test_code)
 
-            logger.info(f"✅ TestingSwarm complete: {len(all_tests)} tests, {estimated_coverage:.1f}% coverage")
+        coverage_result = await executor.run_phase(
+            5, "Coverage Analysis", "Coverage", AgentRole.EXPERT,
+            self._coverage_agent.analyze(code, combined_tests),
+            input_data={'test_count': len(all_tests)},
+            tools_used=['coverage_analyze'],
+        )
 
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['code_analyze', 'unit_test_generate', 'integration_test_generate']),
-                task_type='test_generation',
-                output_data={
-                    'test_count': len(all_tests),
-                    'estimated_coverage': estimated_coverage,
-                    'quality_score': quality_score,
-                    'gaps_found': len(gaps),
-                    'unit_tests': len([t for t in all_tests if t.test_type == TestType.UNIT]),
-                    'integration_tests': len([t for t in all_tests if t.test_type == TestType.INTEGRATION]),
-                    'e2e_tests': len([t for t in all_tests if t.test_type == TestType.E2E]),
-                },
-                input_data={
-                    'code_length': len(code),
-                    'language': lang,
-                    'test_types': [t.value for t in types],
-                    'framework': fw.value,
-                }
-            )
+        estimated_coverage = coverage_result.get('estimated_coverage', 0.0)
+        gaps = coverage_result.get('gaps', [])
 
-            return result
+        # =================================================================
+        # PHASE 6: QUALITY ASSESSMENT
+        # =================================================================
+        quality_result = await executor.run_phase(
+            6, "Quality Assessment", "Quality", AgentRole.REVIEWER,
+            self._quality_agent.assess(combined_tests, code),
+            input_data={'test_count': len(all_tests)},
+            tools_used=['quality_assess'],
+        )
 
-        except Exception as e:
-            logger.error(f"❌ TestingSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['code_analyze']),
-                task_type='test_generation'
-            )
-            return TestingResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
-            )
+        quality_score = quality_result.get('quality_score', 0.0)
+
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        test_suite = TestSuite(
+            tests=all_tests,
+            fixtures={},
+            mocks={dep: f"mock_{dep}" for dep in dependencies},
+            conftest="# Pytest configuration\nimport pytest\n",
+            setup_teardown="",
+        )
+
+        coverage_report = CoverageReport(
+            line_coverage=estimated_coverage,
+            branch_coverage=estimated_coverage * 0.9,  # Estimate
+            function_coverage=estimated_coverage * 0.95,
+            uncovered_lines=[],
+            uncovered_branches=[],
+            gaps=gaps,
+        )
+
+        logger.info(f"TestingSwarm complete: {len(all_tests)} tests, {estimated_coverage:.1f}% coverage")
+
+        return TestingResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'test_count': len(all_tests)},
+            execution_time=executor.elapsed(),
+            test_suite=test_suite,
+            coverage=coverage_report,
+            test_count=len(all_tests),
+            estimated_coverage=estimated_coverage,
+            quality_score=quality_score,
+            gaps_found=gaps,
+        )
 
     async def analyze_coverage(
         self,
