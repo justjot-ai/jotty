@@ -1099,11 +1099,20 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 if isinstance(step_params, str):
                     step_params = {}
 
+                # Build fallback params, then merge: LLM params override fallback,
+                # but fallback fills in any required params the LLM missed.
+                prev_output = f'step_{i-1}' if i > 0 else None
+                param_source = task if tool_name in ['write_file_tool', 'read_file_tool'] else task
+                fallback_params = self._build_skill_params(skill_name, param_source, prev_output, tool_name)
+
                 if not step_params:
-                    prev_output = f'step_{i-1}' if i > 0 else None
-                    param_source = task if tool_name in ['write_file_tool', 'read_file_tool'] else task
-                    step_params = self._build_skill_params(skill_name, param_source, prev_output, tool_name)
+                    step_params = fallback_params
                     logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
+                else:
+                    # Merge: fill missing required params from fallback
+                    merged = dict(fallback_params)
+                    merged.update(step_params)  # LLM params take priority
+                    step_params = merged
 
                 # Extract verification and fallback_skill (research-backed fields)
                 verification = get_val(step_data, 'verification', '')

@@ -8,7 +8,7 @@ import traceback
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
 
-from ._execution_types import TaskType
+from ._execution_types import TaskType, ToolSchema
 from Jotty.core.utils.context_utils import strip_enrichment_context
 
 logger = logging.getLogger(__name__)
@@ -17,12 +17,14 @@ logger = logging.getLogger(__name__)
 class PlanUtilsMixin:
     def _extract_tool_schema(self, tool_func, tool_name: str) -> Dict[str, Any]:
         """
-        Extract parameter schema from tool function docstring.
+        Extract parameter schema from a tool function.
 
-        Handles multiple docstring formats:
-        1. Google style with 'containing' pattern: params: Dictionary containing 'location' key
-        2. Dash-prefixed: - location (str, required): The location
-        3. Indented Google style: location: The location to check
+        Uses ``ToolSchema.from_tool_function()`` which inspects:
+        1. ``@tool_wrapper(required_params=[...])`` decorator (most reliable)
+        2. Docstring parsing for types, descriptions, and extra params
+
+        Returns a backward-compatible dict with 'name', 'parameters', 'description'
+        while also caching the typed ``ToolSchema`` on the function for downstream use.
 
         Args:
             tool_func: The tool function
@@ -31,140 +33,16 @@ class PlanUtilsMixin:
         Returns:
             Dictionary with tool name, parameters, and description
         """
-        import re
+        if not tool_func:
+            return {'name': tool_name, 'parameters': [], 'description': ''}
 
-        schema = {
-            'name': tool_name,
-            'parameters': [],
-            'description': ''
-        }
+        # Build typed schema (cached on function for execute_step to reuse)
+        schema = ToolSchema.from_tool_function(tool_func, tool_name)
+        if not hasattr(tool_func, '_tool_schema'):
+            tool_func._tool_schema = schema
 
-        if not tool_func or not hasattr(tool_func, '__doc__') or not tool_func.__doc__:
-            return schema
-
-        docstring = tool_func.__doc__
-        lines = docstring.split('\n')
-
-        # Extract description (first non-empty line)
-        for line in lines:
-            stripped = line.strip()
-            if stripped:
-                schema['description'] = stripped
-                break
-
-        # Pattern 1: Extract from "Dictionary containing 'X' key" pattern
-        # This is common in Jotty skills: params: Dictionary containing 'location' key
-        containing_patterns = [
-            r"containing\s+'(\w+)'\s+key",  # containing 'location' key
-            r"containing\s+'(\w+)'",         # containing 'location'
-            r"with\s+'(\w+)'\s+key",         # with 'location' key
-            r'"(\w+)"\s+key',                # "location" key
-        ]
-
-        for pattern in containing_patterns:
-            matches = re.findall(pattern, docstring, re.IGNORECASE)
-            for param_name in matches:
-                if param_name not in [p['name'] for p in schema['parameters']]:
-                    schema['parameters'].append({
-                        'name': param_name,
-                        'type': 'str',
-                        'required': True,
-                        'description': f'The {param_name} parameter'
-                    })
-
-        # Pattern 2: Parse Args section (Google style and dash-prefixed)
-        in_args = False
-        current_param = None
-
-        for line in lines:
-            stripped = line.strip()
-
-            if 'Args:' in line or 'Parameters:' in line:
-                in_args = True
-                continue
-
-            if in_args:
-                # End of Args section
-                if stripped.startswith('Returns:') or stripped.startswith('Raises:') or (stripped.startswith('##') or stripped == ''):
-                    if stripped.startswith('Returns:') or stripped.startswith('Raises:'):
-                        break
-                    if stripped == '' and current_param is None:
-                        continue  # Empty line before parameters
-
-                # Dash-prefixed: - location (str, required): Description
-                if stripped.startswith('-'):
-                    parts = stripped[1:].strip().split(':', 1)
-                    if len(parts) == 2:
-                        param_def = parts[0].strip()
-                        desc = parts[1].strip()
-
-                        param_name = param_def.split('(')[0].strip() if '(' in param_def else param_def.strip()
-
-                        if param_name and param_name not in ['params', 'kwargs', 'args']:
-                            if '(' in param_def:
-                                type_info = param_def.split('(')[1].split(')')[0]
-                                param_type = type_info.split(',')[0].strip()
-                                required = 'required' in type_info.lower() or 'optional' not in type_info.lower()
-                            else:
-                                param_type = 'str'
-                                required = True
-
-                            if param_name not in [p['name'] for p in schema['parameters']]:
-                                schema['parameters'].append({
-                                    'name': param_name,
-                                    'type': param_type,
-                                    'required': required,
-                                    'description': desc
-                                })
-
-                # Indented Google style: location (str): The location to check
-                # Or: location: The location to check
-                elif ':' in stripped and not stripped.startswith('#'):
-                    parts = stripped.split(':', 1)
-                    if len(parts) == 2:
-                        param_def = parts[0].strip()
-                        desc = parts[1].strip()
-
-                        # Extract parameter name (before any type annotation in parentheses)
-                        param_name = param_def.split('(')[0].strip() if '(' in param_def else param_def.strip()
-
-                        # Skip generic 'params' dictionary entry - we handle it via containing pattern
-                        if param_name and param_name not in ['params', 'kwargs', 'args', 'self']:
-                            if '(' in param_def:
-                                type_info = param_def.split('(')[1].split(')')[0]
-                                param_type = type_info.split(',')[0].strip()
-                                required = 'optional' not in type_info.lower()
-                            else:
-                                param_type = 'str'
-                                required = True
-
-                            if param_name not in [p['name'] for p in schema['parameters']]:
-                                schema['parameters'].append({
-                                    'name': param_name,
-                                    'type': param_type,
-                                    'required': required,
-                                    'description': desc
-                                })
-
-        # Pattern 3: Look for common parameter patterns in the description
-        # e.g., "requires a 'topic' parameter" or "the location parameter"
-        param_mention_patterns = [
-            r"'(\w+)'\s+(?:parameter|argument|key)",
-            r"(\w+)\s+(?:parameter|argument|key)\s+(?:is|must be|should be)",
-        ]
-
-        for pattern in param_mention_patterns:
-            matches = re.findall(pattern, docstring, re.IGNORECASE)
-            for param_name in matches:
-                if param_name.lower() not in ['the', 'a', 'an', 'this'] and param_name not in [p['name'] for p in schema['parameters']]:
-                    schema['parameters'].append({
-                        'name': param_name,
-                        'type': 'str',
-                        'required': True,
-                        'description': f'The {param_name} parameter'
-                    })
-
-        return schema
+        # Return backward-compatible dict for existing callers
+        return schema.to_dict()
     
     def _abstract_task_for_planning(self, task: str) -> str:
         """
@@ -296,6 +174,13 @@ class PlanUtilsMixin:
                             params[param_name] = 10
                         elif param_name in ['title', 'name']:
                             params[param_name] = clean_task[:50]
+                        elif param_name in ['format', 'output_format', 'type']:
+                            # Pick a sensible default from the description if it lists options
+                            import re as _re_fmt
+                            options = _re_fmt.findall(r"'(\w+)'", param_desc)
+                            params[param_name] = options[0] if options else 'plain'
+                        elif param_name in ['encoding', 'charset']:
+                            params[param_name] = 'utf-8'
                         elif param_required:
                             # For other required params, use task or prev_ref based on description
                             if any(word in param_desc for word in ['input', 'content', 'data', 'result']):

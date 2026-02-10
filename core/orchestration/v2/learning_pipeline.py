@@ -1261,16 +1261,24 @@ class SwarmLearningPipeline:
         return self.transfer_learning.get_relevant_context(query, agent=agent)
 
     def get_swarm_wisdom(self, query: str) -> str:
-        """Get swarm intelligence wisdom for a query."""
+        """Get swarm intelligence wisdom for a query.
+
+        Delegates to SwarmIntelligence.get_swarm_wisdom() (rich dict) and
+        formats the result as a human-readable string for CLI/API callers.
+        """
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(query)
-            best = self.swarm_intelligence.get_best_agent_for_task(task_type)
-            specs = self.swarm_intelligence.get_specialization_summary()
+            wisdom = self.swarm_intelligence.get_swarm_wisdom(query, task_type=task_type)
             parts = []
-            if best:
-                parts.append(f"Best agent for this task: {best}")
+            if wisdom.get('recommended_agent'):
+                parts.append(f"Best agent for this task: {wisdom['recommended_agent']}")
+            specs = self.swarm_intelligence.get_specialization_summary()
             if specs:
                 parts.append(f"Agent specializations: {specs}")
+            for w in wisdom.get('warnings', [])[:3]:
+                parts.append(f"Warning: {w}")
+            if wisdom.get('confidence', 0) > 0:
+                parts.append(f"Confidence: {wisdom['confidence']:.0%}")
             return "\n".join(parts)
         except Exception as e:
             logger.debug(f"Swarm wisdom unavailable: {e}")

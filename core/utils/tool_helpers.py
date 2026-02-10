@@ -219,6 +219,8 @@ def tool_wrapper(
                     logger.error(f"{func.__name__} error: {e}", exc_info=True)
                 return tool_error(f"Failed to execute {func.__name__}: {str(e)}")
 
+        # Stash required_params for ToolSchema introspection
+        wrapper._required_params = required_params or []
         return wrapper
     return decorator
 
@@ -251,5 +253,7 @@ def async_tool_wrapper(
                     logger.error(f"{func.__name__} error: {e}", exc_info=True)
                 return tool_error(f"Failed to execute {func.__name__}: {str(e)}")
 
+        # Stash required_params for ToolSchema introspection
+        wrapper._required_params = required_params or []
         return wrapper
     return decorator

@@ -12,12 +12,17 @@ Also provides:
 from __future__ import annotations
 
 import hashlib
+import inspect
+import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # TASK TYPE (Enum)
@@ -52,6 +57,342 @@ class ExecutionStep:
     optional: bool = False
     verification: str = ""
     fallback_skill: str = ""
+
+
+# =============================================================================
+# TOOL SCHEMA (Typed parameter definitions for tools)
+# =============================================================================
+
+
+@dataclass
+class ToolParam:
+    """Typed parameter definition for a tool function.
+
+    Built from multiple sources (decorator, docstring, metadata).
+    Used by ToolSchema for validation and auto-wiring.
+    """
+    name: str
+    type_hint: str = "str"
+    required: bool = True
+    description: str = ""
+    default: Any = None
+    aliases: List[str] = field(default_factory=list)
+
+
+class ToolSchema:
+    """Typed schema for a tool function.
+
+    Replaces fragile docstring-regex parsing with structured param
+    definitions.  Built from multiple sources (highest priority first):
+
+    1. ``@tool_wrapper(required_params=[...])`` decorator inspection
+    2. ``ToolMetadata.parameters`` (if defined on SkillDefinition)
+    3. Docstring parsing (regex fallback)
+
+    Usage::
+
+        schema = ToolSchema.from_tool_function(my_tool, 'my_tool')
+        errors = schema.validate({'query': 'test'})
+        wired  = schema.auto_wire({'query': 'test'}, previous_outputs)
+    """
+
+    # Centralized alias map (single source of truth, shared with tool_helpers)
+    try:
+        from Jotty.core.foundation.data_structures import DEFAULT_PARAM_ALIASES
+    except ImportError:
+        DEFAULT_PARAM_ALIASES = {}
+
+    _BUILTIN_ALIASES: Dict[str, List[str]] = {
+        'path': ['file_path', 'filepath', 'filename', 'file_name', 'file'],
+        'content': ['text', 'data', 'body', 'file_content'],
+        'command': ['cmd', 'shell_command', 'shell_cmd'],
+        'script': ['script_content', 'script_code', 'code', 'python_code'],
+        'query': ['search_query', 'q', 'search', 'question'],
+        'url': ['link', 'href', 'website', 'page_url'],
+        'message': ['msg', 'text_message'],
+        'timeout': ['time_limit', 'max_time'],
+    }
+    _ALIASES: Dict[str, List[str]] = {**DEFAULT_PARAM_ALIASES, **_BUILTIN_ALIASES}
+
+    # Content-like fields used by auto_wire to find rich text in outputs
+    _CONTENT_FIELDS = ('response', 'text', 'content', 'output', 'stdout', 'result')
+
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        params: Optional[List[ToolParam]] = None,
+    ):
+        self.name = name
+        self.description = description
+        self.params: List[ToolParam] = params or []
+
+    # -- construction ---------------------------------------------------------
+
+    @classmethod
+    def from_tool_function(cls, func: Callable, tool_name: str) -> ToolSchema:
+        """Build schema by inspecting a tool function.
+
+        Priority:
+        1. ``func._required_params`` set by ``@tool_wrapper``
+        2. Docstring parsing (type + description extraction)
+        3. Alias injection from ``_ALIASES``
+        """
+        schema = cls(name=tool_name)
+
+        # Extract description from docstring first line
+        doc = inspect.getdoc(func) or ""
+        if doc:
+            schema.description = doc.split("\n")[0].strip()
+
+        # Source 1: decorator-stashed required_params (most reliable)
+        required_names: List[str] = getattr(func, '_required_params', []) or []
+
+        # Source 2: parse docstring for param details
+        doc_params = cls._parse_docstring_params(doc)
+
+        # Merge: decorator params are required; docstring adds descriptions/types
+        seen: Set[str] = set()
+        for pname in required_names:
+            dp = doc_params.get(pname, {})
+            schema.params.append(ToolParam(
+                name=pname,
+                type_hint=dp.get('type', 'str'),
+                required=True,
+                description=dp.get('description', f'The {pname} parameter'),
+                aliases=cls._ALIASES.get(pname, []),
+            ))
+            seen.add(pname)
+
+        # Add optional params from docstring that weren't in required list
+        for pname, info in doc_params.items():
+            if pname not in seen:
+                schema.params.append(ToolParam(
+                    name=pname,
+                    type_hint=info.get('type', 'str'),
+                    required=info.get('required', False),
+                    description=info.get('description', ''),
+                    aliases=cls._ALIASES.get(pname, []),
+                ))
+
+        return schema
+
+    @classmethod
+    def from_metadata(cls, tool_name: str, metadata_dict: Dict[str, Any]) -> ToolSchema:
+        """Build from a ToolMetadata.parameters JSON-Schema dict."""
+        schema = cls(
+            name=tool_name,
+            description=metadata_dict.get('description', ''),
+        )
+        properties = metadata_dict.get('parameters', {}).get('properties', {})
+        required_list = metadata_dict.get('parameters', {}).get('required', [])
+
+        for pname, pdef in properties.items():
+            schema.params.append(ToolParam(
+                name=pname,
+                type_hint=pdef.get('type', 'str'),
+                required=pname in required_list,
+                description=pdef.get('description', ''),
+                aliases=cls._ALIASES.get(pname, []),
+            ))
+        return schema
+
+    # -- validation -----------------------------------------------------------
+
+    def validate(self, params: Dict[str, Any]) -> List[str]:
+        """Validate params against schema. Returns list of error strings."""
+        errors: List[str] = []
+        for tp in self.params:
+            if not tp.required:
+                continue
+            # Check canonical name and all aliases
+            found = tp.name in params
+            if not found:
+                for alias in tp.aliases:
+                    if alias in params:
+                        found = True
+                        break
+            if not found:
+                errors.append(f"Missing required parameter: {tp.name}")
+        return errors
+
+    def resolve_aliases(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Resolve parameter aliases to canonical names (in-place + return)."""
+        for tp in self.params:
+            if tp.name not in params:
+                for alias in tp.aliases:
+                    if alias in params:
+                        params[tp.name] = params.pop(alias)
+                        break
+        return params
+
+    # -- auto-wiring ----------------------------------------------------------
+
+    def auto_wire(
+        self,
+        params: Dict[str, Any],
+        outputs: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Fill missing required params from previous step outputs.
+
+        Strategy for each missing param:
+        1. Exact name match in most recent output dict
+        2. Alias match in most recent output dict
+        3. Content-field match for content/text params
+        4. Most recent path for path params
+        """
+        wired = dict(params)
+        reversed_keys = list(reversed(list(outputs.keys())))
+
+        for tp in self.params:
+            if not tp.required or tp.name in wired:
+                continue
+
+            # Check aliases too
+            alias_present = any(a in wired for a in tp.aliases)
+            if alias_present:
+                continue
+
+            value = self._find_in_outputs(tp, outputs, reversed_keys)
+            if value is not None:
+                wired[tp.name] = value
+                logger.debug(f"Auto-wired '{tp.name}' from outputs ({str(value)[:60]})")
+
+        return wired
+
+    def _find_in_outputs(
+        self,
+        tp: ToolParam,
+        outputs: Dict[str, Any],
+        reversed_keys: List[str],
+    ) -> Optional[Any]:
+        """Find a matching value for *tp* in previous step outputs."""
+        names_to_check = [tp.name] + tp.aliases
+
+        # Strategy 1+2: exact name or alias in any output (most recent first)
+        for key in reversed_keys:
+            out = outputs[key]
+            if not isinstance(out, dict):
+                continue
+            for candidate_name in names_to_check:
+                if candidate_name in out:
+                    val = out[candidate_name]
+                    if val is not None and str(val).strip():
+                        return val
+
+        # Strategy 3: content-field match for content/text/body params
+        if tp.name in ('content', 'text', 'body', 'message'):
+            for key in reversed_keys:
+                out = outputs[key]
+                if not isinstance(out, dict):
+                    continue
+                for cf in self._CONTENT_FIELDS:
+                    if cf in out:
+                        val = str(out[cf])
+                        if len(val) > 50:
+                            return val
+
+        # Strategy 4: path fallback
+        if tp.name in ('path', 'file_path', 'input_path'):
+            for key in reversed_keys:
+                out = outputs[key]
+                if isinstance(out, dict) and 'path' in out:
+                    return out['path']
+
+        return None
+
+    # -- introspection --------------------------------------------------------
+
+    @property
+    def required_param_names(self) -> List[str]:
+        """Return names of all required parameters."""
+        return [p.name for p in self.params if p.required]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dict for LLM planner prompts."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'parameters': [
+                {
+                    'name': p.name,
+                    'type': p.type_hint,
+                    'required': p.required,
+                    'description': p.description,
+                }
+                for p in self.params
+            ],
+        }
+
+    def __repr__(self) -> str:
+        req = ", ".join(self.required_param_names)
+        return f"ToolSchema({self.name}, required=[{req}])"
+
+    # -- internal helpers -----------------------------------------------------
+
+    @staticmethod
+    def _parse_docstring_params(docstring: str) -> Dict[str, Dict[str, Any]]:
+        """Parse parameter info from a Google-style docstring.
+
+        Returns ``{param_name: {'type': ..., 'description': ..., 'required': bool}}``.
+        """
+        params: Dict[str, Dict[str, Any]] = {}
+        if not docstring:
+            return params
+
+        lines = docstring.split('\n')
+        in_args = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped in ('Args:', 'Parameters:'):
+                in_args = True
+                continue
+            if in_args and stripped and (stripped.startswith('Returns:') or stripped.startswith('Raises:')):
+                break
+
+            if not in_args:
+                continue
+
+            # "Dictionary containing 'X' key" patterns
+            for m in re.finditer(r"containing\s+'(\w+)'", stripped, re.I):
+                pname = m.group(1)
+                if pname not in params:
+                    params[pname] = {'type': 'str', 'required': True, 'description': f'The {pname} parameter'}
+
+            # Dash-prefixed: - location (str, required): Description
+            if stripped.startswith('-'):
+                parts = stripped[1:].strip().split(':', 1)
+                if len(parts) == 2:
+                    param_def = parts[0].strip()
+                    desc = parts[1].strip()
+                    pname = param_def.split('(')[0].strip()
+                    if pname and pname not in ('params', 'kwargs', 'args', 'self'):
+                        ptype = 'str'
+                        required = True
+                        if '(' in param_def:
+                            type_info = param_def.split('(')[1].split(')')[0]
+                            ptype = type_info.split(',')[0].strip()
+                            required = 'optional' not in type_info.lower()
+                        params[pname] = {'type': ptype, 'required': required, 'description': desc}
+
+            # Indented Google style: location (str): Description
+            elif ':' in stripped and not stripped.startswith('#') and not stripped.startswith('Returns'):
+                parts = stripped.split(':', 1)
+                if len(parts) == 2:
+                    param_def = parts[0].strip()
+                    desc = parts[1].strip()
+                    pname = param_def.split('(')[0].strip()
+                    if pname and pname not in ('params', 'kwargs', 'args', 'self') and len(pname) < 30:
+                        ptype = 'str'
+                        required = True
+                        if '(' in param_def:
+                            type_info = param_def.split('(')[1].split(')')[0]
+                            ptype = type_info.split(',')[0].strip()
+                            required = 'optional' not in type_info.lower()
+                        params[pname] = {'type': ptype, 'required': required, 'description': desc}
+
+        return params
 
 
 # =============================================================================
@@ -337,6 +678,8 @@ class ExecutionResult:
 __all__ = [
     'TaskType',
     'ExecutionStep',
+    'ToolParam',
+    'ToolSchema',
     'FileReference',
     'SwarmArtifactStore',
     'ExecutionStepSchema',

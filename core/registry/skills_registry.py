@@ -453,6 +453,40 @@ class SkillDefinition:
         """Get a specific tool callable."""
         return self.tools.get(tool_name)
 
+    def get_tool_schema(self, tool_name: str):
+        """Get or build a typed ToolSchema for a tool.
+
+        Sources (highest priority first):
+        1. Cached ``_tool_schema`` on the function (set by @tool_wrapper introspection)
+        2. Existing ``ToolMetadata.parameters`` on this SkillDefinition
+        3. Live introspection of the tool function (decorator + docstring)
+        """
+        from Jotty.core.agents._execution_types import ToolSchema
+
+        tool_func = self.get_tool(tool_name)
+        if tool_func is None:
+            return None
+
+        # Return cached schema if present
+        cached = getattr(tool_func, '_tool_schema', None)
+        if cached is not None:
+            return cached
+
+        # Try ToolMetadata first (richer, explicitly defined)
+        tm = self._tool_metadata.get(tool_name)
+        if tm and tm.parameters:
+            schema = ToolSchema.from_metadata(tool_name, tm.to_dict())
+        else:
+            # Build from function introspection (decorator + docstring)
+            schema = ToolSchema.from_tool_function(tool_func, tool_name)
+
+        # Cache on function for reuse
+        try:
+            tool_func._tool_schema = schema
+        except AttributeError:
+            pass  # Built-in or frozen function — skip caching
+        return schema
+
     def is_available(self, task_context: Optional[Dict[str, Any]] = None) -> bool:
         """Check if this skill is available for the given task context.
 
