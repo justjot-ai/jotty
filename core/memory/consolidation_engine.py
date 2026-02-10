@@ -182,20 +182,21 @@ class HippocampalExtractor:
     
     def _compute_novelty(self, content: str) -> float:
         """Compute how novel/surprising this experience is."""
-        # Simple: Check if we've seen similar content
         content_signature = self._get_content_signature(content)
-        
+
         if content_signature in self.seen_patterns:
             novelty = 0.2  # Seen before, low novelty
         else:
             novelty = 0.8  # New, high novelty
             self.seen_patterns.add(content_signature)
-        
-        # Bound pattern memory
+
+        # Evict oldest when exceeding max size
         if len(self.seen_patterns) > 1000:
-            # Keep most recent patterns
-            self.seen_patterns = set(list(self.seen_patterns))
-        
+            to_remove = len(self.seen_patterns) - 800  # Evict 200 at a time
+            it = iter(self.seen_patterns)
+            for _ in range(to_remove):
+                self.seen_patterns.discard(next(it))
+
         return novelty
     
     def _compute_goal_relevance(self, content: str) -> float:
@@ -233,9 +234,9 @@ class HippocampalExtractor:
         return combined
     
     def _get_content_signature(self, content: str) -> str:
-        """Get a signature for content similarity checking."""
-        # Simple: First 100 chars hash
-        return content
+        """Get a compact hash signature for content similarity checking."""
+        import hashlib
+        return hashlib.md5(content[:200].encode(errors='replace')).hexdigest()
     
     def _update_expectations(self, candidate: MemoryCandidate):
         """Update running expectations (like brain adaptation)."""

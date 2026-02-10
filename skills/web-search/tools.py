@@ -345,4 +345,60 @@ def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-__all__ = ['search_web_tool', 'fetch_webpage_tool', 'search_and_scrape_tool']
+@tool_wrapper(required_params=['url'])
+def serper_scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Scrape a website using Serper API for clean markdown extraction.
+
+    Unlike fetch_webpage_tool which does basic HTML scraping, this uses
+    Serper's dedicated scraping endpoint for higher quality markdown output.
+
+    Args:
+        params: Dictionary containing:
+            - url (str, required): URL to scrape
+            - max_length (int, optional): Max content length (default: 100000)
+
+    Returns:
+        Dictionary with success, url, title, content, content_length
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    url = params['url']
+    max_length = params.get('max_length', 100000)
+
+    if not SERPER_API_KEY:
+        return tool_error('SERPER_API_KEY not set. Required for website scraping.')
+
+    url_display = url[:60] + "..." if len(url) > 60 else url
+    status.emit("Scraping", f"Scraping {url_display}")
+
+    try:
+        response = requests.post(
+            'https://scrape.serper.dev/',
+            headers={'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json'},
+            json={'url': url},
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        content = data.get('markdown', data.get('text', ''))
+        title = data.get('title', '')
+
+        if len(content) > max_length:
+            content = content[:max_length] + '...'
+
+        return tool_response(
+            url=url,
+            title=title,
+            content=content,
+            content_length=len(content),
+            provider='serper_scrape'
+        )
+    except requests.RequestException as e:
+        return tool_error(f'Scraping failed: {str(e)}')
+    except Exception as e:
+        return tool_error(f'Error scraping website: {str(e)}')
+
+
+__all__ = ['search_web_tool', 'fetch_webpage_tool', 'search_and_scrape_tool', 'serper_scrape_website_tool']

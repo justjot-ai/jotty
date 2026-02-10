@@ -69,6 +69,13 @@ _LAZY_IMPORTS: dict[str, str] = {
     "BudgetScope": ".budget_tracker",
     "BudgetExceededError": ".budget_tracker",
     "get_budget_tracker": ".budget_tracker",
+    # async_utils — status callback helpers
+    "safe_status": ".async_utils",
+    "StatusReporter": ".async_utils",
+    "StatusCallback": ".async_utils",
+    # context_utils — enrichment context stripping
+    "ENRICHMENT_MARKERS": ".context_utils",
+    "strip_enrichment_context": ".context_utils",
 }
 
 

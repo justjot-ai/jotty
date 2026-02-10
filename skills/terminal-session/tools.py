@@ -466,6 +466,178 @@ def terminal_list_sessions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+class AutoTerminalSession:
+    """
+    Auto-initializing terminal session for simple command execution.
+
+    Ported from Synapse surface/tools/terminal_tools.py.
+    Provides send_command/get_state/get_incremental without manual session management.
+    """
+
+    _instance: Optional["AutoTerminalSession"] = None
+    _session = None
+
+    @classmethod
+    def get_instance(cls) -> "AutoTerminalSession":
+        if cls._instance is None:
+            cls._instance = AutoTerminalSession()
+        return cls._instance
+
+    def _ensure_session(self) -> Dict[str, Any]:
+        """Auto-initialize a pexpect session if not already running."""
+        if self._session is not None and self._session.isalive():
+            return {"status": "success"}
+
+        if not PEXPECT_AVAILABLE:
+            return {"status": "error", "error": "pexpect not installed. Run: pip install pexpect"}
+
+        try:
+            import time
+            self._session = pexpect.spawn(
+                "/bin/bash", cwd=os.getcwd(), echo=False, encoding='utf-8', timeout=30)
+            time.sleep(0.5)
+            if not self._session.isalive():
+                return {"status": "error", "error": "Terminal session created but not alive"}
+            return {"status": "success"}
+        except Exception as e:
+            return {"status": "error", "error": f"Failed to initialize: {e}"}
+
+    def send_command(self, keystrokes: str, duration: float = 2.0) -> Dict[str, Any]:
+        """Send command and return output."""
+        import time
+        init = self._ensure_session()
+        if init["status"] != "success":
+            return init
+
+        try:
+            self._session.sendline(keystrokes)
+            time.sleep(duration)
+
+            output = ""
+            try:
+                self._session.expect(pexpect.TIMEOUT, timeout=0.1)
+                output = self._session.before or ""
+                if hasattr(self._session, 'buffer'):
+                    output += self._session.buffer
+            except (EOFError, OSError, Exception):
+                pass
+
+            return {"status": "success", "command": keystrokes, "output": output}
+        except pexpect.TIMEOUT:
+            output = self._session.before if hasattr(self._session, 'before') else ""
+            return {"status": "timeout", "command": keystrokes, "output": output,
+                    "error": "Command timed out"}
+        except Exception as e:
+            return {"status": "error", "command": keystrokes, "output": "",
+                    "error": f"Error: {e}"}
+
+    def get_state(self) -> Dict[str, Any]:
+        """Get current terminal state."""
+        init = self._ensure_session()
+        if init["status"] != "success":
+            return init
+
+        output = ""
+        try:
+            self._session.expect(pexpect.TIMEOUT, timeout=0.1)
+            if hasattr(self._session, 'before'):
+                output = self._session.before or ""
+            if hasattr(self._session, 'buffer'):
+                output += self._session.buffer
+        except (EOFError, OSError, Exception):
+            pass
+
+        return {"status": "success", "output": output,
+                "is_alive": self._session.isalive() if self._session else False}
+
+    def get_incremental(self) -> Dict[str, Any]:
+        """Get new output since last read."""
+        init = self._ensure_session()
+        if init["status"] != "success":
+            return init
+
+        output = ""
+        try:
+            self._session.expect(pexpect.TIMEOUT, timeout=0.1)
+            if hasattr(self._session, 'before'):
+                output = self._session.before or ""
+        except (EOFError, OSError, Exception):
+            pass
+
+        return {"status": "success", "output": output}
+
+    def close(self) -> Dict[str, Any]:
+        """Close auto-session."""
+        if self._session is not None:
+            try:
+                self._session.close(force=True)
+            except Exception:
+                pass
+            self._session = None
+        return {"status": "success", "message": "Auto terminal closed"}
+
+
+def terminal_auto_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send a command to an auto-managed terminal session.
+
+    No session management needed - automatically creates/reuses a persistent session.
+
+    Args:
+        params: Dictionary containing:
+            - command (str, required): Command to execute
+            - duration (float, optional): Wait time after command (default: 2.0)
+
+    Returns:
+        Dictionary with status, command, output
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    command = params.get('command')
+    if not command:
+        return {'success': False, 'error': 'command is required'}
+
+    duration = float(params.get('duration', 2.0))
+    auto = AutoTerminalSession.get_instance()
+    result = auto.send_command(command, duration)
+    result['success'] = result['status'] == 'success'
+    return result
+
+
+def terminal_get_state_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get current state of the auto-managed terminal.
+
+    Args:
+        params: Empty dictionary (no parameters needed)
+
+    Returns:
+        Dictionary with status, output, is_alive
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    auto = AutoTerminalSession.get_instance()
+    result = auto.get_state()
+    result['success'] = result['status'] == 'success'
+    return result
+
+
+def terminal_get_incremental_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get incremental output from auto-managed terminal (new output since last read).
+
+    Args:
+        params: Empty dictionary (no parameters needed)
+
+    Returns:
+        Dictionary with status, output
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    auto = AutoTerminalSession.get_instance()
+    result = auto.get_incremental()
+    result['success'] = result['status'] == 'success'
+    return result
+
+
 __all__ = [
     'terminal_create_session_tool',
     'terminal_execute_command_tool',
@@ -473,5 +645,9 @@ __all__ = [
     'terminal_expect_tool',
     'terminal_send_tool',
     'terminal_close_session_tool',
-    'terminal_list_sessions_tool'
+    'terminal_list_sessions_tool',
+    # Auto-managed terminal (no session management needed)
+    'terminal_auto_command_tool',
+    'terminal_get_state_tool',
+    'terminal_get_incremental_tool',
 ]

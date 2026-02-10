@@ -273,6 +273,12 @@ class SwarmLearningPipeline:
             recent_window=20, historical_window=100
         )
 
+        # TD(λ) learner with HRPO grouped baselines (was implemented but never wired)
+        from Jotty.core.learning.td_lambda import TDLambdaLearner
+        from Jotty.core.learning.adaptive_components import AdaptiveLearningRate
+        self._adaptive_lr = AdaptiveLearningRate(self.config)
+        self.td_learner = TDLambdaLearner(self.config, adaptive_lr=self._adaptive_lr)
+
     # =========================================================================
     # Persistence paths
     # =========================================================================
@@ -307,6 +313,12 @@ class SwarmLearningPipeline:
             return Path(base) / 'stigmergy.json'
         return Path.home() / '.jotty' / 'stigmergy.json'
 
+    def _get_td_lambda_path(self) -> Path:
+        base = getattr(self.config, 'base_path', None)
+        if base:
+            return Path(base) / 'td_lambda.json'
+        return Path.home() / '.jotty' / 'td_lambda.json'
+
     # =========================================================================
     # CHECKPOINTS — snapshot/restore learning state (Cline-inspired)
     # =========================================================================
@@ -333,6 +345,7 @@ class SwarmLearningPipeline:
             self._get_swarm_intelligence_path(),
             self._get_credit_weights_path(),
             self._get_stigmergy_path(),
+            self._get_td_lambda_path(),
         ]
 
         copied = 0
@@ -366,6 +379,7 @@ class SwarmLearningPipeline:
             'swarm_intelligence.json': self._get_swarm_intelligence_path(),
             'credit_weights.json': self._get_credit_weights_path(),
             'stigmergy.json': self._get_stigmergy_path(),
+            'td_lambda.json': self._get_td_lambda_path(),
         }
 
         restored = 0
@@ -390,6 +404,41 @@ class SwarmLearningPipeline:
             return []
         dirs = sorted(cp_base.iterdir(), reverse=True)
         return [str(d) for d in dirs if d.is_dir()]
+
+    # =========================================================================
+    # Versioned JSON I/O
+    # =========================================================================
+
+    _SCHEMA_VERSION = "2.0"
+
+    def _save_versioned(self, path: Path, data: dict) -> None:
+        """Save data as versioned JSON: {"schema_version": "2.0", "data": {...}}."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        envelope = {"schema_version": self._SCHEMA_VERSION, "data": data}
+        with open(path, 'w') as f:
+            json.dump(envelope, f, indent=2)
+
+    def _load_versioned(self, path: Path) -> dict:
+        """Load versioned JSON; handles both enveloped and legacy bare-dict formats.
+
+        Returns the data dict (unwrapped from envelope).
+        Logs a warning if the major version differs.
+        """
+        with open(path, 'r') as f:
+            raw = json.load(f)
+
+        # New envelope format
+        if isinstance(raw, dict) and 'schema_version' in raw and 'data' in raw:
+            file_ver = str(raw['schema_version'])
+            if file_ver.split('.')[0] != self._SCHEMA_VERSION.split('.')[0]:
+                logger.warning(
+                    f"Schema version mismatch in {path.name}: "
+                    f"file={file_ver}, expected={self._SCHEMA_VERSION}"
+                )
+            return raw['data']
+
+        # Legacy bare-dict format (pre-versioning)
+        return raw
 
     # =========================================================================
     # Auto-load / Auto-save
@@ -418,24 +467,38 @@ class SwarmLearningPipeline:
             specs = self.swarm_intelligence.get_specialization_summary()
             logger.info(f"Auto-loaded swarm intelligence: {len(specs)} agent profiles")
 
-        # Adaptive credit weights
+        # Adaptive credit weights (versioned)
         credit_path = self._get_credit_weights_path()
         if credit_path.exists():
             try:
-                with open(credit_path, 'r') as f:
-                    credit_data = json.load(f)
+                credit_data = self._load_versioned(credit_path)
                 self.credit_weights = AdaptiveWeightGroup.from_dict(credit_data)
                 logger.info(f"Auto-loaded credit weights: {self.credit_weights}")
             except Exception as e:
                 logger.debug(f"Could not auto-load credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count
+        # TD-Lambda grouped baselines (versioned)
+        td_path = self._get_td_lambda_path()
+        if td_path.exists():
+            try:
+                from Jotty.core.learning.td_lambda import GroupedValueBaseline
+                td_data = self._load_versioned(td_path)
+                self.td_learner.grouped_baseline = GroupedValueBaseline.from_dict(
+                    td_data, config=self.config
+                )
+                logger.info(
+                    f"Auto-loaded TD-Lambda: "
+                    f"{td_data.get('group_counts', {}).__len__()} group baselines"
+                )
+            except Exception as e:
+                logger.debug(f"Could not auto-load TD-Lambda state: {e}")
+
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count (versioned)
         stig_path = self._get_stigmergy_path()
         if stig_path.exists():
             try:
                 from .stigmergy import StigmergyLayer
-                with open(stig_path, 'r') as f:
-                    stig_data = json.load(f)
+                stig_data = self._load_versioned(stig_path)
                 self.stigmergy = StigmergyLayer.from_dict(stig_data)
                 # Re-unify: SI must point to the same loaded instance
                 self.swarm_intelligence.stigmergy = self.stigmergy
@@ -488,25 +551,28 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Could not auto-save swarm intelligence: {e}")
 
-        # Adaptive credit weights
+        # Adaptive credit weights (versioned)
         credit_path = self._get_credit_weights_path()
         try:
-            credit_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(credit_path, 'w') as f:
-                json.dump(self.credit_weights.to_dict(), f, indent=2)
+            self._save_versioned(credit_path, self.credit_weights.to_dict())
         except Exception as e:
             logger.debug(f"Could not auto-save credit weights: {e}")
 
-        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count
+        # TD-Lambda grouped baselines (versioned)
+        td_path = self._get_td_lambda_path()
+        try:
+            self._save_versioned(td_path, self.td_learner.grouped_baseline.to_dict())
+        except Exception as e:
+            logger.debug(f"Could not auto-save TD-Lambda state: {e}")
+
+        # Stigmergy pheromone trails + paradigm stats + effectiveness data + episode count (versioned)
         stig_path = self._get_stigmergy_path()
         try:
-            stig_path.parent.mkdir(parents=True, exist_ok=True)
             stig_data = self.stigmergy.to_dict()
             stig_data['paradigm_stats'] = self._paradigm_stats
             stig_data['effectiveness'] = self.effectiveness.to_dict()
             stig_data['episode_count'] = self.episode_count
-            with open(stig_path, 'w') as f:
-                json.dump(stig_data, f, indent=2)
+            self._save_versioned(stig_path, stig_data)
         except Exception as e:
             logger.warning(f"Could not auto-save stigmergy: {e}")
 
@@ -540,24 +606,24 @@ class SwarmLearningPipeline:
         """
         Compute a continuous reward in [0, 1] from the execution result.
 
-        The old approach: 1.0 if result.success else 0.0
-        This is binary — TD-Lambda has no gradient to follow.
-
-        New approach: multi-dimensional heuristic decomposition.
-        Each dimension is cheap to compute (no LLM call) and provides
-        real gradient information for the learning algorithms.
+        Multi-dimensional heuristic decomposition with information density
+        and relevance scoring. Each dimension is cheap to compute (no LLM call)
+        and provides real gradient information for the learning algorithms.
 
         Dimensions (weighted average):
-          substance  (0.30): Is the output actually substantive?
-          efficiency (0.15): How fast relative to a 120s baseline?
+          substance  (0.25): Information density (unique 4-grams ratio)
+          efficiency (0.10): How fast relative to a 120s baseline?
           tool_use   (0.15): Did tool calls produce useful output?
-          structure  (0.15): Does output have organized structure?
-          no_errors  (0.25): Absence of error indicators in output
+          structure  (0.10): Does output have organized structure?
+          no_errors  (0.20): Absence of error indicators in output
+          relevance  (0.20): Does output address the goal?
 
         The success flag is a floor: if the agent reports failure,
         the max reward is capped at 0.3 (allowing partial credit for
         useful partial output on failures).
         """
+        import math
+
         # Extract output text
         output_text = ""
         if hasattr(result, 'output') and result.output:
@@ -567,25 +633,26 @@ class SwarmLearningPipeline:
         output_text = output_text.strip()
 
         success = bool(getattr(result, 'success', False))
+        lower = output_text.lower()[:3000]
 
-        # --- Dimension 1: Substance (0-1) ---
-        # Longer, more substantive output scores higher, with diminishing returns.
-        # Empty = 0, 100 chars = 0.3, 500 = 0.6, 1000+ = 0.85, 3000+ = 1.0
+        # --- Dimension 1: Substance via information density (0-1) ---
+        # Uses compression-ratio proxy: unique 4-grams / total 4-grams.
+        # Padded/repetitive text gets penalized. Base length score caps at 500 chars.
         char_count = len(output_text)
         if char_count == 0:
             substance = 0.0
-        elif char_count < 50:
-            substance = 0.1
-        elif char_count < 200:
-            substance = 0.3
-        elif char_count < 500:
-            substance = 0.5
-        elif char_count < 1000:
-            substance = 0.7
-        elif char_count < 3000:
-            substance = 0.85
         else:
-            substance = 1.0
+            # Base length score: caps at 500 chars
+            length_score = min(1.0, char_count / 500.0)
+            # Information density: unique 4-grams / total 4-grams
+            words = lower.split()
+            if len(words) >= 4:
+                ngrams = [' '.join(words[i:i+4]) for i in range(len(words) - 3)]
+                density = len(set(ngrams)) / len(ngrams) if ngrams else 0.5
+            else:
+                density = 0.5  # Too short to measure
+            # Combine: length matters but repetitive padding is penalized
+            substance = length_score * (0.4 + 0.6 * density)
 
         # --- Dimension 2: Efficiency (0-1) ---
         # Faster execution relative to 120s baseline scores higher.
@@ -593,7 +660,6 @@ class SwarmLearningPipeline:
         if exec_time <= 0:
             exec_time = 60.0  # Unknown defaults to neutral
         # Sigmoid-like: 5s → 0.95, 30s → 0.75, 60s → 0.5, 120s → 0.25, 300s → 0.05
-        import math
         efficiency = 1.0 / (1.0 + math.exp((exec_time - 60) / 30))
 
         # --- Dimension 3: Tool usage effectiveness (0-1) ---
@@ -612,12 +678,11 @@ class SwarmLearningPipeline:
         if tool_calls > 0:
             tool_use = tool_successes / tool_calls
         else:
-            tool_use = 0.5  # No tools used — neutral
+            tool_use = 0.3  # Slight penalty for not using available tools
 
         # --- Dimension 4: Structure (0-1) ---
         # Does the output show organized thinking? Check for structure markers.
         structure_signals = 0
-        lower = output_text.lower()[:3000]
         if any(m in lower for m in ['\n#', '\n##', '\n###']):
             structure_signals += 1  # Headings
         if any(m in lower for m in ['\n- ', '\n* ', '\n1.', '\n2.']):
@@ -638,13 +703,31 @@ class SwarmLearningPipeline:
         error_count = sum(1 for ind in error_indicators if ind in lower)
         no_errors = max(0.0, 1.0 - error_count * 0.25)
 
+        # --- Dimension 6: Relevance (0-1) ---
+        # Check that output mentions key terms from the goal.
+        goal_lower = goal.lower() if goal else ''
+        goal_words = set(
+            w for w in goal_lower.split()
+            if len(w) > 3 and w not in {
+                'this', 'that', 'with', 'from', 'about', 'what',
+                'have', 'been', 'will', 'would', 'could', 'should',
+                'their', 'there', 'them', 'then', 'than', 'your',
+            }
+        )
+        if goal_words and lower:
+            matches = sum(1 for w in goal_words if w in lower)
+            relevance = min(1.0, matches / max(1, len(goal_words) * 0.5))
+        else:
+            relevance = 0.5  # No goal words to check — neutral
+
         # --- Weighted combination ---
         reward = (
-            0.30 * substance +
-            0.15 * efficiency +
+            0.25 * substance +
+            0.10 * efficiency +
             0.15 * tool_use +
-            0.15 * structure +
-            0.25 * no_errors
+            0.10 * structure +
+            0.20 * no_errors +
+            0.20 * relevance
         )
 
         # Success floor/ceiling: failure caps at 0.3, success has no cap
@@ -658,7 +741,8 @@ class SwarmLearningPipeline:
             f"Episode reward: {reward:.3f} "
             f"(substance={substance:.2f}, efficiency={efficiency:.2f}, "
             f"tool_use={tool_use:.2f}, structure={structure:.2f}, "
-            f"no_errors={no_errors:.2f}, success={success})"
+            f"no_errors={no_errors:.2f}, relevance={relevance:.2f}, "
+            f"success={success})"
         )
 
         return reward
@@ -682,6 +766,30 @@ class SwarmLearningPipeline:
         """
         self.episode_count += 1
         episode_reward = self._compute_episode_reward(result, goal)
+
+        # Extract task_type and agent_name once — reused by all learning steps below.
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+        except Exception as e:
+            logger.debug(f"Task type extraction failed: {e}")
+            task_type = 'general'
+        agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
+
+        # 0. TD-Lambda: update grouped value baselines via TD(0)
+        #    This is the core RL update that was implemented (~800 lines) but never wired.
+        #    Uses HRPO group-relative baselines for variance reduction.
+        try:
+            self.td_learner.start_episode(goal, task_type=task_type)
+            self.td_learner.update(
+                state={'goal': goal},
+                action={'type': task_type, 'agent': agent_name},
+                reward=episode_reward,
+                next_state={'completed': True},
+            )
+            # Record success for adaptive learning rate
+            self._adaptive_lr.record_success(result.success)
+        except Exception as e:
+            logger.debug(f"TD-Lambda update skipped: {e}")
 
         # 1. SwarmLearner: record episode, conditionally update prompts
         try:
@@ -731,11 +839,10 @@ class SwarmLearningPipeline:
         # 4. Agent abstractor
         try:
             if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                for agent_name, contrib in result.agent_contributions.items():
+                for contrib_agent, contrib in result.agent_contributions.items():
                     success = getattr(contrib, 'decision_correct', result.success)
-                    self.agent_abstractor.update_agent(agent_name, success)
+                    self.agent_abstractor.update_agent(contrib_agent, success)
             else:
-                agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
                 self.agent_abstractor.update_agent(agent_name, result.success)
         except Exception as e:
             logger.debug(f"Agent abstractor update skipped: {e}")
@@ -743,7 +850,6 @@ class SwarmLearningPipeline:
         # 5. Transferable learning store
         try:
             query = goal[:200] if goal else ''
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             self.transfer_learning.record_experience(
                 query=query,
                 agent=agent_name,
@@ -758,9 +864,7 @@ class SwarmLearningPipeline:
 
         # 6. Swarm intelligence (emergent specialization)
         try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
             execution_time = getattr(result, 'execution_time', 0.0)
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             self.swarm_intelligence.record_task_result(
                 agent_name=agent_name,
                 task_type=task_type,
@@ -773,8 +877,6 @@ class SwarmLearningPipeline:
 
         # 6b. Stigmergy: deposit outcome signal for agent routing
         try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             self.stigmergy.record_outcome(
                 agent=agent_name,
                 task_type=task_type,
@@ -789,8 +891,6 @@ class SwarmLearningPipeline:
         #        then record approach outcome so future executions of the same
         #        task type get actionable "use X, avoid Y" guidance.
         try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             trajectory = getattr(result, 'trajectory', []) or []
 
             # Extract tools/skills used from trajectory AND from output
@@ -836,8 +936,6 @@ class SwarmLearningPipeline:
 
         # 6c. Effectiveness tracker: measure actual improvement over time
         try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
             self.effectiveness.record(
                 task_type=task_type,
                 success=result.success,
@@ -853,11 +951,9 @@ class SwarmLearningPipeline:
                 execution_time = getattr(result, 'execution_time', 0.0)
 
                 # Collect agent names used
-                agents_used = []
                 if hasattr(result, 'agent_contributions') and result.agent_contributions:
                     agents_used = list(result.agent_contributions.keys())
                 else:
-                    agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
                     agents_used = [agent_name]
 
                 stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self.swarm_intelligence, 'stigmergy') else 0
@@ -874,9 +970,6 @@ class SwarmLearningPipeline:
 
         # 8. Stigmergy: deposit success/failure pheromone signals
         try:
-            task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
-
             if result.success:
                 # Reinforce successful agent-task paths
                 self.stigmergy.deposit(
@@ -907,27 +1000,24 @@ class SwarmLearningPipeline:
         #    Single-agent: verify_output_quality (heuristic quality check)
         #    Multi-agent: verify_claim (cross-agent consistency)
         try:
-            task_type_for_byz = task_type if 'task_type' in dir() else 'general'
-
             if hasattr(result, 'agent_contributions') and result.agent_contributions:
                 # Multi-agent: check each agent's claim
-                for agent_name, contrib in result.agent_contributions.items():
+                for contrib_agent, contrib in result.agent_contributions.items():
                     claimed = getattr(contrib, 'decision_correct', result.success)
                     self.byzantine_verifier.verify_claim(
-                        agent=agent_name,
+                        agent=contrib_agent,
                         claimed_success=claimed,
                         actual_result=result,
-                        task_type=task_type_for_byz,
+                        task_type=task_type,
                     )
             else:
                 # Single-agent: use quality verification (not meaningless self-check)
-                agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
                 quality = self.byzantine_verifier.verify_output_quality(
                     agent=agent_name,
                     claimed_success=result.success,
                     output=result,
                     goal=goal,
-                    task_type=task_type_for_byz,
+                    task_type=task_type,
                 )
                 if not quality['quality_ok']:
                     logger.warning(
@@ -960,6 +1050,30 @@ class SwarmLearningPipeline:
                 )
         except Exception as e:
             logger.debug(f"Adaptive learning skipped: {e}")
+
+        # 11b. Effectiveness-driven intervention: if not improving and enough data,
+        # force exploration increase and queue curriculum task for the struggling type.
+        try:
+            if not self.effectiveness.is_improving(task_type) and self.episode_count >= 10:
+                al = self.adaptive_learning
+                old_explore = getattr(al.state, 'exploration_rate', 0.3)
+                new_explore = min(0.8, old_explore + 0.2)
+                al.state.exploration_rate = new_explore
+                # Queue a curriculum task targeting the weak task_type
+                task = self.curriculum_generator.generate_training_task(
+                    profiles={},
+                    focus_task_type=task_type,
+                )
+                self._pending_training_tasks.append(task)
+                if len(self._pending_training_tasks) > 10:
+                    self._pending_training_tasks = self._pending_training_tasks[-10:]
+                logger.info(
+                    f"📉 Effectiveness intervention for '{task_type}': "
+                    f"exploration {old_explore:.2f} → {new_explore:.2f}, "
+                    f"queued curriculum task"
+                )
+        except Exception as e:
+            logger.debug(f"Effectiveness intervention skipped: {e}")
 
         # 12. Credit-driven pruning: every 10 episodes, prune low-value learnings
         try:
@@ -1037,16 +1151,16 @@ class SwarmLearningPipeline:
         if goal:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(goal)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Task type extraction from goal failed: {e}")
         if task_type == 'unknown' and hasattr(result, 'task_type') and result.task_type:
             raw = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
             task_type = PatternExtractor.normalize_task_type(raw)
         if task_type == 'unknown' and hasattr(result, 'task') and result.task:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(str(result.task))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Task type extraction from result.task failed: {e}")
         # Always normalize (creation→generation, research→analysis, etc.)
         task_type = PatternExtractor.normalize_task_type(task_type)
 
@@ -1128,7 +1242,8 @@ class SwarmLearningPipeline:
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(query)
             return self.swarm_intelligence.get_best_agent_for_task(task_type)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Best agent lookup failed: {e}")
             return None
 
     # =========================================================================
@@ -1148,7 +1263,8 @@ class SwarmLearningPipeline:
                         best_agent = content.get('agent')
                         best_strength = sig.strength
             return best_agent
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Stigmergy route lookup failed: {e}")
             return None
 
     def get_stigmergy_warnings(self, task_type: str = None) -> list:
@@ -1162,7 +1278,8 @@ class SwarmLearningPipeline:
                     and s.content.get('task_type') == task_type
                 ]
             return signals
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Stigmergy warnings lookup failed: {e}")
             return []
 
     # =========================================================================
@@ -1176,7 +1293,8 @@ class SwarmLearningPipeline:
             if agent_name in profiles:
                 return profiles[agent_name].trust_score
             return 1.0  # Unknown agents get full trust
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Agent trust lookup failed for '{agent_name}': {e}")
             return 1.0  # Default: trust unknown agents
 
     def is_agent_trusted(self, agent_name: str, threshold: float = 0.3) -> bool:
@@ -1215,6 +1333,16 @@ class SwarmLearningPipeline:
         A positive 'trend' value means the system is genuinely improving.
         """
         return self.effectiveness.improvement_report()
+
+    def get_td_lambda_stats(self) -> dict:
+        """
+        Get TD-Lambda grouped learning statistics.
+
+        Returns group baselines, counts, and advantage info per task type.
+        """
+        stats = self.td_learner.get_grouped_learning_stats()
+        stats['adaptive_lr'] = self._adaptive_lr.get_adapted_alpha()
+        return stats
 
     # =========================================================================
     # Paradigm effectiveness tracking (auto paradigm selection)

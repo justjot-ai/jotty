@@ -8,6 +8,13 @@ Uses the Anthropic Python SDK directly - no subprocess overhead.
 
 Requires: ANTHROPIC_API_KEY environment variable
 
+Optional - Claude Code Router (CCR) integration:
+  Set ANTHROPIC_BASE_URL=http://127.0.0.1:3456 (and run `ccr start`) to route
+  all Jotty LLM calls through claude-code-router for multi-provider routing
+  (e.g. default/think/longContext/background models). No BaseSwarm code changes
+  needed; the LM layer sends requests to CCR, which routes to your configured
+  providers (OpenRouter, DeepSeek, Ollama, etc.).
+
 Latency comparison:
 - Claude CLI subprocess: ~3s (0.5s subprocess + 2.5s inference)
 - Direct API: ~0.5s (just inference, no subprocess)
@@ -16,16 +23,31 @@ Latency comparison:
 import asyncio
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 import dspy
+from Jotty.core.foundation.exceptions import LLMError, InputValidationError
 
 logger = logging.getLogger(__name__)
+
+# ── Singleton CostTracker for live per-call cost logging ──
+_cost_tracker = None
+
+
+def get_cost_tracker():
+    """Get or create the singleton CostTracker instance."""
+    global _cost_tracker
+    if _cost_tracker is None:
+        from Jotty.core.monitoring.cost_tracker import CostTracker
+        _cost_tracker = CostTracker(enable_tracking=True)
+    return _cost_tracker
 
 # Model name mapping — centralized in config_defaults
 from Jotty.core.foundation.config_defaults import (
     MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU,
     DEFAULT_MODEL_ALIAS, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS,
 )
+from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
 MODEL_MAP = {
     "haiku": MODEL_HAIKU,
     "sonnet": MODEL_SONNET,
@@ -47,6 +69,7 @@ class DirectAnthropicLM(dspy.BaseLM):
         temperature: float = LLM_TEMPERATURE,
         timeout: int = LLM_TIMEOUT_SECONDS,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         **kwargs
     ):
         """
@@ -58,6 +81,8 @@ class DirectAnthropicLM(dspy.BaseLM):
             temperature: Sampling temperature
             timeout: Request timeout in seconds
             api_key: API key (defaults to ANTHROPIC_API_KEY env var)
+            base_url: Optional API base URL (defaults to ANTHROPIC_BASE_URL env var).
+                Use e.g. http://127.0.0.1:3456 when routing via claude-code-router.
         """
         # Resolve model name
         self.model_id = MODEL_MAP.get(model, model)
@@ -75,24 +100,30 @@ class DirectAnthropicLM(dspy.BaseLM):
         self.provider = "anthropic-direct"
         self.history: List[Dict[str, Any]] = []
 
-        # Get API key
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        # Shared CCR/env-aware client kwargs (api_key + optional base_url)
+        client_kwargs = get_anthropic_client_kwargs(api_key=api_key)
+        if base_url is not None:
+            client_kwargs["base_url"] = base_url.rstrip("/")
+        self.api_key = client_kwargs.get("api_key")
         if not self.api_key:
-            raise RuntimeError(
+            raise LLMError(
                 "ANTHROPIC_API_KEY not set. Either:\n"
                 "1. Set ANTHROPIC_API_KEY environment variable\n"
                 "2. Pass api_key parameter\n"
                 "3. Use AsyncClaudeCLILM instead (uses CLI auth)"
             )
+        self._base_url = client_kwargs.get("base_url")
 
         # Initialize client
         try:
             import anthropic
-            self._client = anthropic.Anthropic(api_key=self.api_key)
-            self._async_client = anthropic.AsyncAnthropic(api_key=self.api_key)
+            if self._base_url:
+                logger.info(f"DirectAnthropicLM using router: {self._base_url}")
+            self._client = anthropic.Anthropic(**client_kwargs)
+            self._async_client = anthropic.AsyncAnthropic(**client_kwargs)
             logger.info(f"DirectAnthropicLM initialized (model={self.model_id})")
-        except ImportError:
-            raise RuntimeError("anthropic package not installed. Install with: pip install anthropic")
+        except ImportError as e:
+            raise LLMError("anthropic package not installed. Install with: pip install anthropic", original_error=e)
 
     def __call__(
         self,
@@ -128,8 +159,9 @@ class DirectAnthropicLM(dspy.BaseLM):
         elif messages:
             api_messages, system_prompt = self._convert_messages(messages)
         else:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
+        call_start = time.time()
         try:
             # Build request kwargs
             request_kwargs = {
@@ -142,6 +174,7 @@ class DirectAnthropicLM(dspy.BaseLM):
                 request_kwargs["system"] = system_prompt
 
             response = self._client.messages.create(**request_kwargs)
+            duration = time.time() - call_start
 
             # Extract text from response
             response_text = ""
@@ -149,19 +182,49 @@ class DirectAnthropicLM(dspy.BaseLM):
                 if block.type == "text":
                     response_text += block.text
 
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
             self.history.append({
                 'prompt': str(api_messages)[:500],
                 'response': response_text[:500],
                 'model': self.model_id,
                 'usage': {
-                    'input_tokens': response.usage.input_tokens,
-                    'output_tokens': response.usage.output_tokens,
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens,
                 }
             })
+
+            # Live cost tracking
+            tracker = get_cost_tracker()
+            record = tracker.record_llm_call(
+                provider="anthropic",
+                model=self.model_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True,
+                duration=duration,
+            )
+            logger.info(
+                f"💰 LLM call: {self.model_id} | "
+                f"{input_tokens}+{output_tokens} tokens | "
+                f"${record.cost:.6f} | {duration:.1f}s"
+            )
 
             return [response_text]
 
         except Exception as e:
+            duration = time.time() - call_start
+            tracker = get_cost_tracker()
+            tracker.record_llm_call(
+                provider="anthropic",
+                model=self.model_id,
+                input_tokens=0,
+                output_tokens=0,
+                success=False,
+                error=str(e),
+                duration=duration,
+            )
             logger.error(f"DirectAnthropicLM error: {e}")
             raise
 
@@ -179,8 +242,9 @@ class DirectAnthropicLM(dspy.BaseLM):
         elif messages:
             api_messages, system_prompt = self._convert_messages(messages)
         else:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
+        call_start = time.time()
         try:
             # Build request kwargs
             request_kwargs = {
@@ -196,6 +260,7 @@ class DirectAnthropicLM(dspy.BaseLM):
                 self._async_client.messages.create(**request_kwargs),
                 timeout=self.timeout
             )
+            duration = time.time() - call_start
 
             # Extract text from response
             response_text = ""
@@ -203,17 +268,62 @@ class DirectAnthropicLM(dspy.BaseLM):
                 if block.type == "text":
                     response_text += block.text
 
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
             self.history.append({
                 'prompt': str(api_messages)[:500],
                 'response': response_text[:500],
                 'model': self.model_id,
+                'usage': {
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens,
+                }
             })
+
+            # Live cost tracking
+            tracker = get_cost_tracker()
+            record = tracker.record_llm_call(
+                provider="anthropic",
+                model=self.model_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True,
+                duration=duration,
+            )
+            logger.info(
+                f"💰 LLM call: {self.model_id} | "
+                f"{input_tokens}+{output_tokens} tokens | "
+                f"${record.cost:.6f} | {duration:.1f}s"
+            )
 
             return [response_text]
 
-        except asyncio.TimeoutError:
-            raise RuntimeError(f"API call timed out after {self.timeout}s")
+        except asyncio.TimeoutError as e:
+            duration = time.time() - call_start
+            tracker = get_cost_tracker()
+            tracker.record_llm_call(
+                provider="anthropic",
+                model=self.model_id,
+                input_tokens=0,
+                output_tokens=0,
+                success=False,
+                error=f"Timeout after {self.timeout}s",
+                duration=duration,
+            )
+            raise LLMError(f"API call timed out after {self.timeout}s", original_error=e)
         except Exception as e:
+            duration = time.time() - call_start
+            tracker = get_cost_tracker()
+            tracker.record_llm_call(
+                provider="anthropic",
+                model=self.model_id,
+                input_tokens=0,
+                output_tokens=0,
+                success=False,
+                error=str(e),
+                duration=duration,
+            )
             logger.error(f"DirectAnthropicLM async error: {e}")
             raise
 

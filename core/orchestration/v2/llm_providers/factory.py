@@ -12,6 +12,7 @@ from .openai import OpenAIProvider, OpenRouterProvider, GroqProvider
 from .google import GoogleProvider
 from .adapter import JottyClaudeProviderAdapter
 from Jotty.core.foundation.config_defaults import MODEL_SONNET, DEFAULTS
+from Jotty.core.foundation.exceptions import InvalidConfigError
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ def create_provider(
     elif provider == 'google':
         return GoogleProvider(model=model, api_key=api_key)
     else:
-        raise ValueError(f"Unknown provider: {provider}. Supported: anthropic, openai, openrouter, groq, google")
+        raise InvalidConfigError(f"Unknown provider: {provider}. Supported: anthropic, openai, openrouter, groq, google")
 
 
 def auto_detect_provider() -> tuple:
@@ -96,4 +97,4 @@ def auto_detect_provider() -> tuple:
                 logger.warning(f"Failed to initialize {provider_name}: {e}")
                 continue
 
-    raise RuntimeError("No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, or install Claude CLI")
+    raise InvalidConfigError("No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, or install Claude CLI")

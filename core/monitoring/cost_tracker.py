@@ -15,28 +15,41 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# Pricing per 1M tokens (as of 2025-01-27)
-# These are approximate and should be updated based on actual provider pricing
+# Pricing per 1M tokens (as of 2026-02-10)
+# Source: https://docs.anthropic.com/en/docs/about-claude/models
 PRICING_TABLE = {
-    # Anthropic Claude
-    "claude-opus-4": {"input": 15.0, "output": 75.0},  # $15/$75 per 1M tokens
-    "claude-sonnet-4": {"input": 3.0, "output": 15.0},  # $3/$15 per 1M tokens
-    "claude-haiku": {"input": 0.25, "output": 1.25},  # $0.25/$1.25 per 1M tokens
-    "claude-3-5-haiku-latest": {"input": 0.25, "output": 1.25},
-    "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    # Anthropic Claude 4.x
+    "claude-opus-4-6": {"input": 15.0, "output": 75.0},
     "claude-opus-4-20250514": {"input": 15.0, "output": 75.0},
-    
+    "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
+    "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    # Anthropic Claude 3.5
+    "claude-3-5-sonnet-20241022": {"input": 3.0, "output": 15.0},
+    "claude-3-5-haiku-20241022": {"input": 1.0, "output": 5.0},
+    "claude-3-5-haiku-latest": {"input": 1.0, "output": 5.0},
+    # Anthropic Claude 3 (legacy)
+    "claude-3-opus-20240229": {"input": 15.0, "output": 75.0},
+    "claude-3-sonnet-20240229": {"input": 3.0, "output": 15.0},
+    "claude-3-haiku-20240307": {"input": 0.25, "output": 1.25},
+    # Aliases
+    "claude-opus-4": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4": {"input": 3.0, "output": 15.0},
+    "claude-haiku": {"input": 1.0, "output": 5.0},
+
     # OpenAI
     "gpt-4-turbo": {"input": 10.0, "output": 30.0},
-    "gpt-4o": {"input": 5.0, "output": 15.0},
+    "gpt-4o": {"input": 2.5, "output": 10.0},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.6},
     "gpt-3.5-turbo": {"input": 0.5, "output": 1.5},
-    
+    "o1": {"input": 15.0, "output": 60.0},
+    "o3-mini": {"input": 1.1, "output": 4.4},
+
     # Gemini
-    "gemini-2.0-flash": {"input": 0.0, "output": 0.0},  # Free tier
+    "gemini-2.0-flash": {"input": 0.1, "output": 0.4},
     "gemini-1.5-pro": {"input": 1.25, "output": 5.0},
-    
+
     # Claude CLI (uses API pricing)
-    "claude-cli": {"input": 3.0, "output": 15.0},  # Defaults to sonnet pricing
+    "claude-cli": {"input": 3.0, "output": 15.0},
 }
 
 # Default pricing if model not found

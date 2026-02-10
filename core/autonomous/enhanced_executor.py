@@ -9,8 +9,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 
 from ..agents.agentic_planner import ExecutionPlan
-from ..agents.auto_agent import AutoAgent, ExecutionResult
-from ..agents.base.autonomous_agent import ExecutionStep
+from ..agents.auto_agent import AutoAgent
+from ..agents._execution_types import ExecutionStep, ExecutionResult
 
 
 @dataclass

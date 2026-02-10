@@ -14,6 +14,7 @@ Standalone composed class, replaces MASZeroMixin.
 """
 
 import logging
+from Jotty.core.utils.async_utils import StatusReporter
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -196,12 +197,7 @@ class MASZeroController:
         """
         Iteratively refine MAS design based on meta-feedback.
         """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
+        _status = StatusReporter(status_callback)
 
         experience = self._get_experience_library()
         best_results = initial_results

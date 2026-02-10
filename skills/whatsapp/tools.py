@@ -517,6 +517,340 @@ def get_whatsapp_status(provider: str = "auto") -> Dict[str, Any]:
     }))
 
 
+# =========================================================================
+# Extended WhatsApp Tools (video, audio, reactions, contacts, interactive)
+# =========================================================================
+
+
+@async_tool_wrapper(required_params=['to'])
+async def send_whatsapp_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send a video via WhatsApp.
+
+    Args:
+        params: Dictionary containing:
+            - to (str, required): Recipient phone number
+            - video_url (str, optional): URL of video
+            - video_path (str, optional): Local path to video
+            - caption (str, optional): Video caption
+
+    Returns:
+        Dictionary with success, message_id, to
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not params.get("video_url") and not params.get("video_path"):
+        return tool_error("video_url or video_path is required")
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    to = _clean_phone(params['to'])
+
+    if params.get("video_path") and not params.get("video_url"):
+        upload_result = await _upload_media(client, params["video_path"])
+        if not upload_result.get("success"):
+            return upload_result
+        video_payload = {"id": upload_result.get("media_id")}
+    else:
+        video_payload = {"link": params["video_url"]}
+
+    if params.get("caption"):
+        video_payload["caption"] = params["caption"]
+
+    payload = {
+        "messaging_product": "whatsapp", "to": to,
+        "type": "video", "video": video_payload
+    }
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        messages = result.get("messages", [])
+        return tool_response(
+            message_id=messages[0].get("id") if messages else None, to=to
+        )
+    return result
+
+
+@async_tool_wrapper(required_params=['to'])
+async def send_whatsapp_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send an audio message via WhatsApp.
+
+    Args:
+        params: Dictionary containing:
+            - to (str, required): Recipient phone number
+            - audio_url (str, optional): URL of audio
+            - audio_path (str, optional): Local path to audio
+
+    Returns:
+        Dictionary with success, message_id, to
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not params.get("audio_url") and not params.get("audio_path"):
+        return tool_error("audio_url or audio_path is required")
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    to = _clean_phone(params['to'])
+
+    if params.get("audio_path") and not params.get("audio_url"):
+        upload_result = await _upload_media(client, params["audio_path"])
+        if not upload_result.get("success"):
+            return upload_result
+        audio_payload = {"id": upload_result.get("media_id")}
+    else:
+        audio_payload = {"link": params["audio_url"]}
+
+    payload = {
+        "messaging_product": "whatsapp", "to": to,
+        "type": "audio", "audio": audio_payload
+    }
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        messages = result.get("messages", [])
+        return tool_response(
+            message_id=messages[0].get("id") if messages else None, to=to
+        )
+    return result
+
+
+@async_tool_wrapper(required_params=['message_id', 'emoji'])
+async def send_whatsapp_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    React to a WhatsApp message with an emoji.
+
+    Args:
+        params: Dictionary containing:
+            - message_id (str, required): ID of message to react to
+            - emoji (str, required): Emoji to react with (e.g., thumbs up)
+
+    Returns:
+        Dictionary with success, message_id
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "type": "reaction",
+        "reaction": {
+            "message_id": params['message_id'],
+            "emoji": params['emoji']
+        }
+    }
+
+    # Need a 'to' for the API but reaction goes to original sender
+    to = params.get('to')
+    if to:
+        payload["to"] = _clean_phone(to)
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        return tool_response(reacted_to=params['message_id'], emoji=params['emoji'])
+    return result
+
+
+@async_tool_wrapper(required_params=['to', 'message'])
+async def send_whatsapp_reply_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reply to a specific WhatsApp message.
+
+    Args:
+        params: Dictionary containing:
+            - to (str, required): Recipient phone number
+            - message (str, required): Reply text
+            - reply_to (str, required): Message ID to reply to
+
+    Returns:
+        Dictionary with success, message_id, to, replied_to
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    to = _clean_phone(params['to'])
+    reply_to = params.get('reply_to')
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "text",
+        "text": {"body": params['message']}
+    }
+
+    if reply_to:
+        payload["context"] = {"message_id": reply_to}
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        messages = result.get("messages", [])
+        return tool_response(
+            message_id=messages[0].get("id") if messages else None,
+            to=to, replied_to=reply_to
+        )
+    return result
+
+
+@async_tool_wrapper()
+async def get_whatsapp_profile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get WhatsApp Business profile information.
+
+    Args:
+        params: Dictionary containing:
+            - fields (str, optional): Comma-separated fields to retrieve
+
+    Returns:
+        Dictionary with success, profile data
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    fields = params.get('fields', 'about,address,description,email,websites,profile_picture_url')
+
+    try:
+        url = f"{client.BASE_URL}/{client.phone_id}/whatsapp_business_profile"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {client.token}"},
+            params={"fields": fields},
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            data = response.json().get("data", [{}])
+            profile = data[0] if data else {}
+            return tool_response(profile=profile)
+        else:
+            return tool_error(f"API error: {response.text}")
+
+    except Exception as e:
+        return tool_error(str(e))
+
+
+@async_tool_wrapper(required_params=['to'])
+async def send_whatsapp_contacts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send contact cards via WhatsApp.
+
+    Args:
+        params: Dictionary containing:
+            - to (str, required): Recipient phone number
+            - contacts (list, required): List of contact dicts with:
+                - name: {first_name, last_name, formatted_name}
+                - phones: [{phone, type}]
+                - emails: [{email, type}] (optional)
+
+    Returns:
+        Dictionary with success, message_id, to
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    contacts = params.get('contacts')
+    if not contacts:
+        return tool_error("contacts list is required")
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    to = _clean_phone(params['to'])
+
+    payload = {
+        "messaging_product": "whatsapp", "to": to,
+        "type": "contacts", "contacts": contacts
+    }
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        messages = result.get("messages", [])
+        return tool_response(
+            message_id=messages[0].get("id") if messages else None, to=to
+        )
+    return result
+
+
+@async_tool_wrapper(required_params=['to'])
+async def send_whatsapp_interactive_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send interactive messages (buttons or lists) via WhatsApp.
+
+    Args:
+        params: Dictionary containing:
+            - to (str, required): Recipient phone number
+            - interactive_type (str, required): 'button' or 'list'
+            - header (str, optional): Header text
+            - body (str, required): Body text
+            - footer (str, optional): Footer text
+            - buttons (list, optional): For button type [{id, title}] (max 3)
+            - sections (list, optional): For list type [{title, rows: [{id, title, description}]}]
+            - button_text (str, optional): Button text for list type
+
+    Returns:
+        Dictionary with success, message_id, to
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    to = _clean_phone(params['to'])
+    interactive_type = params.get('interactive_type', 'button')
+
+    interactive = {
+        "type": interactive_type,
+        "body": {"text": params.get('body', '')}
+    }
+
+    if params.get('header'):
+        interactive["header"] = {"type": "text", "text": params['header']}
+    if params.get('footer'):
+        interactive["footer"] = {"text": params['footer']}
+
+    if interactive_type == 'button' and params.get('buttons'):
+        interactive["action"] = {
+            "buttons": [
+                {"type": "reply", "reply": {"id": b.get('id', str(i)), "title": b['title']}}
+                for i, b in enumerate(params['buttons'][:3])
+            ]
+        }
+    elif interactive_type == 'list' and params.get('sections'):
+        interactive["action"] = {
+            "button": params.get('button_text', 'Options'),
+            "sections": params['sections']
+        }
+
+    payload = {
+        "messaging_product": "whatsapp", "to": to,
+        "type": "interactive", "interactive": interactive
+    }
+
+    result = client._make_request("messages", json_data=payload)
+    if result.get("success"):
+        messages = result.get("messages", [])
+        return tool_response(
+            message_id=messages[0].get("id") if messages else None, to=to
+        )
+    return result
+
+
 __all__ = [
     "send_whatsapp_message_tool",
     "send_whatsapp_image_tool",
@@ -526,6 +860,14 @@ __all__ = [
     "send_whatsapp_media_tool",
     "get_whatsapp_status_tool",
     "mark_message_read_tool",
+    # Extended tools
+    "send_whatsapp_video_tool",
+    "send_whatsapp_audio_tool",
+    "send_whatsapp_reaction_tool",
+    "send_whatsapp_reply_tool",
+    "get_whatsapp_profile_tool",
+    "send_whatsapp_contacts_tool",
+    "send_whatsapp_interactive_tool",
     # Convenience functions
     "send_whatsapp_message",
     "send_whatsapp_media",

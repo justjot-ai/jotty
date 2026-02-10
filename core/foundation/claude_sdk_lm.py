@@ -17,6 +17,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 import dspy
+from Jotty.core.foundation.exceptions import LLMError, InputValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,11 @@ class ClaudeSDKLM(dspy.BaseLM):
             self._query = query
             self._options_class = ClaudeAgentOptions
             logger.info("✓ Claude Agent SDK available")
-        except ImportError:
-            raise RuntimeError(
+        except ImportError as e:
+            raise LLMError(
                 "claude-agent-sdk not installed. "
-                "Install with: pip install claude-agent-sdk"
+                "Install with: pip install claude-agent-sdk",
+                original_error=e
             )
 
     def __call__(
@@ -117,7 +119,7 @@ class ClaudeSDKLM(dspy.BaseLM):
                     parts.append(msg)
             input_text = "\n\n".join(parts)
         else:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
         logger.debug(f"ClaudeSDK: Calling with model {self.cli_model}")
         logger.debug(f"ClaudeSDK: Input length: {len(input_text)} chars")
@@ -178,8 +180,8 @@ class ClaudeSDKLM(dspy.BaseLM):
 
             return [response_text]
 
-        except asyncio.TimeoutError:
-            raise RuntimeError(f"Claude SDK timed out after {self.timeout}s")
+        except asyncio.TimeoutError as e:
+            raise LLMError(f"Claude SDK timed out after {self.timeout}s", original_error=e)
         except Exception as e:
             logger.error(f"ClaudeSDK error: {e}")
             raise

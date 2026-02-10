@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional
 from anthropic import Anthropic
 
 from Jotty.core.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
 
 from .section_tools import generate_section_tools, get_system_prompt
 from ..ui import (
@@ -48,7 +49,8 @@ class ChatAssistantV2:
             anthropic_api_key: Anthropic API key for Claude
         """
         self.state_manager = state_manager
-        self.llm = Anthropic(api_key=anthropic_api_key) if anthropic_api_key else None
+        client_kwargs = get_anthropic_client_kwargs(api_key=anthropic_api_key)
+        self.llm = Anthropic(**client_kwargs) if client_kwargs.get("api_key") else None
 
         # Auto-generate tool definitions from schemas
         self.tools = generate_section_tools()

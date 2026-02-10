@@ -11,6 +11,7 @@ import json
 from typing import List, Optional
 
 from Jotty.core.foundation.agent_config import AgentConfig
+from Jotty.core.utils.async_utils import StatusReporter
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +48,7 @@ class ZeroConfigAgentFactory:
         from Jotty.core.agents.auto_agent import AutoAgent
         import dspy
 
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+        _status = StatusReporter(status_callback, logger, emoji="📍")
 
         try:
             if hasattr(dspy.settings, 'lm') and dspy.settings.lm:

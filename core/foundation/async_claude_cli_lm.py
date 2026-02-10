@@ -20,6 +20,7 @@ import shutil
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import dspy
+from Jotty.core.foundation.exceptions import LLMError, InputValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         # Find claude binary
         self.claude_path = shutil.which('claude')
         if not self.claude_path:
-            raise RuntimeError("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code")
+            raise LLMError("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code")
 
     def __call__(
         self,
@@ -119,7 +120,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
                     parts.append(msg)
             input_text = "\n\n".join(parts)
         else:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
         # Note: Date context is now injected centrally via ContextAwareLM wrapper
         # in unified_lm_provider.py - no need to add it here
@@ -151,14 +152,14 @@ class AsyncClaudeCLILM(dspy.BaseLM):
                     process.communicate(),
                     timeout=self.timeout
                 )
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 process.kill()
                 await process.wait()
-                raise RuntimeError(f"Claude CLI timed out after {self.timeout}s")
+                raise LLMError(f"Claude CLI timed out after {self.timeout}s", original_error=e)
 
             if process.returncode != 0:
                 error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                raise RuntimeError(f"Claude CLI error: {error_msg}")
+                raise LLMError(f"Claude CLI error: {error_msg}")
 
             # Parse stream-json output
             response_text = self._parse_stream_json(stdout.decode())
@@ -178,8 +179,8 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
             return [response_text]
 
-        except FileNotFoundError:
-            raise RuntimeError("Claude CLI not found")
+        except FileNotFoundError as e:
+            raise LLMError("Claude CLI not found", original_error=e)
         except Exception as e:
             logger.error(f"AsyncClaudeCLI error: {e}")
             raise

@@ -17,22 +17,28 @@ KISS: Minimal classes, no unnecessary abstractions.
 """
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from Jotty.core.foundation.exceptions import AgentExecutionError
+
 logger = logging.getLogger(__name__)
 
-# Lazy DSPy import
+# Lazy DSPy import — thread-safe via double-checked locking
 _dspy = None
+_dspy_lock = threading.Lock()
 
 
 def _get_dspy():
     global _dspy
     if _dspy is None:
-        import dspy
-        _dspy = dspy
+        with _dspy_lock:
+            if _dspy is None:
+                import dspy
+                _dspy = dspy
     return _dspy
 
 
@@ -318,7 +324,7 @@ class MetaFeedbackEvaluator:
         dspy = _get_dspy()
 
         if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            raise RuntimeError("No LLM configured")
+            raise AgentExecutionError("No LLM configured")
 
         # Format sub-tasks and results
         task_lines = []

@@ -1,9 +1,11 @@
 """
 OpenAI Image Generation Skill
 
-Generate, edit, and create variations of images using OpenAI's DALL-E API.
+Generate, edit, create variations, and analyze images.
+Uses DALL-E for generation and litellm for VLM-powered analysis.
 """
 import os
+import json as json_mod
 import logging
 import base64
 import requests
@@ -11,10 +13,12 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.utils.env_loader import load_jotty_env, get_env
+
+load_jotty_env()
 
 logger = logging.getLogger(__name__)
-
-# Constants
 
 # Status emitter for progress updates
 status = SkillStatus("openai-image-gen")
@@ -395,3 +399,226 @@ def create_variation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Variation creation failed: {e}", exc_info=True)
         return {"success": False, "error": f"Variation creation failed: {str(e)}"}
+
+
+# =========================================================================
+# Image Analysis (litellm-powered VLM)
+# =========================================================================
+
+class ImageAnalyzer:
+    """Image analysis using litellm for unified VLM access."""
+
+    _instance = None
+
+    def __init__(self):
+        self._model = get_env("VLM_MODEL") or "claude-sonnet-4-5-20250929"
+        self._api_key = get_env("LITELLM_API_KEY") or get_env("OPENAI_API_KEY") or ""
+        self._api_base = get_env("LITELLM_BASE_URL") or ""
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    @staticmethod
+    def _encode(path: str) -> str:
+        with open(path, 'rb') as f:
+            return base64.b64encode(f.read()).decode('utf-8')
+
+    @staticmethod
+    def _mime(path: str) -> str:
+        ext = os.path.splitext(path)[1].lower()
+        return {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif', '.webp': 'image/webp'}.get(ext, 'image/png')
+
+    def analyze(self, image_path: str, question: str,
+                detail: str = "high", max_tokens: int = 1000) -> Dict[str, Any]:
+        """Analyze image with VLM via litellm."""
+        try:
+            import litellm
+        except ImportError:
+            return {"success": False, "error": "litellm not installed. pip install litellm"}
+
+        if not os.path.exists(image_path):
+            return {"success": False, "error": f"Image not found: {image_path}"}
+
+        b64 = self._encode(image_path)
+        mime = self._mime(image_path)
+
+        kwargs = {
+            "model": self._model,
+            "messages": [{"role": "user", "content": [
+                {"type": "text", "text": question},
+                {"type": "image_url", "image_url": {
+                    "url": f"data:{mime};base64,{b64}", "detail": detail
+                }}
+            ]}],
+            "max_tokens": max_tokens,
+        }
+        if self._api_key:
+            kwargs["api_key"] = self._api_key
+        if self._api_base:
+            kwargs["api_base"] = self._api_base
+
+        response = litellm.completion(**kwargs)
+        return {
+            "success": True,
+            "analysis": response.choices[0].message.content,
+            "model": self._model
+        }
+
+    def describe(self, image_path: str) -> Dict[str, Any]:
+        """Get detailed image description."""
+        return self.analyze(
+            image_path,
+            "Describe this image in detail: subject, colors, composition, style, mood, "
+            "any text visible, and overall impression."
+        )
+
+    def extract_brand_theme(self, image_path: str) -> Dict[str, Any]:
+        """Extract brand theme as structured JSON."""
+        question = (
+            'Analyze this image and extract the brand/design theme. '
+            'Return ONLY JSON with keys: primary_color, secondary_color, accent_color, '
+            'background_color, text_color, font_style, design_style, corner_style, notes. '
+            'All colors as #HEXCODE.'
+        )
+        result = self.analyze(image_path, question, detail="high")
+        if not result.get("success"):
+            return result
+
+        analysis = result["analysis"]
+        if "```json" in analysis:
+            analysis = analysis.split("```json")[1].split("```")[0]
+        elif "```" in analysis:
+            analysis = analysis.split("```")[1].split("```")[0]
+
+        try:
+            return {"success": True, "theme": json_mod.loads(analysis.strip())}
+        except json_mod.JSONDecodeError:
+            return {"success": True, "theme": {"raw_analysis": result["analysis"]}}
+
+
+@tool_wrapper(required_params=['image_path'])
+def analyze_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Analyze an image using VLM (Vision Language Model).
+
+    Args:
+        params: Dictionary containing:
+            - image_path (str, required): Path to image file
+            - question (str, optional): What to analyze (default: general description)
+            - detail (str, optional): 'low' or 'high' (default: 'high')
+
+    Returns:
+        Dictionary with success, analysis, model
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    status.emit("Analyzing", "Analyzing image with VLM")
+    return ImageAnalyzer.get_instance().analyze(
+        params['image_path'],
+        params.get('question', 'Describe this image in detail.'),
+        params.get('detail', 'high')
+    )
+
+
+@tool_wrapper(required_params=['image_path'])
+def describe_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get a detailed description of an image.
+
+    Args:
+        params: Dictionary containing:
+            - image_path (str, required): Path to image file
+
+    Returns:
+        Dictionary with success, description, model
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    result = ImageAnalyzer.get_instance().describe(params['image_path'])
+    if result.get("success") and "analysis" in result:
+        result["description"] = result.pop("analysis")
+    return result
+
+
+@tool_wrapper(required_params=['image_path'])
+def extract_brand_theme_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract brand theme (colors, fonts, style) from a reference image.
+
+    Args:
+        params: Dictionary containing:
+            - image_path (str, required): Path to reference image
+
+    Returns:
+        Dictionary with success, theme dict
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    status.emit("Extracting", "Extracting brand theme")
+    return ImageAnalyzer.get_instance().extract_brand_theme(params['image_path'])
+
+
+@tool_wrapper(required_params=['prompt'])
+def generate_brand_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate an image following brand guidelines.
+
+    Args:
+        params: Dictionary containing:
+            - prompt (str, required): What to generate
+            - brand_theme (dict, optional): Brand theme dict with colors/style
+            - reference_image_path (str, optional): Extract theme from this image
+            - size (str, optional): Image size (default: '1024x1024')
+            - quality (str, optional): 'standard' or 'hd'
+
+    Returns:
+        Dictionary with success, image_path, theme_used, theme_source
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    brand_theme = params.get('brand_theme')
+    ref_image = params.get('reference_image_path')
+
+    default_theme = {
+        "primary_color": "#0066CC", "secondary_color": "#1E3A5F",
+        "background_color": "#F8FAFC", "design_style": "minimalist, clean",
+        "font_style": "clean modern sans-serif", "corner_style": "rounded"
+    }
+
+    if brand_theme:
+        theme, source = brand_theme, "provided"
+    elif ref_image and os.path.exists(ref_image):
+        ext_result = ImageAnalyzer.get_instance().extract_brand_theme(ref_image)
+        if ext_result.get("success"):
+            theme, source = ext_result["theme"], "extracted"
+        else:
+            theme, source = default_theme, "default"
+    else:
+        theme, source = default_theme, "default"
+
+    enhanced_prompt = (
+        f"{params['prompt']}\n\n"
+        f"DESIGN GUIDELINES:\n"
+        f"- Primary: {theme.get('primary_color', '#0066CC')}\n"
+        f"- Secondary: {theme.get('secondary_color', '#1E3A5F')}\n"
+        f"- Background: {theme.get('background_color', '#F8FAFC')}\n"
+        f"- Style: {theme.get('design_style', 'minimalist')}\n"
+        f"- Professional, high contrast, generous whitespace"
+    )
+
+    result = generate_image_tool({
+        'prompt': enhanced_prompt,
+        'size': params.get('size', '1024x1024'),
+        'quality': params.get('quality', 'standard'),
+    })
+    result['theme_used'] = theme
+    result['theme_source'] = source
+    return result
+
+
+__all__ = [
+    'generate_image_tool', 'edit_image_tool', 'create_variation_tool',
+    'analyze_image_tool', 'describe_image_tool',
+    'extract_brand_theme_tool', 'generate_brand_image_tool',
+]

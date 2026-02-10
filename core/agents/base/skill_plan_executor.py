@@ -23,9 +23,382 @@ import asyncio
 import inspect
 import logging
 import time
+
+from Jotty.core.utils.async_utils import StatusReporter
 from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class ParameterResolver:
+    """
+    Resolves template variables and applies sanity checks to step parameters.
+
+    Extracted from SkillPlanExecutor.resolve_params() to decompose a 280-line
+    method into focused, testable sub-methods.
+
+    Usage:
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(params, step)
+    """
+
+    # Content-like field names to look for in step output dicts
+    _CONTENT_FIELDS = ('response', 'text', 'content', 'output', 'stdout', 'result')
+
+    # Instruction-like prefixes that indicate bad content
+    _INSTRUCTION_PREFIXES = (
+        'filename:', 'parse ', "i'll help", "i'll create", "let me ",
+        'create a ', 'here is', "here's", 'this is', 'the following',
+        'i will ', 'we will ', 'step ', 'save ', 'write ',
+    )
+
+    _MAX_RESOLVE_DEPTH = 10
+
+    def __init__(self, outputs: Dict[str, Any]):
+        self._outputs = outputs
+
+    def resolve(self, params: Dict[str, Any], step: Any = None, _depth: int = 0) -> Dict[str, Any]:
+        """Resolve template variables in parameters with sanity checks."""
+        if _depth > self._MAX_RESOLVE_DEPTH:
+            logger.warning(f"Parameter resolution exceeded max depth ({self._MAX_RESOLVE_DEPTH}), returning as-is")
+            return params
+
+        import re
+        resolved = {}
+
+        for key, value in params.items():
+            if isinstance(value, str):
+                value = self._substitute_templates(key, value, re)
+                value = self._resolve_bare_keys(key, value)
+                value = self._resolve_placeholder_strings(key, value, re)
+                value = self._sanitize_command_param(key, value, step)
+                value = self._sanitize_path_param(key, value, step)
+                value = self._sanitize_content_param(key, value)
+                resolved[key] = value
+            elif isinstance(value, dict):
+                resolved[key] = self.resolve(value, step, _depth + 1)
+            elif isinstance(value, list):
+                resolved[key] = [
+                    self.resolve(item, step, _depth + 1) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                resolved[key] = value
+
+        return resolved
+
+    def _substitute_templates(self, param_name: str, value: str, re_mod) -> str:
+        """Replace ${ref} and {ref} template variables."""
+        def replacer(match, _param_name=param_name):
+            ref_path = match.group(1)
+            raw = self.resolve_path(ref_path)
+            if raw.startswith('{'):
+                extracted = self._smart_extract(raw, _param_name)
+                if extracted is not None:
+                    return extracted.replace('\\', '\\\\')
+            return raw.replace('\\', '\\\\')
+
+        value = re_mod.sub(r'\$\{([^}]+)\}', replacer, value)
+        value = re_mod.sub(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', replacer, value)
+
+        # Aggregate unresolved research references
+        if '${research_' in value or '{research_' in value:
+            aggregated = self._aggregate_research_outputs()
+            if aggregated:
+                value = re_mod.sub(r'\$\{research_\d+\.results\}', aggregated, value)
+
+        return value
+
+    def _smart_extract(self, json_str: str, param_name: str) -> Optional[str]:
+        """Extract the right field from a JSON dict based on param context."""
+        try:
+            import json
+            obj = json.loads(json_str)
+            if not isinstance(obj, dict):
+                return None
+
+            # Direct match: param name exists as key
+            if param_name in obj:
+                return str(obj[param_name])
+
+            # Content-like params: prefer rich text fields
+            if param_name in ('content', 'text', 'body'):
+                for fk in self._CONTENT_FIELDS:
+                    if fk in obj:
+                        val = str(obj[fk])
+                        if len(val) > 50 and not val.strip().startswith('{"success"'):
+                            return val
+
+            # Common field mappings
+            for fk in ('path', 'output', 'content', 'stdout', 'result', 'response'):
+                if param_name.lower() in (fk, f'file_{fk}', f'{fk}_path') and fk in obj:
+                    return str(obj[fk])
+
+            # Path param: scan all outputs for most recent path
+            if param_name == 'path':
+                for k in reversed(list(self._outputs.keys())):
+                    sd = self._outputs[k]
+                    if isinstance(sd, dict) and 'path' in sd:
+                        return str(sd['path'])
+
+        except (ValueError, KeyError):
+            pass
+        return None
+
+    def _resolve_bare_keys(self, key: str, value: str) -> str:
+        """Handle bare output keys (e.g. "step_2" without ${} wrapping)."""
+        if value not in self._outputs or not isinstance(self._outputs[value], dict):
+            return value
+
+        step_data = self._outputs[value]
+
+        if key in step_data:
+            logger.info(f"Resolved bare output key '{key}={value}' → {str(step_data[key])[:100]}")
+            return str(step_data[key])
+
+        if key == 'path' and 'path' in step_data:
+            logger.info(f"Resolved bare output key 'path={value}' → {step_data['path']}")
+            return str(step_data['path'])
+
+        if key in ('content', 'text'):
+            for fk in self._CONTENT_FIELDS:
+                if fk in step_data:
+                    val = str(step_data[fk])[:50000]
+                    logger.info(f"Resolved bare output key '{key}={value}' → {fk} ({len(val)} chars)")
+                    return val
+
+        if key == 'path':
+            for k in reversed(list(self._outputs.keys())):
+                sd = self._outputs[k]
+                if isinstance(sd, dict) and 'path' in sd:
+                    path_val = str(sd['path'])
+                    logger.info(f"Resolved bare output key 'path={value}' → path from '{k}': {path_val[:100]}")
+                    return path_val
+
+        # Serialize whole dict as fallback
+        import json
+        serialized = json.dumps(step_data, default=str)[:8000]
+        logger.info(f"Resolved bare output key '{key}={value}' → full dict ({len(serialized)} chars)")
+        return serialized
+
+    def _resolve_placeholder_strings(self, key: str, value: str, re_mod) -> str:
+        """Replace uppercase placeholder patterns like {CONTENT_FROM_STEP_1}."""
+        if not re_mod.search(r'\{[A-Z_]+\}', value) or not self._outputs:
+            return value
+
+        last_output = list(self._outputs.values())[-1]
+        if isinstance(last_output, dict):
+            import json
+            replacement = json.dumps(last_output, default=str)[:8000]
+        else:
+            replacement = str(last_output)[:8000]
+        replacement = replacement.replace('\\', '\\\\')
+        value = re_mod.sub(r'\{[A-Z_]+\}', replacement, value)
+        logger.info(f"Resolved unrecognised placeholder in param '{key}' with last step output")
+        return value
+
+    def _sanitize_command_param(self, key: str, value: str, step: Any) -> str:
+        """Detect 'command' params that are LLM output instead of shell commands."""
+        if key != 'command' or len(value) <= 150:
+            return value
+
+        stripped = value.strip()
+        if stripped.startswith('{') and stripped.endswith('}'):
+            try:
+                import json
+                obj = json.loads(stripped)
+                if isinstance(obj, dict) and 'text' in obj:
+                    for k in reversed(list(self._outputs.keys())):
+                        sd = self._outputs[k]
+                        if isinstance(sd, dict) and 'path' in sd and sd['path'].endswith('.py'):
+                            value = f'python {sd["path"]}'
+                            logger.info(f"Auto-fixed 'command' from LLM output → '{value}'")
+                            return value
+            except (ValueError, KeyError):
+                pass
+        elif value.count(' ') > 15:
+            for k in reversed(list(self._outputs.keys())):
+                sd = self._outputs[k]
+                if isinstance(sd, dict) and 'path' in sd and sd['path'].endswith('.py'):
+                    value = f'python {sd["path"]}'
+                    logger.info(f"Auto-fixed 'command' from task description → '{value}'")
+                    return value
+        return value
+
+    def _sanitize_path_param(self, key: str, value: str, step: Any) -> str:
+        """Detect 'path' params that are content instead of filenames."""
+        if key != 'path' or len(value) <= 200:
+            return value
+
+        import re
+        found = None
+
+        # Extract filename from the content itself
+        m = re.search(
+            r'(?:saved?|wrot?e?|created?|output)\s+(?:to|as|in)\s+["\']?'
+            r'([a-zA-Z0-9_.-]+\.\w{1,5})', value, re.IGNORECASE,
+        )
+        if m:
+            found = m.group(1)
+
+        # Extract from step description
+        if not found and step and getattr(step, 'description', None):
+            m2 = re.search(
+                r'(?:read|verify|check|open)\s+(?:the\s+)?["\']?'
+                r'([a-zA-Z0-9_.-]+\.\w{1,5})', step.description, re.IGNORECASE,
+            )
+            if m2:
+                found = m2.group(1)
+
+        # Fallback: most recent file path from outputs
+        if not found:
+            for k in reversed(list(self._outputs.keys())):
+                sd = self._outputs[k]
+                if isinstance(sd, dict) and 'path' in sd:
+                    p = str(sd['path'])
+                    if len(p) < 200 and '.' in p:
+                        found = p
+                        break
+
+        if found:
+            logger.info(f"Auto-fixed 'path' from content → '{found}'")
+            return found
+        return value
+
+    def _sanitize_content_param(self, key: str, value: str) -> str:
+        """Detect 'content' params that resolved to wrong values."""
+        if key != 'content':
+            return value
+
+        vs = value.strip()
+        if not self._is_bad_content(vs):
+            return value
+
+        replacement = self._find_best_content()
+        if replacement:
+            logger.info(f"Auto-fixed 'content' from bad/short value → real content ({len(replacement)} chars)")
+            return replacement
+        return value
+
+    def _is_bad_content(self, s: str) -> bool:
+        """Check if a string looks like bad/wrong content for a file write."""
+        if len(s) < 80:
+            return True
+        if s.startswith('{"success"') and '"bytes_written"' in s and len(s) < 300:
+            return True
+        lower = s.lower()[:80]
+        if len(s) < 300 and any(lower.startswith(p) or lower.strip().startswith(p) for p in self._INSTRUCTION_PREFIXES):
+            return True
+        return False
+
+    def _find_best_content(self) -> Optional[str]:
+        """Find the best real content from previous outputs."""
+        best, best_len = None, 0
+        for k in reversed(list(self._outputs.keys())):
+            sd = self._outputs[k]
+            if isinstance(sd, dict):
+                for cf in self._CONTENT_FIELDS:
+                    if cf in sd:
+                        c = str(sd[cf])
+                        if len(c) > best_len and not c.startswith('{"success"') and not self._is_bad_content(c):
+                            best, best_len = c, len(c)
+            elif isinstance(sd, str) and len(sd) > best_len and not self._is_bad_content(sd):
+                best, best_len = sd, len(sd)
+        return best if best and best_len > 100 else None
+
+    def resolve_path(self, path: str) -> str:
+        """Resolve a dotted path like 'step_key.field' from outputs."""
+        parts = path.split('.')
+        value = self._outputs
+
+        for part in parts:
+            if value is None:
+                break
+            if '[' in part:
+                arr_key = part.split('[')[0]
+                try:
+                    idx = int(part.split('[')[1].split(']')[0])
+                    if isinstance(value, dict):
+                        value = value.get(arr_key, [])
+                    if isinstance(value, list) and idx < len(value):
+                        value = value[idx]
+                    else:
+                        value = None
+                        break
+                except (ValueError, IndexError):
+                    value = None
+                    break
+            else:
+                if isinstance(value, dict):
+                    value = value.get(part)
+                else:
+                    value = None
+                    break
+
+        if value is None:
+            return self._resolve_missing_path(path)
+
+        if isinstance(value, (dict, list)):
+            import json
+            return json.dumps(value, default=str)
+        return str(value)
+
+    def _resolve_missing_path(self, path: str) -> str:
+        """Fallback resolution for missing output keys (common after replans)."""
+        import re
+        step_match = re.match(r'^step_(\d+)(?:\.(.+))?$', path)
+        if not step_match or not self._outputs:
+            return path
+
+        field = step_match.group(2)
+        for k in reversed(list(self._outputs.keys())):
+            v = self._outputs[k]
+            if not isinstance(v, dict):
+                continue
+            if field and field in v:
+                cand = str(v[field])
+                if len(cand) > 50 or field == 'path':
+                    logger.info(f"Resolved missing '{path}' → '{k}'.{field}")
+                    return cand
+            for cf in self._CONTENT_FIELDS:
+                if cf in v:
+                    cand = str(v[cf])
+                    if len(cand) > 100 and not cand.strip().startswith('{"success"'):
+                        logger.info(f"Resolved missing '{path}' → '{k}'.{cf} ({len(cand)} chars)")
+                        return cand
+
+        # Last resort: raw last output
+        last_key = list(self._outputs.keys())[-1]
+        last_val = self._outputs[last_key]
+        if isinstance(last_val, dict):
+            for cf in self._CONTENT_FIELDS + ('path',):
+                if cf in last_val:
+                    logger.info(f"Resolved missing '{path}' → last '{last_key}'.{cf}")
+                    return str(last_val[cf])
+            import json
+            logger.info(f"Resolved missing '{path}' → last output '{last_key}' (full)")
+            return json.dumps(last_val, default=str)
+        return str(last_val)
+
+    def _aggregate_research_outputs(self) -> str:
+        """Aggregate all research_* outputs into a formatted string."""
+        parts = []
+        for key in sorted(self._outputs.keys()):
+            if key.startswith('research_') and isinstance(self._outputs[key], dict):
+                result = self._outputs[key]
+                query = result.get('query', key)
+                results_list = result.get('results', [])
+                if results_list:
+                    part = f"\n## Research: {query}\n"
+                    for i, r in enumerate(results_list[:5], 1):
+                        title = r.get('title', 'Untitled') if isinstance(r, dict) else str(r)
+                        snippet = r.get('snippet', '') if isinstance(r, dict) else ''
+                        url = r.get('url', '') if isinstance(r, dict) else ''
+                        part += f"\n### {i}. {title}\n{snippet}\n"
+                        if url:
+                            part += f"Source: {url}\n"
+                    parts.append(part)
+        return '\n'.join(parts) if parts else ''
 
 
 class SkillPlanExecutor:
@@ -357,12 +730,7 @@ class SkillPlanExecutor:
         Returns:
             Step result dict with 'success' key
         """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
+        _status = StatusReporter(status_callback)
 
         if self._skills_registry is None:
             return {'success': False, 'error': 'Skills registry not available'}
@@ -409,7 +777,7 @@ class SkillPlanExecutor:
                 'error': f'Tool not found: {step.tool_name}',
             }
 
-        resolved_params = self.resolve_params(step.params, outputs)
+        resolved_params = self.resolve_params(step.params, outputs, step=step)
 
         # Guard: detect duplicate file writes — if we're writing to the same
         # path as a previous step, try to infer the correct filename from the
@@ -507,351 +875,21 @@ class SkillPlanExecutor:
             return {'success': False, 'error': str(e)}
 
     # =========================================================================
-    # PARAMETER RESOLUTION
+    # PARAMETER RESOLUTION (delegates to ParameterResolver)
     # =========================================================================
 
     def resolve_params(
         self,
         params: Dict[str, Any],
         outputs: Dict[str, Any],
+        step: Any = None,
     ) -> Dict[str, Any]:
-        """
-        Resolve template variables in parameters.
-
-        Supports ${step_key.field}, {step_key.field}, {{step_key}} formats.
-        Also handles aggregation of multiple research outputs.
-
-        Args:
-            params: Parameters with potential template variables
-            outputs: Previous outputs to resolve from
-
-        Returns:
-            Resolved parameters
-        """
-        import re
-
-        resolved = {}
-
-        for key, value in params.items():
-            if isinstance(value, str):
-                pattern = r'\$\{([^}]+)\}'
-
-                def replacer(match, _param_name=key):
-                    ref_path = match.group(1)
-                    raw_resolved = self.resolve_path(ref_path, outputs)
-
-                    # Smart extraction: if the resolved value is a JSON dict
-                    # and the target param hints at what field to extract, do so.
-                    # e.g. params["path"] = "${step_2}" -> extract step_2["path"]
-                    if raw_resolved.startswith('{'):
-                        try:
-                            import json as _json
-                            obj = _json.loads(raw_resolved)
-                            if isinstance(obj, dict):
-                                # If param name matches a key in the resolved dict, extract it
-                                if _param_name in obj:
-                                    return str(obj[_param_name]).replace('\\', '\\\\')
-                                # Common extractions: path, content, output, stdout
-                                for extract_key in ('path', 'output', 'content', 'stdout', 'result'):
-                                    if _param_name.lower() in (extract_key, f'file_{extract_key}', f'{extract_key}_path'):
-                                        if extract_key in obj:
-                                            return str(obj[extract_key]).replace('\\', '\\\\')
-                                # If param is 'path' but dict doesn't have it, scan all outputs
-                                if _param_name == 'path':
-                                    for _k in reversed(list(outputs.keys())):
-                                        _sd = outputs[_k]
-                                        if isinstance(_sd, dict) and 'path' in _sd:
-                                            return str(_sd['path']).replace('\\', '\\\\')
-                        except (ValueError, KeyError):
-                            pass
-
-                    # Escape backslashes so re.sub doesn't interpret \u etc.
-                    return raw_resolved.replace('\\', '\\\\')
-
-                value = re.sub(pattern, replacer, value)
-
-                pattern2 = r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}'
-                value = re.sub(pattern2, replacer, value)
-
-                # Post-resolution check: if value still contains unresolved
-                # research references, try to aggregate all research outputs
-                if '${research_' in value or '{research_' in value:
-                    aggregated = self._aggregate_research_outputs(outputs)
-                    if aggregated:
-                        value = re.sub(
-                            r'\$\{research_\d+\.results\}',
-                            aggregated,
-                            value,
-                        )
-
-                # Fallback: if the entire value is a bare output key (no ${} wrapping),
-                # resolve it directly. LLMs often write params like {"path": "step_2"}
-                # instead of {"path": "${step_2}"}.
-                if value in outputs and isinstance(outputs[value], dict):
-                    step_data = outputs[value]
-                    # Smart field extraction based on param name
-                    if key in step_data:
-                        value = str(step_data[key])
-                        logger.info(f"Resolved bare output key '{key}={params[key]}' → {value[:100]}")
-                    elif key == 'path' and 'path' in step_data:
-                        value = str(step_data['path'])
-                        logger.info(f"Resolved bare output key '{key}={params[key]}' → {value[:100]}")
-                    elif key in ('content', 'text') and 'output' in step_data:
-                        value = str(step_data['output'])[:10000]
-                        logger.info(f"Resolved bare output key '{key}={params[key]}' → content ({len(value)} chars)")
-                    elif key == 'path':
-                        # The referenced step doesn't have a path — scan ALL outputs
-                        # for the most recent step with a path field (common for
-                        # verify steps that reference the wrong step index).
-                        for _k in reversed(list(outputs.keys())):
-                            _sd = outputs[_k]
-                            if isinstance(_sd, dict) and 'path' in _sd:
-                                value = str(_sd['path'])
-                                logger.info(f"Resolved bare output key '{key}={params[key]}' → path from '{_k}': {value[:100]}")
-                                break
-                    else:
-                        # Serialize the whole dict as fallback
-                        import json as _json
-                        value = _json.dumps(step_data, default=str)[:8000]
-                        logger.info(f"Resolved bare output key '{key}={params[key]}' → full dict ({len(value)} chars)")
-
-                # Fallback: detect unresolved placeholder-like strings
-                # (e.g. "{CONTENT_FROM_STEP_1}", "{PREVIOUS_OUTPUT}") and
-                # replace with the most recent output if available.
-                unresolved_pattern = r'\{[A-Z_]+\}'
-                if re.search(unresolved_pattern, value) and outputs:
-                    last_output = list(outputs.values())[-1]
-                    if isinstance(last_output, dict):
-                        import json as _json
-                        replacement = _json.dumps(last_output, default=str)[:8000]
-                    else:
-                        replacement = str(last_output)[:8000]
-                    # Escape backslashes so re.sub doesn't interpret \u etc.
-                    replacement = replacement.replace('\\', '\\\\')
-                    value = re.sub(unresolved_pattern, replacement, value)
-                    logger.info(f"Resolved unrecognised placeholder in param '{key}' with last step output")
-
-                # -------------------------------------------------------
-                # Post-resolution sanity: detect resolved 'command' params
-                # that are LLM output or task descriptions (not shell cmds).
-                # Auto-fix by looking for a recently written script file.
-                # -------------------------------------------------------
-                if key == 'command' and len(value) > 150:
-                    # If it looks like JSON (LLM returned a dict), extract a
-                    # useful field like 'text' or 'output'.
-                    _val_stripped = value.strip()
-                    if _val_stripped.startswith('{') and _val_stripped.endswith('}'):
-                        try:
-                            import json as _json
-                            _obj = _json.loads(_val_stripped)
-                            if isinstance(_obj, dict) and 'text' in _obj:
-                                # Extract the text — but it's code, not a command.
-                                # Find a script file that was written
-                                for _k in reversed(list(outputs.keys())):
-                                    _sd = outputs[_k]
-                                    if isinstance(_sd, dict) and 'path' in _sd:
-                                        _path = _sd['path']
-                                        if _path.endswith('.py'):
-                                            value = f'python {_path}'
-                                            logger.info(f"Auto-fixed 'command' from LLM output → '{value}'")
-                                            break
-                        except (ValueError, KeyError):
-                            pass
-                    # If value looks like natural language (lots of spaces), find script
-                    elif value.count(' ') > 15:
-                        for _k in reversed(list(outputs.keys())):
-                            _sd = outputs[_k]
-                            if isinstance(_sd, dict) and 'path' in _sd:
-                                _path = _sd['path']
-                                if _path.endswith('.py'):
-                                    value = f'python {_path}'
-                                    logger.info(f"Auto-fixed 'command' from task description → '{value}'")
-                                    break
-
-                # -------------------------------------------------------
-                # Post-resolution sanity: detect resolved 'path' params
-                # that are content (stdout, LLM text) instead of filenames.
-                # "File name too long" errors happen when resolve_path
-                # returns stdout as the path string.
-                # -------------------------------------------------------
-                if key == 'path' and len(value) > 200:
-                    _found_path = None
-                    # Strategy 1: extract a filename from the content itself
-                    # (e.g., stdout says "Results saved to report.json")
-                    import re as _re2
-                    _file_in_content = _re2.search(
-                        r'(?:saved?|wrot?e?|created?|output)\s+(?:to|as|in)\s+["\']?'
-                        r'([a-zA-Z0-9_.-]+\.\w{1,5})',
-                        value, _re2.IGNORECASE
-                    )
-                    if _file_in_content:
-                        _found_path = _file_in_content.group(1)
-                    # Strategy 2: extract filename from step description
-                    if not _found_path and step.description:
-                        _desc_file = _re2.search(
-                            r'(?:read|verify|check|open)\s+(?:the\s+)?["\']?'
-                            r'([a-zA-Z0-9_.-]+\.\w{1,5})',
-                            step.description, _re2.IGNORECASE
-                        )
-                        if _desc_file:
-                            _found_path = _desc_file.group(1)
-                    # Strategy 3: fallback to most recent file from outputs
-                    if not _found_path:
-                        for _k in reversed(list(outputs.keys())):
-                            _sd = outputs[_k]
-                            if isinstance(_sd, dict) and 'path' in _sd:
-                                _p = str(_sd['path'])
-                                if len(_p) < 200 and '.' in _p:
-                                    _found_path = _p
-                                    break
-                    if _found_path:
-                        logger.info(f"Auto-fixed 'path' from content → '{_found_path}'")
-                        value = _found_path
-
-                # -------------------------------------------------------
-                # Post-resolution sanity: detect 'content' params that
-                # resolved to a tool result JSON (e.g. '{"success": true,
-                # "path": "...", "bytes_written": ...}') instead of actual
-                # file content. Replace with the best real content from
-                # previous outputs.
-                # -------------------------------------------------------
-                if key == 'content':
-                    _vs = value.strip()
-                    if (_vs.startswith('{"success"') and '"bytes_written"' in _vs
-                            and len(_vs) < 300):
-                        # This is a write_file_tool result, not real content.
-                        # Find the longest real content from any prior output.
-                        _best_content = None
-                        _best_len = 0
-                        for _k2 in outputs:
-                            _sd2 = outputs[_k2]
-                            if isinstance(_sd2, dict):
-                                for _cf2 in ('text', 'content', 'output', 'stdout', 'result'):
-                                    if _cf2 in _sd2:
-                                        _c2 = str(_sd2[_cf2])
-                                        if len(_c2) > _best_len and not _c2.startswith('{"success"'):
-                                            _best_content = _c2
-                                            _best_len = len(_c2)
-                            elif isinstance(_sd2, str) and len(_sd2) > _best_len:
-                                _best_content = _sd2
-                                _best_len = len(_sd2)
-                        if _best_content and _best_len > 100:
-                            logger.info(f"Auto-fixed 'content' from tool-result JSON → real content ({_best_len} chars)")
-                            value = _best_content
-
-                resolved[key] = value
-
-            elif isinstance(value, dict):
-                resolved[key] = self.resolve_params(value, outputs)
-            elif isinstance(value, list):
-                resolved[key] = [
-                    self.resolve_params(item, outputs)
-                    if isinstance(item, dict) else item
-                    for item in value
-                ]
-            else:
-                resolved[key] = value
-
-        return resolved
-
-    def _aggregate_research_outputs(self, outputs: Dict[str, Any]) -> str:
-        """
-        Aggregate all research_* outputs into a formatted string for synthesis.
-        
-        Used when multiple research steps feed into a synthesis/summary step.
-        """
-        research_parts = []
-        for key in sorted(outputs.keys()):
-            if key.startswith('research_') and isinstance(outputs[key], dict):
-                result = outputs[key]
-                query = result.get('query', key)
-                results_list = result.get('results', [])
-                
-                if results_list:
-                    part = f"\n## Research: {query}\n"
-                    for i, r in enumerate(results_list[:5], 1):
-                        title = r.get('title', 'Untitled') if isinstance(r, dict) else str(r)
-                        snippet = r.get('snippet', '') if isinstance(r, dict) else ''
-                        url = r.get('url', '') if isinstance(r, dict) else ''
-                        part += f"\n### {i}. {title}\n{snippet}\n"
-                        if url:
-                            part += f"Source: {url}\n"
-                    research_parts.append(part)
-        
-        return '\n'.join(research_parts) if research_parts else ''
+        """Resolve template variables in parameters. Delegates to ParameterResolver."""
+        return ParameterResolver(outputs).resolve(params, step)
 
     def resolve_path(self, path: str, outputs: Dict[str, Any]) -> str:
-        """
-        Resolve a dotted path like 'step_key.field' from outputs.
-
-        Args:
-            path: Dotted path string (e.g. 'step_0.output.data')
-            outputs: Dictionary of previous step outputs
-
-        Returns:
-            Resolved string value, or original path if unresolvable
-        """
-        parts = path.split('.')
-        value = outputs
-
-        for part in parts:
-            if value is None:
-                break  # Fall through to fallback below
-
-            if '[' in part:
-                key = part.split('[')[0]
-                try:
-                    idx = int(part.split('[')[1].split(']')[0])
-                    if isinstance(value, dict):
-                        value = value.get(key, [])
-                    if isinstance(value, list) and idx < len(value):
-                        value = value[idx]
-                    else:
-                        value = None
-                        break
-                except (ValueError, IndexError):
-                    value = None
-                    break
-            else:
-                if isinstance(value, dict):
-                    value = value.get(part)
-                else:
-                    value = None
-                    break
-
-        if value is None:
-            # Fallback: the referenced key doesn't exist (common after replans
-            # where step indices shift). Try to find a useful output:
-            # 1. If path looks like "step_N", find the most recent output
-            # 2. If path has a field like "step_N.text", extract that field
-            import re as _re
-            _step_match = _re.match(r'^step_(\d+)(?:\.(.+))?$', path)
-            if _step_match and outputs:
-                _field = _step_match.group(2)  # e.g. "text", "path", None
-                # Get the most recent output (last key)
-                _last_key = list(outputs.keys())[-1]
-                _last_val = outputs[_last_key]
-                if _field and isinstance(_last_val, dict) and _field in _last_val:
-                    logger.info(f"Resolved missing '{path}' → last output '{_last_key}'.{_field}")
-                    return str(_last_val[_field])
-                elif isinstance(_last_val, dict):
-                    # Try common content fields
-                    for _cf in ('text', 'content', 'output', 'stdout', 'result'):
-                        if _cf in _last_val:
-                            logger.info(f"Resolved missing '{path}' → last output '{_last_key}'.{_cf}")
-                            return str(_last_val[_cf])
-                logger.info(f"Resolved missing '{path}' → last output '{_last_key}' (full)")
-                import json as _json
-                if isinstance(_last_val, (dict, list)):
-                    return _json.dumps(_last_val, default=str)
-                return str(_last_val)
-            return path
-
-        if isinstance(value, (dict, list)):
-            import json
-            return json.dumps(value, default=str)
-
-        return str(value)
+        """Resolve a dotted path like 'step_key.field' from outputs."""
+        return ParameterResolver(outputs).resolve_path(path)
 
     # =========================================================================
     # TASK TYPE INFERENCE
@@ -931,13 +969,7 @@ class SkillPlanExecutor:
         """
         start_time = time.time()
 
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"{stage}: {detail}" if detail else stage)
+        _status = StatusReporter(status_callback, logger)
 
         self._excluded_skills.clear()
 
@@ -1074,5 +1106,6 @@ class SkillPlanExecutor:
 
 
 __all__ = [
+    'ParameterResolver',
     'SkillPlanExecutor',
 ]

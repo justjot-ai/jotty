@@ -16,6 +16,7 @@ from dspy import BaseLM
 from typing import Dict, Any, Optional, List
 
 from Jotty.core.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+from Jotty.core.foundation.exceptions import InputValidationError
 
 
 class CursorCLILM(BaseLM):
@@ -109,12 +110,12 @@ class CursorCLILM(BaseLM):
                 messages = [{"role": "user", "content": prompt}]
 
         if not messages:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
         system_prompt, user_prompt = self._extract_messages(messages)
 
         if not user_prompt:
-            raise ValueError("No user message found in messages")
+            raise InputValidationError("No user message found in messages")
 
         cmd = [
             "cursor-agent",

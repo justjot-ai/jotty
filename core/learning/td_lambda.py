@@ -12,8 +12,6 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import defaultdict
-
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
@@ -62,19 +60,19 @@ class GroupedValueBaseline:
         self.config = config
         self.ema_alpha = ema_alpha
 
-        # Group baselines by task_type
-        self.group_baselines: Dict[str, float] = defaultdict(lambda: 0.5)  # Default 0.5
+        # Group baselines by task_type (regular dict — no phantom entries on read)
+        self.group_baselines: Dict[str, float] = {}
 
         # Group statistics for variance tracking
-        self.group_samples: Dict[str, List[float]] = defaultdict(list)
-        self.group_counts: Dict[str, int] = defaultdict(int)
+        self.group_samples: Dict[str, List[float]] = {}
+        self.group_counts: Dict[str, int] = {}
         self.max_samples_per_group = 100
 
         # Domain-level baselines (higher abstraction)
-        self.domain_baselines: Dict[str, float] = defaultdict(lambda: 0.5)
+        self.domain_baselines: Dict[str, float] = {}
 
         # Cross-group transfer weights
-        self.transfer_matrix: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self.transfer_matrix: Dict[str, Dict[str, float]] = {}
 
         logger.info("GroupedValueBaseline initialized (HRPO-inspired)")
 
@@ -95,12 +93,12 @@ class GroupedValueBaseline:
             Baseline value for TD error computation
         """
         # If we have enough samples for this task type, use its baseline
-        if self.group_counts[task_type] >= 3:
-            return self.group_baselines[task_type]
+        if self.group_counts.get(task_type, 0) >= 3:
+            return self.group_baselines.get(task_type, 0.5)
 
         # Fall back to domain baseline if available
         if domain and self.group_counts.get(f"domain:{domain}", 0) >= 3:
-            return self.domain_baselines[domain]
+            return self.domain_baselines.get(domain, 0.5)
 
         # Check for similar task types via transfer
         similar_baseline = self._get_transferred_baseline(task_type)
@@ -123,25 +121,28 @@ class GroupedValueBaseline:
             domain: Optional domain for hierarchical update
         """
         # Update task-type baseline (EMA)
-        old_baseline = self.group_baselines[task_type]
+        old_baseline = self.group_baselines.get(task_type, 0.5)
         self.group_baselines[task_type] = (
             (1 - self.ema_alpha) * old_baseline + self.ema_alpha * reward
         )
 
         # Track samples for variance estimation
+        if task_type not in self.group_samples:
+            self.group_samples[task_type] = []
         self.group_samples[task_type].append(reward)
         if len(self.group_samples[task_type]) > self.max_samples_per_group:
             self.group_samples[task_type] = self.group_samples[task_type][-self.max_samples_per_group:]
 
-        self.group_counts[task_type] += 1
+        self.group_counts[task_type] = self.group_counts.get(task_type, 0) + 1
 
         # Update domain baseline if provided
         if domain:
-            old_domain = self.domain_baselines[domain]
+            old_domain = self.domain_baselines.get(domain, 0.5)
             self.domain_baselines[domain] = (
                 (1 - self.ema_alpha * 0.5) * old_domain + (self.ema_alpha * 0.5) * reward
             )
-            self.group_counts[f"domain:{domain}"] += 1
+            domain_key = f"domain:{domain}"
+            self.group_counts[domain_key] = self.group_counts.get(domain_key, 0) + 1
 
         # Update transfer weights between similar task types
         self._update_transfer_weights(task_type, reward)
@@ -176,7 +177,7 @@ class GroupedValueBaseline:
         if task_type not in self.transfer_matrix:
             return None
 
-        transfer_weights = self.transfer_matrix[task_type]
+        transfer_weights = self.transfer_matrix.get(task_type)
         if not transfer_weights:
             return None
 
@@ -185,8 +186,8 @@ class GroupedValueBaseline:
         weighted_sum = 0.0
 
         for similar_type, weight in transfer_weights.items():
-            if self.group_counts[similar_type] >= 3 and weight > 0.1:
-                weighted_sum += weight * self.group_baselines[similar_type]
+            if self.group_counts.get(similar_type, 0) >= 3 and weight > 0.1:
+                weighted_sum += weight * self.group_baselines.get(similar_type, 0.5)
                 total_weight += weight
 
         if total_weight > 0.3:  # Require meaningful transfer
@@ -213,7 +214,9 @@ class GroupedValueBaseline:
             similarity = 1.0 - min(1.0, abs(other_mean - current_mean))
 
             # Update transfer weight (EMA)
-            old_weight = self.transfer_matrix[task_type][other_type]
+            if task_type not in self.transfer_matrix:
+                self.transfer_matrix[task_type] = {}
+            old_weight = self.transfer_matrix[task_type].get(other_type, 0.0)
             self.transfer_matrix[task_type][other_type] = (
                 0.9 * old_weight + 0.1 * similarity
             )
@@ -254,9 +257,9 @@ class GroupedValueBaseline:
     def from_dict(cls, data: Dict, config=None) -> 'GroupedValueBaseline':
         """Deserialize from persistence."""
         instance = cls(config, ema_alpha=data.get('ema_alpha', 0.1))
-        instance.group_baselines = defaultdict(lambda: 0.5, data.get('group_baselines', {}))
-        instance.group_counts = defaultdict(int, data.get('group_counts', {}))
-        instance.domain_baselines = defaultdict(lambda: 0.5, data.get('domain_baselines', {}))
+        instance.group_baselines = dict(data.get('group_baselines', {}))
+        instance.group_counts = dict(data.get('group_counts', {}))
+        instance.domain_baselines = dict(data.get('domain_baselines', {}))
         return instance
 
 
@@ -348,7 +351,7 @@ class TDLambdaLearner:
         # Get adapted learning rate
         alpha = self.adaptive_lr.get_adapted_alpha() if self.adaptive_lr else self.alpha
 
-        # Get current value estimate for this state-goal pair
+        # Get current value estimate for this state-goal pair (uses .get — no phantom entries)
         old_value = self.grouped_baseline.group_baselines.get(state_key, 0.5)
 
         # TD(0) update: V(s) ← V(s) + α(R - V(s))
@@ -365,7 +368,7 @@ class TDLambdaLearner:
         new_value = old_value + alpha * td_error
         new_value = max(0.0, min(1.0, new_value))
 
-        # Update the state-level baseline
+        # Update the state-level baseline (explicit write — no defaultdict auto-create)
         self.grouped_baseline.group_baselines[state_key] = new_value
         self.grouped_baseline.group_counts[state_key] = (
             self.grouped_baseline.group_counts.get(state_key, 0) + 1

@@ -52,6 +52,7 @@ except ImportError:
 from .base import (
     SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig, ModelTier
 )
+from Jotty.core.utils.context_utils import strip_enrichment_context
 
 
 # =============================================================================
@@ -308,30 +309,8 @@ Use clear headings, bullet points, and professional formatting.""",
         return task is not None and len(str(task).strip()) > 0
 
     def clean_task_for_execution(self, task: str) -> str:
-        """
-        Clean task string for execution.
-
-        Removes any polluting context like Q-learning lessons,
-        transfer learning suggestions, etc.
-        """
-        # Markers that indicate enrichment context (to be stripped)
-        context_markers = [
-            '\n[Multi-Perspective Analysis',
-            '\nLearned Insights:',
-            '\n# Transferable Learnings',
-            '\n# Q-Learning Lessons',
-            '\n## Task Type Pattern',
-            '\n## Role Advice',
-            '\n## Meta-Learning Advice',
-            '\n\n---\n',  # Common separator before context
-        ]
-
-        cleaned = task
-        for marker in context_markers:
-            if marker in cleaned:
-                cleaned = cleaned.split(marker)[0]
-
-        return cleaned.strip()
+        """Clean task string by stripping injected enrichment context."""
+        return strip_enrichment_context(task)
 
     def get_search_query(self, task: str) -> str:
         """

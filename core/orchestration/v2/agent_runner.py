@@ -18,6 +18,7 @@ from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.utils.async_utils import StatusReporter
 from Jotty.core.foundation.exceptions import (
     AgentExecutionError,
     ToolExecutionError,
@@ -809,14 +810,7 @@ class AgentRunner:
         validation_mode_override = kwargs.pop('validation_mode', None)
         status_callback = kwargs.pop('status_callback', None)
 
-        def _status(stage: str, detail: str = ""):
-            """Report progress if callback provided."""
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"  📍 {stage}" + (f": {detail}" if detail else ""))
+        _status = StatusReporter(status_callback, logger, emoji="  📍")
 
         # ── Intelligent Validation Gate ───────────────────────────────
         # Instead of a boolean skip_validation, use a cheap Haiku call

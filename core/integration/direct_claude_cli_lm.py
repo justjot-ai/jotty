@@ -19,6 +19,7 @@ import random
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import dspy
+from Jotty.core.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -145,11 +146,11 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         if result.returncode != 0:
             error_msg = result.stderr or result.stdout or "Unknown error"
-            raise RuntimeError(f"Claude CLI failed: {error_msg[:300]}")
+            raise LLMError(f"Claude CLI failed: {error_msg[:300]}")
 
         response = result.stdout.strip()
         if not response:
-            raise RuntimeError("Empty response from Claude CLI")
+            raise LLMError("Empty response from Claude CLI")
 
         return response
 
@@ -226,10 +227,10 @@ class DirectClaudeCLI(dspy.BaseLM):
                 last_error = f"Timeout after {timeout}s"
                 logger.warning(f"⏱️ Attempt {attempt + 1}/{self.max_retries + 1}: {last_error}")
 
-            except FileNotFoundError:
+            except FileNotFoundError as e:
                 logger.error("Claude CLI binary not found")
                 self.failed_calls += 1
-                raise RuntimeError("Claude CLI not installed")
+                raise LLMError("Claude CLI not installed", original_error=e)
 
             except RuntimeError as e:
                 last_error = str(e)
@@ -257,7 +258,7 @@ class DirectClaudeCLI(dspy.BaseLM):
         # All retries exhausted
         self.failed_calls += 1
         logger.error(f"❌ All {self.max_retries + 1} attempts failed. Last error: {last_error}")
-        raise RuntimeError(f"Claude CLI failed after {self.max_retries + 1} attempts: {last_error}")
+        raise LLMError(f"Claude CLI failed after {self.max_retries + 1} attempts: {last_error}")
 
     def inspect_history(self, n: int = 1) -> Dict[str, Any]:
         """

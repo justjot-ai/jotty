@@ -8,7 +8,8 @@ import traceback
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
 
-from .agentic_planner import _get_task_type
+from ._execution_types import TaskType
+from Jotty.core.utils.context_utils import strip_enrichment_context
 
 logger = logging.getLogger(__name__)
 
@@ -194,46 +195,10 @@ class PlanUtilsMixin:
         (Q-learning, transfer learning, etc.) gets passed to web search
         causing massive URLs and timeouts.
 
-        Args:
-            task: Task description (may contain enrichment context)
-
-        Returns:
-            Clean task description (original request only)
+        Uses the centralised ``strip_enrichment_context()`` utility so
+        all marker lists are maintained in one place.
         """
-        # Markers that indicate enrichment context (to be stripped)
-        context_markers = [
-            '\n[Learning Context',         # From autonomous_agent learning injection
-            '\n\n[Learning Context',        # With double newline prefix
-            '\n[Judge feedback',            # From agent_runner judge intervention
-            '\n\n[Judge feedback',          # With double newline prefix
-            '\n[Skill guidance',            # From autonomous_agent skill guidance
-            '\n\n[Skill guidance',          # With double newline prefix
-            '\n[Multi-Perspective Analysis',
-            '\n[Multi-Perspective',
-            '\nLearned Insights:',
-            '\n# Transferable Learnings',
-            '\n# Q-Learning Lessons',
-            '\n## Task Type Pattern',
-            '\n## Role Advice',
-            '\n## Meta-Learning Advice',
-            '\n\n---\n',  # Common separator before context
-            '\nBased on previous learnings:',
-            '\nRecommended approach:',
-            '\nPrevious success patterns:',
-            '\n[Analysis]:',
-            '\n[Consensus]:',
-            '\n[Tensions]:',
-            '\n[Blind Spots]:',
-            '\n[Learned]',                  # From SwarmManager intelligence hints
-        ]
-
-        cleaned = task
-        for marker in context_markers:
-            if marker in cleaned:
-                # Keep only the part before the marker
-                cleaned = cleaned.split(marker)[0]
-
-        return cleaned.strip()
+        return strip_enrichment_context(task)
 
     def _build_skill_params(self, skill_name: str, task: str, prev_output_key: Optional[str] = None, tool_name: str = None) -> Dict[str, Any]:
         """Build params for a skill by looking up its tool schema from registry."""
@@ -532,7 +497,7 @@ Filename: {filename}
         if not skills:
             return []
 
-        TaskType = _get_task_type()
+        # TaskType imported at module level from _execution_types
 
         # Priority order by task type
         priority_map = {
@@ -743,7 +708,7 @@ Filename: {filename}
             integrations = []
         
         # Get TaskType for type checking
-        TaskType = _get_task_type()
+        # TaskType imported at module level from _execution_types
         
         # Discover skills if not provided
         if available_skills is None:

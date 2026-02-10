@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
-# Reuse TaskType from AutoAgent (avoid duplication)
-from ..agents.auto_agent import TaskType
+# Shared types (no circular dependency)
+from ..agents._execution_types import TaskType
 from ..agents.agentic_planner import AgenticPlanner
 
 

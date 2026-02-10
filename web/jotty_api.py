@@ -124,13 +124,15 @@ class JottyAPI:
             logger.info(f"_execute_with_images: processing {len(images)} images")
             logger.info(f"  First image data starts with: {images[0][:60] if images else 'none'}...")
 
-            # Try Anthropic SDK directly (best for vision)
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            # Try Anthropic SDK directly (best for vision); respects ANTHROPIC_BASE_URL (CCR)
+            from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+            client_kwargs = get_anthropic_client_kwargs()
+            api_key = client_kwargs.get("api_key")
             logger.info(f"  ANTHROPIC_API_KEY present: {bool(api_key)}")
             if api_key:
                 try:
                     import anthropic
-                    client = anthropic.Anthropic(api_key=api_key)
+                    client = anthropic.Anthropic(**client_kwargs)
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",

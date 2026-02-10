@@ -36,8 +36,10 @@ from typing import List, Dict, Any, Optional, Union
 
 from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
+from Jotty.core.foundation.exceptions import AgentExecutionError
 
 from ._lazy import LazyComponent
+from Jotty.core.utils.async_utils import safe_status, StatusReporter
 
 # Composed managers (has-a, not is-a) — replaces mixin inheritance
 from .provider_manager import ProviderManager
@@ -346,7 +348,7 @@ class SwarmManager:
         # Prevents API rate-limit errors when N agents fire in parallel.
         # DRY: Single semaphore, no wrapper classes needed.
         self.max_concurrent_agents = max_concurrent_agents
-        self._agent_semaphore = asyncio.Semaphore(max_concurrent_agents)
+        self._agent_semaphore = None  # Lazy-created in current event loop
         self._scheduling_stats: Dict[str, int] = {
             'total_scheduled': 0,
             'total_waited': 0,    # times an agent had to wait for a slot
@@ -516,6 +518,13 @@ class SwarmManager:
         'swarm_learner', 'agent_slack', 'feedback_channel',
     })
 
+    @property
+    def agent_semaphore(self) -> asyncio.Semaphore:
+        """Lazy-create asyncio.Semaphore in the current event loop."""
+        if self._agent_semaphore is None:
+            self._agent_semaphore = asyncio.Semaphore(self.max_concurrent_agents)
+        return self._agent_semaphore
+
     def __getattr__(self, name: str):
         """
         Delegate attribute access to composed managers.
@@ -526,7 +535,14 @@ class SwarmManager:
         """
         # Learning pipeline sub-components
         if name in self._LEARNING_ATTRS:
-            return getattr(self.learning, name)
+            try:
+                return getattr(self.learning, name)
+            except AttributeError:
+                raise
+            except Exception as e:
+                raise AttributeError(
+                    f"Failed to delegate '{name}' to learning pipeline: {e}"
+                ) from e
 
         # Provider registry
         if name == 'provider_registry':
@@ -595,13 +611,7 @@ class SwarmManager:
         Returns:
             Dict with training results and improvement metrics
         """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"🎓 {stage}: {detail}")
+        _status = StatusReporter(status_callback, logger, emoji="🎓")
 
         # Checkpoint before training — enables rollback if training degrades
         checkpoint_path = None
@@ -824,7 +834,7 @@ class SwarmManager:
         # Scheduling stats (AIOS-inspired)
         result['scheduling'] = {
             'max_concurrent_agents': self.max_concurrent_agents,
-            'semaphore_available': self._agent_semaphore._value,
+            'semaphore_available': self._agent_semaphore._value if self._agent_semaphore else self.max_concurrent_agents,
             **self._scheduling_stats,
         }
 
@@ -841,7 +851,8 @@ class SwarmManager:
                     'credit_stats': lp.get_credit_stats(),
                     'adaptive_learning': lp.get_learning_state(),
                 }
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Learning stats collection failed: {e}")
                 result['learning'] = {'status': 'error'}
 
         # Training daemon status
@@ -875,8 +886,8 @@ class SwarmManager:
         if '_lazy_learning' in self.__dict__:
             try:
                 result['paradigm_stats'] = self.learning.get_paradigm_stats()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Paradigm stats unavailable: {e}")
 
         # Add LOTUS stats if active
         if self.lotus:
@@ -900,8 +911,8 @@ class SwarmManager:
                     'total_cost_usd': round(_trace.total_cost, 6),
                     'total_tokens': _trace.total_tokens,
                 }
-        except (ImportError, Exception):
-            pass
+        except (ImportError, Exception) as e:
+            logger.debug(f"Observability metrics unavailable: {e}")
 
         # Add model tier routing stats
         if self._model_tier_router:
@@ -1012,8 +1023,8 @@ class SwarmManager:
                 )
                 if context and 'negative reward' in context.lower():
                     return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Section skip check failed for '{section_name}': {e}")
         return False
 
     # =========================================================================
@@ -1143,8 +1154,8 @@ class SwarmManager:
                 tool_names.append(s['name'])
                 tool_descs[s['name']] = s.get('description', '')
                 trust_levels[s['name']] = s.get('trust_level', 'safe')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Tool registry lookup failed: {e}")
 
         # Agent identity
         identity = ""
@@ -1252,14 +1263,7 @@ class SwarmManager:
                 dspy.configure(lm=lm)
                 logger.info(f"✅ DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
 
-        def _status(stage: str, detail: str = ""):
-            """Report status if callback provided."""
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+        _status = StatusReporter(status_callback, logger, emoji="📍")
 
         # ── FAST PATH: Simple tasks bypass the entire agent pipeline ──
         # ValidationGate classifies task complexity using a cheap LLM (or heuristic).
@@ -1305,7 +1309,7 @@ class SwarmManager:
                     import dspy as _dspy
                     lm = _dspy.settings.lm
                     if lm is None:
-                        raise RuntimeError("No LM configured")
+                        raise AgentExecutionError("No LM configured")
 
                 _fast_start = _time.time()
 
@@ -1335,8 +1339,8 @@ class SwarmManager:
                         continue
 
                 if response is None:
-                    raise RuntimeError("All LM calling conventions failed" +
-                                       (" (rate limited)" if _rate_limited else ""))
+                    raise AgentExecutionError("All LM calling conventions failed" +
+                                              (" (rate limited)" if _rate_limited else ""))
 
                 if isinstance(response, list):
                     response = response[0] if response else ""
@@ -1367,8 +1371,8 @@ class SwarmManager:
                 # Save learning (lightweight)
                 try:
                     self._save_learnings()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Fast-path learning save failed: {e}")
 
                 total_elapsed = _time.time() - run_start_time
                 _status("Complete", f"fast path success ({total_elapsed:.1f}s)")
@@ -1488,8 +1492,9 @@ class SwarmManager:
                 )
                 self._efficiency_stats['ensemble_time'] = _time.time() - _ens_start
                 if ensemble_result.get('success'):
-                    # Use synthesized perspective to guide execution
-                    enriched_goal = f"{goal}\n\n[Multi-Perspective Analysis]:\n{ensemble_result.get('response', '')[:2000]}"
+                    # Pass ensemble context via kwargs (not embedded in goal string)
+                    # to avoid polluting search queries and downstream skill params.
+                    kwargs['ensemble_context'] = ensemble_result
 
                     # Show quality scores if available
                     quality_scores = ensemble_result.get('quality_scores', {})
@@ -1499,8 +1504,6 @@ class SwarmManager:
                         _status("Ensemble quality", f"avg={avg_quality:.0%} ({scores_str})")
                     else:
                         _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
-
-                    goal = enriched_goal  # Use enriched goal for execution
             elif ensemble and self.mode == "multi":
                 # Multi-agent mode: SKIP per-agent ensemble (too expensive)
                 # With N agents × 4 perspectives = 4N LLM calls - massive overkill
@@ -1544,6 +1547,9 @@ class SwarmManager:
                 # Exit profiling context
                 if profile_context:
                     profile_context.__exit__(None, None, None)
+
+                # Auto-drain one training task if result succeeded and tasks pending
+                self._maybe_drain_training_task(result)
 
                 return result
 
@@ -1619,12 +1625,7 @@ class SwarmManager:
         kwargs.pop('ensemble_context', None)
         status_callback = kwargs.pop('status_callback', None)
 
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
+        _status = StatusReporter(status_callback)
 
         agent_config = self.agents[0]
         runner = self.runners[agent_config.name]
@@ -1896,7 +1897,8 @@ class SwarmManager:
         self._last_run_guided = _intelligence_applied
         try:
             _im_task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Task type extraction for A/B metrics failed: {e}")
             _im_task_type = '_global'
         self._last_task_type = _im_task_type
 
@@ -1920,7 +1922,8 @@ class SwarmManager:
                     f"🧠 Auto paradigm: selected '{discussion_paradigm}' "
                     f"for task_type='{_task_type}'"
                 )
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Auto paradigm selection failed: {e}")
                 discussion_paradigm = 'fanout'
 
         # Track which paradigm is used (for _post_episode_learning)
@@ -1963,11 +1966,7 @@ class SwarmManager:
                 logger.debug(f"Coalition formation skipped: {e}")
 
         # Status update at method start
-        if status_callback:
-            try:
-                status_callback("Multi-agent exec", f"starting {len(self.agents)} parallel agents")
-            except Exception as e:
-                logger.error(f"Status callback failed: {e}")
+        safe_status(status_callback, "Multi-agent exec", f"starting {len(self.agents)} parallel agents")
 
         max_attempts = getattr(self.config, 'max_task_attempts', 2)
 
@@ -2023,8 +2022,8 @@ class SwarmManager:
                         agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
                         sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:50]
                         status_callback(f"  {task.actor}", sub_goal[:60])
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Batch status callback failed: {e}")
 
             # Pre-execution: trajectory prediction (non-blocking, run in background)
             predictions = {}
@@ -2049,15 +2048,11 @@ class SwarmManager:
             # Without this, N agents × (architect + agent + auditor) = 3N concurrent API calls.
             async def _run_task(task):
                 # Check if we'll need to wait for a slot
-                if self._agent_semaphore._value == 0:
+                if self.agent_semaphore._value == 0:
                     self._scheduling_stats['total_waited'] += 1
-                    if status_callback:
-                        try:
-                            status_callback(f"Agent {task.actor}", "waiting for LLM slot...")
-                        except Exception:
-                            pass
+                    safe_status(status_callback, f"Agent {task.actor}", "waiting for LLM slot...")
 
-                async with self._agent_semaphore:
+                async with self.agent_semaphore:
                     # Track concurrency stats
                     self._scheduling_stats['total_scheduled'] += 1
                     self._scheduling_stats['current_concurrent'] += 1
@@ -2069,19 +2064,11 @@ class SwarmManager:
                         agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
                         sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
 
-                        if status_callback:
-                            try:
-                                status_callback(f"Agent {task.actor}", f"starting: {sub_goal}")
-                            except Exception:
-                                pass
+                        safe_status(status_callback, f"Agent {task.actor}", f"starting: {sub_goal}")
 
                         # Create agent-specific status callback that prefixes with agent name
-                        def agent_status_callback(stage: str, detail: str = ""):
-                            if status_callback:
-                                try:
-                                    status_callback(f"  [{task.actor}] {stage}", detail)
-                                except Exception:
-                                    pass
+                        _agent_reporter = StatusReporter(status_callback).with_prefix(f"  [{task.actor}]")
+                        agent_status_callback = _agent_reporter
 
                         runner = self.runners[task.actor]
                         # Pass the agent-specific callback and ensemble params
@@ -2123,11 +2110,7 @@ class SwarmManager:
                     return await asyncio.wait_for(_run_task(task), timeout=PER_AGENT_TIMEOUT)
                 except asyncio.TimeoutError:
                     logger.warning(f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT}s")
-                    if status_callback:
-                        try:
-                            status_callback(f"Agent {task.actor}", f"TIMEOUT ({PER_AGENT_TIMEOUT:.0f}s)")
-                        except Exception:
-                            pass
+                    safe_status(status_callback, f"Agent {task.actor}", f"TIMEOUT ({PER_AGENT_TIMEOUT:.0f}s)")
                     return task, EpisodeResult(
                         output=f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT:.0f}s",
                         success=False,
@@ -2149,23 +2132,15 @@ class SwarmManager:
             for coro_result in coro_results:
                 if isinstance(coro_result, Exception):
                     logger.error(f"Task execution exception: {coro_result}")
-                    if status_callback:
-                        try:
-                            status_callback("Agent error", str(coro_result)[:60])
-                        except Exception:
-                            pass
+                    safe_status(status_callback, "Agent error", str(coro_result)[:60])
                     continue
 
                 task, result = coro_result
                 attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
 
                 # Show agent completion status
-                if status_callback:
-                    status_icon = "✓" if result.success else "✗"
-                    try:
-                        status_callback(f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
-                    except Exception:
-                        pass
+                status_icon = "✓" if result.success else "✗"
+                safe_status(status_callback, f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
                 reward = 1.0 if result.success else -0.5
 
                 # Post-execution: divergence learning
@@ -2245,11 +2220,7 @@ class SwarmManager:
 
         # MAS-ZERO: Iterative refinement if meta-feedback says refine
         if meta_feedback.get('should_refine') and len(all_results) > 0:
-            if status_callback:
-                try:
-                    status_callback("MAS-Evolve", "refining based on meta-feedback")
-                except Exception:
-                    pass
+            safe_status(status_callback, "MAS-Evolve", "refining based on meta-feedback")
             all_results = await self._mas_zero_evolve(
                 goal, all_results,
                 max_iterations=2,
@@ -2411,13 +2382,9 @@ class SwarmManager:
 
             sub_goal = agent_config.capabilities[0] if agent_config.capabilities else enriched_goal
 
-            if status_callback:
-                try:
-                    status_callback(f"Relay → {agent_config.name}", sub_goal[:60])
-                except Exception:
-                    pass
+            safe_status(status_callback, f"Relay → {agent_config.name}", sub_goal[:60])
 
-            async with self._agent_semaphore:
+            async with self.agent_semaphore:
                 result = await self._paradigm_run_agent(
                     runner, sub_goal, agent_config.name, **kwargs
                 )
@@ -2456,11 +2423,7 @@ class SwarmManager:
         all_results: Dict[str, EpisodeResult] = {}
 
         # Round 1: All agents produce initial drafts (fan-out)
-        if status_callback:
-            try:
-                status_callback("Debate round 1", "all agents drafting")
-            except Exception:
-                pass
+        safe_status(status_callback, "Debate round 1", "all agents drafting")
 
         draft_tasks = []
         for agent_config in self.agents:
@@ -2471,7 +2434,7 @@ class SwarmManager:
             draft_tasks.append((agent_config.name, runner, sub_goal))
 
         async def _run_draft(name, runner, sub_goal):
-            async with self._agent_semaphore:
+            async with self.agent_semaphore:
                 return name, await self._paradigm_run_agent(
                     runner, sub_goal, name, **kwargs
                 )
@@ -2500,11 +2463,7 @@ class SwarmManager:
 
         # Rounds 2+: Critique — each agent sees all other drafts and refines
         for round_num in range(2, max_debate_rounds + 1):
-            if status_callback:
-                try:
-                    status_callback(f"Debate round {round_num}", "agents critiquing & refining")
-                except Exception:
-                    pass
+            safe_status(status_callback, f"Debate round {round_num}", "agents critiquing & refining")
 
             # Build critique context: each agent sees OTHER agents' drafts
             critique_tasks = []
@@ -2564,13 +2523,9 @@ class SwarmManager:
         runner = self.runners.get(first_agent.name)
         sub_goal = first_agent.capabilities[0] if first_agent.capabilities else goal
 
-        if status_callback:
-            try:
-                status_callback("Refinement", f"initial draft by {first_agent.name}")
-            except Exception:
-                pass
+        safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
 
-        async with self._agent_semaphore:
+        async with self.agent_semaphore:
             result = await self._paradigm_run_agent(
                 runner, sub_goal, first_agent.name, **kwargs
             )
@@ -2594,8 +2549,8 @@ class SwarmManager:
                         f"at iteration {iteration}"
                     )
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Adaptive early-stop check failed: {e}")
 
             prev_draft = current_draft
 
@@ -2610,16 +2565,9 @@ class SwarmManager:
                     f"Here is the current draft. Improve it:\n{current_draft}"
                 )
 
-                if status_callback:
-                    try:
-                        status_callback(
-                            f"Refinement iter {iteration}",
-                            f"{agent_config.name} improving",
-                        )
-                    except Exception:
-                        pass
+                safe_status(status_callback, f"Refinement iter {iteration}", f"{agent_config.name} improving")
 
-                async with self._agent_semaphore:
+                async with self.agent_semaphore:
                     ref_result = await self._paradigm_run_agent(
                         refiner, refine_goal, agent_config.name, **kwargs
                     )
@@ -2780,11 +2728,12 @@ class SwarmManager:
             try:
                 task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
                 self.learning.record_paradigm_result(paradigm, result.success, task_type)
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Paradigm result recording with task_type failed: {e}")
                 try:
                     self.learning.record_paradigm_result(paradigm, result.success)
-                except Exception:
-                    pass
+                except Exception as e2:
+                    logger.debug(f"Paradigm result recording failed: {e2}")
 
     def _schedule_background_learning(self, result: EpisodeResult, goal: str):
         """
@@ -2899,13 +2848,7 @@ class SwarmManager:
         Example:
             await swarm.autonomous_setup("Set up Reddit scraping")
         """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+        _status = StatusReporter(status_callback, logger, emoji="📍")
 
         # Cache check: skip if already set up for this goal
         cache_key = hash(goal)
@@ -3038,7 +2981,8 @@ class SwarmManager:
         """Number of curriculum-generated training tasks waiting."""
         try:
             return self.learning.pending_training_count()
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Pending training count unavailable: {e}")
             return 0
 
     # =========================================================================
@@ -3075,8 +3019,8 @@ class SwarmManager:
                             f"🎓 Training loop: converged after {i} tasks, stopping"
                         )
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Convergence check failed: {e}")
 
             result = await self.run_training_task()
             if result is None:

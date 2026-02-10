@@ -9,6 +9,8 @@ Standalone composed class, replaces EnsembleMixin.
 import logging
 from typing import Dict, Any, Tuple
 
+from Jotty.core.utils.async_utils import StatusReporter
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,12 +38,7 @@ class EnsembleManager:
         - gsa: Generative Self-Aggregation
         - debate: Multi-round argumentation
         """
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
+        _status = StatusReporter(status_callback)
 
         try:
             # Try skill-based ensemble first

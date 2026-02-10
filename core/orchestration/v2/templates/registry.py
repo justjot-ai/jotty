@@ -181,6 +181,14 @@ class TemplateRegistry:
         except ImportError as e:
             logger.warning(f"Could not load SwarmLean: {e}")
 
+        # SwarmScience - World-class science teaching (building blocks to Olympiad)
+        try:
+            from .swarm_science import SwarmScience
+            cls.register(SwarmScience, "science")
+            cls.register(SwarmScience, "swarmscience")
+        except ImportError as e:
+            logger.warning(f"Could not load SwarmScience: {e}")
+
         # Future templates
         # from .swarm_nlp import SwarmNLP
         # cls.register(SwarmNLP, "nlp")

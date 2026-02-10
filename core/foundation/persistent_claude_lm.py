@@ -22,6 +22,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 import dspy
+from Jotty.core.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
         # Find claude binary
         self.claude_path = shutil.which('claude')
         if not self.claude_path:
-            raise RuntimeError("Claude CLI not found")
+            raise LLMError("Claude CLI not found")
 
         self._initialized = True
         logger.info(f"PersistentClaudeCLI initialized (model={model})")
@@ -248,7 +249,7 @@ class PersistentClaudeCLI(dspy.BaseLM):
 
             if process.returncode != 0:
                 error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                raise RuntimeError(f"Claude CLI error: {error_msg}")
+                raise LLMError(f"Claude CLI error: {error_msg}")
 
             response_text = self._parse_stream_json(stdout.decode())
 
@@ -261,8 +262,8 @@ class PersistentClaudeCLI(dspy.BaseLM):
 
             return [response_text]
 
-        except asyncio.TimeoutError:
-            raise RuntimeError(f"Claude CLI timed out after {self.timeout}s")
+        except asyncio.TimeoutError as e:
+            raise LLMError(f"Claude CLI timed out after {self.timeout}s", original_error=e)
 
     def _parse_stream_json(self, output: str) -> str:
         """Parse stream-json output format."""

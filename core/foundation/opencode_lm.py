@@ -13,6 +13,7 @@ import json
 from typing import Iterator, Optional
 import dspy
 from dspy.clients.base_lm import BaseLM
+from Jotty.core.foundation.exceptions import LLMError
 
 REMOTE_HOST = os.getenv("OPENCODE_REMOTE_HOST", "cmd.prod.ancillary")
 OPENCODE_BIN = os.getenv("OPENCODE_BIN", "opencode")
@@ -197,7 +198,7 @@ class OpenCodeLM(BaseLM):
         
         if process.returncode != 0:
             error = process.stderr.read() if process.stderr else 'Unknown error'
-            raise RuntimeError(f'OpenCode execution failed: {error}')
+            raise LLMError(f'OpenCode execution failed: {error}')
     
     
     def __repr__(self) -> str:

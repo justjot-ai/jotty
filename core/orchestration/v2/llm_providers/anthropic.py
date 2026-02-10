@@ -1,5 +1,8 @@
 """
 Anthropic Claude LLM provider.
+
+Respects ANTHROPIC_BASE_URL (e.g. claude-code-router) so all v2 orchestration
+LLM calls can be routed through CCR when configured.
 """
 
 import os
@@ -10,19 +13,25 @@ from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
+def _get_client_kwargs(api_key: Optional[str] = None):
+    from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+    return get_anthropic_client_kwargs(api_key=api_key)
+
+
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514", api_key: Optional[str] = None):
         self.model = model
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        self._client_kwargs = _get_client_kwargs(api_key)
+        self.api_key = self._client_kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
         self._client = None
 
     @property
     def client(self):
         if self._client is None:
             import anthropic
-            self._client = anthropic.Anthropic(api_key=self.api_key)
+            self._client = anthropic.Anthropic(**self._client_kwargs)
         return self._client
 
     def convert_tools(self, tools: List[Dict]) -> List[Dict]:

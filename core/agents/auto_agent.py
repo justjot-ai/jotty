@@ -10,8 +10,6 @@ Refactored to inherit from AutonomousAgent for unified infrastructure.
 import logging
 import inspect
 from typing import Dict, Any, List, Optional, Callable
-from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime
 
 from .agentic_planner import AgenticPlanner
@@ -22,125 +20,10 @@ from Jotty.core.foundation.exceptions import (
     LLMError,
     DSPyError,
 )
+from Jotty.core.utils.async_utils import safe_status, StatusReporter
+from ._execution_types import TaskType, ExecutionResult, _clean_for_display
 
 logger = logging.getLogger(__name__)
-
-
-class TaskType(Enum):
-    """Inferred task types."""
-    RESEARCH = "research"           # Learn about something
-    COMPARISON = "comparison"       # Compare things
-    CREATION = "creation"           # Create content/document
-    COMMUNICATION = "communication" # Send/share something
-    ANALYSIS = "analysis"           # Analyze data
-    AUTOMATION = "automation"       # Automate a workflow
-    UNKNOWN = "unknown"
-
-
-def _clean_for_display(text: str) -> str:
-    """
-    Remove internal context from text for user-facing display.
-
-    Strips:
-    - Transferable Learnings sections
-    - Meta-Learning Advice
-    - Multi-Perspective Analysis (keep short summary only)
-    - Learned Insights
-    - Relevant past experience
-    """
-    if not text:
-        return text
-
-    # Markers that indicate start of internal context
-    internal_markers = [
-        '# Transferable Learnings',
-        '## Task Type Pattern',
-        '## Role Advice',
-        '## Meta-Learning Advice',
-        '\n\nRelevant past experience:',
-        '\n\nLearned Insights:',
-        '\n\n[Multi-Perspective Analysis',
-    ]
-
-    result = text
-    for marker in internal_markers:
-        if marker in result:
-            result = result.split(marker)[0]
-
-    return result.strip()
-
-
-@dataclass
-class ExecutionResult:
-    """Result of task execution."""
-    success: bool
-    task: str
-    task_type: TaskType
-    skills_used: List[str]
-    steps_executed: int
-    outputs: Dict[str, Any]
-    final_output: Any
-    errors: List[str] = field(default_factory=list)
-    execution_time: float = 0.0
-    stopped_early: bool = False  # True if execution stopped due to failure
-
-    @property
-    def artifacts(self) -> List[Dict[str, Any]]:
-        """Extract all created files/artifacts from execution outputs.
-        
-        Scans outputs for file paths (from file-operations, shell-exec, etc.)
-        Returns list of {path, type, size_bytes, step} dicts.
-        """
-        found = []
-        for step_name, step_data in (self.outputs or {}).items():
-            if not isinstance(step_data, dict):
-                continue
-            # file-operations returns {path, bytes_written}
-            if 'path' in step_data and step_data.get('success', True):
-                found.append({
-                    'path': step_data['path'],
-                    'type': 'file',
-                    'size_bytes': step_data.get('bytes_written', 0),
-                    'step': step_name,
-                })
-            # shell-exec may create files (check stdout for file paths)
-            if 'stdout' in step_data:
-                import re
-                stdout = str(step_data.get('stdout', ''))
-                # Look for common "saved to X" / "wrote X" patterns
-                for m in re.finditer(r'(?:saved?|wrot?e?|created?|output)\s+(?:to\s+)?["\']?([^\s"\']+\.\w{1,5})', stdout, re.I):
-                    fpath = m.group(1)
-                    if len(fpath) > 3 and '/' in fpath or '.' in fpath:
-                        found.append({'path': fpath, 'type': 'file', 'size_bytes': 0, 'step': step_name})
-        return found
-
-    @property
-    def summary(self) -> str:
-        """Human-readable summary of what was done and what was produced."""
-        parts = []
-        status = "completed successfully" if self.success else "failed"
-        parts.append(f"Task {status} in {self.execution_time:.1f}s ({self.steps_executed} steps)")
-
-        if self.skills_used:
-            parts.append(f"Skills used: {', '.join(self.skills_used)}")
-
-        artifacts = self.artifacts
-        if artifacts:
-            parts.append("Files created:")
-            for a in artifacts:
-                size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
-                parts.append(f"  → {a['path']}{size}")
-
-        if self.errors:
-            parts.append(f"Errors: {'; '.join(self.errors[:3])}")
-
-        if self.final_output and isinstance(self.final_output, str):
-            # Show first meaningful bit of final output
-            clean = self.final_output.strip()[:300]
-            if clean:
-                parts.append(f"Output: {clean}")
-
-        return '\n'.join(parts)
 
 
 class AutoAgent(AutonomousAgent):
@@ -233,9 +116,7 @@ class AutoAgent(AutonomousAgent):
         parallel execution and adaptive sizing). Only falls back to
         inline DSPy if the skill is unavailable.
         """
-        def _status(stage: str, detail: str = ""):
-            if status_fn:
-                status_fn(stage, detail)
+        _status = StatusReporter(status_fn)
 
         try:
             # Use the ensemble skill (preferred — parallel + adaptive)
@@ -396,14 +277,7 @@ Provide:
         # Learning context: kept separate from task string to prevent pollution
         learning_context = kwargs.pop('learning_context', None)
 
-        def _status(stage: str, detail: str = ""):
-            """Report progress if callback provided."""
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"  {stage}" + (f": {detail}" if detail else ""))
+        _status = StatusReporter(status_callback, logger, emoji=" ")
 
         # Ensure initialized
         self._ensure_initialized()
@@ -420,8 +294,7 @@ Provide:
         # Also skip for direct_llm sub-agents — they're specialized, no need for ensemble.
         _is_direct_llm = kwargs.get('direct_llm', False)
         already_ensembled = (
-            '[Multi-Perspective Analysis' in task
-            or kwargs.get('ensemble_context') is not None
+            kwargs.get('ensemble_context') is not None
             or _is_direct_llm
         )
 

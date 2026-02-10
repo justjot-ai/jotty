@@ -10,7 +10,7 @@ Available Swarms:
     ResearchSwarm, FundamentalSwarm, DataAnalysisSwarm,
     CodingSwarm, TestingSwarm, ReviewSwarm,
     IdeaWriterSwarm, DevOpsSwarm,
-    ArxivLearningSwarm, LearningSwarm
+    ArxivLearningSwarm, OlympiadLearningSwarm, LearningSwarm
 
 Quick usage::
 
@@ -248,6 +248,31 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ExampleGeneratorAgent": ".arxiv_learning_swarm",
     "ProgressiveBuilderAgent": ".arxiv_learning_swarm",
     "ContentPolisherAgent": ".arxiv_learning_swarm",
+    # --- olympiad_learning_swarm ---
+    "OlympiadLearningSwarm": ".olympiad_learning_swarm",
+    "OlympiadLearningConfig": ".olympiad_learning_swarm",
+    "OlympiadLearningResult": ".olympiad_learning_swarm",
+    "Subject": ".olympiad_learning_swarm",
+    "DifficultyTier": ".olympiad_learning_swarm",
+    "LessonDepth": ".olympiad_learning_swarm",
+    "TeachingMode": ".olympiad_learning_swarm",
+    "BuildingBlock": ".olympiad_learning_swarm",
+    "ConceptCore": ".olympiad_learning_swarm",
+    "PatternEntry": ".olympiad_learning_swarm",
+    "Problem": ".olympiad_learning_swarm",
+    "StrategyCard": ".olympiad_learning_swarm",
+    "MistakeEntry": ".olympiad_learning_swarm",
+    "learn_topic": ".olympiad_learning_swarm",
+    "learn_topic_sync": ".olympiad_learning_swarm",
+    "CurriculumArchitectAgent": ".olympiad_learning_swarm",
+    "ConceptDecomposerAgent": ".olympiad_learning_swarm",
+    "PatternHunterAgent": ".olympiad_learning_swarm",
+    "ProblemCrafterAgent": ".olympiad_learning_swarm",
+    "SolutionStrategistAgent": ".olympiad_learning_swarm",
+    "MistakeAnalyzerAgent": ".olympiad_learning_swarm",
+    "ConnectionMapperAgent": ".olympiad_learning_swarm",
+    "ContentAssemblerAgent": ".olympiad_learning_swarm",
+    "UnifiedTopicAgent": ".olympiad_learning_swarm",
     # --- learning_swarm ---
     "LearningSwarm": ".learning_swarm",
     "LearningConfig": ".learning_swarm",

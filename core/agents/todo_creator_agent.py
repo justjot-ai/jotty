@@ -20,6 +20,7 @@ from ..orchestration.v2.swarm_roadmap import (
     SubtaskState, MarkovianTODO, TaskStatus, AgenticState, TrajectoryStep
 )
 from ..foundation.data_structures import JottyConfig, MemoryLevel
+from ..foundation.exceptions import AgentExecutionError
 from ..memory.cortex import HierarchicalMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
@@ -57,7 +58,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         self._init_agent_infrastructure("TodoCreatorAgent")
 
         if self.lm is None:
-            raise RuntimeError(
+            raise AgentExecutionError(
                 "No language model configured. Either pass 'lm' parameter or "
                 "configure globally via dspy.configure(lm=...)"
             )

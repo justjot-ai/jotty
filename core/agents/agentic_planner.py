@@ -11,15 +11,9 @@ Supports both:
 
 import json
 import logging
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
-
-try:
-    from pydantic import BaseModel, Field
-    PYDANTIC_AVAILABLE = True
-except ImportError:
-    PYDANTIC_AVAILABLE = False
-    BaseModel = None
+from Jotty.core.foundation.exceptions import AgentExecutionError
 
 # DSPy loaded lazily to avoid ~6s import at module level
 DSPY_AVAILABLE = True  # Assumed; checked on first use
@@ -38,71 +32,7 @@ def _get_dspy():
     return _dspy_module if _dspy_module else None
 
 
-# Pydantic model for typed DSPy output - accepts common field name variations
-if PYDANTIC_AVAILABLE:
-    from pydantic import model_validator
-
-    class ExecutionStepSchema(BaseModel):
-        """Schema for execution plan steps - accepts common LLM field name variations."""
-        skill_name: str = Field(default="", description="Skill name from available_skills")
-        tool_name: str = Field(default="", description="Tool name from that skill's tools list")
-        params: Dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
-        description: str = Field(default="", description="What this step does")
-        depends_on: List[int] = Field(default_factory=list, description="Indices of steps this depends on")
-        output_key: str = Field(default="", description="Key to store output under")
-        optional: bool = Field(default=False, description="Whether step is optional")
-        verification: str = Field(default="", description="How to confirm this step succeeded")
-        fallback_skill: str = Field(default="", description="Alternative skill if this one fails")
-
-        model_config = {"extra": "allow"}  # Allow extra fields from LLM
-
-        @model_validator(mode='before')
-        @classmethod
-        def normalize_field_names(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-            """Normalize common LLM field name variations to expected names."""
-            if not isinstance(data, dict):
-                return data
-
-            # skill_name aliases: skill, skill_name, skills_used (first item)
-            if 'skill_name' not in data or not data.get('skill_name'):
-                skill = data.get('skill', '')
-                if not skill:
-                    # Try skills_used array
-                    skills_used = data.get('skills_used', [])
-                    if skills_used and isinstance(skills_used, list):
-                        skill = skills_used[0]
-                data['skill_name'] = skill
-
-            # tool_name aliases: tool, tool_name, tools_used (first item), action
-            if 'tool_name' not in data or not data.get('tool_name'):
-                tool = data.get('tool', '')
-                if not tool:
-                    # Try tools_used array
-                    tools_used = data.get('tools_used', [])
-                    if tools_used and isinstance(tools_used, list):
-                        tool = tools_used[0]
-                if not tool:
-                    # Extract from action like "use write_file_tool to..."
-                    action = data.get('action', '')
-                    if action and isinstance(action, str):
-                        import re
-                        tool_match = re.search(r'\b([a-z_]+_tool)\b', action)
-                        if tool_match:
-                            tool = tool_match.group(1)
-                data['tool_name'] = tool
-
-            # params aliases: parameters, params, tool_input, input, inputs, tool_params
-            if 'params' not in data or not data.get('params'):
-                data['params'] = (
-                    data.get('parameters') or
-                    data.get('tool_input') or
-                    data.get('tool_params') or
-                    data.get('inputs') or  # LLM often uses 'inputs' plural
-                    data.get('input') or
-                    {}
-                )
-
-            return data
+# ExecutionStepSchema imported from _execution_types at top of file
 
 # Import context utilities for error handling and compression
 try:
@@ -120,9 +50,8 @@ except ImportError:
     ErrorDetector = None
     ErrorType = None
 
-# Avoid circular import - use TYPE_CHECKING for type hints
-if TYPE_CHECKING:
-    from .auto_agent import ExecutionStep, TaskType, ExecutionResult
+# Shared types — no circular dependency (lives in _execution_types.py)
+from ._execution_types import ExecutionStep, ExecutionStepSchema, TaskType, ExecutionResult
 
 logger = logging.getLogger(__name__)
 
@@ -133,17 +62,6 @@ try:
 except ImportError:
     TASK_GRAPH_AVAILABLE = False
     TaskGraph = None
-
-# Import ExecutionStep and TaskType at runtime (after module initialization)
-def _get_execution_step():
-    """Lazy import to avoid circular dependency."""
-    from .base.autonomous_agent import ExecutionStep
-    return ExecutionStep
-
-def _get_task_type():
-    """Lazy import to avoid circular dependency."""
-    from .auto_agent import TaskType
-    return TaskType
 
 
 # =============================================================================
@@ -202,6 +120,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     # Global semaphore to limit concurrent LLM calls (prevents rate limiting)
     _llm_semaphore = None
     _max_concurrent_llm_calls = 1  # Serialize LLM calls by default
+    _semaphore_lock = None  # Initialized lazily as class-level threading.Lock
 
     @classmethod
     def set_max_concurrent_llm_calls(cls, max_calls: int):
@@ -211,10 +130,16 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
     @classmethod
     def _get_semaphore(cls):
-        """Get or create the global LLM semaphore."""
-        if cls._llm_semaphore is None:
-            import threading
-            cls._llm_semaphore = threading.Semaphore(cls._max_concurrent_llm_calls)
+        """Get or create the global LLM semaphore (thread-safe)."""
+        if cls._llm_semaphore is not None:
+            return cls._llm_semaphore
+        import threading
+        if cls._semaphore_lock is None:
+            cls._semaphore_lock = threading.Lock()
+        with cls._semaphore_lock:
+            # Double-checked locking: re-check after acquiring lock
+            if cls._llm_semaphore is None:
+                cls._llm_semaphore = threading.Semaphore(cls._max_concurrent_llm_calls)
         return cls._llm_semaphore
 
     def __init__(self, fast_model: str = "haiku"):
@@ -226,7 +151,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         dspy = _get_dspy()
         if not dspy:
-            raise RuntimeError("DSPy required for AgenticPlanner")
+            raise AgentExecutionError("DSPy required for AgenticPlanner")
         _load_signatures()
 
         # Use ChainOfThought for execution planning (research: Plan-and-Solve benefits from explicit reasoning)
@@ -420,7 +345,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         # Should not reach here, but just in case
         if last_error:
             raise last_error
-        raise RuntimeError("Unexpected state in retry logic")
+        raise AgentExecutionError("Unexpected state in retry logic")
 
     async def _acall_with_retry(
         self,
@@ -523,7 +448,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         if last_error:
             raise last_error
-        raise RuntimeError("Unexpected state in async retry logic")
+        raise AgentExecutionError("Unexpected state in async retry logic")
 
     def plan_execution(
         self,
@@ -564,92 +489,18 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                     logger.warning(f"No skills available for task type '{task_type_value}'")
                     return [], f"No skills available for task type '{task_type_value}'"
 
-            # Format skills for LLM WITH TOOL SCHEMAS
-            # CRITICAL: Include parameter schemas so LLM knows what parameters each tool needs
-            formatted_skills = []
-            for s in skills:
-                skill_name = s.get('name', '')
-                skill_dict = {
-                    'name': skill_name,
-                    'description': s.get('description', ''),
-                    'tools': []
-                }
-
-                # Get tool names from the skill dict
-                # Tools can be: list of strings, list of dicts, or dict
-                tools_raw = s.get('tools', [])
-                logger.debug(f"Skill '{skill_name}' tools_raw type: {type(tools_raw)}, value: {tools_raw}")
-
-                if isinstance(tools_raw, dict):
-                    tool_names = list(tools_raw.keys())
-                elif isinstance(tools_raw, list):
-                    # Extract names if it's a list of dicts, otherwise use as-is (list of strings)
-                    tool_names = [t.get('name') if isinstance(t, dict) else t for t in tools_raw]
-                else:
-                    tool_names = []
-
-                logger.debug(f"Skill '{skill_name}' extracted tool_names: {tool_names}")
-
-                # Enrich with tool schemas from registry
-                try:
-                    from ..registry.skills_registry import get_skills_registry
-                    registry = get_skills_registry()
-                    if registry:
-                        skill_obj = registry.get_skill(skill_name)
-                        if skill_obj and hasattr(skill_obj, 'tools') and skill_obj.tools:
-                            # If tool_names is empty, get from skill object directly
-                            if not tool_names:
-                                tool_names = list(skill_obj.tools.keys())
-                                logger.debug(f"Got tool_names from registry: {tool_names}")
-
-                            for tool_name in tool_names:
-                                tool_func = skill_obj.tools.get(tool_name)
-                                if tool_func:
-                                    # Extract parameter schema from docstring
-                                    tool_schema = self._extract_tool_schema(tool_func, tool_name)
-                                    skill_dict['tools'].append(tool_schema)
-                                    logger.debug(f"Extracted schema for {tool_name}: {tool_schema.get('parameters', [])}")
-                                else:
-                                    # Fallback: just name if tool not found
-                                    skill_dict['tools'].append({'name': tool_name})
-                                    logger.debug(f"Tool {tool_name} not found in skill object")
-                        else:
-                            # Fallback: just names if registry lookup fails
-                            skill_dict['tools'] = [{'name': name} for name in tool_names]
-                            logger.debug(f"Skill object not found or has no tools for '{skill_name}'")
-                    else:
-                        skill_dict['tools'] = [{'name': name} for name in tool_names]
-                        logger.debug("Registry not available")
-                except Exception as e:
-                    logger.warning(f"Could not enrich tool schemas for {skill_name}: {e}")
-                    # Fallback: just names
-                    skill_dict['tools'] = [{'name': name} for name in tool_names]
-
-                formatted_skills.append(skill_dict)
-
-            # Log the final skills JSON being sent to LLM
-            logger.info(f"📋 Formatted {len(formatted_skills)} skills with tool schemas for LLM")
-            
+            # Format skills with tool schemas for the LLM
+            formatted_skills = self._format_skills_for_planner(skills)
             skills_json = json.dumps(formatted_skills, indent=2)
-            
-            # Format previous outputs
             outputs_json = json.dumps(previous_outputs or {}, indent=2)
-            
-            # Execute planning - signature is already baked into the module
-            # No need to set it globally (which causes async task errors)
-            dspy = _get_dspy()
-            
-            # Abstract the task description to avoid LLM confusion
-            # Clean task for planning (remove injected context)
-            abstracted_task = self._abstract_task_for_planning(task)
-            logger.debug(f"🔍 Task: '{abstracted_task[:80]}'")
 
-            logger.info(f"📤 Calling LLM for execution plan...")
+            abstracted_task = self._abstract_task_for_planning(task)
+            logger.debug(f"Task: '{abstracted_task[:80]}'")
+
+            logger.info(f"Calling LLM for execution plan...")
             logger.debug(f"   Task: {abstracted_task[:100]}")
             logger.debug(f"   Skills count: {len(skills)}")
 
-            # Call execution planner with retry and context compression
-            # Handle both enum and string task_type
             task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
             planner_kwargs = {
                 'task_description': abstracted_task,
@@ -665,134 +516,15 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 kwargs=planner_kwargs,
                 compressible_fields=['available_skills', 'previous_outputs'],
                 max_retries=self._max_compression_retries,
-                lm=self._fast_lm,  # Use fast LM for planning (routing task)
+                lm=self._fast_lm,
             )
 
-            # Debug: Log raw LLM response
-            logger.info(f"📥 LLM response received")
+            logger.info(f"LLM response received")
             raw_plan = getattr(result, 'execution_plan', None)
             logger.debug(f"   Raw execution_plan type: {type(raw_plan)}")
             logger.debug(f"   Raw execution_plan (first 500 chars): {str(raw_plan)[:500] if raw_plan else 'NONE'}")
 
-            # Parse execution plan - with JSONAdapter, this should be a list already
-            plan_data = None
-
-            # Method 0: Already a list (JSONAdapter working correctly)
-            if isinstance(raw_plan, list):
-                plan_data = raw_plan
-                logger.info(f"   JSONAdapter returned list: {len(plan_data)} steps")
-                # Log first step to debug skill_name issue
-                if plan_data:
-                    first_step = plan_data[0]
-                    # Check if it's a Pydantic model or dict
-                    if hasattr(first_step, 'skill_name'):
-                        logger.info(f"   First step: skill_name='{first_step.skill_name}', tool_name='{first_step.tool_name}'")
-                    elif isinstance(first_step, dict):
-                        logger.info(f"   First step dict keys: {list(first_step.keys())}")
-                        logger.info(f"   skill_name='{first_step.get('skill_name', '')}', skill='{first_step.get('skill', '')}'")
-                    else:
-                        logger.info(f"   First step type: {type(first_step)}")
-            elif not raw_plan:
-                logger.warning("LLM returned empty execution_plan field")
-                plan_data = []
-            else:
-                # Fallback: String parsing for backwards compatibility
-                import re
-                plan_str = str(raw_plan).strip()
-
-                # Method 1: Direct JSON parse (if LLM followed instructions)
-                if plan_str.startswith('['):
-                    try:
-                        plan_data = json.loads(plan_str)
-                        logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
-                    except json.JSONDecodeError:
-                        pass
-
-                # Method 2: Extract from markdown code block
-                if plan_data is None and '```' in plan_str:
-                    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
-                    if json_match:
-                        try:
-                            plan_data = json.loads(json_match.group(1).strip())
-                            logger.info(f"   Extracted from code block: {len(plan_data)} steps")
-                        except json.JSONDecodeError:
-                            pass
-
-                # Method 3: Find JSON array anywhere in text
-                if plan_data is None:
-                    # Look for JSON array pattern [...]
-                    array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
-                    if array_match:
-                        try:
-                            plan_data = json.loads(array_match.group(0))
-                            logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
-                        except json.JSONDecodeError:
-                            pass
-
-                # Method 4: Use _extract_plan_from_text helper
-                if plan_data is None:
-                    plan_data = self._extract_plan_from_text(str(raw_plan))
-                    if plan_data:
-                        logger.info(f"   Extracted via helper: {len(plan_data)} steps")
-
-                # Method 5: Direct LLM retry with explicit JSON-only prompt
-                if not plan_data:  # None or empty list
-                    logger.warning(f"DSPy returned text, retrying with direct LLM call for JSON...")
-                    try:
-                        dspy = _get_dspy()
-                        lm = dspy.settings.lm if dspy else None
-                        if lm:
-                            # Get ALL skills with their first tool for the prompt
-                            skill_info = []
-                            for s in skills:
-                                tools = s.get('tools', [])
-                                if isinstance(tools, list) and tools:
-                                    tool_name = tools[0].get('name', tools[0]) if isinstance(tools[0], dict) else tools[0]
-                                    skill_info.append(f"{s.get('name')}/{tool_name}")
-                                else:
-                                    skill_info.append(s.get('name', ''))
-
-                            direct_prompt = f"""Return ONLY a JSON array with 2-3 steps. Select ONLY the most relevant skills for this task.
-
-Task: {task}
-Task type: {task_type.value if hasattr(task_type, 'value') else task_type}
-Available skills: {skill_info}
-
-Select 2-3 most relevant skills. Return JSON array:
-[{{"skill_name": "skill-name", "tool_name": "tool-name", "params": {{}}, "description": "what it does", "depends_on": [], "output_key": "step_0", "optional": false}}]
-
-JSON:"""
-
-                            response = lm(prompt=direct_prompt)
-                            response_text = response[0] if isinstance(response, list) else str(response)
-                            response_text = response_text.strip()
-                            logger.debug(f"   Direct LLM response (first 200): {response_text[:200]}")
-
-                            # Try to parse JSON from response
-                            if response_text.startswith('['):
-                                plan_data = json.loads(response_text)
-                                logger.info(f"   Direct LLM retry successful: {len(plan_data)} steps")
-                            elif '[' in response_text:
-                                # Extract JSON array from response
-                                start = response_text.find('[')
-                                end = response_text.rfind(']') + 1
-                                if end > start:
-                                    plan_data = json.loads(response_text[start:end])
-                                    logger.info(f"   Extracted from direct LLM: {len(plan_data)} steps")
-                            else:
-                                logger.warning(f"   Direct LLM returned no JSON array")
-                        else:
-                            logger.warning(f"   No LM configured for direct retry")
-                    except Exception as e:
-                        logger.warning(f"   Direct LLM retry failed: {e}")
-
-                # If all methods failed, return empty list
-                if plan_data is None:
-                    logger.error(f"Could not parse execution plan. LLM returned text instead of JSON.")
-                    logger.error(f"   Raw response (first 300 chars): {plan_str[:300]}")
-                    plan_data = []
-
-            # Parse raw plan into ExecutionStep objects using reusable method
+            # All normalization + parsing in one place
             steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, max_steps)
 
             # Determine reasoning
@@ -1069,6 +801,128 @@ JSON:"""
         logger.info(f"Formatted {len(formatted_skills)} skills with tool schemas for LLM")
         return formatted_skills
 
+    def _normalize_raw_plan(
+        self,
+        raw_plan,
+        skills: Optional[List[Dict[str, Any]]] = None,
+        task: str = '',
+        task_type=None,
+    ) -> list:
+        """
+        Single, robust normalizer: convert any LLM plan output to a list of dicts.
+
+        Handles all known LLM output formats in a single pipeline:
+        1. Already a list (JSONAdapter working correctly)
+        2. Direct JSON string starting with '['
+        3. JSON inside markdown code block (```json ... ```)
+        4. JSON array embedded in prose text
+        5. Skill-name extraction from unstructured text
+        6. Direct LLM retry with explicit JSON-only prompt (last resort)
+
+        Args:
+            raw_plan: Raw plan from DSPy (list, Pydantic model, string, or None)
+            skills: Available skills (needed for Method 6 LLM retry)
+            task: Original task description (needed for Method 6)
+            task_type: Task type (needed for Method 6)
+
+        Returns:
+            List of dicts (may be empty if all parsing fails)
+        """
+        import re
+
+        # Already a list — nothing to normalize
+        if isinstance(raw_plan, list):
+            logger.info(f"   Plan data is list: {len(raw_plan)} steps")
+            return raw_plan
+
+        if not raw_plan:
+            return []
+
+        plan_str = str(raw_plan).strip()
+
+        # Method 1: Direct JSON parse (LLM returned clean JSON string)
+        if plan_str.startswith('['):
+            try:
+                plan_data = json.loads(plan_str)
+                logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
+                return plan_data if isinstance(plan_data, list) else [plan_data]
+            except json.JSONDecodeError:
+                pass
+
+        # Method 2: Extract from markdown code block
+        if '```' in plan_str:
+            json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
+            if json_match:
+                try:
+                    plan_data = json.loads(json_match.group(1).strip())
+                    logger.info(f"   Extracted from code block: {len(plan_data)} steps")
+                    return plan_data if isinstance(plan_data, list) else [plan_data]
+                except json.JSONDecodeError:
+                    pass
+
+        # Method 3: Find JSON array anywhere in text
+        array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
+        if array_match:
+            try:
+                plan_data = json.loads(array_match.group(0))
+                logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
+                return plan_data if isinstance(plan_data, list) else [plan_data]
+            except json.JSONDecodeError:
+                pass
+
+        # Method 4: Extract skill names from unstructured text
+        plan_data = self._extract_plan_from_text(plan_str)
+        if plan_data:
+            logger.info(f"   Extracted via skill-name helper: {len(plan_data)} steps")
+            return plan_data
+
+        # Method 5: Direct LLM retry with explicit JSON-only prompt (last resort)
+        if skills:
+            try:
+                dspy = _get_dspy()
+                lm = dspy.settings.lm if dspy else None
+                if lm:
+                    skill_info = []
+                    for s in skills:
+                        tools = s.get('tools', [])
+                        if isinstance(tools, list) and tools:
+                            tool_name = tools[0].get('name', tools[0]) if isinstance(tools[0], dict) else tools[0]
+                            skill_info.append(f"{s.get('name')}/{tool_name}")
+                        else:
+                            skill_info.append(s.get('name', ''))
+
+                    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type or 'general')
+                    direct_prompt = (
+                        f"Return ONLY a JSON array with 2-3 steps. Select ONLY the most relevant skills.\n\n"
+                        f"Task: {task}\nTask type: {task_type_str}\n"
+                        f"Available skills: {skill_info}\n\n"
+                        f'Select 2-3 most relevant skills. Return JSON array:\n'
+                        f'[{{"skill_name": "skill-name", "tool_name": "tool-name", "params": {{}}, '
+                        f'"description": "what it does", "depends_on": [], "output_key": "step_0", "optional": false}}]\n\n'
+                        f'JSON:'
+                    )
+
+                    response = lm(prompt=direct_prompt)
+                    response_text = (response[0] if isinstance(response, list) else str(response)).strip()
+                    logger.debug(f"   Direct LLM response (first 200): {response_text[:200]}")
+
+                    if response_text.startswith('['):
+                        plan_data = json.loads(response_text)
+                        logger.info(f"   Direct LLM retry successful: {len(plan_data)} steps")
+                        return plan_data if isinstance(plan_data, list) else [plan_data]
+                    elif '[' in response_text:
+                        start = response_text.find('[')
+                        end = response_text.rfind(']') + 1
+                        if end > start:
+                            plan_data = json.loads(response_text[start:end])
+                            logger.info(f"   Extracted from direct LLM: {len(plan_data)} steps")
+                            return plan_data if isinstance(plan_data, list) else [plan_data]
+            except Exception as e:
+                logger.warning(f"   Direct LLM retry failed: {e}")
+
+        logger.error(f"Could not parse plan. Raw (first 300 chars): {plan_str[:300]}")
+        return []
+
     def _parse_plan_to_steps(
         self,
         raw_plan,
@@ -1078,11 +932,11 @@ JSON:"""
         max_steps: int = 10,
     ) -> list:
         """
-        Parse raw plan data (list, Pydantic models, dicts, or string) into ExecutionStep objects.
+        Parse raw plan data into ExecutionStep objects.
 
-        Reusable across plan_execution() and replan_with_reflection().
-        Handles LLM field name variations, fuzzy skill matching, tool inference,
-        and param building. Wires verification/fallback_skill fields.
+        Phase 1 (normalization) is delegated to _normalize_raw_plan().
+        Phase 2 converts the normalized list of dicts into ExecutionStep objects
+        with fuzzy skill matching, tool inference, and param building.
 
         Args:
             raw_plan: Raw plan from DSPy (list of dicts/Pydantic models, or string, or None)
@@ -1094,65 +948,14 @@ JSON:"""
         Returns:
             List of ExecutionStep objects
         """
-        # --- Phase 1: Normalize raw_plan to plan_data (list of dicts) ---
-        plan_data = None
-
-        if isinstance(raw_plan, list):
-            plan_data = raw_plan
-            logger.info(f"   Plan data is list: {len(plan_data)} steps")
-        elif not raw_plan:
-            plan_data = []
-        else:
-            import re
-            plan_str = str(raw_plan).strip()
-
-            # Method 1: Direct JSON parse
-            if plan_str.startswith('['):
-                try:
-                    plan_data = json.loads(plan_str)
-                    logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
-                except json.JSONDecodeError:
-                    pass
-
-            # Method 2: Extract from markdown code block
-            if plan_data is None and '```' in plan_str:
-                json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
-                if json_match:
-                    try:
-                        plan_data = json.loads(json_match.group(1).strip())
-                        logger.info(f"   Extracted from code block: {len(plan_data)} steps")
-                    except json.JSONDecodeError:
-                        pass
-
-            # Method 3: Find JSON array anywhere in text
-            if plan_data is None:
-                array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
-                if array_match:
-                    try:
-                        plan_data = json.loads(array_match.group(0))
-                        logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
-                    except json.JSONDecodeError:
-                        pass
-
-            # Method 4: Use _extract_plan_from_text helper
-            if plan_data is None:
-                plan_data = self._extract_plan_from_text(str(raw_plan))
-                if plan_data:
-                    logger.info(f"   Extracted via helper: {len(plan_data)} steps")
-
-            if plan_data is None:
-                logger.error(f"Could not parse plan. Raw (first 300 chars): {plan_str[:300]}")
-                plan_data = []
-
-        # Ensure list
-        if plan_data and not isinstance(plan_data, list):
-            plan_data = [plan_data]
+        # --- Phase 1: Normalize to list of dicts ---
+        plan_data = self._normalize_raw_plan(raw_plan, skills=skills, task=task, task_type=task_type)
 
         if not plan_data:
             return []
 
         # --- Phase 2: Convert plan_data to ExecutionStep objects ---
-        ExecutionStep = _get_execution_step()
+        # ExecutionStep imported at module level from _execution_types
         steps = []
 
         # Build tool-to-skill mapping
@@ -1486,7 +1289,7 @@ JSON:"""
             pass
 
         # Build decomposed plan
-        ExecutionStep = _get_execution_step()
+        # ExecutionStep imported at module level from _execution_types
         decomposed = []
 
         # Detect delivery channels

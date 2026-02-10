@@ -155,12 +155,14 @@ DEFAULT_PARAM_ALIASES: Dict[str, List[str]] = {
 @dataclass
 class SwarmConfig:
     """
-    Swarm Orchestration Configuration - All A-Team Enhancements
+    Swarm Orchestration Configuration.
+
+    Schema-versioned for safe JSON persistence roundtrips.
+    Pruned to active parameters only — dead params removed 2026-02-10.
 
     Categories:
     1. PERSISTENCE - State storage
     2. EXECUTION - Runtime limits
-    2.5. TIMEOUT & CIRCUIT BREAKER - Production resilience (NEW)
     3. MEMORY - Capacity and hierarchy
     4. CONTEXT BUDGET - Token allocation
     5. RL PARAMETERS - TD(λ) learning
@@ -172,18 +174,21 @@ class SwarmConfig:
     11. VALIDATION - Decision logic
     12. ASYNC - Parallelism
     13. LOGGING - Verbosity
-    14. LLM RAG - Semantic retrieval (NEW)
-    15. GOAL HIERARCHY - Knowledge transfer (NEW)
-    16. CAUSAL LEARNING - Why understanding (NEW)
-    17. INTER-AGENT - Communication (NEW)
-    18. MULTI-ROUND - Iterative validation (NEW)
-    19. ADAPTIVE LEARNING - Dynamic parameters (NEW)
-    20. DEDUPLICATION - Redundancy removal (NEW)
-    21. DISTRIBUTED - Multi-instance support (NEW)
+    14. LLM RAG - Semantic retrieval
+    15. GOAL HIERARCHY - Knowledge transfer
+    16. CAUSAL LEARNING - Why understanding
+    17. INTER-AGENT - Communication
+    18. MULTI-ROUND - Iterative validation
+    19. ADAPTIVE LEARNING - Dynamic parameters
+    20. DEDUPLICATION - Redundancy removal
     """
 
+    # Schema version — increment on breaking changes to persisted JSON.
+    # Loaded files with a different major version trigger a migration warning.
+    schema_version: str = "2.0"
+
     # =========================================================================
-    # 1. PERSISTENCE (A-Team: Complete Session & State Management)
+    # 1. PERSISTENCE
     # =========================================================================
     # 🔥 A-TEAM: Single source of truth for ALL persistence paths
     output_base_dir: str = "./outputs"  # Base directory for all outputs
@@ -258,30 +263,8 @@ class SwarmConfig:
     llm_timeout_seconds: float = 180.0  # ⚡ LLM call timeout to prevent API hangs (3 minutes)
 
     # =========================================================================
-    # 2.5 TIMEOUT & CIRCUIT BREAKER (A-Team: Production Resilience)
+    # 2.5 VALIDATION & MULTI-ROUND
     # =========================================================================
-    # Circuit Breaker Config
-    enable_circuit_breakers: bool = True
-    llm_circuit_failure_threshold: int = 5  # Failures before opening LLM circuit
-    llm_circuit_timeout: float = 60.0  # Seconds before trying half-open
-    llm_circuit_success_threshold: int = 2  # Successes to close from half-open
-    tool_circuit_failure_threshold: int = 3  # Failures before opening tool circuit
-    tool_circuit_timeout: float = 30.0
-    tool_circuit_success_threshold: int = 2
-
-    # Adaptive Timeout Config
-    enable_adaptive_timeouts: bool = True
-    initial_timeout: float = 30.0  # Initial timeout for operations
-    timeout_percentile: float = 95.0  # Use 95th percentile of latencies
-    min_timeout: float = 5.0  # Minimum adaptive timeout
-    max_timeout: float = 300.0  # Maximum adaptive timeout (5 minutes)
-
-    # Dead Letter Queue Config
-    enable_dead_letter_queue: bool = True
-    dlq_max_size: int = 1000
-    dlq_max_retries: int = 0  # 0 → resolved in __post_init__ from MAX_RETRIES
-
-    # NEW: Multi-round limits
     max_validation_rounds: int = 3
     refinement_timeout: float = 30.0
 
@@ -424,20 +407,6 @@ class SwarmConfig:
     min_cluster_size: int = 5
     pattern_confidence_threshold: float = 0.7
 
-    # NEW: Causal consolidation (Aristotle)
-    enable_causal_extraction: bool = True
-    min_causal_evidence: int = 3
-
-    # 🆕 STANFORD FIX: Brain-inspired consolidation (optional features from brain_modes.py)
-    brain_reward_salience_weight: float = 0.3  # Weight for reward salience
-    brain_novelty_weight: float = 0.4  # Weight for novelty
-    brain_goal_relevance_weight: float = 0.3  # Weight for goal relevance
-    brain_memory_threshold: float = 0.4  # Threshold for memory retention
-    brain_prune_threshold: float = 0.15  # Threshold for memory pruning
-    brain_strengthen_threshold: float = 0.85  # Threshold for strengthening
-    brain_max_prune_percentage: float = 0.2  # Max % to prune at once
-    brain_expected_reward_init: float = 0.5  # Initial expected reward estimate
-    brain_alpha: float = 0.1  # Learning rate for brain consolidation
 
     # =========================================================================
     # 9. OFFLINE LEARNING
@@ -446,15 +415,9 @@ class SwarmConfig:
     offline_update_interval: int = 50
     replay_batch_size: int = 20
 
-    # NEW: Counterfactual learning
-    enable_counterfactual: bool = True
+    # Counterfactual learning
     counterfactual_samples: int = 5
 
-    # 🆕 STANFORD FIX: Priority replay and credit adjustment
-    priority_replay_alpha: float = 0.6  # Alpha for prioritized experience replay
-    success_priority: float = 0.5  # Priority for successful episodes
-    failure_priority: float = 1.0  # Priority for failed episodes (learn more)
-    credit_adjustment_factor: float = 0.2  # Factor for credit adjustments
 
     # =========================================================================
     # 10. PROTECTION MECHANISMS
@@ -542,7 +505,6 @@ class SwarmConfig:
     # =========================================================================
     enable_goal_hierarchy: bool = True
     goal_transfer_weight: float = 0.3  # Weight for transferred knowledge
-    max_transfer_distance: int = 2     # Max hierarchy distance for transfer
 
     # =========================================================================
     # 16. CAUSAL LEARNING (NEW - Aristotle)
@@ -550,7 +512,6 @@ class SwarmConfig:
     enable_causal_learning: bool = True
     causal_confidence_threshold: float = 0.7
     causal_min_support: int = 3       # Episodes before causal link confirmed
-    causal_transfer_enabled: bool = True  # Apply causal knowledge to new domains
 
     # =========================================================================
     # 17. INTER-AGENT COMMUNICATION (NEW - Dr. Chen)
@@ -559,13 +520,6 @@ class SwarmConfig:
     share_tool_results: bool = True    # Cache and share tool results
     share_insights: bool = True        # Share discovered insights
     max_messages_per_episode: int = 20
-
-    # 🆕 STANFORD FIX: Predictive MARL (multi-agent trajectory prediction)
-    marl_default_cooperation: float = 0.5  # Default cooperation score
-    marl_default_predictability: float = 0.5  # Default predictability score
-    marl_action_divergence_weight: float = 0.4  # Weight for action divergence
-    marl_state_divergence_weight: float = 0.3  # Weight for state divergence
-    marl_reward_divergence_weight: float = 0.3  # Weight for reward divergence
 
     # =========================================================================
     # 18. MULTI-ROUND VALIDATION (NEW - Dr. Chen)
@@ -588,19 +542,7 @@ class SwarmConfig:
     # =========================================================================
     enable_deduplication: bool = True
     similarity_threshold: float = 0.85  # LLM-judged similarity
-    merge_similar_memories: bool = True
 
-    # =========================================================================
-    # 21. DISTRIBUTED SUPPORT (NEW - Alex)
-    # =========================================================================
-    enable_distributed: bool = False
-    instance_id: str = "default"
-    lock_timeout: float = 5.0
-
-    # Redis config (if distributed)
-    redis_host: Optional[str] = None
-    redis_port: int = 6379
-    redis_db: int = 0
 
     # =========================================================================
     # 21.5 LOCAL-FIRST MODE (OpenClaw-Inspired)
@@ -608,8 +550,6 @@ class SwarmConfig:
     # Enable local-first mode for privacy - no external API calls
     local_mode: bool = False              # Master switch for local-only inference
     local_model: str = "ollama/llama3"    # Local model for agents (Ollama format)
-    local_voice: bool = True              # Use local voice providers when local_mode=True
-    local_embedding: bool = True          # Use local embeddings when local_mode=True (future)
 
     # =========================================================================
     # 22. DYNAMIC ORCHESTRATION (NEW - A-Team v2.0)
@@ -632,13 +572,6 @@ class SwarmConfig:
     # Recovery Management
     enable_recovery_management: bool = False  # Intelligent failure recovery
 
-    # =========================================================================
-    # 22. COST TRACKING & MONITORING (NEW - OAgents Integration)
-    # =========================================================================
-    # Cost tracking and efficiency metrics
-    enable_cost_tracking: bool = False  # Track LLM API costs (opt-in)
-    cost_budget: Optional[float] = None  # Optional cost limit (in USD)
-    cost_tracking_file: Optional[str] = None  # Path to save cost tracking data
 
     # =========================================================================
     # 22.5 BUDGET CONTROLS (A-Team Critical Fix)
@@ -652,10 +585,6 @@ class SwarmConfig:
     
     # Monitoring framework
     enable_monitoring: bool = False  # Enable comprehensive monitoring (opt-in)
-    monitoring_output_dir: Optional[str] = None  # Directory for monitoring reports
-    
-    # Efficiency metrics
-    enable_efficiency_metrics: bool = False  # Calculate efficiency scores (requires cost tracking)
     baseline_cost_per_success: Optional[float] = None  # Baseline for efficiency comparison
     
     # =========================================================================
@@ -667,11 +596,6 @@ class SwarmConfig:
     torch_seed: Optional[int] = None  # PyTorch random seed (if available)
     python_hash_seed: Optional[int] = None  # Python hash randomization seed
     enable_deterministic: bool = True  # Enable deterministic operations
-    
-    # Evaluation framework
-    enable_evaluation: bool = False  # Enable evaluation framework (opt-in)
-    evaluation_n_runs: int = 5  # Number of evaluation runs
-    evaluation_output_dir: Optional[str] = None  # Directory for evaluation results
     
     # =========================================================================
     # 24. AUDITOR TYPES (NEW - OAgents Integration)
@@ -720,11 +644,6 @@ class SwarmConfig:
     # =========================================================================
     def __post_init__(self):
         """Calculate derived config values."""
-        # Resolve sentinel defaults from centralized config
-        if self.dlq_max_retries <= 0:
-            from Jotty.core.foundation.config_defaults import MAX_RETRIES
-            self.dlq_max_retries = MAX_RETRIES
-
         # A-Team: Calculate char limits from token budgets
         # Rule of thumb: 1 token ≈ 4 characters
         if self.preview_char_limit is None:

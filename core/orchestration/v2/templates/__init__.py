@@ -16,6 +16,7 @@ Available Templates:
 - SwarmML: Machine Learning (classification, regression, clustering)
 - SwarmMLComprehensive: Learning-enhanced ML with cross-session learning
 - SwarmLean: Claude Code-like lean execution (research, documents, checklists)
+- SwarmScience: World-class science teaching (building blocks to Olympiad level)
 - SwarmNLP: Natural Language Processing (coming soon)
 - SwarmCV: Computer Vision (coming soon)
 - SwarmTimeSeries: Time Series Analysis (coming soon)
@@ -44,6 +45,7 @@ from .swarm_ml_comprehensive import (
     SwarmMLComprehensive, LearningConfig, LearningState,
     MLflowConfig, ReportConfig, TelegramConfig
 )
+from .swarm_science import SwarmScience
 
 __all__ = [
     # Base classes
@@ -63,4 +65,6 @@ __all__ = [
     'TelegramConfig',
     # Lean Template
     'SwarmLean',
+    # Science Teaching Template
+    'SwarmScience',
 ]

@@ -23,7 +23,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .base_agent import BaseAgent, AgentConfig, AgentResult
+from Jotty.core.utils.async_utils import StatusReporter
 from .skill_plan_executor import SkillPlanExecutor
+from .._execution_types import ExecutionStep
 
 logger = logging.getLogger(__name__)
 
@@ -43,24 +45,6 @@ class AutonomousAgentConfig(AgentConfig):
     enable_output: bool = False
     enable_ensemble: bool = False
     ensemble_strategy: str = "multi_perspective"
-
-
-# =============================================================================
-# EXECUTION STEP
-# =============================================================================
-
-@dataclass
-class ExecutionStep:
-    """A step in the execution plan."""
-    skill_name: str
-    tool_name: str
-    params: Dict[str, Any]
-    description: str
-    depends_on: List[int] = field(default_factory=list)
-    output_key: str = ""
-    optional: bool = False
-    verification: str = ""
-    fallback_skill: str = ""
 
 
 # =============================================================================
@@ -222,77 +206,99 @@ class AutonomousAgent(BaseAgent):
         Orchestrates the full pipeline: infer task type -> discover skills ->
         select skills -> create plan -> execute steps (with replanning).
 
-        This orchestration loop stays in AutonomousAgent because it includes
-        autonomous-specific behavior like replanning and excluded_skills
-        management. The individual steps delegate to SkillPlanExecutor.
-
         Args:
             task: Task description
             **kwargs: Additional arguments
-                direct_llm: If True, bypass skill pipeline entirely and use
-                    LLM directly with system_prompt. Used by multi-agent mode
-                    for specialized sub-agents that do analysis/synthesis.
-
-        Returns:
-            Dict with execution results
+                direct_llm: If True, bypass skill pipeline and use LLM directly.
         """
         config: AutonomousAgentConfig = self.config
         start_time = time.time()
         status_callback = kwargs.pop('status_callback', None)
-        # Learning context is kept separate from task to prevent pollution
-        # of search queries, entity extraction, and skill params
         learning_context = kwargs.pop('learning_context', None)
-        # Workspace dir for project rules (.jottyrules) — flows to DomainAgent
         workspace_dir = kwargs.pop('workspace_dir', None)
         direct_llm = kwargs.pop('direct_llm', False)
 
-        def _status(stage: str, detail: str = ""):
-            if status_callback:
-                try:
-                    status_callback(stage, detail)
-                except Exception:
-                    pass
-            logger.info(f"{stage}: {detail}" if detail else stage)
+        _status = StatusReporter(status_callback, logger)
 
-        # ── DIRECT LLM MODE ────────────────────────────────────────────
-        # For multi-agent sub-agents that are specialized via system_prompt:
-        # Skip the entire skill pipeline (task inference, skill discovery,
-        # skill selection, planning) and call the LLM directly.
-        # This turns a ~120s pipeline into a ~15-20s direct LLM call.
+        # Direct LLM mode (multi-agent sub-agents bypass skill pipeline)
         if direct_llm:
-            _status("Direct LLM", "bypassing skill pipeline (multi-agent sub-agent)")
-            llm_response = await self._fallback_llm_response(task)
-            if llm_response:
-                return {
-                    "success": True,
-                    "task": task,
-                    "task_type": "direct_llm",
-                    "skills_used": ["direct-llm"],
-                    "steps_executed": 1,
-                    "outputs": {"llm_response": llm_response},
-                    "final_output": llm_response,
-                    "errors": [],
-                    "execution_time": time.time() - start_time,
-                }
-            return {
-                "success": False,
-                "task": task,
-                "error": "Direct LLM response failed",
-                "skills_used": [],
-                "steps_executed": 0,
-                "outputs": {},
-                "execution_time": time.time() - start_time,
-            }
+            return await self._handle_direct_llm(task, start_time, _status)
 
-        # Reset excluded skills for new execution (single source of truth: executor)
+        # Reset excluded skills for new execution
         self.executor.clear_exclusions()
 
-        # Steps 1+2: Infer task type AND discover skills IN PARALLEL
-        # These are independent: task_type uses LLM/keywords, discovery queries registry.
-        # Running them concurrently saves ~5-10s vs sequential.
-        import asyncio as _asyncio
+        # Steps 1+2: Infer task type AND discover skills in parallel
+        task_type, all_skills = await self._discover_and_classify(task, _status)
 
-        _status("Analyzing", "inferring task type + discovering skills (parallel)")
+        # Step 3: Select and optimize skills
+        skills = await self._select_and_optimize_skills(
+            task, task_type, all_skills, learning_context, _status
+        )
+
+        # TOO_HARD early-exit
+        if not all_skills and not skills:
+            _status("TOO_HARD", "no relevant skills found for this sub-task")
+            return self._build_result(
+                task, task_type, {}, [], ["TOO_HARD: No relevant skills found"],
+                [], start_time, stopped=True, too_hard=True,
+            )
+
+        # Step 4: Create plan or go direct
+        steps, skill_names = await self._create_or_skip_plan(
+            task, task_type, skills, learning_context, workspace_dir, _status,
+        )
+
+        # No plan → direct LLM response
+        if not steps:
+            return await self._handle_no_plan_fallback(
+                task, task_type, skill_names, start_time, _status,
+            )
+
+        # Step 5: Execute plan steps with replanning
+        outputs, skills_used, errors, warnings, stopped = await self._run_execution_loop(
+            steps, task, task_type, skills, _status, status_callback,
+        )
+
+        # Post-execution: verify expected output files exist
+        self._verify_output_files(task, outputs)
+
+        is_success = len(outputs) > 0 and not stopped and len(errors) == 0
+        return self._build_result(
+            task, task_type, outputs, skills_used, errors,
+            warnings, start_time, stopped=stopped,
+        )
+
+    # =========================================================================
+    # EXTRACTED SUB-METHODS (from _execute_impl)
+    # =========================================================================
+
+    async def _handle_direct_llm(
+        self, task: str, start_time: float, status: StatusReporter,
+    ) -> Dict[str, Any]:
+        """Handle direct LLM mode — bypass skill pipeline entirely."""
+        status("Direct LLM", "bypassing skill pipeline (multi-agent sub-agent)")
+        llm_response = await self._fallback_llm_response(task)
+        if llm_response:
+            return {
+                "success": True, "task": task, "task_type": "direct_llm",
+                "skills_used": ["direct-llm"], "steps_executed": 1,
+                "outputs": {"llm_response": llm_response},
+                "final_output": llm_response, "errors": [],
+                "execution_time": time.time() - start_time,
+            }
+        return {
+            "success": False, "task": task,
+            "error": "Direct LLM response failed",
+            "skills_used": [], "steps_executed": 0, "outputs": {},
+            "execution_time": time.time() - start_time,
+        }
+
+    async def _discover_and_classify(
+        self, task: str, status: StatusReporter,
+    ) -> tuple:
+        """Infer task type and discover skills in parallel."""
+        import asyncio as _asyncio
+        status("Analyzing", "inferring task type + discovering skills (parallel)")
 
         async def _infer_type_async():
             return self._infer_task_type(task)
@@ -301,223 +307,212 @@ class AutonomousAgent(BaseAgent):
             _infer_type_async(),
             self._discover_skills(task),
         )
-        _status("Task type", task_type)
-        _status("Skills found", f"{len(all_skills)} potential")
+        status("Task type", task_type)
+        status("Skills found", f"{len(all_skills)} potential")
 
-        # Report any skills that failed to load (helps debugging)
         if self.skills_registry and hasattr(self.skills_registry, 'get_failed_skills'):
             failed = self.skills_registry.get_failed_skills()
             if failed:
-                _status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
+                status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
                 logger.warning(f"Failed skills: {failed}")
 
-        # Step 3: Select best skills (uses CLEAN task, cached by task_type)
-        # Inject approach guidance from learning context so skill selector
-        # knows which tool combos worked/failed for this task type.
-        _status("Selecting", "choosing best skills")
-        _selection_task = task
+        return task_type, all_skills
+
+    async def _select_and_optimize_skills(
+        self, task: str, task_type: str,
+        all_skills: List[Dict], learning_context: Optional[str],
+        status: StatusReporter,
+    ) -> List[Dict]:
+        """Select best skills and strip heavy ones for knowledge tasks."""
+        status("Selecting", "choosing best skills")
+
+        # Inject approach guidance from learning context
+        selection_task = task
         if learning_context:
-            # Extract only the approach-relevant hints (avoid/use lines)
-            _approach_lines = [
+            approach_lines = [
                 ln for ln in learning_context.split('\n')
                 if any(kw in ln.lower() for kw in ['avoid', 'failed approach', 'successful approach', 'use:'])
             ]
-            if _approach_lines:
-                _selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + '\n'.join(_approach_lines[:5])
-        skills = await self._select_skills(_selection_task, all_skills, task_type=task_type)
+            if approach_lines:
+                selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + '\n'.join(approach_lines[:5])
 
-        # OPTIMIZATION: Strip heavy/irrelevant skills for knowledge-only tasks.
-        # Tasks about design, architecture, algorithms, explanations etc. don't
-        # need web research, arxiv papers, slideshows, or mindmaps — the LLM
-        # already knows the answer. These tools add 60-300s of latency and
-        # lead the planner to create unnecessarily complex multi-step plans.
+        skills = await self._select_skills(selection_task, all_skills, task_type=task_type)
+
+        # Strip heavy/irrelevant skills for knowledge-only tasks
+        skills = self._optimize_for_knowledge_tasks(task, task_type, skills, all_skills, status)
+
+        status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
+        return skills
+
+    def _optimize_for_knowledge_tasks(
+        self, task: str, task_type: str,
+        skills: List[Dict], all_skills: List[Dict],
+        status: StatusReporter,
+    ) -> List[Dict]:
+        """Strip heavy skills for tasks the LLM can answer directly."""
         _KNOWLEDGE_TASK_TYPES = {'analysis', 'explanation', 'design', 'architecture',
                                  'algorithm', 'tutorial', 'comparison', 'review'}
-        _HEAVY_SKILLS = {
-            'web-search', 'web-scraper',           # web scraping: 30-120s waste
-            'arxiv-downloader',                     # paper download: unnecessary for design
-            'mindmap-generator', 'pptx-editor',    # presentation tools: not needed
-            'image-generator',                      # image gen: not needed
-            'screener-financials',                  # finance: irrelevant
-        }
-        # Skills that ARE useful for knowledge tasks — keep these
         _KNOWLEDGE_USEFUL = {'claude-cli-llm', 'file-operations', 'calculator',
                              'text-utils', 'shell-exec', 'unit-converter'}
-        _task_lower = task.lower()
-        _is_knowledge_task = (
+
+        task_lower = task.lower()
+        is_knowledge = (
             task_type in _KNOWLEDGE_TASK_TYPES
-            or any(kw in _task_lower for kw in [
+            or any(kw in task_lower for kw in [
                 'design', 'architect', 'explain', 'compare', 'review',
                 'algorithm', 'pattern', 'best practice', 'how to implement',
                 'trade-off', 'pros and cons', 'what is', 'describe',
             ])
         )
-        # Only strip if the user didn't explicitly ask for web/papers/slides
-        # Also keep heavy skills if task involves research or factual comparison
-        _wants_heavy = any(kw in _task_lower for kw in [
+        wants_heavy = any(kw in task_lower for kw in [
             'search', 'find online', 'latest', 'recent', 'news', 'current',
             'scrape', 'fetch', 'url', 'http', 'website', 'browse',
             'arxiv', 'paper', 'slides', 'presentation', 'mindmap',
             'research', 'benchmark', 'github stars', 'statistics',
             'released in', 'top 5', 'top 10', 'trending',
         ])
-        if _is_knowledge_task and not _wants_heavy:
-            _before = len(skills)
-            # For pure knowledge/design tasks: keep ONLY useful skills, strip everything else
-            # The LLM knows the content; we just need to generate text and optionally save it.
-            _remaining = [s for s in skills if s.get('name') in _KNOWLEDGE_USEFUL]
-            if not _remaining:
-                # Ensure at least claude-cli-llm is available
-                _remaining = [s for s in all_skills if s.get('name') == 'claude-cli-llm'][:1]
-            if _remaining and len(_remaining) < _before:
-                skills = _remaining
-                _stripped = _before - len(skills)
-                _status("Optimized", f"kept {len(skills)} useful skills for knowledge task (stripped {_stripped} heavy)")
 
-        _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
+        if is_knowledge and not wants_heavy:
+            before = len(skills)
+            remaining = [s for s in skills if s.get('name') in _KNOWLEDGE_USEFUL]
+            if not remaining:
+                remaining = [s for s in all_skills if s.get('name') == 'claude-cli-llm'][:1]
+            if remaining and len(remaining) < before:
+                stripped = before - len(remaining)
+                status("Optimized", f"kept {len(remaining)} useful skills for knowledge task (stripped {stripped} heavy)")
+                return remaining
 
-        # TOO_HARD early-exit: if no skills found at all, signal difficulty
-        # rather than wasting a full execution attempt (MAS-ZERO inspired)
-        if not all_skills and not skills:
-            _status("TOO_HARD", "no relevant skills found for this sub-task")
-            return {
-                "success": False,
-                "task": task,
-                "task_type": task_type,
-                "too_hard": True,
-                "skills_used": [],
-                "steps_executed": 0,
-                "outputs": {},
-                "final_output": None,
-                "errors": ["TOO_HARD: No relevant skills found for this sub-task"],
-                "execution_time": time.time() - start_time,
-            }
+        return skills
 
-        # Step 4: Create plan — or skip planning for direct-LLM tasks
-        #
-        # OPTIMIZATION: The planner LLM call returns 0 steps ~80% of the time
-        # for simple tasks (analysis, Q&A).  Detect this early and skip the
-        # planning LLM call entirely — go straight to direct LLM response.
-        # This saves ~15s per simple task.
-        #
-        # Extended: Also skip planning when only LLM + simple utility skills
-        # are selected. The planner adds no value for "think + write to file" tasks.
+    async def _create_or_skip_plan(
+        self, task: str, task_type: str, skills: List[Dict],
+        learning_context: Optional[str], workspace_dir: Optional[str],
+        status: StatusReporter,
+    ) -> tuple:
+        """Create execution plan, or skip planning for simple tasks."""
         skill_names = {s['name'] for s in skills}
-        # Skills that don't need a multi-step LLM plan — they're simple enough
-        # for direct invocation or heuristic routing.
         _direct_llm_only = {'claude-cli-llm', 'calculator', 'unit-converter',
                             'text-utils', 'file-operations', 'shell-exec'}
-        _needs_planning = not skill_names.issubset(_direct_llm_only)
+        needs_planning = not skill_names.issubset(_direct_llm_only)
 
-        # OVERRIDE: Code generation/creation tasks ALWAYS need planning,
-        # even with simple skills. Without a plan, the agent tries to shell-exec
-        # the task description as code instead of generating code first.
-        if not _needs_planning and task_type in ('creation', 'generation', 'automation'):
-            _needs_planning = True
-            logger.info(f"📋 Forcing planning for {task_type} task (code gen needs a multi-step plan)")
+        # Code generation tasks ALWAYS need planning
+        if not needs_planning and task_type in ('creation', 'generation', 'automation'):
+            needs_planning = True
+            logger.info(f"Forcing planning for {task_type} task (code gen needs a multi-step plan)")
 
         steps = []
-        if _needs_planning:
-            _status("Planning", "creating execution plan")
-            # Pass learning context separately — it gets stripped by _abstract_task_for_planning
-            # if embedded in the task, so we pass it as previous_outputs metadata
+        if needs_planning:
+            status("Planning", "creating execution plan")
             prev_outputs = {}
             if learning_context:
                 prev_outputs['_learning_guidance'] = learning_context[:2000]
-            # Inject project rules (.jottyrules) into planning so planner
-            # respects project conventions (e.g. "use TypeScript", "prefer pnpm")
             if workspace_dir:
                 try:
                     from Jotty.core.prompts.rules import load_project_rules
-                    _rules = load_project_rules(workspace_dir)
-                    if _rules:
-                        prev_outputs['_project_rules'] = _rules[:2000]
+                    rules = load_project_rules(workspace_dir)
+                    if rules:
+                        prev_outputs['_project_rules'] = rules[:2000]
                 except Exception:
                     pass
-            steps = await self._create_plan(task, task_type, skills, previous_outputs=prev_outputs if prev_outputs else None)
-            _status("Plan ready", f"{len(steps)} steps")
+            steps = await self._create_plan(
+                task, task_type, skills,
+                previous_outputs=prev_outputs if prev_outputs else None,
+            )
+            status("Plan ready", f"{len(steps)} steps")
         else:
-            _status("Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})")
+            status("Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})")
 
-        if not steps:
-            # No multi-step plan needed — direct LLM response
-            _status("Generating", "direct LLM response")
-            llm_response = await self._fallback_llm_response(task)
-            if llm_response:
-                # If file-operations was selected and task wants output saved,
-                # write the LLM response to a file automatically.
-                if 'file-operations' in skill_names:
-                    try:
-                        _save_kws = ['save', 'write to', 'create a file', 'output to']
-                        if any(kw in task.lower() for kw in _save_kws) and self.skills_registry:
-                            fo_skill = self.skills_registry.get_skill('file-operations')
-                            if fo_skill and fo_skill.tools:
-                                write_tool = fo_skill.tools.get('write_file_tool')
-                                if write_tool:
-                                    # Infer filename from planner utility
-                                    from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
-                                    _fname = PlanUtilsMixin._infer_filename_from_task(None, task) or 'output.md'
-                                    write_tool({'path': _fname, 'content': llm_response})
-                                    _status("Saved", f"output written to {_fname}")
-                    except Exception as e:
-                        logger.debug(f"Auto-save failed (non-critical): {e}")
+        return steps, skill_names
 
-                return {
-                    "success": True,
-                    "task": task,
-                    "task_type": task_type,
-                    "skills_used": ["claude-cli-llm"],
-                    "steps_executed": 1,
-                    "outputs": {"llm_response": llm_response},
-                    "final_output": llm_response,
-                    "errors": [],
-                    "execution_time": time.time() - start_time,
-                }
+    async def _handle_no_plan_fallback(
+        self, task: str, task_type: str, skill_names: set,
+        start_time: float, status: StatusReporter,
+    ) -> Dict[str, Any]:
+        """Generate direct LLM response when no plan was created."""
+        status("Generating", "direct LLM response")
+        llm_response = await self._fallback_llm_response(task)
+
+        if llm_response:
+            # Auto-save if file-operations was selected and task wants output saved
+            if 'file-operations' in skill_names:
+                try:
+                    _save_kws = ['save', 'write to', 'create a file', 'output to']
+                    if any(kw in task.lower() for kw in _save_kws) and self.skills_registry:
+                        fo_skill = self.skills_registry.get_skill('file-operations')
+                        if fo_skill and fo_skill.tools:
+                            write_tool = fo_skill.tools.get('write_file_tool')
+                            if write_tool:
+                                from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+                                fname = PlanUtilsMixin._infer_filename_from_task(None, task) or 'output.md'
+                                write_tool({'path': fname, 'content': llm_response})
+                                status("Saved", f"output written to {fname}")
+                except Exception as e:
+                    logger.debug(f"Auto-save failed (non-critical): {e}")
+
             return {
-                "success": False,
-                "task": task,
-                "error": "Could not generate response",
-                "skills_used": [],
-                "steps_executed": 0,
-                "outputs": {},
+                "success": True, "task": task, "task_type": task_type,
+                "skills_used": ["claude-cli-llm"], "steps_executed": 1,
+                "outputs": {"llm_response": llm_response},
+                "final_output": llm_response, "errors": [],
+                "execution_time": time.time() - start_time,
             }
+        return {
+            "success": False, "task": task,
+            "error": "Could not generate response",
+            "skills_used": [], "steps_executed": 0, "outputs": {},
+        }
 
-        # Step 5: Execute steps (using while loop to support dynamic step modification)
+    async def _run_execution_loop(
+        self, steps: list, task: str, task_type: str,
+        skills: List[Dict], status: StatusReporter,
+        status_callback: Optional[Callable],
+    ) -> tuple:
+        """Execute plan steps with replanning on failure."""
+        config: AutonomousAgentConfig = self.config
+        TOTAL_BUDGET = config.timeout  # wall-clock budget (seconds)
+        budget_start = time.time()
         outputs = {}
         skills_used = []
-        errors = []          # Unrecovered fatal errors
-        warnings = []        # Recovered errors (replanning fixed them)
+        errors = []
+        warnings = []
         replan_count = 0
         execution_stopped = False
         i = 0
 
         while i < len(steps):
+            # Enforce wall-clock budget
+            elapsed = time.time() - budget_start
+            remaining = TOTAL_BUDGET - elapsed
+            if remaining < 5.0:
+                status("Budget", f"execution budget exhausted ({elapsed:.0f}s) — returning partial results")
+                errors.append(f"Budget exhausted after step {i}/{len(steps)} ({elapsed:.0f}s)")
+                execution_stopped = True
+                break
+
             step = steps[i]
-            _status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:100]}")
+            status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:100]} (budget: {remaining:.0f}s left)")
 
             result = await self._execute_step(step, outputs, status_callback)
 
             if result.get('success'):
                 outputs[step.output_key or f'step_{i}'] = result
                 skills_used.append(step.skill_name)
-                _status(f"Step {i+1}", "completed")
+                status(f"Step {i+1}", "completed")
                 i += 1
             else:
                 error_msg = result.get('error', 'Unknown error')
                 errors.append(f"Step {i+1}: {error_msg}")
-                _status(f"Step {i+1}", f"failed: {error_msg}")
+                status(f"Step {i+1}", f"failed: {error_msg}")
 
-                # For optional steps, continue without stopping
                 if step.optional:
-                    _status("Continuing", "optional step failed, skipping")
+                    status("Continuing", "optional step failed, skipping")
                     i += 1
                     continue
 
-                # Try reflective replanning before stopping
+                # Try reflective replanning
                 if config.enable_replanning and replan_count < config.max_replans:
-                    _status("Replanning", "adapting to failure with reflection")
+                    status("Replanning", "adapting to failure with reflection")
 
-                    # Exclude skill for structural failures
                     exclusion_keywords = [
                         'not found', '404', 'invalid', 'delisted',
                         'not implemented', 'unsupported', 'deprecated',
@@ -540,97 +535,118 @@ class AutonomousAgent(BaseAgent):
                         max_steps=config.max_steps - (i + 1),
                     )
                     if new_steps:
-                        # Splice new steps into remaining execution
                         steps = steps[:i + 1] + new_steps
                         replan_count += 1
-                        # Move error to warnings since replanning is recovering
                         if errors:
                             warnings.append(errors.pop())
-                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:200]})")
+                        status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:200]})")
                         i += 1
                         continue
 
-                # No replanning possible or replanning produced no steps - stop
-                _status("Stopped", f"execution halted: {error_msg[:80]}")
+                status("Stopped", f"execution halted: {error_msg[:80]}")
                 execution_stopped = True
                 break
 
-        # Determine final output
-        final_output = list(outputs.values())[-1] if outputs else None
+        return outputs, skills_used, errors, warnings, execution_stopped
 
-        # Post-execution file verification: find ALL files mentioned in the
-        # task (e.g., "save to report.md", "called math_utils.py") and auto-
-        # write any that are missing. Catches replanning omitting file-write
-        # steps, or planners writing to wrong filenames.
+    def _verify_output_files(self, task: str, outputs: Dict[str, Any]):
+        """Auto-save missing files mentioned in the task."""
         try:
             import re as _re
-            # Find all filenames with extensions mentioned in the task
-            _mentioned_files = _re.findall(
+            mentioned_files = _re.findall(
                 r'\b([a-zA-Z][a-zA-Z0-9_.-]*\.\w{1,5})\b', task
             )
-            # Deduplicate while preserving order, filter out non-files
-            _seen = set()
-            _unique_files = []
-            _skip_exts = {'com', 'org', 'net', 'io', 'ai', 'dev', 'app', 'co'}
-            for _f in _mentioned_files:
-                _ext = _f.rsplit('.', 1)[-1].lower() if '.' in _f else ''
-                if (_f not in _seen and not _f.startswith('0.')
-                        and '/' not in _f and _ext not in _skip_exts
-                        and len(_f) < 100):
-                    _seen.add(_f)
-                    _unique_files.append(_f)
+            seen = set()
+            skip_exts = {'com', 'org', 'net', 'io', 'ai', 'dev', 'app', 'co'}
 
-            for _target_file in _unique_files:
-                _target_path = Path(_target_file)
-                if not _target_path.exists() and outputs:
-                    # Find the best content to save — prefer outputs that
-                    # mention this filename, then fall back to largest content
-                    _best_content = ""
-                    _target_stem = _target_path.stem.lower()
-                    # First pass: find output whose key or content mentions this file
-                    for _k, _v in outputs.items():
-                        if isinstance(_v, dict):
-                            for _cf in ('text', 'content', 'output', 'stdout'):
-                                _txt = str(_v.get(_cf, ''))
-                                if _target_stem in _k.lower() and len(_txt) > len(_best_content):
-                                    _best_content = _txt
-                    # Second pass: fallback to largest content if nothing matched
-                    if len(_best_content) < 100:
-                        for _k, _v in outputs.items():
-                            if isinstance(_v, dict):
-                                for _cf in ('text', 'content', 'output', 'stdout'):
-                                    _txt = str(_v.get(_cf, ''))
-                                    if len(_txt) > len(_best_content):
-                                        _best_content = _txt
-                    if len(_best_content) > 100:
-                        _target_path.parent.mkdir(parents=True, exist_ok=True)
-                        _target_path.write_text(_best_content)
-                        logger.info(f"📁 Auto-saved missing file: {_target_file} ({len(_best_content)} chars)")
-                        outputs[f'auto_save_{_target_file}'] = {
-                            'success': True,
-                            'path': str(_target_path),
-                            'bytes_written': len(_best_content),
-                        }
-        except Exception as _e:
-            logger.debug(f"Post-exec file check skipped: {_e}")
+            for fname in mentioned_files:
+                ext = fname.rsplit('.', 1)[-1].lower() if '.' in fname else ''
+                if (fname in seen or fname.startswith('0.')
+                        or '/' in fname or ext in skip_exts or len(fname) >= 100):
+                    continue
+                seen.add(fname)
 
-        # Success if we produced output and didn't stop early from unrecovered errors
-        # Recovered errors (replanning fixed them) are warnings, not failures
-        is_success = len(outputs) > 0 and not execution_stopped and len(errors) == 0
+                target_path = Path(fname)
+                if target_path.exists() or not outputs:
+                    continue
 
-        return {
-            "success": is_success,
+                # Find best content to save
+                best_content = self._find_best_content_for_file(target_path, outputs)
+                if len(best_content) > 100:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    # Atomic write: write to temp file then rename
+                    import tempfile
+                    fd, tmp_path = tempfile.mkstemp(
+                        dir=str(target_path.parent),
+                        suffix='.tmp',
+                    )
+                    try:
+                        with open(fd, 'w') as f:
+                            f.write(best_content)
+                        Path(tmp_path).replace(target_path)
+                    except Exception:
+                        Path(tmp_path).unlink(missing_ok=True)
+                        raise
+                    logger.info(f"Auto-saved missing file: {fname} ({len(best_content)} chars)")
+                    outputs[f'auto_save_{fname}'] = {
+                        'success': True, 'path': str(target_path),
+                        'bytes_written': len(best_content),
+                    }
+        except Exception as e:
+            logger.debug(f"Post-exec file check skipped: {e}")
+
+    @staticmethod
+    def _find_best_content_for_file(
+        target_path: Path, outputs: Dict[str, Any],
+    ) -> str:
+        """Find the best output content to save for a target file."""
+        best = ""
+        target_stem = target_path.stem.lower()
+        content_keys = ('text', 'content', 'output', 'stdout')
+
+        # First pass: prefer outputs whose key matches the filename
+        for key, val in outputs.items():
+            if isinstance(val, dict) and target_stem in key.lower():
+                for ck in content_keys:
+                    txt = str(val.get(ck, ''))
+                    if len(txt) > len(best):
+                        best = txt
+
+        # Fallback: largest content from any output
+        if len(best) < 100:
+            for val in outputs.values():
+                if isinstance(val, dict):
+                    for ck in content_keys:
+                        txt = str(val.get(ck, ''))
+                        if len(txt) > len(best):
+                            best = txt
+        return best
+
+    @staticmethod
+    def _build_result(
+        task: str, task_type: str,
+        outputs: Dict, skills_used: List[str],
+        errors: List[str], warnings: List[str],
+        start_time: float, stopped: bool = False,
+        too_hard: bool = False,
+    ) -> Dict[str, Any]:
+        """Assemble the execution result dict."""
+        result = {
+            "success": len(outputs) > 0 and not stopped and len(errors) == 0,
             "task": task,
             "task_type": task_type,
             "skills_used": list(set(skills_used)),
             "steps_executed": len(outputs),
             "outputs": outputs,
-            "final_output": final_output,
+            "final_output": list(outputs.values())[-1] if outputs else None,
             "errors": errors,
             "warnings": warnings,
             "execution_time": time.time() - start_time,
-            "stopped_early": execution_stopped,
+            "stopped_early": stopped,
         }
+        if too_hard:
+            result["too_hard"] = True
+        return result
 
     async def _fallback_llm_response(self, task: str) -> Optional[str]:
         """

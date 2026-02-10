@@ -24,6 +24,7 @@ import time
 import requests
 import dspy
 from typing import Optional
+from Jotty.core.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ def create_claude_openai_lm(
     if auto_start and not is_wrapper_running(base_url):
         port = int(base_url.split(":")[-1].replace("/v1", ""))
         if not start_wrapper_server(port):
-            raise RuntimeError(
+            raise LLMError(
                 "OpenAI wrapper not running and failed to start. "
                 "Start manually with: python -c \"import uvicorn; from src.main import app; "
                 "uvicorn.run(app, host='127.0.0.1', port=8765)\""

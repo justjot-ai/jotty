@@ -2,99 +2,132 @@
  * WhatsApp Web Bridge for Jotty
  * =============================
  *
- * Uses whatsapp-web.js to connect to WhatsApp via QR code.
+ * Uses @whiskeysockets/baileys for WhatsApp Web connection.
+ * Pure WebSocket — no Puppeteer/Chromium needed.
  * Communicates with Python via stdin/stdout JSON messages.
  *
- * Setup: npm install whatsapp-web.js qrcode-terminal
+ * Setup: npm install @whiskeysockets/baileys qrcode-terminal pino
  */
 
-const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const pino = require('pino');
 
 // Session storage path
 const SESSION_PATH = path.join(process.env.HOME || '/tmp', '.jotty', 'whatsapp_session');
 
-// Create client with local auth
-const client = new Client({
-    authStrategy: new LocalAuth({
-        dataPath: SESSION_PATH
-    }),
-    puppeteer: {
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu'
-        ]
-    }
-});
+// Ensure session directory exists
+fs.mkdirSync(SESSION_PATH, { recursive: true });
+
+// Logger (silent for clean stdout JSON)
+const logger = pino({ level: 'silent' });
+
+let sock = null;
 
 // Send JSON message to Python
 function sendToPython(type, data) {
     const message = JSON.stringify({ type, ...data });
-    console.log(message);
+    process.stdout.write(message + '\n');
 }
 
-// QR Code event
-client.on('qr', (qr) => {
-    // Display QR in terminal
-    qrcode.generate(qr, { small: true });
+async function startClient() {
+    sendToPython('starting', { status: 'initializing' });
 
-    // Send QR to Python
-    sendToPython('qr', { qr_code: qr });
-});
+    const { state, saveCreds } = await useMultiFileAuthState(SESSION_PATH);
+    const { version } = await fetchLatestBaileysVersion();
 
-// Ready event
-client.on('ready', () => {
-    sendToPython('ready', {
-        status: 'connected',
-        info: client.info
+    sock = makeWASocket({
+        version,
+        auth: state,
+        logger,
+        printQRInTerminal: false,
+        browser: ['Jotty', 'Chrome', '120.0.0']
     });
-});
 
-// Authenticated event
-client.on('authenticated', () => {
-    sendToPython('authenticated', { status: 'authenticated' });
-});
+    // Save credentials on update
+    sock.ev.on('creds.update', saveCreds);
 
-// Auth failure
-client.on('auth_failure', (msg) => {
-    sendToPython('auth_failure', { error: msg });
-});
+    // Connection updates (QR code, connection status)
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-// Disconnected
-client.on('disconnected', (reason) => {
-    sendToPython('disconnected', { reason });
-});
+        if (qr) {
+            // Display QR in terminal for visual scanning
+            qrcode.generate(qr, { small: true }, (qrArt) => {
+                process.stderr.write('\n' + qrArt + '\n');
+                process.stderr.write('Scan this QR code with WhatsApp on your phone\n\n');
+            });
+            // Send QR data to Python
+            sendToPython('qr', { qr_code: qr });
+        }
 
-// Incoming message
-client.on('message', async (msg) => {
-    // Skip status messages
-    if (msg.isStatus) return;
+        if (connection === 'close') {
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-    const contact = await msg.getContact();
-    const chat = await msg.getChat();
+            sendToPython('disconnected', {
+                reason: lastDisconnect?.error?.message || 'unknown',
+                status_code: statusCode
+            });
 
-    sendToPython('message', {
-        id: msg.id._serialized,
-        from: msg.from,
-        to: msg.to,
-        body: msg.body,
-        type: msg.type,
-        timestamp: msg.timestamp,
-        is_group: chat.isGroup,
-        chat_name: chat.name,
-        sender_name: contact.pushname || contact.name || msg.from,
-        has_media: msg.hasMedia
+            if (shouldReconnect) {
+                sendToPython('reconnecting', { status: 'reconnecting' });
+                startClient();
+            }
+        } else if (connection === 'open') {
+            const user = sock.user;
+            sendToPython('ready', {
+                status: 'connected',
+                info: {
+                    id: user?.id,
+                    name: user?.name,
+                    phone: user?.id?.split(':')[0] || user?.id?.split('@')[0]
+                }
+            });
+        }
     });
-});
+
+    // Incoming messages
+    sock.ev.on('messages.upsert', async ({ messages, type: updateType }) => {
+        if (updateType !== 'notify') return;
+
+        for (const msg of messages) {
+            if (msg.key.fromMe) continue;
+            if (!msg.message) continue;
+
+            const jid = msg.key.remoteJid;
+            const isGroup = jid?.endsWith('@g.us') || false;
+            const body = msg.message.conversation
+                || msg.message.extendedTextMessage?.text
+                || msg.message.imageMessage?.caption
+                || msg.message.videoMessage?.caption
+                || '';
+            const msgType = Object.keys(msg.message)[0];
+
+            sendToPython('message', {
+                id: msg.key.id,
+                from: jid,
+                to: sock.user?.id,
+                body,
+                type: msgType,
+                timestamp: msg.messageTimestamp,
+                is_group: isGroup,
+                chat_name: msg.pushName || jid,
+                sender_name: msg.pushName || jid,
+                has_media: ['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage'].includes(msgType)
+            });
+        }
+    });
+}
+
+// Format phone number to JID
+function toJid(phone) {
+    if (phone.includes('@')) return phone;
+    return phone.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+}
 
 // Read commands from Python via stdin
 const rl = readline.createInterface({
@@ -125,14 +158,14 @@ rl.on('line', async (line) => {
                 break;
 
             case 'logout':
-                await client.logout();
+                await sock.logout();
                 sendToPython('logged_out', { status: 'logged_out' });
                 break;
 
             case 'status':
                 sendToPython('status', {
-                    connected: client.info ? true : false,
-                    info: client.info
+                    connected: sock?.user ? true : false,
+                    info: sock?.user
                 });
                 break;
 
@@ -146,19 +179,14 @@ rl.on('line', async (line) => {
 
 async function handleSendMessage(cmd) {
     try {
-        // Format phone number
-        let chatId = cmd.to;
-        if (!chatId.includes('@')) {
-            chatId = chatId.replace(/[^0-9]/g, '') + '@c.us';
-        }
-
-        const result = await client.sendMessage(chatId, cmd.message);
+        const jid = toJid(cmd.to);
+        const result = await sock.sendMessage(jid, { text: cmd.message });
 
         sendToPython('sent', {
             request_id: cmd.request_id,
             success: true,
-            message_id: result.id._serialized,
-            to: chatId
+            message_id: result.key.id,
+            to: jid
         });
     } catch (e) {
         sendToPython('sent', {
@@ -171,29 +199,39 @@ async function handleSendMessage(cmd) {
 
 async function handleSendMedia(cmd) {
     try {
-        let chatId = cmd.to;
-        if (!chatId.includes('@')) {
-            chatId = chatId.replace(/[^0-9]/g, '') + '@c.us';
-        }
+        const jid = toJid(cmd.to);
+        let content = {};
 
-        let media;
         if (cmd.file_path) {
-            media = MessageMedia.fromFilePath(cmd.file_path);
+            const buffer = fs.readFileSync(cmd.file_path);
+            const ext = path.extname(cmd.file_path).toLowerCase();
+            const mimeMap = {
+                '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+                '.gif': 'image/gif', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg',
+                '.ogg': 'audio/ogg', '.pdf': 'application/pdf', '.doc': 'application/msword'
+            };
+            const mimetype = mimeMap[ext] || 'application/octet-stream';
+
+            if (mimetype.startsWith('image/')) {
+                content = { image: buffer, caption: cmd.caption || '' };
+            } else if (mimetype.startsWith('video/')) {
+                content = { video: buffer, caption: cmd.caption || '' };
+            } else if (mimetype.startsWith('audio/')) {
+                content = { audio: buffer, mimetype };
+            } else {
+                content = { document: buffer, mimetype, fileName: path.basename(cmd.file_path) };
+            }
         } else if (cmd.url) {
-            media = await MessageMedia.fromUrl(cmd.url);
-        } else if (cmd.base64) {
-            media = new MessageMedia(cmd.mimetype, cmd.base64, cmd.filename);
+            content = { image: { url: cmd.url }, caption: cmd.caption || '' };
         }
 
-        const result = await client.sendMessage(chatId, media, {
-            caption: cmd.caption || ''
-        });
+        const result = await sock.sendMessage(jid, content);
 
         sendToPython('sent', {
             request_id: cmd.request_id,
             success: true,
-            message_id: result.id._serialized,
-            to: chatId
+            message_id: result.key.id,
+            to: jid
         });
     } catch (e) {
         sendToPython('sent', {
@@ -206,18 +244,11 @@ async function handleSendMedia(cmd) {
 
 async function handleGetChats(cmd) {
     try {
-        const chats = await client.getChats();
-        const chatList = chats.slice(0, cmd.limit || 50).map(chat => ({
-            id: chat.id._serialized,
-            name: chat.name,
-            is_group: chat.isGroup,
-            unread_count: chat.unreadCount,
-            timestamp: chat.timestamp
-        }));
-
+        // Baileys doesn't have a direct getChats - use store or return empty
         sendToPython('chats', {
             request_id: cmd.request_id,
-            chats: chatList
+            chats: [],
+            note: 'Use message history for chat list with Baileys'
         });
     } catch (e) {
         sendToPython('error', {
@@ -229,20 +260,10 @@ async function handleGetChats(cmd) {
 
 async function handleGetContacts(cmd) {
     try {
-        const contacts = await client.getContacts();
-        const contactList = contacts
-            .filter(c => c.isMyContact)
-            .slice(0, cmd.limit || 100)
-            .map(c => ({
-                id: c.id._serialized,
-                name: c.name || c.pushname,
-                number: c.number,
-                is_business: c.isBusiness
-            }));
-
         sendToPython('contacts', {
             request_id: cmd.request_id,
-            contacts: contactList
+            contacts: [],
+            note: 'Contacts are populated as messages arrive with Baileys'
         });
     } catch (e) {
         sendToPython('error', {
@@ -263,6 +284,8 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
-// Start client
-sendToPython('starting', { status: 'initializing' });
-client.initialize();
+// Start
+startClient().catch(err => {
+    sendToPython('error', { error: err.message });
+    process.exit(1);
+});

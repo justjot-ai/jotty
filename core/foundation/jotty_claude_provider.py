@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Optional
 import requests
 import dspy
+from Jotty.core.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class JottyClaudeProvider:
         # Check if Claude CLI is available
         self.claude_path = shutil.which('claude')
         if not self.claude_path:
-            raise RuntimeError(
+            raise LLMError(
                 "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code"
             )
 

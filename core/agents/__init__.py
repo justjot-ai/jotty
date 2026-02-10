@@ -42,16 +42,18 @@ _LAZY_IMPORTS: dict[str, str] = {
     "create_validation_agent": ".base",
     "AutonomousAgent": ".base",
     "AutonomousAgentConfig": ".base",
-    "ExecutionStep": ".base",
+    "ExecutionStep": "._execution_types",
     "create_autonomous_agent": ".base",
+    # Shared types (no circular dependency)
+    "TaskType": "._execution_types",
+    "ExecutionResult": "._execution_types",
+    "ExecutionStepSchema": "._execution_types",
     # Chat
     "ChatAssistant": ".chat_assistant",
     "create_chat_assistant": ".chat_assistant",
     # Auto
     "AutoAgent": ".auto_agent",
     "run_task": ".auto_agent",
-    "TaskType": ".auto_agent",
-    "ExecutionResult": ".auto_agent",
     # ML
     "ModelChatAgent": ".model_chat_agent",
     # DAG Agents

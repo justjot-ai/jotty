@@ -11,6 +11,7 @@ Full browser automation using Playwright or Selenium for:
 - Executing JavaScript
 - Handling authentication
 - Downloading files
+- Session persistence (cookie save/load)
 
 Supports:
 - Playwright (default, async, faster)
@@ -19,6 +20,7 @@ Supports:
 Set BROWSER_BACKEND='selenium' to use Selenium, or use cdp_url for CDP connection.
 """
 import os
+import json
 import asyncio
 import base64
 import logging
@@ -27,6 +29,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error
 
 logger = logging.getLogger(__name__)
 
@@ -1006,6 +1009,133 @@ def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+# =========================================================================
+# Session Persistence (Cookie Save/Load/Reset)
+# =========================================================================
+
+COOKIE_STORAGE_PATH = os.path.expanduser("~/jotty/browser")
+
+
+async def browser_save_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Save browser cookies to file for session persistence.
+
+    Args:
+        params: Dictionary containing:
+            - save_path (str, optional): Path to save cookies (default: ~/jotty/browser/cookies.json)
+            - name (str, optional): Session name for organizing multiple sessions
+
+    Returns:
+        Dictionary with success, saved_path, cookie_count
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not PLAYWRIGHT_AVAILABLE:
+        return tool_error('Playwright not installed')
+
+    try:
+        session = await BrowserSession.get_instance()
+        if not session._context:
+            return tool_error('No active browser context. Navigate to a page first.')
+
+        cookies = await session._context.cookies()
+
+        name = params.get('name', 'default')
+        save_path = params.get('save_path')
+        if not save_path:
+            Path(COOKIE_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+            save_path = os.path.join(COOKIE_STORAGE_PATH, f"{name}_cookies.json")
+
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(save_path, 'w') as f:
+            json.dump(cookies, f, indent=2)
+
+        logger.info(f"Saved {len(cookies)} cookies to {save_path}")
+        return tool_response(saved_path=save_path, cookie_count=len(cookies))
+
+    except Exception as e:
+        logger.error(f"Save cookies error: {e}", exc_info=True)
+        return tool_error(str(e))
+
+
+async def browser_load_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Load cookies from file to restore a browser session.
+
+    Args:
+        params: Dictionary containing:
+            - load_path (str, optional): Path to cookies file
+            - name (str, optional): Session name to load (default: 'default')
+
+    Returns:
+        Dictionary with success, loaded_path, cookie_count
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not PLAYWRIGHT_AVAILABLE:
+        return tool_error('Playwright not installed')
+
+    try:
+        name = params.get('name', 'default')
+        load_path = params.get('load_path')
+        if not load_path:
+            load_path = os.path.join(COOKIE_STORAGE_PATH, f"{name}_cookies.json")
+
+        if not os.path.exists(load_path):
+            return tool_error(f'Cookie file not found: {load_path}')
+
+        with open(load_path, 'r') as f:
+            cookies = json.load(f)
+
+        session = await BrowserSession.get_instance()
+        page = await session.get_page()
+        await session._context.add_cookies(cookies)
+
+        logger.info(f"Loaded {len(cookies)} cookies from {load_path}")
+        return tool_response(loaded_path=load_path, cookie_count=len(cookies))
+
+    except Exception as e:
+        logger.error(f"Load cookies error: {e}", exc_info=True)
+        return tool_error(str(e))
+
+
+async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reset browser state: clear cookies, cache, and create fresh context.
+
+    Args:
+        params: Dictionary containing:
+            - keep_browser (bool, optional): Keep browser open, just new context (default: True)
+
+    Returns:
+        Dictionary with success, message
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not PLAYWRIGHT_AVAILABLE:
+        return tool_error('Playwright not installed')
+
+    try:
+        session = await BrowserSession.get_instance()
+        keep_browser = params.get('keep_browser', True)
+
+        if keep_browser and session._browser:
+            if session._context:
+                await session._context.close()
+                session._context = None
+                session._page = None
+            # Get fresh page (creates new context)
+            await session.get_page(new_context=True)
+            return tool_response(message='Browser context reset with fresh state')
+        else:
+            await session.close()
+            return tool_response(message='Browser session fully closed and reset')
+
+    except Exception as e:
+        logger.error(f"Browser reset error: {e}", exc_info=True)
+        return tool_error(str(e))
+
+
 __all__ = [
     'browser_navigate_tool',
     'browser_screenshot_tool',
@@ -1017,5 +1147,9 @@ __all__ = [
     'browser_close_tool',
     'browser_pdf_tool',
     'browser_connect_cdp_tool',
-    'browser_close_selenium_tool'
+    'browser_close_selenium_tool',
+    # Session persistence
+    'browser_save_cookies_tool',
+    'browser_load_cookies_tool',
+    'browser_reset_tool',
 ]

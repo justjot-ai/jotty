@@ -278,6 +278,199 @@ async def stream_voice(text: str, provider: str = "auto", voice_id: str = None):
         raise
 
 
+# =========================================================================
+# OpenAI Audio Tools (TTS, Translation, Info)
+# =========================================================================
+
+OPENAI_TTS_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+OPENAI_VOICE_DESC = {
+    'alloy': 'Neutral, balanced', 'echo': 'Warm, conversational',
+    'fable': 'British, narrative', 'onyx': 'Deep, authoritative',
+    'nova': 'Friendly, expressive (recommended)', 'shimmer': 'Clear, professional',
+}
+SUPPORTED_AUDIO_FORMATS = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
+
+
+class OpenAIAudioClient:
+    """OpenAI Audio API client for TTS and translation."""
+
+    _instance = None
+
+    def __init__(self):
+        import os
+        self._api_key = os.getenv("OPENAI_API_KEY")
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def _get_openai(self):
+        try:
+            from openai import OpenAI
+            if not self._api_key:
+                return None
+            return OpenAI(api_key=self._api_key)
+        except ImportError:
+            return None
+
+    def translate(self, audio_path: str, prompt: str = None,
+                  response_format: str = "json") -> dict:
+        """Translate audio to English using Whisper."""
+        import os
+        client = self._get_openai()
+        if not client:
+            return {"success": False, "error": "OpenAI not available. Check API key."}
+        if not os.path.exists(audio_path):
+            return {"success": False, "error": f"Audio file not found: {audio_path}"}
+
+        with open(audio_path, "rb") as f:
+            kwargs = {"model": "whisper-1", "file": f, "response_format": response_format}
+            if prompt:
+                kwargs["prompt"] = prompt
+            response = client.audio.translations.create(**kwargs)
+
+        text = response.text if hasattr(response, 'text') else str(response)
+        return {
+            "success": True, "text": text,
+            "original_language": "auto-detected", "target_language": "en"
+        }
+
+    def generate_speech(self, text: str, voice: str = "nova",
+                        speed: float = 1.0, response_format: str = "mp3",
+                        output_path: str = None) -> dict:
+        """Generate speech using OpenAI TTS."""
+        import os
+        client = self._get_openai()
+        if not client:
+            return {"success": False, "error": "OpenAI not available. Check API key."}
+
+        if voice not in OPENAI_TTS_VOICES:
+            return {"success": False, "error": f"Invalid voice: {voice}. Available: {OPENAI_TTS_VOICES}"}
+        if not 0.25 <= speed <= 4.0:
+            return {"success": False, "error": "Speed must be 0.25-4.0"}
+        if len(text) > 4096:
+            return {"success": False, "error": f"Text too long: {len(text)} chars. Max 4096."}
+
+        tts_model = os.getenv("TTS_MODEL", "tts-1")
+        response = client.audio.speech.create(
+            model=tts_model, voice=voice, input=text,
+            speed=speed, response_format=response_format,
+        )
+
+        if not output_path:
+            output_dir = os.path.expanduser("~/jotty/audio")
+            os.makedirs(output_dir, exist_ok=True)
+            ext = response_format if response_format != 'pcm' else 'raw'
+            output_path = os.path.join(output_dir, f"tts_{voice}_{uuid.uuid4().hex[:8]}.{ext}")
+
+        response.stream_to_file(output_path)
+        word_count = len(text.split())
+        duration_est = (word_count / 150) * 60 / speed
+
+        return {
+            "success": True, "audio_path": output_path, "voice": voice,
+            "model": tts_model, "speed": speed, "format": response_format,
+            "duration_estimate": round(duration_est, 1),
+        }
+
+    @staticmethod
+    def get_audio_info(audio_path: str) -> dict:
+        """Get audio file metadata."""
+        import os
+        if not os.path.exists(audio_path):
+            return {"success": False, "error": f"Audio not found: {audio_path}"}
+
+        from pathlib import Path
+        ext = Path(audio_path).suffix.lower().lstrip('.')
+        size = os.path.getsize(audio_path)
+
+        result = {
+            "success": True, "path": audio_path, "format": ext,
+            "size_bytes": size, "size_mb": round(size / (1024 * 1024), 2),
+            "is_supported": ext in SUPPORTED_AUDIO_FORMATS,
+        }
+
+        try:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_file(audio_path)
+            result.update({
+                "duration": round(len(audio) / 1000, 2),
+                "sample_rate": audio.frame_rate,
+                "channels": audio.channels,
+            })
+        except ImportError:
+            result["note"] = "Install pydub for detailed metadata"
+        except Exception as e:
+            result["metadata_error"] = str(e)
+
+        return result
+
+
+@tool_wrapper(required_params=['audio_path'])
+def translate_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Translate audio to English text using Whisper.
+
+    Args:
+        params: Dictionary containing:
+            - audio_path (str, required): Path to audio file (any language)
+            - prompt (str, optional): Context hint for translation
+
+    Returns:
+        Dictionary with success, text, original_language, target_language
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    status.emit("Translating", "Translating audio to English")
+    return OpenAIAudioClient.get_instance().translate(
+        params['audio_path'], params.get('prompt')
+    )
+
+
+@tool_wrapper(required_params=['text'])
+def generate_speech_openai_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Generate speech using OpenAI TTS with 6 voice options.
+
+    Args:
+        params: Dictionary containing:
+            - text (str, required): Text to convert (max 4096 chars)
+            - voice (str, optional): alloy/echo/fable/onyx/nova/shimmer (default: nova)
+            - speed (float, optional): 0.25-4.0 (default: 1.0)
+            - response_format (str, optional): mp3/opus/aac/flac/wav (default: mp3)
+            - output_path (str, optional): Save path
+
+    Returns:
+        Dictionary with success, audio_path, voice, duration_estimate
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    status.emit("Generating", "Generating speech with OpenAI TTS")
+    return OpenAIAudioClient.get_instance().generate_speech(
+        params['text'],
+        voice=params.get('voice', 'nova'),
+        speed=params.get('speed', 1.0),
+        response_format=params.get('response_format', 'mp3'),
+        output_path=params.get('output_path'),
+    )
+
+
+@tool_wrapper(required_params=['audio_path'])
+def get_audio_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get metadata about an audio file.
+
+    Args:
+        params: Dictionary containing:
+            - audio_path (str, required): Path to audio file
+
+    Returns:
+        Dictionary with success, format, size, duration, sample_rate, channels
+    """
+    status.set_callback(params.pop('_status_callback', None))
+    return OpenAIAudioClient.get_audio_info(params['audio_path'])
+
+
 __all__ = [
     'voice_to_text_tool',
     'text_to_voice_tool',
@@ -285,6 +478,10 @@ __all__ = [
     'get_stream_chunk_tool',
     'close_stream_tool',
     'list_voices_tool',
+    # OpenAI Audio tools
+    'translate_audio_tool',
+    'generate_speech_openai_tool',
+    'get_audio_info_tool',
     # Convenience functions
     'voice_to_text',
     'text_to_voice',

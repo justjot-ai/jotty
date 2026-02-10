@@ -16,6 +16,7 @@ from datetime import datetime
 import dspy
 from dspy import BaseLM
 from typing import Dict, Any, Optional, List
+from Jotty.core.foundation.exceptions import LLMError, InputValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,9 @@ class ClaudeCLILM(BaseLM):
             if result.returncode == 0:
                 print(f"✓ Claude CLI available: {result.stdout.strip()}")
             else:
-                raise RuntimeError("Claude CLI not working")
+                raise LLMError("Claude CLI not working")
         except FileNotFoundError:
-            raise RuntimeError("Claude CLI not found")
+            raise LLMError("Claude CLI not found")
 
     def _extract_messages(self, messages: List) -> tuple:
         """
@@ -160,13 +161,13 @@ class ClaudeCLILM(BaseLM):
                 messages = [{"role": "user", "content": prompt}]
 
         if not messages:
-            raise ValueError("Either prompt or messages must be provided")
+            raise InputValidationError("Either prompt or messages must be provided")
 
         # Extract system and user parts from DSPy-formatted messages
         system_prompt, user_prompt = self._extract_messages(messages)
 
         if not user_prompt:
-            raise ValueError("No user message found in messages")
+            raise InputValidationError("No user message found in messages")
 
         # Build command
         cmd = [
@@ -206,7 +207,7 @@ class ClaudeCLILM(BaseLM):
             error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
             if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
                 raise TimeoutError(f"Claude CLI timed out: {error_msg}")
-            raise RuntimeError(f"Claude CLI error: {error_msg}")
+            raise LLMError(f"Claude CLI error: {error_msg}")
 
         # Extract raw LLM response from CLI JSON envelope
         # Return as-is — DSPy's adapter will parse the [[ ## ]] markers

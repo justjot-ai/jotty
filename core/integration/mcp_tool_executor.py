@@ -4,10 +4,13 @@ Enables DSPy signatures to call MCP tools from JustJot
 """
 import asyncio
 import json
+import logging
 import os
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -282,8 +285,11 @@ class MCPToolExecutor:
                             async with session.post(fallback_url, json=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                                 resp.raise_for_status()
                                 return await resp.json()
-                    except Exception:
-                        pass  # Fall through to raise original error
+                    except Exception as fallback_err:
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            f"Blue-green fallback also failed: {fallback_err}"
+                        )
                 raise RuntimeError(f"Failed to call JustJot API {url}: {e}")
 
     def format_tools_for_dspy(self) -> str:

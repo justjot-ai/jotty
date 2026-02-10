@@ -194,8 +194,9 @@ class AnthropicAPIProvider:
                 model=model
             )
 
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
+        from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+        client_kwargs = get_anthropic_client_kwargs()
+        if not client_kwargs.get("api_key"):
             return LLMResponse(
                 success=False,
                 error="ANTHROPIC_API_KEY not set",
@@ -204,7 +205,7 @@ class AnthropicAPIProvider:
             )
 
         try:
-            client = anthropic.Anthropic(api_key=api_key)
+            client = anthropic.Anthropic(**client_kwargs)
 
             # Map short names to full model IDs
             model_id = ANTHROPIC_MODELS.get(model, model)

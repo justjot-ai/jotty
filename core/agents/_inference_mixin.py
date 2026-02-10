@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 
-from .agentic_planner import _get_task_type
+from ._execution_types import TaskType
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class InferenceMixin:
         Returns:
             (TaskType, reasoning, confidence)
         """
-        TaskType = _get_task_type()
+        # TaskType imported at module level from _execution_types
 
         # Check cache first — task type for same text doesn't change
         cache_key = task[:200]

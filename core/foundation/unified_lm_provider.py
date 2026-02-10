@@ -19,6 +19,7 @@ import dspy
 from dspy.clients.base_lm import BaseLM
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+from Jotty.core.foundation.exceptions import InvalidConfigError, InputValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +184,7 @@ class UnifiedLMProvider:
                 from .cursor_cli_lm import CursorCLILM
                 lm = CursorCLILM(model=model or 'composer-1', **kwargs)
                 return ContextAwareLM(lm) if inject_context else lm
-            raise ValueError(f"Provider '{provider}' not available")
+            raise InvalidConfigError(f"Provider '{provider}' not available")
     
     @staticmethod
     def _create_direct_lm(
@@ -235,7 +236,7 @@ class UnifiedLMProvider:
         }
         
         if provider not in model_map:
-            raise ValueError(f"Direct DSPy LM not supported for provider '{provider}'")
+            raise InvalidConfigError(f"Direct DSPy LM not supported for provider '{provider}'")
         
         if not api_key:
             env_keys = {
@@ -250,7 +251,7 @@ class UnifiedLMProvider:
                 api_key = os.getenv(env_key)
         
         if not api_key:
-            raise ValueError(f"API key required for provider '{provider}'")
+            raise InvalidConfigError(f"API key required for provider '{provider}'")
         
         # Use DSPy's native LM (faster than CLI, more reliable)
         # Centralized default — DSPy's built-in 1024 truncates real-world output.
@@ -346,7 +347,7 @@ class UnifiedLMProvider:
         """
         api_key = kwargs.pop('api_key', None) or os.getenv('OPENCODE_ZEN_API_KEY')
         if not api_key:
-            raise ValueError(
+            raise InvalidConfigError(
                 "OpenCode Zen API key required. "
                 "Set OPENCODE_ZEN_API_KEY env var or pass api_key=. "
                 "Get your key at https://opencode.ai/auth"
@@ -414,7 +415,7 @@ class UnifiedLMProvider:
         elif api_format == 'google':
             dspy_model = f"google/{model}"
         else:
-            raise ValueError(f"Unknown API format '{api_format}' for Zen model '{model}'")
+            raise InvalidConfigError(f"Unknown API format '{api_format}' for Zen model '{model}'")
 
         lm = dspy.LM(
             dspy_model,

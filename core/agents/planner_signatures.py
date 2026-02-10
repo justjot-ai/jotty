@@ -20,10 +20,9 @@ try:
 except ImportError:
     PYDANTIC_AVAILABLE = False
 
-# ExecutionStepSchema is defined in agentic_planner.py BEFORE it imports us,
-# so this circular import is safe at module-load time.
+# ExecutionStepSchema lives in _execution_types (no circular dependency)
 if PYDANTIC_AVAILABLE:
-    from .agentic_planner import ExecutionStepSchema
+    from ._execution_types import ExecutionStepSchema
 
 
 if DSPY_AVAILABLE:
