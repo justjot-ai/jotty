@@ -1103,6 +1103,8 @@ Auditor Required Outputs:
                 reasoning=reasoning,
                 output_tag=output_tag,
                 why_useful=why_useful if is_valid else fix_instructions,
+                fix_instructions=fix_instructions,
+                output_name=output_name,
                 validation_round=round,
                 reasoning_steps=reasoning.split('\n') if reasoning else [],
                 reasoning_quality=min(1.0, len(reasoning) / 500)

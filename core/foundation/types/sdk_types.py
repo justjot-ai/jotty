@@ -71,6 +71,13 @@ class SDKEventType(Enum):
     MEMORY_RECALL = "memory_recall"  # Retrieved from memory
     MEMORY_STORE = "memory_store"    # Stored to memory
 
+    # Validation events
+    VALIDATION_START = "validation_start"      # Validation started
+    VALIDATION_COMPLETE = "validation_complete"  # Validation completed
+
+    # Learning events
+    LEARNING_UPDATE = "learning_update"  # Learning state updated
+
 
 class ResponseFormat(Enum):
     """Output format for responses."""

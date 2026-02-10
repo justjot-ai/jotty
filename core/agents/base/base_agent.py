@@ -118,6 +118,7 @@ class BaseAgent(ABC):
     - Context: SharedContext for cross-agent coordination
     - Monitoring: Cost tracking and metrics
     - Skills: SkillsRegistry for tool access
+    - Collaboration: Agent-to-agent communication (optional mixin)
 
     Subclasses implement _execute_impl() for their specific logic.
 
@@ -129,6 +130,17 @@ class BaseAgent(ABC):
         agent = MyAgent(config=AgentConfig(name="MyAgent"))
         result = await agent.execute(task="do something")
     """
+
+    # Visual Verification Protocol prompt — appended to planning context
+    # when visual skills (browser-automation, visual-inspector) are available.
+    VVP_PROMPT = (
+        "When visual-inspector or screenshot tools are available, use them to verify "
+        "the results of UI-affecting actions (browser navigation, form fills, file creation). "
+        "After taking an action, capture a screenshot and describe what you see to confirm success."
+    )
+
+    # Maximum exponential backoff delay (seconds) — caps retry waits
+    MAX_RETRY_DELAY = 60.0
 
     def __init__(self, config: AgentConfig = None):
         """
@@ -151,6 +163,11 @@ class BaseAgent(ABC):
         # Execution hooks
         self._pre_hooks: List[Callable] = []
         self._post_hooks: List[Callable] = []
+
+        # Agent collaboration infrastructure (optional)
+        self._agent_directory: Dict[str, Any] = {}
+        self._agent_slack: List[Dict[str, Any]] = []
+        self._collaboration_history: List[Dict[str, Any]] = []
 
         # Metrics
         self._metrics = {
@@ -380,10 +397,14 @@ class BaseAgent(ABC):
                 last_error = str(e)
                 logger.warning(f"Attempt {attempt + 1}/{self.config.max_retries} failed: {e}")
 
-            # Exponential backoff before retry
+            # Exponential backoff with max cap before retry
             if attempt < self.config.max_retries - 1:
                 retries += 1
-                delay = self.config.retry_delay * (2 ** attempt)
+                delay = min(
+                    self.config.retry_delay * (2 ** attempt),
+                    self.MAX_RETRY_DELAY,
+                )
+                logger.info(f"Retrying in {delay:.1f}s (attempt {attempt + 2}/{self.config.max_retries})")
                 await asyncio.sleep(delay)
 
         # All retries exhausted
@@ -576,6 +597,110 @@ class BaseAgent(ABC):
             return []
 
         return self.skills_registry.list_skills()
+
+    # =========================================================================
+    # SYSTEM CONTEXT & VISUAL VERIFICATION
+    # =========================================================================
+
+    def _get_system_context(self, discovered_skills: Optional[List[Dict[str, Any]]] = None) -> str:
+        """
+        Build the system prompt context for planning/execution.
+
+        Auto-appends VVP_PROMPT when visual skills are discovered.
+        Subclasses can override to add domain-specific context.
+
+        Args:
+            discovered_skills: Discovered skill dicts (checked for visual tools).
+
+        Returns:
+            System context string.
+        """
+        parts = []
+        if self.config.system_prompt:
+            parts.append(self.config.system_prompt)
+
+        # Auto-append VVP when visual skills are available
+        if discovered_skills:
+            visual_names = {'visual-inspector', 'browser-automation'}
+            if any(s.get('name', '') in visual_names for s in discovered_skills):
+                parts.append(self.VVP_PROMPT)
+
+        return "\n\n".join(parts)
+
+    # =========================================================================
+    # LAZY CONFIG RESOLUTION
+    # =========================================================================
+
+    @staticmethod
+    def resolve_config(key: str, *env_vars: str, default: str = "") -> str:
+        """
+        Resolve a config value at call-time via env var fallback chain.
+
+        Resolves at call-time (not init-time), so env changes take effect
+        without agent reinitialisation.
+
+        Usage::
+
+            model = BaseAgent.resolve_config("model", "JOTTY_MODEL", "ANTHROPIC_MODEL", default="sonnet")
+
+        Args:
+            key: Config key name (for logging).
+            *env_vars: Environment variable names to check in order.
+            default: Fallback value if no env var is set.
+
+        Returns:
+            First non-empty env var value, or default.
+        """
+        import os
+        for var in env_vars:
+            value = os.environ.get(var, "").strip()
+            if value:
+                return value
+        return default
+
+    # =========================================================================
+    # AGENT COLLABORATION
+    # =========================================================================
+
+    def set_collaboration_context(
+        self,
+        agent_directory: Dict[str, Any],
+        agent_slack: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        """
+        Inject collaboration context from swarm/conductor.
+
+        Enables agent-to-agent communication during execution:
+        agents can request help or share knowledge mid-task.
+
+        Args:
+            agent_directory: Map of agent_name -> agent metadata/instance.
+            agent_slack: Shared message queue for inter-agent requests.
+        """
+        self._agent_directory = agent_directory
+        if agent_slack is not None:
+            self._agent_slack = agent_slack
+
+    def request_help(self, target_agent: str, query: str) -> None:
+        """Post a help request to the agent slack for another agent."""
+        self._agent_slack.append({
+            'from': self.config.name,
+            'to': target_agent,
+            'query': query,
+            'timestamp': datetime.now().isoformat(),
+        })
+        self._collaboration_history.append({
+            'type': 'request',
+            'to': target_agent,
+            'query': query,
+        })
+
+    def get_pending_requests(self) -> List[Dict[str, Any]]:
+        """Get help requests addressed to this agent."""
+        return [
+            msg for msg in self._agent_slack
+            if msg.get('to') == self.config.name
+        ]
 
     # =========================================================================
     # METRICS

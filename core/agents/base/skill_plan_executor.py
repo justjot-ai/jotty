@@ -22,7 +22,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import os
 import time
+from pathlib import Path
 
 from Jotty.core.utils.async_utils import StatusReporter
 from typing import Any, Callable, Dict, List, Optional
@@ -399,6 +401,121 @@ class ParameterResolver:
                             part += f"Source: {url}\n"
                     parts.append(part)
         return '\n'.join(parts) if parts else ''
+
+
+class ToolResultProcessor:
+    """
+    Sanitizes and truncates tool outputs before they enter the outputs dict.
+
+    Uses JSON-aware truncation: preserves ALL keys (paths, status, metadata)
+    and only truncates large VALUES, preventing broken downstream references.
+
+    Usage::
+
+        processor = ToolResultProcessor()
+        clean = processor.process(raw_result, elapsed_seconds=1.2)
+    """
+
+    _DEFAULT_MAX_SIZE = 50_000  # character budget
+    # Key names that typically contain binary/base64 data
+    _BINARY_KEY_PATTERNS = ('screenshot', 'image', 'base64', 'binary', 'png', 'jpeg', 'pdf_data')
+
+    def process(self, result: dict, max_size: int = 0, elapsed: float = 0.0) -> dict:
+        """Main entry — sanitize a tool result dict."""
+        if not isinstance(result, dict):
+            result = {'output': result}
+        budget = max_size or self._DEFAULT_MAX_SIZE
+        result = self._convert_sets(result)
+        result = self._strip_binary(result)
+        result = self._truncate_preserving_keys(result, budget)
+        if elapsed > 0:
+            result['_execution_time_ms'] = round(elapsed * 1000, 1)
+        return result
+
+    def _truncate_preserving_keys(self, data: dict, max_chars: int) -> dict:
+        """
+        JSON-aware truncation: keep ALL keys, truncate only large VALUES.
+
+        Naive char-slicing (result[:10000]) breaks JSON and loses critical
+        metadata (paths, exit codes). This preserves structure.
+        """
+        import json
+
+        # Pass 1: separate small values (keep intact) from large values
+        small_items = {}
+        large_items = []
+        small_total = 0
+
+        for key, value in data.items():
+            if isinstance(value, str):
+                size = len(value)
+            elif isinstance(value, dict):
+                size = len(json.dumps(value, default=str))
+            else:
+                size = len(str(value))
+
+            if size <= 500:
+                small_items[key] = value
+                small_total += size
+            else:
+                large_items.append((key, value, size))
+
+        # If no large items, or everything fits, return as-is
+        total = small_total + sum(s for _, _, s in large_items)
+        if total <= max_chars or not large_items:
+            return data
+
+        # Pass 2: distribute remaining budget across large values proportionally
+        remaining = max(1000, max_chars - small_total - 200)
+        result = dict(small_items)
+        total_large = sum(s for _, _, s in large_items)
+
+        for key, value, size in large_items:
+            share = max(200, int(remaining * (size / total_large)))
+            value_str = value if isinstance(value, str) else json.dumps(value, default=str)
+            if len(value_str) > share:
+                result[key] = value_str[:share] + f"\n... [truncated {len(value_str) - share} chars]"
+            else:
+                result[key] = value
+        return result
+
+    def _strip_binary(self, result: dict) -> dict:
+        """Replace base64 screenshot data with a size placeholder."""
+        for key in list(result.keys()):
+            value = result[key]
+            if isinstance(value, str) and len(value) > 1000:
+                key_lower = key.lower()
+                # Fast path: key name suggests binary data
+                if any(pat in key_lower for pat in self._BINARY_KEY_PATTERNS):
+                    result[key] = f"[binary data: {len(value)} chars]"
+                    continue
+                # Slow path: high-diversity alphanumeric = likely base64
+                sample = value[:200]
+                import re
+                if re.match(r'^[A-Za-z0-9+/=]{200}$', sample) and len(set(sample)) > 20:
+                    result[key] = f"[binary data: {len(value)} chars]"
+            elif isinstance(value, dict):
+                result[key] = self._strip_binary(value)
+        return result
+
+    def _convert_sets(self, result: dict) -> dict:
+        """Recursively convert set -> list for JSON safety."""
+        cleaned = {}
+        for key, value in result.items():
+            if isinstance(value, set):
+                cleaned[key] = sorted(str(v) for v in value)
+            elif isinstance(value, dict):
+                cleaned[key] = self._convert_sets(value)
+            elif isinstance(value, list):
+                cleaned[key] = [
+                    self._convert_sets(item) if isinstance(item, dict)
+                    else sorted(str(v) for v in item) if isinstance(item, set)
+                    else item
+                    for item in value
+                ]
+            else:
+                cleaned[key] = value
+        return cleaned
 
 
 class SkillPlanExecutor:
@@ -834,6 +951,7 @@ class SkillPlanExecutor:
 
         try:
             import asyncio as _asyncio
+            import time as _time
 
             # Determine per-step timeout:
             # - LLM generation tools (claude-cli-llm): 180s (complex content takes time)
@@ -846,6 +964,8 @@ class SkillPlanExecutor:
             elif any(kw in _skill_lower for kw in ['web', 'search', 'http', 'scrape']):
                 step_timeout = 30.0
 
+            _step_start = _time.time()
+
             if inspect.iscoroutinefunction(tool):
                 result = await _asyncio.wait_for(tool(resolved_params), timeout=step_timeout)
             else:
@@ -856,10 +976,15 @@ class SkillPlanExecutor:
                     timeout=step_timeout,
                 )
 
+            _step_elapsed = _time.time() - _step_start
+
             if result is None:
                 result = {'success': False, 'error': 'Tool returned None'}
             elif not isinstance(result, dict):
                 result = {'success': True, 'output': result}
+
+            # Sanitize/truncate tool output (JSON-aware: preserves keys)
+            result = ToolResultProcessor().process(result, elapsed=_step_elapsed)
 
             _status("Done", f"✓ {step.skill_name}")
             return result
@@ -924,6 +1049,73 @@ class SkillPlanExecutor:
             return 'analysis'
         else:
             return 'unknown'
+
+    # =========================================================================
+    # ARTIFACT TAGGING & LARGE OUTPUT SPILL
+    # =========================================================================
+
+    @staticmethod
+    def _infer_artifact_tags(step, result: Dict[str, Any]) -> List[str]:
+        """Infer semantic tags for a step result based on skill name and content.
+
+        Used to populate ``SwarmArtifactStore`` entries so downstream
+        consumers can query by meaning (e.g. ``store.query_by_tag('analysis')``).
+        """
+        tags: List[str] = []
+        skill = getattr(step, 'skill_name', '') or ''
+        skill_lower = skill.lower()
+
+        tag_keywords = {
+            'research': ['research', 'search', 'web-search'],
+            'analysis': ['analy', 'data', 'chart', 'stock', 'csv'],
+            'generation': ['generate', 'create', 'write', 'pdf', 'doc'],
+            'communication': ['telegram', 'slack', 'email', 'discord', 'messaging'],
+            'code': ['code', 'python', 'shell', 'exec'],
+            'file': ['file', 'read', 'write'],
+        }
+        for tag, keywords in tag_keywords.items():
+            if any(kw in skill_lower for kw in keywords):
+                tags.append(tag)
+
+        if result.get('path'):
+            tags.append('file_output')
+        if not tags:
+            tags.append('general')
+        return tags
+
+    @staticmethod
+    def _spill_large_values(
+        result: Dict[str, Any],
+        threshold: int = 500_000,
+        run_dir: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Replace string values exceeding *threshold* bytes with a FileReference.
+
+        Writes the large value to disk under *run_dir* (or ``/tmp``) and
+        substitutes a lightweight ``FileReference`` in the result dict.
+        """
+        from Jotty.core.agents._execution_types import FileReference
+        import hashlib as _hl
+
+        spill_dir = run_dir or "/tmp/jotty_spill"
+        spilled = dict(result)
+        for key, value in result.items():
+            if isinstance(value, str) and len(value) > threshold:
+                os.makedirs(spill_dir, exist_ok=True)
+                digest = _hl.md5(value.encode("utf-8", errors="replace")).hexdigest()[:12]
+                fname = f"{key}_{digest}.txt"
+                fpath = os.path.join(spill_dir, fname)
+                Path(fpath).write_text(value, encoding="utf-8")
+                spilled[key] = FileReference(
+                    path=fpath,
+                    content_type="text/plain",
+                    size_bytes=len(value.encode("utf-8", errors="replace")),
+                    checksum=digest,
+                    step_key=key,
+                    description=f"Spilled large value ({len(value)} chars)",
+                )
+                logger.info(f"Spilled large output '{key}' ({len(value)} chars) → {fpath}")
+        return spilled
 
     # =========================================================================
     # EXCLUSION MANAGEMENT
@@ -1107,5 +1299,6 @@ class SkillPlanExecutor:
 
 __all__ = [
     'ParameterResolver',
+    'ToolResultProcessor',
     'SkillPlanExecutor',
 ]

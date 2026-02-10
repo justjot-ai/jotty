@@ -6,7 +6,9 @@ Persistent terminal sessions using pexpect for interactive command execution.
 Supports SSH connections, sudo operations, and pattern-based output matching.
 """
 
+import atexit
 import os
+import signal
 import uuid
 import logging
 from typing import Dict, Any, Optional
@@ -39,7 +41,33 @@ class TerminalSessionManager:
         """Get singleton instance."""
         if cls._instance is None:
             cls._instance = TerminalSessionManager()
+            atexit.register(cls._instance.cleanup_all)
+            try:
+                signal.signal(signal.SIGTERM, lambda *_: cls._instance.cleanup_all())
+            except (OSError, ValueError):
+                pass  # signal handlers only work in main thread
         return cls._instance
+
+    def cleanup_all(self) -> None:
+        """Close all open sessions — called at exit or on SIGTERM."""
+        for sid in list(self._sessions.keys()):
+            try:
+                self._sessions[sid]['child'].close()
+            except Exception:
+                pass
+        self._sessions.clear()
+        self._emit_event("tool_end", {"action": "cleanup", "sessions_closed": "all"})
+
+    @staticmethod
+    def _emit_event(event_type: str, data: dict) -> None:
+        """Emit an event via AgentEventBroadcaster (lazy import)."""
+        try:
+            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            broadcaster = AgentEventBroadcaster.get_instance()
+            data["skill"] = "terminal-session"
+            broadcaster.emit_async(AgentEvent(type=event_type, data=data))
+        except Exception:
+            pass
 
     def create_session(self, shell: str = "/bin/bash") -> Dict[str, Any]:
         """Create a new terminal session."""
@@ -101,6 +129,8 @@ class TerminalSessionManager:
         if not session:
             raise ValueError(f"Session {session_id} not found")
 
+        self._emit_event("tool_start", {"command": command, "session_id": session_id})
+
         child = session['child']
         child.timeout = timeout
 
@@ -115,18 +145,21 @@ class TerminalSessionManager:
             lines = output.split('\n')
             if lines and command in lines[0]:
                 output = '\n'.join(lines[1:])
+            self._emit_event("tool_end", {"command": command, "success": True})
             return {
                 'success': True,
                 'output': output,
                 'exit_code': 0
             }
         except pexpect.TIMEOUT:
+            self._emit_event("tool_end", {"command": command, "success": False, "error": "timeout"})
             return {
                 'success': False,
                 'output': child.before if hasattr(child, 'before') else '',
                 'error': 'Command timed out'
             }
         except pexpect.EOF:
+            self._emit_event("tool_end", {"command": command, "success": False, "error": "eof"})
             return {
                 'success': False,
                 'output': child.before if hasattr(child, 'before') else '',

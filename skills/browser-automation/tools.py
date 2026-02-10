@@ -19,6 +19,7 @@ Supports:
 
 Set BROWSER_BACKEND='selenium' to use Selenium, or use cdp_url for CDP connection.
 """
+import atexit
 import os
 import json
 import asyncio
@@ -76,7 +77,37 @@ class BrowserSession:
         """Get or create browser session singleton."""
         if cls._instance is None:
             cls._instance = BrowserSession()
+            atexit.register(cls._cleanup_all_sync)
         return cls._instance
+
+    @classmethod
+    def _cleanup_all_sync(cls) -> None:
+        """Synchronous cleanup for atexit — closes Playwright resources."""
+        if cls._instance is None:
+            return
+        inst = cls._instance
+        try:
+            if inst._browser:
+                # Playwright resources are async; best-effort sync close
+                loop = asyncio.new_event_loop()
+                try:
+                    loop.run_until_complete(inst.close())
+                finally:
+                    loop.close()
+        except Exception:
+            pass
+        cls._emit_event("tool_end", {"action": "cleanup", "backend": "playwright"})
+
+    @staticmethod
+    def _emit_event(event_type: str, data: dict) -> None:
+        """Emit an event via AgentEventBroadcaster (lazy import)."""
+        try:
+            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            broadcaster = AgentEventBroadcaster.get_instance()
+            data["skill"] = "browser-automation"
+            broadcaster.emit_async(AgentEvent(type=event_type, data=data))
+        except Exception:
+            pass
 
     async def get_page(self, new_context: bool = False) -> "Page":
         """Get a browser page, creating browser if needed."""
@@ -103,6 +134,7 @@ class BrowserSession:
 
     async def close(self):
         """Close browser session."""
+        self._emit_event("tool_start", {"action": "close", "backend": "playwright"})
         if self._context:
             await self._context.close()
             self._context = None
@@ -114,6 +146,7 @@ class BrowserSession:
             await self._playwright.stop()
             self._playwright = None
         BrowserSession._instance = None
+        self._emit_event("tool_end", {"action": "close", "backend": "playwright"})
 
 
 class SeleniumBrowserSession:
@@ -127,7 +160,25 @@ class SeleniumBrowserSession:
         """Get or create Selenium browser session singleton."""
         if cls._instance is None:
             cls._instance = SeleniumBrowserSession()
+            atexit.register(cls._cleanup_all_sync)
         return cls._instance
+
+    @classmethod
+    def _cleanup_all_sync(cls) -> None:
+        """Synchronous cleanup for atexit — quits Selenium driver."""
+        if cls._instance is not None:
+            cls._instance.close()
+
+    @staticmethod
+    def _emit_event(event_type: str, data: dict) -> None:
+        """Emit an event via AgentEventBroadcaster (lazy import)."""
+        try:
+            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            broadcaster = AgentEventBroadcaster.get_instance()
+            data["skill"] = "browser-automation"
+            broadcaster.emit_async(AgentEvent(type=event_type, data=data))
+        except Exception:
+            pass
 
     def get_driver(self, cdp_url: Optional[str] = None, headless: bool = True):
         """
@@ -167,6 +218,7 @@ class SeleniumBrowserSession:
 
     def close(self):
         """Close Selenium driver."""
+        self._emit_event("tool_start", {"action": "close", "backend": "selenium"})
         if self._driver:
             try:
                 self._driver.quit()
@@ -174,9 +226,11 @@ class SeleniumBrowserSession:
                 pass
             self._driver = None
         SeleniumBrowserSession._instance = None
+        self._emit_event("tool_end", {"action": "close", "backend": "selenium"})
 
     def navigate(self, url: str, wait_for: Optional[str] = None, timeout: int = 30) -> Dict[str, Any]:
         """Navigate to URL using Selenium."""
+        self._emit_event("tool_start", {"action": "navigate", "url": url, "backend": "selenium"})
         driver = self.get_driver()
         driver.get(url)
 
@@ -185,6 +239,7 @@ class SeleniumBrowserSession:
                 EC.presence_of_element_located((By.CSS_SELECTOR, wait_for))
             )
 
+        self._emit_event("tool_end", {"action": "navigate", "url": driver.current_url, "backend": "selenium"})
         return {
             'success': True,
             'url': driver.current_url,
@@ -193,13 +248,16 @@ class SeleniumBrowserSession:
 
     def screenshot(self, selector: Optional[str] = None, full_page: bool = False) -> bytes:
         """Take screenshot using Selenium."""
+        self._emit_event("tool_start", {"action": "screenshot", "selector": selector, "backend": "selenium"})
         driver = self.get_driver()
 
         if selector:
             element = driver.find_element(By.CSS_SELECTOR, selector)
-            return element.screenshot_as_png
+            result = element.screenshot_as_png
         else:
-            return driver.get_screenshot_as_png()
+            result = driver.get_screenshot_as_png()
+        self._emit_event("tool_end", {"action": "screenshot", "backend": "selenium"})
+        return result
 
     def click(self, selector: str, wait_after: Optional[str] = None, timeout: int = 30):
         """Click element using Selenium."""

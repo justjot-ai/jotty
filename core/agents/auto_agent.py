@@ -20,8 +20,27 @@ from Jotty.core.foundation.exceptions import (
     LLMError,
     DSPyError,
 )
-from Jotty.core.utils.async_utils import safe_status, StatusReporter
+from Jotty.core.utils.async_utils import safe_status, StatusReporter, AgentEventBroadcaster, AgentEvent
 from ._execution_types import TaskType, ExecutionResult, _clean_for_display
+
+# Mode-specific system prompts for tools with different backends
+_MODE_PROMPTS = {
+    'browser-automation:playwright': (
+        "You have Playwright browser automation. Use async page actions: "
+        "goto(), click(), fill(), screenshot(). Pages render JS fully. "
+        "Always wait_for_selector() before interacting with dynamic content."
+    ),
+    'browser-automation:selenium': (
+        "You have Selenium browser automation with CDP support. "
+        "Use WebDriverWait for dynamic elements. For Electron apps, "
+        "connect via cdp_url parameter. Screenshots are sync."
+    ),
+    'terminal-session': (
+        "You have persistent terminal sessions via pexpect. "
+        "Working directory and env vars persist across commands. "
+        "Use expect patterns for interactive prompts (sudo, ssh)."
+    ),
+}
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +231,90 @@ Provide:
         return should_auto_ensemble(task)
 
     # =========================================================================
+    # DSPY REACT STREAMING CALLBACK (Pattern #3)
+    # =========================================================================
+
+    @staticmethod
+    def _create_dspy_stream_callback(broadcaster: AgentEventBroadcaster, agent_id: str):
+        """
+        Create a DSPy callback that extracts ReAct intermediate steps
+        (thoughts, actions, observations) and broadcasts them as AgentEvents.
+
+        Returns a callback class instance if DSPy callbacks are available,
+        otherwise None.
+        """
+        try:
+            from dspy.utils.callback import BaseCallback
+
+            class _ReActStreamCallback(BaseCallback):
+                """Hooks into DSPy ReAct to broadcast intermediate reasoning."""
+
+                def on_module_start(self, call_id, instance, inputs):
+                    broadcaster.emit(AgentEvent(
+                        type="step_start",
+                        data={"module": type(instance).__name__, "inputs_keys": list(inputs.keys())},
+                        agent_id=agent_id,
+                    ))
+
+                def on_module_end(self, call_id, outputs, exception):
+                    # Extract ReAct internals from DSPy _store
+                    store = getattr(outputs, '_store', {}) if outputs else {}
+                    data = {}
+                    for key in ('next_thought', 'next_tool_name', 'next_tool_args', 'observation'):
+                        if key in store:
+                            val = store[key]
+                            data[key] = str(val)[:500] if val else None
+                    broadcaster.emit(AgentEvent(
+                        type="step_end",
+                        data=data,
+                        agent_id=agent_id,
+                    ))
+
+                def on_tool_start(self, call_id, tool_name, tool_input):
+                    broadcaster.emit(AgentEvent(
+                        type="tool_start",
+                        data={"tool": tool_name, "input_preview": str(tool_input)[:200]},
+                        agent_id=agent_id,
+                    ))
+
+                def on_tool_end(self, call_id, tool_output):
+                    broadcaster.emit(AgentEvent(
+                        type="tool_end",
+                        data={"output_length": len(str(tool_output))},
+                        agent_id=agent_id,
+                    ))
+
+            return _ReActStreamCallback()
+        except (ImportError, AttributeError):
+            return None
+
+    # =========================================================================
+    # MODE-SPECIFIC SYSTEM PROMPTS (Pattern #8)
+    # =========================================================================
+
+    def _get_mode_prompts(self, skill_names: set) -> str:
+        """
+        Build mode-specific prompt additions based on active skills.
+
+        Different tool backends (Playwright vs Selenium, pexpect vs subprocess)
+        have different capabilities and gotchas. Injecting backend-specific
+        guidance reduces hallucinated tool calls.
+        """
+        import os
+        parts = []
+        for skill_key, prompt in _MODE_PROMPTS.items():
+            skill_name = skill_key.split(':')[0]
+            if skill_name in skill_names:
+                # Check backend variant if applicable
+                if ':' in skill_key:
+                    variant = skill_key.split(':')[1]
+                    backend = os.environ.get('BROWSER_BACKEND', 'playwright')
+                    if variant != backend:
+                        continue
+                parts.append(prompt)
+        return "\n\n".join(parts)
+
+    # =========================================================================
     # TASK TYPE INFERENCE (Override for TaskType enum)
     # =========================================================================
 
@@ -272,6 +375,7 @@ Provide:
 
         # Extract status callback for streaming progress
         status_callback = kwargs.pop('status_callback', None)
+        streaming_callback = kwargs.pop('streaming_callback', None)
         ensemble = kwargs.pop('ensemble', None)  # None = auto-detect
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
         # Learning context: kept separate from task string to prevent pollution
@@ -279,8 +383,28 @@ Provide:
 
         _status = StatusReporter(status_callback, logger, emoji=" ")
 
+        # Register streaming callback as temporary event listener
+        _broadcaster = AgentEventBroadcaster.get_instance()
+        _streaming_listener = None
+        _dspy_callback = None
+        if streaming_callback is not None:
+            _streaming_listener = streaming_callback
+            for etype in ("tool_start", "tool_end", "step_start", "step_end", "status", "error", "streaming"):
+                _broadcaster.subscribe(etype, _streaming_listener)
+
         # Ensure initialized
         self._ensure_initialized()
+
+        # Set up DSPy ReAct streaming callback (Pattern #3)
+        if streaming_callback is not None:
+            _dspy_callback = self._create_dspy_stream_callback(_broadcaster, self.config.name)
+            if _dspy_callback is not None:
+                try:
+                    import dspy
+                    if hasattr(dspy.settings, 'callbacks') and isinstance(dspy.settings.callbacks, list):
+                        dspy.settings.callbacks.append(_dspy_callback)
+                except Exception:
+                    _dspy_callback = None
 
         # Run pre-execution hooks (from BaseAgent)
         try:
@@ -421,6 +545,19 @@ Provide:
             await self._run_post_hooks(agent_result, task=task, **kwargs)
         except Exception as e:
             logger.warning(f"Post-hook failed: {e}")
+        finally:
+            # Clean up streaming listener
+            if _streaming_listener is not None:
+                for etype in ("tool_start", "tool_end", "step_start", "step_end", "status", "error", "streaming"):
+                    _broadcaster.unsubscribe(etype, _streaming_listener)
+            # Clean up DSPy callback
+            if _dspy_callback is not None:
+                try:
+                    import dspy
+                    if hasattr(dspy.settings, 'callbacks') and isinstance(dspy.settings.callbacks, list):
+                        dspy.settings.callbacks.remove(_dspy_callback)
+                except (ImportError, ValueError):
+                    pass
 
         return exec_result
 

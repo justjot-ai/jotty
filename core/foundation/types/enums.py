@@ -78,3 +78,20 @@ class TaskStatus(Enum):
     CANCELLED = "cancelled"       # From task.py - manually cancelled
     RETRYING = "retrying"         # From task.py - retry in progress
     SKIPPED = "skipped"           # From roadmap.py - skipped execution
+
+
+class ExecutorType(Enum):
+    """Executor surface classification for skills.
+
+    Enables the router to distinguish which execution surface
+    a skill targets (browser, terminal, web API, etc.).
+    """
+    BROWSER = "browser"
+    TERMINAL = "terminal"
+    WEB_SEARCH = "web_search"
+    DOC_GEN = "doc_gen"
+    MESSAGING = "messaging"
+    CODE = "code"
+    DATA = "data"
+    LLM = "llm"
+    GENERAL = "general"

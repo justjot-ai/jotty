@@ -4,13 +4,20 @@ Shared execution types - breaks circular dependencies.
 This module provides ExecutionStep, ExecutionStepSchema, TaskType, and
 ExecutionResult in a dependency-free location so that both agentic_planner.py
 and auto_agent.py can import them without circular imports.
+
+Also provides:
+- FileReference: lazy handle for large outputs spilled to disk
+- SwarmArtifactStore: tag-queryable artifact registry (replaces flat outputs dict)
 """
 from __future__ import annotations
 
+import hashlib
+import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 # =============================================================================
 # TASK TYPE (Enum)
@@ -45,6 +52,124 @@ class ExecutionStep:
     optional: bool = False
     verification: str = ""
     fallback_skill: str = ""
+
+
+# =============================================================================
+# FILE REFERENCE (Lazy handle for large outputs)
+# =============================================================================
+
+
+@dataclass
+class FileReference:
+    """Lazy handle for large outputs spilled to disk.
+
+    Instead of keeping >500KB strings in memory, callers write the data
+    to *path* and store a lightweight FileReference in the outputs dict.
+    Consumers call :meth:`load` when they actually need the content.
+    """
+    path: str
+    content_type: str = "text/plain"
+    size_bytes: int = 0
+    checksum: str = ""
+    step_key: str = ""
+    description: str = ""
+
+    def exists(self) -> bool:
+        """Check if the backing file still exists on disk."""
+        return os.path.isfile(self.path)
+
+    def load(self) -> str:
+        """Read and return the file contents."""
+        return Path(self.path).read_text(encoding="utf-8")
+
+
+# =============================================================================
+# SWARM ARTIFACT STORE (Tag-queryable artifact registry)
+# =============================================================================
+
+
+class SwarmArtifactStore:
+    """Tag-queryable artifact registry.
+
+    Drop-in replacement for the flat ``outputs: Dict[str, Any]`` dict used
+    during plan execution.  Each artifact can carry semantic *tags* and a
+    human-readable *description* so that downstream consumers can query by
+    meaning rather than relying on ``step_0``, ``step_1`` keys.
+
+    Backward-compatible: supports ``keys()``, ``values()``, ``items()``,
+    ``__getitem__``, ``__len__``, ``__bool__``, and ``to_outputs_dict()``.
+    """
+
+    @dataclass
+    class _Entry:
+        data: Any
+        tags: Set[str] = field(default_factory=set)
+        description: str = ""
+
+    def __init__(self) -> None:
+        self._store: Dict[str, SwarmArtifactStore._Entry] = {}
+
+    # -- mutators -------------------------------------------------------------
+
+    def register(
+        self,
+        key: str,
+        data: Any,
+        tags: Optional[List[str]] = None,
+        description: str = "",
+    ) -> None:
+        """Store an artifact with optional semantic tags."""
+        self._store[key] = self._Entry(
+            data=data,
+            tags=set(tags) if tags else set(),
+            description=description,
+        )
+
+    # -- queries --------------------------------------------------------------
+
+    def query_by_tag(self, tag: str) -> Dict[str, Any]:
+        """Return ``{key: data}`` for every artifact carrying *tag*."""
+        return {
+            k: entry.data
+            for k, entry in self._store.items()
+            if tag in entry.tags
+        }
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Dict-like get — returns raw data for *key*."""
+        entry = self._store.get(key)
+        return entry.data if entry is not None else default
+
+    # -- dict-like interface --------------------------------------------------
+
+    def __getitem__(self, key: str) -> Any:
+        return self._store[key].data
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Allow ``store[key] = value`` for backward compat (no tags)."""
+        self.register(key, value)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._store
+
+    def __len__(self) -> int:
+        return len(self._store)
+
+    def __bool__(self) -> bool:
+        return bool(self._store)
+
+    def keys(self) -> Iterator[str]:
+        return iter(self._store.keys())
+
+    def values(self) -> Iterator[Any]:
+        return (e.data for e in self._store.values())
+
+    def items(self) -> Iterator[Tuple[str, Any]]:
+        return ((k, e.data) for k, e in self._store.items())
+
+    def to_outputs_dict(self) -> Dict[str, Any]:
+        """Convert back to a plain dict for legacy callers."""
+        return {k: e.data for k, e in self._store.items()}
 
 
 # =============================================================================
@@ -212,6 +337,8 @@ class ExecutionResult:
 __all__ = [
     'TaskType',
     'ExecutionStep',
+    'FileReference',
+    'SwarmArtifactStore',
     'ExecutionStepSchema',
     'ExecutionResult',
     '_clean_for_display',

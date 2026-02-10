@@ -27,6 +27,7 @@ from .enums import (
     ValidationRound,
     ContextType,
     TaskStatus,
+    ExecutorType,
 )
 
 from .memory_types import (
@@ -79,6 +80,7 @@ __all__ = [
     'ValidationRound',
     'ContextType',
     'TaskStatus',
+    'ExecutorType',
     # Memory types
     'GoalNode',
     'GoalHierarchy',

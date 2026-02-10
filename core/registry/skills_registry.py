@@ -344,6 +344,8 @@ class SkillDefinition:
         # Context gate (Cline contextRequirements pattern)
         # Callable that takes task_context dict → bool (should skill be available?)
         context_gate: Optional[Callable] = None,
+        # Executor surface classification (browser, terminal, web_search, etc.)
+        executor_type: Optional[str] = None,
     ):
         self.name = name
         self.description = description
@@ -382,6 +384,34 @@ class SkillDefinition:
         # When set, skill is only available when gate returns True.
         # Example: browser skill only available when headless browser is configured.
         self.context_gate = context_gate
+
+        # Executor type: classifies which execution surface this skill targets.
+        # Auto-inferred from name/category/tags when not explicitly provided.
+        self.executor_type = executor_type or self._infer_executor_type(
+            name, category, self.tags
+        )
+
+    @staticmethod
+    def _infer_executor_type(name: str, category: str, tags: List[str]) -> str:
+        """Infer executor surface from skill name, category, and tags."""
+        combined = f"{name} {category} {' '.join(tags)}".lower()
+        if any(kw in combined for kw in ('browser', 'scrape', 'playwright', 'selenium', 'headless')):
+            return 'browser'
+        if any(kw in combined for kw in ('shell', 'terminal', 'exec', 'bash', 'command')):
+            return 'terminal'
+        if any(kw in combined for kw in ('search', 'web-search', 'google', 'bing', 'serp')):
+            return 'web_search'
+        if any(kw in combined for kw in ('pdf', 'doc', 'report', 'document', 'markdown')):
+            return 'doc_gen'
+        if any(kw in combined for kw in ('telegram', 'slack', 'discord', 'whatsapp', 'email', 'messaging', 'notification')):
+            return 'messaging'
+        if any(kw in combined for kw in ('code', 'python', 'javascript', 'compile', 'lint')):
+            return 'code'
+        if any(kw in combined for kw in ('data', 'csv', 'sql', 'database', 'analytics', 'chart', 'stock')):
+            return 'data'
+        if any(kw in combined for kw in ('llm', 'claude', 'openai', 'groq', 'generate', 'summarize')):
+            return 'llm'
+        return 'general'
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -452,6 +482,7 @@ class SkillDefinition:
             'skill_type': self.skill_type.value,
             'base_skills': self.base_skills,
             'trust_level': self.trust_level.value,
+            'executor_type': self.executor_type,
         }
         if self.skill_type == SkillType.COMPOSITE:
             result['execution_mode'] = self.execution_mode

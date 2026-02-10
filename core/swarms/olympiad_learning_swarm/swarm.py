@@ -129,6 +129,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         student_name: str = None,
         depth: LessonDepth = None,
         target_tier: DifficultyTier = None,
+        target_level: str = None,
         send_telegram: bool = None,
     ) -> OlympiadLearningResult:
         """
@@ -139,7 +140,9 @@ class OlympiadLearningSwarm(DomainSwarm):
             subject: Override subject from config
             student_name: Override student name from config
             depth: Override lesson depth from config
-            target_tier: Override target tier from config
+            target_tier: Override target tier from config (controls problem distribution)
+            target_level: Descriptive target string for agents (e.g. "5th_grader").
+                         If not set, derived from target_tier enum value.
             send_telegram: Whether to send to Telegram
 
         Returns:
@@ -154,7 +157,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         depth = depth or config.depth
         target_tier = target_tier or config.target_tier
         subject_str = subject.value if isinstance(subject, Subject) else str(subject)
-        target_str = target_tier.value if isinstance(target_tier, DifficultyTier) else str(target_tier)
+        target_str = target_level or (target_tier.value if isinstance(target_tier, DifficultyTier) else str(target_tier))
 
         logger.info(f"OlympiadLearningSwarm starting: {topic} ({subject_str}) for {student_name}")
 
@@ -1411,7 +1414,7 @@ async def learn_topic(
         target_tier=target_enum,
     )
     swarm = OlympiadLearningSwarm(config)
-    return await swarm.teach(topic=topic, send_telegram=send_telegram)
+    return await swarm.teach(topic=topic, target_level=target, send_telegram=send_telegram)
 
 
 def learn_topic_sync(

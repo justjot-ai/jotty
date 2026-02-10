@@ -1039,6 +1039,31 @@ class SwarmLearningPipeline:
         except Exception as e:
             logger.debug(f"Credit assignment skipped: {e}")
 
+        # 10b. Auditor fix_instructions → negative TD signal + procedural memory
+        try:
+            fix_texts = []
+            for attr in ('auditor_results', 'validation_results'):
+                for vr in getattr(result, attr, None) or []:
+                    fi = getattr(vr, 'fix_instructions', None)
+                    if fi and isinstance(fi, str) and fi.strip():
+                        fix_texts.append(fi.strip())
+
+            if fix_texts and self._td_learner is not None:
+                self._td_learner.update(reward=-0.1)
+                logger.debug(f"TD(-0.1) signal from {len(fix_texts)} auditor fix_instructions")
+
+            if fix_texts:
+                combined = "; ".join(fix_texts[:3])
+                self.transfer_learning.record_experience(
+                    query=f"fix:{goal[:100]}",
+                    action=combined[:500],
+                    outcome="negative",
+                    task_type=task_type,
+                )
+                logger.debug(f"Recorded {len(fix_texts)} fix_instructions as procedural memory")
+        except Exception as e:
+            logger.debug(f"Fix-instructions learning skipped: {e}")
+
         # 11. Adaptive learning: adjust learning rate based on score trajectory
         try:
             lr_state = self.adaptive_learning.update_score(episode_reward)
@@ -1300,6 +1325,60 @@ class SwarmLearningPipeline:
     def is_agent_trusted(self, agent_name: str, threshold: float = 0.3) -> bool:
         """Check if an agent is trusted above threshold."""
         return self.get_agent_trust(agent_name) >= threshold
+
+    # =========================================================================
+    # Multi-agent ordering (single place for routing logic — used by SwarmRouter)
+    # =========================================================================
+
+    def order_agents_for_goal(self, goal: str, agents: List[Any]) -> List[Any]:
+        """
+        Order agents for a multi-agent run using learning: Byzantine trust,
+        stigmergy route strength, and MorphAgent TRAS. Single place for this
+        logic so SwarmManager and SwarmRouter stay DRY.
+
+        Returns a new list (does not mutate input). Caller should assign back
+        if they want to persist the order (e.g. self.agents = lp.order_agents_for_goal(...)).
+        """
+        if not agents:
+            return list(agents)
+        ordered = list(agents)
+        try:
+            task_type = self.transfer_learning.extractor.extract_task_type(goal)
+        except Exception as e:
+            logger.debug(f"Task type extraction failed for ordering: {e}")
+            return ordered
+
+        # 1. Filter by Byzantine trust (keep only trusted)
+        trusted = [a for a in ordered if self.is_agent_trusted(getattr(a, 'name', str(a)), threshold=0.2)]
+        if trusted:
+            ordered = trusted
+
+        # 2. Reorder by stigmergy pheromone strength (strongest first)
+        routes = self.stigmergy.get_route_signals(task_type)
+        if routes:
+            ordered.sort(key=lambda a: routes.get(getattr(a, 'name', str(a)), 0.0), reverse=True)
+
+        # 3. MorphAgent TRAS + combined score with stigmergy
+        si = self.swarm_intelligence
+        if si and len(ordered) >= 2 and getattr(si, 'morph_scorer', None) and getattr(si, 'agent_profiles', None):
+            profiles = si.agent_profiles
+            tras_scores = {}
+            for agent_cfg in ordered:
+                name = getattr(agent_cfg, 'name', str(agent_cfg))
+                if name in profiles:
+                    tras, _ = si.morph_scorer.compute_tras(
+                        task=goal, task_type=task_type,
+                        profile=profiles[name], use_llm=False,
+                    )
+                    tras_scores[name] = tras
+            if tras_scores and max(tras_scores.values()) > min(tras_scores.values()):
+                def _combined_score(a):
+                    name = getattr(a, 'name', str(a))
+                    route_s = routes.get(name, 0.0) if routes else 0.0
+                    tras_s = tras_scores.get(name, 0.5)
+                    return 0.6 * route_s + 0.4 * tras_s
+                ordered.sort(key=_combined_score, reverse=True)
+        return ordered
 
     # =========================================================================
     # Credit assignment queries

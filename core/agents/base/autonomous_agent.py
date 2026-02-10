@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .base_agent import BaseAgent, AgentConfig, AgentResult
-from Jotty.core.utils.async_utils import StatusReporter
+from Jotty.core.utils.async_utils import StatusReporter, AgentEventBroadcaster, AgentEvent
 from .skill_plan_executor import SkillPlanExecutor
 from .._execution_types import ExecutionStep
 
@@ -45,6 +45,85 @@ class AutonomousAgentConfig(AgentConfig):
     enable_output: bool = False
     enable_ensemble: bool = False
     ensemble_strategy: str = "multi_perspective"
+
+
+# =============================================================================
+# EXECUTION CONTEXT MANAGER
+# =============================================================================
+
+class ExecutionContextManager:
+    """
+    Tracks execution history and auto-compresses when approaching limits.
+
+    Uses trajectory-preserving compression: on context overflow, summarise
+    the OLDEST 60% of history while keeping the CURRENT trajectory intact.
+    This prevents losing progress mid-execution while keeping context small.
+
+    Usage::
+
+        ctx = ExecutionContextManager(max_history_size=100000)
+        ctx.add_step({"step": 0, "output": "..."})
+        context = ctx.get_context()
+    """
+
+    def __init__(self, max_history_size: int = 100_000):
+        self._history: List[dict] = []
+        self._max_history_size = max_history_size
+        self._compression_ratio: float = 0.7
+        self._total_chars: int = 0
+
+    def add_step(self, step_info: dict) -> None:
+        """Append a step result and trigger compression if needed."""
+        import json
+        self._total_chars += len(json.dumps(step_info, default=str))
+        self._history.append(step_info)
+        if self._total_chars > self._max_history_size:
+            self._compress()
+
+    def _compress(self) -> None:
+        """Summarise oldest 60% of history, keep recent 40% intact."""
+        if len(self._history) < 3:
+            return
+
+        split_idx = max(1, int(len(self._history) * 0.6))
+        old_entries = self._history[:split_idx]
+        recent_entries = self._history[split_idx:]
+
+        summary_parts = []
+        for i, entry in enumerate(old_entries):
+            skill = entry.get('skill_name', entry.get('step', f'step_{i}'))
+            success = entry.get('success', '?')
+            output = ''
+            for key in ('output', 'response', 'text', 'content', 'result'):
+                if key in entry and isinstance(entry[key], str):
+                    output = entry[key][:150]
+                    break
+            summary_parts.append(f"  {skill}: success={success}" + (f" | {output}..." if output else ""))
+
+        compressed_entry = {
+            '_compressed': True,
+            '_original_count': len(old_entries),
+            'summary': f"Compressed {len(old_entries)} earlier steps:\n" + "\n".join(summary_parts),
+        }
+
+        self._history = [compressed_entry] + recent_entries
+
+        # Recalculate and compound ratio
+        import json
+        self._total_chars = sum(len(json.dumps(e, default=str)) for e in self._history)
+        self._compression_ratio *= 0.7
+        logger.info(
+            f"ExecutionContextManager: compressed {len(old_entries)} entries -> 1 summary, "
+            f"history now {len(self._history)} entries, {self._total_chars} chars"
+        )
+
+    def get_context(self) -> List[dict]:
+        """Return current history (possibly compressed) for replanning."""
+        return list(self._history)
+
+    def get_trajectory(self) -> List[dict]:
+        """Return only the current uncompressed steps."""
+        return [e for e in self._history if not e.get('_compressed')]
 
 
 # =============================================================================
@@ -196,6 +275,22 @@ class AutonomousAgent(BaseAgent):
         return await self.executor.execute_step(step, outputs, status_callback)
 
     # =========================================================================
+    # EVENT EMISSION HELPER
+    # =========================================================================
+
+    def _emit(self, event_type: str, **data) -> None:
+        """Emit an AgentEvent via the global broadcaster."""
+        try:
+            broadcaster = AgentEventBroadcaster.get_instance()
+            broadcaster.emit(AgentEvent(
+                type=event_type,
+                data=data,
+                agent_id=self.config.name,
+            ))
+        except Exception:
+            pass
+
+    # =========================================================================
     # MAIN EXECUTION (orchestration loop with replanning)
     # =========================================================================
 
@@ -220,6 +315,8 @@ class AutonomousAgent(BaseAgent):
 
         _status = StatusReporter(status_callback, logger)
 
+        self._emit("step_start", phase="execute_impl", task=task[:200])
+
         # Direct LLM mode (multi-agent sub-agents bypass skill pipeline)
         if direct_llm:
             return await self._handle_direct_llm(task, start_time, _status)
@@ -235,8 +332,17 @@ class AutonomousAgent(BaseAgent):
             task, task_type, all_skills, learning_context, _status
         )
 
+        # Enrich system context with VVP when visual skills are present
+        sys_context = self._get_system_context(all_skills)
+        if sys_context and self.VVP_PROMPT in sys_context:
+            _status("VVP", "visual verification protocol enabled")
+
+        self._emit("status", phase="skills_selected", count=len(skills),
+                   names=[s.get('name') for s in skills[:8]])
+
         # TOO_HARD early-exit
         if not all_skills and not skills:
+            self._emit("error", phase="too_hard", reason="no relevant skills")
             _status("TOO_HARD", "no relevant skills found for this sub-task")
             return self._build_result(
                 task, task_type, {}, [], ["TOO_HARD: No relevant skills found"],
@@ -263,6 +369,11 @@ class AutonomousAgent(BaseAgent):
         self._verify_output_files(task, outputs)
 
         is_success = len(outputs) > 0 and not stopped and len(errors) == 0
+        self._emit(
+            "step_end", phase="execute_impl", success=is_success,
+            steps=len(outputs), errors=len(errors),
+            elapsed=round(time.time() - start_time, 2),
+        )
         return self._build_result(
             task, task_type, outputs, skills_used, errors,
             warnings, start_time, stopped=stopped,
@@ -277,20 +388,26 @@ class AutonomousAgent(BaseAgent):
     ) -> Dict[str, Any]:
         """Handle direct LLM mode — bypass skill pipeline entirely."""
         status("Direct LLM", "bypassing skill pipeline (multi-agent sub-agent)")
+        self._emit("tool_start", skill="direct-llm", mode="direct_llm")
         llm_response = await self._fallback_llm_response(task)
+        elapsed = time.time() - start_time
         if llm_response:
+            self._emit("tool_end", skill="direct-llm", success=True, elapsed=round(elapsed, 2))
+            self._emit("step_end", phase="execute_impl", success=True, steps=1, elapsed=round(elapsed, 2))
             return {
                 "success": True, "task": task, "task_type": "direct_llm",
                 "skills_used": ["direct-llm"], "steps_executed": 1,
                 "outputs": {"llm_response": llm_response},
                 "final_output": llm_response, "errors": [],
-                "execution_time": time.time() - start_time,
+                "execution_time": elapsed,
             }
+        self._emit("tool_end", skill="direct-llm", success=False, elapsed=round(elapsed, 2))
+        self._emit("step_end", phase="execute_impl", success=False, elapsed=round(elapsed, 2))
         return {
             "success": False, "task": task,
             "error": "Direct LLM response failed",
             "skills_used": [], "steps_executed": 0, "outputs": {},
-            "execution_time": time.time() - start_time,
+            "execution_time": elapsed,
         }
 
     async def _discover_and_classify(
@@ -400,6 +517,19 @@ class AutonomousAgent(BaseAgent):
             needs_planning = True
             logger.info(f"Forcing planning for {task_type} task (code gen needs a multi-step plan)")
 
+        # Tasks requiring actual filesystem/shell interaction need planning
+        # even when only "simple" skills are selected
+        if not needs_planning:
+            _tool_action_kws = [
+                'list', 'read', 'write', 'create', 'delete', 'find', 'search',
+                'run', 'execute', 'install', 'directory', 'folder', 'file',
+                'save', 'count', 'check', 'scan', 'rename', 'move', 'copy',
+            ]
+            _tool_skills = skill_names & {'file-operations', 'shell-exec'}
+            if _tool_skills and any(kw in task.lower() for kw in _tool_action_kws):
+                needs_planning = True
+                logger.info(f"Forcing planning: task requires actual {_tool_skills} execution")
+
         steps = []
         if needs_planning:
             status("Planning", "creating execution plan")
@@ -430,6 +560,7 @@ class AutonomousAgent(BaseAgent):
     ) -> Dict[str, Any]:
         """Generate direct LLM response when no plan was created."""
         status("Generating", "direct LLM response")
+        self._emit("tool_start", skill="claude-cli-llm", mode="no_plan_fallback")
         llm_response = await self._fallback_llm_response(task)
 
         if llm_response:
@@ -449,6 +580,9 @@ class AutonomousAgent(BaseAgent):
                 except Exception as e:
                     logger.debug(f"Auto-save failed (non-critical): {e}")
 
+            elapsed = round(time.time() - start_time, 2)
+            self._emit("tool_end", skill="claude-cli-llm", success=True, elapsed=elapsed)
+            self._emit("step_end", phase="execute_impl", success=True, steps=1, elapsed=elapsed)
             return {
                 "success": True, "task": task, "task_type": task_type,
                 "skills_used": ["claude-cli-llm"], "steps_executed": 1,
@@ -456,6 +590,9 @@ class AutonomousAgent(BaseAgent):
                 "final_output": llm_response, "errors": [],
                 "execution_time": time.time() - start_time,
             }
+        elapsed = round(time.time() - start_time, 2)
+        self._emit("tool_end", skill="claude-cli-llm", success=False, elapsed=elapsed)
+        self._emit("step_end", phase="execute_impl", success=False, elapsed=elapsed)
         return {
             "success": False, "task": task,
             "error": "Could not generate response",
@@ -477,6 +614,7 @@ class AutonomousAgent(BaseAgent):
         warnings = []
         replan_count = 0
         execution_stopped = False
+        ctx = ExecutionContextManager()
         i = 0
 
         while i < len(steps):
@@ -492,15 +630,25 @@ class AutonomousAgent(BaseAgent):
             step = steps[i]
             status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:100]} (budget: {remaining:.0f}s left)")
 
+            self._emit("step_start", step=i + 1, total=len(steps), skill=step.skill_name)
             result = await self._execute_step(step, outputs, status_callback)
 
             if result.get('success'):
+                self._emit("step_end", step=i + 1, skill=step.skill_name, success=True)
                 outputs[step.output_key or f'step_{i}'] = result
                 skills_used.append(step.skill_name)
+                # Track in context manager for trajectory-preserving compression
+                ctx.add_step({
+                    'skill_name': step.skill_name,
+                    'step': i,
+                    'success': True,
+                    **{k: v for k, v in result.items() if k != 'success'},
+                })
                 status(f"Step {i+1}", "completed")
                 i += 1
             else:
                 error_msg = result.get('error', 'Unknown error')
+                self._emit("step_end", step=i + 1, skill=step.skill_name, success=False, error=error_msg[:200])
                 errors.append(f"Step {i+1}: {error_msg}")
                 status(f"Step {i+1}", f"failed: {error_msg}")
 
@@ -750,6 +898,7 @@ def create_autonomous_agent(
 __all__ = [
     'AutonomousAgent',
     'AutonomousAgentConfig',
+    'ExecutionContextManager',
     'ExecutionStep',
     'create_autonomous_agent',
 ]

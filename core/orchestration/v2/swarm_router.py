@@ -37,16 +37,19 @@ class SwarmRouter:
         get_swarm_intelligence: Callable = None,
         get_agents: Callable = None,
         get_model_tier_router: Callable = None,
+        get_learning: Callable = None,
     ):
         """
         Args:
             get_swarm_intelligence: Callable returning SwarmIntelligence instance
             get_agents: Callable returning list of AgentConfig
             get_model_tier_router: Callable returning ModelTierRouter
+            get_learning: Callable returning LearningPipeline (for order_agents_for_goal)
         """
         self._get_si = get_swarm_intelligence or (lambda: None)
         self._get_agents = get_agents or (lambda: [])
         self._get_mtr = get_model_tier_router or (lambda: None)
+        self._get_learning = get_learning or (lambda: None)
 
     def select_agent(
         self,
@@ -112,6 +115,18 @@ class SwarmRouter:
 
         return result
 
+    def order_agents_for_goal(self, goal: str) -> List[Any]:
+        """
+        Order agents for a multi-agent run using learning (trust + stigmergy + TRAS).
+        Single entry point: delegates to LearningPipeline.order_agents_for_goal.
+        Returns a new list; caller should assign (e.g. self.agents = router.order_agents_for_goal(goal)).
+        """
+        lp = self._get_learning()
+        agents = self._get_agents()
+        if not lp:
+            return list(agents) if agents else []
+        return lp.order_agents_for_goal(goal, agents)
+
     def estimate_complexity(self, task: str) -> Dict[str, Any]:
         """
         Estimate task complexity for mode selection.
@@ -147,6 +162,22 @@ class SwarmRouter:
             'recommended_mode': 'multi' if complexity >= 0.6 else 'single',
             'recommended_agents': min(5, max(1, int(complexity * 5))),
         }
+
+    def route_by_executor_type(
+        self,
+        available_skills: List[Dict[str, Any]],
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Group available skills by their executor_type.
+
+        Returns:
+            Mapping of executor_type string to list of matching skill dicts.
+            Skills without an executor_type are placed under ``'general'``.
+        """
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for skill in available_skills:
+            etype = skill.get('executor_type', 'general') or 'general'
+            groups.setdefault(etype, []).append(skill)
+        return groups
 
     def get_routing_stats(self) -> Dict[str, Any]:
         """Get routing statistics from SwarmIntelligence."""

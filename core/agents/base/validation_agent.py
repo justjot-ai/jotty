@@ -26,11 +26,13 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type
 
 from .meta_agent import MetaAgent, MetaAgentConfig
+
+from Jotty.core.foundation.types.enums import OutputTag, ValidationRound
+from Jotty.core.foundation.types.validation_types import ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -38,19 +40,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # VALIDATION TYPES
 # =============================================================================
-
-class ValidationRound(Enum):
-    """Validation round identifier."""
-    INITIAL = "initial"
-    REFINEMENT = "refinement"
-    FINAL = "final"
-
-
-class OutputTag(Enum):
-    """Output quality tag."""
-    USEFUL = "useful"
-    FAIL = "fail"
-    ENQUIRY = "enquiry"
 
 
 @dataclass
@@ -75,51 +64,6 @@ class ValidationConfig(MetaAgentConfig):
     # Default values for errors
     default_confidence_on_error: float = 0.3
     default_confidence_no_validation: float = 0.5
-
-
-@dataclass
-class ValidationResult:
-    """Result of a validation run."""
-    agent_name: str
-    is_valid: bool
-    confidence: float
-    reasoning: str
-
-    # Architect-specific
-    should_proceed: Optional[bool] = None
-    injected_context: str = ""
-    injected_instructions: str = ""
-
-    # Auditor-specific
-    output_tag: Optional[OutputTag] = None
-    why_useful: str = ""
-    fix_instructions: str = ""
-    output_name: str = ""
-
-    # Multi-round
-    validation_round: ValidationRound = ValidationRound.INITIAL
-    previous_rounds: List['ValidationResult'] = field(default_factory=list)
-
-    # Reasoning quality
-    reasoning_steps: List[str] = field(default_factory=list)
-    reasoning_quality: float = 0.0
-
-    # Metrics
-    execution_time: float = 0.0
-    tool_calls: List[Dict] = field(default_factory=list)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "agent_name": self.agent_name,
-            "is_valid": self.is_valid,
-            "confidence": self.confidence,
-            "reasoning": self.reasoning,
-            "should_proceed": self.should_proceed,
-            "output_tag": self.output_tag.value if self.output_tag else None,
-            "validation_round": self.validation_round.value,
-            "execution_time": self.execution_time,
-        }
 
 
 # =============================================================================

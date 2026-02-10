@@ -35,6 +35,8 @@ class ValidationResult:
     # For Auditor
     output_tag: Optional[OutputTag] = None
     why_useful: Optional[str] = None
+    fix_instructions: Optional[str] = None
+    output_name: Optional[str] = None
 
     # Execution info
     tool_calls: List[Dict] = field(default_factory=list)

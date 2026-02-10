@@ -39,6 +39,7 @@ from .types import (
     ValidationRound,
     ContextType,
     TaskStatus,
+    ExecutorType,
     # Memory types
     GoalNode,
     GoalHierarchy,
@@ -80,6 +81,7 @@ __all__ = [
     'ValidationRound',
     'ContextType',
     'TaskStatus',
+    'ExecutorType',
     # Memory types
     'GoalNode',
     'GoalHierarchy',

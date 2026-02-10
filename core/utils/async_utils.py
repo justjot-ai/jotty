@@ -23,7 +23,10 @@ Usage:
 import asyncio
 import functools
 import logging
-from typing import TypeVar, Callable, Any, Coroutine, Optional
+import threading
+import time as _time
+from dataclasses import dataclass, field
+from typing import TypeVar, Callable, Any, Coroutine, Dict, List, Optional
 
 _logger = logging.getLogger(__name__)
 
@@ -128,7 +131,15 @@ T = TypeVar('T')
 
 def run_sync(coro: Coroutine[Any, Any, T]) -> T:
     """
-    Run an async coroutine synchronously.
+    Run an async coroutine synchronously with event-loop detection.
+
+    Detects whether a loop is already running (e.g. Web gateway, Jupyter)
+    and adapts:
+    - Running loop: schedules via ``run_coroutine_threadsafe`` in a worker thread
+    - No loop: creates a new loop with ``asyncio.run``
+
+    This prevents ``RuntimeError: This event loop is already running`` which
+    occurs when calling ``run_sync`` from inside an async context.
 
     Args:
         coro: Coroutine to run
@@ -136,11 +147,23 @@ def run_sync(coro: Coroutine[Any, Any, T]) -> T:
     Returns:
         Result of the coroutine
     """
-    loop = asyncio.new_event_loop()
     try:
-        return loop.run_until_complete(coro)
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None and loop.is_running():
+        # Already inside an async context — schedule on the running loop
+        # from a background thread to avoid deadlock
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result()
+
+    # No running loop — safe to create one
+    new_loop = asyncio.new_event_loop()
+    try:
+        return new_loop.run_until_complete(coro)
     finally:
-        loop.close()
+        new_loop.close()
 
 
 def sync_wrapper(async_func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., T]:
@@ -200,3 +223,87 @@ async def gather_with_limit(coros: list, limit: int = 10) -> list:
             return await coro
 
     return await asyncio.gather(*[limited(c) for c in coros])
+
+
+# ---------------------------------------------------------------------------
+# Agent Event System — lightweight event envelope + singleton broadcaster
+# for tool → agent → UI communication.
+# ---------------------------------------------------------------------------
+
+AGENT_EVENT_TYPES = frozenset({
+    "tool_start", "tool_end",
+    "step_start", "step_end",
+    "status", "error", "streaming",
+})
+
+
+@dataclass
+class AgentEvent:
+    """Lightweight event envelope used by all agent broadcasting."""
+    type: str
+    data: Dict[str, Any] = field(default_factory=dict)
+    timestamp: float = field(default_factory=_time.time)
+    agent_id: Optional[str] = None
+
+    def __post_init__(self):
+        if self.type not in AGENT_EVENT_TYPES:
+            _logger.debug("AgentEvent created with unknown type: %s", self.type)
+
+
+class AgentEventBroadcaster:
+    """
+    Singleton event bus for tool / agent / UI communication.
+
+    Usage::
+
+        bus = AgentEventBroadcaster.get_instance()
+        bus.subscribe("tool_start", my_handler)
+        bus.emit(AgentEvent(type="tool_start", data={"skill": "shell-exec"}))
+    """
+
+    _instance: Optional["AgentEventBroadcaster"] = None
+    _lock = threading.Lock()
+
+    def __init__(self):
+        self._listeners: Dict[str, List[Callable]] = {}
+
+    @classmethod
+    def get_instance(cls) -> "AgentEventBroadcaster":
+        """Get or create the singleton broadcaster."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = AgentEventBroadcaster()
+        return cls._instance
+
+    def subscribe(self, event_type: str, callback: Callable) -> None:
+        """Register a listener for an event type."""
+        self._listeners.setdefault(event_type, []).append(callback)
+
+    def unsubscribe(self, event_type: str, callback: Callable) -> None:
+        """Remove a listener for an event type."""
+        listeners = self._listeners.get(event_type, [])
+        try:
+            listeners.remove(callback)
+        except ValueError:
+            pass
+
+    def emit(self, event: AgentEvent) -> None:
+        """Emit an event to all subscribed listeners (suppresses exceptions)."""
+        for cb in self._listeners.get(event.type, []):
+            try:
+                cb(event)
+            except Exception as exc:
+                _logger.debug("Event listener error for %s: %s", event.type, exc)
+
+    def emit_async(self, event: AgentEvent) -> None:
+        """Thread-safe emit for tools running in executors."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.call_soon_threadsafe(self.emit, event)
+        except RuntimeError:
+            self.emit(event)
+
+
+# Streaming callback type alias — carries richer AgentEvent payloads
+StreamingCallback = Optional[Callable[[AgentEvent], Any]]

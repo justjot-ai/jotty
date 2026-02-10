@@ -309,6 +309,7 @@ class SwarmManager:
         get_swarm_intelligence=lambda: getattr(self, 'swarm_intelligence', None),
         get_agents=lambda: self.agents,
         get_model_tier_router=lambda: self._model_tier_router,
+        get_learning=lambda: getattr(self, 'learning', None),
     ))
 
     # =========================================================================
@@ -558,6 +559,10 @@ class SwarmManager:
             self._providers.provider_registry = value
         else:
             super().__setattr__(name, value)
+
+    def _maybe_drain_training_task(self, result) -> None:
+        """Drain one queued training task after a successful run (placeholder)."""
+        pass
 
     # --- Composed manager delegation (thin methods, not properties) ---
 
@@ -1820,76 +1825,20 @@ class SwarmManager:
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
         discussion_paradigm = kwargs.pop('discussion_paradigm', 'fanout')
 
-        # ── Intelligence-guided agent selection ──
-        # Read stigmergy trails + byzantine trust to reorder/filter agents.
+        # ── Intelligence-guided agent selection (single entry point: router) ──
+        # Router delegates to LearningPipeline.order_agents_for_goal (trust + stigmergy + TRAS).
         # This closes the learning loop: post_episode writes → run() reads.
         _intelligence_applied = False
         try:
-            lp = self.learning
-            task_type = lp.transfer_learning.extractor.extract_task_type(goal)
-
-            # 1. Filter out untrusted agents (byzantine trust < 0.2)
-            original_count = len(self.agents)
-            trusted_agents = [
-                a for a in self.agents
-                if lp.is_agent_trusted(a.name, threshold=0.2)
-            ]
-            if trusted_agents and len(trusted_agents) < original_count:
-                skipped = [a.name for a in self.agents if a not in trusted_agents]
-                logger.info(f"🛡️ Byzantine: skipped untrusted agents: {skipped}")
-                self.agents = trusted_agents
+            ordered = self._router.order_agents_for_goal(goal)
+            if ordered:
+                self.agents = ordered
                 self._runners_built = False
                 self._ensure_runners()
-                _intelligence_applied = True
-
-            # 2. Reorder agents by stigmergy pheromone strength (strongest first)
-            routes = lp.stigmergy.get_route_signals(task_type)
-            if routes:
-                self.agents.sort(
-                    key=lambda a: routes.get(a.name, 0.0),
-                    reverse=True,
-                )
-                top = self.agents[0].name if self.agents else '?'
-                logger.info(f"🐜 Stigmergy: reordered agents for '{task_type}', lead={top}")
-                _intelligence_applied = True
-
-            # 3. MorphAgent TRAS: score task-role alignment for each agent.
-            #    Agents with higher TRAS for this task_type get priority.
-            #    This uses historical performance data (no LLM call).
-            si = lp.swarm_intelligence
-            if si and len(self.agents) >= 2:
-                morph_scorer = si.morph_scorer
-                profiles = si.agent_profiles
-                tras_scores = {}
-                for agent_cfg in self.agents:
-                    name = agent_cfg.name
-                    if name in profiles:
-                        profile = profiles[name]
-                        # compute_tras(task, task_type, profile, use_llm)
-                        # use_llm=False avoids an LLM call; uses capability match only
-                        tras, _ = morph_scorer.compute_tras(
-                            task=goal, task_type=task_type,
-                            profile=profile, use_llm=False
-                        )
-                        tras_scores[name] = tras
-
-                if tras_scores and max(tras_scores.values()) > min(tras_scores.values()):
-                    # Combine stigmergy route strength with TRAS score
-                    # Both are 0-1 range; weighted average favoring recent performance
-                    def _combined_score(a):
-                        route_s = routes.get(a.name, 0.0) if routes else 0.0
-                        tras_s = tras_scores.get(a.name, 0.5)
-                        return 0.6 * route_s + 0.4 * tras_s
-
-                    self.agents.sort(key=_combined_score, reverse=True)
-                    top_name = self.agents[0].name
-                    top_tras = tras_scores.get(top_name, 0)
-                    logger.info(
-                        f"📊 MorphAgent TRAS: reranked agents, "
-                        f"lead={top_name} (TRAS={top_tras:.2f})"
-                    )
-                    _intelligence_applied = True
-
+                _intelligence_applied = bool(getattr(self, 'learning', None))
+                if _intelligence_applied and self.agents:
+                    top = self.agents[0].name if hasattr(self.agents[0], 'name') else '?'
+                    logger.info(f"🛡️ Router: agents ordered for goal (lead={top})")
         except Exception as e:
             logger.warning(f"Intelligence-guided selection failed: {e}")
 
