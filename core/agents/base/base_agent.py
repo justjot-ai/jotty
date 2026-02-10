@@ -574,6 +574,32 @@ class BaseAgent(ABC):
             return ""
 
     # =========================================================================
+    # I/O SCHEMA
+    # =========================================================================
+
+    def get_io_schema(self):
+        """Get typed AgentIOSchema describing this agent's inputs and outputs.
+
+        Base implementation returns a generic schema accepting 'task' input
+        and producing 'output' + 'success' outputs. Subclasses (DomainAgent)
+        override with richer schemas extracted from DSPy Signatures.
+        """
+        from Jotty.core.agents._execution_types import AgentIOSchema, ToolParam
+
+        if hasattr(self, '_io_schema') and self._io_schema is not None:
+            return self._io_schema
+
+        self._io_schema = AgentIOSchema(
+            agent_name=getattr(self.config, 'name', self.__class__.__name__),
+            inputs=[ToolParam(name='task', description='Task to execute')],
+            outputs=[
+                ToolParam(name='output', description='Execution result'),
+                ToolParam(name='success', type_hint='bool', description='Whether execution succeeded'),
+            ],
+        )
+        return self._io_schema
+
+    # =========================================================================
     # SKILL DISCOVERY
     # =========================================================================
 
@@ -730,6 +756,32 @@ class BaseAgent(ABC):
             "total_retries": 0,
             "total_execution_time": 0.0,
         }
+
+    # =========================================================================
+    # I/O SCHEMA
+    # =========================================================================
+
+    def get_io_schema(self):
+        """Get typed AgentIOSchema for this agent.
+
+        Returns a generic schema with ``task`` input and ``output``/``success``
+        outputs.  Subclasses (DomainAgent) override with signature-derived schemas.
+        Cached after first call.
+        """
+        if hasattr(self, '_io_schema') and self._io_schema is not None:
+            return self._io_schema
+
+        from Jotty.core.agents._execution_types import AgentIOSchema, ToolParam
+
+        self._io_schema = AgentIOSchema(
+            agent_name=getattr(self.config, 'name', self.__class__.__name__),
+            inputs=[ToolParam(name='task', description='Task to execute')],
+            outputs=[
+                ToolParam(name='output', description='Execution result'),
+                ToolParam(name='success', type_hint='bool', description='Whether execution succeeded'),
+            ],
+        )
+        return self._io_schema
 
     # =========================================================================
     # UTILITY METHODS

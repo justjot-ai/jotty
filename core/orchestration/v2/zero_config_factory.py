@@ -99,25 +99,27 @@ class ZeroConfigAgentFactory:
         class AgentDecisionSignature(dspy.Signature):
             """Analyze if task has INDEPENDENT sub-goals that can run in PARALLEL.
 
-            BE CONSERVATIVE - prefer single agent for most tasks.
-            Only split into parallel agents when there are TRULY INDEPENDENT work streams.
+            Default to single agent for most tasks.
+            Use parallel agents when there are ENUMERABLE, INDEPENDENT items to research/analyze.
 
-            PARALLEL (rare): Sub-goals that produce SEPARATE outputs with NO dependencies.
-            SEQUENTIAL (common): Steps that build on each other (research -> synthesize -> format).
+            PARALLEL (use when items are enumerable and independent):
+            - "Research 5 programming languages" -> PARALLEL (each language is independent)
+            - "Compare Python, Rust, Go, and Julia for ML" -> PARALLEL (independent per-language research)
+            - "Analyze top 10 stocks" -> PARALLEL (each stock is independent)
+            - "Compare A vs B AND compare C vs D" -> PARALLEL if different domains
 
-            Examples:
-            - "Create checklist for X" -> SEQUENTIAL (single agent: research + create + format)
+            SEQUENTIAL (use when steps build on each other):
             - "Research X and generate PDF" -> SEQUENTIAL (PDF needs research output)
-            - "Compare A vs B AND compare C vs D" -> PARALLEL ONLY if comparing different domains
-            - "Analyze company X for multiple aspects" -> SEQUENTIAL (one comprehensive analysis)
+            - "Create checklist for X" -> SEQUENTIAL (research + create + format)
+            - "Analyze company X for multiple aspects" -> SEQUENTIAL (one entity, multiple views)
 
             AVOID creating multiple agents for:
-            - Tasks that share the same domain/topic (even if phrased differently)
-            - Tasks where one naturally leads to another
+            - Tasks where one step's output feeds the next
+            - Tasks with a single entity examined from multiple angles
             - Tasks that will produce overlapping research
             """
             task: str = dspy.InputField(desc="The task to analyze")
-            is_parallel: bool = dspy.OutputField(desc="True ONLY if task has truly independent sub-goals. Default to False.")
+            is_parallel: bool = dspy.OutputField(desc="True if task has enumerable independent sub-goals (e.g., research N different items). Default False for ambiguous cases.")
             sub_goals: str = dspy.OutputField(desc="If parallel, JSON list of 2-4 DISTINCT sub-goals (no duplicates). If sequential, empty list []")
 
         try:
@@ -184,7 +186,13 @@ class ZeroConfigAgentFactory:
             return sub_goals
 
         def get_key_words(text: str) -> set:
-            stop_words = {'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'is', 'are', 'be', 'that', 'this'}
+            stop_words = {'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on',
+                          'with', 'is', 'are', 'be', 'that', 'this',
+                          # Generic task words — exclude from similarity to avoid collapsing
+                          # "Research Python..." and "Research Rust..." as duplicates
+                          'research', 'analyze', 'compare', 'evaluate', 'investigate',
+                          'strengths', 'weaknesses', 'features', 'capabilities',
+                          'development', 'programming', 'language', 'languages'}
             return set(w.lower() for w in text.split() if len(w) > 2 and w.lower() not in stop_words)
 
         def similarity(a: str, b: str) -> float:
@@ -195,11 +203,11 @@ class ZeroConfigAgentFactory:
 
         unique_goals = []
         for goal in sub_goals:
-            if not any(similarity(goal, existing) > 0.6 for existing in unique_goals):
+            if not any(similarity(goal, existing) > 0.5 for existing in unique_goals):
                 unique_goals.append(goal)
 
         if len(unique_goals) < len(sub_goals):
-            logger.info(f"📝 Deduplicated: {len(sub_goals)} → {len(unique_goals)} sub-goals")
+            logger.info(f"Deduplicated: {len(sub_goals)} -> {len(unique_goals)} sub-goals")
 
         return unique_goals
 

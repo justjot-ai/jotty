@@ -2335,6 +2335,10 @@ class SwarmManager:
         MALLM's "relay" — like a relay race where context is passed along.
         DRY: Reuses existing runners. KISS: Simple loop.
 
+        When agents expose AgentIOSchema (via get_io_schema()), output fields
+        are auto-wired to the next agent's input fields by name/type match.
+        Falls back to string concatenation when schemas are unavailable.
+
         Best for: research → summarize → format pipelines.
         """
         status_callback = kwargs.pop('status_callback', None)
@@ -2343,6 +2347,8 @@ class SwarmManager:
 
         all_results = {}
         enriched_goal = goal
+        prev_schema = None  # AgentIOSchema of previous agent
+        prev_output = None  # Dict output of previous agent
 
         for agent_config in self.agents:
             runner = self.runners.get(agent_config.name)
@@ -2350,6 +2356,22 @@ class SwarmManager:
                 continue
 
             sub_goal = agent_config.capabilities[0] if agent_config.capabilities else enriched_goal
+
+            # Schema-aware wiring: map previous output fields to this agent's inputs
+            if prev_schema is not None and prev_output is not None:
+                try:
+                    cur_agent = getattr(runner, 'agent', None)
+                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                        cur_schema = cur_agent.get_io_schema()
+                        wired_kwargs = prev_schema.map_outputs(prev_output, cur_schema)
+                        if wired_kwargs:
+                            kwargs.update(wired_kwargs)
+                            logger.info(
+                                f"Relay schema wiring: {prev_schema.agent_name} → "
+                                f"{cur_schema.agent_name}: {list(wired_kwargs.keys())}"
+                            )
+                except Exception as e:
+                    logger.debug(f"Relay schema wiring skipped: {e}")
 
             safe_status(status_callback, f"Relay → {agent_config.name}", sub_goal[:60])
 
@@ -2367,8 +2389,24 @@ class SwarmManager:
                     f"[Previous agent '{agent_config.name}' output]:\n"
                     f"{str(result.output)[:2000]}"
                 )
+                # Track schema + output for next iteration's auto-wiring
+                try:
+                    cur_agent = getattr(runner, 'agent', None)
+                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                        prev_schema = cur_agent.get_io_schema()
+                        # Extract dict output for field-level mapping
+                        out = result.output
+                        prev_output = out if isinstance(out, dict) else {'output': str(out)}
+                    else:
+                        prev_schema = None
+                        prev_output = None
+                except Exception:
+                    prev_schema = None
+                    prev_output = None
             else:
                 logger.warning(f"Relay: {agent_config.name} failed, continuing with original goal")
+                prev_schema = None
+                prev_output = None
 
         combined = self._aggregate_results(all_results, goal)
         self._schedule_background_learning(combined, goal)

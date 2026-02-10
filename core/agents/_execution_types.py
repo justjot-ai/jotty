@@ -396,6 +396,236 @@ class ToolSchema:
 
 
 # =============================================================================
+# AGENT I/O SCHEMA (Typed input/output definitions for agents)
+# =============================================================================
+
+
+class AgentIOSchema:
+    """Typed input/output contract for an agent.
+
+    Built from a DomainAgent's DSPy Signature, this exposes what fields
+    an agent accepts as input and what it produces as output.  Used by
+    orchestration layers (relay, pipeline) to auto-wire agent outputs
+    to the next agent's inputs.
+
+    Usage::
+
+        schema_a = agent_a.get_io_schema()
+        schema_b = agent_b.get_io_schema()
+
+        # Check compatibility
+        mapping = schema_a.wire_to(schema_b)
+        # {'analysis': 'text', 'sources': 'context'}
+
+        # Apply wiring
+        next_kwargs = schema_a.map_outputs(result_a, schema_b)
+    """
+
+    def __init__(
+        self,
+        agent_name: str,
+        inputs: Optional[List[ToolParam]] = None,
+        outputs: Optional[List[ToolParam]] = None,
+        description: str = "",
+    ):
+        self.agent_name = agent_name
+        self.inputs: List[ToolParam] = inputs or []
+        self.outputs: List[ToolParam] = outputs or []
+        self.description = description
+
+    # -- construction ---------------------------------------------------------
+
+    @classmethod
+    def from_dspy_signature(cls, agent_name: str, signature_cls) -> AgentIOSchema:
+        """Build from a DSPy Signature class.
+
+        Extracts InputField/OutputField with their ``desc`` annotations
+        to produce typed field definitions.
+        """
+        inputs: List[ToolParam] = []
+        outputs: List[ToolParam] = []
+        description = ""
+
+        try:
+            import dspy
+
+            # Extract description from signature docstring
+            description = (signature_cls.__doc__ or "").strip().split("\n")[0]
+
+            # Pydantic-style (DSPy 2.x+): model_fields
+            if hasattr(signature_cls, 'model_fields'):
+                for name, field_info in signature_cls.model_fields.items():
+                    extra = getattr(field_info, 'json_schema_extra', None) or {}
+                    field_type = extra.get('__dspy_field_type', '')
+                    desc = extra.get('desc', '') or field_info.description or ''
+                    type_hint = 'str'  # DSPy fields are strings by default
+
+                    # Check annotation for type hints
+                    annotation = field_info.annotation
+                    if annotation is not None:
+                        type_hint = getattr(annotation, '__name__', str(annotation))
+
+                    param = ToolParam(
+                        name=name,
+                        type_hint=type_hint,
+                        required=field_info.is_required(),
+                        description=desc,
+                    )
+                    if field_type == 'input':
+                        inputs.append(param)
+                    elif field_type == 'output':
+                        outputs.append(param)
+
+            # Fallback: class attribute inspection
+            if not inputs and not outputs:
+                for name in dir(signature_cls):
+                    if name.startswith('_'):
+                        continue
+                    attr = getattr(signature_cls, name, None)
+                    desc = getattr(attr, 'desc', '') or ''
+                    param = ToolParam(name=name, description=desc)
+                    if isinstance(attr, dspy.InputField):
+                        inputs.append(param)
+                    elif isinstance(attr, dspy.OutputField):
+                        outputs.append(param)
+
+            # Last resort: use signature's field dicts
+            if not inputs and hasattr(signature_cls, 'input_fields'):
+                for name, info in signature_cls.input_fields.items():
+                    desc = getattr(info, 'desc', '') or ''
+                    inputs.append(ToolParam(name=name, description=desc))
+            if not outputs and hasattr(signature_cls, 'output_fields'):
+                for name, info in signature_cls.output_fields.items():
+                    desc = getattr(info, 'desc', '') or ''
+                    outputs.append(ToolParam(name=name, description=desc))
+
+        except Exception as e:
+            logger.warning(f"Failed to extract IO schema from signature: {e}")
+
+        return cls(
+            agent_name=agent_name,
+            inputs=inputs,
+            outputs=outputs,
+            description=description,
+        )
+
+    # -- wiring ---------------------------------------------------------------
+
+    # Generic "content receiver" input names — accept any string output
+    _CONTENT_RECEIVERS = {'input', 'text', 'content', 'body', 'message', 'data'}
+
+    # Generic "content producer" output names — provide string content
+    _CONTENT_PRODUCERS = {
+        'output', 'result', 'response', 'answer', 'analysis',
+        'summary', 'findings', 'report', 'text', 'content',
+    }
+
+    # Semantic equivalences for agent I/O wiring
+    _SEMANTIC_GROUPS = [
+        {'text', 'content', 'body', 'input', 'message', 'data'},
+        {'result', 'output', 'response', 'answer'},
+        {'analysis', 'summary', 'findings', 'report'},
+        {'query', 'question', 'task', 'instruction', 'prompt'},
+        {'context', 'background', 'history'},
+        {'sources', 'references', 'citations', 'urls'},
+    ]
+
+    def wire_to(self, target: AgentIOSchema) -> Dict[str, str]:
+        """Determine how our outputs map to *target*'s inputs.
+
+        Returns ``{target_input_name: our_output_name}`` for compatible pairs.
+
+        Matching strategy (priority order):
+        1. Exact name match (our output ``name`` == their input ``name``)
+        2. Semantic group match (``analysis`` in same group as ``summary``)
+        3. Content fallback — generic receivers (``input``, ``text``) accept
+           the first content-producing output (``analysis``, ``result``, etc.)
+        """
+        mapping: Dict[str, str] = {}
+        our_output_names = {p.name for p in self.outputs}
+        used_outputs: Set[str] = set()
+
+        for target_input in target.inputs:
+            # Strategy 1: exact name match
+            if target_input.name in our_output_names:
+                mapping[target_input.name] = target_input.name
+                used_outputs.add(target_input.name)
+                continue
+
+            # Strategy 2: semantic group match
+            matched = False
+            for group in self._SEMANTIC_GROUPS:
+                if target_input.name in group:
+                    for out_name in our_output_names:
+                        if out_name in group and out_name not in used_outputs:
+                            mapping[target_input.name] = out_name
+                            used_outputs.add(out_name)
+                            matched = True
+                            break
+                if matched:
+                    break
+            if matched:
+                continue
+
+            # Strategy 3: content fallback — generic receivers accept any content output
+            if target_input.name in self._CONTENT_RECEIVERS:
+                for out in self.outputs:
+                    if out.name in self._CONTENT_PRODUCERS and out.name not in used_outputs:
+                        mapping[target_input.name] = out.name
+                        used_outputs.add(out.name)
+                        break
+                    # If no named match, use the first string output
+                if target_input.name not in mapping:
+                    for out in self.outputs:
+                        if out.type_hint == 'str' and out.name not in used_outputs:
+                            mapping[target_input.name] = out.name
+                            used_outputs.add(out.name)
+                            break
+
+        return mapping
+
+    def map_outputs(
+        self,
+        output_dict: Dict[str, Any],
+        target: AgentIOSchema,
+    ) -> Dict[str, Any]:
+        """Map our output dict to kwargs suitable for *target* agent.
+
+        Uses :meth:`wire_to` for field mapping, then extracts values from
+        *output_dict*. Missing fields are skipped.
+        """
+        wiring = self.wire_to(target)
+        kwargs: Dict[str, Any] = {}
+        for target_input, our_output in wiring.items():
+            if our_output in output_dict:
+                kwargs[target_input] = output_dict[our_output]
+        return kwargs
+
+    # -- introspection --------------------------------------------------------
+
+    @property
+    def input_names(self) -> List[str]:
+        return [p.name for p in self.inputs]
+
+    @property
+    def output_names(self) -> List[str]:
+        return [p.name for p in self.outputs]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'agent_name': self.agent_name,
+            'description': self.description,
+            'inputs': [{'name': p.name, 'type': p.type_hint, 'description': p.description} for p in self.inputs],
+            'outputs': [{'name': p.name, 'type': p.type_hint, 'description': p.description} for p in self.outputs],
+        }
+
+    def __repr__(self) -> str:
+        ins = ", ".join(self.input_names)
+        outs = ", ".join(self.output_names)
+        return f"AgentIOSchema({self.agent_name}, in=[{ins}], out=[{outs}])"
+
+
+# =============================================================================
 # FILE REFERENCE (Lazy handle for large outputs)
 # =============================================================================
 
@@ -680,6 +910,7 @@ __all__ = [
     'ExecutionStep',
     'ToolParam',
     'ToolSchema',
+    'AgentIOSchema',
     'FileReference',
     'SwarmArtifactStore',
     'ExecutionStepSchema',

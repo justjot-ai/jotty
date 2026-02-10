@@ -46,14 +46,161 @@ Author: Jotty Team
 Date: February 2026
 """
 
+import asyncio
 import logging
+import traceback
 from abc import abstractmethod
-from typing import Any, ClassVar, Dict, Optional
+from datetime import datetime
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from ..base_swarm import BaseSwarm, SwarmConfig, SwarmResult
+from ..base_swarm import BaseSwarm, SwarmConfig, SwarmResult, AgentRole
 from .agent_team import AgentTeam, CoordinationPattern, TeamResult
 
 logger = logging.getLogger(__name__)
+
+
+class PhaseExecutor:
+    """Manages phase execution with consistent tracing, timing, and error handling.
+
+    Eliminates boilerplate in concrete swarms by encapsulating:
+    - Phase logging (start/end with emoji)
+    - Automatic _trace_phase() calls
+    - Exception-safe parallel execution via asyncio.gather
+    - Standard error result building
+
+    Usage inside a DomainSwarm subclass::
+
+        executor = self._phase_executor()
+        result = await executor.run_phase(
+            1, "Data Profiling", "DataProfiler", AgentRole.ACTOR,
+            self._profiler.profile(summary, sample, columns),
+            tools_used=['data_profile'],
+        )
+    """
+
+    def __init__(self, swarm: 'DomainSwarm'):
+        self.swarm = swarm
+        self._start_time = datetime.now()
+
+    def elapsed(self) -> float:
+        """Seconds since executor was created."""
+        return (datetime.now() - self._start_time).total_seconds()
+
+    async def run_phase(
+        self,
+        phase_num: int,
+        phase_name: str,
+        agent_name: str,
+        agent_role: AgentRole,
+        coro,
+        input_data: Dict[str, Any] = None,
+        tools_used: List[str] = None,
+    ) -> Any:
+        """Execute a single agent phase with automatic tracing.
+
+        Args:
+            phase_num: Phase number for logging (e.g. 1, 2, 3)
+            phase_name: Human-readable phase name
+            agent_name: Agent class/display name for tracing
+            agent_role: AgentRole enum value
+            coro: Awaitable coroutine to execute
+            input_data: Optional dict logged as phase input
+            tools_used: Optional tool names for tracing
+
+        Returns:
+            The raw result from the coroutine.
+
+        Raises:
+            Re-raises any exception from the coroutine after logging.
+        """
+        logger.info(f"Phase {phase_num}: {phase_name}...")
+        phase_start = datetime.now()
+
+        result = await coro
+
+        # Determine success heuristic
+        success = True
+        if isinstance(result, dict) and 'error' in result:
+            success = False
+
+        output_data = {}
+        if isinstance(result, dict):
+            output_data = {k: str(v)[:200] for k, v in list(result.items())[:5]}
+
+        self.swarm._trace_phase(
+            agent_name, agent_role,
+            input_data or {},
+            output_data,
+            success=success,
+            phase_start=phase_start,
+            tools_used=tools_used,
+        )
+
+        return result
+
+    async def run_parallel(
+        self,
+        phase_num: int,
+        phase_name: str,
+        tasks: List[Tuple[str, AgentRole, Any, List[str]]],
+    ) -> List[Any]:
+        """Execute parallel agents with asyncio.gather + per-agent tracing.
+
+        Args:
+            phase_num: Phase number for logging
+            phase_name: Human-readable phase name
+            tasks: List of (agent_name, agent_role, coro, tools_used) tuples
+
+        Returns:
+            List of results (exceptions converted to {'error': str(e)} dicts).
+        """
+        logger.info(f"Phase {phase_num}: {phase_name} ({len(tasks)} agents parallel)...")
+        phase_start = datetime.now()
+
+        coros = [t[2] for t in tasks]
+        raw_results = await asyncio.gather(*coros, return_exceptions=True)
+
+        results = []
+        for i, raw in enumerate(raw_results):
+            agent_name, agent_role, _, tools_used = tasks[i]
+            if isinstance(raw, Exception):
+                result = {'error': str(raw)}
+                success = False
+            else:
+                result = raw
+                success = not (isinstance(result, dict) and 'error' in result)
+
+            output_data = {}
+            if isinstance(result, dict):
+                output_data = {'has_error': 'error' in result}
+
+            self.swarm._trace_phase(
+                agent_name, agent_role,
+                {}, output_data,
+                success=success,
+                phase_start=phase_start,
+                tools_used=tools_used or [],
+            )
+            results.append(result)
+
+        return results
+
+    def build_error_result(
+        self,
+        result_class: Type[SwarmResult],
+        error: Exception,
+        config_name: str,
+        config_domain: str,
+    ) -> SwarmResult:
+        """Build a standard error result for except blocks."""
+        return result_class(
+            success=False,
+            swarm_name=config_name,
+            domain=config_domain,
+            output={},
+            execution_time=self.elapsed(),
+            error=str(error),
+        )
 
 
 class DomainSwarm(BaseSwarm):
@@ -87,6 +234,7 @@ class DomainSwarm(BaseSwarm):
         """
         super().__init__(config)
         self._agents_initialized = False
+        self._learning_recorded = False
 
     def _init_agents(self):
         """
@@ -282,6 +430,73 @@ class DomainSwarm(BaseSwarm):
         return self.AGENT_TEAM.pattern != CoordinationPattern.NONE
 
     # =========================================================================
+    # PHASE EXECUTOR HELPERS
+    # =========================================================================
+
+    def _phase_executor(self) -> PhaseExecutor:
+        """Create a PhaseExecutor bound to this swarm."""
+        return PhaseExecutor(self)
+
+    async def _safe_execute_domain(
+        self,
+        task_type: str,
+        default_tools: List[str],
+        result_class: Type[SwarmResult],
+        execute_fn: Callable,
+        output_data_fn: Callable = None,
+        input_data_fn: Callable = None,
+    ) -> SwarmResult:
+        """Wrap phase execution with standard try/except + _post_execute_learning.
+
+        Concrete swarms call this from their main method (e.g. analyze())
+        to eliminate repeated try/except/timing/learning boilerplate.
+
+        Args:
+            task_type: Task type string for learning (e.g. 'data_analysis')
+            default_tools: Default tool names for _get_active_tools()
+            result_class: SwarmResult subclass for error result building
+            execute_fn: Async callable that performs domain phases, returns result
+            output_data_fn: Optional callable(result) -> dict for learning output
+            input_data_fn: Optional callable() -> dict for learning input
+
+        Returns:
+            SwarmResult from execute_fn, or error result on failure.
+        """
+        executor = self._phase_executor()
+        try:
+            result = await execute_fn(executor)
+
+            # Record post-execution learning (success path)
+            exec_time = executor.elapsed()
+            output_data = output_data_fn(result) if output_data_fn else None
+            input_data = input_data_fn() if input_data_fn else None
+            await self._post_execute_learning(
+                success=result.success if hasattr(result, 'success') else True,
+                execution_time=exec_time,
+                tools_used=self._get_active_tools(default_tools),
+                task_type=task_type,
+                output_data=output_data,
+                input_data=input_data,
+            )
+            self._learning_recorded = True
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ {self.__class__.__name__} error: {e}")
+            traceback.print_exc()
+            exec_time = executor.elapsed()
+            await self._post_execute_learning(
+                success=False,
+                execution_time=exec_time,
+                tools_used=self._get_active_tools(default_tools),
+                task_type=task_type,
+            )
+            self._learning_recorded = True
+            return executor.build_error_result(
+                result_class, e, self.config.name, self.config.domain,
+            )
+
+    # =========================================================================
     # EXECUTION TEMPLATE
     # =========================================================================
 
@@ -301,6 +516,7 @@ class DomainSwarm(BaseSwarm):
         leverage team coordination patterns.
         """
         self._init_agents()
+        self._learning_recorded = False  # Reset per-execution
 
         # Pre-execute learning (loads context, warmup, etc.)
         try:
@@ -314,9 +530,13 @@ class DomainSwarm(BaseSwarm):
             result = await self._execute_domain(*args, **kwargs)
         finally:
             # Post-execute learning (evaluation, improvement)
-            # Note: This is optional - some swarms may not have this configured
+            # Skip if _safe_execute_domain already recorded learning
             try:
-                if result is not None and hasattr(self, '_post_execute_learning'):
+                if (
+                    not self._learning_recorded
+                    and result is not None
+                    and hasattr(self, '_post_execute_learning')
+                ):
                     execution_time = __import__('time').time() - start_time
                     success = result.success if hasattr(result, 'success') else True
                     # Try to call with the expected signature
@@ -362,4 +582,4 @@ class DomainSwarm(BaseSwarm):
         return f"{self.__class__.__name__}(agents={agent_count}, pattern={pattern}, initialized={self._agents_initialized})"
 
 
-__all__ = ['DomainSwarm']
+__all__ = ['DomainSwarm', 'PhaseExecutor']

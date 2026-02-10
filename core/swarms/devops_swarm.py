@@ -53,7 +53,6 @@ import json
 import dspy
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from enum import Enum
 
@@ -733,231 +732,213 @@ class DevOpsSwarm(DomainSwarm):
         Returns:
             DevOpsResult with complete configuration
         """
-        start_time = datetime.now()
-
         config = self.config
         compliance = compliance or []
 
-        logger.info(f"🚀 DevOpsSwarm starting: {app_name} on {config.cloud_provider.value}")
+        logger.info(f"DevOpsSwarm starting: {app_name} on {config.cloud_provider.value}")
 
-        try:
-            # =================================================================
-            # PHASE 1: INFRASTRUCTURE DESIGN
-            # =================================================================
-            logger.info("🏗️ Phase 1: Designing infrastructure...")
+        return await self._safe_execute_domain(
+            task_type='devops_setup',
+            default_tools=['infra_design', 'cicd_design', 'container_setup'],
+            result_class=DevOpsResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, app_name, app_type, language, requirements, scale, compliance, config
+            ),
+            output_data_fn=lambda result: {
+                'app_name': app_name,
+                'cloud': config.cloud_provider.value,
+                'has_infrastructure': result.infrastructure is not None,
+                'has_pipeline': result.pipeline is not None and bool(getattr(result.pipeline, 'stages', [])),
+                'has_container': result.container is not None and bool(getattr(result.container, 'dockerfile', '')),
+                'has_security': result.security is not None,
+                'has_monitoring': result.monitoring is not None,
+                'iac_files_count': len(result.iac_code) if result.iac_code else 0,
+                'deployment_steps_count': len(result.deployment_steps) if result.deployment_steps else 0,
+                'execution_time': getattr(result, 'execution_time', 0),
+            },
+            input_data_fn=lambda: {
+                'app_name': app_name,
+                'app_type': app_type,
+                'language': language,
+                'requirements': requirements,
+                'scale': scale,
+                'compliance': compliance,
+                'cloud_provider': config.cloud_provider.value,
+                'iac_tool': config.iac_tool.value,
+                'ci_provider': config.ci_provider.value,
+                'container_platform': config.container_platform.value,
+            },
+        )
 
-            infra_result = await self._infra_architect.design(
+    async def _execute_phases(
+        self,
+        executor,
+        app_name: str,
+        app_type: str,
+        language: str,
+        requirements: str,
+        scale: str,
+        compliance: List[str],
+        config: DevOpsConfig
+    ) -> DevOpsResult:
+        """Execute all DevOps phases using PhaseExecutor.
+
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            app_name: Application name
+            app_type: Application type
+            language: Programming language
+            requirements: Application requirements
+            scale: Expected scale
+            compliance: Compliance requirements
+            config: DevOps configuration
+
+        Returns:
+            DevOpsResult with complete configuration
+        """
+        # =================================================================
+        # PHASE 1: INFRASTRUCTURE DESIGN
+        # =================================================================
+        infra_result = await executor.run_phase(
+            1, "Infrastructure Design", "InfrastructureArchitect", AgentRole.PLANNER,
+            self._infra_architect.design(
                 app_type=app_type,
                 cloud=config.cloud_provider.value,
                 requirements=requirements or f"Standard {app_type} application",
                 scale=scale
-            )
+            ),
+            input_data={'app_type': app_type, 'cloud': config.cloud_provider.value},
+            tools_used=['infra_design'],
+        )
 
-            if 'error' in infra_result:
-                return DevOpsResult(
-                    success=False,
-                    swarm_name=self.config.name,
-                    domain=self.config.domain,
-                    output={},
-                    execution_time=(datetime.now() - start_time).total_seconds(),
-                    error=infra_result['error']
-                )
-
-            infrastructure = InfrastructureSpec(
-                compute=infra_result.get('compute', {}),
-                networking=infra_result.get('networking', {}),
-                storage={},
-                database={},
-                security_groups=[],
-                load_balancers=[]
-            )
-
-            self._trace_phase("InfrastructureArchitect", AgentRole.PLANNER,
-                {'app_type': app_type, 'cloud': config.cloud_provider.value},
-                {'has_compute': bool(infra_result.get('compute'))},
-                success='error' not in infra_result, phase_start=start_time, tools_used=['infra_design'])
-
-            # =================================================================
-            # PHASE 2: PARALLEL - CI/CD + Containers + Security
-            # =================================================================
-            logger.info("⚡ Phase 2: CI/CD, containers, security (parallel)...")
-
-            cicd_task = self._cicd_designer.design(
-                app_type=app_type,
-                ci_provider=config.ci_provider.value,
-                deployment_target=config.container_platform.value,
-                environments=["dev", "staging", "production"]
-            )
-
-            container_task = self._container_specialist.containerize(
-                app_type=app_type,
-                language=language,
-                platform=config.container_platform.value,
-                requirements=requirements
-            )
-
-            security_task = None
-            if config.include_security:
-                security_task = self._security_hardener.harden(
-                    infrastructure=json.dumps(infra_result),
-                    cloud=config.cloud_provider.value,
-                    compliance=compliance
-                )
-
-            if security_task:
-                pipeline, container, security = await asyncio.gather(
-                    cicd_task, container_task, security_task, return_exceptions=True
-                )
-            else:
-                pipeline, container = await asyncio.gather(
-                    cicd_task, container_task, return_exceptions=True
-                )
-                security = None
-
-            if isinstance(pipeline, Exception):
-                pipeline = PipelineSpec(stages=[], triggers=[], environments=[], secrets=[], yaml_config="")
-            if isinstance(container, Exception):
-                container = ContainerSpec(dockerfile="", compose_file="", kubernetes_manifests={}, registry="", image_name="")
-            if isinstance(security, Exception):
-                security = None
-
-            phase2_start = datetime.now()
-            self._trace_phase("CICDDesigner", AgentRole.ACTOR,
-                {'ci_provider': config.ci_provider.value},
-                {'has_pipeline': bool(pipeline.stages if hasattr(pipeline, 'stages') else False)},
-                success=True, phase_start=start_time, tools_used=['cicd_design'])
-            self._trace_phase("ContainerSpecialist", AgentRole.ACTOR,
-                {'platform': config.container_platform.value},
-                {'has_dockerfile': bool(container.dockerfile if hasattr(container, 'dockerfile') else False)},
-                success=True, phase_start=start_time, tools_used=['container_setup'])
-            self._trace_phase("SecurityHardener", AgentRole.EXPERT,
-                {'include_security': config.include_security},
-                {'has_security': security is not None},
-                success=True, phase_start=start_time, tools_used=['security_harden'])
-
-            # =================================================================
-            # PHASE 3: MONITORING SETUP
-            # =================================================================
-            monitoring = None
-            if config.include_monitoring:
-                logger.info("📊 Phase 3: Setting up monitoring...")
-
-                monitoring = await self._monitoring_specialist.setup(
-                    infrastructure=json.dumps(infra_result),
-                    app_type=app_type,
-                    sla_requirements="99.9% uptime"
-                )
-
-            self._trace_phase("MonitoringSpecialist", AgentRole.ACTOR,
-                {'include_monitoring': config.include_monitoring},
-                {'has_monitoring': monitoring is not None},
-                success=True, phase_start=phase2_start, tools_used=['monitoring_setup'])
-
-            # =================================================================
-            # PHASE 4: IAC GENERATION
-            # =================================================================
-            logger.info("📝 Phase 4: Generating Infrastructure as Code...")
-
-            iac_code = await self._iac_generator.generate(
-                infrastructure=json.dumps(infra_result),
-                iac_tool=config.iac_tool.value,
-                cloud=config.cloud_provider.value
-            )
-
-            self._trace_phase("IaCGenerator", AgentRole.ACTOR,
-                {'iac_tool': config.iac_tool.value},
-                {'has_code': bool(iac_code)},
-                success=True, phase_start=phase2_start, tools_used=['iac_generate'])
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            deployment_steps = [
-                f"1. Review and customize {config.iac_tool.value} configuration",
-                f"2. Initialize {config.iac_tool.value}: `terraform init`",
-                f"3. Plan infrastructure: `terraform plan`",
-                f"4. Apply infrastructure: `terraform apply`",
-                f"5. Build container: `docker build -t {app_name} .`",
-                f"6. Push to registry",
-                f"7. Deploy via {config.ci_provider.value} pipeline",
-                "8. Verify monitoring dashboards",
-                "9. Run smoke tests"
-            ]
-
-            result = DevOpsResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'app_name': app_name, 'cloud': config.cloud_provider.value},
-                execution_time=exec_time,
-                infrastructure=infrastructure,
-                pipeline=pipeline,
-                container=container,
-                security=security,
-                monitoring=monitoring,
-                iac_code=iac_code,
-                estimated_cost="Varies based on scale and usage",
-                deployment_steps=deployment_steps
-            )
-
-            logger.info(f"✅ DevOpsSwarm complete: {app_name} infrastructure ready")
-
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['infra_design', 'cicd_design', 'container_setup']),
-                task_type='devops_setup',
-                output_data={
-                    'app_name': app_name,
-                    'cloud': config.cloud_provider.value,
-                    'has_infrastructure': infrastructure is not None,
-                    'has_pipeline': pipeline is not None and bool(getattr(pipeline, 'stages', [])),
-                    'has_container': container is not None and bool(getattr(container, 'dockerfile', '')),
-                    'has_security': security is not None,
-                    'has_monitoring': monitoring is not None,
-                    'iac_files_count': len(iac_code),
-                    'deployment_steps_count': len(deployment_steps),
-                    'execution_time': exec_time,
-                },
-                input_data={
-                    'app_name': app_name,
-                    'app_type': app_type,
-                    'language': language,
-                    'requirements': requirements,
-                    'scale': scale,
-                    'compliance': compliance,
-                    'cloud_provider': config.cloud_provider.value,
-                    'iac_tool': config.iac_tool.value,
-                    'ci_provider': config.ci_provider.value,
-                    'container_platform': config.container_platform.value,
-                }
-            )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ DevOpsSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['infra_design']),
-                task_type='devops_setup'
-            )
+        if isinstance(infra_result, dict) and 'error' in infra_result:
             return DevOpsResult(
                 success=False,
                 swarm_name=self.config.name,
                 domain=self.config.domain,
                 output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
+                execution_time=executor.elapsed(),
+                error=infra_result['error']
             )
+
+        infrastructure = InfrastructureSpec(
+            compute=infra_result.get('compute', {}),
+            networking=infra_result.get('networking', {}),
+            storage={},
+            database={},
+            security_groups=[],
+            load_balancers=[]
+        )
+
+        # =================================================================
+        # PHASE 2: PARALLEL - CI/CD + Containers + Security
+        # =================================================================
+        parallel_tasks = [
+            ("CICDDesigner", AgentRole.ACTOR, self._cicd_designer.design(
+                app_type=app_type,
+                ci_provider=config.ci_provider.value,
+                deployment_target=config.container_platform.value,
+                environments=["dev", "staging", "production"]
+            ), ['cicd_design']),
+            ("ContainerSpecialist", AgentRole.ACTOR, self._container_specialist.containerize(
+                app_type=app_type,
+                language=language,
+                platform=config.container_platform.value,
+                requirements=requirements
+            ), ['container_setup']),
+        ]
+
+        if config.include_security:
+            parallel_tasks.append(
+                ("SecurityHardener", AgentRole.EXPERT, self._security_hardener.harden(
+                    infrastructure=json.dumps(infra_result),
+                    cloud=config.cloud_provider.value,
+                    compliance=compliance
+                ), ['security_harden'])
+            )
+
+        parallel_results = await executor.run_parallel(2, "CI/CD, Containers, Security", parallel_tasks)
+
+        # Unpack parallel results with safe defaults for errors
+        pipeline = parallel_results[0]
+        if isinstance(pipeline, dict) and 'error' in pipeline:
+            pipeline = PipelineSpec(stages=[], triggers=[], environments=[], secrets=[], yaml_config="")
+
+        container = parallel_results[1]
+        if isinstance(container, dict) and 'error' in container:
+            container = ContainerSpec(dockerfile="", compose_file="", kubernetes_manifests={}, registry="", image_name="")
+
+        security = None
+        if config.include_security and len(parallel_results) > 2:
+            security = parallel_results[2]
+            if isinstance(security, dict) and 'error' in security:
+                security = None
+
+        # =================================================================
+        # PHASE 3: MONITORING SETUP
+        # =================================================================
+        monitoring = None
+        if config.include_monitoring:
+            monitoring = await executor.run_phase(
+                3, "Monitoring Setup", "MonitoringSpecialist", AgentRole.ACTOR,
+                self._monitoring_specialist.setup(
+                    infrastructure=json.dumps(infra_result),
+                    app_type=app_type,
+                    sla_requirements="99.9% uptime"
+                ),
+                input_data={'include_monitoring': config.include_monitoring},
+                tools_used=['monitoring_setup'],
+            )
+
+        # =================================================================
+        # PHASE 4: IAC GENERATION
+        # =================================================================
+        iac_code = await executor.run_phase(
+            4, "Infrastructure as Code Generation", "IaCGenerator", AgentRole.ACTOR,
+            self._iac_generator.generate(
+                infrastructure=json.dumps(infra_result),
+                iac_tool=config.iac_tool.value,
+                cloud=config.cloud_provider.value
+            ),
+            input_data={'iac_tool': config.iac_tool.value},
+            tools_used=['iac_generate'],
+        )
+
+        if isinstance(iac_code, dict) and 'error' in iac_code:
+            iac_code = {}
+
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        deployment_steps = [
+            f"1. Review and customize {config.iac_tool.value} configuration",
+            f"2. Initialize {config.iac_tool.value}: `terraform init`",
+            f"3. Plan infrastructure: `terraform plan`",
+            f"4. Apply infrastructure: `terraform apply`",
+            f"5. Build container: `docker build -t {app_name} .`",
+            f"6. Push to registry",
+            f"7. Deploy via {config.ci_provider.value} pipeline",
+            "8. Verify monitoring dashboards",
+            "9. Run smoke tests"
+        ]
+
+        logger.info(f"DevOpsSwarm complete: {app_name} infrastructure ready")
+
+        return DevOpsResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'app_name': app_name, 'cloud': config.cloud_provider.value},
+            execution_time=executor.elapsed(),
+            infrastructure=infrastructure,
+            pipeline=pipeline,
+            container=container,
+            security=security,
+            monitoring=monitoring,
+            iac_code=iac_code,
+            estimated_cost="Varies based on scale and usage",
+            deployment_steps=deployment_steps
+        )
 
 
 # =============================================================================

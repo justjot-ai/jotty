@@ -36,12 +36,17 @@ class ParameterResolver:
     """
     Resolves template variables and applies sanity checks to step parameters.
 
-    Extracted from SkillPlanExecutor.resolve_params() to decompose a 280-line
-    method into focused, testable sub-methods.
+    Supports optional ``ToolSchema`` for type-aware auto-wiring: when a schema
+    is provided, missing required params are filled from previous step outputs
+    by name/alias/type match, and aliases are resolved to canonical names.
 
-    Usage:
+    Usage::
+
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(params, step)
+
+        # With schema (preferred — enables auto-wiring + validation):
+        resolved = resolver.resolve(params, step, tool_schema=schema)
     """
 
     # Content-like field names to look for in step output dicts
@@ -59,11 +64,28 @@ class ParameterResolver:
     def __init__(self, outputs: Dict[str, Any]):
         self._outputs = outputs
 
-    def resolve(self, params: Dict[str, Any], step: Any = None, _depth: int = 0) -> Dict[str, Any]:
-        """Resolve template variables in parameters with sanity checks."""
+    def resolve(
+        self,
+        params: Dict[str, Any],
+        step: Any = None,
+        _depth: int = 0,
+        tool_schema: Any = None,
+    ) -> Dict[str, Any]:
+        """Resolve template variables in parameters with sanity checks.
+
+        When *tool_schema* (a ``ToolSchema`` instance) is provided:
+        1. Aliases are resolved to canonical names first
+        2. Templates and bare keys are substituted (existing behavior)
+        3. Missing required params are auto-wired from outputs
+        4. Validation errors are logged as warnings
+        """
         if _depth > self._MAX_RESOLVE_DEPTH:
             logger.warning(f"Parameter resolution exceeded max depth ({self._MAX_RESOLVE_DEPTH}), returning as-is")
             return params
+
+        # Phase 0: resolve aliases via schema (before template substitution)
+        if tool_schema is not None and _depth == 0:
+            params = tool_schema.resolve_aliases(params)
 
         import re
         resolved = {}
@@ -87,6 +109,16 @@ class ParameterResolver:
             else:
                 resolved[key] = value
 
+        # Phase 2: auto-wire missing required params from outputs
+        if tool_schema is not None and _depth == 0 and self._outputs:
+            resolved = tool_schema.auto_wire(resolved, self._outputs)
+
+        # Phase 3: validate (log warnings, don't block execution)
+        if tool_schema is not None and _depth == 0:
+            errors = tool_schema.validate(resolved)
+            for err in errors:
+                logger.warning(f"Param validation ({tool_schema.name}): {err}")
+
         return resolved
 
     def _substitute_templates(self, param_name: str, value: str, re_mod) -> str:
@@ -100,8 +132,13 @@ class ParameterResolver:
                     return extracted.replace('\\', '\\\\')
             return raw.replace('\\', '\\\\')
 
+        # Always substitute ${ref} patterns (explicit template references)
         value = re_mod.sub(r'\$\{([^}]+)\}', replacer, value)
-        value = re_mod.sub(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', replacer, value)
+
+        # Skip bare {ref} substitution for code content to protect f-strings
+        _CODE_MARKERS = ('def ', 'class ', 'import ', 'from ', 'f"', "f'", 'async def ', 'if __name__')
+        if not any(marker in value for marker in _CODE_MARKERS):
+            value = re_mod.sub(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', replacer, value)
 
         # Aggregate unresolved research references
         if '${research_' in value or '{research_' in value:
@@ -894,7 +931,14 @@ class SkillPlanExecutor:
                 'error': f'Tool not found: {step.tool_name}',
             }
 
-        resolved_params = self.resolve_params(step.params, outputs, step=step)
+        # Build ToolSchema for type-aware resolution + auto-wiring
+        tool_schema = None
+        try:
+            tool_schema = skill.get_tool_schema(step.tool_name)
+        except Exception:
+            pass  # Schema is optional — degrade gracefully
+
+        resolved_params = self.resolve_params(step.params, outputs, step=step, tool_schema=tool_schema)
 
         # Guard: detect duplicate file writes — if we're writing to the same
         # path as a previous step, try to infer the correct filename from the
@@ -1008,9 +1052,13 @@ class SkillPlanExecutor:
         params: Dict[str, Any],
         outputs: Dict[str, Any],
         step: Any = None,
+        tool_schema: Any = None,
     ) -> Dict[str, Any]:
-        """Resolve template variables in parameters. Delegates to ParameterResolver."""
-        return ParameterResolver(outputs).resolve(params, step)
+        """Resolve template variables in parameters. Delegates to ParameterResolver.
+
+        When *tool_schema* is provided, enables auto-wiring and validation.
+        """
+        return ParameterResolver(outputs).resolve(params, step, tool_schema=tool_schema)
 
     def resolve_path(self, path: str, outputs: Dict[str, Any]) -> str:
         """Resolve a dotted path like 'step_key.field' from outputs."""

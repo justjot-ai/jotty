@@ -268,7 +268,18 @@ class PlanUtilsMixin:
                 'md': 'Markdown',
             }.get(ext, 'code')
 
-            prompt = f"""Generate the complete {lang_hint} code for this task. Return ONLY the code, no explanations.
+            if lang_hint == 'Markdown':
+                prompt = f"""Generate a professional Markdown document for this task.
+Use proper headings, bullet points, and tables where appropriate.
+Use ONLY real data from the task context — do NOT fabricate or simulate data.
+Return ONLY the Markdown content, no explanations.
+
+Task: {task}
+Filename: {filename}
+
+Markdown:"""
+            else:
+                prompt = f"""Generate the complete {lang_hint} code for this task. Return ONLY the code, no explanations.
 
 Task: {task}
 Filename: {filename}
@@ -302,14 +313,20 @@ Filename: {filename}
         task_lower = task.lower()
 
         # Detect file type from task keywords
-        # Priority: Python backends > HTML frontends (most code tasks are Python)
-        # Only use .html when the task is EXPLICITLY about HTML/frontend
+        # Priority: Reports/synthesis → explicit code types → default
         file_ext = '.py'  # Default to Python
+        _is_report_or_synthesis = any(w in task_lower for w in [
+            'report', 'recommendation', 'summary', 'comparison', 'analysis',
+            'overview', 'ranking', 'ranked', 'findings', 'synthesis',
+            'strengths and weaknesses', 'pros and cons',
+        ])
         _is_python_backend = any(w in task_lower for w in [
             'python', 'fastapi', 'flask', 'django', 'api', 'endpoint', 'server',
             'backend', 'script', 'class', 'function', 'module', '.py',
         ])
-        if _is_python_backend:
+        if _is_report_or_synthesis and not any(w in task_lower for w in ['script', '.py', 'python code']):
+            file_ext = '.md'
+        elif _is_python_backend:
             file_ext = '.py'  # Explicit Python — don't let 'web' override
         elif any(w in task_lower for w in ['html page', 'webpage', 'web page', 'html file', '.html']):
             file_ext = '.html'

@@ -129,6 +129,15 @@ if DSPY_AVAILABLE:
         6. Deliver: Send via requested channel (telegram, slack, etc.)
         This pattern produces MUCH higher quality than using a composite skill that does one generic search.
 
+        RESEARCH + SYNTHESIS TASK PATTERN (when task asks to research/analyze THEN create a report/recommendation/summary/ranking):
+        1. Research: Use web-search for each entity/topic (one search per entity for quality)
+        2. Synthesize: Use claude-cli-llm with prompt that REFERENCES prior outputs:
+           params: {"prompt": "Using this research data:\n${search_entity_1}\n${search_entity_2}\n\nCreate a detailed [report/ranking/comparison] in Markdown format."}
+           CRITICAL: The prompt MUST include ${output_key} references to inject actual research data. Never ask the LLM to fabricate or simulate data.
+        3. Save: Use file-operations/write_file_tool with .md extension:
+           params: {"path": "descriptive_name.md", "content": "${synthesis_output}"}
+           Do NOT save as .py — synthesis output is text/markdown, not code.
+
         CODE GENERATION / CREATION TASK PATTERN (when task says "generate", "build", "create", "write" a script/tool/app):
         NEVER pass the task description or LLM output as the shell-exec command. Instead:
         1. Generate: Use claude-cli-llm to generate the actual code/script content

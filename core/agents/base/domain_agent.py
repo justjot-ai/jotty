@@ -396,6 +396,31 @@ class DomainAgent(BaseAgent):
         """Get list of output field names."""
         return self._output_fields.copy()
 
+    def get_io_schema(self):
+        """Get typed AgentIOSchema built from the DSPy Signature.
+
+        Returns an ``AgentIOSchema`` with input/output field names,
+        types, and descriptions extracted from the Signature class.
+        Cached after first call.
+        """
+        if hasattr(self, '_io_schema') and self._io_schema is not None:
+            return self._io_schema
+
+        from Jotty.core.agents._execution_types import AgentIOSchema, ToolParam
+
+        agent_name = getattr(self.config, 'name', self.__class__.__name__)
+        if self.signature is not None:
+            schema = AgentIOSchema.from_dspy_signature(agent_name, self.signature)
+        else:
+            # No signature — build from extracted field names
+            schema = AgentIOSchema(
+                agent_name=agent_name,
+                inputs=[ToolParam(name=f) for f in self._input_fields],
+                outputs=[ToolParam(name=f) for f in self._output_fields],
+            )
+        self._io_schema = schema
+        return schema
+
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
