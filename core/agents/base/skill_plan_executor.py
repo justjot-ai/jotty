@@ -411,6 +411,32 @@ class SkillPlanExecutor:
 
         resolved_params = self.resolve_params(step.params, outputs)
 
+        # Guard: detect duplicate file writes — if we're writing to the same
+        # path as a previous step, try to infer the correct filename from the
+        # step description. LLM planners sometimes reuse the same path for
+        # multiple file-operations/write_file_tool steps.
+        if (step.skill_name == 'file-operations' and 'path' in resolved_params
+                and 'content' in resolved_params):
+            _write_path = resolved_params['path']
+            # Check if this path was already written in a previous output
+            for _prev_key, _prev_out in outputs.items():
+                if isinstance(_prev_out, dict) and _prev_out.get('path') == _write_path:
+                    # Duplicate! Try to extract correct filename from step description
+                    import re as _re
+                    _desc = step.description or ''
+                    _file_match = _re.search(
+                        r'(?:save|write|named?|called?|to)\s+["\']?'
+                        r'([a-zA-Z0-9_]+\.\w{1,5})["\']?',
+                        _desc, _re.IGNORECASE
+                    )
+                    if _file_match:
+                        _correct_path = _file_match.group(1)
+                        if _correct_path != _write_path:
+                            logger.info(f"  🔧 Duplicate write to '{_write_path}' detected — "
+                                       f"corrected to '{_correct_path}' from step description")
+                            resolved_params['path'] = _correct_path
+                    break
+
         # Log resolved params for debugging (especially file paths)
         if resolved_params and step.skill_name in ('file-operations', 'shell-exec'):
             _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))
@@ -441,11 +467,15 @@ class SkillPlanExecutor:
         try:
             import asyncio as _asyncio
 
-            # Determine per-step timeout (default 90s, web skills 30s)
-            # Reduced from 120s/60s — smart_fetch now has a 20s hard budget per URL,
-            # so even search_and_scrape (3 URLs parallel) finishes within ~25s.
+            # Determine per-step timeout:
+            # - LLM generation tools (claude-cli-llm): 180s (complex content takes time)
+            # - Web/search tools: 30s (smart_fetch has 20s hard budget per URL)
+            # - Default: 90s for everything else
             step_timeout = 90.0
-            if any(kw in step.skill_name.lower() for kw in ['web', 'search', 'http', 'scrape']):
+            _skill_lower = step.skill_name.lower()
+            if any(kw in _skill_lower for kw in ['claude-cli', 'llm', 'openai', 'groq']):
+                step_timeout = 180.0
+            elif any(kw in _skill_lower for kw in ['web', 'search', 'http', 'scrape']):
                 step_timeout = 30.0
 
             if inspect.iscoroutinefunction(tool):
@@ -638,6 +668,77 @@ class SkillPlanExecutor:
                                     logger.info(f"Auto-fixed 'command' from task description → '{value}'")
                                     break
 
+                # -------------------------------------------------------
+                # Post-resolution sanity: detect resolved 'path' params
+                # that are content (stdout, LLM text) instead of filenames.
+                # "File name too long" errors happen when resolve_path
+                # returns stdout as the path string.
+                # -------------------------------------------------------
+                if key == 'path' and len(value) > 200:
+                    _found_path = None
+                    # Strategy 1: extract a filename from the content itself
+                    # (e.g., stdout says "Results saved to report.json")
+                    import re as _re2
+                    _file_in_content = _re2.search(
+                        r'(?:saved?|wrot?e?|created?|output)\s+(?:to|as|in)\s+["\']?'
+                        r'([a-zA-Z0-9_.-]+\.\w{1,5})',
+                        value, _re2.IGNORECASE
+                    )
+                    if _file_in_content:
+                        _found_path = _file_in_content.group(1)
+                    # Strategy 2: extract filename from step description
+                    if not _found_path and step.description:
+                        _desc_file = _re2.search(
+                            r'(?:read|verify|check|open)\s+(?:the\s+)?["\']?'
+                            r'([a-zA-Z0-9_.-]+\.\w{1,5})',
+                            step.description, _re2.IGNORECASE
+                        )
+                        if _desc_file:
+                            _found_path = _desc_file.group(1)
+                    # Strategy 3: fallback to most recent file from outputs
+                    if not _found_path:
+                        for _k in reversed(list(outputs.keys())):
+                            _sd = outputs[_k]
+                            if isinstance(_sd, dict) and 'path' in _sd:
+                                _p = str(_sd['path'])
+                                if len(_p) < 200 and '.' in _p:
+                                    _found_path = _p
+                                    break
+                    if _found_path:
+                        logger.info(f"Auto-fixed 'path' from content → '{_found_path}'")
+                        value = _found_path
+
+                # -------------------------------------------------------
+                # Post-resolution sanity: detect 'content' params that
+                # resolved to a tool result JSON (e.g. '{"success": true,
+                # "path": "...", "bytes_written": ...}') instead of actual
+                # file content. Replace with the best real content from
+                # previous outputs.
+                # -------------------------------------------------------
+                if key == 'content':
+                    _vs = value.strip()
+                    if (_vs.startswith('{"success"') and '"bytes_written"' in _vs
+                            and len(_vs) < 300):
+                        # This is a write_file_tool result, not real content.
+                        # Find the longest real content from any prior output.
+                        _best_content = None
+                        _best_len = 0
+                        for _k2 in outputs:
+                            _sd2 = outputs[_k2]
+                            if isinstance(_sd2, dict):
+                                for _cf2 in ('text', 'content', 'output', 'stdout', 'result'):
+                                    if _cf2 in _sd2:
+                                        _c2 = str(_sd2[_cf2])
+                                        if len(_c2) > _best_len and not _c2.startswith('{"success"'):
+                                            _best_content = _c2
+                                            _best_len = len(_c2)
+                            elif isinstance(_sd2, str) and len(_sd2) > _best_len:
+                                _best_content = _sd2
+                                _best_len = len(_sd2)
+                        if _best_content and _best_len > 100:
+                            logger.info(f"Auto-fixed 'content' from tool-result JSON → real content ({_best_len} chars)")
+                            value = _best_content
+
                 resolved[key] = value
 
             elif isinstance(value, dict):
@@ -695,7 +796,7 @@ class SkillPlanExecutor:
 
         for part in parts:
             if value is None:
-                return path
+                break  # Fall through to fallback below
 
             if '[' in part:
                 key = part.split('[')[0]
@@ -706,16 +807,44 @@ class SkillPlanExecutor:
                     if isinstance(value, list) and idx < len(value):
                         value = value[idx]
                     else:
-                        return path
+                        value = None
+                        break
                 except (ValueError, IndexError):
-                    return path
+                    value = None
+                    break
             else:
                 if isinstance(value, dict):
                     value = value.get(part)
                 else:
-                    return path
+                    value = None
+                    break
 
         if value is None:
+            # Fallback: the referenced key doesn't exist (common after replans
+            # where step indices shift). Try to find a useful output:
+            # 1. If path looks like "step_N", find the most recent output
+            # 2. If path has a field like "step_N.text", extract that field
+            import re as _re
+            _step_match = _re.match(r'^step_(\d+)(?:\.(.+))?$', path)
+            if _step_match and outputs:
+                _field = _step_match.group(2)  # e.g. "text", "path", None
+                # Get the most recent output (last key)
+                _last_key = list(outputs.keys())[-1]
+                _last_val = outputs[_last_key]
+                if _field and isinstance(_last_val, dict) and _field in _last_val:
+                    logger.info(f"Resolved missing '{path}' → last output '{_last_key}'.{_field}")
+                    return str(_last_val[_field])
+                elif isinstance(_last_val, dict):
+                    # Try common content fields
+                    for _cf in ('text', 'content', 'output', 'stdout', 'result'):
+                        if _cf in _last_val:
+                            logger.info(f"Resolved missing '{path}' → last output '{_last_key}'.{_cf}")
+                            return str(_last_val[_cf])
+                logger.info(f"Resolved missing '{path}' → last output '{_last_key}' (full)")
+                import json as _json
+                if isinstance(_last_val, (dict, list)):
+                    return _json.dumps(_last_val, default=str)
+                return str(_last_val)
             return path
 
         if isinstance(value, (dict, list)):

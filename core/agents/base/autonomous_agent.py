@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .base_agent import BaseAgent, AgentConfig, AgentResult
@@ -352,10 +353,13 @@ class AutonomousAgent(BaseAgent):
             ])
         )
         # Only strip if the user didn't explicitly ask for web/papers/slides
+        # Also keep heavy skills if task involves research or factual comparison
         _wants_heavy = any(kw in _task_lower for kw in [
             'search', 'find online', 'latest', 'recent', 'news', 'current',
             'scrape', 'fetch', 'url', 'http', 'website', 'browse',
             'arxiv', 'paper', 'slides', 'presentation', 'mindmap',
+            'research', 'benchmark', 'github stars', 'statistics',
+            'released in', 'top 5', 'top 10', 'trending',
         ])
         if _is_knowledge_task and not _wants_heavy:
             _before = len(skills)
@@ -553,6 +557,62 @@ class AutonomousAgent(BaseAgent):
 
         # Determine final output
         final_output = list(outputs.values())[-1] if outputs else None
+
+        # Post-execution file verification: find ALL files mentioned in the
+        # task (e.g., "save to report.md", "called math_utils.py") and auto-
+        # write any that are missing. Catches replanning omitting file-write
+        # steps, or planners writing to wrong filenames.
+        try:
+            import re as _re
+            # Find all filenames with extensions mentioned in the task
+            _mentioned_files = _re.findall(
+                r'\b([a-zA-Z][a-zA-Z0-9_.-]*\.\w{1,5})\b', task
+            )
+            # Deduplicate while preserving order, filter out non-files
+            _seen = set()
+            _unique_files = []
+            _skip_exts = {'com', 'org', 'net', 'io', 'ai', 'dev', 'app', 'co'}
+            for _f in _mentioned_files:
+                _ext = _f.rsplit('.', 1)[-1].lower() if '.' in _f else ''
+                if (_f not in _seen and not _f.startswith('0.')
+                        and '/' not in _f and _ext not in _skip_exts
+                        and len(_f) < 100):
+                    _seen.add(_f)
+                    _unique_files.append(_f)
+
+            for _target_file in _unique_files:
+                _target_path = Path(_target_file)
+                if not _target_path.exists() and outputs:
+                    # Find the best content to save — prefer outputs that
+                    # mention this filename, then fall back to largest content
+                    _best_content = ""
+                    _target_stem = _target_path.stem.lower()
+                    # First pass: find output whose key or content mentions this file
+                    for _k, _v in outputs.items():
+                        if isinstance(_v, dict):
+                            for _cf in ('text', 'content', 'output', 'stdout'):
+                                _txt = str(_v.get(_cf, ''))
+                                if _target_stem in _k.lower() and len(_txt) > len(_best_content):
+                                    _best_content = _txt
+                    # Second pass: fallback to largest content if nothing matched
+                    if len(_best_content) < 100:
+                        for _k, _v in outputs.items():
+                            if isinstance(_v, dict):
+                                for _cf in ('text', 'content', 'output', 'stdout'):
+                                    _txt = str(_v.get(_cf, ''))
+                                    if len(_txt) > len(_best_content):
+                                        _best_content = _txt
+                    if len(_best_content) > 100:
+                        _target_path.parent.mkdir(parents=True, exist_ok=True)
+                        _target_path.write_text(_best_content)
+                        logger.info(f"📁 Auto-saved missing file: {_target_file} ({len(_best_content)} chars)")
+                        outputs[f'auto_save_{_target_file}'] = {
+                            'success': True,
+                            'path': str(_target_path),
+                            'bytes_written': len(_best_content),
+                        }
+        except Exception as _e:
+            logger.debug(f"Post-exec file check skipped: {_e}")
 
         # Success if we produced output and didn't stop early from unrecovered errors
         # Recovered errors (replanning fixed them) are warnings, not failures

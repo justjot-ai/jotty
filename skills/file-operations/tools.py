@@ -71,14 +71,92 @@ def write_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     encoding = params.get('encoding', 'utf-8')
     file_path = Path(params['path'])
+    content = params['content']
+
+    # Guard: detect when 'content' is accidentally a tool result JSON
+    # instead of actual file content (happens when resolve_params picks
+    # the wrong step output). e.g., writing '{"success": true, "path": ...}'
+    # to a .md file is clearly wrong.
+    _content_stripped = content.strip()
+    if (len(_content_stripped) < 200
+            and _content_stripped.startswith('{"success"')
+            and '"bytes_written"' in _content_stripped):
+        return tool_error(
+            f'Content appears to be a tool result JSON, not actual file content. '
+            f'The step that generates the content may have resolved incorrectly.',
+            path=str(file_path)
+        )
+
+    # ---------------------------------------------------------------
+    # Smart content cleaning: strip markdown fences and LLM preamble
+    # when writing code/data files. The LLM (claude-cli-llm) often
+    # wraps code in ```python...``` blocks with conversational text
+    # before them.  This produces invalid .py/.json/.csv files.
+    # ---------------------------------------------------------------
+    import re as _re
+    _ext = file_path.suffix.lower()
+    _code_exts = {'.py', '.js', '.ts', '.java', '.c', '.cpp', '.go', '.rs',
+                  '.rb', '.php', '.sh', '.bash', '.sql', '.r', '.swift',
+                  '.kt', '.cs', '.yaml', '.yml', '.toml', '.ini', '.cfg'}
+    _data_exts = {'.json', '.csv', '.xml', '.html', '.css', '.txt'}
+    _needs_clean = _ext in (_code_exts | _data_exts)
+
+    if _needs_clean and '```' in content:
+        # Extract content from markdown code fences
+        # Match ```lang\n...\n``` or ```\n...\n```
+        _fence_pattern = _re.compile(
+            r'```(?:\w+)?\s*\n(.*?)```',
+            _re.DOTALL,
+        )
+        _matches = _fence_pattern.findall(content)
+        if _matches:
+            if len(_matches) == 1:
+                # Single code block — use it directly
+                content = _matches[0].strip()
+            else:
+                # Multiple code blocks in same file
+                # (e.g., LLM generated calculator.py + test_calculator.py in one response)
+                # Use the FIRST block that looks like it belongs to this file
+                _stem = file_path.stem.lower()
+                _best = None
+                for _m in _matches:
+                    _m_lower = _m.lower()
+                    # If the block mentions this file's name/class/function
+                    if _stem in _m_lower or _stem.replace('_', '') in _m_lower:
+                        _best = _m.strip()
+                        break
+                if _best is None:
+                    # Fallback: use the first block
+                    _best = _matches[0].strip()
+                content = _best
+
+            status.emit("Cleaned", f"🧹 Stripped markdown fences from {file_path.name}")
+
+    # For .json files, also strip any LLM preamble before the JSON
+    if _ext == '.json' and content.strip() and not content.strip()[0] in ('{', '['):
+        # Try to find where the JSON actually starts
+        _json_start = None
+        for _i, _ch in enumerate(content):
+            if _ch in ('{', '['):
+                _json_start = _i
+                break
+        if _json_start is not None:
+            _candidate = content[_json_start:]
+            import json as _json
+            try:
+                _json.loads(_candidate)
+                content = _candidate
+                status.emit("Cleaned", f"🧹 Stripped LLM preamble from {file_path.name}")
+            except ValueError:
+                pass  # Not valid JSON after stripping — keep original
 
     status.emit("Writing", f"📝 Writing {file_path.name}...")
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(params['content'], encoding=encoding)
+    file_path.write_text(content, encoding=encoding)
 
     return tool_response(
         path=str(file_path),
-        bytes_written=len(params['content'].encode(encoding))
+        bytes_written=len(content.encode(encoding))
     )
 
 

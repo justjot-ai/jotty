@@ -79,9 +79,11 @@ class JottyDefaults:
     LLM_TEMPERATURE_DETERMINISTIC: float = 0.0
     """Temperature for deterministic tasks (classification, routing)."""
 
-    LLM_MAX_OUTPUT_TOKENS: int = 4096
+    LLM_MAX_OUTPUT_TOKENS: int = 8192
     """Max tokens the LLM may generate per response.
 
+    Raised from 4096 to 8192 — long content tasks (guides, reports, code)
+    were being truncated. Claude Sonnet supports up to 8192.
     Single source of truth — every LM creation path should reference this
     instead of hardcoding 4096/1024/8192.  DSPy's built-in default is only
     1024, which truncates most real-world outputs (reports, code, analysis).
