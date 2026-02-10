@@ -90,11 +90,23 @@ async def main():
     depth_map = {d.value: d for d in LessonDepth}
     depth_enum = depth_map.get(args.depth, LessonDepth.STANDARD)
 
+    # Map target string → DifficultyTier for config (controls problem tier distribution)
+    target_tier_map = {
+        "5th_grader": DifficultyTier.FOUNDATION,
+        "elementary": DifficultyTier.FOUNDATION,
+        "middle_school": DifficultyTier.INTERMEDIATE,
+        "high_school": DifficultyTier.ADVANCED,
+        "olympiad": DifficultyTier.OLYMPIAD,
+        "competition": DifficultyTier.OLYMPIAD,
+    }
+    tier_by_value = {t.value: t for t in DifficultyTier}
+    config_tier = target_tier_map.get(args.target) or tier_by_value.get(args.target, DifficultyTier.FOUNDATION)
+
     config = OlympiadLearningConfig(
         subject=subject_enum,
         student_name=args.student,
         depth=depth_enum,
-        target_tier=DifficultyTier.OLYMPIAD,
+        target_tier=config_tier,
         send_telegram=not args.no_telegram,
         generate_pdf=True,
         generate_html=True,
@@ -117,6 +129,7 @@ async def main():
     result = await swarm.teach(
         topic=args.topic,
         student_name=args.student,
+        target_level=args.target,
         send_telegram=not args.no_telegram,
     )
     elapsed = (datetime.now() - start).total_seconds()

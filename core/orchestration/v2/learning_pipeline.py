@@ -410,6 +410,15 @@ class SwarmLearningPipeline:
     # =========================================================================
 
     _SCHEMA_VERSION = "2.0"
+    _MIGRATIONS: Dict[Tuple[str, str], Any] = {}  # {("old_major", "new_major"): migrate_fn}
+
+    @staticmethod
+    def _migrate(data: dict, from_major: str, to_major: str) -> Optional[dict]:
+        """Attempt to migrate data between major schema versions."""
+        fn = SwarmLearningPipeline._MIGRATIONS.get((from_major, to_major))
+        if fn:
+            return fn(data)
+        return None
 
     def _save_versioned(self, path: Path, data: dict) -> None:
         """Save data as versioned JSON: {"schema_version": "2.0", "data": {...}}."""
@@ -430,11 +439,20 @@ class SwarmLearningPipeline:
         # New envelope format
         if isinstance(raw, dict) and 'schema_version' in raw and 'data' in raw:
             file_ver = str(raw['schema_version'])
-            if file_ver.split('.')[0] != self._SCHEMA_VERSION.split('.')[0]:
+            file_major = file_ver.split('.')[0]
+            expected_major = self._SCHEMA_VERSION.split('.')[0]
+            if file_major != expected_major:
                 logger.warning(
                     f"Schema version mismatch in {path.name}: "
                     f"file={file_ver}, expected={self._SCHEMA_VERSION}"
                 )
+                # Attempt migration
+                migrated = self._migrate(raw['data'], file_major, expected_major)
+                if migrated is not None:
+                    logger.info(f"Migrated {path.name} from v{file_ver} to v{self._SCHEMA_VERSION}")
+                    return migrated
+                # No migration path — return empty to avoid loading incompatible data
+                return {}
             return raw['data']
 
         # Legacy bare-dict format (pre-versioning)

@@ -1632,7 +1632,27 @@ class SwarmManager:
 
         _status = StatusReporter(status_callback)
 
+        # ── Router-guided agent selection (closes RL loop for single-agent) ──
+        # When multiple agents are available, ask the router instead of
+        # blindly taking agents[0].  Router uses SwarmIntelligence (RL +
+        # stigmergy + TRAS) when learning data exists.
         agent_config = self.agents[0]
+        if len(self.agents) > 1:
+            try:
+                route = self._router.select_agent(goal)
+                picked = route.get('agent')
+                if picked and route.get('method') != 'fallback':
+                    for ac in self.agents:
+                        if getattr(ac, 'name', None) == picked:
+                            agent_config = ac
+                            logger.info(
+                                f"Router selected '{picked}' for single-agent "
+                                f"(method={route['method']}, conf={route['confidence']:.2f})"
+                            )
+                            break
+            except Exception as e:
+                logger.debug(f"Router select_agent skipped: {e}")
+
         runner = self.runners[agent_config.name]
 
         # ── READ LEARNED INTELLIGENCE (closes the learning loop) ──────────

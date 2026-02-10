@@ -261,32 +261,35 @@ class PlanUtilsMixin:
                             else:
                                 params[param_name] = prev_ref
                         elif param_name in ['file_path', 'pdf_path', 'path', 'input_path']:
-                            # For file creation, extract actual filename/path from task
-                            if tool_name == 'write_file_tool':
-                                import re
-                                # Try to extract file path from task (supports directory and absolute paths)
-                                filepath_patterns = [
-                                    # Match absolute paths: /tmp/file.html, /home/user/file.py
-                                    r'(/(?:[\w\-\.]+/)*[\w\-\.]+\.(?:py|js|ts|html|css|json|md|txt|yaml|yml))',
-                                    # Match "save as /path/file.ext" or "save to /path/file.ext"
-                                    r'save\s+(?:as|to|it\s+as|it\s+to)\s+["\']?(/[\w\-\./]+\.(?:py|js|ts|html|css|json|md|txt|yaml|yml))["\']?',
-                                    # Match paths with directories: pkg/subdir/file.py
-                                    r'(?:create|write|make|generate)\s+(?:a\s+)?(?:file\s+)?(?:called\s+)?["\']?([\w\-]+(?:/[\w\-]+)*\.(?:py|js|ts|html|css|json|md|txt))["\']?',
-                                    # Match quoted paths with directories
-                                    r'["\']([\w\-]+(?:/[\w\-]+)*\.(?:py|js|ts|html|css|json|md|txt))["\']',
-                                    # Match any path-like pattern: dir/file.ext
-                                    r'([\w\-]+(?:/[\w\-]+)*\.(?:py|js|ts|html|css|json|md|txt))',
-                                    # Fallback: simple filename
-                                    r'(\w+\.(?:py|js|ts|html|css|json|md|txt))',
-                                ]
-                                extracted_filepath = None
-                                for pattern in filepath_patterns:
-                                    match = re.search(pattern, task, re.IGNORECASE)
-                                    if match:
-                                        extracted_filepath = match.group(1)
-                                        break
-                                params[param_name] = extracted_filepath or prev_ref
-                                logger.debug(f"Extracted filepath: '{extracted_filepath}' from task")
+                            import re as _re_path
+                            # Extract actual file/directory path from task for ALL file-operations tools
+                            _path_patterns = [
+                                # Preposition + optional words + relative path: "in the current Jotty/core/agents/"
+                                r'(?:in|from|at|of)\s+[\w\s]{0,30}?([\w\-\.]+(?:/[\w\-\.]+)+/?)(?:\s|$)',
+                                # "save as/to" patterns
+                                r'save\s+(?:as|to|it\s+(?:as|to))\s+["\']?([\w\-\./]+)["\']?',
+                                # "called/named" patterns: file called foo.txt
+                                r'(?:called|named)\s+["\']?([\w\-]+\.[\w]{1,5})["\']?',
+                                # Quoted paths
+                                r'["\']([\w\-\.]+(?:/[\w\-\.]+)*/?)["\']',
+                                # Absolute paths: /tmp/dir/, /home/user/file.py
+                                r'(/(?:[\w\-\.]+/)+[\w\-\.]*)',
+                                # Relative path with 2+ segments: Jotty/core/agents/
+                                r'([\w\-\.]+(?:/[\w\-\.]+){2,}/?)',
+                                # Any dir/file: src/file.py
+                                r'([\w\-]+/[\w\-]+\.[\w]{1,5})',
+                                # Simple filename: output.txt
+                                r'(\w+\.(?:py|js|ts|html|css|json|md|txt|yaml|yml))',
+                            ]
+                            extracted_path = None
+                            for pattern in _path_patterns:
+                                match = _re_path.search(pattern, task, _re_path.IGNORECASE)
+                                if match:
+                                    extracted_path = match.group(1).rstrip()
+                                    break
+                            if extracted_path:
+                                params[param_name] = extracted_path
+                                logger.debug(f"Extracted path: '{extracted_path}' from task")
                             else:
                                 params[param_name] = prev_ref
                         elif param_name in ['max_results', 'limit', 'count']:

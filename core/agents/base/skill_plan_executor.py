@@ -1223,6 +1223,8 @@ class SkillPlanExecutor:
             result = await self.execute_step(step, outputs, status_callback)
 
             if result.get('success'):
+                result = self._spill_large_values(result)
+                result['_tags'] = self._infer_artifact_tags(step, result)
                 outputs[step.output_key or f'step_{i}'] = result
                 skills_used.append(step.skill_name)
                 _status(f"Step {i + 1}", "completed")
@@ -1254,6 +1256,8 @@ class SkillPlanExecutor:
                         await asyncio.sleep(2)  # Brief backoff
                         retry_result = await self.execute_step(step, outputs, status_callback)
                         if retry_result.get('success'):
+                            retry_result = self._spill_large_values(retry_result)
+                            retry_result['_tags'] = self._infer_artifact_tags(step, retry_result)
                             outputs[step.output_key or f'step_{i}'] = retry_result
                             skills_used.append(step.skill_name)
                             _status(f"Step {i + 1}", "retry succeeded")
@@ -1295,6 +1299,38 @@ class SkillPlanExecutor:
             "budget_exhausted": budget_exhausted,
             "execution_time": time.time() - start_time,
         }
+
+    # =========================================================================
+    # Research output aggregation
+    # =========================================================================
+
+    def _aggregate_research_outputs(self, outputs: Dict[str, Any]) -> str:
+        """Aggregate multiple research step outputs into a single markdown string.
+
+        Args:
+            outputs: Dict keyed by step name (e.g. 'research_0') with values
+                     containing 'query', 'success', and 'results' list.
+
+        Returns:
+            Formatted markdown string, or '' if no outputs.
+        """
+        if not outputs:
+            return ''
+
+        sections = []
+        for key in sorted(outputs):
+            entry = outputs[key]
+            query = entry.get('query', key)
+            results = entry.get('results', [])
+            lines = [f"## Research: {query}"]
+            for r in results:
+                title = r.get('title', '')
+                snippet = r.get('snippet', '')
+                url = r.get('url', '')
+                lines.append(f"- **{title}**: {snippet} ({url})")
+            sections.append('\n'.join(lines))
+
+        return '\n\n'.join(sections)
 
 
 __all__ = [
