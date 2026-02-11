@@ -545,6 +545,19 @@ class SwarmConfig:
     enable_deduplication: bool = True
     similarity_threshold: float = 0.85  # LLM-judged similarity
 
+    # =========================================================================
+    # 20.5 LEARNING PIPELINE CONFIGURATION
+    # =========================================================================
+    # Which components run in post_episode(). None = all (default).
+    # Set to a list to enable only specific ones.
+    # Valid: 'td_lambda', 'swarm_learner', 'brain_consolidation',
+    #   'neurochunk_tiering', 'agent_abstractor', 'transfer_learning',
+    #   'swarm_intelligence', 'stigmergy', 'effectiveness', 'mas_learning',
+    #   'byzantine', 'credit_assignment', 'auditor_fixes',
+    #   'adaptive_learning', 'effectiveness_intervention',
+    #   'credit_pruning', 'curriculum'
+    learning_components: Optional[List[str]] = None
+
 
     # =========================================================================
     # 21.5 LOCAL-FIRST MODE (OpenClaw-Inspired)
@@ -554,25 +567,10 @@ class SwarmConfig:
     local_model: str = "ollama/llama3"    # Local model for agents (Ollama format)
 
     # =========================================================================
-    # 22. DYNAMIC ORCHESTRATION (NEW - A-Team v2.0)
+    # 22. AGENT REGISTRY (A-Team v2.0)
     # =========================================================================
-    # Incorporates DeepThink's dynamic planning, state analysis, and recovery
-    # All components are domain-agnostic and optional
-
-    # Dynamic Task Planning
-    enable_dynamic_planning: bool = False  # LLM-based task decomposition
-    planning_complexity_threshold: float = 0.7  # When to plan vs direct execution
-
-    # Agent Registry
     enable_agent_registry: bool = True  # Track actor capabilities and performance
     auto_infer_capabilities: bool = True  # LLM infers if not provided
-
-    # State Analysis
-    enable_state_analysis: bool = False  # LLM analyzes execution state
-    custom_metrics: Dict[str, Callable] = field(default_factory=dict)  # Pluggable metrics
-
-    # Recovery Management
-    enable_recovery_management: bool = False  # Intelligent failure recovery
 
 
     # =========================================================================
@@ -599,19 +597,6 @@ class SwarmConfig:
     python_hash_seed: Optional[int] = None  # Python hash randomization seed
     enable_deterministic: bool = True  # Enable deterministic operations
     
-    # =========================================================================
-    # 24. AUDITOR TYPES (NEW - OAgents Integration)
-    # =========================================================================
-    # Auditor type selection (OAgents verification strategies)
-    auditor_type: str = "single"  # "single", "list_wise", "pair_wise", "confidence_based"
-    enable_list_wise_verification: bool = False  # Enable list-wise verification (opt-in)
-    list_wise_min_results: int = 2  # Minimum results for list-wise verification
-    list_wise_max_results: int = 5  # Maximum results for list-wise verification
-    list_wise_merge_strategy: str = "best_score"  # "best_score", "consensus", "weighted"
-    
-    recovery_max_retries: int = 3
-    custom_recovery_strategies: Dict[str, Callable] = field(default_factory=dict)  # Pluggable strategies
-
     # Context Providers (generic dict for domain-specific context)
     # Examples: {'metadata_manager': obj, 'database': conn, 'api_client': client}
     # JOTTY doesn't know about these - user provides and tools use them
@@ -668,14 +653,6 @@ class SwarmConfig:
             except ImportError:
                 pass  # Evaluation module not available
         
-        # Set auditor type if list-wise verification enabled
-        if self.enable_list_wise_verification:
-            try:
-                from ..orchestration.auditor_types import AuditorType
-                self.auditor_type = AuditorType.LIST_WISE.value
-            except ImportError:
-                pass  # Auditor types not available
-
     @property
     def memory_budget(self) -> int:
         """Compute available tokens for memories."""

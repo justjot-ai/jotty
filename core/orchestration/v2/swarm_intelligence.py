@@ -174,16 +174,10 @@ class SwarmIntelligence:
         self._td_learner = None
 
         # =================================================================
-        # EXPERIMENTAL COORDINATION PROTOCOLS
+        # COORDINATION PROTOCOLS
         # =================================================================
-        # Status: DATA STRUCTURES ONLY — not wired into SwarmManager.run().
-        #
-        # These implement patterns from arXiv swarm papers but are NOT
-        # called from the main execution path. They exist for future use
-        # or direct API access. Do not assume they affect task execution.
-        #
-        # Wired:   handoff (relay paradigm), coalition (fanout paradigm)
-        # Unwired: auctions, gossip, supervisor_tree
+        # Wired:   handoff (relay paradigm), coalition (fanout paradigm),
+        #          supervisor_tree (build_supervisor_tree called externally)
         # =================================================================
 
         # Handoff management (SwarmAgentic pattern)
@@ -196,17 +190,7 @@ class SwarmIntelligence:
         self.coalitions: Dict[str, Coalition] = {}
         self.agent_coalitions: Dict[str, str] = {}  # agent -> coalition_id
 
-        # Auction management (SwarmSys contract-net)
-        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
-        self.active_auctions: Dict[str, List[AuctionBid]] = {}  # task_id -> bids
-
-        # Gossip protocol (SwarmSys O(log n) dissemination)
-        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
-        self.gossip_inbox: Dict[str, List[GossipMessage]] = {}  # agent -> messages
-        self.gossip_seen: Dict[str, bool] = {}  # message_id -> seen globally
-
         # Hierarchical supervisor tree (SwarmSys O(log n) coordination)
-        # NOT WIRED: No caller in SwarmManager. Available via SI API only.
         self.supervisor_tree: Dict[str, SupervisorNode] = {}
         self._tree_built = False
 

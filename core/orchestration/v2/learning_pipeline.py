@@ -176,7 +176,6 @@ class SwarmLearningPipeline:
         from Jotty.core.learning.learning_coordinator import LearningCoordinator as LearningManager
         from Jotty.core.learning.predictive_marl import (
             LLMTrajectoryPredictor, DivergenceMemory,
-            CooperativeCreditAssigner,
         )
         from Jotty.core.memory.consolidation_engine import (
             BrainStateMachine, BrainModeConfig, AgentAbstractor,
@@ -199,9 +198,6 @@ class SwarmLearningPipeline:
 
         # Divergence memory for storing prediction errors
         self.divergence_memory = DivergenceMemory(self.config)
-
-        # Cooperative credit assignment
-        self.cooperative_credit = CooperativeCreditAssigner(self.config)
 
         # Brain state machine for consolidation
         brain_config = BrainModeConfig()
@@ -766,8 +762,67 @@ class SwarmLearningPipeline:
         return reward
 
     # =========================================================================
-    # Post-episode learning hooks
+    # Post-episode learning pipeline
     # =========================================================================
+
+    _DEFAULT_LEARNING_STEPS = (
+        'td_lambda', 'swarm_learner', 'brain_consolidation',
+        'neurochunk_tiering', 'agent_abstractor', 'transfer_learning',
+        'swarm_intelligence', 'stigmergy', 'effectiveness', 'mas_learning',
+        'byzantine', 'credit_assignment', 'auditor_fixes',
+        'adaptive_learning', 'effectiveness_intervention',
+        'credit_pruning', 'curriculum',
+    )
+
+    def _record_stigmergy(self, agent_name, task_type, result, episode_reward, goal):
+        """Consolidated stigmergy: outcome + approach in one call (was 3 blocks)."""
+        # 1. Record outcome (already creates route/warning signals internally)
+        self.stigmergy.record_outcome(
+            agent=agent_name, task_type=task_type,
+            success=result.success, quality=episode_reward,
+        )
+        # 2. Extract tools and record approach
+        trajectory = getattr(result, 'trajectory', []) or []
+        tools_used = []
+        for step in trajectory:
+            if isinstance(step, dict):
+                tool = step.get('skill') or step.get('tool_name') or step.get('tool', '')
+                if tool and tool not in tools_used:
+                    tools_used.append(str(tool))
+        if not tools_used:
+            _out = getattr(result, 'output', None)
+            if hasattr(_out, 'skills_used') and _out.skills_used:
+                tools_used = list(_out.skills_used)
+            elif isinstance(_out, dict):
+                tools_used = list(_out.get('skills_used', []))
+        skill_steps = []
+        for step in trajectory[:8]:
+            if isinstance(step, dict):
+                skill = step.get('skill') or step.get('tool_name', '')
+                desc = step.get('description', step.get('action', ''))
+                if skill:
+                    skill_steps.append(f"{skill}: {str(desc)[:40]}" if desc else skill)
+        approach = ' -> '.join(skill_steps) if skill_steps else (
+            f"Used: {', '.join(tools_used[:5])}" if tools_used else goal[:100]
+        )
+        self.stigmergy.record_approach_outcome(
+            task_type=task_type, approach_summary=approach,
+            tools_used=tools_used, success=result.success,
+            quality=episode_reward, agent=agent_name,
+        )
+
+    def _run_learning_steps(self, ctx: dict):
+        """Run all enabled learning steps with uniform error handling."""
+        enabled = getattr(self.config, 'learning_components', None)
+        steps = enabled if enabled else self._DEFAULT_LEARNING_STEPS
+        for step_name in steps:
+            method = getattr(self, f'_step_{step_name}', None)
+            if not method:
+                continue
+            try:
+                method(ctx)
+            except Exception as e:
+                logger.debug(f"Learning step '{step_name}' failed: {e}")
 
     def post_episode(
         self,
@@ -778,398 +833,292 @@ class SwarmLearningPipeline:
         mas_learning=None,
         swarm_terminal=None,
     ):
-        """
-        Post-episode learning: swarm learner, brain consolidation, NeuroChunk tiering.
-        Called at end of both single-agent and multi-agent execution.
-        """
+        """Post-episode learning: run all enabled learning steps."""
         self.episode_count += 1
         episode_reward = self._compute_episode_reward(result, goal)
-
-        # Extract task_type and agent_name once — reused by all learning steps below.
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(goal)
-        except Exception as e:
-            logger.debug(f"Task type extraction failed: {e}")
+        except Exception:
             task_type = 'general'
         agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
 
-        # 0. TD-Lambda: update grouped value baselines via TD(0)
-        #    This is the core RL update that was implemented (~800 lines) but never wired.
-        #    Uses HRPO group-relative baselines for variance reduction.
+        ctx = {
+            'result': result, 'goal': goal, 'agents': agents,
+            'architect_prompts': architect_prompts, 'episode_reward': episode_reward,
+            'task_type': task_type, 'agent_name': agent_name,
+            'mas_learning': mas_learning, 'swarm_terminal': swarm_terminal,
+        }
+        self._run_learning_steps(ctx)
+        logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
+
+    # -- Individual learning steps (each receives ctx dict) --
+
+    def _step_td_lambda(self, ctx):
+        """TD-Lambda: update grouped value baselines via TD(0)."""
+        self.td_learner.start_episode(ctx['goal'], task_type=ctx['task_type'])
+        self.td_learner.update(
+            state={'goal': ctx['goal']},
+            action={'type': ctx['task_type'], 'agent': ctx['agent_name']},
+            reward=ctx['episode_reward'],
+            next_state={'completed': True},
+        )
+        self._adaptive_lr.record_success(ctx['result'].success)
+
+    def _step_swarm_learner(self, ctx):
+        """SwarmLearner: record episode, conditionally update prompts."""
+        result = ctx['result']
+        trajectory = result.trajectory or []
+        insights = []
+        if hasattr(result, 'tagged_outputs') and result.tagged_outputs:
+            insights = [str(t) for t in result.tagged_outputs[:5]]
+        self.swarm_learner.record_episode(trajectory, result.success, insights)
+
+        if self.swarm_learner.should_update_prompts():
+            for prompt_path in ctx['architect_prompts']:
+                try:
+                    with open(prompt_path, 'r') as f:
+                        current = f.read()
+                    updated, changes = self.swarm_learner.update_prompt(prompt_path, current)
+                    if changes:
+                        logger.info(f"Prompt '{prompt_path}' evolved with {len(changes)} changes")
+                except Exception as e:
+                    logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
+
+    def _step_brain_consolidation(self, ctx):
+        """Brain consolidation (fire-and-forget in running loop)."""
+        experience = {
+            'content': str(ctx['result'].output)[:500] if ctx['result'].output else '',
+            'context': {'goal': ctx['goal'], 'episode': self.episode_count},
+            'reward': ctx['episode_reward'],
+            'agent': 'swarm',
+        }
         try:
-            self.td_learner.start_episode(goal, task_type=task_type)
+            asyncio.get_running_loop()
+            asyncio.ensure_future(self.brain_state.process_experience(experience))
+        except RuntimeError:
+            pass  # No running loop — skip async consolidation
+
+    def _step_neurochunk_tiering(self, ctx):
+        """NeuroChunk tiering: promote/demote/prune memories."""
+        self.learning_manager.promote_demote_memories(ctx['episode_reward'])
+        self.learning_manager.prune_tier3()
+
+    def _step_agent_abstractor(self, ctx):
+        """Agent abstractor: update agent role profiles."""
+        result = ctx['result']
+        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+            for contrib_agent, contrib in result.agent_contributions.items():
+                success = getattr(contrib, 'decision_correct', result.success)
+                self.agent_abstractor.update_agent(contrib_agent, success)
+        else:
+            self.agent_abstractor.update_agent(ctx['agent_name'], result.success)
+
+    def _step_transfer_learning(self, ctx):
+        """Transferable learning store: record experience."""
+        query = ctx['goal'][:200] if ctx['goal'] else ''
+        self.transfer_learning.record_experience(
+            query=query,
+            agent=ctx['agent_name'],
+            action=ctx['goal'][:100],
+            reward=ctx['episode_reward'],
+            success=ctx['result'].success,
+            error=str(getattr(ctx['result'], 'error', None) or ''),
+            context={'episode': self.episode_count},
+        )
+
+    def _step_swarm_intelligence(self, ctx):
+        """Swarm intelligence: record task result for specialization."""
+        execution_time = getattr(ctx['result'], 'execution_time', 0.0)
+        self.swarm_intelligence.record_task_result(
+            agent_name=ctx['agent_name'],
+            task_type=ctx['task_type'],
+            success=ctx['result'].success,
+            execution_time=execution_time,
+            context={'goal': ctx['goal'][:100], 'episode': self.episode_count},
+        )
+
+    def _step_stigmergy(self, ctx):
+        """Stigmergy: consolidated outcome + approach recording."""
+        self._record_stigmergy(
+            ctx['agent_name'], ctx['task_type'], ctx['result'],
+            ctx['episode_reward'], ctx['goal'],
+        )
+
+    def _step_effectiveness(self, ctx):
+        """Effectiveness tracker: measure actual improvement over time."""
+        self.effectiveness.record(
+            task_type=ctx['task_type'],
+            success=ctx['result'].success,
+            quality=ctx['episode_reward'],
+            agent=ctx['agent_name'],
+        )
+
+    def _step_mas_learning(self, ctx):
+        """MAS Learning: session recording."""
+        mas_learning = ctx['mas_learning']
+        if not mas_learning:
+            return
+        result = ctx['result']
+        execution_time = getattr(result, 'execution_time', 0.0)
+        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+            agents_used = list(result.agent_contributions.keys())
+        else:
+            agents_used = [ctx['agent_name']]
+        stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self.swarm_intelligence, 'stigmergy') else 0
+        mas_learning.record_session(
+            task_description=ctx['goal'],
+            agents_used=agents_used,
+            total_time=execution_time,
+            success=result.success,
+            stigmergy_signals=stigmergy_signals,
+            output_quality=ctx['episode_reward'],
+        )
+
+    def _step_byzantine(self, ctx):
+        """Byzantine verification: quality check + claim verification."""
+        result = ctx['result']
+        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+            for contrib_agent, contrib in result.agent_contributions.items():
+                claimed = getattr(contrib, 'decision_correct', result.success)
+                self.byzantine_verifier.verify_claim(
+                    agent=contrib_agent,
+                    claimed_success=claimed,
+                    actual_result=result,
+                    task_type=ctx['task_type'],
+                )
+        else:
+            quality = self.byzantine_verifier.verify_output_quality(
+                agent=ctx['agent_name'],
+                claimed_success=result.success,
+                output=result,
+                goal=ctx['goal'],
+                task_type=ctx['task_type'],
+            )
+            if not quality['quality_ok']:
+                logger.warning(
+                    f"Byzantine quality issues for {ctx['agent_name']}: "
+                    f"{quality['issues']}"
+                )
+
+    def _step_credit_assignment(self, ctx):
+        """Credit assignment: record which agent/approach deserves credit."""
+        self.credit_assigner.record_improvement_application(
+            improvement={'learned_pattern': ctx['goal'][:200], 'task': ctx['goal'][:100]},
+            student_score=0.0,
+            teacher_score=0.0,
+            final_score=ctx['episode_reward'],
+            context={'task': ctx['goal'][:100], 'episode': self.episode_count},
+        )
+
+    def _step_auditor_fixes(self, ctx):
+        """Auditor fix_instructions -> negative TD signal + procedural memory."""
+        result = ctx['result']
+        goal = ctx['goal']
+        task_type = ctx['task_type']
+        agent_name = ctx['agent_name']
+
+        fix_texts = []
+        for attr in ('auditor_results', 'validation_results'):
+            for vr in getattr(result, attr, None) or []:
+                fi = getattr(vr, 'fix_instructions', None)
+                if fi and isinstance(fi, str) and fi.strip():
+                    fix_texts.append(fi.strip())
+
+        if fix_texts and self.td_learner is not None:
             self.td_learner.update(
                 state={'goal': goal},
-                action={'type': task_type, 'agent': agent_name},
-                reward=episode_reward,
-                next_state={'completed': True},
+                action={'type': task_type, 'agent': agent_name, 'source': 'auditor_fix'},
+                reward=-0.1,
+                next_state={'fix_instructions': True},
             )
-            # Record success for adaptive learning rate
-            self._adaptive_lr.record_success(result.success)
-        except Exception as e:
-            logger.debug(f"TD-Lambda update skipped: {e}")
+            logger.debug(f"TD(-0.1) signal from {len(fix_texts)} auditor fix_instructions")
 
-        # 1. SwarmLearner: record episode, conditionally update prompts
-        try:
-            trajectory = result.trajectory or []
-            insights = []
-            if hasattr(result, 'tagged_outputs') and result.tagged_outputs:
-                insights = [str(t) for t in result.tagged_outputs[:5]]
-            self.swarm_learner.record_episode(trajectory, result.success, insights)
-
-            if self.swarm_learner.should_update_prompts():
-                for prompt_path in architect_prompts:
-                    try:
-                        with open(prompt_path, 'r') as f:
-                            current = f.read()
-                        updated, changes = self.swarm_learner.update_prompt(prompt_path, current)
-                        if changes:
-                            logger.info(f"Prompt '{prompt_path}' evolved with {len(changes)} changes")
-                    except Exception as e:
-                        logger.debug(f"Prompt update skipped for {prompt_path}: {e}")
-        except Exception as e:
-            logger.warning(f"SwarmLearner recording failed: {e}")
-
-        # 2. Brain consolidation (fire-and-forget in running loop)
-        try:
-            experience = {
-                'content': str(result.output)[:500] if result.output else '',
-                'context': {'goal': goal, 'episode': self.episode_count},
-                'reward': episode_reward,
-                'agent': 'swarm',
-            }
-            try:
-                asyncio.get_running_loop()
-                # We're inside a running event loop — schedule as background task
-                asyncio.ensure_future(self.brain_state.process_experience(experience))
-            except RuntimeError:
-                pass  # No running loop — skip async consolidation
-        except Exception as e:
-            logger.warning(f"Brain consolidation failed: {e}")
-
-        # 3. NeuroChunk tiering
-        try:
-            self.learning_manager.promote_demote_memories(episode_reward)
-            self.learning_manager.prune_tier3()
-        except Exception as e:
-            logger.debug(f"NeuroChunk tiering skipped: {e}")
-
-        # 4. Agent abstractor
-        try:
-            if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                for contrib_agent, contrib in result.agent_contributions.items():
-                    success = getattr(contrib, 'decision_correct', result.success)
-                    self.agent_abstractor.update_agent(contrib_agent, success)
-            else:
-                self.agent_abstractor.update_agent(agent_name, result.success)
-        except Exception as e:
-            logger.debug(f"Agent abstractor update skipped: {e}")
-
-        # 5. Transferable learning store
-        try:
-            query = goal[:200] if goal else ''
+        if fix_texts:
+            combined = "; ".join(fix_texts[:3])
             self.transfer_learning.record_experience(
-                query=query,
+                query=f"fix:{goal[:100]}",
                 agent=agent_name,
-                action=goal[:100],
-                reward=episode_reward,
-                success=result.success,
-                error=str(getattr(result, 'error', None) or ''),
-                context={'episode': self.episode_count},
+                action=combined[:500],
+                reward=-0.1,
+                success=False,
+                error="auditor_fix_instructions",
+                context={'task_type': task_type, 'episode': self.episode_count},
             )
-        except Exception as e:
-            logger.debug(f"Transfer learning record skipped: {e}")
+            logger.debug(f"Recorded {len(fix_texts)} fix_instructions as procedural memory")
 
-        # 6. Swarm intelligence (emergent specialization)
-        try:
-            execution_time = getattr(result, 'execution_time', 0.0)
-            self.swarm_intelligence.record_task_result(
-                agent_name=agent_name,
-                task_type=task_type,
-                success=result.success,
-                execution_time=execution_time,
-                context={'goal': goal[:100], 'episode': self.episode_count},
+    def _step_adaptive_learning(self, ctx):
+        """Adaptive learning: adjust learning rate based on score trajectory."""
+        lr_state = self.adaptive_learning.update_score(ctx['episode_reward'])
+        if lr_state.get('is_plateau'):
+            logger.info(
+                f"Adaptive learning: plateau detected "
+                f"(lr={lr_state['learning_rate']:.2f}, "
+                f"explore={lr_state['exploration_rate']:.2f})"
             )
-        except Exception as e:
-            logger.warning(f"Swarm intelligence record failed: {e}")
 
-        # 6b. Stigmergy: deposit outcome signal for agent routing
-        try:
-            self.stigmergy.record_outcome(
-                agent=agent_name,
-                task_type=task_type,
-                success=result.success,
-                quality=episode_reward,
+    def _step_effectiveness_intervention(self, ctx):
+        """Effectiveness-driven intervention: boost exploration on stagnation."""
+        task_type = ctx['task_type']
+        if not self.effectiveness.is_improving(task_type) and self.episode_count >= 10:
+            al = self.adaptive_learning
+            old_explore = getattr(al.state, 'exploration_rate', 0.3)
+            new_explore = min(0.8, old_explore + 0.2)
+            al.state.exploration_rate = new_explore
+            task = self.curriculum_generator.generate_training_task(
+                profiles={}, focus_task_type=task_type,
             )
-        except Exception as e:
-            logger.warning(f"Stigmergy outcome recording failed: {e}")
-
-        # 6b-ii. Stigmergy APPROACH tracking (useful in single-agent mode).
-        #        Extract which tools/skills were used from the trajectory,
-        #        then record approach outcome so future executions of the same
-        #        task type get actionable "use X, avoid Y" guidance.
-        try:
-            trajectory = getattr(result, 'trajectory', []) or []
-
-            # Extract tools/skills used from trajectory AND from output
-            tools_used = []
-            for step in trajectory:
-                if isinstance(step, dict):
-                    tool = step.get('skill') or step.get('tool_name') or step.get('tool', '')
-                    if tool and tool not in tools_used:
-                        tools_used.append(str(tool))
-            # Also check output's skills_used (autonomous agent populates this)
-            _out = getattr(result, 'output', None)
-            if not tools_used:
-                if hasattr(_out, 'skills_used') and _out.skills_used:
-                    tools_used = list(_out.skills_used)
-                elif isinstance(_out, dict):
-                    tools_used = list(_out.get('skills_used', []))
-
-            # Build approach summary from skill sequence (much more useful than 'execute')
-            skill_steps = []
-            for step in trajectory[:8]:
-                if isinstance(step, dict):
-                    skill = step.get('skill') or step.get('tool_name', '')
-                    desc = step.get('description', step.get('action', ''))
-                    if skill:
-                        skill_steps.append(f"{skill}: {str(desc)[:40]}" if desc else skill)
-            if skill_steps:
-                approach_summary = ' → '.join(skill_steps)
-            elif tools_used:
-                approach_summary = f"Used: {', '.join(tools_used[:5])}"
-            else:
-                approach_summary = goal[:100]
-
-            self.stigmergy.record_approach_outcome(
-                task_type=task_type,
-                approach_summary=approach_summary,
-                tools_used=tools_used,
-                success=result.success,
-                quality=episode_reward,
-                agent=agent_name,
+            self._pending_training_tasks.append(task)
+            if len(self._pending_training_tasks) > 10:
+                self._pending_training_tasks = self._pending_training_tasks[-10:]
+            logger.info(
+                f"Effectiveness intervention for '{task_type}': "
+                f"exploration {old_explore:.2f} -> {new_explore:.2f}, "
+                f"queued curriculum task"
             )
-        except Exception as e:
-            logger.warning(f"Stigmergy approach recording failed: {e}")
 
-        # 6c. Effectiveness tracker: measure actual improvement over time
-        try:
-            self.effectiveness.record(
-                task_type=task_type,
-                success=result.success,
-                quality=episode_reward,
-                agent=agent_name,
+    def _step_credit_pruning(self, ctx):
+        """Credit-driven pruning: every 10 episodes, prune low-value learnings."""
+        if self.episode_count % 10 != 0 or self.episode_count == 0:
+            return
+        before_count = len(self.transfer_learning.experiences)
+        if before_count <= 20:
+            return
+        improvements = [
+            {
+                'learned_pattern': exp.get('query', '')[:200],
+                'task': exp.get('action', ''),
+                'timestamp': exp.get('timestamp', ''),
+            }
+            for exp in self.transfer_learning.experiences
+        ]
+        pruned = self.credit_assigner.prune_low_impact_improvements(
+            improvements, min_credit_threshold=0.1, min_application_count=1,
+        )
+        pruned_patterns = {imp['learned_pattern'] for imp in pruned}
+        self.transfer_learning.experiences = [
+            exp for exp in self.transfer_learning.experiences
+            if exp.get('query', '')[:200] in pruned_patterns
+            or exp.get('query', '') == ''
+        ]
+        after_count = len(self.transfer_learning.experiences)
+        if after_count < before_count:
+            logger.info(
+                f"Credit pruning: {before_count} -> {after_count} "
+                f"experiences (removed {before_count - after_count} low-value)"
             )
-        except Exception as e:
-            logger.debug(f"Effectiveness tracking skipped: {e}")
 
-        # 7. MAS Learning (session recording — MASLearning.record_session)
-        try:
-            if mas_learning:
-                execution_time = getattr(result, 'execution_time', 0.0)
-
-                # Collect agent names used
-                if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                    agents_used = list(result.agent_contributions.keys())
-                else:
-                    agents_used = [agent_name]
-
-                stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self.swarm_intelligence, 'stigmergy') else 0
-                mas_learning.record_session(
-                    task_description=goal,
-                    agents_used=agents_used,
-                    total_time=execution_time,
-                    success=result.success,
-                    stigmergy_signals=stigmergy_signals,
-                    output_quality=episode_reward,
-                )
-        except Exception as e:
-            logger.debug(f"MAS Learning record skipped: {e}")
-
-        # 8. Stigmergy: deposit success/failure pheromone signals
-        try:
-            if result.success:
-                # Reinforce successful agent-task paths
-                self.stigmergy.deposit(
-                    signal_type='success',
-                    content={'task_type': task_type, 'goal': goal[:100]},
-                    agent=agent_name,
-                    strength=0.8 + (0.2 * episode_reward),
-                )
-                # Also deposit a route signal so future routing can use it
-                self.stigmergy.deposit(
-                    signal_type='route',
-                    content={'task_type': task_type, 'agent': agent_name},
-                    agent=agent_name,
-                    strength=0.7,
-                )
-            else:
-                # Deposit weak warning signal
-                self.stigmergy.deposit(
-                    signal_type='warning',
-                    content={'task_type': task_type, 'goal': goal[:100]},
-                    agent=agent_name,
-                    strength=0.4,
-                )
-        except Exception as e:
-            logger.warning(f"Stigmergy deposit failed: {e}")
-
-        # 9. Byzantine verification: quality check + claim verification
-        #    Single-agent: verify_output_quality (heuristic quality check)
-        #    Multi-agent: verify_claim (cross-agent consistency)
-        try:
-            if hasattr(result, 'agent_contributions') and result.agent_contributions:
-                # Multi-agent: check each agent's claim
-                for contrib_agent, contrib in result.agent_contributions.items():
-                    claimed = getattr(contrib, 'decision_correct', result.success)
-                    self.byzantine_verifier.verify_claim(
-                        agent=contrib_agent,
-                        claimed_success=claimed,
-                        actual_result=result,
-                        task_type=task_type,
-                    )
-            else:
-                # Single-agent: use quality verification (not meaningless self-check)
-                quality = self.byzantine_verifier.verify_output_quality(
-                    agent=agent_name,
-                    claimed_success=result.success,
-                    output=result,
-                    goal=goal,
-                    task_type=task_type,
-                )
-                if not quality['quality_ok']:
-                    logger.warning(
-                        f"Byzantine quality issues for {agent_name}: "
-                        f"{quality['issues']}"
-                    )
-        except Exception as e:
-            logger.warning(f"Byzantine verification failed: {e}")
-
-        # 10. Credit assignment: record which agent/approach deserves credit
-        try:
-            self.credit_assigner.record_improvement_application(
-                improvement={'learned_pattern': goal[:200], 'task': goal[:100]},
-                student_score=0.0,
-                teacher_score=0.0,
-                final_score=episode_reward,
-                context={'task': goal[:100], 'episode': self.episode_count},
+    def _step_curriculum(self, ctx):
+        """Curriculum: queue training tasks when exploration is recommended."""
+        recommendation = self.adaptive_learning._get_recommendation()
+        if recommendation == 'increase_exploration':
+            task = self.curriculum_generator.generate_training_task(profiles={})
+            self._pending_training_tasks.append(task)
+            logger.info(
+                f"Curriculum: queued training task "
+                f"(difficulty={task.difficulty:.2f}): {task.description[:60]}"
             )
-        except Exception as e:
-            logger.debug(f"Credit assignment skipped: {e}")
-
-        # 10b. Auditor fix_instructions → negative TD signal + procedural memory
-        try:
-            fix_texts = []
-            for attr in ('auditor_results', 'validation_results'):
-                for vr in getattr(result, attr, None) or []:
-                    fi = getattr(vr, 'fix_instructions', None)
-                    if fi and isinstance(fi, str) and fi.strip():
-                        fix_texts.append(fi.strip())
-
-            if fix_texts and self._td_learner is not None:
-                self._td_learner.update(reward=-0.1)
-                logger.debug(f"TD(-0.1) signal from {len(fix_texts)} auditor fix_instructions")
-
-            if fix_texts:
-                combined = "; ".join(fix_texts[:3])
-                self.transfer_learning.record_experience(
-                    query=f"fix:{goal[:100]}",
-                    action=combined[:500],
-                    outcome="negative",
-                    task_type=task_type,
-                )
-                logger.debug(f"Recorded {len(fix_texts)} fix_instructions as procedural memory")
-        except Exception as e:
-            logger.debug(f"Fix-instructions learning skipped: {e}")
-
-        # 11. Adaptive learning: adjust learning rate based on score trajectory
-        try:
-            lr_state = self.adaptive_learning.update_score(episode_reward)
-            if lr_state.get('is_plateau'):
-                logger.info(
-                    f"📈 Adaptive learning: plateau detected "
-                    f"(lr={lr_state['learning_rate']:.2f}, "
-                    f"explore={lr_state['exploration_rate']:.2f})"
-                )
-        except Exception as e:
-            logger.debug(f"Adaptive learning skipped: {e}")
-
-        # 11b. Effectiveness-driven intervention: if not improving and enough data,
-        # force exploration increase and queue curriculum task for the struggling type.
-        try:
-            if not self.effectiveness.is_improving(task_type) and self.episode_count >= 10:
-                al = self.adaptive_learning
-                old_explore = getattr(al.state, 'exploration_rate', 0.3)
-                new_explore = min(0.8, old_explore + 0.2)
-                al.state.exploration_rate = new_explore
-                # Queue a curriculum task targeting the weak task_type
-                task = self.curriculum_generator.generate_training_task(
-                    profiles={},
-                    focus_task_type=task_type,
-                )
-                self._pending_training_tasks.append(task)
-                if len(self._pending_training_tasks) > 10:
-                    self._pending_training_tasks = self._pending_training_tasks[-10:]
-                logger.info(
-                    f"📉 Effectiveness intervention for '{task_type}': "
-                    f"exploration {old_explore:.2f} → {new_explore:.2f}, "
-                    f"queued curriculum task"
-                )
-        except Exception as e:
-            logger.debug(f"Effectiveness intervention skipped: {e}")
-
-        # 12. Credit-driven pruning: every 10 episodes, prune low-value learnings
-        try:
-            if self.episode_count % 10 == 0 and self.episode_count > 0:
-                before_count = len(self.transfer_learning.experiences)
-                if before_count > 20:
-                    # Build improvement-like records from experiences
-                    improvements = [
-                        {
-                            'learned_pattern': exp.get('query', '')[:200],
-                            'task': exp.get('action', ''),
-                            'timestamp': exp.get('timestamp', ''),
-                        }
-                        for exp in self.transfer_learning.experiences
-                    ]
-                    pruned = self.credit_assigner.prune_low_impact_improvements(
-                        improvements,
-                        min_credit_threshold=0.1,
-                        min_application_count=1,
-                    )
-                    # Map pruned back to experiences
-                    pruned_patterns = {imp['learned_pattern'] for imp in pruned}
-                    self.transfer_learning.experiences = [
-                        exp for exp in self.transfer_learning.experiences
-                        if exp.get('query', '')[:200] in pruned_patterns
-                        or exp.get('query', '') == ''  # Keep entries without patterns
-                    ]
-                    after_count = len(self.transfer_learning.experiences)
-                    if after_count < before_count:
-                        logger.info(
-                            f"🧹 Credit pruning: {before_count} → {after_count} "
-                            f"experiences (removed {before_count - after_count} low-value)"
-                        )
-        except Exception as e:
-            logger.debug(f"Credit-driven pruning skipped: {e}")
-
-        # 13. Curriculum: queue training tasks when exploration is recommended
-        try:
-            recommendation = self.adaptive_learning._get_recommendation()
-            if recommendation == 'increase_exploration':
-                task = self.curriculum_generator.generate_training_task(profiles={})
-                self._pending_training_tasks.append(task)
-                logger.info(
-                    f"🎓 Curriculum: queued training task "
-                    f"(difficulty={task.difficulty:.2f}): {task.description[:60]}"
-                )
-                # Keep queue bounded
-                if len(self._pending_training_tasks) > 10:
-                    self._pending_training_tasks = self._pending_training_tasks[-10:]
-        except Exception as e:
-            logger.debug(f"Curriculum queuing skipped: {e}")
-
-        logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
+            if len(self._pending_training_tasks) > 10:
+                self._pending_training_tasks = self._pending_training_tasks[-10:]
 
     def pop_training_task(self):
         """Pop the next queued training task (or None if queue empty)."""

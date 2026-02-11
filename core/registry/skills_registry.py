@@ -460,8 +460,12 @@ class SkillDefinition:
         1. Cached ``_tool_schema`` on the function (set by @tool_wrapper introspection)
         2. Existing ``ToolMetadata.parameters`` on this SkillDefinition
         3. Live introspection of the tool function (decorator + docstring)
+        4. ``inspect.signature()`` fallback — extracts params, type annotations,
+           and required/optional from the function signature when sources 1-3
+           produce no params.
         """
-        from Jotty.core.agents._execution_types import ToolSchema
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        import inspect
 
         tool_func = self.get_tool(tool_name)
         if tool_func is None:
@@ -480,11 +484,65 @@ class SkillDefinition:
             # Build from function introspection (decorator + docstring)
             schema = ToolSchema.from_tool_function(tool_func, tool_name)
 
+        # Fallback: inspect.signature() when no params were discovered
+        if not schema.params:
+            schema = self._schema_from_signature(tool_func, tool_name, schema)
+
         # Cache on function for reuse
         try:
             tool_func._tool_schema = schema
         except AttributeError:
             pass  # Built-in or frozen function — skip caching
+        return schema
+
+    @staticmethod
+    def _schema_from_signature(func, tool_name: str, schema):
+        """Fallback: build ToolSchema params from inspect.signature().
+
+        Extracts parameter names, type annotations, and required/optional
+        status from the function signature. Skips 'self', 'cls', and
+        dict-accepting params (the common ``params: dict`` pattern).
+        """
+        import inspect
+        from Jotty.core.agents._execution_types import ToolParam
+
+        _TYPE_MAP = {
+            int: 'int', float: 'float', bool: 'bool',
+            str: 'str', list: 'list', dict: 'dict',
+        }
+        _SKIP_NAMES = {'self', 'cls', 'kwargs', 'args'}
+
+        try:
+            sig = inspect.signature(func)
+        except (ValueError, TypeError):
+            return schema
+
+        for pname, param in sig.parameters.items():
+            if pname in _SKIP_NAMES:
+                continue
+            # Skip the common "params: dict" single-arg pattern
+            if pname == 'params' and param.annotation in (dict, inspect.Parameter.empty):
+                continue
+
+            annotation = param.annotation
+            type_hint = 'str'
+            if annotation is not inspect.Parameter.empty:
+                type_hint = _TYPE_MAP.get(annotation, getattr(annotation, '__name__', 'str'))
+
+            required = param.default is inspect.Parameter.empty
+            default = None if required else param.default
+
+            aliases = schema._ALIASES.get(pname, [])
+
+            schema.params.append(ToolParam(
+                name=pname,
+                type_hint=type_hint,
+                required=required,
+                default=default,
+                description=f'The {pname} parameter',
+                aliases=aliases,
+            ))
+
         return schema
 
     def is_available(self, task_context: Optional[Dict[str, Any]] = None) -> bool:

@@ -1,13 +1,2 @@
-# time-converter
-
-## Description
-Convert time between timezones and formats
-
-## Tools
-- `convert-timezone` - Convert time from one timezone to another
-- `format-time` - Convert time between different format representations
-- `current-time` - Get current time in specified timezone
-
-## Usage
-
-### Convert between timezones
+bash
+convert_timezone --time "2026-02-11 14:30:00" --from "America/New_York" --to "Europe/London"

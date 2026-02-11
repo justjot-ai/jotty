@@ -814,7 +814,7 @@ class ExecutionEngine:
                         **kwargs
                     )
                 else:
-                    paradigm = kwargs.pop('discussion_paradigm', 'fanout')
+                    paradigm = kwargs.pop('discussion_paradigm', 'auto')
                     _status("Executing", f"{len(sm.agents)} agents — paradigm: {paradigm}")
                     _sv = skip_validation if skip_validation is not None else skip_autonomous_setup
                     result = await self._execute_multi_agent(
@@ -1086,7 +1086,7 @@ class ExecutionEngine:
         status_callback = kwargs.pop('status_callback', None)
         ensemble = kwargs.pop('ensemble', False)
         ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
-        discussion_paradigm = kwargs.pop('discussion_paradigm', 'fanout')
+        discussion_paradigm = kwargs.pop('discussion_paradigm', 'auto')
 
         # ── Intelligence-guided agent selection (single entry point: router) ──
         # Router delegates to LearningPipeline.order_agents_for_goal (trust + stigmergy + TRAS).
@@ -2225,7 +2225,7 @@ class SwarmManager:
     _LEARNING_ATTRS = frozenset({
         'learning_manager', 'transfer_learning', 'swarm_intelligence',
         'credit_weights', 'trajectory_predictor', 'divergence_memory',
-        'cooperative_credit', 'brain_state', 'agent_abstractor',
+        'brain_state', 'agent_abstractor',
         'swarm_learner', 'agent_slack', 'feedback_channel',
     })
 

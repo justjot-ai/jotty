@@ -95,9 +95,13 @@ class ParameterResolver:
                 value = self._substitute_templates(key, value, re)
                 value = self._resolve_bare_keys(key, value)
                 value = self._resolve_placeholder_strings(key, value, re)
-                value = self._sanitize_command_param(key, value, step)
-                value = self._sanitize_path_param(key, value, step)
-                value = self._sanitize_content_param(key, value)
+                # Schema-driven coercion when available, legacy fallback otherwise
+                if tool_schema is not None:
+                    value = self._schema_coerce_param(key, value, tool_schema, step)
+                else:
+                    value = self._sanitize_command_param(key, value, step)
+                    value = self._sanitize_path_param(key, value, step)
+                    value = self._sanitize_content_param(key, value)
                 resolved[key] = value
             elif isinstance(value, dict):
                 resolved[key] = self.resolve(value, step, _depth + 1)
@@ -113,10 +117,11 @@ class ParameterResolver:
         if tool_schema is not None and _depth == 0 and self._outputs:
             resolved = tool_schema.auto_wire(resolved, self._outputs)
 
-        # Phase 3: validate (log warnings, don't block execution)
+        # Phase 3: validate with coercion, apply coerced values
         if tool_schema is not None and _depth == 0:
-            errors = tool_schema.validate(resolved)
-            for err in errors:
+            validation = tool_schema.validate(resolved, coerce=True)
+            resolved.update(validation.coerced_params)
+            for err in validation.errors:
                 logger.warning(f"Param validation ({tool_schema.name}): {err}")
 
         return resolved
@@ -318,6 +323,62 @@ class ParameterResolver:
             logger.info(f"Auto-fixed 'content' from bad/short value → real content ({len(replacement)} chars)")
             return replacement
         return value
+
+    def _schema_coerce_param(self, key: str, value: str, tool_schema, step) -> str:
+        """Schema-driven parameter coercion using ToolParam type hints.
+
+        Delegates to TypeCoercer for type-aware coercion when a matching
+        ToolParam exists, falling back to legacy sanitizers for specific
+        param categories (command, path, content).
+        """
+        from Jotty.core.agents._execution_types import TypeCoercer
+
+        tp = tool_schema.get_param(key)
+
+        # Path params: validate path-like, fallback to output search
+        if tp and tp.type_hint in ('path', 'file_path'):
+            coerced, error = TypeCoercer.coerce(value, 'path')
+            if error:
+                # Path looks like content — try to find real path from outputs
+                found = self._find_path_from_outputs(step)
+                if found:
+                    logger.info(f"Schema coercion: replaced bad path with '{found}' from outputs")
+                    return found
+                # Still fall back to legacy sanitizer
+                return self._sanitize_path_param(key, value, step)
+            return coerced
+
+        # Command params with suspiciously long values
+        if key == 'command' and len(value) > 150:
+            return self._sanitize_command_param(key, value, step)
+
+        # Content params: check for bad content
+        if key == 'content' and self._is_bad_content(value.strip()):
+            return self._sanitize_content_param(key, value)
+
+        # All other typed params: coerce via TypeCoercer
+        if tp and tp.type_hint and tp.type_hint.lower() not in ('str', 'string', ''):
+            coerced, error = TypeCoercer.coerce(value, tp.type_hint)
+            if error:
+                logger.debug(f"Schema coercion warning for '{key}': {error}")
+                return value  # Keep original on failure
+            return coerced
+
+        return value
+
+    def _find_path_from_outputs(self, step=None) -> Optional[str]:
+        """Find the most recent valid file path from previous step outputs.
+
+        Searches outputs in reverse order for 'path' keys containing
+        short, extension-bearing strings (actual file paths).
+        """
+        for k in reversed(list(self._outputs.keys())):
+            sd = self._outputs[k]
+            if isinstance(sd, dict) and 'path' in sd:
+                p = str(sd['path'])
+                if len(p) < 300 and '.' in p and '\n' not in p:
+                    return p
+        return None
 
     def _is_bad_content(self, s: str) -> bool:
         """Check if a string looks like bad/wrong content for a file write."""
@@ -909,21 +970,15 @@ class SkillPlanExecutor:
 
         tool = skill.tools.get(step.tool_name) if hasattr(skill, 'tools') else None
 
-        # Fallback: if tool not found, try to find a matching tool or use first available
+        # Strict fallback: case-insensitive exact match, then single-tool-skill fallback
         if not tool and hasattr(skill, 'tools') and skill.tools:
-            # Try to find tool with similar name
-            tool_name_lower = step.tool_name.lower() if step.tool_name else ''
-            for name, func in skill.tools.items():
-                if tool_name_lower in name.lower() or name.lower() in tool_name_lower:
-                    tool = func
-                    logger.info(f"Tool '{step.tool_name}' not found, using similar: '{name}'")
-                    break
+            tool = self._strict_tool_lookup(skill, step.tool_name)
 
-            # Last resort: use first tool (most skills have one primary tool)
-            if not tool:
+            # Single-tool-skill fallback (unambiguous — only one tool available)
+            if not tool and len(skill.tools) == 1:
                 first_tool_name = list(skill.tools.keys())[0]
                 tool = skill.tools[first_tool_name]
-                logger.info(f"Tool '{step.tool_name}' not found, using first tool: '{first_tool_name}'")
+                logger.info(f"Tool '{step.tool_name}' not found, using only tool: '{first_tool_name}'")
 
         if not tool:
             return {
@@ -939,6 +994,17 @@ class SkillPlanExecutor:
             pass  # Schema is optional — degrade gracefully
 
         resolved_params = self.resolve_params(step.params, outputs, step=step, tool_schema=tool_schema)
+
+        # Error-feedback-retry: validate after resolution and attempt fixes
+        if tool_schema is not None:
+            validation = tool_schema.validate(resolved_params, coerce=True)
+            resolved_params.update(validation.coerced_params)
+            if not validation.valid:
+                fixed = self._attempt_param_fix(
+                    resolved_params, validation, tool_schema, outputs, step
+                )
+                if fixed is not None:
+                    resolved_params = fixed
 
         # Guard: detect duplicate file writes — if we're writing to the same
         # path as a previous step, try to infer the correct filename from the
@@ -1042,6 +1108,174 @@ class SkillPlanExecutor:
             logger.error(f"Tool execution failed: {e}")
             _status("Error", f"✗ {step.skill_name}")
             return {'success': False, 'error': str(e)}
+
+    # =========================================================================
+    # PLAN-TIME VALIDATION
+    # =========================================================================
+
+    def validate_plan(self, steps: list) -> List[Dict]:
+        """Validate a plan before execution (warning-only, does not block).
+
+        Checks each step for:
+        - Skill existence in the registry
+        - Tool existence (strict, case-insensitive)
+        - Parameter validation against schema
+        - depends_on index validity
+
+        Returns list of ``{step_index, step_description, errors}`` dicts
+        for steps with issues. Empty list means the plan looks valid.
+        """
+        issues: List[Dict] = []
+        num_steps = len(steps)
+
+        for i, step in enumerate(steps):
+            step_errors: List[str] = []
+
+            # Check skill exists
+            skill_name = getattr(step, 'skill_name', '') or ''
+            skill = self._skills_registry.get_skill(skill_name) if self._skills_registry else None
+            if not skill:
+                step_errors.append(f"Skill not found: {skill_name}")
+            else:
+                # Check tool exists (strict lookup)
+                tool_name = getattr(step, 'tool_name', '') or ''
+                tool = skill.tools.get(tool_name)
+                if not tool:
+                    tool = self._strict_tool_lookup(skill, tool_name)
+                if not tool and len(skill.tools) != 1:
+                    available = list(skill.tools.keys())
+                    step_errors.append(
+                        f"Tool '{tool_name}' not found in {skill_name}. "
+                        f"Available: {available}"
+                    )
+
+                # Validate params against schema
+                if tool:
+                    try:
+                        schema = skill.get_tool_schema(tool_name)
+                        if schema:
+                            params = getattr(step, 'params', {}) or {}
+                            result = schema.validate(params)
+                            step_errors.extend(result.errors)
+                    except Exception:
+                        pass  # Schema building may fail — not fatal
+
+            # Check depends_on validity
+            depends = getattr(step, 'depends_on', []) or []
+            for dep_idx in depends:
+                if not isinstance(dep_idx, int) or dep_idx < 0 or dep_idx >= num_steps:
+                    step_errors.append(f"Invalid depends_on index: {dep_idx}")
+                elif dep_idx >= i:
+                    step_errors.append(f"Forward dependency: step {i} depends on step {dep_idx}")
+
+            if step_errors:
+                issues.append({
+                    'step_index': i,
+                    'step_description': getattr(step, 'description', '')[:100],
+                    'errors': step_errors,
+                })
+
+        return issues
+
+    # =========================================================================
+    # STRICT TOOL LOOKUP
+    # =========================================================================
+
+    @staticmethod
+    def _strict_tool_lookup(skill, tool_name: str) -> Optional[Callable]:
+        """Case-insensitive exact match for tool lookup. No substring matching.
+
+        Returns the tool callable if found, None otherwise.
+        Avoids dangerous substring matches that could invoke the wrong tool.
+        """
+        if not tool_name or not hasattr(skill, 'tools'):
+            return None
+        tool_name_lower = tool_name.lower()
+        for name, func in skill.tools.items():
+            if name.lower() == tool_name_lower:
+                logger.info(f"Strict tool lookup: matched '{tool_name}' → '{name}'")
+                return func
+        return None
+
+    # =========================================================================
+    # ERROR-FEEDBACK-RETRY
+    # =========================================================================
+
+    def _attempt_param_fix(
+        self,
+        params: Dict[str, Any],
+        validation,
+        tool_schema,
+        outputs: Dict[str, Any],
+        step,
+    ) -> Optional[Dict[str, Any]]:
+        """Attempt to fix validation errors before tool execution.
+
+        Strategies:
+        1. Missing required params → auto_wire from outputs
+        2. Type mismatch → retry coercion with alternate type names
+        3. Bad path → search outputs for valid path
+
+        Returns fixed params dict, or None if unfixable.
+        """
+        from Jotty.core.agents._execution_types import TypeCoercer
+
+        fixed = dict(params)
+        any_fixed = False
+
+        for error in validation.errors:
+            # Strategy 1: Missing required → try auto_wire
+            if error.startswith("Missing required parameter:"):
+                param_name = error.split(": ", 1)[1].strip()
+                tp = tool_schema.get_param(param_name)
+                if tp and outputs:
+                    wired = tool_schema.auto_wire({param_name: None}, outputs)
+                    if param_name in wired and wired[param_name] is not None:
+                        fixed[param_name] = wired[param_name]
+                        any_fixed = True
+                        logger.info(f"Param fix: auto-wired missing '{param_name}' from outputs")
+                        continue
+
+            # Strategy 2: Type error → retry with alternate coercion
+            if error.startswith("Type error for '"):
+                param_name = error.split("'")[1]
+                if param_name in fixed:
+                    value = fixed[param_name]
+                    tp = tool_schema.get_param(param_name)
+                    if tp:
+                        # Try string conversion first
+                        coerced, err = TypeCoercer.coerce(str(value), tp.type_hint)
+                        if not err:
+                            fixed[param_name] = coerced
+                            any_fixed = True
+                            logger.info(f"Param fix: re-coerced '{param_name}' via str() intermediate")
+                            continue
+
+            # Strategy 3: Path-like params that failed → find from outputs
+            if 'path' in error.lower():
+                resolver = ParameterResolver(outputs)
+                found = resolver._find_path_from_outputs(step)
+                if found:
+                    # Find which param is the path
+                    for tp in tool_schema.params:
+                        if tp.type_hint in ('path', 'file_path') and tp.name in fixed:
+                            fixed[tp.name] = found
+                            any_fixed = True
+                            logger.info(f"Param fix: replaced bad path for '{tp.name}' with '{found}'")
+                            break
+
+        if any_fixed:
+            # Re-validate to confirm fixes worked
+            recheck = tool_schema.validate(fixed, coerce=True)
+            fixed.update(recheck.coerced_params)
+            if recheck.valid:
+                logger.info("Param fix: all errors resolved")
+                return fixed
+            else:
+                logger.warning(f"Param fix: {len(recheck.errors)} error(s) remain after fix attempt")
+                return fixed  # Return partially fixed params anyway
+
+        return None
 
     # =========================================================================
     # PARAMETER RESOLUTION (delegates to ParameterResolver)
@@ -1227,6 +1461,15 @@ class SkillPlanExecutor:
         _status("Planning", "creating execution plan")
         steps = await self.create_plan(task, task_type, skills)
         _status("Plan ready", f"{len(steps)} steps")
+
+        # Step 3b: Validate plan (warning-only, does not block execution)
+        if steps:
+            plan_issues = self.validate_plan(steps)
+            if plan_issues:
+                for issue in plan_issues:
+                    _status("Plan warning",
+                            f"Step {issue['step_index']}: {'; '.join(issue['errors'][:2])}")
+                logger.info(f"Plan validation: {len(plan_issues)} step(s) with issues")
 
         if not steps:
             return {

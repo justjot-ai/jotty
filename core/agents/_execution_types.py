@@ -77,6 +77,173 @@ class ToolParam:
     description: str = ""
     default: Any = None
     aliases: List[str] = field(default_factory=list)
+    reserved: bool = False
+
+
+class TypeCoercer:
+    """Schema-driven type coercion. Replaces heuristic sanitizers.
+
+    Converts string values to their declared types based on ToolParam.type_hint.
+    Each coercion method returns (coerced_value, error_or_None).
+    """
+
+    _COERCERS: Dict[str, str] = {
+        'int': '_coerce_int', 'integer': '_coerce_int',
+        'float': '_coerce_float', 'number': '_coerce_float',
+        'bool': '_coerce_bool', 'boolean': '_coerce_bool',
+        'list': '_coerce_list', 'array': '_coerce_list',
+        'dict': '_coerce_dict', 'object': '_coerce_dict',
+        'path': '_coerce_path', 'file_path': '_coerce_path',
+    }
+
+    @classmethod
+    def coerce(cls, value: Any, type_hint: str) -> Tuple[Any, Optional[str]]:
+        """Coerce *value* to the type described by *type_hint*.
+
+        Returns (coerced_value, error_or_None).  For unknown or 'str'
+        type hints the value is returned unchanged.
+        """
+        if type_hint is None or type_hint.lower() in ('str', 'string', ''):
+            return value, None
+
+        method_name = cls._COERCERS.get(type_hint.lower())
+        if method_name is None:
+            return value, None  # Unknown type — pass through
+
+        method = getattr(cls, method_name)
+        try:
+            return method(value)
+        except Exception as exc:
+            return value, f"Cannot coerce {repr(value)[:80]} to {type_hint}: {exc}"
+
+    # -- individual coercers --------------------------------------------------
+
+    @staticmethod
+    def _coerce_int(value: Any) -> Tuple[Any, Optional[str]]:
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value, None
+        if isinstance(value, float) and value == int(value):
+            return int(value), None
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.isdigit() or (stripped.startswith('-') and stripped[1:].isdigit()):
+                return int(stripped), None
+            # Try float-then-int for "42.0"
+            try:
+                f = float(stripped)
+                if f == int(f):
+                    return int(f), None
+            except ValueError:
+                pass
+            return value, f"Cannot coerce {repr(value)[:60]} to int: not numeric"
+        return value, f"Cannot coerce type {type(value).__name__} to int"
+
+    @staticmethod
+    def _coerce_float(value: Any) -> Tuple[Any, Optional[str]]:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value), None
+        if isinstance(value, str):
+            try:
+                return float(value.strip()), None
+            except ValueError:
+                return value, f"Cannot coerce {repr(value)[:60]} to float"
+        return value, f"Cannot coerce type {type(value).__name__} to float"
+
+    @staticmethod
+    def _coerce_bool(value: Any) -> Tuple[Any, Optional[str]]:
+        if isinstance(value, bool):
+            return value, None
+        if isinstance(value, (int, float)):
+            return bool(value), None
+        if isinstance(value, str):
+            lower = value.strip().lower()
+            if lower in ('true', 'yes', '1', 'on'):
+                return True, None
+            if lower in ('false', 'no', '0', 'off'):
+                return False, None
+            return value, f"Cannot coerce {repr(value)[:60]} to bool"
+        return value, f"Cannot coerce type {type(value).__name__} to bool"
+
+    @staticmethod
+    def _coerce_list(value: Any) -> Tuple[Any, Optional[str]]:
+        if isinstance(value, list):
+            return value, None
+        if isinstance(value, str):
+            stripped = value.strip()
+            # JSON array
+            if stripped.startswith('['):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        return parsed, None
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            # Comma-separated
+            if ',' in stripped:
+                return [item.strip() for item in stripped.split(',') if item.strip()], None
+            return [stripped] if stripped else [], None
+        if isinstance(value, (tuple, set)):
+            return list(value), None
+        return value, f"Cannot coerce type {type(value).__name__} to list"
+
+    @staticmethod
+    def _coerce_dict(value: Any) -> Tuple[Any, Optional[str]]:
+        if isinstance(value, dict):
+            return value, None
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith('{'):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, dict):
+                        return parsed, None
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            return value, f"Cannot coerce {repr(value)[:60]} to dict: not valid JSON object"
+        return value, f"Cannot coerce type {type(value).__name__} to dict"
+
+    @staticmethod
+    def _coerce_path(value: Any) -> Tuple[Any, Optional[str]]:
+        """Validate that value looks like a file path (not content).
+
+        Rejects strings that are too long, contain newlines, or lack
+        path separators/extensions — indicators of content being
+        mistakenly placed in a path parameter.
+        """
+        if not isinstance(value, str):
+            return str(value), None
+        stripped = value.strip()
+        if not stripped:
+            return value, "Empty path"
+        if '\n' in stripped:
+            return value, "Path contains newlines — likely content, not a path"
+        if len(stripped) > 500:
+            return value, f"Path too long ({len(stripped)} chars) — likely content, not a path"
+        # Must have a separator or extension to look path-like
+        if '/' not in stripped and '\\' not in stripped and '.' not in stripped:
+            # Single word with no extension — could be a bare name, allow it
+            if ' ' in stripped:
+                return value, "Path contains spaces but no separator/extension — likely content"
+        return stripped, None
+
+
+@dataclass
+class ValidationResult:
+    """Structured result from ToolSchema.validate().
+
+    Carries coerced parameter values alongside validation errors,
+    so callers can apply fixes in one pass.
+    """
+    valid: bool = True
+    errors: List[str] = field(default_factory=list)
+    coerced_params: Dict[str, Any] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
+
+    def error_summary(self) -> str:
+        """One-line summary of all errors for logging."""
+        if not self.errors:
+            return "OK"
+        return "; ".join(self.errors)
 
 
 class ToolSchema:
@@ -197,24 +364,71 @@ class ToolSchema:
             ))
         return schema
 
+    # Reserved params injected by the executor, hidden from LLM prompts
+    _RESERVED_PARAMS: frozenset = frozenset({
+        '_status_callback', '_task_context', '_outputs',
+    })
+
     # -- validation -----------------------------------------------------------
 
-    def validate(self, params: Dict[str, Any]) -> List[str]:
-        """Validate params against schema. Returns list of error strings."""
-        errors: List[str] = []
+    def validate(self, params: Dict[str, Any], coerce: bool = False) -> ValidationResult:
+        """Validate params against schema with optional type coercion.
+
+        Args:
+            params: Parameter dict to validate.
+            coerce: When True, attempts TypeCoercer conversion for each
+                    param with a non-str type_hint. Successful coercions
+                    are placed in ``result.coerced_params``.
+
+        Returns:
+            ValidationResult with errors, coerced values, and warnings.
+            Backward-compatible: ``bool(result.errors)`` works like the
+            old ``List[str]`` return.
+        """
+        result = ValidationResult()
+
         for tp in self.params:
-            if not tp.required:
+            if tp.reserved:
                 continue
-            # Check canonical name and all aliases
-            found = tp.name in params
-            if not found:
+            # Check presence (canonical name + aliases)
+            found_key = None
+            if tp.name in params:
+                found_key = tp.name
+            else:
                 for alias in tp.aliases:
                     if alias in params:
-                        found = True
+                        found_key = alias
                         break
-            if not found:
-                errors.append(f"Missing required parameter: {tp.name}")
-        return errors
+
+            if found_key is None:
+                if tp.required:
+                    result.errors.append(f"Missing required parameter: {tp.name}")
+                continue
+
+            # Type coercion when requested
+            if coerce and tp.type_hint and tp.type_hint.lower() not in ('str', 'string', ''):
+                value = params[found_key]
+                coerced, error = TypeCoercer.coerce(value, tp.type_hint)
+                if error:
+                    result.errors.append(f"Type error for '{tp.name}': {error}")
+                elif coerced is not value:
+                    result.coerced_params[tp.name] = coerced
+
+        result.valid = len(result.errors) == 0
+        return result
+
+    def get_param(self, name: str) -> Optional[ToolParam]:
+        """Look up a ToolParam by canonical name or alias."""
+        for tp in self.params:
+            if tp.name == name:
+                return tp
+            if name in tp.aliases:
+                return tp
+        return None
+
+    def get_llm_visible_params(self) -> List[ToolParam]:
+        """Return params visible to LLM planners (excludes reserved)."""
+        return [p for p in self.params if not p.reserved and p.name not in self._RESERVED_PARAMS]
 
     def resolve_aliases(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Resolve parameter aliases to canonical names (in-place + return)."""
@@ -309,7 +523,7 @@ class ToolSchema:
         return [p.name for p in self.params if p.required]
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dict for LLM planner prompts."""
+        """Convert to dict for LLM planner prompts (excludes reserved params)."""
         return {
             'name': self.name,
             'description': self.description,
@@ -320,7 +534,7 @@ class ToolSchema:
                     'required': p.required,
                     'description': p.description,
                 }
-                for p in self.params
+                for p in self.get_llm_visible_params()
             ],
         }
 
@@ -909,6 +1123,8 @@ __all__ = [
     'TaskType',
     'ExecutionStep',
     'ToolParam',
+    'TypeCoercer',
+    'ValidationResult',
     'ToolSchema',
     'AgentIOSchema',
     'FileReference',
