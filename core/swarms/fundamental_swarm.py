@@ -55,13 +55,11 @@ import json
 import dspy
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
-    register_swarm, ExecutionTrace
+    SwarmConfig, SwarmResult, AgentRole,
+    register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
 from ..agents.base import DomainAgent, DomainAgentConfig
@@ -852,11 +850,7 @@ class FundamentalSwarm(DomainSwarm):
         Returns:
             FundamentalResult with complete analysis
         """
-        start_time = datetime.now()
-
-        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
-
-        logger.info(f"📊 FundamentalSwarm starting: {ticker} on {exchange}")
+        logger.info(f"FundamentalSwarm starting: {ticker} on {exchange}")
 
         # Use provided data or create dummy for demo
         if not financial_data:
@@ -877,210 +871,179 @@ class FundamentalSwarm(DomainSwarm):
                 'shares_outstanding': 600000
             }
 
-        try:
-            # =================================================================
-            # PHASE 1: PARALLEL DATA COLLECTION & INITIAL ANALYSIS
-            # =================================================================
-            logger.info("📈 Phase 1: Financial statement & ratio analysis...")
+        return await self._safe_execute_domain(
+            task_type='fundamental_analysis',
+            default_tools=['financial_analyze', 'ratio_analyze', 'dcf_valuate'],
+            result_class=FundamentalResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, ticker, exchange, financial_data, market_data
+            ),
+            output_data_fn=lambda result: {
+                'rating': result.thesis.rating.value if result.thesis else 'N/A',
+                'target_price': result.thesis.target_price if result.thesis else 0,
+                'upside': result.thesis.upside if result.thesis else 0,
+                'intrinsic_value': result.valuations[0].intrinsic_value if result.valuations else 0,
+                'dcf_upside': result.valuations[0].upside_downside if result.valuations else 0,
+                'dcf_confidence': result.valuations[0].confidence if result.valuations else 0,
+                'moat_score': result.moat_score,
+                'earnings_quality': result.earnings_quality,
+                'num_valuations': len(result.valuations),
+            },
+            input_data_fn=lambda: {
+                'ticker': ticker,
+                'exchange': exchange,
+                'current_price': market_data.get('current_price', 0),
+                'market_cap': market_data.get('market_cap', 0),
+                'years_of_data': self.config.years_of_data,
+                'investment_style': self.config.investment_style.value,
+            },
+        )
 
-            financial_task = self._financial_agent.analyze(ticker, financial_data, 5)
-            ratio_task = self._ratio_agent.analyze(
-                financial_data,
-                "Technology",
-                market_data
-            )
+    async def _execute_phases(
+        self,
+        executor,
+        ticker: str,
+        exchange: str,
+        financial_data: Dict[str, Any],
+        market_data: Dict[str, Any]
+    ) -> FundamentalResult:
+        """Execute all fundamental analysis phases using PhaseExecutor.
 
-            financial_result, ratio_result = await asyncio.gather(
-                financial_task, ratio_task, return_exceptions=True
-            )
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            ticker: Stock ticker symbol
+            exchange: Stock exchange
+            financial_data: Financial statement data
+            market_data: Market price and cap data
 
-            if isinstance(financial_result, Exception):
-                financial_result = {'error': str(financial_result)}
-            if isinstance(ratio_result, Exception):
-                ratio_result = {'error': str(ratio_result)}
+        Returns:
+            FundamentalResult with complete analysis
+        """
+        # =================================================================
+        # PHASE 1: PARALLEL DATA COLLECTION & INITIAL ANALYSIS
+        # =================================================================
+        financial_result, ratio_result = await executor.run_parallel(
+            1, "Financial Statement & Ratio Analysis",
+            [
+                ("FinancialStatement", AgentRole.ACTOR,
+                 self._financial_agent.analyze(ticker, financial_data, 5),
+                 ['financial_analyze']),
+                ("RatioAnalysis", AgentRole.ACTOR,
+                 self._ratio_agent.analyze(financial_data, "Technology", market_data),
+                 ['ratio_analyze']),
+            ],
+        )
 
-            self._trace_phase("FinancialStatement", AgentRole.ACTOR,
-                {'ticker': ticker},
-                {'has_error': 'error' in financial_result},
-                success='error' not in financial_result, phase_start=start_time, tools_used=['financial_analyze'])
-            self._trace_phase("RatioAnalysis", AgentRole.ACTOR,
-                {'ticker': ticker},
-                {'has_error': 'error' in ratio_result},
-                success='error' not in ratio_result, phase_start=start_time, tools_used=['ratio_analyze'])
+        # =================================================================
+        # PHASE 2: QUALITY & MOAT ANALYSIS (parallel)
+        # =================================================================
+        parallel_2_tasks = [
+            ("QualityEarnings", AgentRole.EXPERT,
+             self._quality_agent.assess(
+                 financial_data,
+                 {'operating': financial_data.get('cash_flow_operations', [])}
+             ),
+             ['quality_assess']),
+            ("Moat", AgentRole.EXPERT,
+             self._moat_agent.analyze(
+                 ticker,
+                 f"{ticker} is a leading company in its industry",
+                 "Competitive industry with multiple players",
+                 financial_data
+             ),
+             ['moat_analyze']),
+        ]
 
-            # =================================================================
-            # PHASE 2: QUALITY & MOAT ANALYSIS (parallel)
-            # =================================================================
-            logger.info("🔍 Phase 2: Quality & moat analysis...")
+        quality_result, moat_result = await executor.run_parallel(
+            2, "Quality & Moat Analysis", parallel_2_tasks,
+        )
 
-            quality_task = self._quality_agent.assess(
-                financial_data,
-                {'operating': financial_data.get('cash_flow_operations', [])}
-            )
-            moat_task = self._moat_agent.analyze(
-                ticker,
-                f"{ticker} is a leading company in its industry",
-                "Competitive industry with multiple players",
-                financial_data
-            )
+        # Provide safe defaults for exception results
+        if isinstance(quality_result, dict) and 'error' in quality_result:
+            quality_result = {'quality_score': 0}
+        if isinstance(moat_result, dict) and 'error' in moat_result:
+            moat_result = {'moat_score': 0}
 
-            quality_result, moat_result = await asyncio.gather(
-                quality_task, moat_task, return_exceptions=True
-            )
-
-            if isinstance(quality_result, Exception):
-                quality_result = {'quality_score': 0}
-            if isinstance(moat_result, Exception):
-                moat_result = {'moat_score': 0}
-
-            phase2_start = datetime.now()
-            self._trace_phase("QualityEarnings", AgentRole.EXPERT,
-                {'ticker': ticker},
-                {'quality_score': quality_result.get('quality_score', 0)},
-                success=True, phase_start=start_time, tools_used=['quality_assess'])
-            self._trace_phase("Moat", AgentRole.EXPERT,
-                {'ticker': ticker},
-                {'moat_score': moat_result.get('moat_score', 0)},
-                success=True, phase_start=start_time, tools_used=['moat_analyze'])
-
-            # =================================================================
-            # PHASE 3: VALUATION
-            # =================================================================
-            logger.info("💰 Phase 3: Valuation...")
-
-            dcf_result = await self._valuation_agent.dcf_valuation(
+        # =================================================================
+        # PHASE 3: VALUATION
+        # =================================================================
+        dcf_result = await executor.run_phase(
+            3, "DCF Valuation", "Valuation", AgentRole.EXPERT,
+            self._valuation_agent.dcf_valuation(
                 ticker,
                 financial_data,
                 {'revenue_growth': 0.10, 'terminal_growth': 0.03},
                 market_data
-            )
+            ),
+            input_data={'ticker': ticker},
+            tools_used=['dcf_valuate'],
+        )
 
-            self._trace_phase("Valuation", AgentRole.EXPERT,
-                {'ticker': ticker},
-                {'intrinsic_value': dcf_result.intrinsic_value, 'upside': dcf_result.upside_downside},
-                success=True, phase_start=phase2_start, tools_used=['dcf_valuate'])
+        # =================================================================
+        # PHASE 4: INVESTMENT THESIS
+        # =================================================================
+        financial_summary = f"""
+        Revenue Analysis: {financial_result.get('revenue_analysis', 'N/A') if isinstance(financial_result, dict) else 'N/A'}
+        Margin Analysis: {financial_result.get('margin_analysis', 'N/A') if isinstance(financial_result, dict) else 'N/A'}
+        Red Flags: {', '.join(financial_result.get('red_flags', [])) if isinstance(financial_result, dict) else 'N/A'}
+        """
 
-            # =================================================================
-            # PHASE 4: INVESTMENT THESIS
-            # =================================================================
-            logger.info("📝 Phase 4: Generating investment thesis...")
+        valuation_summary = f"""
+        DCF Intrinsic Value: {dcf_result.intrinsic_value}
+        Upside/Downside: {dcf_result.upside_downside:.1f}%
+        """
 
-            financial_summary = f"""
-            Revenue Analysis: {financial_result.get('revenue_analysis', 'N/A')}
-            Margin Analysis: {financial_result.get('margin_analysis', 'N/A')}
-            Red Flags: {', '.join(financial_result.get('red_flags', []))}
-            """
+        quality_summary = f"""
+        Earnings Quality: {quality_result.get('quality_score', 0)}/100
+        Moat Score: {moat_result.get('moat_score', 0)}/100
+        """
 
-            valuation_summary = f"""
-            DCF Intrinsic Value: {dcf_result.intrinsic_value}
-            Upside/Downside: {dcf_result.upside_downside:.1f}%
-            """
-
-            quality_summary = f"""
-            Earnings Quality: {quality_result.get('quality_score', 0)}/100
-            Moat Score: {moat_result.get('moat_score', 0)}/100
-            """
-
-            thesis = await self._thesis_agent.generate(
+        thesis = await executor.run_phase(
+            4, "Investment Thesis", "Thesis", AgentRole.PLANNER,
+            self._thesis_agent.generate(
                 ticker,
                 financial_summary,
                 valuation_summary,
                 quality_summary,
                 market_data.get('current_price', 0)
-            )
+            ),
+            input_data={'ticker': ticker},
+            tools_used=['thesis_generate'],
+        )
 
-            self._trace_phase("Thesis", AgentRole.PLANNER,
-                {'ticker': ticker},
-                {'rating': thesis.rating.value},
-                success=True, phase_start=phase2_start, tools_used=['thesis_generate'])
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        financial_metrics = FinancialMetrics(
+            revenue=financial_data.get('revenue', [0])[-1] if financial_data.get('revenue') else 0,
+            net_income=financial_data.get('net_income', [0])[-1] if financial_data.get('net_income') else 0
+        )
 
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
+        valuation_metrics = ValuationMetrics(
+            market_cap=market_data.get('market_cap', 0)
+        )
 
-            # Build metrics
-            financial_metrics = FinancialMetrics(
-                revenue=financial_data.get('revenue', [0])[-1] if financial_data.get('revenue') else 0,
-                net_income=financial_data.get('net_income', [0])[-1] if financial_data.get('net_income') else 0
-            )
+        quality_metrics = QualityMetrics()
 
-            valuation_metrics = ValuationMetrics(
-                market_cap=market_data.get('market_cap', 0)
-            )
+        logger.info(f"FundamentalSwarm complete: {ticker}, Rating: {thesis.rating.value}")
 
-            quality_metrics = QualityMetrics()
-
-            result = FundamentalResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'ticker': ticker},
-                execution_time=exec_time,
-                ticker=ticker,
-                company_name=ticker,
-                financial_metrics=financial_metrics,
-                valuation_metrics=valuation_metrics,
-                quality_metrics=quality_metrics,
-                valuations=[dcf_result],
-                thesis=thesis,
-                moat_score=moat_result.get('moat_score', 0),
-                management_score=0,
-                earnings_quality=quality_result.get('quality_score', 0)
-            )
-
-            logger.info(f"✅ FundamentalSwarm complete: {ticker}, Rating: {thesis.rating.value}")
-
-            # Post-execution learning
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['financial_analyze', 'ratio_analyze', 'dcf_valuate']),
-                task_type='fundamental_analysis',
-                output_data={
-                    'rating': thesis.rating.value,
-                    'target_price': thesis.target_price,
-                    'upside': thesis.upside,
-                    'intrinsic_value': dcf_result.intrinsic_value,
-                    'dcf_upside': dcf_result.upside_downside,
-                    'dcf_confidence': dcf_result.confidence,
-                    'moat_score': moat_result.get('moat_score', 0),
-                    'earnings_quality': quality_result.get('quality_score', 0),
-                    'num_valuations': len(result.valuations),
-                    'red_flags': len(financial_result.get('red_flags', [])),
-                },
-                input_data={
-                    'ticker': ticker,
-                    'exchange': exchange,
-                    'current_price': market_data.get('current_price', 0),
-                    'market_cap': market_data.get('market_cap', 0),
-                    'years_of_data': self.config.years_of_data,
-                    'investment_style': self.config.investment_style.value,
-                }
-            )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ FundamentalSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['financial_analyze']),
-                task_type='fundamental_analysis'
-            )
-            return FundamentalResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
-            )
+        return FundamentalResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'ticker': ticker},
+            execution_time=executor.elapsed(),
+            ticker=ticker,
+            company_name=ticker,
+            financial_metrics=financial_metrics,
+            valuation_metrics=valuation_metrics,
+            quality_metrics=quality_metrics,
+            valuations=[dcf_result],
+            thesis=thesis,
+            moat_score=moat_result.get('moat_score', 0),
+            management_score=0,
+            earnings_quality=quality_result.get('quality_score', 0)
+        )
 
 
 # =============================================================================

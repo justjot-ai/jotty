@@ -227,6 +227,1786 @@ def _create_mas_learning(sm):
     )
 
 
+class AgentFactory:
+    """Creates and manages AgentRunners and LOTUS optimization."""
+
+    def __init__(self, manager: 'SwarmManager'):
+        self._manager = manager
+
+    def ensure_runners(self):
+        """Build AgentRunners on first run() call (not in __init__)."""
+        sm = self._manager
+        if sm._runners_built:
+            return
+
+        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
+
+        for agent_config in sm.agents:
+            if agent_config.name in sm.runners:
+                continue
+
+            runner_config = AgentRunnerConfig(
+                architect_prompts=sm.architect_prompts,
+                auditor_prompts=sm.auditor_prompts,
+                config=sm.config,
+                agent_name=agent_config.name,
+                enable_learning=True,
+                enable_memory=True,
+            )
+
+            # Propagate JottyConfig to agent so lazy-loaded components
+            # (memory, context, etc.) use the same config as SwarmManager.
+            agent = agent_config.agent
+            if hasattr(agent, 'set_jotty_config'):
+                agent.set_jotty_config(sm.config)
+
+            runner = AgentRunner(
+                agent=agent,
+                config=runner_config,
+                task_planner=sm.swarm_planner,
+                task_board=sm.swarm_task_board,
+                swarm_memory=sm.swarm_memory,
+                swarm_state_manager=sm.swarm_state_manager,
+                learning_manager=sm.learning_manager,
+                transfer_learning=sm.transfer_learning,
+                swarm_terminal=sm.swarm_terminal,
+                swarm_intelligence=sm.swarm_intelligence,
+            )
+            sm.runners[agent_config.name] = runner
+
+        # Register agents with Axon for inter-agent communication
+        self.register_agents_with_axon()
+
+        # LOTUS optimization
+        if sm.enable_lotus:
+            self.init_lotus_optimization()
+
+        # Auto-load previous learnings + integrate MAS terminal in background.
+        # Uses asyncio task instead of raw thread so run() can await readiness
+        # via sm._learning_ready event before executing with partial state.
+        async def _bg_learning_init():
+            try:
+                sm.learning.auto_load()
+                sm.mas_learning.integrate_with_terminal(sm.swarm_terminal)
+            except Exception as e:
+                logger.warning(f"Background learning init failed: {e}")
+            finally:
+                sm._learning_ready.set()
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_bg_learning_init())
+        except RuntimeError:
+            # No running event loop — fall back to synchronous init
+            try:
+                sm.learning.auto_load()
+                sm.mas_learning.integrate_with_terminal(sm.swarm_terminal)
+            except Exception as e:
+                logger.warning(f"Synchronous learning init failed: {e}")
+            sm._learning_ready.set()
+
+        # Init providers if available
+        if _load_providers():
+            sm._providers.init_provider_registry()
+
+        sm._runners_built = True
+        logger.info(f"Runners built: {list(sm.runners.keys())}")
+
+    def register_agents_with_axon(self):
+        """Register all agents with SmartAgentSlack for inter-agent messaging."""
+        sm = self._manager
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+
+        def _make_slack_callback(target_actor_name: str):
+            def _callback(message):
+                try:
+                    fb = FeedbackMessage(
+                        source_actor=message.from_agent,
+                        target_actor=target_actor_name,
+                        feedback_type=FeedbackType.RESPONSE,
+                        content=str(message.data),
+                        context={
+                            'format': getattr(message, 'format', 'unknown'),
+                            'size_bytes': getattr(message, 'size_bytes', None),
+                            'metadata': getattr(message, 'metadata', {}) or {},
+                            'timestamp': getattr(message, 'timestamp', None),
+                        },
+                        requires_response=False,
+                        priority=2,
+                    )
+                    sm.feedback_channel.send(fb)
+                except Exception as e:
+                    logger.warning(f"Slack callback failed for {target_actor_name}: {e}")
+            return _callback
+
+        for agent_config in sm.agents:
+            try:
+                agent_obj = agent_config.agent
+                signature_obj = getattr(agent_obj, 'signature', None)
+                sm.agent_slack.register_agent(
+                    agent_name=agent_config.name,
+                    signature=signature_obj if hasattr(signature_obj, 'input_fields') else None,
+                    callback=_make_slack_callback(agent_config.name),
+                    max_context=getattr(sm.config, 'max_context_tokens', 16000),
+                )
+            except Exception as e:
+                logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")
+
+    def create_zero_config_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
+        """Delegate to ZeroConfigAgentFactory."""
+        sm = self._manager
+        if not hasattr(sm, '_zero_config_factory') or sm._zero_config_factory is None:
+            from Jotty.core.orchestration.v2.zero_config_factory import ZeroConfigAgentFactory
+            sm._zero_config_factory = ZeroConfigAgentFactory()
+        return sm._zero_config_factory.create_agents(task, status_callback)
+
+    def init_lotus_optimization(self):
+        """
+        Initialize LOTUS optimization layer.
+
+        LOTUS-inspired optimizations:
+        - Model Cascade: Use cheap models (Haiku) first, escalate to expensive (Opus) only when needed
+        - Semantic Cache: Memoize semantic operations with content fingerprinting
+        - Batch Executor: Batch LLM calls for throughput optimization
+        - Adaptive Validator: Learn when to skip validation based on historical success
+
+        DRY: Uses centralized LotusConfig for all optimization settings.
+        """
+        sm = self._manager
+        try:
+            from Jotty.core.lotus.integration import LotusEnhancement, _enhance_agent_runner
+
+            # Create LOTUS enhancement with default config
+            sm.lotus = LotusEnhancement(
+                enable_cascade=True,
+                enable_cache=True,
+                enable_adaptive_validation=True,
+            )
+            sm.lotus_optimizer = sm.lotus.lotus_optimizer
+
+            # Enhance all agent runners with adaptive validation
+            for name, runner in sm.runners.items():
+                _enhance_agent_runner(runner, sm.lotus)
+
+                # Pre-warm the adaptive validator with initial trust
+                # This allows validation skipping from the start
+                # (simulates 15 successful validations per agent)
+                for _ in range(15):
+                    sm.lotus.adaptive_validator.record_result(name, "architect", success=True)
+                    sm.lotus.adaptive_validator.record_result(name, "auditor", success=True)
+                logger.debug(f"Pre-warmed LOTUS validator for agent: {name}")
+
+            logger.info("LOTUS optimization layer initialized (pre-warmed validators)")
+
+        except ImportError as e:
+            logger.warning(f"LOTUS optimization not available: {e}")
+            sm.lotus = None
+            sm.lotus_optimizer = None
+
+    def get_lotus_stats(self) -> Dict[str, Any]:
+        """Get LOTUS optimization statistics."""
+        sm = self._manager
+        if sm.lotus:
+            return sm.lotus.get_stats()
+        return {}
+
+    def get_lotus_savings(self) -> Dict[str, float]:
+        """Get estimated cost savings from LOTUS optimization."""
+        sm = self._manager
+        if sm.lotus:
+            return sm.lotus.get_savings()
+        return {}
+
+
+class ExecutionEngine:
+    """Executes tasks via single/multi-agent paradigms."""
+
+    def __init__(self, manager: 'SwarmManager'):
+        self._manager = manager
+
+    async def run(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Run task execution with full autonomy.
+
+        Supports zero-config: natural language goal -> autonomous execution.
+        For simple tool-calling tasks, use UnifiedExecutor directly instead.
+
+        Args:
+            goal: Task goal/description (natural language supported)
+            context: Optional ExecutionContext from ModeRouter
+            skip_autonomous_setup: If True, skip research/install/configure (fast mode)
+            status_callback: Optional callback(stage, detail) for progress updates
+            ensemble: Enable prompt ensembling for multi-perspective analysis
+            ensemble_strategy: Strategy for ensembling
+            **kwargs: Additional arguments
+
+        Returns:
+            EpisodeResult with output and metadata
+        """
+        sm = self._manager
+        import time as _time
+        run_start_time = _time.time()
+
+        # Observability: Start trace and root span
+        try:
+            from Jotty.core.observability import get_tracer, get_metrics
+            _tracer = get_tracer()
+            _metrics = get_metrics()
+            _tracer.new_trace(metadata={'goal': goal[:200], 'mode': sm.mode})
+        except ImportError:
+            _tracer = None
+            _metrics = None
+
+        # Lazy init: Build runners on first run
+        sm._ensure_runners()
+
+        # Wait for background learning init to complete (max 5s)
+        # Prevents operating with partially-loaded learning state.
+        try:
+            await asyncio.wait_for(sm._learning_ready.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Learning init timed out after 5s, proceeding without full learning state")
+
+        # MAS-ZERO: Reset per-problem experience library
+        sm._reset_experience()
+        sm._efficiency_stats = {}  # Reset per-run
+        sm._execution._efficiency_stats = {}  # Reset orchestrator stats too
+
+        # Extract ExecutionContext if provided by ModeRouter
+        exec_context = kwargs.pop('context', None)
+
+        # Extract special kwargs (pop ALL so they don't leak into **kwargs downstream)
+        skip_autonomous_setup = kwargs.pop('skip_autonomous_setup', False)
+        skip_validation = kwargs.pop('skip_validation', None)  # Explicit override
+        status_callback = kwargs.pop('status_callback', None)
+        ensemble = kwargs.pop('ensemble', None)  # None = auto-detect, True/False = explicit
+        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+
+        # If ExecutionContext provided, extract callbacks from it
+        if exec_context is not None:
+            if status_callback is None and hasattr(exec_context, 'status_callback'):
+                status_callback = exec_context.status_callback
+            # Emit start event
+            if hasattr(exec_context, 'emit_event'):
+                from Jotty.core.foundation.types.sdk_types import SDKEventType
+                exec_context.emit_event(SDKEventType.PLANNING, {
+                    "goal": goal,
+                    "mode": sm.mode,
+                    "agents": len(sm.agents),
+                })
+
+        # Auto-detect ensemble for certain task types (if not explicitly set)
+        # Optima-inspired: adaptive sizing returns (should_ensemble, max_perspectives)
+        max_perspectives = 4  # default
+        if ensemble is None:
+            ensemble, max_perspectives = sm._should_auto_ensemble(goal)
+            if ensemble:
+                logger.info(f"Auto-enabled ensemble: {max_perspectives} perspectives (use ensemble=False to override)")
+
+        # Ensure DSPy LM is configured (critical for all agent operations)
+        import dspy
+        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            lm = sm.swarm_provider_gateway.get_lm()
+            if lm:
+                dspy.configure(lm=lm)
+                logger.info(f"✅ DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
+
+        _status = StatusReporter(status_callback, logger, emoji="📍")
+
+        # ── FAST PATH: Simple tasks bypass the entire agent pipeline ──
+        # ValidationGate classifies task complexity using a cheap LLM (or heuristic).
+        # For DIRECT tasks (Q&A, lookups, lists): skip zero-config, ensemble, and
+        # AutonomousAgent overhead. Call the LLM directly. Target: <10s.
+        # OPTIMIZATION: Skip gate for multi-agent mode — fast path only works
+        # for single-agent, so running the gate wastes an LLM call.
+        from Jotty.core.orchestration.v2.validation_gate import (
+            ValidationGate, ValidationMode, get_validation_gate,
+        )
+
+        _gate_decision = None
+        if sm.mode == "single":
+            _fast_gate = get_validation_gate()
+
+            # Determine if user explicitly asked for skip/full validation
+            _force_mode = None
+            if skip_validation is True:
+                _force_mode = ValidationMode.DIRECT
+            elif skip_validation is False:
+                _force_mode = ValidationMode.FULL
+
+            _gate_decision = await _fast_gate.decide(
+                goal=goal,
+                agent_name=sm.agents[0].name if sm.agents else "auto",
+                force_mode=_force_mode,
+            )
+
+        if _gate_decision and _gate_decision.mode == ValidationMode.DIRECT and sm.mode == "single":
+            _status("Fast path", f"DIRECT mode — bypassing agent pipeline ({_gate_decision.reason})")
+
+            # Model tier routing: use cheapest LM for DIRECT tasks
+            try:
+                if sm._model_tier_router is None:
+                    sm._model_tier_router = ModelTierRouter()
+                tier_decision = sm._model_tier_router.get_model_for_mode(ValidationMode.DIRECT)
+                tier_lm = sm._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)
+                if tier_lm:
+                    import dspy as _dspy
+                    lm = tier_lm
+                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model}) — cost ratio {tier_decision.estimated_cost_ratio:.1f}x")
+                else:
+                    import dspy as _dspy
+                    lm = _dspy.settings.lm
+                    if lm is None:
+                        raise AgentExecutionError("No LM configured")
+
+                _fast_start = _time.time()
+
+                # Try multiple calling conventions (DSPy 3.x is finicky)
+                # Fast path: NO aggressive retry on rate limits.
+                # If rate limited, fall through to full pipeline immediately.
+                # Fast path must be FAST — wasting 56s on retries defeats the purpose.
+                response = None
+                _rate_limited = False
+                for call_fn in [
+                    lambda: lm(messages=[{"role": "user", "content": goal}]),
+                    lambda: lm(prompt=goal),
+                    lambda: lm(goal),
+                ]:
+                    try:
+                        response = call_fn()
+                        if response:
+                            break
+                    except Exception as e:
+                        err_str = str(e)
+                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
+                                         'rate limit' in err_str.lower())
+                        if is_rate_limit:
+                            logger.info("Fast path rate limited — falling through to full pipeline (no retry)")
+                            _rate_limited = True
+                            break
+                        continue
+
+                if response is None:
+                    raise AgentExecutionError("All LM calling conventions failed" +
+                                              (" (rate limited)" if _rate_limited else ""))
+
+                if isinstance(response, list):
+                    response = response[0] if response else ""
+                elif hasattr(response, 'text'):
+                    response = response.text
+                response = str(response).strip()
+
+                _fast_elapsed = _time.time() - _fast_start
+                _status("Fast path complete", f"{_fast_elapsed:.1f}s")
+
+                # Record outcome for gate learning
+                _fast_gate.record_outcome(ValidationMode.DIRECT, bool(response))
+
+                # Build minimal EpisodeResult
+                fast_result = EpisodeResult(
+                    output=response,
+                    success=bool(response),
+                    trajectory=[{'step': 1, 'action': 'direct_llm', 'output': response[:200]}],
+                    tagged_outputs=[],
+                    episode=sm.episode_count,
+                    execution_time=_fast_elapsed,
+                    architect_results=[],
+                    auditor_results=[],
+                    agent_contributions={},
+                )
+                sm.episode_count += 1
+
+                # Save learning (lightweight)
+                try:
+                    sm._save_learnings()
+                except Exception as e:
+                    logger.debug(f"Fast-path learning save failed: {e}")
+
+                total_elapsed = _time.time() - run_start_time
+                _status("Complete", f"fast path success ({total_elapsed:.1f}s)")
+                return fast_result
+
+            except Exception as e:
+                logger.info(f"Fast path failed ({e}), falling back to full pipeline")
+                # Fall through to normal pipeline
+
+        # Store gate decision for downstream use (AgentRunner will also gate architect/auditor)
+        kwargs['_swarm_gate_decision'] = _gate_decision
+
+        # ── MODEL TIER ROUTING: Select LM quality based on task complexity ──
+        # DIRECT → cheap (Haiku), AUDIT_ONLY → balanced (Sonnet), FULL → quality (Opus/Sonnet)
+        if _gate_decision and _gate_decision.mode != ValidationMode.DIRECT:
+            try:
+                if sm._model_tier_router is None:
+                    sm._model_tier_router = ModelTierRouter()
+                tier_decision = sm._model_tier_router.get_model_for_mode(_gate_decision.mode)
+                tier_lm = sm._model_tier_router.get_lm_for_mode(_gate_decision.mode)
+                if tier_lm:
+                    import dspy
+                    dspy.configure(lm=tier_lm)
+                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
+            except Exception as e:
+                logger.debug(f"Model tier routing skipped: {e}")
+
+        # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
+        # SKIP when gate already classified as DIRECT — it's a simple task, no need
+        # to burn an LLM call deciding single vs multi-agent.
+        _gate_is_direct = (_gate_decision and _gate_decision.mode == ValidationMode.DIRECT)
+        if sm.enable_zero_config and sm.mode == "single" and not _gate_is_direct:
+            _status("Analyzing task", "deciding single vs multi-agent")
+            new_agents = sm._create_zero_config_agents(goal, status_callback)
+            if len(new_agents) > 1:
+                # LLM detected parallel sub-goals - upgrade to multi-agent
+                sm.agents = new_agents
+                sm.mode = "multi"
+                logger.info(f"🔄 Zero-config: Upgraded to {len(sm.agents)} agents for parallel execution")
+
+                # Create runners for new agents
+                from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
+                for agent_config in sm.agents:
+                    if agent_config.name not in sm.runners:
+                        runner_config = AgentRunnerConfig(
+                            architect_prompts=sm.architect_prompts,
+                            auditor_prompts=sm.auditor_prompts,
+                            config=sm.config,
+                            agent_name=agent_config.name,
+                            enable_learning=True,
+                            enable_memory=True
+                        )
+                        runner = AgentRunner(
+                            agent=agent_config.agent,
+                            config=runner_config,
+                            task_planner=sm.swarm_planner,
+                            task_board=sm.swarm_task_board,
+                            swarm_memory=sm.swarm_memory,
+                            swarm_state_manager=sm.swarm_state_manager,
+                            learning_manager=sm.learning_manager,
+                            transfer_learning=sm.transfer_learning,
+                            swarm_terminal=sm.swarm_terminal  # Shared intelligent terminal
+                        )
+                        sm.runners[agent_config.name] = runner
+
+        agent_info = f"{len(sm.agents)} AutoAgent(s)" if len(sm.agents) > 1 else "AutoAgent (zero-config)"
+        _status("Starting", agent_info)
+
+        # Profile execution if enabled
+        if sm.swarm_profiler:
+            profile_context = sm.swarm_profiler.profile("SwarmManager.run", metadata={"goal": goal, "mode": sm.mode})
+            profile_context.__enter__()
+        else:
+            profile_context = None
+
+        try:
+            # Store goal in shared context for state management
+            if sm.shared_context:
+                sm.shared_context.set('goal', goal)
+                sm.shared_context.set('query', goal)
+
+            # Autonomous planning: Research, install, configure if needed
+            # For multi-agent mode with zero-config: skip full setup (agents have specific sub-goals)
+            # This reduces latency significantly for parallel agent execution
+            if not skip_autonomous_setup and sm.mode == "single":
+                _status("Autonomous setup", "analyzing requirements")
+                await self.autonomous_setup(goal, status_callback=status_callback)
+            elif not skip_autonomous_setup and sm.mode == "multi":
+                _status("Fast mode", "multi-agent (agents configured with sub-goals)")
+            else:
+                _status("Fast mode", "skipping autonomous setup")
+
+            # Set root task in SwarmTaskBoard
+            sm.swarm_task_board.root_task = goal
+
+            # Record swarm-level step: goal received
+            if sm.swarm_state_manager:
+                sm.swarm_state_manager.record_swarm_step({
+                    'step': 'goal_received',
+                    'goal': goal,
+                    'mode': sm.mode,
+                    'agent_count': len(sm.agents)
+                })
+
+            # Ensemble mode: Multi-perspective analysis
+            # For multi-agent: ensemble happens per-agent (each agent has different sub-goal)
+            # For single-agent: ensemble happens at swarm level
+            ensemble_result = None
+            if ensemble and sm.mode == "single":
+                _status("Ensembling", f"strategy={ensemble_strategy}, perspectives={max_perspectives}")
+                _ens_start = _time.time()
+                ensemble_result = await sm._execute_ensemble(
+                    goal,
+                    strategy=ensemble_strategy,
+                    status_callback=status_callback,
+                    max_perspectives=max_perspectives,
+                )
+                sm._efficiency_stats['ensemble_time'] = _time.time() - _ens_start
+                if ensemble_result.get('success'):
+                    # Pass ensemble context via kwargs (not embedded in goal string)
+                    # to avoid polluting search queries and downstream skill params.
+                    kwargs['ensemble_context'] = ensemble_result
+
+                    # Show quality scores if available
+                    quality_scores = ensemble_result.get('quality_scores', {})
+                    if quality_scores:
+                        avg_quality = sum(quality_scores.values()) / len(quality_scores)
+                        scores_str = ", ".join(f"{k}:{v:.0%}" for k, v in quality_scores.items())
+                        _status("Ensemble quality", f"avg={avg_quality:.0%} ({scores_str})")
+                    else:
+                        _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
+            elif ensemble and sm.mode == "multi":
+                # Multi-agent mode: SKIP per-agent ensemble (too expensive)
+                # With N agents × 4 perspectives = 4N LLM calls - massive overkill
+                # Each agent already has a specific sub-goal, no need for multi-perspective
+                _status("Ensemble mode", "DISABLED for multi-agent (agents have specific sub-goals)")
+                ensemble = False  # Disable for agents
+
+            # Clean up internal flag before passing to agents
+            kwargs.pop('_swarm_gate_decision', None)
+
+            # Single-agent mode: Simple execution
+            if sm.mode == "single":
+                agent_name = sm.agents[0].name if sm.agents else "auto"
+                _status("Executing", f"agent '{agent_name}' with skill orchestration")
+                # Architect → Actor → Auditor pipeline (now fast with max_eval_iters=2)
+                # skip_validation: explicit kwarg wins, else derive from skip_autonomous_setup
+                skip_val = skip_validation if skip_validation is not None else skip_autonomous_setup
+                # Forward ensemble flag so AutoAgent doesn't auto-detect independently
+                if ensemble is not None:
+                    kwargs['ensemble'] = ensemble
+                result = await self._execute_single_agent(
+                    goal,
+                    skip_validation=skip_val,
+                    status_callback=status_callback,
+                    ensemble_context=ensemble_result if ensemble else None,
+                    **kwargs
+                )
+
+                # Optima-inspired efficiency summary
+                total_elapsed = _time.time() - run_start_time
+                ens_t = sm._efficiency_stats.get('ensemble_time', 0)
+                exec_t = getattr(result, 'execution_time', total_elapsed - ens_t)
+                overhead = max(0, total_elapsed - exec_t)
+                overhead_pct = (overhead / total_elapsed * 100) if total_elapsed > 0 else 0
+                sm._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
+                _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
+
+                # Surface user-friendly summary with artifacts
+                sm._log_execution_summary(result)
+
+                # Exit profiling context
+                if profile_context:
+                    profile_context.__exit__(None, None, None)
+
+                # Auto-drain one training task if result succeeded and tasks pending
+                sm._maybe_drain_training_task(result)
+
+                return result
+
+            # Multi-agent mode: Use SwarmTaskBoard for coordination
+            else:
+                # MAS-ZERO: Dynamic reduction — check if multi-agent is overkill
+                if sm._mas_zero_should_reduce(goal):
+                    _status("MAS-ZERO reduction", "reverting to single agent (simpler is better)")
+                    sm.mode = "single"
+                    result = await self._execute_single_agent(
+                        goal,
+                        skip_validation=skip_validation if skip_validation is not None else skip_autonomous_setup,
+                        status_callback=status_callback,
+                        **kwargs
+                    )
+                else:
+                    paradigm = kwargs.pop('discussion_paradigm', 'fanout')
+                    _status("Executing", f"{len(sm.agents)} agents — paradigm: {paradigm}")
+                    _sv = skip_validation if skip_validation is not None else skip_autonomous_setup
+                    result = await self._execute_multi_agent(
+                        goal,
+                        ensemble_context=ensemble_result if ensemble else None,
+                        status_callback=status_callback,
+                        ensemble=ensemble,
+                        ensemble_strategy=ensemble_strategy,
+                        discussion_paradigm=paradigm,
+                        skip_validation=_sv,
+                        **kwargs
+                    )
+
+                # Optima-inspired efficiency summary
+                total_elapsed = _time.time() - run_start_time
+                ens_t = sm._efficiency_stats.get('ensemble_time', 0)
+                exec_t = getattr(result, 'execution_time', total_elapsed - ens_t)
+                overhead = max(0, total_elapsed - exec_t)
+                overhead_pct = (overhead / total_elapsed * 100) if total_elapsed > 0 else 0
+                sm._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
+                _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
+
+                # Surface user-friendly summary with artifacts
+                sm._log_execution_summary(result)
+
+                # Exit profiling context
+                if profile_context:
+                    profile_context.__exit__(None, None, None)
+
+                return result
+        except Exception as e:
+            _status("Error", str(e)[:50])
+            # Exit profiling context on error
+            if profile_context:
+                profile_context.__exit__(type(e), e, None)
+            raise
+
+    async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Execute single-agent mode.
+
+        MAS-ZERO: For comparison/analysis tasks, runs building blocks
+        (direct + ensemble) in parallel and verifies the best answer.
+        For simple tasks, runs direct execution as before.
+
+        Args:
+            goal: Task goal
+            **kwargs: Additional arguments
+
+        Returns:
+            EpisodeResult
+        """
+        sm = self._manager
+        # Remove ensemble_context from kwargs before passing to runner
+        kwargs.pop('ensemble_context', None)
+        status_callback = kwargs.pop('status_callback', None)
+
+        _status = StatusReporter(status_callback)
+
+        # ── Router-guided agent selection (closes RL loop for single-agent) ──
+        # When multiple agents are available, ask the router instead of
+        # blindly taking agents[0].  Router uses SwarmIntelligence (RL +
+        # stigmergy + TRAS) when learning data exists.
+        agent_config = sm.agents[0]
+        if len(sm.agents) > 1:
+            try:
+                route = sm._router.select_agent(goal)
+                picked = route.get('agent')
+                if picked and route.get('method') != 'fallback':
+                    for ac in sm.agents:
+                        if getattr(ac, 'name', None) == picked:
+                            agent_config = ac
+                            logger.info(
+                                f"Router selected '{picked}' for single-agent "
+                                f"(method={route['method']}, conf={route['confidence']:.2f})"
+                            )
+                            break
+            except Exception as e:
+                logger.debug(f"Router select_agent skipped: {e}")
+
+        runner = sm.runners[agent_config.name]
+
+        # ── READ LEARNED INTELLIGENCE (closes the learning loop) ──────────
+        # Post-episode writes: stigmergy outcomes, byzantine trust, morph scores.
+        # Pre-execution reads them back to influence this run.
+        # Without this read, the write side is wasted — learning never loops.
+        learned_hints = []
+        try:
+            lp = sm.learning
+            task_type = lp.transfer_learning.extractor.extract_task_type(goal)
+
+            # 1. Stigmergy APPROACH guidance (single-agent-aware).
+            #    Instead of "use agent X" (useless with one agent),
+            #    inject "use these tools/approaches" and "avoid these".
+            approach_rec = lp.stigmergy.recommend_approach(task_type, top_k=2)
+            for good in approach_rec.get('use', []):
+                tools_str = ', '.join(good['tools'][:5]) if good.get('tools') else 'N/A'
+                learned_hints.append(
+                    f"[Learned] Successful approach for '{task_type}': "
+                    f"{good['approach'][:120]} (tools: {tools_str}, "
+                    f"quality: {good.get('quality', 0):.0%})"
+                )
+            for bad in approach_rec.get('avoid', []):
+                tools_str = ', '.join(bad['tools'][:5]) if bad.get('tools') else 'N/A'
+                learned_hints.append(
+                    f"[Learned] Failed approach for '{task_type}': "
+                    f"{bad['approach'][:120]} — avoid this"
+                )
+            # Fallback: if no approach data yet, use old agent-routing signals
+            if not approach_rec.get('use') and not approach_rec.get('avoid'):
+                warnings = lp.get_stigmergy_warnings(task_type)
+                if warnings:
+                    warn_msgs = [
+                        getattr(w, 'content', {}).get('goal', 'unknown')
+                        if isinstance(getattr(w, 'content', None), dict) else str(w)
+                        for w in warnings[:3]
+                    ]
+                    learned_hints.append(
+                        f"[Learned] Previous failures on '{task_type}': "
+                        f"{'; '.join(warn_msgs)}"
+                    )
+
+            # 2. Effectiveness: are we improving or degrading on this type?
+            eff_report = lp.effectiveness.improvement_report()
+            task_eff = eff_report.get(task_type)
+            if task_eff and task_eff.get('trend') is not None:
+                trend = task_eff['trend']
+                if trend < -0.1:
+                    learned_hints.append(
+                        f"[Learned] Performance DECLINING on '{task_type}' "
+                        f"(recent={task_eff['recent_rate']:.0%} vs "
+                        f"historical={task_eff['historical_rate']:.0%}). "
+                        f"Consider a different approach."
+                    )
+                elif trend > 0.1:
+                    learned_hints.append(
+                        f"[Learned] Performance IMPROVING on '{task_type}' — "
+                        f"current approach is working."
+                    )
+
+            # 3. Transfer learning: relevant past learnings
+            learnings = lp.transfer_learning.get_relevant_learnings(goal, top_k=2)
+            for exp in learnings.get('similar_experiences', []):
+                query_text = exp.get('query', '') if isinstance(exp, dict) else str(exp)
+                success = exp.get('success', True) if isinstance(exp, dict) else True
+                if success:
+                    learned_hints.append(
+                        f"[Learned] Succeeded on similar task: {query_text[:100]}"
+                    )
+                else:
+                    err = (exp.get('error', '')[:80]) if isinstance(exp, dict) else ''
+                    learned_hints.append(
+                        f"[Learned] Failed on similar task: {query_text[:80]}"
+                        + (f" (error: {err})" if err else "")
+                    )
+            if learnings.get('task_pattern'):
+                learned_hints.append(
+                    f"[Learned] Pattern: {str(learnings['task_pattern'])[:150]}"
+                )
+            for err_pat in learnings.get('error_patterns', [])[:2]:
+                learned_hints.append(
+                    f"[Learned] Common error: {str(err_pat)[:120]}"
+                )
+
+            # 4. Workflow patterns: known successful tool sequences for this task type
+            if sm.swarm_workflow_learner:
+                try:
+                    from Jotty.core.learning.transfer_learning import PatternExtractor
+                    norm_type = PatternExtractor.normalize_task_type(task_type)
+                    wf_patterns = sm.swarm_workflow_learner.get_patterns_by_task_type(norm_type)
+                    for pat in wf_patterns[:3]:
+                        if pat.success_rate >= 0.5:
+                            ops = ' → '.join(pat.operations[:6]) if pat.operations else 'N/A'
+                            tools = ', '.join(pat.tools_used[:5]) if pat.tools_used else 'N/A'
+                            learned_hints.append(
+                                f"[Learned] Proven workflow for '{norm_type}': "
+                                f"{ops} (tools: {tools}, "
+                                f"success: {pat.success_rate:.0%}, "
+                                f"time: {pat.execution_time:.0f}s)"
+                            )
+                except Exception as wf_err:
+                    logger.debug(f"Workflow pattern lookup skipped: {wf_err}")
+
+            # Inject learned context into kwargs for the agent
+            if learned_hints:
+                existing_ctx = kwargs.get('learning_context', '')
+                kwargs['learning_context'] = (
+                    existing_ctx + "\n\n" + "\n".join(learned_hints)
+                ).strip()
+                _status("Intelligence", f"{len(learned_hints)} learned hints applied")
+                logger.info(
+                    f"📚 Single-agent intelligence: {len(learned_hints)} hints "
+                    f"for task_type='{task_type}'"
+                )
+                for i, hint in enumerate(learned_hints, 1):
+                    logger.info(f"  📚 Hint {i}: {hint}")
+
+        except Exception as e:
+            logger.warning(f"Pre-execution intelligence read failed: {e}")
+
+        # Pass status_callback back for downstream
+        if status_callback:
+            kwargs['status_callback'] = status_callback
+
+        # Standard single-agent execution
+        import time as _t
+        _exec_start = _t.time()
+
+        # Observability: trace agent execution
+        _tracer = None
+        try:
+            from Jotty.core.observability import get_tracer, get_metrics
+            _tracer = get_tracer()
+        except ImportError:
+            pass
+
+        if _tracer:
+            with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:
+                result = await runner.run(goal=goal, **kwargs)
+                _exec_elapsed = _t.time() - _exec_start
+                _span.set_attribute("success", result.success)
+                _span.set_attribute("execution_time_s", round(_exec_elapsed, 2))
+                if hasattr(result, 'execution_time'):
+                    _span.set_attribute("inner_time_s", round(result.execution_time, 2))
+        else:
+            result = await runner.run(goal=goal, **kwargs)
+            _exec_elapsed = _t.time() - _exec_start
+
+        # Observability: record metrics
+        try:
+            from Jotty.core.observability import get_metrics
+            get_metrics().record_execution(
+                agent_name=agent_config.name,
+                task_type="single_agent",
+                duration_s=_exec_elapsed,
+                success=result.success,
+            )
+        except (ImportError, Exception):
+            pass
+
+        # Learn from execution (DRY: reuse workflow learner)
+        if result.success:
+            sm._learn_from_result(result, agent_config, goal=goal)
+
+        # Post-episode learning + auto-save (fire-and-forget background)
+        sm._schedule_background_learning(result, goal)
+
+        return result
+
+    async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Execute multi-agent mode with configurable discussion paradigm.
+
+        MALLM-inspired paradigms (Becker et al., EMNLP 2025):
+            fanout      — All agents run in parallel on decomposed tasks (default)
+            relay       — Sequential chain; each agent builds on previous output
+            debate      — Agents critique each other's outputs in rounds
+            refinement  — Iterative improve loop until quality stabilizes
+
+        DRY: All paradigms reuse the same AgentRunner.run() and semaphore.
+        """
+        sm = self._manager
+        from Jotty.core.orchestration.v2.swarm_roadmap import TaskStatus
+        from Jotty.core.learning.predictive_marl import ActualTrajectory
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+
+        # Extract callbacks and ensemble params before passing to runners
+        kwargs.pop('ensemble_context', None)
+        status_callback = kwargs.pop('status_callback', None)
+        ensemble = kwargs.pop('ensemble', False)
+        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+        discussion_paradigm = kwargs.pop('discussion_paradigm', 'fanout')
+
+        # ── Intelligence-guided agent selection (single entry point: router) ──
+        # Router delegates to LearningPipeline.order_agents_for_goal (trust + stigmergy + TRAS).
+        # This closes the learning loop: post_episode writes → run() reads.
+        _intelligence_applied = False
+        try:
+            ordered = sm._router.order_agents_for_goal(goal)
+            if ordered:
+                sm.agents = ordered
+                sm._runners_built = False
+                sm._ensure_runners()
+                _intelligence_applied = bool(getattr(sm, 'learning', None))
+                if _intelligence_applied and sm.agents:
+                    top = sm.agents[0].name if hasattr(sm.agents[0], 'name') else '?'
+                    logger.info(f"🛡️ Router: agents ordered for goal (lead={top})")
+        except Exception as e:
+            logger.warning(f"Intelligence-guided selection failed: {e}")
+
+        # Track guidance for A/B effectiveness metrics (per task_type)
+        sm._last_run_guided = _intelligence_applied
+        try:
+            _im_task_type = sm.learning.transfer_learning.extractor.extract_task_type(goal)
+        except Exception as e:
+            logger.debug(f"Task type extraction for A/B metrics failed: {e}")
+            _im_task_type = '_global'
+        sm._last_task_type = _im_task_type
+
+        for _tt in (_im_task_type, '_global') if _im_task_type != '_global' else ('_global',):
+            if _tt not in sm._intelligence_metrics:
+                sm._intelligence_metrics[_tt] = {
+                    'guided_runs': 0, 'guided_successes': 0,
+                    'unguided_runs': 0, 'unguided_successes': 0,
+                }
+            if _intelligence_applied:
+                sm._intelligence_metrics[_tt]['guided_runs'] += 1
+            else:
+                sm._intelligence_metrics[_tt]['unguided_runs'] += 1
+
+        # Auto paradigm selection: use learning data to pick the best paradigm
+        if discussion_paradigm == 'auto':
+            try:
+                _task_type = sm.learning.transfer_learning.extractor.extract_task_type(goal)
+                discussion_paradigm = sm.learning.recommend_paradigm(_task_type)
+                logger.info(
+                    f"🧠 Auto paradigm: selected '{discussion_paradigm}' "
+                    f"for task_type='{_task_type}'"
+                )
+            except Exception as e:
+                logger.debug(f"Auto paradigm selection failed: {e}")
+                discussion_paradigm = 'fanout'
+
+        # Track which paradigm is used (for _post_episode_learning)
+        sm._last_paradigm = discussion_paradigm
+
+        # MALLM-inspired: Dispatch to alternative paradigms before fan-out
+        if discussion_paradigm == 'relay':
+            # Wire coordination: initiate handoff between relay agents
+            if sm.swarm_intelligence:
+                try:
+                    available = [a.name for a in sm.agents]
+                    if len(available) >= 2:
+                        sm.swarm_intelligence.initiate_handoff(
+                            from_agent=available[0],
+                            to_agent=available[1],
+                            task=goal,
+                            context={'paradigm': 'relay', 'agents': available}
+                        )
+                except Exception as e:
+                    logger.debug(f"Relay handoff coordination skipped: {e}")
+            return await self._paradigm_relay(goal, status_callback=status_callback, **kwargs)
+        elif discussion_paradigm == 'debate':
+            return await self._paradigm_debate(goal, status_callback=status_callback, **kwargs)
+        elif discussion_paradigm == 'refinement':
+            return await self._paradigm_refinement(goal, status_callback=status_callback, **kwargs)
+        # else: 'fanout' — fall through to existing parallel execution below
+
+        # Wire coordination: form coalition for fanout tasks (agents collaborate)
+        if sm.swarm_intelligence and len(sm.agents) >= 2:
+            try:
+                available = [a.name for a in sm.agents]
+                _task_type = sm.learning.transfer_learning.extractor.extract_task_type(goal)
+                sm.swarm_intelligence.form_coalition(
+                    task_type=_task_type,
+                    min_agents=min(2, len(available)),
+                    available_agents=available
+                )
+                logger.info(f"🤝 Coalition formed for '{_task_type}' with {len(available)} agents")
+            except Exception as e:
+                logger.debug(f"Coalition formation skipped: {e}")
+
+        # Status update at method start
+        safe_status(status_callback, "Multi-agent exec", f"starting {len(sm.agents)} parallel agents")
+
+        max_attempts = getattr(sm.config, 'max_task_attempts', 2)
+
+        # Clear task board for fresh run (avoid stale tasks from previous runs)
+        sm.swarm_task_board.subtasks.clear()
+        sm.swarm_task_board.completed_tasks.clear()
+        sm.swarm_task_board.execution_order.clear()
+
+        # Add tasks to SwarmTaskBoard
+        # Zero-config agents from LLM are PARALLEL (independent sub-goals)
+        # Only add dependencies if explicitly specified in agent config
+        for i, agent_config in enumerate(sm.agents):
+            task_id = f"task_{i+1}"
+            # Check if agent has explicit dependencies
+            deps = getattr(agent_config, 'depends_on', []) or []
+
+            # Use agent's sub-goal (from capabilities) as task description
+            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else f"{goal} (agent: {agent_config.name})"
+
+            sm.swarm_task_board.add_task(
+                task_id=task_id,
+                description=sub_goal,
+                actor=agent_config.name,
+                depends_on=deps  # Empty for parallel execution
+            )
+            logger.info(f"📋 Added task {task_id} for {agent_config.name}: {sub_goal[:50]}... (parallel: {len(deps)==0})")
+
+        all_results = {}  # agent_name -> EpisodeResult
+        attempt_counts = {}  # task_id -> attempts
+
+        while True:
+            # Collect all ready tasks (no unresolved dependencies)
+            batch = []
+
+            while True:
+                next_task = sm.swarm_task_board.get_next_task()
+                if next_task is None:
+                    break
+                # Mark as IN_PROGRESS so it's not returned again
+                next_task.status = TaskStatus.IN_PROGRESS
+                batch.append(next_task)
+
+            if not batch:
+                break
+
+            # Show batch info immediately with agent names for better UX
+            if status_callback and len(batch) > 0:
+                try:
+                    agent_names = [t.actor for t in batch]
+                    status_callback("Running batch", f"{len(batch)} agents: {', '.join(agent_names[:5])}")
+                    # Show each agent's task for clarity
+                    for task in batch:
+                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)
+                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:50]
+                        status_callback(f"  {task.actor}", sub_goal[:60])
+                except Exception as e:
+                    logger.debug(f"Batch status callback failed: {e}")
+
+            # Pre-execution: trajectory prediction (non-blocking, run in background)
+            predictions = {}
+            # Skip trajectory prediction to reduce latency - agents start immediately
+            # Prediction can happen asynchronously after execution starts
+            if sm.trajectory_predictor and len(batch) <= 2:  # Only for small batches
+                for task in batch:
+                    try:
+                        prediction = sm.trajectory_predictor.predict(
+                            current_state=sm.get_current_state(),
+                            acting_agent=task.actor,
+                            proposed_action={'task': task.description},
+                            other_agents=[a.name for a in sm.agents if a.name != task.actor],
+                            goal=goal
+                        )
+                        predictions[task.actor] = prediction
+                    except Exception as e:
+                        logger.debug(f"Trajectory prediction skipped for {task.actor}: {e}")
+
+            # Execute batch concurrently (status_callback already extracted at method start)
+            # AIOS-inspired: Semaphore limits how many agents call LLM simultaneously.
+            # Without this, N agents × (architect + agent + auditor) = 3N concurrent API calls.
+            async def _run_task(task):
+                # Check if we'll need to wait for a slot
+                if sm.agent_semaphore._value == 0:
+                    sm._scheduling_stats['total_waited'] += 1
+                    safe_status(status_callback, f"Agent {task.actor}", "waiting for LLM slot...")
+
+                async with sm.agent_semaphore:
+                    # Track concurrency stats
+                    sm._scheduling_stats['total_scheduled'] += 1
+                    sm._scheduling_stats['current_concurrent'] += 1
+                    if sm._scheduling_stats['current_concurrent'] > sm._scheduling_stats['peak_concurrent']:
+                        sm._scheduling_stats['peak_concurrent'] = sm._scheduling_stats['current_concurrent']
+
+                    try:
+                        # Show which agent is executing
+                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)
+                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
+
+                        safe_status(status_callback, f"Agent {task.actor}", f"starting: {sub_goal}")
+
+                        # Create agent-specific status callback that prefixes with agent name
+                        _agent_reporter = StatusReporter(status_callback).with_prefix(f"  [{task.actor}]")
+                        agent_status_callback = _agent_reporter
+
+                        runner = sm.runners[task.actor]
+                        # Pass the agent-specific callback and ensemble params
+                        task_kwargs = dict(kwargs)
+                        task_kwargs['status_callback'] = agent_status_callback
+                        # Forward ensemble flag explicitly so AutoAgent doesn't auto-detect
+                        task_kwargs['ensemble'] = ensemble
+                        if ensemble:
+                            task_kwargs['ensemble_strategy'] = ensemble_strategy
+                        # Forward the swarm-level gate decision to skip redundant
+                        # per-agent architect/auditor if the swarm already decided
+                        if '_swarm_gate_decision' in task_kwargs:
+                            task_kwargs.pop('_swarm_gate_decision')  # clean up internal flag
+
+                        # MULTI-AGENT OPTIMIZATION: Sub-agents with system_prompt
+                        # are specialized for analysis/synthesis — they don't need
+                        # the full skill pipeline (saves ~100s per agent).
+                        # Use direct_llm=True to bypass skill discovery/selection/planning.
+                        if agent_cfg and hasattr(agent_cfg, 'agent') and agent_cfg.agent:
+                            _agent_obj = agent_cfg.agent
+                            _has_system_prompt = (
+                                hasattr(_agent_obj, 'config')
+                                and hasattr(_agent_obj.config, 'system_prompt')
+                                and _agent_obj.config.system_prompt
+                            )
+                            if _has_system_prompt:
+                                task_kwargs['direct_llm'] = True
+
+                        return task, await runner.run(goal=task.description, **task_kwargs)
+                    finally:
+                        sm._scheduling_stats['current_concurrent'] -= 1
+
+            # Per-agent timeout: prevent any single agent from blocking the entire swarm.
+            # Direct-LLM sub-agents should finish in ~30s. Full pipeline agents in ~120s.
+            PER_AGENT_TIMEOUT = 120.0
+
+            async def _run_task_with_timeout(task):
+                try:
+                    return await asyncio.wait_for(_run_task(task), timeout=PER_AGENT_TIMEOUT)
+                except asyncio.TimeoutError:
+                    logger.warning(f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT}s")
+                    safe_status(status_callback, f"Agent {task.actor}", f"TIMEOUT ({PER_AGENT_TIMEOUT:.0f}s)")
+                    return task, EpisodeResult(
+                        output=f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT:.0f}s",
+                        success=False,
+                        trajectory=[{'step': 0, 'action': 'timeout'}],
+                        tagged_outputs=[],
+                        episode=sm.episode_count,
+                        execution_time=PER_AGENT_TIMEOUT,
+                        architect_results=[],
+                        auditor_results=[],
+                        agent_contributions={},
+                    )
+
+            coro_results = await asyncio.gather(
+                *[_run_task_with_timeout(t) for t in batch],
+                return_exceptions=True
+            )
+
+            # Process results
+            for coro_result in coro_results:
+                if isinstance(coro_result, Exception):
+                    logger.error(f"Task execution exception: {coro_result}")
+                    safe_status(status_callback, "Agent error", str(coro_result)[:60])
+                    continue
+
+                task, result = coro_result
+                attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
+
+                # Show agent completion status
+                status_icon = "✓" if result.success else "✗"
+                safe_status(status_callback, f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
+                reward = 1.0 if result.success else -0.5
+
+                # Post-execution: divergence learning
+                if sm.trajectory_predictor and task.actor in predictions:
+                    try:
+                        prediction = predictions[task.actor]
+                        actual = ActualTrajectory(
+                            steps=result.trajectory or [],
+                            actual_reward=reward
+                        )
+                        divergence = sm.trajectory_predictor.compute_divergence(prediction, actual)
+                        sm.divergence_memory.store(divergence)
+                        sm.trajectory_predictor.update_from_divergence(divergence)
+
+                        # Use divergence as TD error weight for Q-update
+                        divergence_penalty = 1.0 - min(1.0, divergence.total_divergence())
+                        adjusted_reward = reward * divergence_penalty
+                        state = {'query': goal, 'agent': task.actor}
+                        action = {'actor': task.actor, 'task': task.description[:100]}
+                        sm.learning_manager.record_outcome(state, action, adjusted_reward)
+                    except Exception as e:
+                        logger.debug(f"Divergence learning skipped for {task.actor}: {e}")
+
+                if result.success:
+                    sm.swarm_task_board.complete_task(task.task_id, result={'output': result.output})
+                    all_results[task.actor] = result
+
+                    agent_config = next((a for a in sm.agents if a.name == task.actor), None)
+                    if agent_config:
+                        sm._learn_from_result(result, agent_config, goal=task.description or goal)
+                else:
+                    # Retry with enriched context if attempts remain
+                    if attempt_counts.get(task.task_id, 1) < max_attempts:
+                        error_msg = str(getattr(result, 'error', None) or 'Execution failed')
+                        fb = FeedbackMessage(
+                            source_actor='swarm_manager',
+                            target_actor=task.actor,
+                            feedback_type=FeedbackType.ERROR,
+                            content=f"Previous attempt failed: {error_msg}. Please try a different approach.",
+                            context={'attempt': attempt_counts[task.task_id], 'error': error_msg},
+                            requires_response=False,
+                            priority=1,
+                        )
+                        sm.feedback_channel.send(fb)
+                        # Reset task to PENDING for retry
+                        try:
+                            sm.swarm_task_board.add_task(
+                                task_id=f"{task.task_id}_retry{attempt_counts[task.task_id]}",
+                                description=task.description,
+                                actor=task.actor
+                            )
+                        except Exception:
+                            sm.swarm_task_board.fail_task(task.task_id, error=error_msg)
+                    else:
+                        sm.swarm_task_board.fail_task(
+                            task.task_id,
+                            error=str(getattr(result, 'error', None) or 'Execution failed')
+                        )
+                    all_results[task.actor] = result
+
+        # MAS-ZERO: Handle TOO_HARD signals from agents
+        # If any agent signaled TOO_HARD, try re-routing its task
+        for agent_name, result in list(all_results.items()):
+            output = result.output if hasattr(result, 'output') else result
+            is_too_hard = (
+                isinstance(output, dict) and output.get('too_hard')
+            ) or (
+                hasattr(result, 'output') and isinstance(result.output, dict)
+                and result.output.get('too_hard')
+            )
+            if is_too_hard and not result.success:
+                logger.info(f"MAS-ZERO: Agent '{agent_name}' signaled TOO_HARD, "
+                           f"task may need re-decomposition")
+
+        # MAS-ZERO: Meta-feedback evaluation (solvability + completeness)
+        meta_feedback = sm._mas_zero_evaluate(goal, all_results)
+
+        # MAS-ZERO: Iterative refinement if meta-feedback says refine
+        if meta_feedback.get('should_refine') and len(all_results) > 0:
+            safe_status(status_callback, "MAS-Evolve", "refining based on meta-feedback")
+            all_results = await sm._mas_zero_evolve(
+                goal, all_results,
+                max_iterations=2,
+                status_callback=status_callback,
+                **kwargs,
+            )
+
+        # Cooperative credit assignment
+        self._assign_cooperative_credit(all_results, goal)
+
+        # Post-episode learning + auto-save (fire-and-forget background)
+        combined_result = self._aggregate_results(all_results, goal)
+        sm._schedule_background_learning(combined_result, goal)
+
+        # Observability: record per-agent metrics
+        try:
+            from Jotty.core.observability import get_metrics
+            _metrics = get_metrics()
+            for agent_name, result in all_results.items():
+                _metrics.record_execution(
+                    agent_name=agent_name,
+                    task_type="multi_agent",
+                    duration_s=getattr(result, 'execution_time', 0.0),
+                    success=result.success if hasattr(result, 'success') else False,
+                )
+        except (ImportError, Exception):
+            pass
+
+        return combined_result
+
+    # =========================================================================
+    # DISCUSSION PARADIGMS (MALLM-inspired, Becker et al. EMNLP 2025)
+    # =========================================================================
+
+    async def _paradigm_run_agent(
+        self,
+        runner,
+        sub_goal: str,
+        agent_name: str,
+        **kwargs,
+    ) -> EpisodeResult:
+        """
+        Run a single agent within a paradigm, using fast-path when possible.
+
+        LATENCY OPTIMIZATION: For simple sub-goals (no tool use needed),
+        bypass the full AutoAgent pipeline (planner -> skill select -> execute)
+        and make a direct LLM call. Saves 2-4 LLM calls per agent.
+
+        Heuristic: If sub-goal doesn't need tools (no "search", "fetch",
+        "create file", "send", etc.), go direct.
+
+        Args:
+            runner: AgentRunner instance
+            sub_goal: The sub-task for this agent
+            agent_name: Agent name for logging
+            **kwargs: Forwarded to runner.run() if full pipeline needed
+
+        Returns:
+            EpisodeResult
+        """
+        sm = self._manager
+        # Heuristic: does this sub-goal need external tools?
+        _tool_keywords = [
+            'search', 'fetch', 'scrape', 'download', 'upload',
+            'send', 'email', 'telegram', 'slack',
+            'create file', 'save file', 'write file', 'read file',
+            'execute', 'run code', 'compile', 'deploy',
+            'database', 'sql', 'api call',
+        ]
+        _needs_tools = any(kw in sub_goal.lower() for kw in _tool_keywords)
+
+        if not _needs_tools:
+            # FAST PATH: Direct LLM call — ~1 LLM call instead of 3-5
+            import dspy as _dspy
+            lm = _dspy.settings.lm
+            if lm:
+                try:
+                    import time as _time
+                    _start = _time.time()
+
+                    # Fire hooks if runner has them
+                    hook_ctx = runner._run_hooks(
+                        'pre_run', goal=sub_goal, agent_name=agent_name,
+                        fast_path=True,
+                    )
+                    sub_goal = hook_ctx.get('goal', sub_goal)
+
+                    # LLM call with retry on rate limits
+                    _last_err = None
+                    response = None
+                    for _attempt in range(4):
+                        try:
+                            response = lm(prompt=sub_goal)
+                            break
+                        except Exception as _e:
+                            _err_s = str(_e)
+                            if ('429' in _err_s or 'RateLimit' in _err_s or
+                                    'rate limit' in _err_s.lower()):
+                                _delay = 8.0 * (2 ** _attempt)
+                                logger.info(f"Paradigm fast-path rate limited, retry in {_delay:.0f}s")
+                                _time.sleep(_delay)
+                                _last_err = _e
+                            else:
+                                raise
+                    if response is None and _last_err:
+                        raise _last_err
+                    if isinstance(response, list):
+                        response = response[0] if response else ""
+                    response = str(response).strip()
+
+                    _elapsed = _time.time() - _start
+                    logger.info(
+                        f"⚡ Paradigm fast-path: {agent_name} "
+                        f"({_elapsed:.1f}s, 1 LLM call)"
+                    )
+
+                    result = EpisodeResult(
+                        output=response,
+                        success=bool(response),
+                        trajectory=[],
+                        tagged_outputs={agent_name: response},
+                        episode=0,
+                        execution_time=_elapsed,
+                        architect_results=[],
+                        auditor_results=[],
+                        agent_contributions={agent_name: response[:200]},
+                    )
+
+                    runner._run_hooks(
+                        'post_run', goal=sub_goal, agent_name=agent_name,
+                        result=result, success=result.success, elapsed=_elapsed,
+                    )
+                    return result
+                except Exception as e:
+                    logger.warning(f"Fast-path failed for {agent_name}: {e}, falling back to full pipeline")
+
+        # FULL PATH: Use the complete AgentRunner pipeline
+        return await runner.run(goal=sub_goal, **kwargs)
+
+    async def _paradigm_relay(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Relay paradigm: agents execute sequentially, each building on prior output.
+
+        MALLM's "relay" — like a relay race where context is passed along.
+        DRY: Reuses existing runners. KISS: Simple loop.
+
+        When agents expose AgentIOSchema (via get_io_schema()), output fields
+        are auto-wired to the next agent's input fields by name/type match.
+        Falls back to string concatenation when schemas are unavailable.
+
+        Best for: research -> summarize -> format pipelines.
+        """
+        sm = self._manager
+        status_callback = kwargs.pop('status_callback', None)
+        # LATENCY: Disable per-agent ensemble — each sub-task is focused
+        kwargs.setdefault('ensemble', False)
+
+        all_results = {}
+        enriched_goal = goal
+        prev_schema = None  # AgentIOSchema of previous agent
+        prev_output = None  # Dict output of previous agent
+
+        for agent_config in sm.agents:
+            runner = sm.runners.get(agent_config.name)
+            if not runner:
+                continue
+
+            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else enriched_goal
+
+            # Schema-aware wiring: map previous output fields to this agent's inputs
+            if prev_schema is not None and prev_output is not None:
+                try:
+                    cur_agent = getattr(runner, 'agent', None)
+                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                        cur_schema = cur_agent.get_io_schema()
+                        wired_kwargs = prev_schema.map_outputs(prev_output, cur_schema)
+                        if wired_kwargs:
+                            kwargs.update(wired_kwargs)
+                            logger.info(
+                                f"Relay schema wiring: {prev_schema.agent_name} → "
+                                f"{cur_schema.agent_name}: {list(wired_kwargs.keys())}"
+                            )
+                except Exception as e:
+                    logger.debug(f"Relay schema wiring skipped: {e}")
+
+            safe_status(status_callback, f"Relay → {agent_config.name}", sub_goal[:60])
+
+            async with sm.agent_semaphore:
+                result = await self._paradigm_run_agent(
+                    runner, sub_goal, agent_config.name, **kwargs
+                )
+
+            all_results[agent_config.name] = result
+
+            # Chain: feed this agent's output into next agent's context
+            if result.success and result.output:
+                enriched_goal = (
+                    f"{goal}\n\n"
+                    f"[Previous agent '{agent_config.name}' output]:\n"
+                    f"{str(result.output)[:2000]}"
+                )
+                # Track schema + output for next iteration's auto-wiring
+                try:
+                    cur_agent = getattr(runner, 'agent', None)
+                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                        prev_schema = cur_agent.get_io_schema()
+                        # Extract dict output for field-level mapping
+                        out = result.output
+                        prev_output = out if isinstance(out, dict) else {'output': str(out)}
+                    else:
+                        prev_schema = None
+                        prev_output = None
+                except Exception:
+                    prev_schema = None
+                    prev_output = None
+            else:
+                logger.warning(f"Relay: {agent_config.name} failed, continuing with original goal")
+                prev_schema = None
+                prev_output = None
+
+        combined = self._aggregate_results(all_results, goal)
+        sm._schedule_background_learning(combined, goal)
+        return combined
+
+    async def _paradigm_debate(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Debate paradigm: agents produce drafts, then critique each other in rounds.
+
+        MALLM's "debate" — adversarial refinement where agents challenge
+        each other's solutions.  DRY: Reuses runners + FeedbackChannel.
+        KISS: 2 rounds max (draft + 1 critique round).
+
+        Best for: analysis tasks, controversial topics, quality-sensitive output.
+        """
+        sm = self._manager
+        status_callback = kwargs.pop('status_callback', None)
+        max_debate_rounds = kwargs.pop('debate_rounds', 2)
+        # LATENCY: Disable per-agent ensemble — debate itself IS multi-perspective
+        kwargs.setdefault('ensemble', False)
+
+        all_results: Dict[str, EpisodeResult] = {}
+
+        # Round 1: All agents produce initial drafts (fan-out)
+        safe_status(status_callback, "Debate round 1", "all agents drafting")
+
+        draft_tasks = []
+        for agent_config in sm.agents:
+            runner = sm.runners.get(agent_config.name)
+            if not runner:
+                continue
+            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
+            draft_tasks.append((agent_config.name, runner, sub_goal))
+
+        async def _run_draft(name, runner, sub_goal):
+            async with sm.agent_semaphore:
+                return name, await self._paradigm_run_agent(
+                    runner, sub_goal, name, **kwargs
+                )
+
+        draft_results = await asyncio.gather(
+            *[_run_draft(n, r, g) for n, r, g in draft_tasks],
+            return_exceptions=True,
+        )
+
+        drafts = {}
+        for item in draft_results:
+            if not isinstance(item, tuple):
+                # Exception or timeout — skip
+                logger.warning(f"Debate draft failed: {item}")
+                continue
+            name, result = item
+            all_results[name] = result
+            if result.success and result.output:
+                drafts[name] = str(result.output)[:1500]
+
+        if len(drafts) < 2:
+            # Not enough drafts to debate — fall back to fanout result
+            combined = self._aggregate_results(all_results, goal)
+            sm._schedule_background_learning(combined, goal)
+            return combined
+
+        # Rounds 2+: Critique — each agent sees all other drafts and refines
+        for round_num in range(2, max_debate_rounds + 1):
+            safe_status(status_callback, f"Debate round {round_num}", "agents critiquing & refining")
+
+            # Build critique context: each agent sees OTHER agents' drafts
+            critique_tasks = []
+            for agent_config in sm.agents:
+                runner = sm.runners.get(agent_config.name)
+                if not runner or agent_config.name not in drafts:
+                    continue
+
+                others = "\n\n".join(
+                    f"[{name}'s draft]: {text}"
+                    for name, text in drafts.items()
+                    if name != agent_config.name
+                )
+                sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
+                critique_goal = (
+                    f"{sub_goal}\n\n"
+                    f"Other agents produced these solutions. "
+                    f"Critique them and improve your answer:\n{others}"
+                )
+                critique_tasks.append((agent_config.name, runner, critique_goal))
+
+            critique_results = await asyncio.gather(
+                *[_run_draft(n, r, g) for n, r, g in critique_tasks],
+                return_exceptions=True,
+            )
+
+            for item in critique_results:
+                if not isinstance(item, tuple):
+                    logger.warning(f"Debate critique failed: {item}")
+                    continue
+                name, result = item
+                all_results[name] = result  # overwrite with refined version
+                if result.success and result.output:
+                    drafts[name] = str(result.output)[:1500]
+
+        combined = self._aggregate_results(all_results, goal)
+        sm._schedule_background_learning(combined, goal)
+        return combined
+
+    async def _paradigm_refinement(self, goal: str, **kwargs) -> EpisodeResult:
+        """
+        Collective refinement paradigm: iterative improvement until quality stabilizes.
+
+        MALLM's "collective_refinement" — all agents see the same shared draft
+        and iteratively improve it.  DRY: Reuses runners.
+        KISS: Max 3 iterations, stop early if output stabilizes.
+
+        Best for: writing tasks, code generation, report creation.
+        """
+        sm = self._manager
+        status_callback = kwargs.pop('status_callback', None)
+        max_iterations = kwargs.pop('refinement_iterations', 3)
+        # LATENCY: Disable per-agent ensemble — refinement itself IS iterative improvement
+        kwargs.setdefault('ensemble', False)
+
+        # Pick the first agent to produce initial draft
+        first_agent = sm.agents[0]
+        runner = sm.runners.get(first_agent.name)
+        sub_goal = first_agent.capabilities[0] if first_agent.capabilities else goal
+
+        safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
+
+        async with sm.agent_semaphore:
+            result = await self._paradigm_run_agent(
+                runner, sub_goal, first_agent.name, **kwargs
+            )
+
+        current_draft = str(result.output)[:3000] if result.output else ""
+        all_results = {first_agent.name: result}
+        prev_draft = ""
+
+        # Iterate: each remaining agent refines the shared draft
+        for iteration in range(1, max_iterations + 1):
+            # Early stop: draft didn't change meaningfully
+            if current_draft and prev_draft and current_draft[:200] == prev_draft[:200]:
+                logger.info(f"Refinement: converged at iteration {iteration}")
+                break
+
+            # Adaptive learning: check if the system recommends stopping early
+            try:
+                if sm.learning.adaptive_learning.should_stop_early(min_iterations=2):
+                    logger.info(
+                        f"Refinement: adaptive learning recommends early stop "
+                        f"at iteration {iteration}"
+                    )
+                    break
+            except Exception as e:
+                logger.debug(f"Adaptive early-stop check failed: {e}")
+
+            prev_draft = current_draft
+
+            for agent_config in sm.agents[1:]:  # skip first (already drafted)
+                refiner = sm.runners.get(agent_config.name)
+                if not refiner:
+                    continue
+
+                refine_sub = agent_config.capabilities[0] if agent_config.capabilities else goal
+                refine_goal = (
+                    f"{refine_sub}\n\n"
+                    f"Here is the current draft. Improve it:\n{current_draft}"
+                )
+
+                safe_status(status_callback, f"Refinement iter {iteration}", f"{agent_config.name} improving")
+
+                async with sm.agent_semaphore:
+                    ref_result = await self._paradigm_run_agent(
+                        refiner, refine_goal, agent_config.name, **kwargs
+                    )
+
+                all_results[agent_config.name] = ref_result
+                if ref_result.success and ref_result.output:
+                    current_draft = str(ref_result.output)[:3000]
+
+        combined = self._aggregate_results(all_results, goal)
+        sm._schedule_background_learning(combined, goal)
+        return combined
+
+    def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
+        """
+        Combine all agent outputs into a single EpisodeResult.
+
+        MAS-ZERO: Uses CandidateVerifier for intelligent selection
+        instead of naive concatenation when multiple agents produce output.
+        """
+        sm = self._manager
+        if not results:
+            return EpisodeResult(
+                output=None,
+                success=False,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=sm.episode_count,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
+                agent_contributions={},
+                alerts=["No tasks executed"],
+            )
+
+        if len(results) == 1:
+            return list(results.values())[0]
+
+        # MAS-ZERO: Use CandidateVerifier to pick the best output
+        # Falls back to combined dict if verification fails or isn't applicable
+        verified_output = sm._mas_zero_verify(goal, results)
+
+        # If verification selected a single best answer, use it
+        # Otherwise fall back to combined output dict
+        if verified_output is not None:
+            combined_output = verified_output
+        else:
+            combined_output = {name: r.output for name, r in results.items()}
+
+        all_success = all(r.success for r in results.values())
+
+        # Merge trajectories
+        merged_trajectory = []
+        for name, r in results.items():
+            for step in (r.trajectory or []):
+                step_copy = dict(step)
+                step_copy['agent'] = name
+                merged_trajectory.append(step_copy)
+
+        # Merge agent contributions
+        merged_contributions = {}
+        for r in results.values():
+            if hasattr(r, 'agent_contributions') and r.agent_contributions:
+                merged_contributions.update(r.agent_contributions)
+
+        return EpisodeResult(
+            output=combined_output,
+            success=all_success,
+            trajectory=merged_trajectory,
+            tagged_outputs=[],
+            episode=sm.episode_count,
+            execution_time=sum(getattr(r, 'execution_time', 0) for r in results.values()),
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions=merged_contributions
+        )
+
+    def _assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str):
+        """
+        Compute cooperative reward decomposition across agents.
+
+        A-Team v8.0: Uses adaptive learned weights instead of hardcoded 0.3/0.4/0.3.
+        Weights are updated based on episode success and persisted across sessions.
+        """
+        sm = self._manager
+        if not results or len(results) < 2:
+            return
+
+        # Track episode success for weight updates
+        episode_success = all(r.success for r in results.values())
+
+        for agent_name, result in results.items():
+            base_reward = 1.0 if result.success else 0.0
+
+            # Cooperation bonus: did this agent unblock downstream tasks?
+            other_successes = sum(1 for n, r in results.items() if n != agent_name and r.success)
+            total_others = len(results) - 1
+            cooperation_bonus = other_successes / total_others if total_others > 0 else 0.0
+
+            # Predictability bonus: was trajectory prediction accurate?
+            predictability_bonus = 0.5  # Default neutral
+
+            # A-Team v8.0: Use adaptive learned weights instead of hardcoded values
+            cooperative_reward = (
+                sm.credit_weights.get('base_reward') * base_reward +
+                sm.credit_weights.get('cooperation_bonus') * cooperation_bonus +
+                sm.credit_weights.get('predictability_bonus') * predictability_bonus
+            )
+
+            try:
+                state = {'query': goal, 'agent': agent_name, 'cooperative': True}
+                action = {'actor': agent_name, 'task': goal[:100]}
+                sm.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
+            except Exception as e:
+                logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
+
+        # A-Team v8.0: Update weights based on episode outcome
+        if episode_success:
+            # Success - cooperation bonus was valuable, strengthen it
+            sm.credit_weights.update_from_feedback('cooperation_bonus', 0.1, reward=1.0)
+        else:
+            # Failure - maybe base reward should matter more
+            sm.credit_weights.update_from_feedback('base_reward', 0.05, reward=0.0)
+
+    async def autonomous_setup(self, goal: str, status_callback=None):
+        """
+        Autonomous setup: Research, install, configure.
+
+        Public method for manual autonomous setup.
+        DRY: Reuses all autonomous components.
+
+        Args:
+            goal: Task goal
+            status_callback: Optional callback(stage, detail) for progress
+
+        Example:
+            await swarm.autonomous_setup("Set up Reddit scraping")
+        """
+        sm = self._manager
+        _status = StatusReporter(status_callback, logger, emoji="📍")
+
+        # Cache check: skip if already set up for this goal
+        cache_key = hash(goal)
+        if cache_key in sm._setup_cache:
+            _status("Setup", "using cached")
+            return
+
+        # Parse intent to understand requirements
+        _status("Parsing intent", goal)
+        task_graph = sm.swarm_intent_parser.parse(goal)
+
+        # Research solutions if needed
+        if task_graph.requirements or task_graph.integrations:
+            # Filter out stop words and meaningless single-word requirements
+            stop_words = {'existing', 'use', 'check', 'find', 'get', 'the', 'a', 'an', 'and', 'or', 'for', 'with'}
+            meaningful_requirements = [
+                req for req in task_graph.requirements
+                if req.lower() not in stop_words and len(req.split()) > 1
+            ]
+
+            if meaningful_requirements:
+                _status("Researching", f"{len(meaningful_requirements)} requirements")
+
+            for i, requirement in enumerate(meaningful_requirements):
+                if not requirement.strip():
+                    continue
+                _status("Research", f"[{i+1}/{len(meaningful_requirements)}] {requirement[:30]}")
+                research_result = await sm.swarm_researcher.research(requirement)
+                if research_result.tools_found:
+                    _status("Found tools", ", ".join(research_result.tools_found[:3]))
+                    for tool in research_result.tools_found:
+                        _status("Installing", tool)
+                        await sm.swarm_installer.install(tool)
+
+        # Configure integrations
+        if task_graph.integrations:
+            _status("Configuring", f"{len(task_graph.integrations)} integrations")
+            for integration in task_graph.integrations:
+                _status("Configure", integration)
+                await sm.swarm_configurator.configure(integration)
+
+        # Mark as cached
+        sm._setup_cache[cache_key] = True
+        _status("Setup complete", "")
+
+
 class SwarmManager:
     """
     Composable swarm orchestrator with lazy initialization.
@@ -415,89 +2195,19 @@ class SwarmManager:
         # Lazy-init on first use. Integrates with ValidationGate decisions.
         self._model_tier_router: Optional[ModelTierRouter] = None
 
+        # Composed AgentFactory — separates agent/runner creation from orchestration
+        self._agent_factory = AgentFactory(self)
+
+        # Composed ExecutionEngine — separates task execution from management
+        self._engine = ExecutionEngine(self)
+
         logger.info(f"SwarmManager: {self.mode} mode, {len(self.agents)} agents (lazy init)")
 
     # =========================================================================
-    # LAZY RUNNER CREATION
+    # LAZY RUNNER CREATION — delegated to AgentFactory
     # =========================================================================
 
-    def _ensure_runners(self):
-        """Build AgentRunners on first run() call (not in __init__)."""
-        if self._runners_built:
-            return
-
-        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
-
-        for agent_config in self.agents:
-            if agent_config.name in self.runners:
-                continue
-
-            runner_config = AgentRunnerConfig(
-                architect_prompts=self.architect_prompts,
-                auditor_prompts=self.auditor_prompts,
-                config=self.config,
-                agent_name=agent_config.name,
-                enable_learning=True,
-                enable_memory=True,
-            )
-
-            # Propagate JottyConfig to agent so lazy-loaded components
-            # (memory, context, etc.) use the same config as SwarmManager.
-            agent = agent_config.agent
-            if hasattr(agent, 'set_jotty_config'):
-                agent.set_jotty_config(self.config)
-
-            runner = AgentRunner(
-                agent=agent,
-                config=runner_config,
-                task_planner=self.swarm_planner,
-                task_board=self.swarm_task_board,
-                swarm_memory=self.swarm_memory,
-                swarm_state_manager=self.swarm_state_manager,
-                learning_manager=self.learning_manager,
-                transfer_learning=self.transfer_learning,
-                swarm_terminal=self.swarm_terminal,
-                swarm_intelligence=self.swarm_intelligence,
-            )
-            self.runners[agent_config.name] = runner
-
-        # Register agents with Axon for inter-agent communication
-        self._register_agents_with_axon()
-
-        # LOTUS optimization
-        if self.enable_lotus:
-            self._init_lotus_optimization()
-
-        # Auto-load previous learnings + integrate MAS terminal in background.
-        # Uses asyncio task instead of raw thread so run() can await readiness
-        # via self._learning_ready event before executing with partial state.
-        async def _bg_learning_init():
-            try:
-                self.learning.auto_load()
-                self.mas_learning.integrate_with_terminal(self.swarm_terminal)
-            except Exception as e:
-                logger.warning(f"Background learning init failed: {e}")
-            finally:
-                self._learning_ready.set()
-
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_bg_learning_init())
-        except RuntimeError:
-            # No running event loop — fall back to synchronous init
-            try:
-                self.learning.auto_load()
-                self.mas_learning.integrate_with_terminal(self.swarm_terminal)
-            except Exception as e:
-                logger.warning(f"Synchronous learning init failed: {e}")
-            self._learning_ready.set()
-
-        # Init providers if available
-        if _load_providers():
-            self._providers.init_provider_registry()
-
-        self._runners_built = True
-        logger.info(f"Runners built: {list(self.runners.keys())}")
+    def _ensure_runners(self): self._agent_factory.ensure_runners()
 
     # =========================================================================
     # DELEGATION: Single __getattr__ replaces 15+ @property boilerplate
@@ -939,62 +2649,12 @@ class SwarmManager:
         }
 
     # =========================================================================
-    # LOTUS OPTIMIZATION
+    # LOTUS OPTIMIZATION — delegated to AgentFactory
     # =========================================================================
 
-    def _init_lotus_optimization(self):
-        """
-        Initialize LOTUS optimization layer.
-
-        LOTUS-inspired optimizations:
-        - Model Cascade: Use cheap models (Haiku) first, escalate to expensive (Opus) only when needed
-        - Semantic Cache: Memoize semantic operations with content fingerprinting
-        - Batch Executor: Batch LLM calls for throughput optimization
-        - Adaptive Validator: Learn when to skip validation based on historical success
-
-        DRY: Uses centralized LotusConfig for all optimization settings.
-        """
-        try:
-            from Jotty.core.lotus.integration import LotusEnhancement, _enhance_agent_runner
-
-            # Create LOTUS enhancement with default config
-            self.lotus = LotusEnhancement(
-                enable_cascade=True,
-                enable_cache=True,
-                enable_adaptive_validation=True,
-            )
-            self.lotus_optimizer = self.lotus.lotus_optimizer
-
-            # Enhance all agent runners with adaptive validation
-            for name, runner in self.runners.items():
-                _enhance_agent_runner(runner, self.lotus)
-
-                # Pre-warm the adaptive validator with initial trust
-                # This allows validation skipping from the start
-                # (simulates 15 successful validations per agent)
-                for _ in range(15):
-                    self.lotus.adaptive_validator.record_result(name, "architect", success=True)
-                    self.lotus.adaptive_validator.record_result(name, "auditor", success=True)
-                logger.debug(f"Pre-warmed LOTUS validator for agent: {name}")
-
-            logger.info("LOTUS optimization layer initialized (pre-warmed validators)")
-
-        except ImportError as e:
-            logger.warning(f"LOTUS optimization not available: {e}")
-            self.lotus = None
-            self.lotus_optimizer = None
-
-    def get_lotus_stats(self) -> Dict[str, Any]:
-        """Get LOTUS optimization statistics."""
-        if self.lotus:
-            return self.lotus.get_stats()
-        return {}
-
-    def get_lotus_savings(self) -> Dict[str, float]:
-        """Get estimated cost savings from LOTUS optimization."""
-        if self.lotus:
-            return self.lotus.get_savings()
-        return {}
+    def _init_lotus_optimization(self): self._agent_factory.init_lotus_optimization()
+    def get_lotus_stats(self): return self._agent_factory.get_lotus_stats()
+    def get_lotus_savings(self): return self._agent_factory.get_lotus_savings()
 
     # =========================================================================
     # ML Learning Bridge (for SkillOrchestrator / Swarm pipeline integration)
@@ -1037,44 +2697,7 @@ class SwarmManager:
     # _ensemble_mixin.py, _learning_delegation_mixin.py
     # =========================================================================
 
-    def _register_agents_with_axon(self):
-        """Register all agents with SmartAgentSlack for inter-agent messaging."""
-        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
-
-        def _make_slack_callback(target_actor_name: str):
-            def _callback(message):
-                try:
-                    fb = FeedbackMessage(
-                        source_actor=message.from_agent,
-                        target_actor=target_actor_name,
-                        feedback_type=FeedbackType.RESPONSE,
-                        content=str(message.data),
-                        context={
-                            'format': getattr(message, 'format', 'unknown'),
-                            'size_bytes': getattr(message, 'size_bytes', None),
-                            'metadata': getattr(message, 'metadata', {}) or {},
-                            'timestamp': getattr(message, 'timestamp', None),
-                        },
-                        requires_response=False,
-                        priority=2,
-                    )
-                    self.feedback_channel.send(fb)
-                except Exception as e:
-                    logger.warning(f"Slack callback failed for {target_actor_name}: {e}")
-            return _callback
-
-        for agent_config in self.agents:
-            try:
-                agent_obj = agent_config.agent
-                signature_obj = getattr(agent_obj, 'signature', None)
-                self.agent_slack.register_agent(
-                    agent_name=agent_config.name,
-                    signature=signature_obj if hasattr(signature_obj, 'input_fields') else None,
-                    callback=_make_slack_callback(agent_config.name),
-                    max_context=getattr(self.config, 'max_context_tokens', 16000),
-                )
-            except Exception as e:
-                logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")
+    def _register_agents_with_axon(self): self._agent_factory.register_agents_with_axon()
 
     # list_capabilities() and get_help() removed — see CLAUDE.md or docs/
     
@@ -1182,1526 +2805,20 @@ class SwarmManager:
             workspace_dir=_os.getcwd(),
         )
 
-    async def run(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Run task execution with full autonomy.
+    async def run(self, goal, **kwargs): return await self._engine.run(goal, **kwargs)
 
-        Supports zero-config: natural language goal → autonomous execution.
-        For simple tool-calling tasks, use UnifiedExecutor directly instead.
-
-        Args:
-            goal: Task goal/description (natural language supported)
-            context: Optional ExecutionContext from ModeRouter
-            skip_autonomous_setup: If True, skip research/install/configure (fast mode)
-            status_callback: Optional callback(stage, detail) for progress updates
-            ensemble: Enable prompt ensembling for multi-perspective analysis
-            ensemble_strategy: Strategy for ensembling
-            **kwargs: Additional arguments
-
-        Returns:
-            EpisodeResult with output and metadata
-        """
-        import time as _time
-        run_start_time = _time.time()
-
-        # Observability: Start trace and root span
-        try:
-            from Jotty.core.observability import get_tracer, get_metrics
-            _tracer = get_tracer()
-            _metrics = get_metrics()
-            _tracer.new_trace(metadata={'goal': goal[:200], 'mode': self.mode})
-        except ImportError:
-            _tracer = None
-            _metrics = None
-
-        # Lazy init: Build runners on first run
-        self._ensure_runners()
-
-        # Wait for background learning init to complete (max 5s)
-        # Prevents operating with partially-loaded learning state.
-        try:
-            await asyncio.wait_for(self._learning_ready.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
-            logger.warning("Learning init timed out after 5s, proceeding without full learning state")
-
-        # MAS-ZERO: Reset per-problem experience library
-        self._reset_experience()
-        self._efficiency_stats = {}  # Reset per-run
-        self._execution._efficiency_stats = {}  # Reset orchestrator stats too
-
-        # Extract ExecutionContext if provided by ModeRouter
-        exec_context = kwargs.pop('context', None)
-
-        # Extract special kwargs (pop ALL so they don't leak into **kwargs downstream)
-        skip_autonomous_setup = kwargs.pop('skip_autonomous_setup', False)
-        skip_validation = kwargs.pop('skip_validation', None)  # Explicit override
-        status_callback = kwargs.pop('status_callback', None)
-        ensemble = kwargs.pop('ensemble', None)  # None = auto-detect, True/False = explicit
-        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
-
-        # If ExecutionContext provided, extract callbacks from it
-        if exec_context is not None:
-            if status_callback is None and hasattr(exec_context, 'status_callback'):
-                status_callback = exec_context.status_callback
-            # Emit start event
-            if hasattr(exec_context, 'emit_event'):
-                from Jotty.core.foundation.types.sdk_types import SDKEventType
-                exec_context.emit_event(SDKEventType.PLANNING, {
-                    "goal": goal,
-                    "mode": self.mode,
-                    "agents": len(self.agents),
-                })
-
-        # Auto-detect ensemble for certain task types (if not explicitly set)
-        # Optima-inspired: adaptive sizing returns (should_ensemble, max_perspectives)
-        max_perspectives = 4  # default
-        if ensemble is None:
-            ensemble, max_perspectives = self._should_auto_ensemble(goal)
-            if ensemble:
-                logger.info(f"Auto-enabled ensemble: {max_perspectives} perspectives (use ensemble=False to override)")
-
-        # Ensure DSPy LM is configured (critical for all agent operations)
-        import dspy
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-            lm = self.swarm_provider_gateway.get_lm()
-            if lm:
-                dspy.configure(lm=lm)
-                logger.info(f"✅ DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
-
-        _status = StatusReporter(status_callback, logger, emoji="📍")
-
-        # ── FAST PATH: Simple tasks bypass the entire agent pipeline ──
-        # ValidationGate classifies task complexity using a cheap LLM (or heuristic).
-        # For DIRECT tasks (Q&A, lookups, lists): skip zero-config, ensemble, and
-        # AutonomousAgent overhead. Call the LLM directly. Target: <10s.
-        # OPTIMIZATION: Skip gate for multi-agent mode — fast path only works
-        # for single-agent, so running the gate wastes an LLM call.
-        from Jotty.core.orchestration.v2.validation_gate import (
-            ValidationGate, ValidationMode, get_validation_gate,
-        )
-
-        _gate_decision = None
-        if self.mode == "single":
-            _fast_gate = get_validation_gate()
-
-            # Determine if user explicitly asked for skip/full validation
-            _force_mode = None
-            if skip_validation is True:
-                _force_mode = ValidationMode.DIRECT
-            elif skip_validation is False:
-                _force_mode = ValidationMode.FULL
-
-            _gate_decision = await _fast_gate.decide(
-                goal=goal,
-                agent_name=self.agents[0].name if self.agents else "auto",
-                force_mode=_force_mode,
-            )
-
-        if _gate_decision and _gate_decision.mode == ValidationMode.DIRECT and self.mode == "single":
-            _status("Fast path", f"DIRECT mode — bypassing agent pipeline ({_gate_decision.reason})")
-
-            # Model tier routing: use cheapest LM for DIRECT tasks
-            try:
-                if self._model_tier_router is None:
-                    self._model_tier_router = ModelTierRouter()
-                tier_decision = self._model_tier_router.get_model_for_mode(ValidationMode.DIRECT)
-                tier_lm = self._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)
-                if tier_lm:
-                    import dspy as _dspy
-                    lm = tier_lm
-                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model}) — cost ratio {tier_decision.estimated_cost_ratio:.1f}x")
-                else:
-                    import dspy as _dspy
-                    lm = _dspy.settings.lm
-                    if lm is None:
-                        raise AgentExecutionError("No LM configured")
-
-                _fast_start = _time.time()
-
-                # Try multiple calling conventions (DSPy 3.x is finicky)
-                # Fast path: NO aggressive retry on rate limits.
-                # If rate limited, fall through to full pipeline immediately.
-                # Fast path must be FAST — wasting 56s on retries defeats the purpose.
-                response = None
-                _rate_limited = False
-                for call_fn in [
-                    lambda: lm(messages=[{"role": "user", "content": goal}]),
-                    lambda: lm(prompt=goal),
-                    lambda: lm(goal),
-                ]:
-                    try:
-                        response = call_fn()
-                        if response:
-                            break
-                    except Exception as e:
-                        err_str = str(e)
-                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
-                                         'rate limit' in err_str.lower())
-                        if is_rate_limit:
-                            logger.info("Fast path rate limited — falling through to full pipeline (no retry)")
-                            _rate_limited = True
-                            break
-                        continue
-
-                if response is None:
-                    raise AgentExecutionError("All LM calling conventions failed" +
-                                              (" (rate limited)" if _rate_limited else ""))
-
-                if isinstance(response, list):
-                    response = response[0] if response else ""
-                elif hasattr(response, 'text'):
-                    response = response.text
-                response = str(response).strip()
-
-                _fast_elapsed = _time.time() - _fast_start
-                _status("Fast path complete", f"{_fast_elapsed:.1f}s")
-
-                # Record outcome for gate learning
-                _fast_gate.record_outcome(ValidationMode.DIRECT, bool(response))
-
-                # Build minimal EpisodeResult
-                fast_result = EpisodeResult(
-                    output=response,
-                    success=bool(response),
-                    trajectory=[{'step': 1, 'action': 'direct_llm', 'output': response[:200]}],
-                    tagged_outputs=[],
-                    episode=self.episode_count,
-                    execution_time=_fast_elapsed,
-                    architect_results=[],
-                    auditor_results=[],
-                    agent_contributions={},
-                )
-                self.episode_count += 1
-
-                # Save learning (lightweight)
-                try:
-                    self._save_learnings()
-                except Exception as e:
-                    logger.debug(f"Fast-path learning save failed: {e}")
-
-                total_elapsed = _time.time() - run_start_time
-                _status("Complete", f"fast path success ({total_elapsed:.1f}s)")
-                return fast_result
-
-            except Exception as e:
-                logger.info(f"Fast path failed ({e}), falling back to full pipeline")
-                # Fall through to normal pipeline
-
-        # Store gate decision for downstream use (AgentRunner will also gate architect/auditor)
-        kwargs['_swarm_gate_decision'] = _gate_decision
-
-        # ── MODEL TIER ROUTING: Select LM quality based on task complexity ──
-        # DIRECT → cheap (Haiku), AUDIT_ONLY → balanced (Sonnet), FULL → quality (Opus/Sonnet)
-        if _gate_decision and _gate_decision.mode != ValidationMode.DIRECT:
-            try:
-                if self._model_tier_router is None:
-                    self._model_tier_router = ModelTierRouter()
-                tier_decision = self._model_tier_router.get_model_for_mode(_gate_decision.mode)
-                tier_lm = self._model_tier_router.get_lm_for_mode(_gate_decision.mode)
-                if tier_lm:
-                    import dspy
-                    dspy.configure(lm=tier_lm)
-                    _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
-            except Exception as e:
-                logger.debug(f"Model tier routing skipped: {e}")
-
-        # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
-        # SKIP when gate already classified as DIRECT — it's a simple task, no need
-        # to burn an LLM call deciding single vs multi-agent.
-        _gate_is_direct = (_gate_decision and _gate_decision.mode == ValidationMode.DIRECT)
-        if self.enable_zero_config and self.mode == "single" and not _gate_is_direct:
-            _status("Analyzing task", "deciding single vs multi-agent")
-            new_agents = self._create_zero_config_agents(goal, status_callback)
-            if len(new_agents) > 1:
-                # LLM detected parallel sub-goals - upgrade to multi-agent
-                self.agents = new_agents
-                self.mode = "multi"
-                logger.info(f"🔄 Zero-config: Upgraded to {len(self.agents)} agents for parallel execution")
-
-                # Create runners for new agents
-                from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
-                for agent_config in self.agents:
-                    if agent_config.name not in self.runners:
-                        runner_config = AgentRunnerConfig(
-                            architect_prompts=self.architect_prompts,
-                            auditor_prompts=self.auditor_prompts,
-                            config=self.config,
-                            agent_name=agent_config.name,
-                            enable_learning=True,
-                            enable_memory=True
-                        )
-                        runner = AgentRunner(
-                            agent=agent_config.agent,
-                            config=runner_config,
-                            task_planner=self.swarm_planner,
-                            task_board=self.swarm_task_board,
-                            swarm_memory=self.swarm_memory,
-                            swarm_state_manager=self.swarm_state_manager,
-                            learning_manager=self.learning_manager,
-                            transfer_learning=self.transfer_learning,
-                            swarm_terminal=self.swarm_terminal  # Shared intelligent terminal
-                        )
-                        self.runners[agent_config.name] = runner
-
-        agent_info = f"{len(self.agents)} AutoAgent(s)" if len(self.agents) > 1 else "AutoAgent (zero-config)"
-        _status("Starting", agent_info)
-
-        # Profile execution if enabled
-        if self.swarm_profiler:
-            profile_context = self.swarm_profiler.profile("SwarmManager.run", metadata={"goal": goal, "mode": self.mode})
-            profile_context.__enter__()
-        else:
-            profile_context = None
-
-        try:
-            # Store goal in shared context for state management
-            if self.shared_context:
-                self.shared_context.set('goal', goal)
-                self.shared_context.set('query', goal)
-
-            # Autonomous planning: Research, install, configure if needed
-            # For multi-agent mode with zero-config: skip full setup (agents have specific sub-goals)
-            # This reduces latency significantly for parallel agent execution
-            if not skip_autonomous_setup and self.mode == "single":
-                _status("Autonomous setup", "analyzing requirements")
-                await self.autonomous_setup(goal, status_callback=status_callback)
-            elif not skip_autonomous_setup and self.mode == "multi":
-                _status("Fast mode", "multi-agent (agents configured with sub-goals)")
-            else:
-                _status("Fast mode", "skipping autonomous setup")
-
-            # Set root task in SwarmTaskBoard
-            self.swarm_task_board.root_task = goal
-
-            # Record swarm-level step: goal received
-            if self.swarm_state_manager:
-                self.swarm_state_manager.record_swarm_step({
-                    'step': 'goal_received',
-                    'goal': goal,
-                    'mode': self.mode,
-                    'agent_count': len(self.agents)
-                })
-
-            # Ensemble mode: Multi-perspective analysis
-            # For multi-agent: ensemble happens per-agent (each agent has different sub-goal)
-            # For single-agent: ensemble happens at swarm level
-            ensemble_result = None
-            if ensemble and self.mode == "single":
-                _status("Ensembling", f"strategy={ensemble_strategy}, perspectives={max_perspectives}")
-                _ens_start = _time.time()
-                ensemble_result = await self._execute_ensemble(
-                    goal,
-                    strategy=ensemble_strategy,
-                    status_callback=status_callback,
-                    max_perspectives=max_perspectives,
-                )
-                self._efficiency_stats['ensemble_time'] = _time.time() - _ens_start
-                if ensemble_result.get('success'):
-                    # Pass ensemble context via kwargs (not embedded in goal string)
-                    # to avoid polluting search queries and downstream skill params.
-                    kwargs['ensemble_context'] = ensemble_result
-
-                    # Show quality scores if available
-                    quality_scores = ensemble_result.get('quality_scores', {})
-                    if quality_scores:
-                        avg_quality = sum(quality_scores.values()) / len(quality_scores)
-                        scores_str = ", ".join(f"{k}:{v:.0%}" for k, v in quality_scores.items())
-                        _status("Ensemble quality", f"avg={avg_quality:.0%} ({scores_str})")
-                    else:
-                        _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
-            elif ensemble and self.mode == "multi":
-                # Multi-agent mode: SKIP per-agent ensemble (too expensive)
-                # With N agents × 4 perspectives = 4N LLM calls - massive overkill
-                # Each agent already has a specific sub-goal, no need for multi-perspective
-                _status("Ensemble mode", "DISABLED for multi-agent (agents have specific sub-goals)")
-                ensemble = False  # Disable for agents
-
-            # Clean up internal flag before passing to agents
-            kwargs.pop('_swarm_gate_decision', None)
-
-            # Single-agent mode: Simple execution
-            if self.mode == "single":
-                agent_name = self.agents[0].name if self.agents else "auto"
-                _status("Executing", f"agent '{agent_name}' with skill orchestration")
-                # Architect → Actor → Auditor pipeline (now fast with max_eval_iters=2)
-                # skip_validation: explicit kwarg wins, else derive from skip_autonomous_setup
-                skip_val = skip_validation if skip_validation is not None else skip_autonomous_setup
-                # Forward ensemble flag so AutoAgent doesn't auto-detect independently
-                if ensemble is not None:
-                    kwargs['ensemble'] = ensemble
-                result = await self._execute_single_agent(
-                    goal,
-                    skip_validation=skip_val,
-                    status_callback=status_callback,
-                    ensemble_context=ensemble_result if ensemble else None,
-                    **kwargs
-                )
-
-                # Optima-inspired efficiency summary
-                total_elapsed = _time.time() - run_start_time
-                ens_t = self._efficiency_stats.get('ensemble_time', 0)
-                exec_t = getattr(result, 'execution_time', total_elapsed - ens_t)
-                overhead = max(0, total_elapsed - exec_t)
-                overhead_pct = (overhead / total_elapsed * 100) if total_elapsed > 0 else 0
-                self._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
-                _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
-
-                # Surface user-friendly summary with artifacts
-                self._log_execution_summary(result)
-
-                # Exit profiling context
-                if profile_context:
-                    profile_context.__exit__(None, None, None)
-
-                # Auto-drain one training task if result succeeded and tasks pending
-                self._maybe_drain_training_task(result)
-
-                return result
-
-            # Multi-agent mode: Use SwarmTaskBoard for coordination
-            else:
-                # MAS-ZERO: Dynamic reduction — check if multi-agent is overkill
-                if self._mas_zero_should_reduce(goal):
-                    _status("MAS-ZERO reduction", "reverting to single agent (simpler is better)")
-                    self.mode = "single"
-                    result = await self._execute_single_agent(
-                        goal,
-                        skip_validation=skip_validation if skip_validation is not None else skip_autonomous_setup,
-                        status_callback=status_callback,
-                        **kwargs
-                    )
-                else:
-                    paradigm = kwargs.pop('discussion_paradigm', 'fanout')
-                    _status("Executing", f"{len(self.agents)} agents — paradigm: {paradigm}")
-                    _sv = skip_validation if skip_validation is not None else skip_autonomous_setup
-                    result = await self._execute_multi_agent(
-                        goal,
-                        ensemble_context=ensemble_result if ensemble else None,
-                        status_callback=status_callback,
-                        ensemble=ensemble,
-                        ensemble_strategy=ensemble_strategy,
-                        discussion_paradigm=paradigm,
-                        skip_validation=_sv,
-                        **kwargs
-                    )
-
-                # Optima-inspired efficiency summary
-                total_elapsed = _time.time() - run_start_time
-                ens_t = self._efficiency_stats.get('ensemble_time', 0)
-                exec_t = getattr(result, 'execution_time', total_elapsed - ens_t)
-                overhead = max(0, total_elapsed - exec_t)
-                overhead_pct = (overhead / total_elapsed * 100) if total_elapsed > 0 else 0
-                self._efficiency_stats.update({'total_time': total_elapsed, 'overhead_pct': overhead_pct})
-                _status("Complete", f"{'success' if result.success else 'failed'} ({total_elapsed:.1f}s, overhead={overhead_pct:.0f}%)")
-
-                # Surface user-friendly summary with artifacts
-                self._log_execution_summary(result)
-
-                # Exit profiling context
-                if profile_context:
-                    profile_context.__exit__(None, None, None)
-
-                return result
-        except Exception as e:
-            _status("Error", str(e)[:50])
-            # Exit profiling context on error
-            if profile_context:
-                profile_context.__exit__(type(e), e, None)
-            raise
-    
     # _execute_ensemble and _should_auto_ensemble — delegated to EnsembleManager
 
-    async def _execute_single_agent(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Execute single-agent mode.
-
-        MAS-ZERO: For comparison/analysis tasks, runs building blocks
-        (direct + ensemble) in parallel and verifies the best answer.
-        For simple tasks, runs direct execution as before.
-
-        Args:
-            goal: Task goal
-            **kwargs: Additional arguments
-
-        Returns:
-            EpisodeResult
-        """
-        # Remove ensemble_context from kwargs before passing to runner
-        kwargs.pop('ensemble_context', None)
-        status_callback = kwargs.pop('status_callback', None)
-
-        _status = StatusReporter(status_callback)
-
-        # ── Router-guided agent selection (closes RL loop for single-agent) ──
-        # When multiple agents are available, ask the router instead of
-        # blindly taking agents[0].  Router uses SwarmIntelligence (RL +
-        # stigmergy + TRAS) when learning data exists.
-        agent_config = self.agents[0]
-        if len(self.agents) > 1:
-            try:
-                route = self._router.select_agent(goal)
-                picked = route.get('agent')
-                if picked and route.get('method') != 'fallback':
-                    for ac in self.agents:
-                        if getattr(ac, 'name', None) == picked:
-                            agent_config = ac
-                            logger.info(
-                                f"Router selected '{picked}' for single-agent "
-                                f"(method={route['method']}, conf={route['confidence']:.2f})"
-                            )
-                            break
-            except Exception as e:
-                logger.debug(f"Router select_agent skipped: {e}")
-
-        runner = self.runners[agent_config.name]
-
-        # ── READ LEARNED INTELLIGENCE (closes the learning loop) ──────────
-        # Post-episode writes: stigmergy outcomes, byzantine trust, morph scores.
-        # Pre-execution reads them back to influence this run.
-        # Without this read, the write side is wasted — learning never loops.
-        learned_hints = []
-        try:
-            lp = self.learning
-            task_type = lp.transfer_learning.extractor.extract_task_type(goal)
-
-            # 1. Stigmergy APPROACH guidance (single-agent-aware).
-            #    Instead of "use agent X" (useless with one agent),
-            #    inject "use these tools/approaches" and "avoid these".
-            approach_rec = lp.stigmergy.recommend_approach(task_type, top_k=2)
-            for good in approach_rec.get('use', []):
-                tools_str = ', '.join(good['tools'][:5]) if good.get('tools') else 'N/A'
-                learned_hints.append(
-                    f"[Learned] Successful approach for '{task_type}': "
-                    f"{good['approach'][:120]} (tools: {tools_str}, "
-                    f"quality: {good.get('quality', 0):.0%})"
-                )
-            for bad in approach_rec.get('avoid', []):
-                tools_str = ', '.join(bad['tools'][:5]) if bad.get('tools') else 'N/A'
-                learned_hints.append(
-                    f"[Learned] Failed approach for '{task_type}': "
-                    f"{bad['approach'][:120]} — avoid this"
-                )
-            # Fallback: if no approach data yet, use old agent-routing signals
-            if not approach_rec.get('use') and not approach_rec.get('avoid'):
-                warnings = lp.get_stigmergy_warnings(task_type)
-                if warnings:
-                    warn_msgs = [
-                        getattr(w, 'content', {}).get('goal', 'unknown')
-                        if isinstance(getattr(w, 'content', None), dict) else str(w)
-                        for w in warnings[:3]
-                    ]
-                    learned_hints.append(
-                        f"[Learned] Previous failures on '{task_type}': "
-                        f"{'; '.join(warn_msgs)}"
-                    )
-
-            # 2. Effectiveness: are we improving or degrading on this type?
-            eff_report = lp.effectiveness.improvement_report()
-            task_eff = eff_report.get(task_type)
-            if task_eff and task_eff.get('trend') is not None:
-                trend = task_eff['trend']
-                if trend < -0.1:
-                    learned_hints.append(
-                        f"[Learned] Performance DECLINING on '{task_type}' "
-                        f"(recent={task_eff['recent_rate']:.0%} vs "
-                        f"historical={task_eff['historical_rate']:.0%}). "
-                        f"Consider a different approach."
-                    )
-                elif trend > 0.1:
-                    learned_hints.append(
-                        f"[Learned] Performance IMPROVING on '{task_type}' — "
-                        f"current approach is working."
-                    )
-
-            # 3. Transfer learning: relevant past learnings
-            learnings = lp.transfer_learning.get_relevant_learnings(goal, top_k=2)
-            for exp in learnings.get('similar_experiences', []):
-                query_text = exp.get('query', '') if isinstance(exp, dict) else str(exp)
-                success = exp.get('success', True) if isinstance(exp, dict) else True
-                if success:
-                    learned_hints.append(
-                        f"[Learned] Succeeded on similar task: {query_text[:100]}"
-                    )
-                else:
-                    err = (exp.get('error', '')[:80]) if isinstance(exp, dict) else ''
-                    learned_hints.append(
-                        f"[Learned] Failed on similar task: {query_text[:80]}"
-                        + (f" (error: {err})" if err else "")
-                    )
-            if learnings.get('task_pattern'):
-                learned_hints.append(
-                    f"[Learned] Pattern: {str(learnings['task_pattern'])[:150]}"
-                )
-            for err_pat in learnings.get('error_patterns', [])[:2]:
-                learned_hints.append(
-                    f"[Learned] Common error: {str(err_pat)[:120]}"
-                )
-
-            # 4. Workflow patterns: known successful tool sequences for this task type
-            if self.swarm_workflow_learner:
-                try:
-                    from Jotty.core.learning.transfer_learning import PatternExtractor
-                    norm_type = PatternExtractor.normalize_task_type(task_type)
-                    wf_patterns = self.swarm_workflow_learner.get_patterns_by_task_type(norm_type)
-                    for pat in wf_patterns[:3]:
-                        if pat.success_rate >= 0.5:
-                            ops = ' → '.join(pat.operations[:6]) if pat.operations else 'N/A'
-                            tools = ', '.join(pat.tools_used[:5]) if pat.tools_used else 'N/A'
-                            learned_hints.append(
-                                f"[Learned] Proven workflow for '{norm_type}': "
-                                f"{ops} (tools: {tools}, "
-                                f"success: {pat.success_rate:.0%}, "
-                                f"time: {pat.execution_time:.0f}s)"
-                            )
-                except Exception as wf_err:
-                    logger.debug(f"Workflow pattern lookup skipped: {wf_err}")
-
-            # Inject learned context into kwargs for the agent
-            if learned_hints:
-                existing_ctx = kwargs.get('learning_context', '')
-                kwargs['learning_context'] = (
-                    existing_ctx + "\n\n" + "\n".join(learned_hints)
-                ).strip()
-                _status("Intelligence", f"{len(learned_hints)} learned hints applied")
-                logger.info(
-                    f"📚 Single-agent intelligence: {len(learned_hints)} hints "
-                    f"for task_type='{task_type}'"
-                )
-                for i, hint in enumerate(learned_hints, 1):
-                    logger.info(f"  📚 Hint {i}: {hint}")
-
-        except Exception as e:
-            logger.warning(f"Pre-execution intelligence read failed: {e}")
-
-        # Pass status_callback back for downstream
-        if status_callback:
-            kwargs['status_callback'] = status_callback
-
-        # Standard single-agent execution
-        import time as _t
-        _exec_start = _t.time()
-
-        # Observability: trace agent execution
-        _tracer = None
-        try:
-            from Jotty.core.observability import get_tracer, get_metrics
-            _tracer = get_tracer()
-        except ImportError:
-            pass
-
-        if _tracer:
-            with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:
-                result = await runner.run(goal=goal, **kwargs)
-                _exec_elapsed = _t.time() - _exec_start
-                _span.set_attribute("success", result.success)
-                _span.set_attribute("execution_time_s", round(_exec_elapsed, 2))
-                if hasattr(result, 'execution_time'):
-                    _span.set_attribute("inner_time_s", round(result.execution_time, 2))
-        else:
-            result = await runner.run(goal=goal, **kwargs)
-            _exec_elapsed = _t.time() - _exec_start
-
-        # Observability: record metrics
-        try:
-            from Jotty.core.observability import get_metrics
-            get_metrics().record_execution(
-                agent_name=agent_config.name,
-                task_type="single_agent",
-                duration_s=_exec_elapsed,
-                success=result.success,
-            )
-        except (ImportError, Exception):
-            pass
-
-        # Learn from execution (DRY: reuse workflow learner)
-        if result.success:
-            self._learn_from_result(result, agent_config, goal=goal)
-
-        # Post-episode learning + auto-save (fire-and-forget background)
-        self._schedule_background_learning(result, goal)
-
-        return result
-
-    async def _execute_multi_agent(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Execute multi-agent mode with configurable discussion paradigm.
-
-        MALLM-inspired paradigms (Becker et al., EMNLP 2025):
-            fanout      — All agents run in parallel on decomposed tasks (default)
-            relay       — Sequential chain; each agent builds on previous output
-            debate      — Agents critique each other's outputs in rounds
-            refinement  — Iterative improve loop until quality stabilizes
-
-        DRY: All paradigms reuse the same AgentRunner.run() and semaphore.
-        """
-        from Jotty.core.orchestration.v2.swarm_roadmap import TaskStatus
-        from Jotty.core.learning.predictive_marl import ActualTrajectory
-        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
-
-        # Extract callbacks and ensemble params before passing to runners
-        kwargs.pop('ensemble_context', None)
-        status_callback = kwargs.pop('status_callback', None)
-        ensemble = kwargs.pop('ensemble', False)
-        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
-        discussion_paradigm = kwargs.pop('discussion_paradigm', 'fanout')
-
-        # ── Intelligence-guided agent selection (single entry point: router) ──
-        # Router delegates to LearningPipeline.order_agents_for_goal (trust + stigmergy + TRAS).
-        # This closes the learning loop: post_episode writes → run() reads.
-        _intelligence_applied = False
-        try:
-            ordered = self._router.order_agents_for_goal(goal)
-            if ordered:
-                self.agents = ordered
-                self._runners_built = False
-                self._ensure_runners()
-                _intelligence_applied = bool(getattr(self, 'learning', None))
-                if _intelligence_applied and self.agents:
-                    top = self.agents[0].name if hasattr(self.agents[0], 'name') else '?'
-                    logger.info(f"🛡️ Router: agents ordered for goal (lead={top})")
-        except Exception as e:
-            logger.warning(f"Intelligence-guided selection failed: {e}")
-
-        # Track guidance for A/B effectiveness metrics (per task_type)
-        self._last_run_guided = _intelligence_applied
-        try:
-            _im_task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
-        except Exception as e:
-            logger.debug(f"Task type extraction for A/B metrics failed: {e}")
-            _im_task_type = '_global'
-        self._last_task_type = _im_task_type
-
-        for _tt in (_im_task_type, '_global') if _im_task_type != '_global' else ('_global',):
-            if _tt not in self._intelligence_metrics:
-                self._intelligence_metrics[_tt] = {
-                    'guided_runs': 0, 'guided_successes': 0,
-                    'unguided_runs': 0, 'unguided_successes': 0,
-                }
-            if _intelligence_applied:
-                self._intelligence_metrics[_tt]['guided_runs'] += 1
-            else:
-                self._intelligence_metrics[_tt]['unguided_runs'] += 1
-
-        # Auto paradigm selection: use learning data to pick the best paradigm
-        if discussion_paradigm == 'auto':
-            try:
-                _task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
-                discussion_paradigm = self.learning.recommend_paradigm(_task_type)
-                logger.info(
-                    f"🧠 Auto paradigm: selected '{discussion_paradigm}' "
-                    f"for task_type='{_task_type}'"
-                )
-            except Exception as e:
-                logger.debug(f"Auto paradigm selection failed: {e}")
-                discussion_paradigm = 'fanout'
-
-        # Track which paradigm is used (for _post_episode_learning)
-        self._last_paradigm = discussion_paradigm
-
-        # MALLM-inspired: Dispatch to alternative paradigms before fan-out
-        if discussion_paradigm == 'relay':
-            # Wire coordination: initiate handoff between relay agents
-            if self.swarm_intelligence:
-                try:
-                    available = [a.name for a in self.agents]
-                    if len(available) >= 2:
-                        self.swarm_intelligence.initiate_handoff(
-                            from_agent=available[0],
-                            to_agent=available[1],
-                            task=goal,
-                            context={'paradigm': 'relay', 'agents': available}
-                        )
-                except Exception as e:
-                    logger.debug(f"Relay handoff coordination skipped: {e}")
-            return await self._paradigm_relay(goal, status_callback=status_callback, **kwargs)
-        elif discussion_paradigm == 'debate':
-            return await self._paradigm_debate(goal, status_callback=status_callback, **kwargs)
-        elif discussion_paradigm == 'refinement':
-            return await self._paradigm_refinement(goal, status_callback=status_callback, **kwargs)
-        # else: 'fanout' — fall through to existing parallel execution below
-
-        # Wire coordination: form coalition for fanout tasks (agents collaborate)
-        if self.swarm_intelligence and len(self.agents) >= 2:
-            try:
-                available = [a.name for a in self.agents]
-                _task_type = self.learning.transfer_learning.extractor.extract_task_type(goal)
-                self.swarm_intelligence.form_coalition(
-                    task_type=_task_type,
-                    min_agents=min(2, len(available)),
-                    available_agents=available
-                )
-                logger.info(f"🤝 Coalition formed for '{_task_type}' with {len(available)} agents")
-            except Exception as e:
-                logger.debug(f"Coalition formation skipped: {e}")
-
-        # Status update at method start
-        safe_status(status_callback, "Multi-agent exec", f"starting {len(self.agents)} parallel agents")
-
-        max_attempts = getattr(self.config, 'max_task_attempts', 2)
-
-        # Clear task board for fresh run (avoid stale tasks from previous runs)
-        self.swarm_task_board.subtasks.clear()
-        self.swarm_task_board.completed_tasks.clear()
-        self.swarm_task_board.execution_order.clear()
-
-        # Add tasks to SwarmTaskBoard
-        # Zero-config agents from LLM are PARALLEL (independent sub-goals)
-        # Only add dependencies if explicitly specified in agent config
-        for i, agent_config in enumerate(self.agents):
-            task_id = f"task_{i+1}"
-            # Check if agent has explicit dependencies
-            deps = getattr(agent_config, 'depends_on', []) or []
-
-            # Use agent's sub-goal (from capabilities) as task description
-            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else f"{goal} (agent: {agent_config.name})"
-
-            self.swarm_task_board.add_task(
-                task_id=task_id,
-                description=sub_goal,
-                actor=agent_config.name,
-                depends_on=deps  # Empty for parallel execution
-            )
-            logger.info(f"📋 Added task {task_id} for {agent_config.name}: {sub_goal[:50]}... (parallel: {len(deps)==0})")
-
-        all_results = {}  # agent_name -> EpisodeResult
-        attempt_counts = {}  # task_id -> attempts
-
-        while True:
-            # Collect all ready tasks (no unresolved dependencies)
-            batch = []
-
-            while True:
-                next_task = self.swarm_task_board.get_next_task()
-                if next_task is None:
-                    break
-                # Mark as IN_PROGRESS so it's not returned again
-                next_task.status = TaskStatus.IN_PROGRESS
-                batch.append(next_task)
-
-            if not batch:
-                break
-
-            # Show batch info immediately with agent names for better UX
-            if status_callback and len(batch) > 0:
-                try:
-                    agent_names = [t.actor for t in batch]
-                    status_callback("Running batch", f"{len(batch)} agents: {', '.join(agent_names[:5])}")
-                    # Show each agent's task for clarity
-                    for task in batch:
-                        agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
-                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:50]
-                        status_callback(f"  {task.actor}", sub_goal[:60])
-                except Exception as e:
-                    logger.debug(f"Batch status callback failed: {e}")
-
-            # Pre-execution: trajectory prediction (non-blocking, run in background)
-            predictions = {}
-            # Skip trajectory prediction to reduce latency - agents start immediately
-            # Prediction can happen asynchronously after execution starts
-            if self.trajectory_predictor and len(batch) <= 2:  # Only for small batches
-                for task in batch:
-                    try:
-                        prediction = self.trajectory_predictor.predict(
-                            current_state=self.get_current_state(),
-                            acting_agent=task.actor,
-                            proposed_action={'task': task.description},
-                            other_agents=[a.name for a in self.agents if a.name != task.actor],
-                            goal=goal
-                        )
-                        predictions[task.actor] = prediction
-                    except Exception as e:
-                        logger.debug(f"Trajectory prediction skipped for {task.actor}: {e}")
-
-            # Execute batch concurrently (status_callback already extracted at method start)
-            # AIOS-inspired: Semaphore limits how many agents call LLM simultaneously.
-            # Without this, N agents × (architect + agent + auditor) = 3N concurrent API calls.
-            async def _run_task(task):
-                # Check if we'll need to wait for a slot
-                if self.agent_semaphore._value == 0:
-                    self._scheduling_stats['total_waited'] += 1
-                    safe_status(status_callback, f"Agent {task.actor}", "waiting for LLM slot...")
-
-                async with self.agent_semaphore:
-                    # Track concurrency stats
-                    self._scheduling_stats['total_scheduled'] += 1
-                    self._scheduling_stats['current_concurrent'] += 1
-                    if self._scheduling_stats['current_concurrent'] > self._scheduling_stats['peak_concurrent']:
-                        self._scheduling_stats['peak_concurrent'] = self._scheduling_stats['current_concurrent']
-
-                    try:
-                        # Show which agent is executing
-                        agent_cfg = next((a for a in self.agents if a.name == task.actor), None)
-                        sub_goal = agent_cfg.capabilities[0] if agent_cfg and agent_cfg.capabilities else task.description[:60]
-
-                        safe_status(status_callback, f"Agent {task.actor}", f"starting: {sub_goal}")
-
-                        # Create agent-specific status callback that prefixes with agent name
-                        _agent_reporter = StatusReporter(status_callback).with_prefix(f"  [{task.actor}]")
-                        agent_status_callback = _agent_reporter
-
-                        runner = self.runners[task.actor]
-                        # Pass the agent-specific callback and ensemble params
-                        task_kwargs = dict(kwargs)
-                        task_kwargs['status_callback'] = agent_status_callback
-                        # Forward ensemble flag explicitly so AutoAgent doesn't auto-detect
-                        task_kwargs['ensemble'] = ensemble
-                        if ensemble:
-                            task_kwargs['ensemble_strategy'] = ensemble_strategy
-                        # Forward the swarm-level gate decision to skip redundant
-                        # per-agent architect/auditor if the swarm already decided
-                        if '_swarm_gate_decision' in task_kwargs:
-                            task_kwargs.pop('_swarm_gate_decision')  # clean up internal flag
-
-                        # MULTI-AGENT OPTIMIZATION: Sub-agents with system_prompt
-                        # are specialized for analysis/synthesis — they don't need
-                        # the full skill pipeline (saves ~100s per agent).
-                        # Use direct_llm=True to bypass skill discovery/selection/planning.
-                        if agent_cfg and hasattr(agent_cfg, 'agent') and agent_cfg.agent:
-                            _agent_obj = agent_cfg.agent
-                            _has_system_prompt = (
-                                hasattr(_agent_obj, 'config')
-                                and hasattr(_agent_obj.config, 'system_prompt')
-                                and _agent_obj.config.system_prompt
-                            )
-                            if _has_system_prompt:
-                                task_kwargs['direct_llm'] = True
-
-                        return task, await runner.run(goal=task.description, **task_kwargs)
-                    finally:
-                        self._scheduling_stats['current_concurrent'] -= 1
-
-            # Per-agent timeout: prevent any single agent from blocking the entire swarm.
-            # Direct-LLM sub-agents should finish in ~30s. Full pipeline agents in ~120s.
-            PER_AGENT_TIMEOUT = 120.0
-
-            async def _run_task_with_timeout(task):
-                try:
-                    return await asyncio.wait_for(_run_task(task), timeout=PER_AGENT_TIMEOUT)
-                except asyncio.TimeoutError:
-                    logger.warning(f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT}s")
-                    safe_status(status_callback, f"Agent {task.actor}", f"TIMEOUT ({PER_AGENT_TIMEOUT:.0f}s)")
-                    return task, EpisodeResult(
-                        output=f"Agent {task.actor} timed out after {PER_AGENT_TIMEOUT:.0f}s",
-                        success=False,
-                        trajectory=[{'step': 0, 'action': 'timeout'}],
-                        tagged_outputs=[],
-                        episode=self.episode_count,
-                        execution_time=PER_AGENT_TIMEOUT,
-                        architect_results=[],
-                        auditor_results=[],
-                        agent_contributions={},
-                    )
-
-            coro_results = await asyncio.gather(
-                *[_run_task_with_timeout(t) for t in batch],
-                return_exceptions=True
-            )
-
-            # Process results
-            for coro_result in coro_results:
-                if isinstance(coro_result, Exception):
-                    logger.error(f"Task execution exception: {coro_result}")
-                    safe_status(status_callback, "Agent error", str(coro_result)[:60])
-                    continue
-
-                task, result = coro_result
-                attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
-
-                # Show agent completion status
-                status_icon = "✓" if result.success else "✗"
-                safe_status(status_callback, f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
-                reward = 1.0 if result.success else -0.5
-
-                # Post-execution: divergence learning
-                if self.trajectory_predictor and task.actor in predictions:
-                    try:
-                        prediction = predictions[task.actor]
-                        actual = ActualTrajectory(
-                            steps=result.trajectory or [],
-                            actual_reward=reward
-                        )
-                        divergence = self.trajectory_predictor.compute_divergence(prediction, actual)
-                        self.divergence_memory.store(divergence)
-                        self.trajectory_predictor.update_from_divergence(divergence)
-
-                        # Use divergence as TD error weight for Q-update
-                        divergence_penalty = 1.0 - min(1.0, divergence.total_divergence())
-                        adjusted_reward = reward * divergence_penalty
-                        state = {'query': goal, 'agent': task.actor}
-                        action = {'actor': task.actor, 'task': task.description[:100]}
-                        self.learning_manager.record_outcome(state, action, adjusted_reward)
-                    except Exception as e:
-                        logger.debug(f"Divergence learning skipped for {task.actor}: {e}")
-
-                if result.success:
-                    self.swarm_task_board.complete_task(task.task_id, result={'output': result.output})
-                    all_results[task.actor] = result
-
-                    agent_config = next((a for a in self.agents if a.name == task.actor), None)
-                    if agent_config:
-                        self._learn_from_result(result, agent_config, goal=task.description or goal)
-                else:
-                    # Retry with enriched context if attempts remain
-                    if attempt_counts.get(task.task_id, 1) < max_attempts:
-                        error_msg = str(getattr(result, 'error', None) or 'Execution failed')
-                        fb = FeedbackMessage(
-                            source_actor='swarm_manager',
-                            target_actor=task.actor,
-                            feedback_type=FeedbackType.ERROR,
-                            content=f"Previous attempt failed: {error_msg}. Please try a different approach.",
-                            context={'attempt': attempt_counts[task.task_id], 'error': error_msg},
-                            requires_response=False,
-                            priority=1,
-                        )
-                        self.feedback_channel.send(fb)
-                        # Reset task to PENDING for retry
-                        try:
-                            self.swarm_task_board.add_task(
-                                task_id=f"{task.task_id}_retry{attempt_counts[task.task_id]}",
-                                description=task.description,
-                                actor=task.actor
-                            )
-                        except Exception:
-                            self.swarm_task_board.fail_task(task.task_id, error=error_msg)
-                    else:
-                        self.swarm_task_board.fail_task(
-                            task.task_id,
-                            error=str(getattr(result, 'error', None) or 'Execution failed')
-                        )
-                    all_results[task.actor] = result
-
-        # MAS-ZERO: Handle TOO_HARD signals from agents
-        # If any agent signaled TOO_HARD, try re-routing its task
-        for agent_name, result in list(all_results.items()):
-            output = result.output if hasattr(result, 'output') else result
-            is_too_hard = (
-                isinstance(output, dict) and output.get('too_hard')
-            ) or (
-                hasattr(result, 'output') and isinstance(result.output, dict)
-                and result.output.get('too_hard')
-            )
-            if is_too_hard and not result.success:
-                logger.info(f"MAS-ZERO: Agent '{agent_name}' signaled TOO_HARD, "
-                           f"task may need re-decomposition")
-
-        # MAS-ZERO: Meta-feedback evaluation (solvability + completeness)
-        meta_feedback = self._mas_zero_evaluate(goal, all_results)
-
-        # MAS-ZERO: Iterative refinement if meta-feedback says refine
-        if meta_feedback.get('should_refine') and len(all_results) > 0:
-            safe_status(status_callback, "MAS-Evolve", "refining based on meta-feedback")
-            all_results = await self._mas_zero_evolve(
-                goal, all_results,
-                max_iterations=2,
-                status_callback=status_callback,
-                **kwargs,
-            )
-
-        # Cooperative credit assignment
-        self._assign_cooperative_credit(all_results, goal)
-
-        # Post-episode learning + auto-save (fire-and-forget background)
-        combined_result = self._aggregate_results(all_results, goal)
-        self._schedule_background_learning(combined_result, goal)
-
-        # Observability: record per-agent metrics
-        try:
-            from Jotty.core.observability import get_metrics
-            _metrics = get_metrics()
-            for agent_name, result in all_results.items():
-                _metrics.record_execution(
-                    agent_name=agent_name,
-                    task_type="multi_agent",
-                    duration_s=getattr(result, 'execution_time', 0.0),
-                    success=result.success if hasattr(result, 'success') else False,
-                )
-        except (ImportError, Exception):
-            pass
-
-        return combined_result
-
-    # =========================================================================
-    # DISCUSSION PARADIGMS (MALLM-inspired, Becker et al. EMNLP 2025)
-    # =========================================================================
-
-    async def _paradigm_run_agent(
-        self,
-        runner,
-        sub_goal: str,
-        agent_name: str,
-        **kwargs,
-    ) -> EpisodeResult:
-        """
-        Run a single agent within a paradigm, using fast-path when possible.
-
-        LATENCY OPTIMIZATION: For simple sub-goals (no tool use needed),
-        bypass the full AutoAgent pipeline (planner → skill select → execute)
-        and make a direct LLM call. Saves 2-4 LLM calls per agent.
-
-        Heuristic: If sub-goal doesn't need tools (no "search", "fetch",
-        "create file", "send", etc.), go direct.
-
-        Args:
-            runner: AgentRunner instance
-            sub_goal: The sub-task for this agent
-            agent_name: Agent name for logging
-            **kwargs: Forwarded to runner.run() if full pipeline needed
-
-        Returns:
-            EpisodeResult
-        """
-        # Heuristic: does this sub-goal need external tools?
-        _tool_keywords = [
-            'search', 'fetch', 'scrape', 'download', 'upload',
-            'send', 'email', 'telegram', 'slack',
-            'create file', 'save file', 'write file', 'read file',
-            'execute', 'run code', 'compile', 'deploy',
-            'database', 'sql', 'api call',
-        ]
-        _needs_tools = any(kw in sub_goal.lower() for kw in _tool_keywords)
-
-        if not _needs_tools:
-            # FAST PATH: Direct LLM call — ~1 LLM call instead of 3-5
-            import dspy as _dspy
-            lm = _dspy.settings.lm
-            if lm:
-                try:
-                    import time as _time
-                    _start = _time.time()
-
-                    # Fire hooks if runner has them
-                    hook_ctx = runner._run_hooks(
-                        'pre_run', goal=sub_goal, agent_name=agent_name,
-                        fast_path=True,
-                    )
-                    sub_goal = hook_ctx.get('goal', sub_goal)
-
-                    # LLM call with retry on rate limits
-                    _last_err = None
-                    response = None
-                    for _attempt in range(4):
-                        try:
-                            response = lm(prompt=sub_goal)
-                            break
-                        except Exception as _e:
-                            _err_s = str(_e)
-                            if ('429' in _err_s or 'RateLimit' in _err_s or
-                                    'rate limit' in _err_s.lower()):
-                                _delay = 8.0 * (2 ** _attempt)
-                                logger.info(f"Paradigm fast-path rate limited, retry in {_delay:.0f}s")
-                                _time.sleep(_delay)
-                                _last_err = _e
-                            else:
-                                raise
-                    if response is None and _last_err:
-                        raise _last_err
-                    if isinstance(response, list):
-                        response = response[0] if response else ""
-                    response = str(response).strip()
-
-                    _elapsed = _time.time() - _start
-                    logger.info(
-                        f"⚡ Paradigm fast-path: {agent_name} "
-                        f"({_elapsed:.1f}s, 1 LLM call)"
-                    )
-
-                    result = EpisodeResult(
-                        output=response,
-                        success=bool(response),
-                        trajectory=[],
-                        tagged_outputs={agent_name: response},
-                        episode=0,
-                        execution_time=_elapsed,
-                        architect_results=[],
-                        auditor_results=[],
-                        agent_contributions={agent_name: response[:200]},
-                    )
-
-                    runner._run_hooks(
-                        'post_run', goal=sub_goal, agent_name=agent_name,
-                        result=result, success=result.success, elapsed=_elapsed,
-                    )
-                    return result
-                except Exception as e:
-                    logger.warning(f"Fast-path failed for {agent_name}: {e}, falling back to full pipeline")
-
-        # FULL PATH: Use the complete AgentRunner pipeline
-        return await runner.run(goal=sub_goal, **kwargs)
-
-    async def _paradigm_relay(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Relay paradigm: agents execute sequentially, each building on prior output.
-
-        MALLM's "relay" — like a relay race where context is passed along.
-        DRY: Reuses existing runners. KISS: Simple loop.
-
-        When agents expose AgentIOSchema (via get_io_schema()), output fields
-        are auto-wired to the next agent's input fields by name/type match.
-        Falls back to string concatenation when schemas are unavailable.
-
-        Best for: research → summarize → format pipelines.
-        """
-        status_callback = kwargs.pop('status_callback', None)
-        # LATENCY: Disable per-agent ensemble — each sub-task is focused
-        kwargs.setdefault('ensemble', False)
-
-        all_results = {}
-        enriched_goal = goal
-        prev_schema = None  # AgentIOSchema of previous agent
-        prev_output = None  # Dict output of previous agent
-
-        for agent_config in self.agents:
-            runner = self.runners.get(agent_config.name)
-            if not runner:
-                continue
-
-            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else enriched_goal
-
-            # Schema-aware wiring: map previous output fields to this agent's inputs
-            if prev_schema is not None and prev_output is not None:
-                try:
-                    cur_agent = getattr(runner, 'agent', None)
-                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
-                        cur_schema = cur_agent.get_io_schema()
-                        wired_kwargs = prev_schema.map_outputs(prev_output, cur_schema)
-                        if wired_kwargs:
-                            kwargs.update(wired_kwargs)
-                            logger.info(
-                                f"Relay schema wiring: {prev_schema.agent_name} → "
-                                f"{cur_schema.agent_name}: {list(wired_kwargs.keys())}"
-                            )
-                except Exception as e:
-                    logger.debug(f"Relay schema wiring skipped: {e}")
-
-            safe_status(status_callback, f"Relay → {agent_config.name}", sub_goal[:60])
-
-            async with self.agent_semaphore:
-                result = await self._paradigm_run_agent(
-                    runner, sub_goal, agent_config.name, **kwargs
-                )
-
-            all_results[agent_config.name] = result
-
-            # Chain: feed this agent's output into next agent's context
-            if result.success and result.output:
-                enriched_goal = (
-                    f"{goal}\n\n"
-                    f"[Previous agent '{agent_config.name}' output]:\n"
-                    f"{str(result.output)[:2000]}"
-                )
-                # Track schema + output for next iteration's auto-wiring
-                try:
-                    cur_agent = getattr(runner, 'agent', None)
-                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
-                        prev_schema = cur_agent.get_io_schema()
-                        # Extract dict output for field-level mapping
-                        out = result.output
-                        prev_output = out if isinstance(out, dict) else {'output': str(out)}
-                    else:
-                        prev_schema = None
-                        prev_output = None
-                except Exception:
-                    prev_schema = None
-                    prev_output = None
-            else:
-                logger.warning(f"Relay: {agent_config.name} failed, continuing with original goal")
-                prev_schema = None
-                prev_output = None
-
-        combined = self._aggregate_results(all_results, goal)
-        self._schedule_background_learning(combined, goal)
-        return combined
-
-    async def _paradigm_debate(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Debate paradigm: agents produce drafts, then critique each other in rounds.
-
-        MALLM's "debate" — adversarial refinement where agents challenge
-        each other's solutions.  DRY: Reuses runners + FeedbackChannel.
-        KISS: 2 rounds max (draft + 1 critique round).
-
-        Best for: analysis tasks, controversial topics, quality-sensitive output.
-        """
-        status_callback = kwargs.pop('status_callback', None)
-        max_debate_rounds = kwargs.pop('debate_rounds', 2)
-        # LATENCY: Disable per-agent ensemble — debate itself IS multi-perspective
-        kwargs.setdefault('ensemble', False)
-
-        all_results: Dict[str, EpisodeResult] = {}
-
-        # Round 1: All agents produce initial drafts (fan-out)
-        safe_status(status_callback, "Debate round 1", "all agents drafting")
-
-        draft_tasks = []
-        for agent_config in self.agents:
-            runner = self.runners.get(agent_config.name)
-            if not runner:
-                continue
-            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
-            draft_tasks.append((agent_config.name, runner, sub_goal))
-
-        async def _run_draft(name, runner, sub_goal):
-            async with self.agent_semaphore:
-                return name, await self._paradigm_run_agent(
-                    runner, sub_goal, name, **kwargs
-                )
-
-        draft_results = await asyncio.gather(
-            *[_run_draft(n, r, g) for n, r, g in draft_tasks],
-            return_exceptions=True,
-        )
-
-        drafts = {}
-        for item in draft_results:
-            if not isinstance(item, tuple):
-                # Exception or timeout — skip
-                logger.warning(f"Debate draft failed: {item}")
-                continue
-            name, result = item
-            all_results[name] = result
-            if result.success and result.output:
-                drafts[name] = str(result.output)[:1500]
-
-        if len(drafts) < 2:
-            # Not enough drafts to debate — fall back to fanout result
-            combined = self._aggregate_results(all_results, goal)
-            self._schedule_background_learning(combined, goal)
-            return combined
-
-        # Rounds 2+: Critique — each agent sees all other drafts and refines
-        for round_num in range(2, max_debate_rounds + 1):
-            safe_status(status_callback, f"Debate round {round_num}", "agents critiquing & refining")
-
-            # Build critique context: each agent sees OTHER agents' drafts
-            critique_tasks = []
-            for agent_config in self.agents:
-                runner = self.runners.get(agent_config.name)
-                if not runner or agent_config.name not in drafts:
-                    continue
-
-                others = "\n\n".join(
-                    f"[{name}'s draft]: {text}"
-                    for name, text in drafts.items()
-                    if name != agent_config.name
-                )
-                sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
-                critique_goal = (
-                    f"{sub_goal}\n\n"
-                    f"Other agents produced these solutions. "
-                    f"Critique them and improve your answer:\n{others}"
-                )
-                critique_tasks.append((agent_config.name, runner, critique_goal))
-
-            critique_results = await asyncio.gather(
-                *[_run_draft(n, r, g) for n, r, g in critique_tasks],
-                return_exceptions=True,
-            )
-
-            for item in critique_results:
-                if not isinstance(item, tuple):
-                    logger.warning(f"Debate critique failed: {item}")
-                    continue
-                name, result = item
-                all_results[name] = result  # overwrite with refined version
-                if result.success and result.output:
-                    drafts[name] = str(result.output)[:1500]
-
-        combined = self._aggregate_results(all_results, goal)
-        self._schedule_background_learning(combined, goal)
-        return combined
-
-    async def _paradigm_refinement(self, goal: str, **kwargs) -> EpisodeResult:
-        """
-        Collective refinement paradigm: iterative improvement until quality stabilizes.
-
-        MALLM's "collective_refinement" — all agents see the same shared draft
-        and iteratively improve it.  DRY: Reuses runners.
-        KISS: Max 3 iterations, stop early if output stabilizes.
-
-        Best for: writing tasks, code generation, report creation.
-        """
-        status_callback = kwargs.pop('status_callback', None)
-        max_iterations = kwargs.pop('refinement_iterations', 3)
-        # LATENCY: Disable per-agent ensemble — refinement itself IS iterative improvement
-        kwargs.setdefault('ensemble', False)
-
-        # Pick the first agent to produce initial draft
-        first_agent = self.agents[0]
-        runner = self.runners.get(first_agent.name)
-        sub_goal = first_agent.capabilities[0] if first_agent.capabilities else goal
-
-        safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
-
-        async with self.agent_semaphore:
-            result = await self._paradigm_run_agent(
-                runner, sub_goal, first_agent.name, **kwargs
-            )
-
-        current_draft = str(result.output)[:3000] if result.output else ""
-        all_results = {first_agent.name: result}
-        prev_draft = ""
-
-        # Iterate: each remaining agent refines the shared draft
-        for iteration in range(1, max_iterations + 1):
-            # Early stop: draft didn't change meaningfully
-            if current_draft and prev_draft and current_draft[:200] == prev_draft[:200]:
-                logger.info(f"Refinement: converged at iteration {iteration}")
-                break
-
-            # Adaptive learning: check if the system recommends stopping early
-            try:
-                if self.learning.adaptive_learning.should_stop_early(min_iterations=2):
-                    logger.info(
-                        f"Refinement: adaptive learning recommends early stop "
-                        f"at iteration {iteration}"
-                    )
-                    break
-            except Exception as e:
-                logger.debug(f"Adaptive early-stop check failed: {e}")
-
-            prev_draft = current_draft
-
-            for agent_config in self.agents[1:]:  # skip first (already drafted)
-                refiner = self.runners.get(agent_config.name)
-                if not refiner:
-                    continue
-
-                refine_sub = agent_config.capabilities[0] if agent_config.capabilities else goal
-                refine_goal = (
-                    f"{refine_sub}\n\n"
-                    f"Here is the current draft. Improve it:\n{current_draft}"
-                )
-
-                safe_status(status_callback, f"Refinement iter {iteration}", f"{agent_config.name} improving")
-
-                async with self.agent_semaphore:
-                    ref_result = await self._paradigm_run_agent(
-                        refiner, refine_goal, agent_config.name, **kwargs
-                    )
-
-                all_results[agent_config.name] = ref_result
-                if ref_result.success and ref_result.output:
-                    current_draft = str(ref_result.output)[:3000]
-
-        combined = self._aggregate_results(all_results, goal)
-        self._schedule_background_learning(combined, goal)
-        return combined
-
-    def _aggregate_results(self, results: Dict[str, EpisodeResult], goal: str) -> EpisodeResult:
-        """
-        Combine all agent outputs into a single EpisodeResult.
-
-        MAS-ZERO: Uses CandidateVerifier for intelligent selection
-        instead of naive concatenation when multiple agents produce output.
-        """
-        if not results:
-            return EpisodeResult(
-                output=None,
-                success=False,
-                trajectory=[],
-                tagged_outputs=[],
-                episode=self.episode_count,
-                execution_time=0.0,
-                architect_results=[],
-                auditor_results=[],
-                agent_contributions={},
-                alerts=["No tasks executed"],
-            )
-
-        if len(results) == 1:
-            return list(results.values())[0]
-
-        # MAS-ZERO: Use CandidateVerifier to pick the best output
-        # Falls back to combined dict if verification fails or isn't applicable
-        verified_output = self._mas_zero_verify(goal, results)
-
-        # If verification selected a single best answer, use it
-        # Otherwise fall back to combined output dict
-        if verified_output is not None:
-            combined_output = verified_output
-        else:
-            combined_output = {name: r.output for name, r in results.items()}
-
-        all_success = all(r.success for r in results.values())
-
-        # Merge trajectories
-        merged_trajectory = []
-        for name, r in results.items():
-            for step in (r.trajectory or []):
-                step_copy = dict(step)
-                step_copy['agent'] = name
-                merged_trajectory.append(step_copy)
-
-        # Merge agent contributions
-        merged_contributions = {}
-        for r in results.values():
-            if hasattr(r, 'agent_contributions') and r.agent_contributions:
-                merged_contributions.update(r.agent_contributions)
-
-        return EpisodeResult(
-            output=combined_output,
-            success=all_success,
-            trajectory=merged_trajectory,
-            tagged_outputs=[],
-            episode=self.episode_count,
-            execution_time=sum(getattr(r, 'execution_time', 0) for r in results.values()),
-            architect_results=[],
-            auditor_results=[],
-            agent_contributions=merged_contributions
-        )
-
-    def _assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str):
-        """
-        Compute cooperative reward decomposition across agents.
-
-        A-Team v8.0: Uses adaptive learned weights instead of hardcoded 0.3/0.4/0.3.
-        Weights are updated based on episode success and persisted across sessions.
-        """
-        if not results or len(results) < 2:
-            return
-
-        # Track episode success for weight updates
-        episode_success = all(r.success for r in results.values())
-
-        for agent_name, result in results.items():
-            base_reward = 1.0 if result.success else 0.0
-
-            # Cooperation bonus: did this agent unblock downstream tasks?
-            other_successes = sum(1 for n, r in results.items() if n != agent_name and r.success)
-            total_others = len(results) - 1
-            cooperation_bonus = other_successes / total_others if total_others > 0 else 0.0
-
-            # Predictability bonus: was trajectory prediction accurate?
-            predictability_bonus = 0.5  # Default neutral
-
-            # A-Team v8.0: Use adaptive learned weights instead of hardcoded values
-            cooperative_reward = (
-                self.credit_weights.get('base_reward') * base_reward +
-                self.credit_weights.get('cooperation_bonus') * cooperation_bonus +
-                self.credit_weights.get('predictability_bonus') * predictability_bonus
-            )
-
-            try:
-                state = {'query': goal, 'agent': agent_name, 'cooperative': True}
-                action = {'actor': agent_name, 'task': goal[:100]}
-                self.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
-            except Exception as e:
-                logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
-
-        # A-Team v8.0: Update weights based on episode outcome
-        if episode_success:
-            # Success - cooperation bonus was valuable, strengthen it
-            self.credit_weights.update_from_feedback('cooperation_bonus', 0.1, reward=1.0)
-        else:
-            # Failure - maybe base reward should matter more
-            self.credit_weights.update_from_feedback('base_reward', 0.05, reward=0.0)
-
-    def _create_zero_config_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
-        """Delegate to ZeroConfigAgentFactory."""
-        if not hasattr(self, '_zero_config_factory') or self._zero_config_factory is None:
-            from Jotty.core.orchestration.v2.zero_config_factory import ZeroConfigAgentFactory
-            self._zero_config_factory = ZeroConfigAgentFactory()
-        return self._zero_config_factory.create_agents(task, status_callback)
+    async def _execute_single_agent(self, goal, **kwargs): return await self._engine._execute_single_agent(goal, **kwargs)
+    async def _execute_multi_agent(self, goal, **kwargs): return await self._engine._execute_multi_agent(goal, **kwargs)
+    async def _paradigm_run_agent(self, *args, **kwargs): return await self._engine._paradigm_run_agent(*args, **kwargs)
+    async def _paradigm_relay(self, goal, **kwargs): return await self._engine._paradigm_relay(goal, **kwargs)
+    async def _paradigm_debate(self, goal, **kwargs): return await self._engine._paradigm_debate(goal, **kwargs)
+    async def _paradigm_refinement(self, goal, **kwargs): return await self._engine._paradigm_refinement(goal, **kwargs)
+    def _aggregate_results(self, results, goal): return self._engine._aggregate_results(results, goal)
+    def _assign_cooperative_credit(self, results, goal): return self._engine._assign_cooperative_credit(results, goal)
+
+    def _create_zero_config_agents(self, task, status_callback=None): return self._agent_factory.create_zero_config_agents(task, status_callback)
 
     # _should_auto_ensemble — see _ensemble_mixin.py
 
@@ -2841,65 +2958,7 @@ class SwarmManager:
             goal=goal,
         )
     
-    async def autonomous_setup(self, goal: str, status_callback=None):
-        """
-        Autonomous setup: Research, install, configure.
-
-        Public method for manual autonomous setup.
-        DRY: Reuses all autonomous components.
-
-        Args:
-            goal: Task goal
-            status_callback: Optional callback(stage, detail) for progress
-
-        Example:
-            await swarm.autonomous_setup("Set up Reddit scraping")
-        """
-        _status = StatusReporter(status_callback, logger, emoji="📍")
-
-        # Cache check: skip if already set up for this goal
-        cache_key = hash(goal)
-        if cache_key in self._setup_cache:
-            _status("Setup", "using cached")
-            return
-
-        # Parse intent to understand requirements
-        _status("Parsing intent", goal)
-        task_graph = self.swarm_intent_parser.parse(goal)
-
-        # Research solutions if needed
-        if task_graph.requirements or task_graph.integrations:
-            # Filter out stop words and meaningless single-word requirements
-            stop_words = {'existing', 'use', 'check', 'find', 'get', 'the', 'a', 'an', 'and', 'or', 'for', 'with'}
-            meaningful_requirements = [
-                req for req in task_graph.requirements
-                if req.lower() not in stop_words and len(req.split()) > 1
-            ]
-
-            if meaningful_requirements:
-                _status("Researching", f"{len(meaningful_requirements)} requirements")
-
-            for i, requirement in enumerate(meaningful_requirements):
-                if not requirement.strip():
-                    continue
-                _status("Research", f"[{i+1}/{len(meaningful_requirements)}] {requirement[:30]}")
-                research_result = await self.swarm_researcher.research(requirement)
-                if research_result.tools_found:
-                    _status("Found tools", ", ".join(research_result.tools_found[:3]))
-                    for tool in research_result.tools_found:
-                        _status("Installing", tool)
-                        await self.swarm_installer.install(tool)
-
-        # Configure integrations
-        if task_graph.integrations:
-            _status("Configuring", f"{len(task_graph.integrations)} integrations")
-            for integration in task_graph.integrations:
-                _status("Configure", integration)
-                await self.swarm_configurator.configure(integration)
-
-        # Mark as cached
-        self._setup_cache[cache_key] = True
-        _status("Setup complete", "")
+    async def autonomous_setup(self, goal, status_callback=None): return await self._engine.autonomous_setup(goal, status_callback)
 
     # =====================================================================
     # State Management Methods (V1 capabilities integrated)

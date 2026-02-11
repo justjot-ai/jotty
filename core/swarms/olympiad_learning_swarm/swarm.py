@@ -31,8 +31,6 @@ import logging
 import json
 import re
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 import dspy
@@ -41,7 +39,7 @@ from ..base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
-from ..base import DomainSwarm, AgentTeam
+from ..base import DomainSwarm, AgentTeam, PhaseExecutor
 
 from .types import (
     Subject, DifficultyTier, LessonDepth, TeachingMode,
@@ -148,7 +146,6 @@ class OlympiadLearningSwarm(DomainSwarm):
         Returns:
             OlympiadLearningResult with complete lesson content
         """
-        start_time = datetime.now()
         self._init_agents()
 
         config = self.config
@@ -161,163 +158,161 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         logger.info(f"OlympiadLearningSwarm starting: {topic} ({subject_str}) for {student_name}")
 
+        # Capture locals needed by _execute_phases in a closure
+        async def _run_phases(executor: PhaseExecutor) -> OlympiadLearningResult:
+            return await self._execute_phases(
+                executor, topic, subject, subject_str, student_name,
+                depth, target_str, config, send_telegram,
+            )
+
+        return await self._safe_execute_domain(
+            task_type='olympiad_teaching',
+            default_tools=['curriculum', 'decompose', 'intuition', 'patterns', 'problems'],
+            result_class=OlympiadLearningResult,
+            execute_fn=_run_phases,
+            output_data_fn=lambda r: {
+                'concepts_count': r.concepts_covered if hasattr(r, 'concepts_covered') else 0,
+                'problems_count': r.problems_generated if hasattr(r, 'problems_generated') else 0,
+                'breakthrough_moments': r.breakthrough_moments if hasattr(r, 'breakthrough_moments') else 0,
+                'word_count': r.content.total_words if hasattr(r, 'content') and r.content else 0,
+            },
+            input_data_fn=lambda: {'topic': topic, 'subject': subject_str},
+        )
+
+    async def _execute_phases(
+        self,
+        executor: PhaseExecutor,
+        topic: str,
+        subject: Subject,
+        subject_str: str,
+        student_name: str,
+        depth: LessonDepth,
+        target_str: str,
+        config: OlympiadLearningConfig,
+        send_telegram: bool = None,
+    ) -> OlympiadLearningResult:
+        """Execute all teaching phases using the PhaseExecutor.
+
+        This contains the core domain logic extracted from teach(), using
+        executor.run_phase() and executor.run_parallel() for consistent
+        tracing and error handling.
+        """
+        if self._optimization_mode == "parallel_deep":
+            result = await self._execute_parallel_deep(
+                executor, topic, subject_str, student_name, depth, target_str, config
+            )
+        elif self._optimization_mode == "unified":
+            result = await self._execute_unified(
+                executor, topic, subject_str, student_name, depth, target_str, config
+            )
+        else:
+            result = await self._execute_sequential(
+                executor, topic, subject_str, student_name, depth, target_str, config
+            )
+
+        # Build final result
+        exec_time = executor.elapsed()
+        content = result.get('content')
+
+        # Estimate learning time
+        if depth == LessonDepth.QUICK:
+            learning_time = "15-20 minutes"
+        elif depth == LessonDepth.STANDARD:
+            learning_time = "45-60 minutes"
+        elif depth == LessonDepth.DEEP:
+            learning_time = "90-120 minutes"
+        else:
+            learning_time = "2-3 hours"
+
+        total_problems = len(content.problems) if content else 0
+        breakthrough_count = sum(1 for s in content.sections if s.has_breakthrough_moment) if content else 0
+
+        final_result = OlympiadLearningResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={
+                'topic': topic,
+                'subject': subject_str,
+                'student': student_name,
+                'content_preview': result.get('complete_content', '')[:500]
+            },
+            execution_time=exec_time,
+            content=content,
+            student_name=student_name,
+            topic=topic,
+            subject=subject,
+            learning_time_estimate=learning_time,
+            concepts_covered=len(content.core_concepts) if content else 0,
+            problems_generated=total_problems,
+            breakthrough_moments=breakthrough_count,
+            difficulty_progression=[s.level for s in content.sections] if content else [],
+        )
+
+        logger.info(f"OlympiadLearningSwarm complete: {topic}")
+        logger.info(f"  {len(content.core_concepts) if content else 0} concepts, "
+                    f"{total_problems} problems, "
+                    f"{breakthrough_count} breakthrough moments")
+
+        # =============================================================
+        # GENERATE OUTPUTS (PDF + HTML in parallel)
+        # =============================================================
+        pdf_path = None
+        html_path = None
+
+        if content:
+            async def _noop():
+                return None
+
+            output_results = await executor.run_parallel(
+                6, "Output Generation (PDF + HTML)",
+                [
+                    ("PDFGenerator", AgentRole.ACTOR,
+                     self._generate_pdf(topic, student_name, content, learning_time) if config.generate_pdf else _noop(),
+                     ['pdf_generation']),
+                    ("HTMLGenerator", AgentRole.ACTOR,
+                     self._generate_html(topic, student_name, content, learning_time) if config.generate_html else _noop(),
+                     ['html_generation']),
+                ],
+            )
+
+            pdf_path = output_results[0] if not isinstance(output_results[0], dict) or 'error' not in output_results[0] else None
+            html_path = output_results[1] if not isinstance(output_results[1], dict) or 'error' not in output_results[1] else None
+
+        final_result.pdf_path = pdf_path
+        final_result.html_path = html_path
+
+        # ── Live cost summary ──
         try:
-            if self._optimization_mode == "parallel_deep":
-                result = await self._execute_parallel_deep(
-                    topic, subject_str, student_name, depth, target_str, config
-                )
-            elif self._optimization_mode == "unified":
-                result = await self._execute_unified(
-                    topic, subject_str, student_name, depth, target_str, config
-                )
-            else:
-                result = await self._execute_sequential(
-                    topic, subject_str, student_name, depth, target_str, config
-                )
+            from Jotty.core.foundation.direct_anthropic_lm import get_cost_tracker
+            tracker = get_cost_tracker()
+            metrics = tracker.get_metrics()
+            logger.info(
+                f"COST SUMMARY: ${metrics.total_cost:.4f} | "
+                f"{metrics.total_calls} calls | "
+                f"{metrics.total_input_tokens}+{metrics.total_output_tokens} tokens | "
+                f"avg ${metrics.avg_cost_per_call:.4f}/call"
+            )
+            for model, cost in metrics.cost_by_model.items():
+                calls = metrics.calls_by_model.get(model, 0)
+                logger.info(f"  {model}: ${cost:.4f} ({calls} calls)")
+        except Exception as cost_err:
+            logger.debug(f"Cost summary unavailable: {cost_err}")
 
-            # Build final result
-            exec_time = (datetime.now() - start_time).total_seconds()
-            content = result.get('content')
-
-            # Estimate learning time
-            if depth == LessonDepth.QUICK:
-                learning_time = "15-20 minutes"
-            elif depth == LessonDepth.STANDARD:
-                learning_time = "45-60 minutes"
-            elif depth == LessonDepth.DEEP:
-                learning_time = "90-120 minutes"
-            else:
-                learning_time = "2-3 hours"
-
-            total_problems = len(content.problems) if content else 0
-            breakthrough_count = sum(1 for s in content.sections if s.has_breakthrough_moment) if content else 0
-
-            final_result = OlympiadLearningResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={
-                    'topic': topic,
-                    'subject': subject_str,
-                    'student': student_name,
-                    'content_preview': result.get('complete_content', '')[:500]
-                },
-                execution_time=exec_time,
-                content=content,
-                student_name=student_name,
-                topic=topic,
-                subject=subject,
-                learning_time_estimate=learning_time,
-                concepts_covered=len(content.core_concepts) if content else 0,
-                problems_generated=total_problems,
-                breakthrough_moments=breakthrough_count,
-                difficulty_progression=[s.level for s in content.sections] if content else [],
+        # =============================================================
+        # SEND TO TELEGRAM (summary + PDF + HTML)
+        # =============================================================
+        should_send = send_telegram if send_telegram is not None else config.send_telegram
+        if should_send and TELEGRAM_AVAILABLE and content:
+            logger.info("Sending to Telegram...")
+            await self._send_to_telegram(
+                topic, student_name, content,
+                result.get('complete_content', ''),
+                pdf_path=pdf_path,
+                html_path=html_path,
             )
 
-            logger.info(f"OlympiadLearningSwarm complete: {topic}")
-            logger.info(f"  {len(content.core_concepts) if content else 0} concepts, "
-                        f"{total_problems} problems, "
-                        f"{breakthrough_count} breakthrough moments")
-
-            # =============================================================
-            # GENERATE OUTPUTS (PDF + HTML in parallel)
-            # =============================================================
-            pdf_path = None
-            html_path = None
-
-            if content:
-                logger.info("Generating outputs (PDF, HTML)...")
-
-                async def gen_pdf():
-                    if config.generate_pdf:
-                        return await self._generate_pdf(topic, student_name, content, learning_time)
-                    return None
-
-                async def gen_html():
-                    if config.generate_html:
-                        return await self._generate_html(topic, student_name, content, learning_time)
-                    return None
-
-                output_results = await asyncio.gather(
-                    gen_pdf(), gen_html(), return_exceptions=True
-                )
-
-                pdf_path = output_results[0] if not isinstance(output_results[0], Exception) else None
-                html_path = output_results[1] if not isinstance(output_results[1], Exception) else None
-
-                for i, r in enumerate(output_results):
-                    if isinstance(r, Exception):
-                        logger.warning(f"Output generation {i} failed: {r}")
-
-            final_result.pdf_path = pdf_path
-            final_result.html_path = html_path
-
-            # ── Live cost summary ──
-            try:
-                from Jotty.core.foundation.direct_anthropic_lm import get_cost_tracker
-                tracker = get_cost_tracker()
-                metrics = tracker.get_metrics()
-                logger.info(
-                    f"💰 COST SUMMARY: ${metrics.total_cost:.4f} | "
-                    f"{metrics.total_calls} calls | "
-                    f"{metrics.total_input_tokens}+{metrics.total_output_tokens} tokens | "
-                    f"avg ${metrics.avg_cost_per_call:.4f}/call"
-                )
-                for model, cost in metrics.cost_by_model.items():
-                    calls = metrics.calls_by_model.get(model, 0)
-                    logger.info(f"  {model}: ${cost:.4f} ({calls} calls)")
-            except Exception as cost_err:
-                logger.debug(f"Cost summary unavailable: {cost_err}")
-
-            # Self-improvement learning
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['curriculum', 'decompose', 'intuition', 'patterns', 'problems']),
-                task_type='olympiad_teaching',
-                output_data={
-                    'concepts_count': len(content.core_concepts) if content else 0,
-                    'problems_count': total_problems,
-                    'breakthrough_moments': breakthrough_count,
-                    'word_count': content.total_words if content else 0,
-                },
-                input_data={'topic': topic, 'subject': subject_str}
-            )
-
-            # =============================================================
-            # SEND TO TELEGRAM (summary + PDF + HTML)
-            # =============================================================
-            should_send = send_telegram if send_telegram is not None else config.send_telegram
-            if should_send and TELEGRAM_AVAILABLE and content:
-                logger.info("Sending to Telegram...")
-                await self._send_to_telegram(
-                    topic, student_name, content,
-                    result.get('complete_content', ''),
-                    pdf_path=pdf_path,
-                    html_path=html_path,
-                )
-
-            return final_result
-
-        except Exception as e:
-            logger.error(f"OlympiadLearningSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False, execution_time=exec_time,
-                tools_used=[], task_type='olympiad_teaching'
-            )
-
-            return OlympiadLearningResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=exec_time,
-                error=str(e)
-            )
+        return final_result
 
     # =========================================================================
     # PARALLEL DEEP MODE - Best quality + speed
@@ -325,6 +320,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
     async def _execute_parallel_deep(
         self,
+        executor: PhaseExecutor,
         topic: str,
         subject: str,
         student_name: str,
@@ -333,14 +329,16 @@ class OlympiadLearningSwarm(DomainSwarm):
         config: OlympiadLearningConfig
     ) -> Dict[str, Any]:
         """Execute with parallel deep generation - best quality."""
-        logger.info("Phase 1: Curriculum Architecture...")
 
         # Phase 1: Curriculum design (must be first - defines structure)
-        curriculum = await self._curriculum_architect.design(
-            subject=subject,
-            topic=topic,
-            student_name=student_name,
-            target_level=target_level
+        curriculum = await executor.run_phase(
+            1, "Curriculum Architecture", "CurriculumArchitect", AgentRole.PLANNER,
+            self._curriculum_architect.design(
+                subject=subject, topic=topic,
+                student_name=student_name, target_level=target_level,
+            ),
+            input_data={'topic': topic, 'subject': subject, 'target_level': target_level},
+            tools_used=['curriculum_design'],
         )
         building_blocks = curriculum.get('building_blocks', [])
 
@@ -348,15 +346,13 @@ class OlympiadLearningSwarm(DomainSwarm):
         concept_names = curriculum.get('learning_sequence', [topic])
         concepts_str = ', '.join(concept_names[:5])
 
-        # Extract planner's running example (canonical — used by all downstream agents)
+        # Extract planner's running example (canonical -- used by all downstream agents)
         planner_running_example = curriculum.get('running_example_scenario', '')
         section_depth_plan = curriculum.get('section_depth_plan', '')
         if planner_running_example:
             logger.info(f"Planner running example: {planner_running_example[:80]}...")
 
         # Phase 2: Parallel generation of all independent components
-        logger.info(f"Phase 2: Parallel deep generation ({len(concept_names)} concepts)...")
-
         semaphore = asyncio.Semaphore(config.max_concurrent_llm)
 
         async def rate_limited(coro):
@@ -369,59 +365,60 @@ class OlympiadLearningSwarm(DomainSwarm):
             concept_desc += f". Content depth plan: {section_depth_plan}"
 
         # Run decomposition, intuition, patterns, strategies, mistakes, connections in parallel
-        phase2_tasks = [
-            rate_limited(self._concept_decomposer.decompose(
-                concept_name=topic,
-                concept_description=concept_desc,
-                subject=subject,
-                prerequisites=', '.join(b.name for b in building_blocks[:3]) if building_blocks else "Basic knowledge",
-                student_name=student_name
-            )),
-            rate_limited(self._intuition_builder.build(
-                concept=f"{topic}: Core concepts in {subject}",
-                why_it_matters=f"Essential for international {subject} success",
-                student_name=student_name,
-                audience_level="intermediate",
-                subject=subject
-            )),
-            rate_limited(self._pattern_hunter.hunt(
-                topic=topic,
-                subject=subject,
-                concepts=concepts_str,
-                target_level=target_level
-            )),
-            rate_limited(self._solution_strategist.strategize(
-                topic=topic,
-                subject=subject,
-                concepts=concepts_str,
-                target_level=target_level
-            )),
-            rate_limited(self._mistake_analyzer.analyze(
-                topic=topic,
-                subject=subject,
-                concepts=concepts_str,
-                running_example=planner_running_example or f"A real-world scenario involving {topic}",
-                target_level=target_level
-            )),
-            rate_limited(self._connection_mapper.map_connections(
-                topic=topic,
-                subject=subject,
-                concepts=concepts_str
-            )),
-        ]
+        results = await executor.run_parallel(
+            2, f"Parallel Deep Generation ({len(concept_names)} concepts)",
+            [
+                ("ConceptDecomposer", AgentRole.ACTOR,
+                 rate_limited(self._concept_decomposer.decompose(
+                     concept_name=topic, concept_description=concept_desc,
+                     subject=subject,
+                     prerequisites=', '.join(b.name for b in building_blocks[:3]) if building_blocks else "Basic knowledge",
+                     student_name=student_name,
+                 )),
+                 ['concept_decompose']),
+                ("IntuitionBuilder", AgentRole.ACTOR,
+                 rate_limited(self._intuition_builder.build(
+                     concept=f"{topic}: Core concepts in {subject}",
+                     why_it_matters=f"Essential for international {subject} success",
+                     student_name=student_name, audience_level="intermediate", subject=subject,
+                 )),
+                 ['intuition_build']),
+                ("PatternHunter", AgentRole.ACTOR,
+                 rate_limited(self._pattern_hunter.hunt(
+                     topic=topic, subject=subject,
+                     concepts=concepts_str, target_level=target_level,
+                 )),
+                 ['pattern_hunt']),
+                ("SolutionStrategist", AgentRole.ACTOR,
+                 rate_limited(self._solution_strategist.strategize(
+                     topic=topic, subject=subject,
+                     concepts=concepts_str, target_level=target_level,
+                 )),
+                 ['strategy_build']),
+                ("MistakeAnalyzer", AgentRole.ACTOR,
+                 rate_limited(self._mistake_analyzer.analyze(
+                     topic=topic, subject=subject, concepts=concepts_str,
+                     running_example=planner_running_example or f"A real-world scenario involving {topic}",
+                     target_level=target_level,
+                 )),
+                 ['mistake_analysis']),
+                ("ConnectionMapper", AgentRole.ACTOR,
+                 rate_limited(self._connection_mapper.map_connections(
+                     topic=topic, subject=subject, concepts=concepts_str,
+                 )),
+                 ['connection_map']),
+            ],
+        )
 
-        results = await asyncio.gather(*phase2_tasks, return_exceptions=True)
-
-        decomposition = results[0] if not isinstance(results[0], Exception) else {}
-        intuition = results[1] if not isinstance(results[1], Exception) else {}
-        pattern_result = results[2] if not isinstance(results[2], Exception) else {'patterns': []}
-        strategy_result = results[3] if not isinstance(results[3], Exception) else {'strategies': []}
-        mistake_result = results[4] if not isinstance(results[4], Exception) else {'mistakes': []}
-        connection_result = results[5] if not isinstance(results[5], Exception) else {}
+        # Unpack results (run_parallel converts exceptions to {'error': str})
+        decomposition = results[0] if not isinstance(results[0], dict) or 'error' not in results[0] else {}
+        intuition = results[1] if not isinstance(results[1], dict) or 'error' not in results[1] else {}
+        pattern_result = results[2] if not isinstance(results[2], dict) or 'error' not in results[2] else {'patterns': []}
+        strategy_result = results[3] if not isinstance(results[3], dict) or 'error' not in results[3] else {'strategies': []}
+        mistake_result = results[4] if not isinstance(results[4], dict) or 'error' not in results[4] else {'mistakes': []}
+        connection_result = results[5] if not isinstance(results[5], dict) or 'error' not in results[5] else {}
 
         # Phase 3: Problem generation (parallel across tiers)
-        logger.info("Phase 3: Crafting progressive problem sets...")
-
         # Include full pattern fields so problems can reference patterns properly
         patterns_str = json.dumps([{
             'name': p.name, 'description': p.description,
@@ -441,49 +438,44 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Split into 1-per-call parallel requests to avoid JSON truncation
         # from Haiku hitting output token limits on large batches
-        problem_tasks = []
+        problem_parallel_tasks = []
         for tier, count in tier_configs:
-            for _ in range(count):
-                problem_tasks.append(
-                    rate_limited(self._problem_crafter.craft(
-                        topic=topic, subject=subject, concepts=concepts_str,
-                        patterns=patterns_str, running_example=running_example,
-                        tier=tier, count=1, student_name=student_name
-                    ))
+            for idx in range(count):
+                problem_parallel_tasks.append(
+                    (f"ProblemCrafter_{tier}_{idx}", AgentRole.ACTOR,
+                     rate_limited(self._problem_crafter.craft(
+                         topic=topic, subject=subject, concepts=concepts_str,
+                         patterns=patterns_str, running_example=running_example,
+                         tier=tier, count=1, student_name=student_name,
+                     )),
+                     ['problem_craft'])
                 )
 
-        logger.info(f"Phase 3: {len(problem_tasks)} individual problem calls in parallel...")
-        problem_results = await asyncio.gather(*problem_tasks, return_exceptions=True)
+        problem_results = await executor.run_parallel(
+            3, f"Crafting Progressive Problems ({len(problem_parallel_tasks)} calls)",
+            problem_parallel_tasks,
+        )
 
         all_problems = []
-        for result in problem_results:
-            if isinstance(result, list):
-                all_problems.extend(result)
+        for pr in problem_results:
+            if isinstance(pr, list):
+                all_problems.extend(pr)
 
-        # Phase 4: Assemble content
-        logger.info("Phase 4: Assembling world-class lesson...")
-
+        # Phase 4: Assemble content (synchronous, no LLM call)
         complete_content = self._build_complete_content(
-            student_name=student_name,
-            topic=topic,
-            subject=subject,
-            building_blocks=building_blocks,
-            decomposition=decomposition,
-            intuition=intuition,
-            patterns=pattern_result.get('patterns', []),
+            student_name=student_name, topic=topic, subject=subject,
+            building_blocks=building_blocks, decomposition=decomposition,
+            intuition=intuition, patterns=pattern_result.get('patterns', []),
             strategies=strategy_result.get('strategies', []),
-            problems=all_problems,
-            mistakes=mistake_result.get('mistakes', []),
-            connections=connection_result,
-            config=config,
+            problems=all_problems, mistakes=mistake_result.get('mistakes', []),
+            connections=connection_result, config=config,
             meta_strategy=pattern_result.get('meta_strategy', ''),
             speed_techniques=strategy_result.get('speed_techniques', []),
             stuck_toolkit=strategy_result.get('stuck_toolkit', []),
         )
+        logger.info("Phase 4: Assembled world-class lesson content")
 
         # Phase 5: Narrative editing + Rank tips (in parallel)
-        logger.info("Phase 5: Narrative editing + Rank tips generation...")
-
         key_insights = [
             decomposition.get('key_insight', ''),
             intuition.get('aha_moment', ''),
@@ -495,31 +487,30 @@ class OlympiadLearningSwarm(DomainSwarm):
             m.description for m in mistake_result.get('mistakes', [])[:5]
         ) or f"Common mistakes in {topic}"
 
-        # Run narrative editing and rank tips in parallel
-        phase5_results = await asyncio.gather(
-            self._narrative_editor.edit(
-                assembled_content=complete_content,
-                running_example=running_example,
-                key_insights=key_insights,
-                pattern_names=pattern_names,
-                student_name=student_name,
-                topic=topic,
-            ),
-            self._rank_tips.generate(
-                topic=topic,
-                subject=subject,
-                target_level=target_level,
-                student_name=student_name,
-                patterns_summary=patterns_summary,
-                mistakes_summary=mistakes_summary,
-            ),
-            return_exceptions=True,
+        phase5_results = await executor.run_parallel(
+            5, "Narrative Editing + Rank Tips",
+            [
+                ("NarrativeEditor", AgentRole.CRITIC,
+                 self._narrative_editor.edit(
+                     assembled_content=complete_content, running_example=running_example,
+                     key_insights=key_insights, pattern_names=pattern_names,
+                     student_name=student_name, topic=topic,
+                 ),
+                 ['narrative_edit']),
+                ("RankTips", AgentRole.ACTOR,
+                 self._rank_tips.generate(
+                     topic=topic, subject=subject, target_level=target_level,
+                     student_name=student_name, patterns_summary=patterns_summary,
+                     mistakes_summary=mistakes_summary,
+                 ),
+                 ['rank_tips']),
+            ],
         )
 
-        narrative_result = phase5_results[0] if not isinstance(phase5_results[0], Exception) else {}
-        rank_tips = phase5_results[1] if not isinstance(phase5_results[1], Exception) else []
-        if isinstance(rank_tips, Exception):
-            logger.warning(f"Rank tips generation failed: {rank_tips}")
+        narrative_result = phase5_results[0] if not isinstance(phase5_results[0], dict) or 'error' not in phase5_results[0] else {}
+        rank_tips = phase5_results[1] if not isinstance(phase5_results[1], dict) or 'error' not in phase5_results[1] else []
+        if isinstance(rank_tips, dict) and 'error' in rank_tips:
+            logger.warning(f"Rank tips generation failed: {rank_tips['error']}")
             rank_tips = []
 
         # Accept edited content only if length > 50% of original (safety check)
@@ -587,6 +578,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
     async def _execute_unified(
         self,
+        executor: PhaseExecutor,
         topic: str,
         subject: str,
         student_name: str,
@@ -595,14 +587,16 @@ class OlympiadLearningSwarm(DomainSwarm):
         config: OlympiadLearningConfig
     ) -> Dict[str, Any]:
         """Execute with unified single-pass generation."""
-        logger.info("Unified mode: Generating deep content in single pass...")
 
-        deep_content = await self._unified_topic.generate_deep(
-            student_name=student_name,
-            topic=topic,
-            subject=subject,
-            target_level=target_level,
-            celebration_word=config.celebration_word
+        deep_content = await executor.run_phase(
+            1, "Unified Deep Generation", "UnifiedTopic", AgentRole.ACTOR,
+            self._unified_topic.generate_deep(
+                student_name=student_name, topic=topic,
+                subject=subject, target_level=target_level,
+                celebration_word=config.celebration_word,
+            ),
+            input_data={'topic': topic, 'subject': subject, 'target_level': target_level},
+            tools_used=['unified_generation'],
         )
 
         complete_content = self._build_unified_content(
@@ -657,6 +651,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
     async def _execute_sequential(
         self,
+        executor: PhaseExecutor,
         topic: str,
         subject: str,
         student_name: str,
@@ -665,58 +660,69 @@ class OlympiadLearningSwarm(DomainSwarm):
         config: OlympiadLearningConfig
     ) -> Dict[str, Any]:
         """Execute agents sequentially with full control."""
-        logger.info("Sequential mode: Step-by-step generation...")
 
         # Step 1: Curriculum
-        logger.info("Step 1/8: Designing curriculum...")
-        curriculum = await self._curriculum_architect.design(
-            subject=subject, topic=topic,
-            student_name=student_name, target_level=target_level
+        curriculum = await executor.run_phase(
+            1, "Designing Curriculum", "CurriculumArchitect", AgentRole.PLANNER,
+            self._curriculum_architect.design(
+                subject=subject, topic=topic,
+                student_name=student_name, target_level=target_level,
+            ),
+            input_data={'topic': topic, 'subject': subject},
+            tools_used=['curriculum_design'],
         )
         building_blocks = curriculum.get('building_blocks', [])
         concepts_str = ', '.join(curriculum.get('learning_sequence', [topic])[:5])
         await asyncio.sleep(0.5)
 
         # Step 2: Decompose
-        logger.info("Step 2/8: Decomposing concept...")
-        decomposition = await self._concept_decomposer.decompose(
-            concept_name=topic,
-            concept_description=f"{topic} in {subject}",
-            subject=subject,
-            prerequisites=', '.join(b.name for b in building_blocks[:3]) if building_blocks else "Basic knowledge",
-            student_name=student_name
+        decomposition = await executor.run_phase(
+            2, "Decomposing Concept", "ConceptDecomposer", AgentRole.ACTOR,
+            self._concept_decomposer.decompose(
+                concept_name=topic, concept_description=f"{topic} in {subject}",
+                subject=subject,
+                prerequisites=', '.join(b.name for b in building_blocks[:3]) if building_blocks else "Basic knowledge",
+                student_name=student_name,
+            ),
+            tools_used=['concept_decompose'],
         )
         await asyncio.sleep(0.5)
 
         # Step 3: Build intuition
-        logger.info("Step 3/8: Building intuition...")
-        intuition = await self._intuition_builder.build(
-            concept=f"{topic}: {subject} olympiad",
-            why_it_matters=f"Essential for international {subject} olympiad",
-            student_name=student_name,
-            audience_level="intermediate",
-            subject=subject
+        intuition = await executor.run_phase(
+            3, "Building Intuition", "IntuitionBuilder", AgentRole.ACTOR,
+            self._intuition_builder.build(
+                concept=f"{topic}: {subject} olympiad",
+                why_it_matters=f"Essential for international {subject} olympiad",
+                student_name=student_name, audience_level="intermediate", subject=subject,
+            ),
+            tools_used=['intuition_build'],
         )
         await asyncio.sleep(0.5)
 
         # Step 4: Hunt patterns
-        logger.info("Step 4/8: Hunting patterns...")
-        pattern_result = await self._pattern_hunter.hunt(
-            topic=topic, subject=subject,
-            concepts=concepts_str, target_level=target_level
+        pattern_result = await executor.run_phase(
+            4, "Hunting Patterns", "PatternHunter", AgentRole.ACTOR,
+            self._pattern_hunter.hunt(
+                topic=topic, subject=subject,
+                concepts=concepts_str, target_level=target_level,
+            ),
+            tools_used=['pattern_hunt'],
         )
         await asyncio.sleep(0.5)
 
         # Step 5: Strategies
-        logger.info("Step 5/8: Building strategies...")
-        strategy_result = await self._solution_strategist.strategize(
-            topic=topic, subject=subject,
-            concepts=concepts_str, target_level=target_level
+        strategy_result = await executor.run_phase(
+            5, "Building Strategies", "SolutionStrategist", AgentRole.ACTOR,
+            self._solution_strategist.strategize(
+                topic=topic, subject=subject,
+                concepts=concepts_str, target_level=target_level,
+            ),
+            tools_used=['strategy_build'],
         )
         await asyncio.sleep(0.5)
 
         # Step 6: Problems
-        logger.info("Step 6/8: Crafting problems...")
         all_problems = []
         patterns_str = json.dumps([{
             'name': p.name, 'description': p.description,
@@ -732,28 +738,37 @@ class OlympiadLearningSwarm(DomainSwarm):
                             ("olympiad", config.olympiad_problems)]:
             # Generate 1 problem per call to avoid JSON truncation
             for _ in range(count):
-                problems = await self._problem_crafter.craft(
-                    topic=topic, subject=subject, concepts=concepts_str,
-                    patterns=patterns_str, running_example=seq_running_example,
-                    tier=tier, count=1, student_name=student_name
+                problems = await executor.run_phase(
+                    6, f"Crafting {tier} Problem", "ProblemCrafter", AgentRole.ACTOR,
+                    self._problem_crafter.craft(
+                        topic=topic, subject=subject, concepts=concepts_str,
+                        patterns=patterns_str, running_example=seq_running_example,
+                        tier=tier, count=1, student_name=student_name,
+                    ),
+                    tools_used=['problem_craft'],
                 )
-                all_problems.extend(problems)
+                if isinstance(problems, list):
+                    all_problems.extend(problems)
                 await asyncio.sleep(0.3)
 
         # Step 7: Mistakes
-        logger.info("Step 7/8: Analyzing mistakes...")
-        mistake_result = await self._mistake_analyzer.analyze(
-            topic=topic, subject=subject,
-            concepts=concepts_str,
-            running_example=seq_running_example,
-            target_level=target_level
+        mistake_result = await executor.run_phase(
+            7, "Analyzing Mistakes", "MistakeAnalyzer", AgentRole.ACTOR,
+            self._mistake_analyzer.analyze(
+                topic=topic, subject=subject, concepts=concepts_str,
+                running_example=seq_running_example, target_level=target_level,
+            ),
+            tools_used=['mistake_analysis'],
         )
         await asyncio.sleep(0.5)
 
         # Step 8: Connections
-        logger.info("Step 8/8: Mapping connections...")
-        connection_result = await self._connection_mapper.map_connections(
-            topic=topic, subject=subject, concepts=concepts_str
+        connection_result = await executor.run_phase(
+            8, "Mapping Connections", "ConnectionMapper", AgentRole.ACTOR,
+            self._connection_mapper.map_connections(
+                topic=topic, subject=subject, concepts=concepts_str,
+            ),
+            tools_used=['connection_map'],
         )
 
         # Assemble

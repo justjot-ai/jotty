@@ -55,16 +55,14 @@ import asyncio
 import logging
 import json
 import dspy
-from typing import Dict, Any, Optional, List, Callable, Type
+from typing import Dict, Any, Optional, List, Type
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from enum import Enum
 from abc import ABC, abstractmethod
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
-    register_swarm, ExecutionTrace
+    SwarmConfig, SwarmResult, AgentRole,
+    register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
 from ..agents.base import DomainAgent, DomainAgentConfig
@@ -934,6 +932,9 @@ class IdeaWriterSwarm(DomainSwarm):
         """
         Domain-specific content writing logic.
 
+        Delegates to _safe_execute_domain which handles try/except,
+        timing, and post-execute learning automatically via PhaseExecutor.
+
         Args:
             topic: Main topic or idea
             sections: List of section types to include (uses registry)
@@ -942,190 +943,189 @@ class IdeaWriterSwarm(DomainSwarm):
         Returns:
             WriterResult with generated content
         """
-        start_time = datetime.now()
-
-        config = self.config
-
-        logger.info(f"✍️ IdeaWriterSwarm starting: {topic}")
-
         # Default sections if not provided
         if not sections:
             sections = ["introduction", "body", "body", "conclusion"]
 
-        try:
-            # =================================================================
-            # PHASE 1: OUTLINE GENERATION
-            # =================================================================
-            logger.info("📋 Phase 1: Generating outline...")
+        return await self._safe_execute_domain(
+            task_type='content_writing',
+            default_tools=['outline_generate', 'research', 'section_write', 'content_polish'],
+            result_class=WriterResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, topic, sections, custom_outline
+            ),
+            output_data_fn=lambda result: {
+                'title': result.title,
+                'word_count': result.word_count,
+                'sections': result.sections_generated,
+            },
+            input_data_fn=lambda: {
+                'topic': topic[:200],
+                'sections': sections,
+            },
+        )
 
-            if custom_outline:
-                outline = custom_outline
-            else:
-                outline = await self._outline_agent.generate(topic, config)
+    async def _execute_phases(
+        self,
+        executor,
+        topic: str,
+        sections: List[str],
+        custom_outline: Outline = None
+    ) -> WriterResult:
+        """
+        Domain-specific phase logic using PhaseExecutor.
 
-            if not outline.sections:
-                # Create default sections from provided list
-                outline.sections = [
-                    {'name': s, 'title': s.replace('_', ' ').title(), 'key_points': []}
-                    for s in sections
-                ]
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            topic: Main topic or idea
+            sections: List of section types to include
+            custom_outline: Optional pre-made outline
 
-            self._trace_phase("Outline", AgentRole.PLANNER,
-                {'topic': topic[:100]},
-                {'sections': len(outline.sections), 'has_thesis': bool(outline.thesis)},
-                success=bool(outline.sections), phase_start=start_time, tools_used=['outline_generate'])
+        Returns:
+            WriterResult with generated content
+        """
+        config = self.config
 
-            # =================================================================
-            # PHASE 2: RESEARCH
-            # =================================================================
-            logger.info("🔍 Phase 2: Researching topic...")
+        logger.info(f"IdeaWriterSwarm starting: {topic}")
 
-            research = {}
-            if config.include_research:
-                research = await self._research_agent.research(
-                    topic,
-                    outline,
-                    depth="moderate"
-                )
+        # =================================================================
+        # PHASE 1: OUTLINE GENERATION
+        # =================================================================
+        if custom_outline:
+            outline = custom_outline
+        else:
+            outline = await executor.run_phase(
+                1, "Outline Generation", "Outline", AgentRole.PLANNER,
+                self._outline_agent.generate(topic, config),
+                input_data={'topic': topic[:100]},
+                tools_used=['outline_generate'],
+            )
 
-            phase2_start = datetime.now()
-            self._trace_phase("Research", AgentRole.EXPERT,
-                {'include_research': config.include_research},
-                {'sources': len(research.get('sources', []))},
-                success=True, phase_start=start_time, tools_used=['research'])
+        if not outline.sections:
+            # Create default sections from provided list
+            outline.sections = [
+                {'name': s, 'title': s.replace('_', ' ').title(), 'key_points': []}
+                for s in sections
+            ]
 
-            # =================================================================
-            # PHASE 3: SECTION WRITING (parallel)
-            # =================================================================
-            logger.info("📝 Phase 3: Writing sections...")
+        # =================================================================
+        # PHASE 2: RESEARCH
+        # =================================================================
+        research = {}
+        if config.include_research:
+            research = await executor.run_phase(
+                2, "Research", "Research", AgentRole.EXPERT,
+                self._research_agent.research(topic, outline, depth="moderate"),
+                input_data={'include_research': config.include_research},
+                tools_used=['research'],
+            )
 
-            written_sections = []
-            section_tasks = []
+        # =================================================================
+        # PHASE 3: SECTION WRITING (parallel)
+        # =================================================================
+        parallel_tasks = []
 
-            for i, section_type in enumerate(sections):
+        for i, section_type in enumerate(sections):
+            writer = SectionRegistry.create(
+                section_type,
+                self._memory,
+                self._context,
+                self._bus
+            )
+
+            if not writer:
+                # Fallback to body writer for unknown types
                 writer = SectionRegistry.create(
-                    section_type,
+                    "body",
                     self._memory,
                     self._context,
                     self._bus
                 )
 
-                if not writer:
-                    # Fallback to body writer for unknown types
-                    writer = SectionRegistry.create(
-                        "body",
-                        self._memory,
-                        self._context,
-                        self._bus
-                    )
-
-                if writer:
-                    section_info = outline.sections[i] if i < len(outline.sections) else {}
-                    context = {
-                        'thesis': outline.thesis,
-                        'key_points': outline.key_points,
-                        'section_info': section_info,
-                        'previous_sections': [s.title for s in written_sections]
-                    }
-                    section_tasks.append(
-                        writer.write(topic, context, research, config)
-                    )
-
-            section_results = await asyncio.gather(*section_tasks, return_exceptions=True)
-
-            for result in section_results:
-                if isinstance(result, Exception):
-                    logger.warning(f"Section failed: {result}")
-                    continue
-                if isinstance(result, Section):
-                    written_sections.append(result)
-
-            self._trace_phase("SectionWriter", AgentRole.ACTOR,
-                {'section_count': len(sections)},
-                {'written': len(written_sections)},
-                success=len(written_sections) > 0, phase_start=phase2_start, tools_used=['section_write'])
-
-            # =================================================================
-            # PHASE 4: ASSEMBLY
-            # =================================================================
-            logger.info("🔧 Phase 4: Assembling content...")
-
-            # Combine sections
-            title = outline.title or topic
-            full_content = f"# {title}\n\n"
-            full_content += f"*{outline.thesis}*\n\n" if outline.thesis else ""
-
-            for section in written_sections:
-                full_content += f"{section.content}\n\n"
-
-            total_word_count = sum(s.word_count for s in written_sections)
-
-            phase4_start = datetime.now()
-
-            # =================================================================
-            # PHASE 5: POLISH
-            # =================================================================
-            logger.info("✨ Phase 5: Polishing content...")
-
-            polish_result = await self._polish_agent.polish(full_content, config)
-
-            final_content = polish_result.get('polished_content', full_content)
-            quality_score = polish_result.get('quality_score', 75.0)
-
-            self._trace_phase("Polish", AgentRole.REVIEWER,
-                {'content_length': len(full_content)},
-                {'quality_score': quality_score},
-                success=True, phase_start=phase4_start, tools_used=['content_polish'])
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            content_result = ContentResult(
-                title=title,
-                content=final_content,
-                sections=written_sections,
-                word_count=len(final_content.split()),
-                sources=research.get('sources', []),
-                outline=outline,
-                metadata={
-                    'content_type': config.content_type.value,
-                    'tone': config.tone.value,
-                    'audience': config.audience
+            if writer:
+                section_info = outline.sections[i] if i < len(outline.sections) else {}
+                ctx = {
+                    'thesis': outline.thesis,
+                    'key_points': outline.key_points,
+                    'section_info': section_info,
+                    'previous_sections': []
                 }
-            )
+                parallel_tasks.append((
+                    f"SectionWriter({section_type})",
+                    AgentRole.ACTOR,
+                    writer.write(topic, ctx, research, config),
+                    ['section_write'],
+                ))
 
-            result = WriterResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'title': title},
-                execution_time=exec_time,
-                content=content_result,
-                title=title,
-                word_count=len(final_content.split()),
-                sections_generated=len(written_sections),
-                quality_score=quality_score / 100.0,
-                readability_score=0.8  # Could use readability metrics
-            )
+        section_results = await executor.run_parallel(
+            3, "Section Writing", parallel_tasks
+        )
 
-            logger.info(f"✅ IdeaWriterSwarm complete: {title}, {result.word_count} words")
+        written_sections = []
+        for result in section_results:
+            if isinstance(result, dict) and 'error' in result:
+                logger.warning(f"Section failed: {result['error']}")
+                continue
+            if isinstance(result, Section):
+                written_sections.append(result)
 
-            return result
+        # =================================================================
+        # PHASE 4: ASSEMBLY
+        # =================================================================
+        title = outline.title or topic
+        full_content = f"# {title}\n\n"
+        full_content += f"*{outline.thesis}*\n\n" if outline.thesis else ""
 
-        except Exception as e:
-            logger.error(f"❌ IdeaWriterSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            return WriterResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
-            )
+        for section in written_sections:
+            full_content += f"{section.content}\n\n"
+
+        # =================================================================
+        # PHASE 5: POLISH
+        # =================================================================
+        polish_result = await executor.run_phase(
+            5, "Polish", "Polish", AgentRole.REVIEWER,
+            self._polish_agent.polish(full_content, config),
+            input_data={'content_length': len(full_content)},
+            tools_used=['content_polish'],
+        )
+
+        final_content = polish_result.get('polished_content', full_content)
+        quality_score = polish_result.get('quality_score', 75.0)
+
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        content_result = ContentResult(
+            title=title,
+            content=final_content,
+            sections=written_sections,
+            word_count=len(final_content.split()),
+            sources=research.get('sources', []),
+            outline=outline,
+            metadata={
+                'content_type': config.content_type.value,
+                'tone': config.tone.value,
+                'audience': config.audience
+            }
+        )
+
+        result = WriterResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'title': title},
+            execution_time=executor.elapsed(),
+            content=content_result,
+            title=title,
+            word_count=len(final_content.split()),
+            sections_generated=len(written_sections),
+            quality_score=quality_score / 100.0,
+            readability_score=0.8  # Could use readability metrics
+        )
+
+        logger.info(f"IdeaWriterSwarm complete: {title}, {result.word_count} words")
+
+        return result
 
     def list_available_sections(self) -> List[str]:
         """List all available section types."""

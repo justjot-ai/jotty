@@ -2,11 +2,8 @@
 
 import asyncio
 import logging
-import json
 import re
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 import dspy
@@ -99,6 +96,9 @@ class ArxivLearningSwarm(DomainSwarm):
         """
         Create learning content from an ArXiv paper.
 
+        Delegates to _safe_execute_domain which handles try/except,
+        timing, and post-execute learning automatically via PhaseExecutor.
+
         Args:
             paper_id: ArXiv paper ID (e.g., "1706.03762")
             topic: Search topic (alternative to paper_id)
@@ -108,8 +108,6 @@ class ArxivLearningSwarm(DomainSwarm):
         Returns:
             ArxivLearningResult with complete learning content
         """
-        start_time = datetime.now()
-
         # Initialize agents before using them
         self._init_agents()
 
@@ -121,634 +119,663 @@ class ArxivLearningSwarm(DomainSwarm):
 
         logger.info(f"📚 ArxivLearningSwarm starting...")
 
-        try:
-            # =================================================================
-            # PHASE 1: FETCH PAPER
-            # =================================================================
-            logger.info("📄 Phase 1: Fetching paper...")
-
-            paper = None
-            if paper_id:
-                paper = await self._paper_fetcher.fetch_by_id(paper_id)
-            elif topic:
-                papers = await self._paper_fetcher.search_by_topic(topic, 1)
-                paper = papers[0] if papers else None
-
-            if not paper:
-                return ArxivLearningResult(
-                    success=False,
-                    swarm_name=self.config.name,
-                    domain=self.config.domain,
-                    output={},
-                    execution_time=(datetime.now() - start_time).total_seconds(),
-                    error="Could not fetch paper"
-                )
-
-            logger.info(f"  Found: {paper.title[:60]}...")
-
-            self._trace_phase("PaperFetcher", AgentRole.ACTOR,
-                {'paper_id': paper_id, 'topic': topic},
-                {'title': paper.title if paper else None, 'found': paper is not None},
-                success=paper is not None, phase_start=start_time, tools_used=['arxiv_fetch'])
-
-            # =================================================================
-            # PHASE 2: EXTRACT CONCEPTS (with swarm caching)
-            # =================================================================
-            logger.info("🧠 Phase 2: Extracting concepts...")
-
-            # Check swarm cache first
-            cache_key = f"concepts_{paper.arxiv_id}"
-            concepts = None
-            if config.use_swarm_cache:
-                concepts = self._get_cached(cache_key)
-                if concepts:
-                    logger.info(f"  📦 Loaded {len(concepts)} concepts from cache")
-
-            if not concepts:
-                concepts = await self._concept_extractor.extract(paper)
-
-                if not concepts:
-                    # Create default concept from abstract
-                    concepts = [Concept(
-                        name="Main Contribution",
-                        description=paper.abstract[:200],
-                        why_it_matters="This is the paper's key innovation",
-                        prerequisites=["Basic understanding of the field"],
-                        difficulty=3,
-                        math_required=True
-                    )]
-
-                # Cache for future use
-                if config.use_swarm_cache:
-                    self._cache_result(cache_key, concepts, ttl=7200)  # 2 hour TTL
-
-            # Limit concepts based on depth to prevent timeouts
-            if learning_depth == LearningDepth.QUICK:
-                max_concepts = config.max_concepts_quick
-            elif learning_depth == LearningDepth.STANDARD:
-                max_concepts = config.max_concepts_standard
-            else:
-                max_concepts = 5  # DEEP
-
-            if len(concepts) > max_concepts:
-                logger.info(f"  Limiting concepts: {len(concepts)} → {max_concepts} (depth={learning_depth.value})")
-                concepts = concepts[:max_concepts]
-
-            logger.info(f"  Extracted {len(concepts)} concepts")
-
-            self._trace_phase("ConceptExtractor", AgentRole.EXPERT,
-                {'paper_title': paper.title},
-                {'concepts_count': len(concepts)},
-                success=len(concepts) > 0, phase_start=start_time, tools_used=['concept_extract'])
-
-            # =================================================================
-            # PHASE 3-7: CONTENT GENERATION
-            # =================================================================
-            # Modes: PARALLEL_DEEP (quality+speed), UNIFIED (fast), PARALLEL, SEQUENTIAL
-
-            if self._optimization_mode == "parallel_deep" and self._unified_learner:
-                # ═══════════════════════════════════════════════════════════════
-                # 🚀 PARALLEL DEEP: Full quality with parallel per-concept generation
-                # ═══════════════════════════════════════════════════════════════
-                logger.info("🚀 Phase 3-7: Parallel deep content generation...")
-
-                parallel_start = datetime.now()
-
-                # Check cache first
-                content_cache_key = f"parallel_deep_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
-                unified_result = None
-                if config.use_swarm_cache:
-                    unified_result = self._get_cached(content_cache_key)
-                    if unified_result:
-                        logger.info(f"  📦 Loaded parallel deep content from cache")
-
-                if not unified_result:
-                    # Run parallel generation for all concepts
-                    unified_result = await self._unified_learner.generate_parallel(
-                        paper=paper,
-                        concepts=concepts,
-                        audience_level=config.audience.value,
-                        celebration_word=config.celebration_word,
-                        max_concurrent=config.max_concurrent_llm
-                    )
-                    if config.use_swarm_cache and unified_result:
-                        self._cache_result(content_cache_key, unified_result, ttl=3600)
-
-                intuitions = unified_result.get('intuitions', {})
-                math_explanations = unified_result.get('math_explanations', {})
-                examples = unified_result.get('examples', {})
-                draft_content = unified_result.get('complete_content', '')
-                progressive_result = {
-                    'complete_content': draft_content,
-                    'key_insights': unified_result.get('key_insights', []),
-                    'summary': unified_result.get('summary', ''),
-                    'next_steps': unified_result.get('next_steps', [])
-                }
-                polished = {'polished_content': draft_content}
-
-                logger.info(f"  ✅ Parallel deep generation complete in {(datetime.now() - parallel_start).total_seconds():.1f}s")
-
-                self._trace_phase("ParallelDeepLearner", AgentRole.PLANNER,
-                    {'concepts_count': len(concepts), 'audience': config.audience.value},
-                    {'concepts_generated': len(unified_result.get('concepts', []))},
-                    success=bool(draft_content), phase_start=parallel_start, tools_used=['parallel_deep_learning'])
-
-                phase6_start = datetime.now()
-
-            elif self._optimization_mode == "unified" and self._unified_learner:
-                # ═══════════════════════════════════════════════════════════════
-                # 🚀 UNIFIED PATH: Single LLM call (experimental, may timeout)
-                # ═══════════════════════════════════════════════════════════════
-                logger.info("🚀 Phase 3-7: Unified content generation...")
-
-                unified_start = datetime.now()
-
-                # Check swarm cache for unified content
-                content_cache_key = f"unified_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
-                unified_result = None
-                if config.use_swarm_cache:
-                    unified_result = self._get_cached(content_cache_key)
-                    if unified_result:
-                        logger.info(f"  📦 Loaded unified content from cache")
-
-                if not unified_result:
-                    unified_result = await self._unified_learner.generate_all(
-                        paper=paper,
-                        concepts=concepts,
-                        audience_level=config.audience.value,
-                        celebration_word=config.celebration_word
-                    )
-                    # Cache for future use
-                    if config.use_swarm_cache and unified_result:
-                        self._cache_result(content_cache_key, unified_result, ttl=3600)
-
-                intuitions = unified_result.get('intuitions', {})
-                math_explanations = unified_result.get('math_explanations', {})
-                examples = unified_result.get('examples', {})
-                draft_content = unified_result.get('complete_content', '')
-                progressive_result = {
-                    'complete_content': draft_content,
-                    'key_insights': unified_result.get('key_insights', []),
-                    'summary': unified_result.get('summary', ''),
-                    'next_steps': unified_result.get('next_steps', [])
-                }
-                polished = {'polished_content': draft_content}
-
-                logger.info(f"  ✅ Unified generation complete in {(datetime.now() - unified_start).total_seconds():.1f}s")
-
-                self._trace_phase("UnifiedLearner", AgentRole.PLANNER,
-                    {'concepts_count': len(concepts), 'audience': config.audience.value},
-                    {'concepts_generated': len(unified_result.get('concepts', []))},
-                    success=bool(draft_content), phase_start=unified_start, tools_used=['unified_learning'])
-
-                phase6_start = datetime.now()
-
-            elif self._optimization_mode == "parallel":
-                # ═══════════════════════════════════════════════════════════════
-                # 🚀 PARALLEL PATH: Run concept operations with controlled concurrency
-                # ═══════════════════════════════════════════════════════════════
-                logger.info("🚀 Phase 3-5: Parallel content generation (max 2 concurrent)...")
-
-                parallel_start = datetime.now()
-
-                # Semaphore to limit concurrent LLM calls (Claude CLI can't handle many concurrent calls)
-                llm_semaphore = asyncio.Semaphore(2)
-
-                async def rate_limited_call(coro):
-                    """Wrapper to limit concurrent LLM calls."""
-                    async with llm_semaphore:
-                        return await coro
-
-                # Build intuitions for all concepts in parallel (limited to 2 concurrent)
-                logger.info("💡 Building intuitions in parallel...")
-                intuition_tasks = [
-                    rate_limited_call(self._intuition_builder.build(c, config.audience.value))
-                    for c in concepts[:3]
-                ]
-                intuition_results = await asyncio.gather(*intuition_tasks, return_exceptions=True)
-
-                intuitions = {}
-                for c, result in zip(concepts[:3], intuition_results):
-                    if isinstance(result, dict):
-                        intuitions[c.name] = result
-
-                # Build math explanations in parallel (for concepts that need it)
-                math_explanations = {}
-                if learning_depth in [LearningDepth.STANDARD, LearningDepth.DEEP]:
-                    logger.info("📐 Simplifying math in parallel...")
-                    math_concepts = [c for c in concepts[:3] if c.math_required]
-                    math_tasks = [
-                        rate_limited_call(self._math_simplifier.simplify(c, intuitions.get(c.name, {}), config.audience.value))
-                        for c in math_concepts
-                    ]
-                    math_results = await asyncio.gather(*math_tasks, return_exceptions=True)
-
-                    for c, result in zip(math_concepts, math_results):
-                        if isinstance(result, dict):
-                            math_explanations[c.name] = result
-
-                # Generate examples in parallel (for top 2 concepts)
-                examples = {}
-                if config.include_code_examples:
-                    logger.info("💻 Generating examples in parallel...")
-                    example_tasks = [
-                        rate_limited_call(self._example_generator.generate(
-                            c, intuitions.get(c.name, {}), math_explanations.get(c.name, {})))
-                        for c in concepts[:2]
-                    ]
-                    example_results = await asyncio.gather(*example_tasks, return_exceptions=True)
-
-                    for c, result in zip(concepts[:2], example_results):
-                        if isinstance(result, dict):
-                            examples[c.name] = result
-
-                parallel_time = (datetime.now() - parallel_start).total_seconds()
-                logger.info(f"  ✅ Parallel generation complete in {parallel_time:.1f}s")
-                logger.info(f"     {len(intuitions)} intuitions, {len(math_explanations)} math, {len(examples)} examples")
-
-                self._trace_phase("ParallelContentGen", AgentRole.ACTOR,
-                    {'concepts_count': len(concepts[:3])},
-                    {'intuitions': len(intuitions), 'math': len(math_explanations), 'examples': len(examples)},
-                    success=len(intuitions) > 0, phase_start=parallel_start, tools_used=['parallel_generation'])
-
-                # Phase 6: Build content directly (SKIP ProgressiveBuilder to avoid 76KB prompt)
-                logger.info("🏗️ Phase 6: Building content directly (no extra LLM call)...")
-
-                # Build content directly from sections - no need for another LLM call
-                draft_parts = []
-                draft_parts.append(f"# {paper.title}\n")
-
-                # Add hook from first intuition
-                for name, intuition in intuitions.items():
-                    if intuition.get('hook'):
-                        draft_parts.append(f"\n## Why Should You Care?\n{intuition['hook']}\n")
-                        break
-
-                # Add concept sections
-                for concept in concepts[:3]:
-                    intuition = intuitions.get(concept.name, {})
-                    math = math_explanations.get(concept.name, {})
-                    example = examples.get(concept.name, {})
-
-                    draft_parts.append(f"\n## {concept.name}\n")
-                    if intuition.get('analogy'):
-                        draft_parts.append(f"**Analogy:** {intuition['analogy']}\n")
-                    if intuition.get('intuition_build'):
-                        draft_parts.append(f"\n{intuition['intuition_build']}\n")
-                    if intuition.get('aha_moment'):
-                        draft_parts.append(f"\n💡 **{config.celebration_word}!** {intuition['aha_moment']}\n")
-                    if math.get('step_by_step'):
-                        draft_parts.append(f"\n### The Math\n{math['step_by_step']}\n")
-                    if example.get('code_example'):
-                        draft_parts.append(f"\n### Code\n```python\n{example['code_example']}\n```\n")
-
-                draft_content = '\n'.join(draft_parts)
-
-                # Extract key insights from aha_moments
-                key_insights = [
-                    intuitions[c.name].get('aha_moment', '')
-                    for c in concepts[:3] if c.name in intuitions and intuitions[c.name].get('aha_moment')
-                ]
-
-                progressive_result = {
-                    'complete_content': draft_content,
-                    'key_insights': key_insights,
-                    'summary': f"This paper introduces {concepts[0].name if concepts else 'key concepts'} and related innovations.",
-                    'next_steps': ['Explore related papers', 'Implement the concepts', 'Read the full paper']
-                }
-                polished = {'polished_content': draft_content}
-
-                phase6_start = datetime.now()
-                self._trace_phase("DirectContentBuild", AgentRole.PLANNER,
-                    {'concepts_count': len(concepts)},
-                    {'content_length': len(draft_content)},
-                    success=bool(draft_content), phase_start=parallel_start, tools_used=['direct_build'])
-
-            else:
-                # ═══════════════════════════════════════════════════════════════
-                # SEQUENTIAL PATH: Original multi-call approach
-                # ═══════════════════════════════════════════════════════════════
-                logger.info("💡 Phase 3: Building intuition...")
-
-                intuitions = {}
-                for concept in concepts[:3]:
-                    try:
-                        result = await self._intuition_builder.build(concept, config.audience.value)
-                        if isinstance(result, dict):
-                            intuitions[concept.name] = result
-                        await asyncio.sleep(1)
-                    except Exception as e:
-                        logger.warning(f"Intuition building failed for {concept.name}: {e}")
-
-                phase3_start = datetime.now()
-                self._trace_phase("IntuitionBuilder", AgentRole.ACTOR,
-                    {'concepts_count': len(concepts[:3])},
-                    {'intuitions_built': len(intuitions)},
-                    success=len(intuitions) > 0, phase_start=start_time, tools_used=['intuition_build'])
-
-                # Phase 4: Math
-                math_explanations = {}
-                if learning_depth in [LearningDepth.STANDARD, LearningDepth.DEEP]:
-                    logger.info("📐 Phase 4: Simplifying math...")
-                    for concept in concepts[:3]:
-                        if concept.math_required:
-                            try:
-                                result = await self._math_simplifier.simplify(
-                                    concept, intuitions.get(concept.name, {}), config.audience.value)
-                                if isinstance(result, dict):
-                                    math_explanations[concept.name] = result
-                                await asyncio.sleep(1)
-                            except Exception as e:
-                                logger.warning(f"Math simplification failed for {concept.name}: {e}")
-
-                self._trace_phase("MathSimplifier", AgentRole.ACTOR,
-                    {'math_concepts_count': sum(1 for c in concepts[:3] if c.math_required)},
-                    {'math_explanations_count': len(math_explanations)},
-                    success=True, phase_start=phase3_start, tools_used=['math_simplify'])
-
-                # Phase 5: Examples
-                examples = {}
-                if config.include_code_examples:
-                    logger.info("💻 Phase 5: Generating examples...")
-                    for concept in concepts[:2]:
-                        try:
-                            result = await self._example_generator.generate(
-                                concept, intuitions.get(concept.name, {}), math_explanations.get(concept.name, {}))
-                            if isinstance(result, dict):
-                                examples[concept.name] = result
-                            await asyncio.sleep(1)
-                        except Exception as e:
-                            logger.warning(f"Example generation failed for {concept.name}: {e}")
-
-                self._trace_phase("ExampleGenerator", AgentRole.ACTOR,
-                    {'concepts_for_examples': min(3, len(concepts))},
-                    {'examples_generated': len(examples)},
-                    success=True, phase_start=phase3_start, tools_used=['example_generate'])
-
-                # Phase 6: Progressive content
-                logger.info("🏗️ Phase 6: Building progressive content...")
-                progressive_result = await self._progressive_builder.build(
-                    paper, concepts, intuitions, math_explanations, examples, config.celebration_word)
-
-                phase6_start = datetime.now()
-                self._trace_phase("ProgressiveBuilder", AgentRole.PLANNER,
-                    {'concepts_count': len(concepts), 'has_math': bool(math_explanations), 'has_examples': bool(examples)},
-                    {'has_content': bool(progressive_result.get('complete_content')), 'insights_count': len(progressive_result.get('key_insights', []))},
-                    success=bool(progressive_result.get('complete_content')), phase_start=phase3_start, tools_used=['progressive_build'])
-
-                # Phase 7: Polish
-                logger.info("✨ Phase 7: Polishing content...")
-                draft_content = progressive_result.get('complete_content', '')
-                polished = await self._content_polisher.polish(draft_content, config.style.value, config.audience.value)
-
-                self._trace_phase("ContentPolisher", AgentRole.REVIEWER,
-                    {'draft_length': len(draft_content)},
-                    {'polished': bool(polished.get('polished_content'))},
-                    success=bool(polished.get('polished_content')), phase_start=phase6_start, tools_used=['content_polish'])
-
-            # =================================================================
-            # BUILD LEARNING SECTIONS
-            # =================================================================
-            sections = []
-
-            # Hook section
-            hook_text = ""
-            for concept_name, intuition in intuitions.items():
-                if intuition.get('hook'):
-                    hook_text = intuition['hook']
-                    break
-
-            sections.append(LearningSection(
-                title="Why Should You Care?",
-                content=hook_text or f"Let's understand {paper.title}",
-                level=1,
-                has_bingo_moment=False
-            ))
-
-            # Intuition sections - apply step formatting post-processing
-            for concept in concepts[:3]:
-                intuition = intuitions.get(concept.name, {})
-                if intuition:
-                    # Format intuition_build content to ensure each step is on a new line
-                    intuition_content = format_steps_on_newlines(intuition.get('intuition_build', ''))
-                    sections.append(LearningSection(
-                        title=f"Understanding {concept.name}",
-                        content=f"{intuition.get('analogy', '')}\n\n{intuition_content}",
-                        level=2,
-                        has_bingo_moment=True if intuition.get('aha_moment') else False
-                    ))
-
-            # Math sections - apply step formatting post-processing
-            for concept_name, math in math_explanations.items():
-                # Format step-by-step content to ensure each step is on a new line
-                step_content = format_steps_on_newlines(math.get('step_by_step', ''))
-                sections.append(LearningSection(
-                    title=f"The Math: {concept_name}",
-                    content=f"{math.get('math_motivation', '')}\n\n{step_content}",
-                    level=3,
-                    has_bingo_moment=False
-                ))
-
-            # Example sections - apply step formatting post-processing
-            for concept_name, ex in examples.items():
-                # code_example is rendered separately by generate_learning_html,
-                # so don't embed it in content (avoids duplication + "python" leak)
-                raw_code = ex.get('code_example', '')
-                # Strip any existing fence markers the LLM may have included
-                raw_code = re.sub(r'^```\w*\n?', '', raw_code)
-                raw_code = re.sub(r'\n?```$', '', raw_code).strip()
-                # Format simple_example content to ensure steps are on new lines
-                simple_example = format_steps_on_newlines(ex.get('simple_example', ''))
-                sections.append(LearningSection(
-                    title=f"See It In Action: {concept_name}",
-                    content=f"**Simple Example:**\n{simple_example}",
-                    level=4,
-                    has_bingo_moment=False,
-                    code_example=raw_code
-                ))
-
-            # Count bingo moments
-            bingo_count = sum(1 for s in sections if s.has_bingo_moment)
-            bingo_count += len(progressive_result.get('key_insights', []))
-
-            # Build final content
-            final_content = polished.get('polished_content', '') or draft_content
-
-            learning_content = LearningContent(
-                paper=paper,
-                hook=hook_text,
-                concepts=concepts,
-                sections=sections,
-                key_insights=progressive_result.get('key_insights', []),
-                summary=progressive_result.get('summary', ''),
-                next_steps=progressive_result.get('next_steps', []),
-                total_words=len(final_content.split())
-            )
-
-            # =================================================================
-            # PHASE 7.5-7.7: GENERATE OUTPUTS (PARALLEL)
-            # =================================================================
-            logger.info("📄 Generating outputs (PDF, PPTX, HTML in parallel)...")
-
-            # OPTIMIZATION: Generate all outputs in PARALLEL
-            async def gen_pdf():
-                return await self._generate_pdf(paper, learning_content)
-
-            async def gen_pptx():
-                if self.config.generate_pptx:
-                    return await self._generate_pptx(paper, learning_content)
-                return (None, None)
-
-            async def gen_html():
-                if self.config.generate_html:
-                    return await self._generate_html(paper, learning_content)
-                return None
-
-            # Run all generations in parallel
-            output_results = await asyncio.gather(
-                gen_pdf(),
-                gen_pptx(),
-                gen_html(),
-                return_exceptions=True
-            )
-
-            # Extract results
-            pdf_path = output_results[0] if not isinstance(output_results[0], Exception) else None
-            pptx_result = output_results[1] if not isinstance(output_results[1], Exception) else (None, None)
-            pptx_path, pptx_pdf_path = pptx_result if isinstance(pptx_result, tuple) else (None, None)
-            html_path = output_results[2] if not isinstance(output_results[2], Exception) else None
-
-            # Log any errors
-            for i, result in enumerate(output_results):
-                if isinstance(result, Exception):
-                    logger.warning(f"Output generation {i} failed: {result}")
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            # Estimate learning time
-            words = learning_content.total_words
-            if learning_depth == LearningDepth.QUICK:
-                learning_time = "5-10 minutes"
-            elif learning_depth == LearningDepth.STANDARD:
-                learning_time = "20-30 minutes"
-            else:
-                learning_time = "45-60 minutes"
-
-            result = ArxivLearningResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={
-                    'title': paper.title,
-                    'arxiv_id': paper.arxiv_id,
-                    'content': final_content
-                },
-                execution_time=exec_time,
-                paper=paper,
-                content=learning_content,
-                learning_time_estimate=learning_time,
-                concepts_covered=len(concepts),
-                bingo_moments=bingo_count,
-                difficulty_progression=[s.level for s in sections],
-                pdf_path=pdf_path,
-                pptx_path=pptx_path,
-                pptx_pdf_path=pptx_pdf_path,
-                html_path=html_path
-            )
-
-            logger.info(f"✅ ArxivLearningSwarm complete: {paper.title[:40]}...")
-            logger.info(f"   {len(concepts)} concepts, {bingo_count} {config.celebration_word} moments")
-
-            # =================================================================
-            # SELF-IMPROVEMENT: Record trace + post-execution learning
-            # =================================================================
-            logger.info("📊 Running self-improvement evaluation...")
-
-            # Record orchestrator-level execution trace
-            self._record_trace(
-                agent_name="ArxivLearningSwarm",
-                agent_role=AgentRole.ORCHESTRATOR,
-                input_data={'paper_id': paper.arxiv_id, 'topic': paper.title},
-                output_data={
-                    'concepts': len(concepts),
-                    'sections': len(sections),
-                    'bingo_moments': bingo_count,
-                    'words': learning_content.total_words
-                },
-                execution_time=exec_time,
-                success=True
-            )
-
-            # =================================================================
-            # LOG LLM METRICS
-            # =================================================================
-            try:
-                if hasattr(dspy.settings, 'lm') and hasattr(dspy.settings.lm, 'get_metrics'):
-                    metrics = dspy.settings.lm.get_metrics()
-                    logger.info(f"📈 LLM Metrics: {metrics.get('successful_calls', 0)}/{metrics.get('total_calls', 0)} calls succeeded ({metrics.get('success_rate', 'N/A')})")
-                    if metrics.get('retried_calls', 0) > 0:
-                        logger.info(f"   🔄 Retried {metrics['retried_calls']} calls")
-            except Exception:
-                pass
-
-            # =================================================================
-            # AGENT0 + MORPHAGENT: POST-EXECUTION LEARNING
-            # (evaluation + improvement cycle now handled centrally in base)
-            # =================================================================
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['arxiv_fetch', 'concept_extract', 'content_generate']),
-                task_type='paper_learning',
-                output_data={
-                    'concepts_count': len(concepts),
-                    'bingo_moments': bingo_count,
-                    'has_hook': bool(hook_text),
-                    'has_summary': bool(learning_content.summary),
-                    'has_examples': bool(examples),
-                    'word_count': learning_content.total_words
-                },
-                input_data={'arxiv_id': paper.arxiv_id}
-            )
-
-            # =================================================================
-            # PHASE 8: SEND TO TELEGRAM (if enabled)
-            # =================================================================
-            should_send = send_telegram if send_telegram is not None else config.send_telegram
-
-            if should_send and TELEGRAM_AVAILABLE:
-                logger.info("📱 Phase 8: Sending to Telegram...")
-                await self._send_to_telegram(paper, learning_content, final_content, pdf_path=pdf_path, pptx_path=pptx_path, pptx_pdf_path=pptx_pdf_path, html_path=html_path)
-            elif should_send and not TELEGRAM_AVAILABLE:
-                logger.warning("⚠️ Telegram sending requested but tools not available")
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ ArxivLearningSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-
-            # Agent0 + MorphAgent: Post-execution learning (failure path)
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['arxiv_fetch']),
-                task_type='paper_learning'
-            )
-
+        return await self._safe_execute_domain(
+            task_type='paper_learning',
+            default_tools=['arxiv_fetch', 'concept_extract', 'content_generate'],
+            result_class=ArxivLearningResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, paper_id, topic, learning_depth, send_telegram, config
+            ),
+            output_data_fn=lambda result: {
+                'concepts_count': getattr(result, 'concepts_covered', 0),
+                'bingo_moments': getattr(result, 'bingo_moments', 0),
+                'has_hook': bool(getattr(result, 'content', None) and getattr(result.content, 'hook', '')),
+                'has_summary': bool(getattr(result, 'content', None) and getattr(result.content, 'summary', '')),
+                'has_examples': getattr(result, 'concepts_covered', 0) > 0,
+                'word_count': getattr(result, 'content', None) and getattr(result.content, 'total_words', 0) or 0,
+            },
+            input_data_fn=lambda: {
+                'paper_id': paper_id,
+                'topic': topic,
+                'depth': learning_depth.value if learning_depth else None,
+            },
+        )
+
+    async def _execute_phases(
+        self,
+        executor,
+        paper_id: str,
+        topic: str,
+        learning_depth: LearningDepth,
+        send_telegram: bool,
+        config,
+    ) -> ArxivLearningResult:
+        """Execute all ArXiv learning phases using PhaseExecutor.
+
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            paper_id: ArXiv paper ID
+            topic: Search topic (alternative to paper_id)
+            learning_depth: Learning depth enum
+            send_telegram: Whether to send result to Telegram
+            config: ArxivLearningConfig instance
+
+        Returns:
+            ArxivLearningResult with complete learning content
+        """
+        # =================================================================
+        # PHASE 1: FETCH PAPER
+        # =================================================================
+        paper = await executor.run_phase(
+            1, "Fetching Paper", "PaperFetcher", AgentRole.ACTOR,
+            self._fetch_paper(paper_id, topic),
+            input_data={'paper_id': paper_id, 'topic': topic},
+            tools_used=['arxiv_fetch'],
+        )
+
+        if not paper:
             return ArxivLearningResult(
                 success=False,
                 swarm_name=self.config.name,
                 domain=self.config.domain,
                 output={},
-                execution_time=exec_time,
-                error=str(e)
+                execution_time=executor.elapsed(),
+                error="Could not fetch paper"
             )
+
+        logger.info(f"  Found: {paper.title[:60]}...")
+
+        # =================================================================
+        # PHASE 2: EXTRACT CONCEPTS (with swarm caching)
+        # =================================================================
+        concepts = await executor.run_phase(
+            2, "Extracting Concepts", "ConceptExtractor", AgentRole.EXPERT,
+            self._extract_concepts(paper, config),
+            input_data={'paper_title': paper.title},
+            tools_used=['concept_extract'],
+        )
+
+        # Limit concepts based on depth to prevent timeouts
+        if learning_depth == LearningDepth.QUICK:
+            max_concepts = config.max_concepts_quick
+        elif learning_depth == LearningDepth.STANDARD:
+            max_concepts = config.max_concepts_standard
+        else:
+            max_concepts = 5  # DEEP
+
+        if len(concepts) > max_concepts:
+            logger.info(f"  Limiting concepts: {len(concepts)} -> {max_concepts} (depth={learning_depth.value})")
+            concepts = concepts[:max_concepts]
+
+        logger.info(f"  Extracted {len(concepts)} concepts")
+
+        # =================================================================
+        # PHASE 3-7: CONTENT GENERATION
+        # =================================================================
+        content_data = await self._generate_content(
+            executor, paper, concepts, learning_depth, config
+        )
+
+        intuitions = content_data['intuitions']
+        math_explanations = content_data['math_explanations']
+        examples = content_data['examples']
+        draft_content = content_data['draft_content']
+        progressive_result = content_data['progressive_result']
+        polished = content_data['polished']
+
+        # =================================================================
+        # BUILD LEARNING SECTIONS
+        # =================================================================
+        sections = self._build_learning_sections(
+            paper, concepts, intuitions, math_explanations, examples, config
+        )
+
+        # Count bingo moments
+        bingo_count = sum(1 for s in sections if s.has_bingo_moment)
+        bingo_count += len(progressive_result.get('key_insights', []))
+
+        # Build final content
+        final_content = polished.get('polished_content', '') or draft_content
+
+        # Hook text
+        hook_text = ""
+        for concept_name, intuition in intuitions.items():
+            if intuition.get('hook'):
+                hook_text = intuition['hook']
+                break
+
+        learning_content = LearningContent(
+            paper=paper,
+            hook=hook_text,
+            concepts=concepts,
+            sections=sections,
+            key_insights=progressive_result.get('key_insights', []),
+            summary=progressive_result.get('summary', ''),
+            next_steps=progressive_result.get('next_steps', []),
+            total_words=len(final_content.split())
+        )
+
+        # =================================================================
+        # PHASE 8: GENERATE OUTPUTS (PARALLEL)
+        # =================================================================
+        pdf_path, pptx_path, pptx_pdf_path, html_path = await self._generate_outputs(
+            executor, paper, learning_content
+        )
+
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        # Estimate learning time
+        if learning_depth == LearningDepth.QUICK:
+            learning_time = "5-10 minutes"
+        elif learning_depth == LearningDepth.STANDARD:
+            learning_time = "20-30 minutes"
+        else:
+            learning_time = "45-60 minutes"
+
+        result = ArxivLearningResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={
+                'title': paper.title,
+                'arxiv_id': paper.arxiv_id,
+                'content': final_content
+            },
+            execution_time=executor.elapsed(),
+            paper=paper,
+            content=learning_content,
+            learning_time_estimate=learning_time,
+            concepts_covered=len(concepts),
+            bingo_moments=bingo_count,
+            difficulty_progression=[s.level for s in sections],
+            pdf_path=pdf_path,
+            pptx_path=pptx_path,
+            pptx_pdf_path=pptx_pdf_path,
+            html_path=html_path
+        )
+
+        logger.info(f"✅ ArxivLearningSwarm complete: {paper.title[:40]}...")
+        logger.info(f"   {len(concepts)} concepts, {bingo_count} {config.celebration_word} moments")
+
+        # Record orchestrator-level execution trace
+        self._record_trace(
+            agent_name="ArxivLearningSwarm",
+            agent_role=AgentRole.ORCHESTRATOR,
+            input_data={'paper_id': paper.arxiv_id, 'topic': paper.title},
+            output_data={
+                'concepts': len(concepts),
+                'sections': len(sections),
+                'bingo_moments': bingo_count,
+                'words': learning_content.total_words
+            },
+            execution_time=executor.elapsed(),
+            success=True
+        )
+
+        # Log LLM metrics
+        try:
+            if hasattr(dspy.settings, 'lm') and hasattr(dspy.settings.lm, 'get_metrics'):
+                metrics = dspy.settings.lm.get_metrics()
+                logger.info(f"📈 LLM Metrics: {metrics.get('successful_calls', 0)}/{metrics.get('total_calls', 0)} calls succeeded ({metrics.get('success_rate', 'N/A')})")
+                if metrics.get('retried_calls', 0) > 0:
+                    logger.info(f"   🔄 Retried {metrics['retried_calls']} calls")
+        except Exception:
+            pass
+
+        # Send to Telegram (if enabled)
+        should_send = send_telegram if send_telegram is not None else config.send_telegram
+
+        if should_send and TELEGRAM_AVAILABLE:
+            logger.info("📱 Sending to Telegram...")
+            await self._send_to_telegram(paper, learning_content, final_content, pdf_path=pdf_path, pptx_path=pptx_path, pptx_pdf_path=pptx_pdf_path, html_path=html_path)
+        elif should_send and not TELEGRAM_AVAILABLE:
+            logger.warning("⚠️ Telegram sending requested but tools not available")
+
+        return result
+
+    async def _fetch_paper(self, paper_id: str, topic: str):
+        """Fetch paper by ID or topic. Returns PaperInfo or None."""
+        paper = None
+        if paper_id:
+            paper = await self._paper_fetcher.fetch_by_id(paper_id)
+        elif topic:
+            papers = await self._paper_fetcher.search_by_topic(topic, 1)
+            paper = papers[0] if papers else None
+        return paper
+
+    async def _extract_concepts(self, paper, config):
+        """Extract concepts from paper with swarm caching. Returns list of Concept."""
+        cache_key = f"concepts_{paper.arxiv_id}"
+        concepts = None
+        if config.use_swarm_cache:
+            concepts = self._get_cached(cache_key)
+            if concepts:
+                logger.info(f"  📦 Loaded {len(concepts)} concepts from cache")
+
+        if not concepts:
+            concepts = await self._concept_extractor.extract(paper)
+
+            if not concepts:
+                # Create default concept from abstract
+                concepts = [Concept(
+                    name="Main Contribution",
+                    description=paper.abstract[:200],
+                    why_it_matters="This is the paper's key innovation",
+                    prerequisites=["Basic understanding of the field"],
+                    difficulty=3,
+                    math_required=True
+                )]
+
+            # Cache for future use
+            if config.use_swarm_cache:
+                self._cache_result(cache_key, concepts, ttl=7200)  # 2 hour TTL
+
+        return concepts
+
+    async def _generate_content(
+        self, executor, paper, concepts, learning_depth, config
+    ) -> Dict[str, Any]:
+        """Generate content using the appropriate optimization mode.
+
+        Dispatches to parallel_deep, unified, parallel, or sequential mode
+        based on self._optimization_mode. Uses executor for phase tracing.
+
+        Args:
+            executor: PhaseExecutor instance
+            paper: PaperInfo
+            concepts: List of Concept
+            learning_depth: LearningDepth enum
+            config: ArxivLearningConfig
+
+        Returns:
+            Dict with keys: intuitions, math_explanations, examples,
+            draft_content, progressive_result, polished
+        """
+        if self._optimization_mode == "parallel_deep" and self._unified_learner:
+            return await self._content_parallel_deep(executor, paper, concepts, config)
+        elif self._optimization_mode == "unified" and self._unified_learner:
+            return await self._content_unified(executor, paper, concepts, config)
+        elif self._optimization_mode == "parallel":
+            return await self._content_parallel(executor, paper, concepts, learning_depth, config)
+        else:
+            return await self._content_sequential(executor, paper, concepts, learning_depth, config)
+
+    async def _content_parallel_deep(self, executor, paper, concepts, config) -> Dict[str, Any]:
+        """Parallel deep mode: full quality with parallel per-concept generation."""
+        # Check cache first
+        content_cache_key = f"parallel_deep_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
+        unified_result = None
+        if config.use_swarm_cache:
+            unified_result = self._get_cached(content_cache_key)
+            if unified_result:
+                logger.info(f"  📦 Loaded parallel deep content from cache")
+
+        if not unified_result:
+            unified_result = await executor.run_phase(
+                3, "Parallel Deep Content Generation", "ParallelDeepLearner", AgentRole.PLANNER,
+                self._unified_learner.generate_parallel(
+                    paper=paper,
+                    concepts=concepts,
+                    audience_level=config.audience.value,
+                    celebration_word=config.celebration_word,
+                    max_concurrent=config.max_concurrent_llm
+                ),
+                input_data={'concepts_count': len(concepts), 'audience': config.audience.value},
+                tools_used=['parallel_deep_learning'],
+            )
+            if config.use_swarm_cache and unified_result:
+                self._cache_result(content_cache_key, unified_result, ttl=3600)
+
+        draft_content = unified_result.get('complete_content', '')
+        return {
+            'intuitions': unified_result.get('intuitions', {}),
+            'math_explanations': unified_result.get('math_explanations', {}),
+            'examples': unified_result.get('examples', {}),
+            'draft_content': draft_content,
+            'progressive_result': {
+                'complete_content': draft_content,
+                'key_insights': unified_result.get('key_insights', []),
+                'summary': unified_result.get('summary', ''),
+                'next_steps': unified_result.get('next_steps', [])
+            },
+            'polished': {'polished_content': draft_content},
+        }
+
+    async def _content_unified(self, executor, paper, concepts, config) -> Dict[str, Any]:
+        """Unified mode: single LLM call (experimental, may timeout)."""
+        # Check swarm cache for unified content
+        content_cache_key = f"unified_{paper.arxiv_id}_{config.audience.value}_{len(concepts)}"
+        unified_result = None
+        if config.use_swarm_cache:
+            unified_result = self._get_cached(content_cache_key)
+            if unified_result:
+                logger.info(f"  📦 Loaded unified content from cache")
+
+        if not unified_result:
+            unified_result = await executor.run_phase(
+                3, "Unified Content Generation", "UnifiedLearner", AgentRole.PLANNER,
+                self._unified_learner.generate_all(
+                    paper=paper,
+                    concepts=concepts,
+                    audience_level=config.audience.value,
+                    celebration_word=config.celebration_word
+                ),
+                input_data={'concepts_count': len(concepts), 'audience': config.audience.value},
+                tools_used=['unified_learning'],
+            )
+            # Cache for future use
+            if config.use_swarm_cache and unified_result:
+                self._cache_result(content_cache_key, unified_result, ttl=3600)
+
+        draft_content = unified_result.get('complete_content', '')
+        return {
+            'intuitions': unified_result.get('intuitions', {}),
+            'math_explanations': unified_result.get('math_explanations', {}),
+            'examples': unified_result.get('examples', {}),
+            'draft_content': draft_content,
+            'progressive_result': {
+                'complete_content': draft_content,
+                'key_insights': unified_result.get('key_insights', []),
+                'summary': unified_result.get('summary', ''),
+                'next_steps': unified_result.get('next_steps', [])
+            },
+            'polished': {'polished_content': draft_content},
+        }
+
+    async def _content_parallel(self, executor, paper, concepts, learning_depth, config) -> Dict[str, Any]:
+        """Parallel mode: run concept operations with controlled concurrency."""
+        # Semaphore to limit concurrent LLM calls
+        llm_semaphore = asyncio.Semaphore(2)
+
+        async def rate_limited_call(coro):
+            """Wrapper to limit concurrent LLM calls."""
+            async with llm_semaphore:
+                return await coro
+
+        # Phase 3: Build intuitions in parallel (limited to 2 concurrent)
+        intuition_tasks = [
+            (f"IntuitionBuilder({c.name})", AgentRole.ACTOR,
+             rate_limited_call(self._intuition_builder.build(c, config.audience.value)),
+             ['intuition_build'])
+            for c in concepts[:3]
+        ]
+        intuition_results = await executor.run_parallel(3, "Building Intuitions", intuition_tasks)
+
+        intuitions = {}
+        for c, result in zip(concepts[:3], intuition_results):
+            if isinstance(result, dict) and 'error' not in result:
+                intuitions[c.name] = result
+
+        # Phase 4: Build math explanations in parallel (for concepts that need it)
+        math_explanations = {}
+        if learning_depth in [LearningDepth.STANDARD, LearningDepth.DEEP]:
+            math_concepts = [c for c in concepts[:3] if c.math_required]
+            if math_concepts:
+                math_tasks = [
+                    (f"MathSimplifier({c.name})", AgentRole.ACTOR,
+                     rate_limited_call(self._math_simplifier.simplify(c, intuitions.get(c.name, {}), config.audience.value)),
+                     ['math_simplify'])
+                    for c in math_concepts
+                ]
+                math_results = await executor.run_parallel(4, "Simplifying Math", math_tasks)
+
+                for c, result in zip(math_concepts, math_results):
+                    if isinstance(result, dict) and 'error' not in result:
+                        math_explanations[c.name] = result
+
+        # Phase 5: Generate examples in parallel (for top 2 concepts)
+        examples = {}
+        if config.include_code_examples:
+            example_tasks = [
+                (f"ExampleGenerator({c.name})", AgentRole.ACTOR,
+                 rate_limited_call(self._example_generator.generate(
+                     c, intuitions.get(c.name, {}), math_explanations.get(c.name, {}))),
+                 ['example_generate'])
+                for c in concepts[:2]
+            ]
+            example_results = await executor.run_parallel(5, "Generating Examples", example_tasks)
+
+            for c, result in zip(concepts[:2], example_results):
+                if isinstance(result, dict) and 'error' not in result:
+                    examples[c.name] = result
+
+        logger.info(f"     {len(intuitions)} intuitions, {len(math_explanations)} math, {len(examples)} examples")
+
+        # Phase 6: Build content directly (SKIP ProgressiveBuilder to avoid 76KB prompt)
+        draft_content = self._build_direct_content(paper, concepts, intuitions, math_explanations, examples, config)
+
+        # Extract key insights from aha_moments
+        key_insights = [
+            intuitions[c.name].get('aha_moment', '')
+            for c in concepts[:3] if c.name in intuitions and intuitions[c.name].get('aha_moment')
+        ]
+
+        return {
+            'intuitions': intuitions,
+            'math_explanations': math_explanations,
+            'examples': examples,
+            'draft_content': draft_content,
+            'progressive_result': {
+                'complete_content': draft_content,
+                'key_insights': key_insights,
+                'summary': f"This paper introduces {concepts[0].name if concepts else 'key concepts'} and related innovations.",
+                'next_steps': ['Explore related papers', 'Implement the concepts', 'Read the full paper']
+            },
+            'polished': {'polished_content': draft_content},
+        }
+
+    async def _content_sequential(self, executor, paper, concepts, learning_depth, config) -> Dict[str, Any]:
+        """Sequential mode: original multi-call approach."""
+        # Phase 3: Build intuitions sequentially
+        intuitions = {}
+        for concept in concepts[:3]:
+            try:
+                result = await executor.run_phase(
+                    3, f"Building Intuition ({concept.name})", "IntuitionBuilder", AgentRole.ACTOR,
+                    self._intuition_builder.build(concept, config.audience.value),
+                    input_data={'concept': concept.name},
+                    tools_used=['intuition_build'],
+                )
+                if isinstance(result, dict):
+                    intuitions[concept.name] = result
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.warning(f"Intuition building failed for {concept.name}: {e}")
+
+        # Phase 4: Math
+        math_explanations = {}
+        if learning_depth in [LearningDepth.STANDARD, LearningDepth.DEEP]:
+            for concept in concepts[:3]:
+                if concept.math_required:
+                    try:
+                        result = await executor.run_phase(
+                            4, f"Simplifying Math ({concept.name})", "MathSimplifier", AgentRole.ACTOR,
+                            self._math_simplifier.simplify(
+                                concept, intuitions.get(concept.name, {}), config.audience.value),
+                            input_data={'concept': concept.name},
+                            tools_used=['math_simplify'],
+                        )
+                        if isinstance(result, dict):
+                            math_explanations[concept.name] = result
+                        await asyncio.sleep(1)
+                    except Exception as e:
+                        logger.warning(f"Math simplification failed for {concept.name}: {e}")
+
+        # Phase 5: Examples
+        examples = {}
+        if config.include_code_examples:
+            for concept in concepts[:2]:
+                try:
+                    result = await executor.run_phase(
+                        5, f"Generating Example ({concept.name})", "ExampleGenerator", AgentRole.ACTOR,
+                        self._example_generator.generate(
+                            concept, intuitions.get(concept.name, {}), math_explanations.get(concept.name, {})),
+                        input_data={'concept': concept.name},
+                        tools_used=['example_generate'],
+                    )
+                    if isinstance(result, dict):
+                        examples[concept.name] = result
+                    await asyncio.sleep(1)
+                except Exception as e:
+                    logger.warning(f"Example generation failed for {concept.name}: {e}")
+
+        # Phase 6: Progressive content
+        progressive_result = await executor.run_phase(
+            6, "Building Progressive Content", "ProgressiveBuilder", AgentRole.PLANNER,
+            self._progressive_builder.build(
+                paper, concepts, intuitions, math_explanations, examples, config.celebration_word),
+            input_data={'concepts_count': len(concepts), 'has_math': bool(math_explanations), 'has_examples': bool(examples)},
+            tools_used=['progressive_build'],
+        )
+
+        # Phase 7: Polish
+        draft_content = progressive_result.get('complete_content', '')
+        polished = await executor.run_phase(
+            7, "Polishing Content", "ContentPolisher", AgentRole.REVIEWER,
+            self._content_polisher.polish(draft_content, config.style.value, config.audience.value),
+            input_data={'draft_length': len(draft_content)},
+            tools_used=['content_polish'],
+        )
+
+        return {
+            'intuitions': intuitions,
+            'math_explanations': math_explanations,
+            'examples': examples,
+            'draft_content': draft_content,
+            'progressive_result': progressive_result,
+            'polished': polished,
+        }
+
+    def _build_direct_content(self, paper, concepts, intuitions, math_explanations, examples, config) -> str:
+        """Build content directly from sections without an extra LLM call."""
+        draft_parts = []
+        draft_parts.append(f"# {paper.title}\n")
+
+        # Add hook from first intuition
+        for name, intuition in intuitions.items():
+            if intuition.get('hook'):
+                draft_parts.append(f"\n## Why Should You Care?\n{intuition['hook']}\n")
+                break
+
+        # Add concept sections
+        for concept in concepts[:3]:
+            intuition = intuitions.get(concept.name, {})
+            math = math_explanations.get(concept.name, {})
+            example = examples.get(concept.name, {})
+
+            draft_parts.append(f"\n## {concept.name}\n")
+            if intuition.get('analogy'):
+                draft_parts.append(f"**Analogy:** {intuition['analogy']}\n")
+            if intuition.get('intuition_build'):
+                draft_parts.append(f"\n{intuition['intuition_build']}\n")
+            if intuition.get('aha_moment'):
+                draft_parts.append(f"\n💡 **{config.celebration_word}!** {intuition['aha_moment']}\n")
+            if math.get('step_by_step'):
+                draft_parts.append(f"\n### The Math\n{math['step_by_step']}\n")
+            if example.get('code_example'):
+                draft_parts.append(f"\n### Code\n```python\n{example['code_example']}\n```\n")
+
+        return '\n'.join(draft_parts)
+
+    def _build_learning_sections(self, paper, concepts, intuitions, math_explanations, examples, config) -> List[LearningSection]:
+        """Build learning sections from generated content data."""
+        sections = []
+
+        # Hook section
+        hook_text = ""
+        for concept_name, intuition in intuitions.items():
+            if intuition.get('hook'):
+                hook_text = intuition['hook']
+                break
+
+        sections.append(LearningSection(
+            title="Why Should You Care?",
+            content=hook_text or f"Let's understand {paper.title}",
+            level=1,
+            has_bingo_moment=False
+        ))
+
+        # Intuition sections - apply step formatting post-processing
+        for concept in concepts[:3]:
+            intuition = intuitions.get(concept.name, {})
+            if intuition:
+                intuition_content = format_steps_on_newlines(intuition.get('intuition_build', ''))
+                sections.append(LearningSection(
+                    title=f"Understanding {concept.name}",
+                    content=f"{intuition.get('analogy', '')}\n\n{intuition_content}",
+                    level=2,
+                    has_bingo_moment=True if intuition.get('aha_moment') else False
+                ))
+
+        # Math sections - apply step formatting post-processing
+        for concept_name, math in math_explanations.items():
+            step_content = format_steps_on_newlines(math.get('step_by_step', ''))
+            sections.append(LearningSection(
+                title=f"The Math: {concept_name}",
+                content=f"{math.get('math_motivation', '')}\n\n{step_content}",
+                level=3,
+                has_bingo_moment=False
+            ))
+
+        # Example sections - apply step formatting post-processing
+        for concept_name, ex in examples.items():
+            raw_code = ex.get('code_example', '')
+            raw_code = re.sub(r'^```\w*\n?', '', raw_code)
+            raw_code = re.sub(r'\n?```$', '', raw_code).strip()
+            simple_example = format_steps_on_newlines(ex.get('simple_example', ''))
+            sections.append(LearningSection(
+                title=f"See It In Action: {concept_name}",
+                content=f"**Simple Example:**\n{simple_example}",
+                level=4,
+                has_bingo_moment=False,
+                code_example=raw_code
+            ))
+
+        return sections
+
+    async def _generate_outputs(self, executor, paper, learning_content) -> tuple:
+        """Generate PDF, PPTX, and HTML outputs in parallel.
+
+        Args:
+            executor: PhaseExecutor instance
+            paper: PaperInfo
+            learning_content: LearningContent
+
+        Returns:
+            Tuple of (pdf_path, pptx_path, pptx_pdf_path, html_path)
+        """
+        logger.info("📄 Generating outputs (PDF, PPTX, HTML in parallel)...")
+
+        async def gen_pdf():
+            return await self._generate_pdf(paper, learning_content)
+
+        async def gen_pptx():
+            if self.config.generate_pptx:
+                return await self._generate_pptx(paper, learning_content)
+            return (None, None)
+
+        async def gen_html():
+            if self.config.generate_html:
+                return await self._generate_html(paper, learning_content)
+            return None
+
+        output_results = await executor.run_parallel(
+            8, "Generating Outputs",
+            [
+                ("PDFGenerator", AgentRole.ACTOR, gen_pdf(), ['pdf_generate']),
+                ("PPTXGenerator", AgentRole.ACTOR, gen_pptx(), ['pptx_generate']),
+                ("HTMLGenerator", AgentRole.ACTOR, gen_html(), ['html_generate']),
+            ]
+        )
+
+        # Extract results with safe defaults for errors
+        pdf_path = output_results[0] if not isinstance(output_results[0], dict) or 'error' not in output_results[0] else None
+        pptx_result = output_results[1] if not isinstance(output_results[1], dict) or 'error' not in output_results[1] else (None, None)
+        pptx_path, pptx_pdf_path = pptx_result if isinstance(pptx_result, tuple) else (None, None)
+        html_path = output_results[2] if not isinstance(output_results[2], dict) or 'error' not in output_results[2] else None
+
+        return pdf_path, pptx_path, pptx_pdf_path, html_path
 
     async def search_and_learn(
         self,

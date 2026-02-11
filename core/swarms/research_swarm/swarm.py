@@ -2,17 +2,15 @@
 
 import asyncio
 import logging
-import os
-import json
 import re
+import traceback
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 
 import dspy
 
 from ..base import DomainSwarm, AgentTeam
+from ..base.domain_swarm import PhaseExecutor
+from ..base_swarm import AgentRole
 
 from .types import RatingType, ResearchConfig, ResearchResult
 from .agents import (
@@ -127,6 +125,9 @@ class ResearchSwarm(DomainSwarm):
         """
         Execute comprehensive research on a company/stock.
 
+        Uses _safe_execute_domain to handle try/except, timing, and
+        post-execution learning automatically via PhaseExecutor.
+
         Args:
             query: Company name or ticker
             ticker: Explicit ticker symbol
@@ -136,161 +137,300 @@ class ResearchSwarm(DomainSwarm):
         Returns:
             ResearchResult with all data and analysis
         """
-        start_time = datetime.now()
-
-        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
-
-        # Parse inputs
+        # Parse inputs before entering executor
         ticker = ticker or self._extract_ticker(query)
         exchange = exchange or self.config.exchange
         send_tg = send_telegram if send_telegram is not None else self.config.send_telegram
 
-        logger.info(f"🚀 Research Swarm starting for {ticker} ({exchange})")
+        logger.info(f"Research Swarm starting for {ticker} ({exchange})")
         logger.info(f"   Config: LLM={self.config.use_llm_analysis}, Peers={self.config.include_peers}, Sentiment={self.config.include_sentiment}")
 
+        # Default tools used across research phases
+        default_tools = [
+            'data_fetch', 'web_search', 'sentiment_analysis',
+            'llm_analysis', 'peer_comparison', 'chart_generation',
+            'report_generation', 'technical_analysis', 'screener',
+        ]
+
+        async def _execute_fn(executor: PhaseExecutor) -> ResearchResult:
+            return await self._execute_phases(executor, ticker, exchange, send_tg)
+
+        def _output_data_fn(result: ResearchResult) -> Dict[str, Any]:
+            return {
+                'ticker': result.ticker,
+                'rating': result.rating,
+                'confidence': str(result.rating_confidence),
+                'sentiment': result.sentiment_label,
+                'success': str(result.success),
+            }
+
+        def _input_data_fn() -> Dict[str, Any]:
+            return {'ticker': ticker, 'exchange': exchange, 'query': query}
+
+        # Use _safe_execute_domain for try/except + learning boilerplate.
+        # Since ResearchResult is not a SwarmResult subclass, we wrap with
+        # custom error handling.
+        executor = self._phase_executor()
         try:
-            # =================================================================
-            # PHASE 1: PARALLEL DATA COLLECTION
-            # =================================================================
-            logger.info("📥 Phase 1: Parallel data collection...")
+            result = await _execute_fn(executor)
 
-            if self.config.parallel_fetch:
-                # Run data fetching in parallel - now includes Screener and Technical Analysis
-                fetch_tasks = [
-                    self._data_fetcher.fetch(ticker, exchange),
-                    self._web_searcher.search(ticker, self.config.max_web_results)
-                ]
+            # Record post-execution learning (success path)
+            exec_time = executor.elapsed()
+            await self._post_execute_learning(
+                success=result.success if hasattr(result, 'success') else True,
+                execution_time=exec_time,
+                tools_used=self._get_active_tools(default_tools),
+                task_type='research',
+                output_data=_output_data_fn(result),
+                input_data=_input_data_fn(),
+            )
+            self._learning_recorded = True
+            return result
 
-                # Add Screener.in fetching if enabled
-                if self.config.use_screener:
-                    fetch_tasks.append(self._screener_agent.fetch(ticker))
+        except Exception as e:
+            logger.error(f"Research swarm error: {e}")
+            traceback.print_exc()
+            exec_time = executor.elapsed()
+            await self._post_execute_learning(
+                success=False,
+                execution_time=exec_time,
+                tools_used=self._get_active_tools(default_tools),
+                task_type='research',
+            )
+            self._learning_recorded = True
+            return ResearchResult(
+                success=False,
+                ticker=ticker,
+                company_name=ticker,
+                error=str(e),
+                execution_time=exec_time,
+            )
 
-                # Add Technical Analysis if enabled
-                if self.config.include_technical:
-                    fetch_tasks.append(
-                        self._technical_analyzer.analyze(ticker, self.config.technical_timeframes)
-                    )
+    async def _execute_phases(
+        self,
+        executor: PhaseExecutor,
+        ticker: str,
+        exchange: str,
+        send_tg: bool,
+    ) -> ResearchResult:
+        """
+        Domain-specific phase logic using PhaseExecutor for tracing.
 
-                fetch_results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+        Phases:
+            1. Parallel Data Collection (DataFetcher, WebSearch, Screener, Technical)
+            2. Parallel Analysis (Sentiment, SocialSentiment, Peers, LLM)
+            3. Chart Generation
+            4. Report Generation
 
-                financial_data = fetch_results[0] if not isinstance(fetch_results[0], Exception) else {}
-                web_data = fetch_results[1] if not isinstance(fetch_results[1], Exception) else {}
+        Args:
+            executor: PhaseExecutor for phase tracing and timing
+            ticker: Stock ticker symbol
+            exchange: Exchange (NSE, BSE, NYSE)
+            send_tg: Whether to send result via Telegram
 
-                # Extract Screener data if fetched
-                screener_data = {}
-                if self.config.use_screener and len(fetch_results) > 2:
-                    screener_data = fetch_results[2] if not isinstance(fetch_results[2], Exception) else {}
-
-                # Extract Technical data if fetched
-                technical_data = {}
-                tech_idx = 3 if self.config.use_screener else 2
-                if self.config.include_technical and len(fetch_results) > tech_idx:
-                    technical_data = fetch_results[tech_idx] if not isinstance(fetch_results[tech_idx], Exception) else {}
-            else:
-                financial_data = await self._data_fetcher.fetch(ticker, exchange)
-                web_data = await self._web_searcher.search(ticker, self.config.max_web_results)
-                screener_data = await self._screener_agent.fetch(ticker) if self.config.use_screener else {}
-                technical_data = await self._technical_analyzer.analyze(
-                    ticker, self.config.technical_timeframes
-                ) if self.config.include_technical else {}
-
-            # Merge data
-            merged_data = {**financial_data, **web_data}
-            merged_data['ticker'] = ticker
-            merged_data['exchange'] = exchange
-            merged_data['screener_data'] = screener_data
-            merged_data['technical_data'] = technical_data
-
-            # Store in shared context
-            if self._context:
-                self._context.set(f"research:{ticker}:raw_data", merged_data)
-
-            # =================================================================
-            # PHASE 2: PARALLEL ANALYSIS
-            # =================================================================
-            logger.info("🧠 Phase 2: Parallel analysis...")
-
-            analysis_tasks = []
-
-            # Helper for creating async results (Python 3.11+ compatible)
-            async def async_result(value):
-                return value
-
-            # Sentiment analysis (if enabled)
-            if self.config.include_sentiment and web_data.get('news_text'):
-                analysis_tasks.append(
-                    self._sentiment_analyzer.analyze(
-                        merged_data.get('company_name', ticker),
-                        web_data.get('news_text', '')
-                    )
+        Returns:
+            ResearchResult with all data and analysis
+        """
+        # =================================================================
+        # PHASE 1: PARALLEL DATA COLLECTION
+        # =================================================================
+        if self.config.parallel_fetch:
+            # Build parallel task list for data collection
+            fetch_task_list = [
+                ("DataFetcher", AgentRole.ACTOR,
+                 self._data_fetcher.fetch(ticker, exchange),
+                 ['data_fetch']),
+                ("WebSearch", AgentRole.ACTOR,
+                 self._web_searcher.search(ticker, self.config.max_web_results),
+                 ['web_search']),
+            ]
+            if self.config.use_screener:
+                fetch_task_list.append(
+                    ("Screener", AgentRole.ACTOR,
+                     self._screener_agent.fetch(ticker),
+                     ['screener'])
                 )
-            else:
-                analysis_tasks.append(async_result({'sentiment_score': 0, 'sentiment_label': 'NEUTRAL'}))
-
-            # Social Sentiment analysis (if enabled) - NEW
-            if self.config.include_social_sentiment and web_data.get('news_text'):
-                analysis_tasks.append(
-                    self._social_sentiment_agent.analyze(
-                        merged_data.get('company_name', ticker),
-                        web_data.get('news_text', ''),
-                        ''  # Forum text - can be extended to scrape forums
-                    )
+            if self.config.include_technical:
+                fetch_task_list.append(
+                    ("TechnicalAnalyzer", AgentRole.ACTOR,
+                     self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),
+                     ['technical_analysis'])
                 )
-            else:
-                analysis_tasks.append(async_result({'overall_sentiment': 0, 'sentiment_label': 'NEUTRAL', 'sentiment_drivers': {}}))
 
-            # Peer comparison (if enabled)
-            if self.config.include_peers:
-                analysis_tasks.append(
-                    self._peer_comparator.compare(
-                        ticker,
-                        merged_data.get('sector', ''),
-                        merged_data.get('industry', ''),
-                        exchange
-                    )
+            fetch_results = await executor.run_parallel(
+                1, "Parallel Data Collection", fetch_task_list,
+            )
+
+            financial_data = fetch_results[0] if not isinstance(fetch_results[0], dict) or 'error' not in fetch_results[0] else {}
+            web_data = fetch_results[1] if not isinstance(fetch_results[1], dict) or 'error' not in fetch_results[1] else {}
+
+            # Extract optional results by position
+            idx = 2
+            screener_data = {}
+            if self.config.use_screener:
+                r = fetch_results[idx]
+                screener_data = r if not (isinstance(r, dict) and 'error' in r) else {}
+                idx += 1
+
+            technical_data = {}
+            if self.config.include_technical and idx < len(fetch_results):
+                r = fetch_results[idx]
+                technical_data = r if not (isinstance(r, dict) and 'error' in r) else {}
+        else:
+            # Sequential fetching with individual phase tracing
+            financial_data = await executor.run_phase(
+                1, "Data Fetching", "DataFetcher", AgentRole.ACTOR,
+                self._data_fetcher.fetch(ticker, exchange),
+                input_data={'ticker': ticker, 'exchange': exchange},
+                tools_used=['data_fetch'],
+            )
+            web_data = await executor.run_phase(
+                1, "Web Search", "WebSearch", AgentRole.ACTOR,
+                self._web_searcher.search(ticker, self.config.max_web_results),
+                input_data={'ticker': ticker},
+                tools_used=['web_search'],
+            )
+            screener_data = {}
+            if self.config.use_screener:
+                screener_data = await executor.run_phase(
+                    1, "Screener Fetch", "Screener", AgentRole.ACTOR,
+                    self._screener_agent.fetch(ticker),
+                    input_data={'ticker': ticker},
+                    tools_used=['screener'],
                 )
-            else:
-                analysis_tasks.append(async_result({'peers': [], 'comparison': {}}))
-
-            # LLM analysis
-            if self.config.use_llm_analysis:
-                analysis_tasks.append(
-                    self._llm_analyzer.analyze(merged_data, web_data.get('news_text', ''))
+            technical_data = {}
+            if self.config.include_technical:
+                technical_data = await executor.run_phase(
+                    1, "Technical Analysis", "TechnicalAnalyzer", AgentRole.ACTOR,
+                    self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),
+                    input_data={'ticker': ticker},
+                    tools_used=['technical_analysis'],
                 )
-            else:
-                analysis_tasks.append(async_result(self._rule_based_analysis(merged_data)))
 
-            # Run analysis in parallel
-            analysis_results = await asyncio.gather(*analysis_tasks, return_exceptions=True)
+        # Merge data
+        merged_data = {**financial_data, **web_data}
+        merged_data['ticker'] = ticker
+        merged_data['exchange'] = exchange
+        merged_data['screener_data'] = screener_data
+        merged_data['technical_data'] = technical_data
 
-            sentiment_result = analysis_results[0] if not isinstance(analysis_results[0], Exception) else {}
-            social_sentiment_result = analysis_results[1] if not isinstance(analysis_results[1], Exception) else {}
-            peer_result = analysis_results[2] if not isinstance(analysis_results[2], Exception) else {}
-            llm_result = analysis_results[3] if not isinstance(analysis_results[3], Exception) else {}
+        # Store in shared context
+        if self._context:
+            self._context.set(f"research:{ticker}:raw_data", merged_data)
 
-            # =================================================================
-            # PHASE 3: CHART GENERATION (if enabled) - ENHANCED
-            # =================================================================
-            chart_paths = []
-            if self.config.include_charts:
-                logger.info("📊 Phase 3: Generating enhanced multi-panel charts...")
-                # Use technical data for multi-timeframe charts if available
-                chart_result = await self._chart_generator.generate(
+        # =================================================================
+        # PHASE 2: PARALLEL ANALYSIS
+        # =================================================================
+        # Helper for creating async results (Python 3.11+ compatible)
+        async def async_result(value):
+            return value
+
+        # Build analysis task list
+        analysis_task_list = []
+
+        # Sentiment analysis
+        if self.config.include_sentiment and web_data.get('news_text'):
+            analysis_task_list.append(
+                ("Sentiment", AgentRole.ACTOR,
+                 self._sentiment_analyzer.analyze(
+                     merged_data.get('company_name', ticker),
+                     web_data.get('news_text', '')
+                 ),
+                 ['sentiment_analysis'])
+            )
+        else:
+            analysis_task_list.append(
+                ("Sentiment", AgentRole.ACTOR,
+                 async_result({'sentiment_score': 0, 'sentiment_label': 'NEUTRAL'}),
+                 ['sentiment_analysis'])
+            )
+
+        # Social Sentiment analysis
+        if self.config.include_social_sentiment and web_data.get('news_text'):
+            analysis_task_list.append(
+                ("SocialSentiment", AgentRole.ACTOR,
+                 self._social_sentiment_agent.analyze(
+                     merged_data.get('company_name', ticker),
+                     web_data.get('news_text', ''),
+                     ''  # Forum text - can be extended to scrape forums
+                 ),
+                 ['social_sentiment'])
+            )
+        else:
+            analysis_task_list.append(
+                ("SocialSentiment", AgentRole.ACTOR,
+                 async_result({'overall_sentiment': 0, 'sentiment_label': 'NEUTRAL', 'sentiment_drivers': {}}),
+                 ['social_sentiment'])
+            )
+
+        # Peer comparison
+        if self.config.include_peers:
+            analysis_task_list.append(
+                ("PeerComparator", AgentRole.ACTOR,
+                 self._peer_comparator.compare(
+                     ticker,
+                     merged_data.get('sector', ''),
+                     merged_data.get('industry', ''),
+                     exchange
+                 ),
+                 ['peer_comparison'])
+            )
+        else:
+            analysis_task_list.append(
+                ("PeerComparator", AgentRole.ACTOR,
+                 async_result({'peers': [], 'comparison': {}}),
+                 ['peer_comparison'])
+            )
+
+        # LLM analysis
+        if self.config.use_llm_analysis:
+            analysis_task_list.append(
+                ("LLMAnalyzer", AgentRole.ACTOR,
+                 self._llm_analyzer.analyze(merged_data, web_data.get('news_text', '')),
+                 ['llm_analysis'])
+            )
+        else:
+            analysis_task_list.append(
+                ("LLMAnalyzer", AgentRole.ACTOR,
+                 async_result(self._rule_based_analysis(merged_data)),
+                 ['llm_analysis'])
+            )
+
+        analysis_results = await executor.run_parallel(
+            2, "Parallel Analysis", analysis_task_list,
+        )
+
+        sentiment_result = analysis_results[0] if not (isinstance(analysis_results[0], dict) and 'error' in analysis_results[0]) else {}
+        social_sentiment_result = analysis_results[1] if not (isinstance(analysis_results[1], dict) and 'error' in analysis_results[1]) else {}
+        peer_result = analysis_results[2] if not (isinstance(analysis_results[2], dict) and 'error' in analysis_results[2]) else {}
+        llm_result = analysis_results[3] if not (isinstance(analysis_results[3], dict) and 'error' in analysis_results[3]) else {}
+
+        # =================================================================
+        # PHASE 3: CHART GENERATION (if enabled)
+        # =================================================================
+        chart_paths = []
+        if self.config.include_charts:
+            chart_result = await executor.run_phase(
+                3, "Chart Generation", "ChartGenerator", AgentRole.ACTOR,
+                self._chart_generator.generate(
                     ticker,
                     merged_data,
                     self.config.output_dir,
                     timeframes=self.config.technical_timeframes,
                     technical_data=technical_data,
                     include_heiken_ashi=self.config.include_heiken_ashi
-                )
-                chart_paths = chart_result.get('chart_paths', [])
+                ),
+                input_data={'ticker': ticker},
+                tools_used=['chart_generation'],
+            )
+            chart_paths = chart_result.get('chart_paths', []) if isinstance(chart_result, dict) else []
 
-            # =================================================================
-            # PHASE 4: REPORT GENERATION + OUTPUT
-            # =================================================================
-            logger.info("📝 Phase 4: Generating report...")
-
-            report_result = await self._report_generator.generate(
+        # =================================================================
+        # PHASE 4: REPORT GENERATION + OUTPUT
+        # =================================================================
+        report_result = await executor.run_phase(
+            4, "Report Generation", "ReportGenerator", AgentRole.ACTOR,
+            self._report_generator.generate(
                 ticker=ticker,
                 data=merged_data,
                 analysis=llm_result,
@@ -299,86 +439,77 @@ class ResearchSwarm(DomainSwarm):
                 chart_paths=chart_paths,
                 output_dir=self.config.output_dir,
                 send_telegram=send_tg
-            )
+            ),
+            input_data={'ticker': ticker},
+            tools_used=['report_generation'],
+        )
 
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        exec_time = executor.elapsed()
 
-            # Parse technical signals for support/resistance
-            support_levels = []
-            resistance_levels = []
-            trend = "NEUTRAL"
-            if technical_data:
-                support_levels = technical_data.get('support_levels', [])
-                resistance_levels = technical_data.get('resistance_levels', [])
-                trend = technical_data.get('trend', 'NEUTRAL')
+        # Parse technical signals for support/resistance
+        support_levels = []
+        resistance_levels = []
+        trend = "NEUTRAL"
+        if technical_data:
+            support_levels = technical_data.get('support_levels', [])
+            resistance_levels = technical_data.get('resistance_levels', [])
+            trend = technical_data.get('trend', 'NEUTRAL')
 
-            result = ResearchResult(
-                success=True,
-                ticker=ticker,
-                company_name=merged_data.get('company_name', ticker),
-                current_price=merged_data.get('current_price', 0),
-                target_price=merged_data.get('target_mean_price', 0),
-                rating=llm_result.get('rating', 'HOLD'),
-                rating_confidence=llm_result.get('confidence', 0.5),
-                investment_thesis=llm_result.get('thesis', []),
-                key_risks=llm_result.get('risks', []),
-                sentiment_score=sentiment_result.get('sentiment_score', 0),
-                sentiment_label=sentiment_result.get('sentiment_label', 'NEUTRAL'),
-                peers=peer_result.get('peers', []),
-                peer_comparison=peer_result.get('comparison', {}),
-                pdf_path=report_result.get('pdf_path', ''),
-                md_path=report_result.get('md_path', ''),
-                chart_paths=chart_paths,
-                telegram_sent=report_result.get('telegram_sent', False),
-                data_sources=merged_data.get('sources', []),
-                news_count=web_data.get('news_count', 0),
-                execution_time=exec_time,
-                agent_contributions={
-                    'DataFetcher': 0.15,
-                    'WebSearch': 0.10,
-                    'Sentiment': 0.05 if self.config.include_sentiment else 0,
-                    'SocialSentiment': 0.05 if self.config.include_social_sentiment else 0,
-                    'LLMAnalysis': 0.20 if self.config.use_llm_analysis else 0,
-                    'PeerComparison': 0.08 if self.config.include_peers else 0,
-                    'TechnicalAnalysis': 0.15 if self.config.include_technical else 0,
-                    'Screener': 0.07 if self.config.use_screener else 0,
-                    'ChartGenerator': 0.05 if self.config.include_charts else 0,
-                    'ReportGenerator': 0.10
-                },
-                # New enhanced fields
-                technical_signals=technical_data.get('signals', {}),
-                support_levels=support_levels,
-                resistance_levels=resistance_levels,
-                trend=trend,
-                screener_data=screener_data,
-                social_sentiment_score=social_sentiment_result.get('overall_sentiment', 0),
-                sentiment_drivers=social_sentiment_result.get('sentiment_drivers', {})
-            )
+        result = ResearchResult(
+            success=True,
+            ticker=ticker,
+            company_name=merged_data.get('company_name', ticker),
+            current_price=merged_data.get('current_price', 0),
+            target_price=merged_data.get('target_mean_price', 0),
+            rating=llm_result.get('rating', 'HOLD'),
+            rating_confidence=llm_result.get('confidence', 0.5),
+            investment_thesis=llm_result.get('thesis', []),
+            key_risks=llm_result.get('risks', []),
+            sentiment_score=sentiment_result.get('sentiment_score', 0),
+            sentiment_label=sentiment_result.get('sentiment_label', 'NEUTRAL'),
+            peers=peer_result.get('peers', []),
+            peer_comparison=peer_result.get('comparison', {}),
+            pdf_path=report_result.get('pdf_path', ''),
+            md_path=report_result.get('md_path', ''),
+            chart_paths=chart_paths,
+            telegram_sent=report_result.get('telegram_sent', False),
+            data_sources=merged_data.get('sources', []),
+            news_count=web_data.get('news_count', 0),
+            execution_time=exec_time,
+            agent_contributions={
+                'DataFetcher': 0.15,
+                'WebSearch': 0.10,
+                'Sentiment': 0.05 if self.config.include_sentiment else 0,
+                'SocialSentiment': 0.05 if self.config.include_social_sentiment else 0,
+                'LLMAnalysis': 0.20 if self.config.use_llm_analysis else 0,
+                'PeerComparison': 0.08 if self.config.include_peers else 0,
+                'TechnicalAnalysis': 0.15 if self.config.include_technical else 0,
+                'Screener': 0.07 if self.config.use_screener else 0,
+                'ChartGenerator': 0.05 if self.config.include_charts else 0,
+                'ReportGenerator': 0.10
+            },
+            # Enhanced fields
+            technical_signals=technical_data.get('signals', {}),
+            support_levels=support_levels,
+            resistance_levels=resistance_levels,
+            trend=trend,
+            screener_data=screener_data,
+            social_sentiment_score=social_sentiment_result.get('overall_sentiment', 0),
+            sentiment_drivers=social_sentiment_result.get('sentiment_drivers', {})
+        )
 
-            # Store in memory for learning
-            if self.config.learn_from_research and self._memory:
-                await self._store_learning(result)
+        # Store in memory for learning
+        if self.config.learn_from_research and self._memory:
+            await self._store_learning(result)
 
-            logger.info(f"✅ Research complete: {ticker} = {result.rating} (₹{result.current_price:,.2f})")
-            logger.info(f"   Sentiment: {result.sentiment_label} ({result.sentiment_score:+.2f})")
-            logger.info(f"   Time: {exec_time:.1f}s | Telegram: {result.telegram_sent}")
+        logger.info(f"Research complete: {ticker} = {result.rating} ({result.current_price:,.2f})")
+        logger.info(f"   Sentiment: {result.sentiment_label} ({result.sentiment_score:+.2f})")
+        logger.info(f"   Time: {exec_time:.1f}s | Telegram: {result.telegram_sent}")
 
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ Research swarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            return ResearchResult(
-                success=False,
-                ticker=ticker,
-                company_name=ticker,
-                error=str(e),
-                execution_time=(datetime.now() - start_time).total_seconds()
-            )
+        return result
 
     def _extract_ticker(self, query: str) -> str:
         """Extract ticker from query."""

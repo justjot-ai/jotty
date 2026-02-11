@@ -52,10 +52,8 @@ import asyncio
 import logging
 import json
 import dspy
-from typing import Dict, Any, Optional, List, Type
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
-from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
@@ -722,7 +720,8 @@ class LearningSwarm(DomainSwarm):
         Internal implementation of evaluate and improve.
 
         Called by _execute_domain() after agents are initialized
-        and pre-learning hooks have run.
+        and pre-learning hooks have run. Delegates to _safe_execute_domain
+        which handles try/except, timing, and post-execute learning.
 
         Args:
             swarm_name: Name of the swarm to improve
@@ -732,188 +731,182 @@ class LearningSwarm(DomainSwarm):
         Returns:
             LearningResult with improvements
         """
-        start_time = datetime.now()
-
-        config = self.config
-
-        logger.info(f"🧠 LearningSwarm starting: improving {swarm_name}")
-
-        # Get or create sample data
         evaluations = evaluations or []
         traces = traces or []
 
-        try:
-            # =================================================================
-            # PHASE 1: PERFORMANCE EVALUATION
-            # =================================================================
-            logger.info("📊 Phase 1: Evaluating performance...")
+        return await self._safe_execute_domain(
+            task_type='swarm_learning',
+            default_tools=['performance_evaluate', 'gold_curate', 'prompt_optimize'],
+            result_class=LearningResult,
+            execute_fn=lambda executor: self._execute_phases(
+                executor, swarm_name, evaluations, traces
+            ),
+            output_data_fn=lambda result: {
+                'optimizations_count': len(result.optimizations),
+                'gold_standards_created': result.gold_standards_created,
+                'insights_count': len(result.cross_domain_insights),
+                'avg_score': result.performance.avg_score if result.performance else 0,
+            },
+            input_data_fn=lambda: {'swarm_name': swarm_name},
+        )
 
-            performance = await self._evaluator.evaluate(
+    async def _execute_phases(
+        self,
+        executor,
+        swarm_name: str,
+        evaluations: List[Evaluation],
+        traces: List[ExecutionTrace],
+    ) -> LearningResult:
+        """
+        Domain-specific phase logic using PhaseExecutor.
+
+        Runs the four learning phases:
+        1. Performance evaluation
+        2. Gold standard curation
+        3. Optimization (parallel)
+        4. Meta-learning
+
+        Args:
+            executor: PhaseExecutor instance for tracing and timing
+            swarm_name: Name of the swarm to improve
+            evaluations: Evaluation results
+            traces: Execution traces
+
+        Returns:
+            LearningResult with improvements
+        """
+        config = self.config
+
+        logger.info(f"LearningSwarm starting: improving {swarm_name}")
+
+        # =================================================================
+        # PHASE 1: PERFORMANCE EVALUATION
+        # =================================================================
+        performance = await executor.run_phase(
+            1, "Performance Evaluation", "PerformanceEvaluator", AgentRole.EXPERT,
+            self._evaluator.evaluate(
                 evaluations,
                 traces,
                 {'name': swarm_name, 'domain': swarm_name}
-            )
+            ),
+            input_data={'swarm_name': swarm_name, 'evaluations': len(evaluations)},
+            tools_used=['performance_evaluate'],
+        )
 
-            self._trace_phase("PerformanceEvaluator", AgentRole.EXPERT,
-                {'swarm_name': swarm_name, 'evaluations': len(evaluations)},
-                {'avg_score': performance.avg_score, 'weaknesses': len(performance.weaknesses)},
-                success=True, phase_start=start_time, tools_used=['performance_evaluate'])
+        # =================================================================
+        # PHASE 2: GOLD STANDARD CURATION
+        # =================================================================
+        gold_standards_created = 0
 
-            # =================================================================
-            # PHASE 2: GOLD STANDARD CURATION
-            # =================================================================
-            gold_standards_created = 0
+        if config.learning_mode in [LearningMode.CURATE, LearningMode.FULL_CYCLE]:
+            # Get successful outputs
+            successful_outputs = [
+                t.output_data for t in traces
+                if t.success
+            ][:config.evaluation_samples]
 
-            if config.learning_mode in [LearningMode.CURATE, LearningMode.FULL_CYCLE]:
-                logger.info("🏆 Phase 2: Curating gold standards...")
-
-                # Get successful outputs
-                successful_outputs = [
-                    t.output_data for t in traces
-                    if t.success
-                ][:config.evaluation_samples]
-
-                if successful_outputs:
-                    gold_standards = await self._curator.curate(
+            if successful_outputs:
+                gold_standards = await executor.run_phase(
+                    2, "Gold Standard Curation", "GoldCurator", AgentRole.ACTOR,
+                    self._curator.curate(
                         successful_outputs,
                         swarm_name,
                         ['general']
-                    )
-                    gold_standards_created = len(gold_standards)
+                    ),
+                    input_data={'swarm_name': swarm_name},
+                    tools_used=['gold_curate'],
+                )
+                gold_standards_created = len(gold_standards)
 
-            phase2_start = datetime.now()
-            self._trace_phase("GoldCurator", AgentRole.ACTOR,
-                {'swarm_name': swarm_name},
-                {'gold_standards_created': gold_standards_created},
-                success=True, phase_start=start_time, tools_used=['gold_curate'])
+        # =================================================================
+        # PHASE 3: OPTIMIZATION (parallel)
+        # =================================================================
+        optimizations = []
 
-            # =================================================================
-            # PHASE 3: OPTIMIZATION (parallel)
-            # =================================================================
-            optimizations = []
+        if config.learning_mode in [LearningMode.OPTIMIZE, LearningMode.FULL_CYCLE]:
+            parallel_tasks = []
 
-            if config.learning_mode in [LearningMode.OPTIMIZE, LearningMode.FULL_CYCLE]:
-                logger.info("⚡ Phase 3: Running optimizations...")
+            if OptimizationType.PROMPT in config.optimization_types or OptimizationType.ALL in config.optimization_types:
+                parallel_tasks.append((
+                    "PromptOptimizer", AgentRole.ACTOR,
+                    self._prompt_optimizer.optimize(
+                        "Current prompt placeholder",
+                        performance.weaknesses,
+                        []
+                    ),
+                    ['prompt_optimize'],
+                ))
 
-                opt_tasks = []
+            if OptimizationType.WORKFLOW in config.optimization_types or OptimizationType.ALL in config.optimization_types:
+                parallel_tasks.append((
+                    "WorkflowOptimizer", AgentRole.ACTOR,
+                    self._workflow_optimizer.optimize(
+                        "Sequential workflow",
+                        {'avg_time': performance.avg_execution_time},
+                        performance.weaknesses
+                    ),
+                    ['workflow_optimize'],
+                ))
 
-                if OptimizationType.PROMPT in config.optimization_types or OptimizationType.ALL in config.optimization_types:
-                    opt_tasks.append(
-                        self._prompt_optimizer.optimize(
-                            "Current prompt placeholder",
-                            performance.weaknesses,
-                            []
-                        )
-                    )
+            if OptimizationType.PARAMETERS in config.optimization_types or OptimizationType.ALL in config.optimization_types:
+                parallel_tasks.append((
+                    "ParameterTuner", AgentRole.ACTOR,
+                    self._parameter_tuner.tune(
+                        {'temperature': 0.7, 'max_tokens': 4096},
+                        {},
+                        {}
+                    ),
+                    ['param_tune'],
+                ))
 
-                if OptimizationType.WORKFLOW in config.optimization_types or OptimizationType.ALL in config.optimization_types:
-                    opt_tasks.append(
-                        self._workflow_optimizer.optimize(
-                            "Sequential workflow",
-                            {'avg_time': performance.avg_execution_time},
-                            performance.weaknesses
-                        )
-                    )
+            if parallel_tasks:
+                opt_results = await executor.run_parallel(
+                    3, "Optimization", parallel_tasks
+                )
+                for result in opt_results:
+                    if isinstance(result, OptimizationResult):
+                        optimizations.append(result)
 
-                if OptimizationType.PARAMETERS in config.optimization_types or OptimizationType.ALL in config.optimization_types:
-                    opt_tasks.append(
-                        self._parameter_tuner.tune(
-                            {'temperature': 0.7, 'max_tokens': 4096},
-                            {},
-                            {}
-                        )
-                    )
+        # =================================================================
+        # PHASE 4: META-LEARNING
+        # =================================================================
+        cross_domain_insights = []
 
-                if opt_tasks:
-                    opt_results = await asyncio.gather(*opt_tasks, return_exceptions=True)
-                    for result in opt_results:
-                        if isinstance(result, OptimizationResult):
-                            optimizations.append(result)
-
-            self._trace_phase("PromptOptimizer", AgentRole.ACTOR,
-                {'optimization_types': [o.value for o in config.optimization_types]},
-                {'optimizations': len(optimizations)},
-                success=True, phase_start=phase2_start, tools_used=['prompt_optimize', 'workflow_optimize', 'param_tune'])
-
-            # =================================================================
-            # PHASE 4: META-LEARNING
-            # =================================================================
-            cross_domain_insights = []
-
-            if config.learning_mode == LearningMode.FULL_CYCLE:
-                logger.info("🔮 Phase 4: Extracting meta-learnings...")
-
-                meta_result = await self._meta_learner.learn(
+        if config.learning_mode == LearningMode.FULL_CYCLE:
+            meta_result = await executor.run_phase(
+                4, "Meta-Learning", "MetaLearner", AgentRole.EXPERT,
+                self._meta_learner.learn(
                     {swarm_name: performance},
                     [],
                     {swarm_name: "Standard multi-agent architecture"}
-                )
-
-                cross_domain_insights = meta_result.get('universal_insights', [])
-
-            self._trace_phase("MetaLearner", AgentRole.EXPERT,
-                {'full_cycle': config.learning_mode == LearningMode.FULL_CYCLE},
-                {'insights': len(cross_domain_insights)},
-                success=True, phase_start=phase2_start, tools_used=['meta_learn'])
-
-            # =================================================================
-            # BUILD RESULT
-            # =================================================================
-            exec_time = (datetime.now() - start_time).total_seconds()
-
-            result = LearningResult(
-                success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={'swarm_evaluated': swarm_name},
-                execution_time=exec_time,
-                swarm_evaluated=swarm_name,
-                performance=performance,
-                optimizations=optimizations,
-                gold_standards_created=gold_standards_created,
-                improvements_suggested=len(optimizations),
-                improvements_applied=0,
-                cross_domain_insights=cross_domain_insights
+                ),
+                input_data={'full_cycle': True},
+                tools_used=['meta_learn'],
             )
 
-            logger.info(f"✅ LearningSwarm complete: {len(optimizations)} optimizations, {gold_standards_created} gold standards")
+            cross_domain_insights = meta_result.get('universal_insights', [])
 
-            # Post-execution learning (evaluation + improvement cycle in base)
-            await self._post_execute_learning(
-                success=True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['performance_evaluate', 'gold_curate', 'prompt_optimize']),
-                task_type='swarm_learning',
-                output_data={
-                    'optimizations_count': len(optimizations),
-                    'gold_standards_created': gold_standards_created,
-                    'insights_count': len(cross_domain_insights),
-                    'avg_score': performance.avg_score if performance else 0,
-                },
-                input_data={'swarm_name': swarm_name}
-            )
+        # =================================================================
+        # BUILD RESULT
+        # =================================================================
+        result = LearningResult(
+            success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={'swarm_evaluated': swarm_name},
+            execution_time=executor.elapsed(),
+            swarm_evaluated=swarm_name,
+            performance=performance,
+            optimizations=optimizations,
+            gold_standards_created=gold_standards_created,
+            improvements_suggested=len(optimizations),
+            improvements_applied=0,
+            cross_domain_insights=cross_domain_insights
+        )
 
-            return result
+        logger.info(f"LearningSwarm complete: {len(optimizations)} optimizations, {gold_standards_created} gold standards")
 
-        except Exception as e:
-            logger.error(f"❌ LearningSwarm error: {e}")
-            import traceback
-            traceback.print_exc()
-            exec_time = (datetime.now() - start_time).total_seconds()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(['performance_evaluate']),
-                task_type='swarm_learning'
-            )
-            return LearningResult(
-                success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
-                output={},
-                execution_time=exec_time,
-                error=str(e)
-            )
+        return result
 
     async def run_improvement_cycle(
         self,
