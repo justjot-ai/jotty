@@ -175,7 +175,12 @@ class WhatsAppWebClient:
         """Handle event from Node.js bridge."""
         event_type = data.get("type")
 
-        if event_type == "qr":
+        if event_type == "starting":
+            self._has_saved_session = data.get("has_saved_session", False)
+            if self._has_saved_session:
+                logger.info("Restoring WhatsApp session from saved credentials")
+
+        elif event_type == "qr":
             self._qr_code = data.get("qr_code")
             logger.info("QR code received - scan with WhatsApp")
 
@@ -227,6 +232,36 @@ class WhatsAppWebClient:
             if request_id and request_id in self._pending_requests:
                 future = self._pending_requests.pop(request_id)
                 future.set_result(data.get("chats", []))
+
+        elif event_type == "chat_messages":
+            request_id = data.get("request_id")
+            if request_id and request_id in self._pending_requests:
+                future = self._pending_requests.pop(request_id)
+                future.set_result({
+                    "messages": data.get("messages", []),
+                    "chat_id": data.get("chat_id"),
+                    "error": data.get("error"),
+                })
+
+        elif event_type == "store_stats":
+            request_id = data.get("request_id")
+            if request_id and request_id in self._pending_requests:
+                future = self._pending_requests.pop(request_id)
+                future.set_result({
+                    "chat_count": data.get("chat_count", 0),
+                    "message_jids": data.get("message_jids", []),
+                })
+
+        elif event_type == "fetch_chat_history_done":
+            request_id = data.get("request_id")
+            if request_id and request_id in self._pending_requests:
+                future = self._pending_requests.pop(request_id)
+                future.set_result({
+                    "success": data.get("success", False),
+                    "message_count": data.get("message_count", 0),
+                    "error": data.get("error"),
+                    "note": data.get("note"),
+                })
 
         elif event_type == "contacts":
             request_id = data.get("request_id")
@@ -338,6 +373,86 @@ class WhatsAppWebClient:
         except asyncio.TimeoutError:
             self._pending_requests.pop(request_id, None)
             return []
+
+    async def get_chat_messages(
+        self,
+        chat_id: Optional[str] = None,
+        chat_name: Optional[str] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """
+        Get messages from a chat (by JID or by name match).
+
+        Args:
+            chat_id: WhatsApp chat JID (e.g. '1234567890@s.whatsapp.net' or 'xxx@g.us')
+            chat_name: Chat/group name to search for (e.g. 'my-ai-ml' or '#my-ai-ml')
+            limit: Max messages to return (default 100, max 500)
+
+        Returns:
+            Dict with keys: messages (list), chat_id (str), error (optional str)
+        """
+        request_id = str(uuid.uuid4())
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+
+        cmd: Dict[str, Any] = {
+            "action": "get_chat_messages",
+            "request_id": request_id,
+            "limit": min(int(limit), 500),
+        }
+        if chat_id:
+            cmd["chat_id"] = chat_id
+        if chat_name:
+            cmd["chat_name"] = chat_name.strip().lstrip("#")
+
+        self._send_command(cmd)
+
+        try:
+            result = await asyncio.wait_for(future, timeout=30)
+            return result if isinstance(result, dict) else {"messages": [], "error": "Invalid response"}
+        except asyncio.TimeoutError:
+            self._pending_requests.pop(request_id, None)
+            return {"messages": [], "error": "Timeout"}
+
+    async def fetch_chat_history(
+        self,
+        chat_id: str,
+        max_messages: int = 500,
+    ) -> Dict[str, Any]:
+        """
+        Request full message history for a chat from WhatsApp servers (Baileys fetchMessageHistory).
+        Requires at least one message already in store (e.g. from sync or a recent message).
+        Fetches in batches of 50 until max_messages or no more history.
+
+        Returns:
+            Dict with success (bool), message_count (int), error (optional str), note (optional str).
+        """
+        request_id = str(uuid.uuid4())
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        self._send_command({
+            "action": "fetch_chat_history",
+            "request_id": request_id,
+            "chat_id": chat_id,
+            "max_messages": min(int(max_messages), 1000),
+        })
+        try:
+            return await asyncio.wait_for(future, timeout=600)
+        except asyncio.TimeoutError:
+            self._pending_requests.pop(request_id, None)
+            return {"success": False, "message_count": 0, "error": "Timeout"}
+
+    async def get_store_stats(self) -> Dict[str, Any]:
+        """Get store stats (chat count, message JIDs) for debugging."""
+        request_id = str(uuid.uuid4())
+        future = asyncio.get_running_loop().create_future()
+        self._pending_requests[request_id] = future
+        self._send_command({"action": "store_stats", "request_id": request_id})
+        try:
+            return await asyncio.wait_for(future, timeout=10)
+        except asyncio.TimeoutError:
+            self._pending_requests.pop(request_id, None)
+            return {"chat_count": 0, "message_jids": []}
 
     async def get_contacts(self, limit: int = 100) -> List[Dict]:
         """Get contacts."""
