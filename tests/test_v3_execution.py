@@ -248,8 +248,8 @@ class TestTier2Agentic:
             "Research AI and create summary",
             config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
         )
-        # 1 plan call + 2 step calls = 3
-        assert result.llm_calls == 3
+        # 1 plan call + 2 step calls + 1 synthesis call = 4
+        assert result.llm_calls == 4
 
     @pytest.mark.asyncio
     async def test_tier2_creates_trace_with_child_spans(self, v3_executor, v3_observability_helpers):
@@ -911,6 +911,171 @@ class TestErrorHandling:
         )
         # Should still succeed (store failure is non-fatal)
         assert result.success is True
+
+
+# =============================================================================
+# ComplexityGate
+# =============================================================================
+
+@pytest.mark.unit
+class TestComplexityGate:
+    """Test ComplexityGate — LLM-based planning bypass for Tier 2."""
+
+    @pytest.mark.asyncio
+    async def test_skip_planning_returns_direct(self, v3_executor, mock_complexity_gate, mock_provider):
+        """When gate says DIRECT, Tier 2 returns a single-call result without planning."""
+        mock_complexity_gate.should_skip_planning = AsyncMock(return_value=True)
+
+        result = await v3_executor.execute(
+            "What are the differences between Python and JavaScript?",
+            config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
+        )
+        assert result.success is True
+        assert result.llm_calls == 1
+        assert result.metadata.get('complexity_gate') == 'direct'
+
+    @pytest.mark.asyncio
+    async def test_proceed_with_planning(self, v3_executor, mock_complexity_gate, mock_planner):
+        """When gate says TOOLS, Tier 2 proceeds with full planning."""
+        mock_complexity_gate.should_skip_planning = AsyncMock(return_value=False)
+
+        result = await v3_executor.execute(
+            "Research AI trends and create a summary",
+            config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
+        )
+        assert result.plan is not None
+        mock_planner.plan.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_gate_failure_defaults_to_planning(self, v3_executor, mock_complexity_gate, mock_planner):
+        """If gate raises an exception, execution proceeds with planning."""
+        mock_complexity_gate.should_skip_planning = AsyncMock(
+            side_effect=RuntimeError("API error")
+        )
+
+        result = await v3_executor.execute(
+            "Research something",
+            config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
+        )
+        assert result.plan is not None
+        mock_planner.plan.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_skip_planning_uses_cost_tracker(self, v3_executor, mock_complexity_gate):
+        """Direct bypass still records cost via CostTracker."""
+        mock_complexity_gate.should_skip_planning = AsyncMock(return_value=True)
+
+        result = await v3_executor.execute(
+            "What is recursion?",
+            config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
+        )
+        assert result.cost_usd > 0
+
+
+# =============================================================================
+# Output Synthesis
+# =============================================================================
+
+@pytest.mark.unit
+class TestOutputSynthesis:
+    """Test _synthesize_results — LLM-based multi-step output merging."""
+
+    @pytest.mark.asyncio
+    async def test_single_result_no_llm_call(self, v3_executor, mock_provider):
+        """Single step result is returned as-is without LLM synthesis."""
+        results = [{'output': 'Only one result'}]
+        synthesis = await v3_executor._synthesize_results(results, "test goal")
+        assert synthesis['output'] == 'Only one result'
+        assert synthesis['llm_calls'] == 0
+
+    @pytest.mark.asyncio
+    async def test_multi_result_uses_llm(self, v3_executor, mock_provider):
+        """Multiple step results trigger an LLM synthesis call."""
+        results = [
+            {'output': 'Step 1 result'},
+            {'output': 'Step 2 result'},
+        ]
+        synthesis = await v3_executor._synthesize_results(results, "combine these")
+        assert synthesis['llm_calls'] == 1
+        assert synthesis['cost'] > 0
+        # Provider was called for synthesis
+        assert mock_provider.generate.await_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_synthesis_failure_uses_fallback(self, v3_executor, mock_provider):
+        """When LLM synthesis fails, falls back to simple concatenation."""
+        mock_provider.generate = AsyncMock(side_effect=RuntimeError("LLM down"))
+
+        results = [
+            {'output': 'Step 1 result'},
+            {'output': 'Step 2 result'},
+        ]
+        synthesis = await v3_executor._synthesize_results(results, "test goal")
+        assert synthesis['llm_calls'] == 0
+        assert 'Step 1' in synthesis['output']
+        assert 'Step 2' in synthesis['output']
+
+
+# =============================================================================
+# LLM-Enhanced Tier Detection
+# =============================================================================
+
+@pytest.mark.unit
+class TestLLMTierDetector:
+    """Test TierDetector with LLM fallback for ambiguous cases."""
+
+    def test_clear_keywords_skip_llm(self):
+        """Clear keyword matches have high confidence and don't need LLM."""
+        detector = TierDetector(enable_llm_fallback=True)
+        tier, confidence = detector._detect_tier_with_confidence("Execute code in sandbox")
+        assert tier == ExecutionTier.AUTONOMOUS
+        assert confidence >= 0.7
+
+    def test_ambiguous_task_low_confidence(self):
+        """Tasks without clear keywords get low confidence."""
+        detector = TierDetector(enable_llm_fallback=False)
+        tier, confidence = detector._detect_tier_with_confidence(
+            "Tell me about the history of computing and its impact on society"
+        )
+        assert confidence < 0.7
+
+    @pytest.mark.asyncio
+    async def test_llm_fallback_on_ambiguous(self):
+        """LLM classifier is consulted for ambiguous tasks when enabled."""
+        detector = TierDetector(enable_llm_fallback=True)
+
+        # Mock the LLM classifier
+        mock_classifier = AsyncMock()
+        mock_classifier.classify = AsyncMock(return_value=ExecutionTier.DIRECT)
+        detector._llm_classifier = mock_classifier
+
+        tier = await detector.adetect(
+            "Tell me about the history of computing and its impact on society"
+        )
+        mock_classifier.classify.assert_awaited_once()
+        assert tier == ExecutionTier.DIRECT
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_uses_heuristic(self):
+        """When LLM classifier fails, the heuristic result is used."""
+        detector = TierDetector(enable_llm_fallback=True)
+
+        mock_classifier = AsyncMock()
+        mock_classifier.classify = AsyncMock(side_effect=RuntimeError("API error"))
+        detector._llm_classifier = mock_classifier
+
+        tier = await detector.adetect(
+            "Tell me about the history of computing and its impact on society"
+        )
+        # Falls back to heuristic (AGENTIC for ambiguous tasks)
+        assert tier == ExecutionTier.AGENTIC
+
+    @pytest.mark.asyncio
+    async def test_sync_detect_unchanged(self):
+        """Sync detect() still works without LLM, preserving backward compat."""
+        detector = TierDetector(enable_llm_fallback=True)
+        tier = detector.detect("What is 2+2?")
+        assert tier == ExecutionTier.DIRECT
 
 
 # Run tests

@@ -14,8 +14,6 @@ from typing import Dict, Any, List
 from unittest.mock import Mock, MagicMock, AsyncMock
 import pytest
 
-# Exclude V1 archived tests from collection
-collect_ignore_glob = ["_v1_archive/*"]
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -436,7 +434,15 @@ def mock_v3_memory():
 
 
 @pytest.fixture
-def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory):
+def mock_complexity_gate():
+    """Mock ComplexityGate that defaults to not skipping planning."""
+    gate = AsyncMock()
+    gate.should_skip_planning = AsyncMock(return_value=False)
+    return gate
+
+
+@pytest.fixture
+def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory, mock_complexity_gate):
     """Pre-wired TierExecutor with all mocks injected."""
     from Jotty.core.execution.executor import TierExecutor
     from Jotty.core.execution.types import ExecutionConfig
@@ -447,6 +453,7 @@ def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock
     executor._planner = mock_planner
     executor._validator = mock_validator
     executor._memory = mock_v3_memory
+    executor._complexity_gate = mock_complexity_gate
     return executor
 
 

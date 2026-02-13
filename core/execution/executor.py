@@ -310,6 +310,13 @@ class TierExecutor:
                 scratchpad=scratchpad,
             )
 
+            # Inject DSPy LM so validation works without global dspy.configure()
+            try:
+                import dspy
+                auditor._dspy_lm = dspy.LM(model="anthropic/claude-haiku-4-5-20251001")
+            except Exception as lm_err:
+                logger.debug(f"Could not inject DSPy LM into auditor: {lm_err}")
+
             return MultiRoundValidator([auditor], swarm_config)
         except Exception as e:
             logger.warning(f"ValidatorAgent creation failed, using LLM fallback validator: {e}")
@@ -799,11 +806,13 @@ class TierExecutor:
                     step.completed_at = datetime.now()
                     step_span.set_status(SpanStatus.ERROR, str(e))
 
-        # Step 3: Aggregate
-        final_output = self._aggregate_results(results, goal)
+        # Step 3: Synthesize results
+        synthesis = await self._synthesize_results(results, goal)
+        total_llm_calls += synthesis.get('llm_calls', 0)
+        total_cost += synthesis.get('cost', 0.0)
 
         return ExecutionResult(
-            output=final_output,
+            output=synthesis['output'],
             tier=ExecutionTier.AGENTIC,
             success=all(s.is_complete and not s.error for s in plan.steps),
             llm_calls=total_llm_calls,
@@ -1282,8 +1291,8 @@ class TierExecutor:
             'output_tokens': output_tokens,
         }
 
-    def _aggregate_results(self, results: List[Dict], goal: str) -> str:
-        """Aggregate step results into final output."""
+    def _fallback_aggregate(self, results: List[Dict], goal: str) -> str:
+        """Simple concatenation fallback when LLM synthesis is unavailable."""
         if not results:
             return "No results generated."
 
@@ -1296,6 +1305,77 @@ class TierExecutor:
             aggregated += f"Step {i}:\n{output}\n\n"
 
         return aggregated.strip()
+
+    async def _synthesize_results(
+        self, results: List[Dict], goal: str
+    ) -> Dict[str, Any]:
+        """Synthesize step results into a coherent response using LLM.
+
+        For a single result, returns it as-is. For 2+ results, calls the
+        LLM to combine them into a natural, unified response.
+
+        Returns:
+            {'output': str, 'llm_calls': int, 'cost': float}
+        """
+        if not results:
+            return {'output': "No results generated.", 'llm_calls': 0, 'cost': 0.0}
+
+        if len(results) == 1:
+            return {
+                'output': results[0].get('output', ''),
+                'llm_calls': 0,
+                'cost': 0.0,
+            }
+
+        # Build synthesis prompt
+        parts = []
+        for i, r in enumerate(results, 1):
+            parts.append(f"--- Step {i} result ---\n{r.get('output', '')}")
+        combined_text = "\n\n".join(parts)
+
+        synthesis_prompt = (
+            f"The user asked: {goal}\n\n"
+            f"Here are the results from multiple execution steps:\n\n"
+            f"{combined_text}\n\n"
+            f"Combine these into a single, coherent response that directly "
+            f"answers the user's request. Do not mention steps, processes, "
+            f"or that multiple operations were performed. Write as if you are "
+            f"giving a direct answer."
+        )
+
+        try:
+            llm_start = time.time()
+            response = await self.provider.generate(
+                prompt=synthesis_prompt,
+                temperature=0.5,
+                max_tokens=4000,
+            )
+            llm_duration = time.time() - llm_start
+
+            usage = response.get('usage', {})
+            input_tokens = usage.get('input_tokens', 400)
+            output_tokens = usage.get('output_tokens', 300)
+            record = self.cost_tracker.record_llm_call(
+                provider=self.config.provider or 'anthropic',
+                model=self.config.model or 'claude-sonnet-4',
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True,
+                duration=llm_duration,
+            )
+
+            return {
+                'output': response.get('content', self._fallback_aggregate(results, goal)),
+                'llm_calls': 1,
+                'cost': record.cost,
+            }
+        except Exception as e:
+            logger.warning(f"Output synthesis LLM call failed, using fallback: {e}")
+            return {
+                'output': self._fallback_aggregate(results, goal),
+                'llm_calls': 0,
+                'cost': 0.0,
+            }
 
     async def _retrieve_memory(self, goal: str, config: ExecutionConfig) -> Optional[MemoryContext]:
         """Retrieve relevant memory entries."""

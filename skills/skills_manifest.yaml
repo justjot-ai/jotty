@@ -158,6 +158,12 @@ categories:
       - search-to-justjot-idea
       - transformer-paper-pipeline
 
+  automation:
+    description: "Workflow automation platforms"
+    icon: "⚙️"
+    skills:
+      - n8n-workflows
+
   auth:
     description: "Authentication and security"
     icon: "🔐"
@@ -226,6 +232,7 @@ skill_types:
     - data-profiler
     - data-validator
     - mcp-justjot
+    - n8n-workflows
 
   derived:
     - name: auto-sklearn
@@ -401,6 +408,10 @@ tags:
     description: "Stock market related"
     skills: [stock-research-comprehensive, stock-research-deep, screener-financials, investing-commodities]
 
+  n8n:
+    description: "n8n workflow automation"
+    skills: [n8n-workflows]
+
   justjot:
     description: "JustJot.ai integration"
     skills: [mcp-justjot, reddit-trending-to-justjot, search-to-justjot-idea, trending-topics-to-ideas]
@@ -447,6 +458,10 @@ skill_metadata:
   trello:
     requires_auth: true
     env_vars: [TRELLO_API_KEY, TRELLO_TOKEN]
+
+  n8n-workflows:
+    requires_auth: true
+    env_vars: [N8N_API_KEY, N8N_BASE_URL]
 
   spotify:
     requires_auth: true

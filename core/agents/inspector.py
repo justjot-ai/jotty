@@ -340,6 +340,20 @@ class ValidatorAgent:
         # Last resort: hard truncate
         return truncated + "..."
     
+    def _call_agent_with_lm(self, inputs: Dict[str, Any]) -> Any:
+        """Call the DSPy agent, using an injected LM if available.
+
+        When ``_dspy_lm`` is set (e.g. by TierExecutor), wraps the call in
+        ``dspy.context(lm=...)`` so validation works without a globally
+        configured DSPy LM.
+        """
+        dspy = _get_dspy()
+        lm = getattr(self, '_dspy_lm', None)
+        if lm is not None:
+            with dspy.context(lm=lm):
+                return self.agent(**inputs)
+        return self.agent(**inputs)
+
     def _load_system_prompt(self) -> str:
         """Load system prompt from markdown file."""
         if self.md_path.exists():
@@ -608,7 +622,7 @@ Auditor Required Outputs:
                 try:
                     # Wrap LLM call in timeout
                     result = await asyncio.wait_for(
-                        asyncio.to_thread(lambda: self.agent(**full_inputs)),
+                        asyncio.to_thread(lambda: self._call_agent_with_lm(full_inputs)),
                         timeout=timeout_seconds
                     )
                 except asyncio.TimeoutError:

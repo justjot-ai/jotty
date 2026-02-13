@@ -2,9 +2,7 @@
 JOTTY Core Module - Multi-Agent AI Framework
 =============================================
 
-V2 Architecture (Orchestrator-based):
-- Orchestrator: Main orchestrator
-- Orchestrator: Alias for Orchestrator (backward compat)
+- Orchestrator: Multi-agent coordination
 - Cortex: Hierarchical memory (SwarmMemory)
 - Axon: Agent communication channel
 - Roadmap: Task planning (SwarmTaskBoard)
@@ -33,9 +31,6 @@ warnings.filterwarnings('ignore', category=UserWarning,
 # =============================================================================
 # EAGER: Only truly lightweight (stdlib/typing) — everything else is LAZY.
 # =============================================================================
-# Backward compat: these resolve to None until the lazy import fires.
-PersistenceManager = None  # Deprecated
-create_reval = None  # Deprecated
 
 # =============================================================================
 # LAZY: Heavy modules loaded on first attribute access
@@ -122,7 +117,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "TrajectoryStep": ".orchestration.swarm_roadmap",
     "DecomposedQFunction": ".orchestration.swarm_roadmap",
     "SwarmTaskBoard": ".orchestration.swarm_roadmap",
-    "SwarmSwarmTaskBoard": ".orchestration.swarm_roadmap",
     "SubtaskState": ".orchestration.swarm_roadmap",
     "TaskStatus": ".orchestration.swarm_roadmap",
     "ThoughtLevelCredit": ".orchestration.swarm_roadmap",
@@ -163,8 +157,8 @@ _LAZY_IMPORTS: dict[str, str] = {
     "DynamicBudgetManager": ".learning.learning",
     # --- memory.cortex ---
     "SwarmMemory": ".memory.cortex",
-    "MemoryCluster": ".memory.cortex",
-    "MemoryLevelClassifier": ".memory.cortex",
+    "MemoryCluster": ".memory.consolidation",
+    "MemoryLevelClassifier": ".memory.consolidation",
     # --- agents.inspector ---
     "MultiRoundValidator": ".agents.inspector",
     "InternalReasoningTool": ".agents.inspector",
@@ -287,9 +281,7 @@ def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
         module = _importlib.import_module(module_path, __name__)
-        # Handle SwarmSwarmTaskBoard alias
-        attr_name = "SwarmTaskBoard" if name == "SwarmSwarmTaskBoard" else name
-        value = getattr(module, attr_name)
+        value = getattr(module, name)
         globals()[name] = value
         return value
 
