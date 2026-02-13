@@ -34,6 +34,144 @@ from Jotty.core.observability.tracing import SpanStatus
 logger = logging.getLogger(__name__)
 
 
+class _ExecutionLLMProvider:
+    """Lightweight adapter wrapping an LLM client with generate()/stream() for the executor."""
+
+    def __init__(self, provider: str = 'anthropic', model: str = None):
+        self._provider_name = provider or 'anthropic'
+        self._model = model or 'claude-sonnet-4-20250514'
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            if self._provider_name == 'anthropic':
+                import anthropic
+                self._client = anthropic.AsyncAnthropic()
+            else:
+                # Fallback: use DSPy LM via UnifiedLMProvider
+                from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
+                self._client = UnifiedLMProvider.create_lm(self._provider_name, self._model)
+        return self._client
+
+    async def generate(self, prompt: str, tools=None, temperature: float = 0.7,
+                       max_tokens: int = 4000, **kwargs) -> Dict[str, Any]:
+        """Generate a response. Returns {'content': str, 'usage': {...}}."""
+        client = self._get_client()
+
+        if self._provider_name == 'anthropic':
+            api_kwargs = {
+                'model': self._model,
+                'max_tokens': max_tokens,
+                'temperature': temperature,
+                'messages': [{'role': 'user', 'content': prompt}],
+            }
+            if tools:
+                api_kwargs['tools'] = tools
+
+            response = await client.messages.create(**api_kwargs)
+            content = ''.join(
+                block.text for block in response.content if hasattr(block, 'text')
+            )
+            return {
+                'content': content,
+                'usage': {
+                    'input_tokens': response.usage.input_tokens,
+                    'output_tokens': response.usage.output_tokens,
+                },
+            }
+        else:
+            # DSPy LM fallback
+            result = client(prompt)
+            text = result[0] if isinstance(result, list) else str(result)
+            return {'content': text, 'usage': {'input_tokens': 250, 'output_tokens': 250}}
+
+    async def stream(self, prompt: str, tools=None, temperature: float = 0.7,
+                     max_tokens: int = 4000, **kwargs):
+        """Stream tokens. Yields {'content': str} chunks, final chunk has 'usage'."""
+        client = self._get_client()
+
+        if self._provider_name == 'anthropic':
+            api_kwargs = {
+                'model': self._model,
+                'max_tokens': max_tokens,
+                'temperature': temperature,
+                'messages': [{'role': 'user', 'content': prompt}],
+            }
+            if tools:
+                api_kwargs['tools'] = tools
+
+            async with client.messages.stream(**api_kwargs) as stream:
+                async for text in stream.text_stream:
+                    yield {'content': text}
+
+                response = await stream.get_final_message()
+                yield {
+                    'content': '',
+                    'usage': {
+                        'input_tokens': response.usage.input_tokens,
+                        'output_tokens': response.usage.output_tokens,
+                    },
+                }
+        else:
+            # Non-streaming fallback
+            result = await self.generate(prompt, tools, temperature, max_tokens, **kwargs)
+            yield {'content': result['content'], 'usage': result.get('usage', {})}
+
+
+class _PlannerAdapter:
+    """Wraps AgenticPlanner with a simple .plan(goal) → {'steps': [...]} interface."""
+
+    def __init__(self, registry=None):
+        self._planner = None
+        self._registry = registry
+
+    def _get_planner(self):
+        if self._planner is None:
+            from Jotty.core.agents.agentic_planner import AgenticPlanner
+            self._planner = AgenticPlanner()
+        return self._planner
+
+    async def plan(self, goal: str) -> Dict[str, Any]:
+        """Plan execution steps for a goal. Returns {'steps': [{'description': ...}]}."""
+        planner = self._get_planner()
+
+        # Discover skills for context
+        skills = []
+        if self._registry:
+            try:
+                discovery = self._registry.discover_for_task(goal)
+                skills = discovery.get('skills', [])[:10]
+            except Exception:
+                pass
+
+        try:
+            steps, reasoning = await planner.aplan_execution(
+                task=goal,
+                task_type='general',
+                skills=skills,
+            )
+        except Exception as e:
+            logger.warning(f"Async planning failed, trying sync: {e}")
+            steps, reasoning = planner.plan_execution(
+                task=goal,
+                task_type='general',
+                skills=skills,
+            )
+
+        # Convert V2 ExecutionStep objects to dicts for V3 executor
+        step_dicts = []
+        for step in steps:
+            step_dict = {
+                'description': getattr(step, 'description', str(step)),
+                'skill': getattr(step, 'skill_name', None),
+            }
+            if hasattr(step, 'depends_on'):
+                step_dict['depends_on'] = step.depends_on
+            step_dicts.append(step_dict)
+
+        return {'steps': step_dicts, 'reasoning': reasoning}
+
+
 class UnifiedExecutor:
     """
     V3 Unified Executor.
@@ -85,8 +223,7 @@ class UnifiedExecutor:
     def provider(self):
         """Lazy-load LLM provider."""
         if self._provider is None:
-            from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
-            self._provider = UnifiedLMProvider(
+            self._provider = _ExecutionLLMProvider(
                 provider=self.config.provider,
                 model=self.config.model,
             )
@@ -94,10 +231,9 @@ class UnifiedExecutor:
 
     @property
     def planner(self):
-        """Lazy-load AgenticPlanner."""
+        """Lazy-load planner with .plan(goal) convenience wrapper."""
         if self._planner is None:
-            from Jotty.core.agents.agentic_planner import AgenticPlanner
-            self._planner = AgenticPlanner()
+            self._planner = _PlannerAdapter(self.registry)
         return self._planner
 
     @property
@@ -358,7 +494,8 @@ class UnifiedExecutor:
 
         # Discover skills
         discovery = self.registry.discover_for_task(goal)
-        skill_names = discovery.get('skills', [])[:5]
+        raw_skills = discovery.get('skills', [])[:5]
+        skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
         tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
         yield StreamEvent(
@@ -489,7 +626,8 @@ class UnifiedExecutor:
 
         # Discover relevant skills
         discovery = self.registry.discover_for_task(goal)
-        skill_names = discovery.get('skills', [])[:5]  # Limit to top 5
+        raw_skills = discovery.get('skills', [])[:5]  # Limit to top 5
+        skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
 
         if status_callback:
             status_callback("direct", f"Found {len(skill_names)} skills")
@@ -1035,7 +1173,8 @@ class UnifiedExecutor:
         else:
             # Discover skills for this step
             discovery = self.registry.discover_for_task(step.description)
-            skill_names = discovery.get('skills', [])[:3]
+            raw_skills = discovery.get('skills', [])[:3]
+            skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
             tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
         # Execute step
