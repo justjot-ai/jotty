@@ -627,6 +627,32 @@ class ToolResultProcessor:
                 result[key] = self._strip_binary(value)
         return result
 
+    @staticmethod
+    def _format_search_results(results: list, query: str = "") -> str:
+        """Format search result dicts into a readable report.
+
+        Used by the content-from-previous-steps wiring in execute_step()
+        to turn raw search output into file-writable content.
+        """
+        lines = []
+        if query:
+            lines.append(f"# Search Results: {query}")
+            lines.append(f"# {len(results)} results found\n")
+        for i, item in enumerate(results, 1):
+            if isinstance(item, dict):
+                title = item.get('title', item.get('name', f'Result {i}'))
+                snippet = item.get('snippet', item.get('description', ''))
+                url = item.get('link', item.get('url', ''))
+                lines.append(f"## {i}. {title}")
+                if snippet:
+                    lines.append(f"{snippet}")
+                if url:
+                    lines.append(f"Source: {url}")
+                lines.append("")
+            else:
+                lines.append(f"{i}. {str(item)[:500]}\n")
+        return "\n".join(lines)
+
     def _convert_sets(self, result: dict) -> dict:
         """Recursively convert set -> list for JSON safety."""
         cleaned = {}

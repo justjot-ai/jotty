@@ -574,6 +574,48 @@ class SkillPlanExecutor:
                             resolved_params['path'] = _correct_path
                     break
 
+        # Content-from-previous-steps: for write_file_tool, when the resolved
+        # content looks like generated code/instructions (not real data from a
+        # previous step), and previous steps produced actual data (search results,
+        # analysis, etc.), replace with formatted previous output.
+        if (step.skill_name == 'file-operations' and step.tool_name in ('write_file_tool',)
+                and 'content' in resolved_params and outputs):
+            _content = resolved_params['content']
+            _is_generated = (
+                _content.startswith('import ')
+                or _content.startswith('# TODO:')
+                or _content.startswith('def ')
+                or _content.startswith('class ')
+                or ('```' in _content and len(_content) < 200)
+            )
+            if _is_generated:
+                # Look for data-rich outputs from previous steps
+                for _prev_key, _prev_out in reversed(list(outputs.items())):
+                    if not isinstance(_prev_out, dict):
+                        continue
+                    # Search results: format into readable report
+                    if 'results' in _prev_out and isinstance(_prev_out['results'], list):
+                        formatted = ToolResultProcessor._format_search_results(
+                            _prev_out['results'], _prev_out.get('query', '')
+                        )
+                        if formatted and len(formatted) > 100:
+                            resolved_params['content'] = formatted
+                            logger.info(f"Content wired from step '{_prev_key}' results "
+                                       f"({len(formatted)} chars, replacing generated code)")
+                            break
+                    # Text/response output
+                    for _fk in ('response', 'text', 'content', 'output', 'result'):
+                        if _fk in _prev_out:
+                            _val = str(_prev_out[_fk])
+                            if len(_val) > 100 and not _val.startswith('{"success"'):
+                                resolved_params['content'] = _val
+                                logger.info(f"Content wired from step '{_prev_key}'.{_fk} "
+                                           f"({len(_val)} chars)")
+                                break
+                    else:
+                        continue
+                    break
+
         # Log resolved params for debugging (especially file paths)
         if resolved_params and step.skill_name in ('file-operations', 'shell-exec'):
             _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))

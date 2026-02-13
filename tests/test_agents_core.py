@@ -475,11 +475,29 @@ class TestDomainAgent:
         assert config.max_react_iters == 5
 
     @pytest.mark.unit
-    def test_build_task_from_kwargs(self, mock_signature):
-        """_build_task_from_kwargs builds task string from keyword args."""
+    def test_build_task_from_kwargs_query_key(self, mock_signature):
+        """_build_task_from_kwargs extracts 'query' key."""
         from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
-        result = agent._build_task_from_kwargs(task="do X", context="some context")
-        assert "do X" in result
-        assert "some context" in result
+        result = agent._build_task_from_kwargs({"query": "search AI trends"})
+        assert result == "search AI trends"
+
+    @pytest.mark.unit
+    def test_build_task_from_kwargs_fallback(self, mock_signature):
+        """_build_task_from_kwargs concatenates string values as fallback."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        result = agent._build_task_from_kwargs({"x": "hello", "y": "world"})
+        assert "hello" in result
+        assert "world" in result
+
+    @pytest.mark.unit
+    def test_build_task_from_kwargs_empty(self, mock_signature):
+        """_build_task_from_kwargs returns empty for empty kwargs."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        result = agent._build_task_from_kwargs({})
+        assert result == ""
