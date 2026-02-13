@@ -147,7 +147,7 @@ class MySwarm(DomainSwarm):
 ```python
 class MyAgent(DomainAgent):
     def __init__(self):
-        super().__init__(signature=MySignature, config=AgentConfig(name="MyAgent"))
+        super().__init__(signature=MySignature, config=DomainAgentConfig(name="MyAgent"))
 ```
 
 ## Environment Variables
