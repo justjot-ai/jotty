@@ -17,6 +17,7 @@ from typing import Dict, Any, Optional, List
 import dspy
 
 from Jotty.core.agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
+from Jotty.core.swarms.base import _split_field
 from .utils import _stream_call
 from .signatures import (
     ArchitectureDesignSignature,
@@ -213,7 +214,7 @@ class OptimizerAgent(BaseCodeAgent):
                 constraints=constraints or "Maintain existing functionality"
             )
 
-            improvements = [i.strip() for i in str(result.improvements).split('|') if i.strip()]
+            improvements = _split_field(result.improvements)
 
             self._broadcast("code_optimized", {
                 'focus': focus,
@@ -255,7 +256,7 @@ class TestWriterAgent(BaseCodeAgent):
                 coverage_target=coverage_target
             )
 
-            test_cases = [t.strip() for t in str(result.test_cases).split('|') if t.strip()]
+            test_cases = _split_field(result.test_cases)
 
             self._broadcast("tests_generated", {
                 'test_count': len(test_cases),

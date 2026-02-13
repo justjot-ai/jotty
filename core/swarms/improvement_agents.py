@@ -45,6 +45,15 @@ from .evaluation import GoldStandardDB, ImprovementHistory
 # Import base class
 from ..agents.base import MetaAgent, MetaAgentConfig
 
+
+def _split_field(value, sep='|'):
+    """Local copy — avoids circular import with base.domain_swarm."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if item is not None]
+    return [s.strip() for s in str(value).split(sep) if s.strip()]
+
 logger = logging.getLogger(__name__)
 
 
@@ -266,8 +275,7 @@ class PlannerAgent(MetaAgent):
                 plan = {'tasks': [{'name': 'execute', 'description': task_description}]}
 
             # Parse risk mitigations
-            risks_str = str(output.get('risk_mitigations', ''))
-            risks = [r.strip() for r in risks_str.split('|') if r.strip()]
+            risks = _split_field(output.get('risk_mitigations', ''))
 
             return {
                 'plan': plan,
@@ -356,8 +364,7 @@ class ActorAgent(MetaAgent):
                 parsed_output = {'result': str(output.get('output', ''))}
 
             confidence = float(output.get('confidence', 0.5))
-            applied_str = str(output.get('applied_learnings', ''))
-            applied = [l.strip() for l in applied_str.split('|') if l.strip()]
+            applied = _split_field(output.get('applied_learnings', ''))
 
             return parsed_output, confidence, applied
 
