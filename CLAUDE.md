@@ -51,31 +51,7 @@ pytest tests/ -m "not requires_llm"         # All offline tests
 | **Web Gateway** | `python Jotty/web.py` | HTTP/WS server (port 8766) |
 | **Gateway Only** | `python -m Jotty.cli.gateway` | Webhooks for Telegram/Slack/etc |
 
-## Imports (Two Styles)
-
-### New: Layer-Based Imports (Clean, Organized)
-
-```python
-# INTERFACE - External entry points
-from Jotty.layers.interface import JottyCLI, UnifiedGateway, ChannelType
-
-# MODES - Execution modes
-from Jotty.layers.modes import ChatAssistant, AutoAgent, JottyAPI
-
-# BRAIN - Coordination
-from Jotty.layers.brain import BaseSwarm, CodingSwarm, BaseAgent, TDLambdaLearner
-
-# REGISTRY - Capabilities (Hands + Eyes)
-from Jotty.layers.registry import get_unified_registry, Hands, Eyes
-
-# MEMORY - Learning
-from Jotty.layers.memory import SwarmMemory, TDLambdaLearner
-
-# FOUNDATION - Cross-cutting
-from Jotty.layers.foundation import JottyError, AgentExecutionError, SwarmConfig
-```
-
-### Old: Core Imports (Still Work)
+## Imports
 
 ```python
 from Jotty.core.registry import get_unified_registry
@@ -84,6 +60,8 @@ from Jotty.core.swarms import BaseSwarm, CodingSwarm
 from Jotty.core.learning import TDLambdaLearner
 from Jotty.core.api import JottyAPI
 from Jotty.core.foundation.exceptions import JottyError
+from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.memory.cortex import SwarmMemory
 ```
 
 ## Directory Structure
@@ -231,7 +209,7 @@ result = await agent.execute("Research X, create report, send via telegram")
 |------|---------|
 | `core/registry/unified_registry.py` | Single entry point for all capabilities |
 | `core/swarms/base_swarm.py` | Learning hooks (_pre/_post_execute_learning) |
-| `core/orchestration/v2/swarm_intelligence.py` | Learning state management |
+| `core/orchestration/swarm_intelligence.py` | Learning state management |
 | `cli/gateway/server.py` | UnifiedGateway (all webhooks) |
 | `cli/gateway/channels.py` | ChannelRouter (message routing) |
 | `cli/app.py` | JottyCLI (main CLI application) |

@@ -1,0 +1,5 @@
+# Jotty MCP HTTP/SSE server - install after requirements.txt
+# pip install -r Jotty/mcp/requirements.txt -r Jotty/mcp/requirements-http.txt
+starlette>=0.27.0
+sse-starlette>=1.0.0
+uvicorn>=0.30.0

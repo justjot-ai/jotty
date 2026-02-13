@@ -119,10 +119,11 @@ class Jotty:
         """
         # Override tier if specified
         exec_config = config or self.config
-        if tier:
+        if tier is not None:
+            resolved_tier = ExecutionTier(tier) if isinstance(tier, int) else tier
             exec_config = ExecutionConfig(**{
                 **exec_config.__dict__,
-                'tier': tier,
+                'tier': resolved_tier,
             })
 
         # Execute

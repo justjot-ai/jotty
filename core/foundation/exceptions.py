@@ -270,8 +270,26 @@ class FeedbackRoutingError(CommunicationError):
 # =============================================================================
 
 class ValidationError(JottyError):
-    """Base class for validation errors."""
-    pass
+    """Base class for validation errors.
+
+    Supports param/value tracking for tool parameter validation
+    and structured error responses via to_dict().
+    """
+
+    def __init__(self, message: str, param: str = None, value: Any = None,
+                 context: Optional[Dict[str, Any]] = None,
+                 original_error: Optional[Exception] = None):
+        super().__init__(message, context=context, original_error=original_error)
+        self.param = param
+        self.value = value
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for tool responses."""
+        return {
+            'success': False,
+            'error': self.message,
+            'param': self.param
+        }
 
 
 class InputValidationError(ValidationError):

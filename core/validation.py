@@ -13,22 +13,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-class ValidationError(Exception):
-    """Raised when parameter validation fails."""
-
-    def __init__(self, message: str, param: str = None, value: Any = None):
-        self.message = message
-        self.param = param
-        self.value = value
-        super().__init__(message)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for tool responses."""
-        return {
-            'success': False,
-            'error': self.message,
-            'param': self.param
-        }
+from Jotty.core.foundation.exceptions import ValidationError  # noqa: F401
 
 
 class ParamValidator:

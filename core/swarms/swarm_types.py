@@ -5,8 +5,8 @@ Swarm Types and Data Classes
 Core enums and data classes used throughout the swarm infrastructure:
 - AgentRole, EvaluationResult, ImprovementType (enums)
 - GoldStandard, Evaluation, ImprovementSuggestion (evaluation types)
-- AgentConfig, ExecutionTrace (agent types)
-- SwarmConfig, SwarmResult (swarm types)
+- SwarmAgentConfig, ExecutionTrace (agent types)
+- SwarmBaseConfig, SwarmResult (swarm types)
 
 Extracted from base_swarm.py for modularity.
 """
@@ -93,7 +93,7 @@ class ImprovementSuggestion:
 
 
 @dataclass
-class AgentConfig:
+class SwarmAgentConfig:
     """Configuration for an agent.
 
     Sentinel defaults (0 / 0.0 / '') resolved from config_defaults in __post_init__.
@@ -133,7 +133,7 @@ class ExecutionTrace:
 
 
 @dataclass
-class SwarmConfig:
+class SwarmBaseConfig:
     """Base configuration for all swarms."""
     name: str = "BaseSwarm"
     domain: str = "general"
@@ -216,9 +216,9 @@ __all__ = [
     'GoldStandard',
     'Evaluation',
     'ImprovementSuggestion',
-    'AgentConfig',
+    'SwarmAgentConfig',
     'ExecutionTrace',
-    'SwarmConfig',
+    'SwarmBaseConfig',
     'SwarmResult',
     '_split_field',
     '_safe_join',

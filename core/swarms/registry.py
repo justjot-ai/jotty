@@ -16,7 +16,7 @@ from typing import Dict, Optional, List, Type, TYPE_CHECKING
 if TYPE_CHECKING:
     from .base_swarm import BaseSwarm
 
-from .swarm_types import SwarmConfig
+from .swarm_types import SwarmBaseConfig
 
 
 class SwarmRegistry:
@@ -40,7 +40,7 @@ class SwarmRegistry:
         return list(cls._swarms.keys())
 
     @classmethod
-    def create(cls, name: str, config: SwarmConfig = None) -> Optional['BaseSwarm']:
+    def create(cls, name: str, config: SwarmBaseConfig = None) -> Optional['BaseSwarm']:
         """Create a swarm instance by name."""
         swarm_class = cls.get(name)
         if not swarm_class:

@@ -160,27 +160,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "get_mode_router": ".core.api.mode_router",
 }
 
-# Optional modules that may not exist
-_OPTIONAL_IMPORTS: dict[str, str] = {
-    "SimpleBrain": ".core.memory.simple_brain",
-    "BrainPreset": ".core.memory.simple_brain",
-    "calculate_chunk_size": ".core.memory.simple_brain",
-    "get_model_context": ".core.memory.simple_brain",
-    "BrainMode": ".core.brain_modes",
-    "HippocampalExtractor": ".core.brain_modes",
-    "SharpWaveRippleConsolidator": ".core.brain_modes",
-    "BrainStateMachine": ".core.brain_modes",
-    "UniversalRetryHandler": ".core.modern_agents",
-    "PatternDetector": ".core.modern_agents",
-    "LLMCounterfactualCritic": ".core.modern_agents",
-    "SelfRAGMemoryRetriever": ".core.modern_agents",
-    "LLMSurpriseEstimator": ".core.modern_agents",
-    "parse_float_robust": ".core.robust_parsing",
-    "parse_bool_robust": ".core.robust_parsing",
-    "parse_json_robust": ".core.robust_parsing",
-    "AdaptiveThreshold": ".core.robust_parsing",
-    "safe_hash": ".core.robust_parsing",
-}
 
 
 def __getattr__(name: str):
@@ -194,18 +173,7 @@ def __getattr__(name: str):
         globals()[name] = value
         return value
 
-    # Optional lazy imports (return None if module missing)
-    if name in _OPTIONAL_IMPORTS:
-        module_path = _OPTIONAL_IMPORTS[name]
-        try:
-            module = _importlib.import_module(module_path, __name__)
-            value = getattr(module, name)
-        except (ImportError, AttributeError):
-            value = None
-        globals()[name] = value
-        return value
-
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = [*_LAZY_IMPORTS.keys(), *_OPTIONAL_IMPORTS.keys()]
+__all__ = [*_LAZY_IMPORTS.keys()]

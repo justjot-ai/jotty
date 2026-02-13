@@ -5,7 +5,7 @@ Swarm Template Base Classes
 Foundation for domain-specific swarm orchestration patterns.
 
 Key Concepts:
-- AgentConfig: Defines an agent with its skills and model
+- TemplateTemplateAgentConfig: Defines an agent with its skills and model
 - StageConfig: Defines a pipeline stage with parallelism hints
 - FeedbackConfig: Defines iterative improvement loop
 - SwarmTemplate: Combines agents, stages, prompts into a template
@@ -36,7 +36,7 @@ class ModelTier(Enum):
 
 
 @dataclass
-class AgentConfig:
+class TemplateTemplateAgentConfig:
     """
     Configuration for a swarm agent.
 
@@ -44,7 +44,7 @@ class AgentConfig:
     Each agent can have different skills and use different LLM models.
 
     Example:
-        AgentConfig(
+        TemplateAgentConfig(
             name="feature_engineer",
             skills=["llm_feature_reasoning", "feature_engineering"],
             model=ModelTier.BALANCED,
@@ -165,7 +165,7 @@ class SwarmTemplate:
     description: str = "Base swarm template"
 
     # Agent configurations
-    agents: Dict[str, AgentConfig] = {}
+    agents: Dict[str, TemplateAgentConfig] = {}
 
     # Pipeline stages (execution order)
     pipeline: List[StageConfig] = []
@@ -203,7 +203,7 @@ class SwarmTemplate:
         """
         return True
 
-    def get_agent_config(self, agent_name: str) -> Optional[AgentConfig]:
+    def get_agent_config(self, agent_name: str) -> Optional[TemplateAgentConfig]:
         """Get configuration for a specific agent."""
         return self.agents.get(agent_name)
 
@@ -287,7 +287,7 @@ class SwarmTemplate:
 
         # Reconstruct agents
         for name, config in data.get('agents', {}).items():
-            template.agents[name] = AgentConfig(**config)
+            template.agents[name] = TemplateAgentConfig(**config)
 
         # Reconstruct pipeline
         template.pipeline = [StageConfig(**s) for s in data.get('pipeline', [])]
@@ -500,7 +500,7 @@ class TemplateExecutor:
 
         return result
 
-    async def _execute_skill(self, skill_name: str, inputs: Dict, agent_config: AgentConfig) -> Dict[str, Any]:
+    async def _execute_skill(self, skill_name: str, inputs: Dict, agent_config: TemplateAgentConfig) -> Dict[str, Any]:
         """
         Execute a skill.
 

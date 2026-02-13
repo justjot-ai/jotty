@@ -22,7 +22,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import asdict
 
 from .swarm_types import (
-    AgentConfig as SwarmAgentConfig, AgentRole, Evaluation, EvaluationResult,
+    SwarmAgentConfig, AgentRole, Evaluation, EvaluationResult,
     ImprovementSuggestion, ImprovementType, _split_field,
 )
 # Signatures loaded lazily to avoid DSPy import at module level

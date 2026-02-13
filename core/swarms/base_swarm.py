@@ -57,9 +57,9 @@ from .swarm_types import (
     GoldStandard,
     Evaluation,
     ImprovementSuggestion,
-    AgentConfig,
+    SwarmAgentConfig,
     ExecutionTrace,
-    SwarmConfig,
+    SwarmBaseConfig,
     SwarmResult,
 )
 
@@ -106,7 +106,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     Subclasses implement domain-specific logic.
     """
 
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmBaseConfig):
         self.config = config
         self._initialized = False
 
@@ -195,22 +195,22 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         self._improvement_history = ImprovementHistory(history_path)
 
         # Create agent configs
-        expert_config = AgentConfig(
+        expert_config = SwarmAgentConfig(
             role=AgentRole.EXPERT,
             name=f"{self.config.name}_expert",
             system_prompt="You are an expert evaluator for the {domain} domain."
         )
-        reviewer_config = AgentConfig(
+        reviewer_config = SwarmAgentConfig(
             role=AgentRole.REVIEWER,
             name=f"{self.config.name}_reviewer",
             system_prompt="You are a senior reviewer analyzing agent performance."
         )
-        planner_config = AgentConfig(
+        planner_config = SwarmAgentConfig(
             role=AgentRole.PLANNER,
             name=f"{self.config.name}_planner",
             system_prompt="You are a planning expert optimizing task execution."
         )
-        actor_config = AgentConfig(
+        actor_config = SwarmAgentConfig(
             role=AgentRole.ACTOR,
             name=f"{self.config.name}_actor",
             system_prompt="You are an expert executor applying learnings."
@@ -223,12 +223,12 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         self._actor = ActorAgent(actor_config, self._improvement_history)
 
         # Auditor and Learner agents
-        auditor_config = AgentConfig(
+        auditor_config = SwarmAgentConfig(
             role=AgentRole.AUDITOR,
             name=f"{self.config.name}_auditor",
             system_prompt="You are an auditor verifying evaluation quality."
         )
-        learner_config = AgentConfig(
+        learner_config = SwarmAgentConfig(
             role=AgentRole.LEARNER,
             name=f"{self.config.name}_learner",
             system_prompt="You are a learner extracting patterns from excellent executions."

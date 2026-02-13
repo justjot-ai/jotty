@@ -53,7 +53,7 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from ..base_swarm import BaseSwarm, SwarmConfig, SwarmResult, AgentRole
+from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole
 from ..swarm_types import _split_field, _safe_join, _safe_num
 from .agent_team import AgentTeam, CoordinationPattern, TeamResult
 
@@ -233,7 +233,7 @@ class DomainSwarm(BaseSwarm):
     _safe_join = staticmethod(_safe_join)
     _safe_num = staticmethod(_safe_num)
 
-    def __init__(self, config: SwarmConfig):
+    def __init__(self, config: SwarmBaseConfig):
         """
         Initialize DomainSwarm.
 
