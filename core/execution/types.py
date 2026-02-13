@@ -1,6 +1,6 @@
 """
-V3 Execution Types
-==================
+Execution Types
+===============
 
 Core types for the tiered execution system.
 """
@@ -17,7 +17,7 @@ class ExecutionTier(IntEnum):
     AGENTIC = 2     # Planning + multi-step orchestration
     LEARNING = 3    # Memory + validation
     RESEARCH = 4    # Domain swarm execution
-    AUTONOMOUS = 5  # Sandbox, coalition, curriculum, full V2 features
+    AUTONOMOUS = 5  # Sandbox, coalition, curriculum, full features
 
 
 class StreamEventType(Enum):
@@ -86,17 +86,22 @@ class ExecutionConfig:
     temperature: float = 0.7
     max_tokens: int = 4000
 
-    def to_v2_config(self) -> Dict[str, Any]:
-        """Convert V3 config to V2 JottyConfig format."""
+    def to_swarm_config(self) -> Dict[str, Any]:
+        """Convert execution config to SwarmConfig-compatible dict.
+
+        Only includes fields that exist on SwarmConfig/JottyConfig.
+        Provider/model/temperature are NOT SwarmConfig fields — they're
+        set via DSPy LM configuration or passed directly to LLMProvider.
+        """
         return {
-            'enable_learning': self.enable_td_lambda,
-            'enable_memory': self.enable_hierarchical_memory,
-            'enable_validation': self.enable_multi_round_validation,
-            'timeout_seconds': self.timeout_seconds,
-            'provider': self.provider,
-            'model': self.model,
-            'temperature': self.temperature,
-            'max_tokens': self.max_tokens,
+            'enable_validation': self.enable_validation,
+            'enable_multi_round': self.enable_multi_round_validation,
+            'enable_rl': self.enable_td_lambda,
+            'enable_causal_learning': self.enable_td_lambda,
+            'enable_agent_communication': True,
+            'llm_timeout_seconds': self.timeout_seconds,
+            'max_eval_retries': self.validation_retries,
+            'validation_mode': 'full' if self.enable_multi_round_validation else 'none',
         }
 
 
@@ -191,7 +196,7 @@ class ExecutionResult:
     success_rate: Optional[float] = None  # Historical success rate for similar tasks
 
     # Tier 4/5 - swarm and autonomous data
-    v2_episode: Optional[Any] = None  # EpisodeResult from V2
+    episode: Optional[Any] = None  # EpisodeResult from swarm execution
     learning_data: Dict[str, Any] = field(default_factory=dict)
     swarm_name: Optional[str] = None
     paradigm_used: Optional[str] = None

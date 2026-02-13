@@ -13,7 +13,7 @@ Trust Levels:
 - DANGEROUS: Execute in isolated sandbox only (untrusted/generated code)
 
 Usage:
-    from core.orchestration.v2.sandbox_manager import SandboxManager, TrustLevel
+    from core.orchestration.sandbox_manager import SandboxManager, TrustLevel
 
     sandbox = SandboxManager()
     result = await sandbox.execute_sandboxed(

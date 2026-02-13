@@ -7,7 +7,7 @@ Maps brain-inspired terminology to actual implementations:
 - JottyCore: Alias for SwarmManager
 - Cortex: HierarchicalMemory
 - Axon: SmartAgentSlack (agent communication)
-- Roadmap: MarkovianTODO (task planning)
+- Roadmap: SwarmTaskBoard (task planning)
 """
 
 import logging
@@ -41,7 +41,7 @@ from .memory.cortex import HierarchicalMemory as Cortex
 from .agents.axon import SmartAgentSlack as Axon
 
 # Roadmap = Markovian TODO (V2)
-from .orchestration import MarkovianTODO as Roadmap
+from .orchestration import SwarmTaskBoard as Roadmap
 from .orchestration import SubtaskState as Checkpoint
 
 # Optimization Pipeline (V2)

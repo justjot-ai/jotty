@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import ReportConfig
+    from Jotty.core.orchestration.templates.swarm_ml_comprehensive import ReportConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class ReportMixin:
         Args:
             config: Report configuration (uses default if None)
         """
-        from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import ReportConfig
+        from Jotty.core.orchestration.templates.swarm_ml_comprehensive import ReportConfig
         self._report_config = config or ReportConfig()
         self._report_data = {
             'sections': [],

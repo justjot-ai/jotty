@@ -655,7 +655,7 @@ class JottyHTTPServer:
                 asyncio.set_event_loop(loop)
 
                 try:
-                    from ..orchestration.v2.unified_executor import UnifiedExecutor
+                    from ..orchestration.unified_executor import UnifiedExecutor
 
                     # Create executor with streaming callback
                     accumulated_text = []
@@ -761,7 +761,7 @@ class JottyHTTPServer:
             asyncio.set_event_loop(loop)
 
             try:
-                from ..orchestration.v2.unified_executor import UnifiedExecutor
+                from ..orchestration.unified_executor import UnifiedExecutor
 
                 executor = UnifiedExecutor(
                     provider=provider,  # Auto-detects if None

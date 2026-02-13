@@ -1,5 +1,5 @@
 """
-Jotty V3 - Tiered Execution System
+Jotty - Tiered Execution System
 ===================================
 
 Progressive complexity model:

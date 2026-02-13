@@ -1,0 +1,6 @@
+# Jotty MCP Server - minimal deps for stdio transport
+# Install: pip install -r Jotty/mcp/requirements.txt
+mcp>=1.0.0
+httpx>=0.25.0
+anyio>=4.0.0
+trio>=0.22.0

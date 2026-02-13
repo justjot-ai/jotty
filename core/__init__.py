@@ -7,7 +7,7 @@ V2 Architecture (SwarmManager-based):
 - JottyCore: Alias for SwarmManager (backward compat)
 - Cortex: Hierarchical memory (HierarchicalMemory)
 - Axon: Agent communication channel
-- Roadmap: Task planning (MarkovianTODO)
+- Roadmap: Task planning (SwarmTaskBoard)
 
 Heavy modules are lazily loaded — ``import core`` is lightweight.
 """
@@ -121,18 +121,18 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ValidationRound": ".foundation.data_structures",
     "ContextType": ".foundation.data_structures",
     "RichObservation": ".foundation.data_structures",
-    # --- orchestration.v2.swarm_roadmap ---
-    "AgenticState": ".orchestration.v2.swarm_roadmap",
-    "TrajectoryStep": ".orchestration.v2.swarm_roadmap",
-    "DecomposedQFunction": ".orchestration.v2.swarm_roadmap",
-    "MarkovianTODO": ".orchestration.v2.swarm_roadmap",
-    "SwarmMarkovianTODO": ".orchestration.v2.swarm_roadmap",
-    "SubtaskState": ".orchestration.v2.swarm_roadmap",
-    "TaskStatus": ".orchestration.v2.swarm_roadmap",
-    "ThoughtLevelCredit": ".orchestration.v2.swarm_roadmap",
-    "StateCheckpointer": ".orchestration.v2.swarm_roadmap",
-    "TrajectoryPredictor": ".orchestration.v2.swarm_roadmap",
-    "TodoItem": ".orchestration.v2.swarm_roadmap",
+    # --- orchestration.swarm_roadmap ---
+    "AgenticState": ".orchestration.swarm_roadmap",
+    "TrajectoryStep": ".orchestration.swarm_roadmap",
+    "DecomposedQFunction": ".orchestration.swarm_roadmap",
+    "SwarmTaskBoard": ".orchestration.swarm_roadmap",
+    "SwarmSwarmTaskBoard": ".orchestration.swarm_roadmap",
+    "SubtaskState": ".orchestration.swarm_roadmap",
+    "TaskStatus": ".orchestration.swarm_roadmap",
+    "ThoughtLevelCredit": ".orchestration.swarm_roadmap",
+    "StateCheckpointer": ".orchestration.swarm_roadmap",
+    "TrajectoryPredictor": ".orchestration.swarm_roadmap",
+    "TodoItem": ".orchestration.swarm_roadmap",
     # --- integration.framework_decorators ---
     "ContextGuard": ".integration.framework_decorators",
     "JottyDecorator": ".integration.framework_decorators",
@@ -291,8 +291,8 @@ def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
         module_path = _LAZY_IMPORTS[name]
         module = _importlib.import_module(module_path, __name__)
-        # Handle SwarmMarkovianTODO alias
-        attr_name = "MarkovianTODO" if name == "SwarmMarkovianTODO" else name
+        # Handle SwarmSwarmTaskBoard alias
+        attr_name = "SwarmTaskBoard" if name == "SwarmSwarmTaskBoard" else name
         value = getattr(module, attr_name)
         globals()[name] = value
         return value

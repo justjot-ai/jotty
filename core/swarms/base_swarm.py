@@ -264,7 +264,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         """
         if swarm_intelligence is None:
             try:
-                from ..orchestration.v2.swarm_intelligence import SwarmIntelligence
+                from ..orchestration.swarm_intelligence import SwarmIntelligence
                 swarm_intelligence = SwarmIntelligence()
             except ImportError:
                 logger.warning("SwarmIntelligence not available")

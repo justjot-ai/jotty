@@ -16,8 +16,8 @@ from enum import Enum
 
 import dspy
 
-from ..orchestration.v2.swarm_roadmap import (
-    SubtaskState, MarkovianTODO, TaskStatus, AgenticState, TrajectoryStep
+from ..orchestration.swarm_roadmap import (
+    SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
 from ..foundation.data_structures import JottyConfig, MemoryLevel
 from ..memory.cortex import HierarchicalMemory
@@ -80,7 +80,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             implementation_plan: Complete implementation plan as string
 
         Returns:
-            AgentResult with MarkovianTODO as output
+            AgentResult with SwarmTaskBoard as output
         """
         import time
         start_time = time.time()
@@ -125,7 +125,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         """Handle incoming messages from other agents."""
         logger.debug(f"TaskBreakdownAgent received: {message}")
 
-    def forward(self, implementation_plan: str) -> MarkovianTODO:
+    def forward(self, implementation_plan: str) -> SwarmTaskBoard:
         """
         Break down implementation plan into executable DAG workflow.
 
@@ -133,7 +133,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             implementation_plan: Complete implementation plan as string
 
         Returns:
-            MarkovianTODO: Markovian task manager with all tasks
+            SwarmTaskBoard: Markovian task manager with all tasks
         """
         logger.info("[TASK BREAKDOWN] Starting plan analysis...")
 
@@ -163,8 +163,8 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         optimized_workflow = workflow_response.optimized_workflow
         logger.info(f"[TASK BREAKDOWN] Optimized workflow:\n{optimized_workflow[:500]}...")
 
-        # Step 4: Build MarkovianTODO
-        logger.info("[TASK BREAKDOWN] Step 4: Building MarkovianTODO...")
+        # Step 4: Build SwarmTaskBoard
+        logger.info("[TASK BREAKDOWN] Step 4: Building SwarmTaskBoard...")
         markovian_todo = self._build_markovian_todo(
             tasks_list, dependencies_graph, optimized_workflow, implementation_plan
         )
@@ -209,7 +209,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             timestamp=datetime.now().timestamp()
         ))
 
-        logger.info(f"[TASK BREAKDOWN] Created MarkovianTODO with {len(markovian_todo.subtasks)} tasks (shared)")
+        logger.info(f"[TASK BREAKDOWN] Created SwarmTaskBoard with {len(markovian_todo.subtasks)} tasks (shared)")
         return markovian_todo
 
     def _build_markovian_todo(
@@ -218,9 +218,9 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         dependencies_graph: str,
         optimized_workflow: str,
         original_plan: str
-    ) -> MarkovianTODO:
-        """Build MarkovianTODO from parsed task information."""
-        todo = MarkovianTODO(root_task=original_plan[:100])
+    ) -> SwarmTaskBoard:
+        """Build SwarmTaskBoard from parsed task information."""
+        todo = SwarmTaskBoard(root_task=original_plan[:100])
 
         # Parse tasks
         tasks_dict = self._parse_tasks(tasks_list)
@@ -228,7 +228,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Parse dependencies
         dependencies_dict = self._parse_dependencies(dependencies_graph)
 
-        # Add tasks to MarkovianTODO
+        # Add tasks to SwarmTaskBoard
         for task_id, task_info in tasks_dict.items():
             todo.add_task(
                 task_id=task_id,
@@ -440,7 +440,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         return dependencies
 
-    def _detect_cycles(self, todo: MarkovianTODO) -> bool:
+    def _detect_cycles(self, todo: SwarmTaskBoard) -> bool:
         """Detect cycles in the DAG."""
         visited = set()
         rec_stack = set()
@@ -467,7 +467,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                     return True
         return False
 
-    def _fix_cycles(self, todo: MarkovianTODO) -> MarkovianTODO:
+    def _fix_cycles(self, todo: SwarmTaskBoard) -> SwarmTaskBoard:
         """Remove dependencies that cause cycles."""
         # Simple fix: remove back-edges
         for task_id, task in todo.subtasks.items():
@@ -477,7 +477,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             ]
         return todo
 
-    def _aggregate_tasks(self, todo: MarkovianTODO, max_tasks: int) -> MarkovianTODO:
+    def _aggregate_tasks(self, todo: SwarmTaskBoard, max_tasks: int) -> SwarmTaskBoard:
         """
         Aggregate tasks to reduce count to max_tasks.
 
@@ -499,7 +499,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         tasks_per_type = max(1, max_tasks // len(type_groups)) if type_groups else max_tasks
 
         # Create new aggregated todo
-        new_todo = MarkovianTODO(root_task=todo.root_task)
+        new_todo = SwarmTaskBoard(root_task=todo.root_task)
         merged_count = 0
 
         for task_type, task_ids in type_groups.items():
@@ -547,7 +547,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         logger.info(f"[TASK BREAKDOWN] Aggregated: {total_tasks} -> {len(new_todo.subtasks)} tasks")
         return new_todo
 
-    def _get_execution_stages(self, todo: MarkovianTODO) -> List[List[str]]:
+    def _get_execution_stages(self, todo: SwarmTaskBoard) -> List[List[str]]:
         """Get tasks grouped by execution stage."""
         stages = []
         completed = set()

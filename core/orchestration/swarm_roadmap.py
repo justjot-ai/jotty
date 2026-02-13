@@ -5,7 +5,7 @@ Jotty v6.1 - Enhanced State Representation
 A-Team Consensus Implementation:
 - AgenticState: Rich state with trajectory, memories, predictions
 - DecomposedQFunction: Multi-objective value estimation
-- MarkovianTODO: Long-horizon task management
+- SwarmTaskBoard: Long-horizon task management
 - ThoughtLevelCredit: Reasoning step credit assignment
 - TrajectoryPredictor: DQN-style next-state prediction
 - StateCheckpointer: Full resume support
@@ -516,7 +516,7 @@ class SubtaskState:
 
 
 @dataclass
-class MarkovianTODO:
+class SwarmTaskBoard:
     """
     Long-horizon task management with Markov state tracking.
     
@@ -1204,7 +1204,7 @@ class StateCheckpointer:
     def save_checkpoint(self,
                         state: AgenticState,
                         q_function: DecomposedQFunction,
-                        todo: MarkovianTODO,
+                        todo: SwarmTaskBoard,
                         episode_id: str) -> str:
         """Save complete checkpoint."""
         checkpoint_id = f"{episode_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -1224,7 +1224,7 @@ class StateCheckpointer:
         
         return checkpoint_id
     
-    def load_checkpoint(self, checkpoint_id: str) -> Tuple[AgenticState, DecomposedQFunction, MarkovianTODO]:
+    def load_checkpoint(self, checkpoint_id: str) -> Tuple[AgenticState, DecomposedQFunction, SwarmTaskBoard]:
         """Load checkpoint and restore state."""
         checkpoint_path = self.checkpoint_dir / f"{checkpoint_id}.json"
         
@@ -1237,7 +1237,7 @@ class StateCheckpointer:
         state = AgenticState.from_dict(checkpoint['state'])
         q_function = DecomposedQFunction.from_dict(checkpoint['q_function'])
         
-        todo = MarkovianTODO(
+        todo = SwarmTaskBoard(
             root_task=checkpoint['todo'].get('root_task', ''),
             todo_id=checkpoint['todo'].get('todo_id', '')
         )
@@ -1385,7 +1385,7 @@ __all__ = [
     'AgenticState',
     'TrajectoryStep',
     'DecomposedQFunction',
-    'MarkovianTODO',
+    'SwarmTaskBoard',
     'SubtaskState',
     'TaskStatus',
     'ThoughtLevelCredit',

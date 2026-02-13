@@ -587,9 +587,9 @@ Filename: {filename}
         available_skills: Optional[List[Dict[str, Any]]] = None,
         max_steps: int = 15,
         convert_to_agents: bool = False
-    ) -> 'ExecutionPlan':
+    ) -> 'AgentExecutionPlan':
         """
-        Plan execution with enhanced metadata (ExecutionPlan).
+        Plan execution with enhanced metadata (AgentExecutionPlan).
         
         Works with both raw strings and TaskGraph.
         
@@ -600,7 +600,7 @@ Filename: {filename}
             convert_to_agents: If True, also convert skills to AgentConfig for Conductor
             
         Returns:
-            ExecutionPlan with steps and metadata
+            AgentExecutionPlan with steps and metadata
         """
         # Handle TaskGraph or raw string
         if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
@@ -652,7 +652,7 @@ Filename: {filename}
         required_credentials = self._extract_required_credentials(integrations)
         estimated_time = self._estimate_time(steps)
         
-        # Create ExecutionPlan
+        # Create AgentExecutionPlan
         if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
             task_graph = task
         else:
@@ -668,7 +668,7 @@ Filename: {filename}
         if agents:
             metadata['agents_created'] = [a.name for a in agents]
         
-        return ExecutionPlan(
+        return AgentExecutionPlan(
             task_graph=task_graph,
             steps=steps,
             estimated_time=estimated_time,
@@ -745,6 +745,6 @@ Filename: {filename}
 
 
 # =============================================================================
-# ExecutionPlan (moved here for unified planning)
+# AgentExecutionPlan (moved here for unified planning)
 # =============================================================================
 

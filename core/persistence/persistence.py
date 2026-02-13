@@ -85,7 +85,7 @@ class Vault:
     # MARKOVIAN TODO PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_markovian_todo(self, todo: 'MarkovianTODO'):
+    def save_markovian_todo(self, todo: 'SwarmTaskBoard'):
         """
         Save Markovian TODO state (JSON + rich markdown).
         

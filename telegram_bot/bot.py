@@ -148,7 +148,7 @@ class TelegramBotHandler:
     def _get_executor(self):
         """Get or create UnifiedExecutor instance (auto-detects provider)."""
         if self._executor is None:
-            from core.orchestration.v2.unified_executor import UnifiedExecutor
+            from core.orchestration.unified_executor import UnifiedExecutor
             self._executor = UnifiedExecutor(
                 status_callback=self._handle_status
             )
@@ -447,7 +447,7 @@ class TelegramBotHandler:
                 return
 
             # Natural language - process through UnifiedExecutor with streaming
-            from core.orchestration.v2.unified_executor import UnifiedExecutor
+            from core.orchestration.unified_executor import UnifiedExecutor
 
             # Send initial message for streaming updates
             stream_msg = await update.message.reply_text("⏳ Thinking...")
@@ -606,7 +606,7 @@ class TelegramBotHandler:
             async def get_swarm_manager(self):
                 """Get swarm manager (lazy)."""
                 if self._swarm_manager is None:
-                    from core.orchestration.v2 import SwarmManager
+                    from core.orchestration import SwarmManager
                     from core.foundation.data_structures import JottyConfig
                     self._swarm_manager = SwarmManager(config=JottyConfig())
                 return self._swarm_manager

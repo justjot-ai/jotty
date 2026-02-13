@@ -352,7 +352,7 @@ class SwarmTemplate:
             return
         try:
             reward = 0.5 if results.get('success', True) else -0.5
-            # MASLearning delegates to LearningManager which IS the LearningCoordinator
+            # MASLearning delegates to SwarmLearningManager which IS the SwarmLearningManager
             lm = getattr(self._learning, 'learning_manager', None)
             if lm and hasattr(lm, 'record_experience'):
                 lm.record_experience(

@@ -1,20 +1,22 @@
 """
-Unified Executor - V3 Core
-===========================
+Unified Executor
+=================
 
 Single entry point for all execution tiers.
 Routes to appropriate tier based on config or auto-detection.
 
 Tier 1 (DIRECT):    Single LLM call - implemented here
 Tier 2 (AGENTIC):   Planning + orchestration - implemented here
-Tier 3 (LEARNING):  Memory + validation - implemented here
-Tier 4 (RESEARCH):  Delegates to V2 SwarmManager - NO BREAKAGE
+Tier 3 (LEARNING):  Memory + validation via InspectorAgent
+Tier 4 (RESEARCH):  Delegates to SwarmManager
+Tier 5 (AUTONOMOUS): Sandbox + coalition + full features
 """
 
 import asyncio
 import logging
 import time
-from typing import Any, AsyncGenerator, Dict, Optional, List, Callable
+from pathlib import Path
+from typing import Any, AsyncGenerator, Dict, Optional, List, Callable, Tuple
 from datetime import datetime
 
 from .types import (
@@ -34,7 +36,7 @@ from Jotty.core.observability.tracing import SpanStatus
 logger = logging.getLogger(__name__)
 
 
-class _ExecutionLLMProvider:
+class LLMProvider:
     """Lightweight adapter wrapping an LLM client with generate()/stream() for the executor."""
 
     def __init__(self, provider: str = 'anthropic', model: str = None):
@@ -118,102 +120,19 @@ class _ExecutionLLMProvider:
             yield {'content': result['content'], 'usage': result.get('usage', {})}
 
 
-class _ValidatorAdapter:
-    """Lightweight validator that uses the LLM provider to validate results."""
-
-    def __init__(self, provider):
-        self._provider = provider
-
-    async def validate(self, prompt: str) -> Dict[str, Any]:
-        """Validate a result via LLM. Returns {'success': bool, 'confidence': float, ...}."""
-        import json as _json
-
-        validation_system = (
-            "You are a quality validator. Evaluate the result and respond with ONLY "
-            "a JSON object: {\"success\": true/false, \"confidence\": 0.0-1.0, "
-            "\"feedback\": \"brief feedback\", \"reasoning\": \"brief reasoning\"}"
-        )
-        full_prompt = f"{validation_system}\n\n{prompt}"
-
-        try:
-            response = await self._provider.generate(
-                prompt=full_prompt,
-                temperature=0.3,
-                max_tokens=500,
-            )
-            content = response.get('content', '{}')
-            # Try to parse JSON from response
-            start = content.find('{')
-            end = content.rfind('}') + 1
-            if start >= 0 and end > start:
-                return _json.loads(content[start:end])
-            return {'success': True, 'confidence': 0.7, 'feedback': content, 'reasoning': ''}
-        except Exception as e:
-            logger.warning(f"Validation LLM call failed: {e}")
-            return {'success': True, 'confidence': 0.5, 'feedback': 'Validation skipped', 'reasoning': str(e)}
-
-
-class _PlannerAdapter:
-    """Wraps AgenticPlanner with a simple .plan(goal) → {'steps': [...]} interface."""
-
-    def __init__(self, registry=None):
-        self._planner = None
-        self._registry = registry
-
-    def _get_planner(self):
-        if self._planner is None:
-            from Jotty.core.agents.agentic_planner import AgenticPlanner
-            self._planner = AgenticPlanner()
-        return self._planner
-
-    async def plan(self, goal: str) -> Dict[str, Any]:
-        """Plan execution steps for a goal. Returns {'steps': [{'description': ...}]}."""
-        planner = self._get_planner()
-
-        # Discover skills for context
-        skills = []
-        if self._registry:
-            try:
-                discovery = self._registry.discover_for_task(goal)
-                skills = discovery.get('skills', [])[:10]
-            except Exception:
-                pass
-
-        try:
-            steps, reasoning = await planner.aplan_execution(
-                task=goal,
-                task_type='general',
-                skills=skills,
-            )
-        except Exception as e:
-            logger.warning(f"Async planning failed, trying sync: {e}")
-            steps, reasoning = planner.plan_execution(
-                task=goal,
-                task_type='general',
-                skills=skills,
-            )
-
-        # Convert V2 ExecutionStep objects to dicts for V3 executor
-        step_dicts = []
-        for step in steps:
-            step_dict = {
-                'description': getattr(step, 'description', str(step)),
-                'skill': getattr(step, 'skill_name', None),
-            }
-            if hasattr(step, 'depends_on'):
-                step_dict['depends_on'] = step.depends_on
-            step_dicts.append(step_dict)
-
-        return {'steps': step_dicts, 'reasoning': reasoning}
-
-
 class UnifiedExecutor:
     """
-    V3 Unified Executor.
+    Unified Executor — single entry point for all execution tiers.
 
-    Single entry point that routes to appropriate tier.
-    Zero breakage: V2 code paths preserved as Tier 4.
+    Wires real components:
+    - InspectorAgent + MultiRoundValidator for validation (Tier 3+)
+    - AgenticPlanner for planning (Tier 2+)
+    - SwarmManager for domain swarm execution (Tier 4/5)
     """
+
+    # Prompt file paths for InspectorAgent
+    _AUDITOR_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'auditor' / 'base_auditor.md'
+    _ARCHITECT_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'architect' / 'base_architect.md'
 
     def __init__(
         self,
@@ -221,14 +140,6 @@ class UnifiedExecutor:
         registry=None,
         provider=None,
     ):
-        """
-        Initialize executor.
-
-        Args:
-            config: Default execution config
-            registry: UnifiedRegistry instance (lazy-loaded if None)
-            provider: LLM provider instance (lazy-loaded if None)
-        """
         self.config = config or ExecutionConfig()
         self._registry = registry
         self._provider = provider
@@ -244,7 +155,7 @@ class UnifiedExecutor:
         self._tracer = None
         self._cost_tracker = None
 
-        logger.info("UnifiedExecutor initialized (V3)")
+        logger.info("UnifiedExecutor initialized")
 
     @property
     def registry(self):
@@ -258,7 +169,7 @@ class UnifiedExecutor:
     def provider(self):
         """Lazy-load LLM provider."""
         if self._provider is None:
-            self._provider = _ExecutionLLMProvider(
+            self._provider = LLMProvider(
                 provider=self.config.provider,
                 model=self.config.model,
             )
@@ -266,9 +177,9 @@ class UnifiedExecutor:
 
     @property
     def planner(self):
-        """Lazy-load planner with .plan(goal) convenience wrapper."""
+        """Lazy-load AgenticPlanner directly (no adapter)."""
         if self._planner is None:
-            self._planner = _PlannerAdapter(self.registry)
+            self._planner = self._create_planner()
         return self._planner
 
     @property
@@ -280,9 +191,9 @@ class UnifiedExecutor:
 
     @property
     def validator(self):
-        """Lazy-load validator."""
+        """Lazy-load MultiRoundValidator wrapping InspectorAgent."""
         if self._validator is None:
-            self._validator = _ValidatorAdapter(self.provider)
+            self._validator = self._create_validator()
         return self._validator
 
     @property
@@ -309,6 +220,50 @@ class UnifiedExecutor:
             self._cost_tracker = CostTracker()
         return self._cost_tracker
 
+    # =========================================================================
+    # COMPONENT FACTORIES
+    # =========================================================================
+
+    def _create_planner(self):
+        """Create AgenticPlanner directly — no adapter wrapper."""
+        try:
+            from Jotty.core.agents.agentic_planner import AgenticPlanner
+            return AgenticPlanner()
+        except Exception as e:
+            logger.warning(f"AgenticPlanner creation failed: {e}")
+            return None
+
+    def _create_validator(self):
+        """Create MultiRoundValidator wrapping InspectorAgent.
+
+        Falls back to simple LLM-based validation if InspectorAgent
+        cannot be instantiated (e.g. DSPy not configured).
+        """
+        try:
+            from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
+            from Jotty.core.foundation.data_structures import JottyConfig, SharedScratchpad
+
+            swarm_config_dict = self.config.to_swarm_config()
+            swarm_config = JottyConfig(**swarm_config_dict)
+            scratchpad = SharedScratchpad()
+
+            auditor = InspectorAgent(
+                md_path=self._AUDITOR_PROMPT,
+                is_architect=False,
+                tools=[],
+                config=swarm_config,
+                scratchpad=scratchpad,
+            )
+
+            return MultiRoundValidator([auditor], swarm_config)
+        except Exception as e:
+            logger.warning(f"InspectorAgent creation failed, using LLM fallback validator: {e}")
+            return _FallbackValidator(self.provider)
+
+    # =========================================================================
+    # EXECUTE
+    # =========================================================================
+
     async def execute(
         self,
         goal: str,
@@ -316,18 +271,7 @@ class UnifiedExecutor:
         status_callback: Optional[Callable] = None,
         **kwargs
     ) -> ExecutionResult:
-        """
-        Execute task with appropriate tier.
-
-        Args:
-            goal: Task description
-            config: Execution config (overrides default)
-            status_callback: Optional progress callback
-            **kwargs: Additional arguments passed to tier executor
-
-        Returns:
-            ExecutionResult with tier-specific data
-        """
+        """Execute task with appropriate tier."""
         start_time = time.time()
         config = config or self.config
 
@@ -416,33 +360,7 @@ class UnifiedExecutor:
         config: Optional[ExecutionConfig] = None,
         **kwargs
     ) -> AsyncGenerator[StreamEvent, None]:
-        """
-        Stream execution events as an async generator.
-
-        Yields StreamEvent objects for each phase of execution:
-        - STATUS events for phase changes (planning, executing, validating...)
-        - STEP_COMPLETE events when individual steps finish
-        - TOKEN events for individual LLM tokens (Tier 1 only, if provider supports it)
-        - RESULT event with final ExecutionResult
-        - ERROR event if execution fails
-
-        Args:
-            goal: Task description
-            config: Execution config (overrides default)
-            **kwargs: Additional arguments
-
-        Yields:
-            StreamEvent objects
-
-        Example:
-            async for event in executor.stream("Research AI"):
-                if event.type == StreamEventType.TOKEN:
-                    print(event.data, end="", flush=True)
-                elif event.type == StreamEventType.STATUS:
-                    print(f"[{event.data['stage']}] {event.data['detail']}")
-                elif event.type == StreamEventType.RESULT:
-                    print(f"Done: {event.data}")
-        """
+        """Stream execution events as an async generator."""
         config = config or self.config
 
         # Auto-detect tier
@@ -509,11 +427,7 @@ class UnifiedExecutor:
         config: ExecutionConfig,
         **kwargs
     ) -> AsyncGenerator[StreamEvent, None]:
-        """
-        Stream Tier 1 execution with token-level streaming.
-
-        Falls back to non-streaming if provider doesn't support stream().
-        """
+        """Stream Tier 1 execution with token-level streaming."""
         tier = ExecutionTier.DIRECT
         start_time = time.time()
 
@@ -642,17 +556,7 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """
-        Tier 1: Direct LLM call with tools.
-
-        Fast path for simple queries:
-        1. Discover skills
-        2. Convert to Claude tools
-        3. Single LLM call
-        4. Return result
-
-        Expected: 1 LLM call, 1-2s latency, $0.01 cost
-        """
+        """Tier 1: Direct LLM call with tools. Expected: 1 LLM call, 1-2s, $0.01."""
         logger.info(f"[Tier 1: DIRECT] Executing: {goal[:50]}...")
 
         if status_callback:
@@ -660,7 +564,7 @@ class UnifiedExecutor:
 
         # Discover relevant skills
         discovery = self.registry.discover_for_task(goal)
-        raw_skills = discovery.get('skills', [])[:5]  # Limit to top 5
+        raw_skills = discovery.get('skills', [])[:5]
         skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
 
         if status_callback:
@@ -685,7 +589,6 @@ class UnifiedExecutor:
             )
             llm_time = (time.time() - llm_start) * 1000
 
-            # Estimate cost (rough: $0.015/1K tokens for Claude Sonnet)
             usage = response.get('usage', {})
             input_tokens = usage.get('input_tokens', 250)
             output_tokens = usage.get('output_tokens', 250)
@@ -730,16 +633,7 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """
-        Tier 2: Agentic execution with planning.
-
-        Steps:
-        1. Create execution plan (LLM call)
-        2. Execute steps sequentially or in parallel
-        3. Aggregate results
-
-        Expected: 3-5 LLM calls, 3-5s latency, $0.03 cost
-        """
+        """Tier 2: Agentic execution with planning. Expected: 3-5 LLM calls, 3-5s, $0.03."""
         logger.info(f"[Tier 2: AGENTIC] Executing: {goal[:50]}...")
 
         total_llm_calls = 0
@@ -748,14 +642,13 @@ class UnifiedExecutor:
         if status_callback:
             status_callback("planning", "Creating execution plan...")
 
-        # Step 1: Plan
+        # Step 1: Plan — use AgenticPlanner directly
         with self.tracer.span("tier2_plan") as plan_span:
             plan_start = time.time()
-            plan_result = await self.planner.plan(goal)
+            plan_result = await self._run_planner(goal)
             plan_duration = time.time() - plan_start
             total_llm_calls += 1
 
-            # Estimate ~500 input tokens (prompt+goal), ~300 output (plan JSON)
             plan_record = self.cost_tracker.record_llm_call(
                 provider=self.config.provider or 'anthropic',
                 model=self.config.model or 'claude-sonnet-4',
@@ -783,7 +676,6 @@ class UnifiedExecutor:
 
             with self.tracer.span(f"tier2_step_{step.step_num}", description=step.description[:80]) as step_span:
                 try:
-                    # Execute step
                     step_result = await self._execute_step(step, config)
                     step.result = step_result.get('output')
                     step.completed_at = datetime.now()
@@ -830,18 +722,7 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """
-        Tier 3: Learning execution with memory and validation.
-
-        Steps:
-        1. Retrieve memory context
-        2. Enrich goal with context
-        3. Execute with Tier 2 (agentic)
-        4. Validate result
-        5. Store in memory
-
-        Expected: 5-10 LLM calls, 5-10s latency, $0.06 cost
-        """
+        """Tier 3: Learning with memory and validation. Expected: 5-10 LLM calls, 5-10s, $0.06."""
         logger.info(f"[Tier 3: LEARNING] Executing: {goal[:50]}...")
 
         total_llm_calls = 0
@@ -896,7 +777,6 @@ class UnifiedExecutor:
                 val_duration = time.time() - val_start
                 total_llm_calls += 1
 
-                # Estimate ~400 input tokens (validation prompt), ~200 output
                 val_record = self.cost_tracker.record_llm_call(
                     provider=self.config.provider or 'anthropic',
                     model=self.config.model or 'claude-sonnet-4',
@@ -966,7 +846,7 @@ class UnifiedExecutor:
         )
 
     # =========================================================================
-    # TIER 4: RESEARCH - Delegate to V2 (NO BREAKAGE)
+    # TIER 4: RESEARCH - Domain Swarm Execution
     # =========================================================================
 
     async def _execute_tier4(
@@ -976,13 +856,7 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """
-        Tier 4: Domain swarm execution (direct, no SwarmManager wrapper).
-
-        Selects the appropriate domain swarm and executes directly.
-
-        Expected: 10-30s latency, $0.15 cost
-        """
+        """Tier 4: Domain swarm execution. Expected: 10-30s, $0.15."""
         logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
 
         if status_callback:
@@ -992,8 +866,7 @@ class UnifiedExecutor:
         swarm = self._select_swarm(goal, config.swarm_name)
 
         if swarm is None:
-            # Fallback to V2 SwarmManager for unregistered tasks
-            return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+            return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
 
         if status_callback:
             status_callback("research", f"Executing with {swarm.__class__.__name__}...")
@@ -1012,46 +885,45 @@ class UnifiedExecutor:
             metadata={'direct_swarm': True},
         )
 
-    async def _execute_tier4_v2_fallback(
+    async def _execute_with_swarm_manager(
         self,
         goal: str,
         config: ExecutionConfig,
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """Fallback: delegate to V2 SwarmManager when no swarm is registered."""
-        logger.info("[Tier 4: RESEARCH] Falling back to V2 SwarmManager...")
+        """Delegate to SwarmManager when no specific swarm matches."""
+        logger.info("[Tier 4: RESEARCH] Delegating to SwarmManager...")
 
-        from Jotty.core.orchestration.v2 import SwarmManager
+        from Jotty.core.orchestration import SwarmManager
         from Jotty.core.foundation.data_structures import JottyConfig
 
-        v2_config_dict = config.to_v2_config()
-        v2_config = JottyConfig(**v2_config_dict)
-        swarm_manager = SwarmManager(config=v2_config)
+        swarm_config_dict = config.to_swarm_config()
+        swarm_config = JottyConfig(**swarm_config_dict)
+        swarm_manager = SwarmManager(config=swarm_config)
 
         if status_callback:
-            status_callback("research", "Executing with V2...")
+            status_callback("research", "Executing with SwarmManager...")
 
-        v2_result = await swarm_manager.run(
+        sm_result = await swarm_manager.run(
             goal=goal,
             status_callback=status_callback,
             **kwargs
         )
 
         return ExecutionResult(
-            output=v2_result.output,
+            output=sm_result.output,
             tier=ExecutionTier.RESEARCH,
-            success=v2_result.success,
-            llm_calls=v2_result.metadata.get('llm_calls', 20),
-            latency_ms=v2_result.metadata.get('latency_ms', 0),
-            cost_usd=v2_result.metadata.get('cost_usd', 0.15),
-            v2_episode=v2_result,
-            learning_data=v2_result.metadata.get('learning_data', {}),
-            metadata={'v2_mode': True},
+            success=sm_result.success,
+            llm_calls=sm_result.metadata.get('llm_calls', 20),
+            latency_ms=sm_result.metadata.get('latency_ms', 0),
+            cost_usd=sm_result.metadata.get('cost_usd', 0.15),
+            episode=sm_result,
+            learning_data=sm_result.metadata.get('learning_data', {}),
         )
 
     # =========================================================================
-    # TIER 5: AUTONOMOUS - Sandbox + Coalition + Full V2 Features
+    # TIER 5: AUTONOMOUS - Sandbox + Coalition + Full Features
     # =========================================================================
 
     async def _execute_tier5(
@@ -1061,25 +933,19 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """
-        Tier 5: Autonomous execution with sandbox, coalition, curriculum.
-
-        Expected: 30-120s latency, ~$0.50 cost
-        """
+        """Tier 5: Autonomous execution with sandbox, coalition, curriculum."""
         logger.info(f"[Tier 5: AUTONOMOUS] Executing: {goal[:50]}...")
 
         if status_callback:
             status_callback("autonomous", "Selecting swarm...")
 
-        # Select swarm (same as tier 4)
         swarm = self._select_swarm(goal, config.swarm_name)
         sandbox_log = None
 
-        # Optionally wrap in sandbox
         with self.tracer.span("tier5_autonomous", sandbox=config.enable_sandbox) as auto_span:
             if config.enable_sandbox and swarm is not None:
                 try:
-                    from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager
+                    from Jotty.core.orchestration.sandbox_manager import SandboxManager
                     sandbox = SandboxManager(trust_level=config.trust_level)
 
                     if status_callback:
@@ -1094,20 +960,20 @@ class UnifiedExecutor:
                     if swarm is not None:
                         result = await swarm.execute(task=goal, **kwargs)
                     else:
-                        return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+                        return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
             elif swarm is not None:
                 if status_callback:
                     status_callback("autonomous", f"Executing with {swarm.__class__.__name__}...")
                 result = await swarm.execute(task=goal, **kwargs)
                 auto_span.set_attribute("swarm", swarm.__class__.__name__)
             else:
-                return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+                return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
 
         # Optionally apply paradigm (debate/relay/refinement)
         paradigm_used = None
         if config.paradigm:
             try:
-                from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+                from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
                 si = SwarmIntelligence()
                 paradigm_used = config.paradigm
                 logger.info(f"Applying paradigm: {config.paradigm}")
@@ -1154,15 +1020,7 @@ class UnifiedExecutor:
         UnifiedExecutor._swarms_registered = True
 
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
-        """Select and instantiate the right domain swarm.
-
-        Args:
-            goal: Task description for auto-detection
-            swarm_name: Explicit swarm name (e.g. "coding", "research")
-
-        Returns:
-            Instantiated swarm or None if no match found.
-        """
+        """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
         from Jotty.core.swarms.registry import SwarmRegistry
 
@@ -1193,28 +1051,87 @@ class UnifiedExecutor:
                     logger.info(f"Auto-detected swarm: {name}")
                     return swarm
 
-        # No match found
         return None
 
     # =========================================================================
     # HELPER METHODS
     # =========================================================================
 
+    async def _run_planner(self, goal: str) -> Dict[str, Any]:
+        """Run AgenticPlanner and return normalized plan dict.
+
+        Calls planner.aplan_execution() directly. Handles both
+        AgenticPlanner (returns tuple) and mock planners (return dict).
+        """
+        planner = self.planner
+
+        # If planner has .plan() (mock or legacy adapter), use it directly
+        if hasattr(planner, 'plan') and callable(getattr(planner, 'plan')):
+            return await planner.plan(goal)
+
+        # Real AgenticPlanner: use aplan_execution
+        skills = []
+        try:
+            discovery = self.registry.discover_for_task(goal)
+            skills = discovery.get('skills', [])[:10]
+        except Exception:
+            pass
+
+        try:
+            steps, reasoning = await planner.aplan_execution(
+                task=goal,
+                task_type='general',
+                skills=skills,
+            )
+        except Exception as e:
+            logger.warning(f"Async planning failed, trying sync: {e}")
+            steps, reasoning = planner.plan_execution(
+                task=goal,
+                task_type='general',
+                skills=skills,
+            )
+
+        # Convert ExecutionStep objects to dicts
+        step_dicts = []
+        for step in steps:
+            step_dict = {
+                'description': getattr(step, 'description', str(step)),
+                'skill': getattr(step, 'skill_name', None),
+            }
+            if hasattr(step, 'depends_on'):
+                step_dict['depends_on'] = step.depends_on
+            step_dicts.append(step_dict)
+
+        return {'steps': step_dicts, 'reasoning': reasoning}
+
     def _parse_plan(self, goal: str, plan_result: Any) -> ExecutionPlan:
-        """Convert planner output to ExecutionPlan."""
-        # Extract steps from planner result
-        # This depends on AgenticPlanner output format
+        """Convert planner output to ExecutionPlan.
+
+        Handles both dict results (from _run_planner) and
+        raw ExecutionStep objects (from AgenticPlanner).
+        """
         steps_data = plan_result.get('steps', [])
 
         steps = []
         for i, step_data in enumerate(steps_data):
-            step = ExecutionStep(
-                step_num=i + 1,
-                description=step_data.get('description', f'Step {i+1}'),
-                skill=step_data.get('skill'),
-                depends_on=step_data.get('depends_on', []),
-                can_parallelize=step_data.get('can_parallelize', False),
-            )
+            # Handle dict format
+            if isinstance(step_data, dict):
+                step = ExecutionStep(
+                    step_num=i + 1,
+                    description=step_data.get('description', f'Step {i+1}'),
+                    skill=step_data.get('skill'),
+                    depends_on=step_data.get('depends_on', []),
+                    can_parallelize=step_data.get('can_parallelize', False),
+                )
+            else:
+                # Handle ExecutionStep objects from AgenticPlanner
+                step = ExecutionStep(
+                    step_num=i + 1,
+                    description=getattr(step_data, 'description', str(step_data)),
+                    skill=getattr(step_data, 'skill_name', None),
+                    depends_on=getattr(step_data, 'depends_on', []),
+                    can_parallelize=False,
+                )
             steps.append(step)
 
         return ExecutionPlan(
@@ -1226,18 +1143,15 @@ class UnifiedExecutor:
 
     async def _execute_step(self, step: ExecutionStep, config: ExecutionConfig) -> Dict[str, Any]:
         """Execute a single step."""
-        # If step has a specific skill, use it
         if step.skill:
             skill = self.registry.get_skill(step.skill)
             tools = skill.to_claude_tools()
         else:
-            # Discover skills for this step
             discovery = self.registry.discover_for_task(step.description)
             raw_skills = discovery.get('skills', [])[:3]
             skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
             tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
-        # Execute step
         llm_start = time.time()
         response = await self.provider.generate(
             prompt=step.description,
@@ -1247,7 +1161,6 @@ class UnifiedExecutor:
         )
         llm_duration = time.time() - llm_start
 
-        # Extract actual tokens and compute precise cost
         usage = response.get('usage', {})
         input_tokens = usage.get('input_tokens', 300)
         output_tokens = usage.get('output_tokens', 200)
@@ -1276,7 +1189,6 @@ class UnifiedExecutor:
         if len(results) == 1:
             return results[0].get('output', '')
 
-        # Multiple results: concatenate with context
         aggregated = f"Results for: {goal}\n\n"
         for i, result in enumerate(results, 1):
             output = result.get('output', '')
@@ -1286,8 +1198,6 @@ class UnifiedExecutor:
 
     async def _retrieve_memory(self, goal: str, config: ExecutionConfig) -> Optional[MemoryContext]:
         """Retrieve relevant memory entries."""
-        # Simple memory retrieval (JSON backend for now)
-        # TODO: Add Redis/Postgres backends
         try:
             entries = await self.memory.retrieve(goal, limit=5)
             if not entries:
@@ -1297,7 +1207,7 @@ class UnifiedExecutor:
                 entries=entries,
                 relevance_scores=[e.get('score', 0.0) for e in entries],
                 total_retrieved=len(entries),
-                retrieval_time_ms=10.0,  # Rough estimate
+                retrieval_time_ms=10.0,
             )
         except Exception as e:
             logger.warning(f"Memory retrieval failed: {e}")
@@ -1308,9 +1218,8 @@ class UnifiedExecutor:
         if not context or not context.entries:
             return goal
 
-        # Add relevant memories to goal
         enriched = f"{goal}\n\nRelevant past experience:\n"
-        for entry in context.entries[:3]:  # Top 3
+        for entry in context.entries[:3]:
             enriched += f"- {entry.get('summary', entry.get('result', ''))}\n"
 
         return enriched
@@ -1321,8 +1230,38 @@ class UnifiedExecutor:
         result: ExecutionResult,
         config: ExecutionConfig
     ) -> ValidationResult:
-        """Validate execution result."""
-        # Use InspectorAgent (existing V2 component)
+        """Validate execution result using InspectorAgent or fallback."""
+        validator = self.validator
+
+        # Check if validator is a real MultiRoundValidator (not a mock or fallback)
+        from Jotty.core.execution.executor import _FallbackValidator
+        is_multi_round = (
+            not isinstance(validator, _FallbackValidator)
+            and hasattr(validator, '__class__')
+            and validator.__class__.__name__ == 'MultiRoundValidator'
+        )
+
+        if is_multi_round:
+            try:
+                trajectory = [{'goal': goal, 'output': str(result.output)[:500]}]
+                results_list, combined_decision = await validator.validate(
+                    goal=goal,
+                    inputs={'task': goal},
+                    trajectory=trajectory,
+                    is_architect=False,
+                )
+                if results_list:
+                    first = results_list[0]
+                    return ValidationResult(
+                        success=combined_decision,
+                        confidence=getattr(first, 'confidence', 0.8),
+                        feedback=getattr(first, 'reasoning', ''),
+                        reasoning=getattr(first, 'reasoning', ''),
+                    )
+            except Exception as e:
+                logger.warning(f"MultiRoundValidator failed, using fallback: {e}")
+
+        # Fallback / mock validator: single prompt-based validation
         validation_prompt = f"""
 Task: {goal}
 
@@ -1334,8 +1273,7 @@ Is this result correct and complete? Provide:
 3. Feedback (brief)
 4. Reasoning
 """
-
-        response = await self.validator.validate(validation_prompt)
+        response = await validator.validate(validation_prompt)
 
         return ValidationResult(
             success=response.get('success', True),
@@ -1374,6 +1312,39 @@ Is this result correct and complete? Provide:
             from Jotty.core.execution.memory.redis_memory import RedisMemory
             return RedisMemory()
         else:
-            # Default: no-op memory
             from Jotty.core.execution.memory.noop_memory import NoOpMemory
             return NoOpMemory()
+
+
+class _FallbackValidator:
+    """Simple LLM-based validator used when InspectorAgent can't be created."""
+
+    def __init__(self, provider):
+        self._provider = provider
+
+    async def validate(self, prompt: str) -> Dict[str, Any]:
+        """Validate a result via LLM. Returns {'success': bool, 'confidence': float, ...}."""
+        import json as _json
+
+        validation_system = (
+            "You are a quality validator. Evaluate the result and respond with ONLY "
+            "a JSON object: {\"success\": true/false, \"confidence\": 0.0-1.0, "
+            "\"feedback\": \"brief feedback\", \"reasoning\": \"brief reasoning\"}"
+        )
+        full_prompt = f"{validation_system}\n\n{prompt}"
+
+        try:
+            response = await self._provider.generate(
+                prompt=full_prompt,
+                temperature=0.3,
+                max_tokens=500,
+            )
+            content = response.get('content', '{}')
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            if start >= 0 and end > start:
+                return _json.loads(content[start:end])
+            return {'success': True, 'confidence': 0.7, 'feedback': content, 'reasoning': ''}
+        except Exception as e:
+            logger.warning(f"Validation LLM call failed: {e}")
+            return {'success': True, 'confidence': 0.5, 'feedback': 'Validation skipped', 'reasoning': str(e)}

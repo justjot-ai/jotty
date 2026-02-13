@@ -113,8 +113,8 @@ def _load_providers() -> bool:
 # =========================================================================
 
 def _create_task_board():
-    from Jotty.core.orchestration.v2.swarm_roadmap import MarkovianTODO
-    return MarkovianTODO()
+    from Jotty.core.orchestration.swarm_roadmap import SwarmTaskBoard
+    return SwarmTaskBoard()
 
 def _create_planner():
     from Jotty.core.agents.agentic_planner import AgenticPlanner
@@ -129,36 +129,36 @@ def _create_memory(config):
     return HierarchicalMemory(config=config, agent_name="SwarmShared")
 
 def _create_provider_gateway(config):
-    from Jotty.core.orchestration.v2.swarm_provider_gateway import SwarmProviderGateway
+    from Jotty.core.orchestration.swarm_provider_gateway import SwarmProviderGateway
     provider_preference = getattr(config, 'provider', None)
     return SwarmProviderGateway(config=config, provider=provider_preference)
 
 def _create_researcher(config):
-    from Jotty.core.orchestration.v2.swarm_researcher import SwarmResearcher
+    from Jotty.core.orchestration.swarm_researcher import SwarmResearcher
     return SwarmResearcher(config=config)
 
 def _create_installer(config):
-    from Jotty.core.orchestration.v2.swarm_installer import SwarmInstaller
+    from Jotty.core.orchestration.swarm_installer import SwarmInstaller
     return SwarmInstaller(config=config)
 
 def _create_configurator(config):
-    from Jotty.core.orchestration.v2.swarm_configurator import SwarmConfigurator
+    from Jotty.core.orchestration.swarm_configurator import SwarmConfigurator
     return SwarmConfigurator(config=config)
 
 def _create_code_generator(config):
-    from Jotty.core.orchestration.v2.swarm_code_generator import SwarmCodeGenerator
+    from Jotty.core.orchestration.swarm_code_generator import SwarmCodeGenerator
     return SwarmCodeGenerator(config=config)
 
 def _create_workflow_learner(memory):
-    from Jotty.core.orchestration.v2.swarm_workflow_learner import SwarmWorkflowLearner
+    from Jotty.core.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
     return SwarmWorkflowLearner(swarm_memory=memory)
 
 def _create_integrator(config):
-    from Jotty.core.orchestration.v2.swarm_integrator import SwarmIntegrator
+    from Jotty.core.orchestration.swarm_integrator import SwarmIntegrator
     return SwarmIntegrator(config=config)
 
 def _create_terminal(config):
-    from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+    from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
     return SwarmTerminal(config=config, auto_fix=True, max_fix_attempts=3)
 
 def _create_ui_registry():
@@ -181,7 +181,7 @@ def _create_profiler(config):
     return PerformanceProfiler(enable_cprofile=True)
 
 def _create_state_manager(sm):
-    from Jotty.core.orchestration.v2.swarm_state_manager import SwarmStateManager
+    from Jotty.core.orchestration.swarm_state_manager import SwarmStateManager
     agents_dict = {a.name: a for a in sm.agents}
     return SwarmStateManager(
         swarm_task_board=sm.swarm_task_board,
@@ -212,11 +212,11 @@ def _create_context_guard():
     return SmartContextGuard()
 
 def _create_learning_pipeline(config):
-    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(config)
 
 def _create_mas_learning(sm):
-    from Jotty.core.orchestration.v2.mas_learning import MASLearning
+    from Jotty.core.orchestration.mas_learning import MASLearning
     workspace_path = getattr(sm.config, 'base_path', None)
     return MASLearning(
         config=sm.config,
@@ -239,7 +239,7 @@ class AgentFactory:
         if sm._runners_built:
             return
 
-        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
+        from Jotty.core.orchestration.agent_runner import AgentRunner, AgentRunnerConfig
 
         for agent_config in sm.agents:
             if agent_config.name in sm.runners:
@@ -356,7 +356,7 @@ class AgentFactory:
         """Delegate to ZeroConfigAgentFactory."""
         sm = self._manager
         if not hasattr(sm, '_zero_config_factory') or sm._zero_config_factory is None:
-            from Jotty.core.orchestration.v2.zero_config_factory import ZeroConfigAgentFactory
+            from Jotty.core.orchestration.zero_config_factory import ZeroConfigAgentFactory
             sm._zero_config_factory = ZeroConfigAgentFactory()
         return sm._zero_config_factory.create_agents(task, status_callback)
 
@@ -519,7 +519,7 @@ class ExecutionEngine:
         # AutonomousAgent overhead. Call the LLM directly. Target: <10s.
         # OPTIMIZATION: Skip gate for multi-agent mode — fast path only works
         # for single-agent, so running the gate wastes an LLM call.
-        from Jotty.core.orchestration.v2.validation_gate import (
+        from Jotty.core.orchestration.validation_gate import (
             ValidationGate, ValidationMode, get_validation_gate,
         )
 
@@ -662,7 +662,7 @@ class ExecutionEngine:
                 logger.info(f"🔄 Zero-config: Upgraded to {len(sm.agents)} agents for parallel execution")
 
                 # Create runners for new agents
-                from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
+                from Jotty.core.orchestration.agent_runner import AgentRunner, AgentRunnerConfig
                 for agent_config in sm.agents:
                     if agent_config.name not in sm.runners:
                         runner_config = AgentRunnerConfig(
@@ -1077,7 +1077,7 @@ class ExecutionEngine:
         DRY: All paradigms reuse the same AgentRunner.run() and semaphore.
         """
         sm = self._manager
-        from Jotty.core.orchestration.v2.swarm_roadmap import TaskStatus
+        from Jotty.core.orchestration.swarm_roadmap import TaskStatus
         from Jotty.core.learning.predictive_marl import ActualTrajectory
         from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
 
@@ -2191,7 +2191,7 @@ class SwarmManager:
         self._learning_ready = asyncio.Event()
 
         # Composed ExecutionOrchestrator — separates "how to run" from "how to manage"
-        from Jotty.core.orchestration.v2.execution_orchestrator import ExecutionOrchestrator
+        from Jotty.core.orchestration.execution_orchestrator import ExecutionOrchestrator
         self._execution = ExecutionOrchestrator(self)
 
         # Intelligence effectiveness A/B metrics:
@@ -2988,14 +2988,14 @@ class SwarmManager:
     async def warmup(self, **kwargs) -> Dict[str, Any]:
         """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
         if not hasattr(self, '_warmup') or self._warmup is None:
-            from Jotty.core.orchestration.v2.swarm_warmup import SwarmWarmup
+            from Jotty.core.orchestration.swarm_warmup import SwarmWarmup
             self._warmup = SwarmWarmup(self)
         return await self._warmup.warmup(**kwargs)
 
     def get_warmup_recommendation(self) -> Dict[str, Any]:
         """Check if warmup would be beneficial."""
         if not hasattr(self, '_warmup') or self._warmup is None:
-            from Jotty.core.orchestration.v2.swarm_warmup import SwarmWarmup
+            from Jotty.core.orchestration.swarm_warmup import SwarmWarmup
             self._warmup = SwarmWarmup(self)
         return self._warmup.get_recommendation()
 
@@ -3006,14 +3006,14 @@ class SwarmManager:
     async def run_with_dag(self, implementation_plan: str, **kwargs) -> EpisodeResult:
         """Execute via DAG-based orchestration. See SwarmDAGExecutor."""
         if not hasattr(self, '_dag_executor') or self._dag_executor is None:
-            from Jotty.core.orchestration.v2.swarm_dag_executor import SwarmDAGExecutor
+            from Jotty.core.orchestration.swarm_dag_executor import SwarmDAGExecutor
             self._dag_executor = SwarmDAGExecutor(self)
         return await self._dag_executor.run(implementation_plan, **kwargs)
 
     def get_dag_agents(self):
         """Get DAG agents for external use."""
         if not hasattr(self, '_dag_executor') or self._dag_executor is None:
-            from Jotty.core.orchestration.v2.swarm_dag_executor import SwarmDAGExecutor
+            from Jotty.core.orchestration.swarm_dag_executor import SwarmDAGExecutor
             self._dag_executor = SwarmDAGExecutor(self)
         return self._dag_executor.get_agents()
 

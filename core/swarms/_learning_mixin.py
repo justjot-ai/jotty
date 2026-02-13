@@ -582,7 +582,7 @@ class SwarmLearningMixin:
         # Specialization label from AgentProfile
         si = self._swarm_intelligence
         if si and agent_name and agent_name in getattr(si, 'agent_profiles', {}):
-            from ..orchestration.v2.swarm_intelligence import AgentSpecialization
+            from ..orchestration.swarm_intelligence import AgentSpecialization
             profile = si.agent_profiles[agent_name]
             spec = profile.specialization
             if spec != AgentSpecialization.GENERALIST:

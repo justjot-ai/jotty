@@ -1,128 +1,160 @@
 import os
-import torch
-from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, FluxPipeline
-from PIL import Image
-import io
 import base64
-from typing import Dict, Any, Optional
+from io import BytesIO
+from typing import Dict, Any
 
 def image_generator_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate images using open-source models like Stable Diffusion, Flux, or SDXL.
     
     Args:
-        params: Dictionary with keys:
+        params: Dictionary containing:
             - prompt (str, required): Text description of the image to generate
             - model (str, optional): Model to use. Options:
-                - "sdxl" (default): stabilityai/stable-diffusion-xl-base-1.0
-                - "flux": black-forest-labs/FLUX.1-dev
-                - "sd1.5": runwayml/stable-diffusion-v1-5
-            - output_path (str, optional): Path to save the generated image
+                - "sdxl" or "stable-diffusion-xl-base-1.0" (default)
+                - "flux" or "FLUX.1-dev"
+                - "sd1.5" or "stable-diffusion-v1-5"
+            - output_path (str, optional): Path to save the image. If not provided, returns base64
             - num_inference_steps (int, optional): Number of denoising steps (default: 50)
             - guidance_scale (float, optional): Guidance scale for generation (default: 7.5)
-            - width (int, optional): Image width (default: 1024 for SDXL/Flux, 512 for SD1.5)
-            - height (int, optional): Image height (default: 1024 for SDXL/Flux, 512 for SD1.5)
+            - width (int, optional): Image width (default: 1024 for SDXL, 512 for SD1.5)
+            - height (int, optional): Image height (default: 1024 for SDXL, 512 for SD1.5)
             - seed (int, optional): Random seed for reproducibility
-            - negative_prompt (str, optional): Negative prompt to guide generation away from
-            - return_base64 (bool, optional): Return base64 encoded image data (default: False)
     
     Returns:
         Dictionary with:
             - success (bool): Whether generation succeeded
-            - message (str): Success/error message
+            - message (str): Success or error message
             - output_path (str, optional): Path where image was saved
-            - base64_data (str, optional): Base64 encoded image if return_base64=True
+            - image_base64 (str, optional): Base64 encoded image if no output_path
     """
     try:
-        prompt = params.get("prompt")
-        if not prompt:
-            return {"success": False, "message": "Error: 'prompt' parameter is required"}
-        
-        model_choice = params.get("model", "sdxl").lower()
-        output_path = params.get("output_path")
-        num_inference_steps = params.get("num_inference_steps", 50)
-        guidance_scale = params.get("guidance_scale", 7.5)
-        seed = params.get("seed")
-        negative_prompt = params.get("negative_prompt", "")
-        return_base64 = params.get("return_base64", False)
-        
-        # Determine model and default dimensions
-        if model_choice == "sdxl":
-            model_id = "stabilityai/stable-diffusion-xl-base-1.0"
-            default_size = 1024
-            pipeline_class = StableDiffusionXLPipeline
-        elif model_choice == "flux":
-            model_id = "black-forest-labs/FLUX.1-dev"
-            default_size = 1024
-            pipeline_class = FluxPipeline
-        elif model_choice in ["sd1.5", "sd"]:
-            model_id = "runwayml/stable-diffusion-v1-5"
-            default_size = 512
-            pipeline_class = StableDiffusionPipeline
-        else:
-            return {"success": False, "message": f"Error: Unknown model '{model_choice}'. Use 'sdxl', 'flux', or 'sd1.5'"}
-        
-        width = params.get("width", default_size)
-        height = params.get("height", default_size)
-        
-        # Check if CUDA is available
+        import torch
+        from diffusers import (
+            StableDiffusionPipeline,
+            StableDiffusionXLPipeline,
+            FluxPipeline,
+            DPMSolverMultistepScheduler
+        )
+        from PIL import Image
+    except ImportError as e:
+        return {
+            "success": False,
+            "message": f"Required library not installed: {str(e)}. Install with: pip install torch diffusers transformers accelerate pillow"
+        }
+    
+    # Validate required parameters
+    if "prompt" not in params:
+        return {
+            "success": False,
+            "message": "Missing required parameter: prompt"
+        }
+    
+    prompt = params["prompt"]
+    model = params.get("model", "sdxl").lower()
+    output_path = params.get("output_path")
+    num_inference_steps = params.get("num_inference_steps", 50)
+    guidance_scale = params.get("guidance_scale", 7.5)
+    seed = params.get("seed")
+    
+    # Map model names to Hugging Face model IDs
+    model_mapping = {
+        "sdxl": "stabilityai/stable-diffusion-xl-base-1.0",
+        "stable-diffusion-xl-base-1.0": "stabilityai/stable-diffusion-xl-base-1.0",
+        "flux": "black-forest-labs/FLUX.1-dev",
+        "flux.1-dev": "black-forest-labs/FLUX.1-dev",
+        "sd1.5": "runwayml/stable-diffusion-v1-5",
+        "stable-diffusion-v1-5": "runwayml/stable-diffusion-v1-5"
+    }
+    
+    if model not in model_mapping:
+        return {
+            "success": False,
+            "message": f"Unsupported model: {model}. Choose from: sdxl, flux, sd1.5"
+        }
+    
+    model_id = model_mapping[model]
+    
+    # Set default dimensions based on model
+    if "sdxl" in model or "xl" in model:
+        default_width = 1024
+        default_height = 1024
+    else:
+        default_width = 512
+        default_height = 512
+    
+    width = params.get("width", default_width)
+    height = params.get("height", default_height)
+    
+    try:
+        # Determine device
         device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # Load the pipeline
-        if device == "cuda":
-            pipe = pipeline_class.from_pretrained(
+        # Load appropriate pipeline
+        if "flux" in model:
+            pipe = FluxPipeline.from_pretrained(
                 model_id,
-                torch_dtype=torch.float16,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32
+            )
+        elif "sdxl" in model or "xl" in model:
+            pipe = StableDiffusionXLPipeline.from_pretrained(
+                model_id,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
                 use_safetensors=True
             )
-            pipe = pipe.to(device)
         else:
-            pipe = pipeline_class.from_pretrained(
+            pipe = StableDiffusionPipeline.from_pretrained(
                 model_id,
-                torch_dtype=torch.float32
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32
             )
+            pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
         
-        # Set random seed if provided
+        pipe = pipe.to(device)
+        
+        # Enable memory optimizations if on GPU
+        if device == "cuda":
+            pipe.enable_attention_slicing()
+        
+        # Set seed for reproducibility
         generator = None
         if seed is not None:
             generator = torch.Generator(device=device).manual_seed(seed)
         
         # Generate image
-        generation_params = {
-            "prompt": prompt,
-            "num_inference_steps": num_inference_steps,
-            "guidance_scale": guidance_scale,
-            "width": width,
-            "height": height,
-            "generator": generator
-        }
+        result = pipe(
+            prompt=prompt,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            width=width,
+            height=height,
+            generator=generator
+        )
         
-        if negative_prompt:
-            generation_params["negative_prompt"] = negative_prompt
-        
-        result = pipe(**generation_params)
         image = result.images[0]
         
-        response = {"success": True, "message": f"Image generated successfully using {model_choice}"}
-        
-        # Save image if output path provided
+        # Save or encode image
         if output_path:
+            # Ensure directory exists
             os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
             image.save(output_path)
-            response["output_path"] = output_path
-        
-        # Return base64 if requested
-        if return_base64:
-            buffered = io.BytesIO()
+            return {
+                "success": True,
+                "message": f"Image generated successfully using {model_id}",
+                "output_path": output_path
+            }
+        else:
+            # Convert to base64
+            buffered = BytesIO()
             image.save(buffered, format="PNG")
-            img_str = base64.b64encode(buffered.getvalue()).decode()
-            response["base64_data"] = img_str
-        
-        return response
-        
+            img_base64 = base64.b64encode(buffered.getvalue()).decode()
+            return {
+                "success": True,
+                "message": f"Image generated successfully using {model_id}",
+                "image_base64": img_base64
+            }
+    
     except Exception as e:
-        return {"success": False, "message": f"Error generating image: {str(e)}"}
-
-def generate_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Alias for image_generator_tool"""
-    return image_generator_tool(params)
+        return {
+            "success": False,
+            "message": f"Error generating image: {str(e)}"
+        }

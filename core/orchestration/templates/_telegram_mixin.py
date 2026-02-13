@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 from pathlib import Path
 
 if TYPE_CHECKING:
-    from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import TelegramConfig
+    from Jotty.core.orchestration.templates.swarm_ml_comprehensive import TelegramConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class TelegramMixin:
         Args:
             config: Telegram configuration (uses env vars if None)
         """
-        from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import TelegramConfig
+        from Jotty.core.orchestration.templates.swarm_ml_comprehensive import TelegramConfig
         self._telegram_config = config or TelegramConfig()
         self._telegram_available = False
 

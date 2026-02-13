@@ -11,7 +11,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-from .swarm_roadmap import MarkovianTODO, TodoItem
+from .swarm_roadmap import SwarmTaskBoard, TodoItem
 
 from Jotty.core.foundation.data_structures import JottyConfig
 
@@ -56,7 +56,7 @@ class PolicyExplorer:
         self.exploration_count = 0
         self.max_explorations = self.config.max_exploration_iterations  # 🔧 STANFORD FIX
     
-    def should_explore(self, todo: MarkovianTODO) -> bool:
+    def should_explore(self, todo: SwarmTaskBoard) -> bool:
         """Check if we should try a new exploration."""
         # Explore if: failed tasks exist, haven't explored too much
         has_failures = len(todo.failed_tasks) > 0  # Fixed: failed_tasks is a Set
@@ -69,7 +69,7 @@ class PolicyExplorer:
     
     def explore(
         self, 
-        todo: MarkovianTODO, 
+        todo: SwarmTaskBoard, 
         available_actions: List[Dict[str, Any]],
         goal: str
     ) -> List[TodoItem]:

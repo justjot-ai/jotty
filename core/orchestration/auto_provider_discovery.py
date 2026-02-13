@@ -15,7 +15,7 @@ Pipeline Steps:
 7. Test and register in ProviderRegistry
 
 Usage:
-    from core.orchestration.v2.auto_provider_discovery import AutoProviderDiscovery
+    from core.orchestration.auto_provider_discovery import AutoProviderDiscovery
 
     discovery = AutoProviderDiscovery()
     provider_name = await discovery.discover_and_integrate("PDF OCR capability")

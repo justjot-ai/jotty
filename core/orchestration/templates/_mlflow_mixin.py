@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import MLflowConfig
+    from Jotty.core.orchestration.templates.swarm_ml_comprehensive import MLflowConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class MLflowMixin:
         Args:
             config: MLflow configuration (uses default if None)
         """
-        from Jotty.core.orchestration.v2.templates.swarm_ml_comprehensive import MLflowConfig
+        from Jotty.core.orchestration.templates.swarm_ml_comprehensive import MLflowConfig
         self._mlflow_config = config or MLflowConfig()
         self._mlflow_run = None
         self._mlflow_available = False

@@ -209,7 +209,7 @@ def example_enhance_swarm():
     """
     # Option 1: Enable during initialization
     code1 = '''
-from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+from Jotty.core.orchestration.swarm_manager import SwarmManager
 
 # LOTUS is enabled by default
 swarm = SwarmManager(

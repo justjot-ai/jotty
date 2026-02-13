@@ -16,8 +16,8 @@ from enum import Enum
 
 import dspy
 
-from ..orchestration.v2.swarm_roadmap import (
-    SubtaskState, MarkovianTODO, TaskStatus, AgenticState, TrajectoryStep
+from ..orchestration.swarm_roadmap import (
+    SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
 from ..foundation.data_structures import JottyConfig, MemoryLevel
 from ..memory.cortex import HierarchicalMemory
@@ -423,9 +423,9 @@ class ExecutableDAG:
     """
     DAG with actor assignments and validation results.
 
-    Integrates with Jotty's MarkovianTODO for execution tracking.
+    Integrates with Jotty's SwarmTaskBoard for execution tracking.
     """
-    markovian_todo: MarkovianTODO
+    markovian_todo: SwarmTaskBoard
     assignments: Dict[str, Actor]  # task_id -> Actor
     validation_passed: bool
     validation_issues: List[str] = field(default_factory=list)

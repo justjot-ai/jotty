@@ -16,8 +16,8 @@ from enum import Enum
 
 import dspy
 
-from ..orchestration.v2.swarm_roadmap import (
-    SubtaskState, MarkovianTODO, TaskStatus, AgenticState, TrajectoryStep
+from ..orchestration.swarm_roadmap import (
+    SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
 from ..foundation.data_structures import JottyConfig, MemoryLevel
 from ..foundation.exceptions import AgentExecutionError
@@ -86,7 +86,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     async def execute(
         self,
-        markovian_todo: MarkovianTODO,
+        markovian_todo: SwarmTaskBoard,
         available_actors: List[Dict[str, Any]],
         **kwargs
     ) -> AgentResult:
@@ -94,7 +94,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         Execute DAG creation with BaseAgent-compatible interface.
 
         Args:
-            markovian_todo: MarkovianTODO with tasks
+            markovian_todo: SwarmTaskBoard with tasks
             available_actors: List of actor dicts with 'name' and 'capabilities'
 
         Returns:
@@ -152,14 +152,14 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def create_executable_dag(
         self,
-        markovian_todo: MarkovianTODO,
+        markovian_todo: SwarmTaskBoard,
         available_actors: List[Dict[str, Any]]
     ) -> ExecutableDAG:
         """
         Create an executable DAG with actor assignments and validation.
 
         Args:
-            markovian_todo: MarkovianTODO with tasks
+            markovian_todo: SwarmTaskBoard with tasks
             available_actors: List of actor dicts with 'name' and 'capabilities'
 
         Returns:
@@ -257,7 +257,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def _assign_actors_to_tasks(
         self,
-        todo: MarkovianTODO,
+        todo: SwarmTaskBoard,
         actors: List[Actor]
     ) -> Dict[str, Actor]:
         """Assign actors to all tasks using LLM-based selection."""
@@ -300,7 +300,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         return assignments
 
-    def _has_internal_dependencies(self, todo: MarkovianTODO, task_ids: List[str]) -> bool:
+    def _has_internal_dependencies(self, todo: SwarmTaskBoard, task_ids: List[str]) -> bool:
         """Check if any task in the group depends on another task in the same group."""
         task_id_set = set(task_ids)
         for task_id in task_ids:
@@ -313,9 +313,9 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def _collapse_consecutive_tasks(
         self,
-        todo: MarkovianTODO,
+        todo: SwarmTaskBoard,
         assignments: Dict[str, Actor]
-    ) -> Tuple[MarkovianTODO, Dict[str, Actor]]:
+    ) -> Tuple[SwarmTaskBoard, Dict[str, Actor]]:
         """
         Collapse consecutive tasks assigned to the same actor.
 
@@ -396,7 +396,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def _merge_task_group(
         self,
-        todo: MarkovianTODO,
+        todo: SwarmTaskBoard,
         task_ids: List[str],
         actor: Actor,
         new_assignments: Dict[str, Actor],
@@ -451,7 +451,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         tasks_to_remove.update(task_ids)
 
-    def _get_topological_order(self, todo: MarkovianTODO) -> List[str]:
+    def _get_topological_order(self, todo: SwarmTaskBoard) -> List[str]:
         """Get topological order of tasks."""
         in_degree = {tid: 0 for tid in todo.subtasks}
 
@@ -480,7 +480,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def _validate_dag(
         self,
-        todo: MarkovianTODO,
+        todo: SwarmTaskBoard,
         assignments: Dict[str, Actor],
         actors: List[Actor]
     ) -> Tuple[bool, List[str]]:

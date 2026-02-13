@@ -227,7 +227,7 @@ Provide:
         Returns:
             (bool, int) tuple: (should_ensemble, max_perspectives)
         """
-        from Jotty.core.orchestration.v2.swarm_ensemble import should_auto_ensemble
+        from Jotty.core.orchestration.swarm_ensemble import should_auto_ensemble
         return should_auto_ensemble(task)
 
     # =========================================================================

@@ -11,14 +11,14 @@ Uses AgenticPlanner for all planning (single source of truth).
 """
 
 from .intent_parser import IntentParser, TaskGraph
-from ..agents.agentic_planner import AgenticPlanner, ExecutionPlan
+from ..agents.agentic_planner import AgenticPlanner, AgentExecutionPlan
 from .enhanced_executor import AutonomousExecutor, EnhancedExecutionResult
 
 __all__ = [
     'IntentParser',
     'TaskGraph',
     'AgenticPlanner',  # Unified planner (replaces AutonomousPlanner)
-    'ExecutionPlan',
+    'AgentExecutionPlan',
     'AutonomousExecutor',
     'EnhancedExecutionResult',
 ]

@@ -15,7 +15,7 @@ Design principles (built into prompts; no external style names):
 Inputs: subject (e.g. Science), topic (e.g. Photosynthesis), student_name (e.g. Maya)
 
 Usage:
-    from Jotty.core.orchestration.v2.templates import SwarmScience
+    from Jotty.core.orchestration.templates import SwarmScience
     t = SwarmScience()
     goal = t.build_goal(subject="Science", topic="Photosynthesis", student_name="Maya")
     # Then: await swarm.run(goal)

@@ -173,7 +173,7 @@ class SwarmLearningPipeline:
 
     def _init_components(self):
         """Initialize all learning components."""
-        from Jotty.core.learning.learning_coordinator import LearningCoordinator as LearningManager
+        from Jotty.core.learning.learning_coordinator import SwarmLearningManager as SwarmLearningManager
         from Jotty.core.learning.predictive_marl import (
             LLMTrajectoryPredictor, DivergenceMemory,
         )
@@ -182,12 +182,12 @@ class SwarmLearningPipeline:
         )
         from Jotty.core.agents.axon import SmartAgentSlack
         from Jotty.core.agents.feedback_channel import FeedbackChannel
-        from Jotty.core.orchestration.v2.swarm_learner import SwarmLearner
+        from Jotty.core.orchestration.swarm_learner import SwarmLearner
         from Jotty.core.learning.transfer_learning import TransferableLearningStore
         from .swarm_intelligence import SwarmIntelligence
 
         # Core learning manager (wraps Q-learner)
-        self.learning_manager = LearningManager(self.config)
+        self.learning_manager = SwarmLearningManager(self.config)
 
         # Trajectory prediction (MARL)
         self.trajectory_predictor = None

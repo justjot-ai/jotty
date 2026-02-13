@@ -30,7 +30,7 @@ class WorkspaceManager:
             return self._terminal is not None
         self._initialized = True
         try:
-            from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+            from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
             import tempfile
             self._workspace_dir = tempfile.mkdtemp(prefix="codingswarm_")
             self._terminal = SwarmTerminal(auto_fix=False, max_fix_attempts=1)
@@ -53,7 +53,7 @@ class WorkspaceManager:
     async def write_file(self, filename: str, content: str) -> 'CommandResult':
         """Write a file to the workspace. Returns CommandResult."""
         if not self._ensure_init():
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=False, command="write_file", output="", error="WorkspaceManager unavailable")
         import os
         filepath = os.path.join(self._workspace_dir, filename)
@@ -62,14 +62,14 @@ class WorkspaceManager:
     async def bash(self, command: str, timeout: int = 30) -> 'CommandResult':
         """Execute a bash command in the workspace."""
         if not self._ensure_init():
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=False, command=command, output="", error="WorkspaceManager unavailable")
         return await self._terminal.execute(command, timeout=timeout, working_dir=self._workspace_dir)
 
     async def syntax_check(self, filename: str, language: str = "python") -> 'CommandResult':
         """Run syntax check on a file in the workspace."""
         if not self._ensure_init():
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=False, command="syntax_check", output="", error="WorkspaceManager unavailable")
         import os
         filepath = os.path.join(self._workspace_dir, filename)
@@ -80,7 +80,7 @@ class WorkspaceManager:
     async def run_python(self, filename: str, timeout: int = 30) -> 'CommandResult':
         """Run a Python file in the workspace."""
         if not self._ensure_init():
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=False, command="run_python", output="", error="WorkspaceManager unavailable")
         import os
         filepath = os.path.join(self._workspace_dir, filename)
@@ -89,7 +89,7 @@ class WorkspaceManager:
     async def run_tests(self, test_filename: Optional[str] = None, timeout: int = 60) -> 'CommandResult':
         """Run pytest on test files in the workspace."""
         if not self._ensure_init():
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=False, command="run_tests", output="", error="WorkspaceManager unavailable")
         if test_filename:
             import os
@@ -102,7 +102,7 @@ class WorkspaceManager:
     async def pip_install(self, packages: List[str]) -> 'CommandResult':
         """Install pip packages."""
         if not self._ensure_init() or not packages:
-            from Jotty.core.orchestration.v2.swarm_terminal import CommandResult
+            from Jotty.core.orchestration.swarm_terminal import CommandResult
             return CommandResult(success=not packages, command="pip_install", output="" if not packages else "", error="" if not packages else "WorkspaceManager unavailable")
         pkg_str = " ".join(packages)
         return await self._terminal.execute(f"pip install {pkg_str}", timeout=60, working_dir=self._workspace_dir)

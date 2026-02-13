@@ -4,6 +4,30 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
+## Testing Requirements
+
+**MANDATORY**: Every code change to Jotty MUST include corresponding tests.
+
+### Rules
+1. Every new method/class gets a unit test
+2. Every bug fix gets a regression test proving the fix
+3. Tests use mocks — NEVER call real LLM providers
+4. Tests run fast (< 1s each) and offline
+5. Run `pytest tests/test_v3_execution.py -v` before considering work done
+
+### V3 Test Patterns
+- Use the `v3_executor` fixture from conftest.py (pre-wired with all mocks)
+- Use `v3_observability_helpers` fixture for `assert_metrics_recorded()`, `assert_trace_exists()`, `assert_cost_tracked()` helpers
+- Class-based: `class TestMyFeature:` with `@pytest.mark.unit` + `@pytest.mark.asyncio`
+- Mock provider returns: `{'content': '...', 'usage': {'input_tokens': N, 'output_tokens': N}}`
+
+### Running Tests
+```bash
+pytest tests/test_v3_execution.py -v        # V3 tests
+pytest tests/ -m unit                       # All unit tests
+pytest tests/ -m "not requires_llm"         # All offline tests
+```
+
 ## The Five Layers (Top to Bottom)
 
 ```
@@ -101,7 +125,7 @@ Jotty/
 │   │   └── agent_config.py # AgentConfig
 │   ├── learning/           # TD-Lambda, memory systems
 │   ├── memory/             # HierarchicalMemory (5 levels)
-│   ├── orchestration/v2/   # SwarmManager, SwarmIntelligence
+│   ├── orchestration/      # SwarmManager, SwarmIntelligence
 │   └── integration/        # MCP, Claude CLI LM
 ├── skills/                 # Skill definitions (loaded lazily)
 ├── sdk/                    # Generated client libraries

@@ -306,7 +306,7 @@ class Jotty:
 
         Example:
             result = await jotty.research("Optimize agent performance")
-            print(f"V2 episode: {result.v2_episode}")
+            print(f"Episode: {result.episode}")
         """
         config = ExecutionConfig(
             tier=ExecutionTier.RESEARCH,

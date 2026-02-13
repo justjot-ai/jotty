@@ -154,12 +154,12 @@ class JottyCLI:
 
                 # Try relative import first (for installed package)
                 try:
-                    from ..core.orchestration.v2 import SwarmManager
+                    from ..core.orchestration import SwarmManager
                     from ..core.foundation.data_structures import JottyConfig
                     from ..core.foundation.unified_lm_provider import configure_dspy_lm
                 except ImportError:
                     # Fallback for direct execution
-                    from Jotty.core.orchestration.v2 import SwarmManager
+                    from Jotty.core.orchestration import SwarmManager
                     from Jotty.core.foundation.data_structures import JottyConfig
                     from Jotty.core.foundation.unified_lm_provider import configure_dspy_lm
 

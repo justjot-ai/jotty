@@ -36,7 +36,7 @@ from Jotty.core.learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate,
 )
 from Jotty.core.learning.shaped_rewards import ShapedRewardManager
-from Jotty.core.orchestration.v2.validation_gate import (
+from Jotty.core.orchestration.validation_gate import (
     ValidationGate, ValidationMode, GateDecision, get_validation_gate,
 )
 
@@ -196,7 +196,7 @@ class AgentRunner:
         task_board=None,  # Shared TaskBoard (V2)
         swarm_memory=None,  # Shared SwarmMemory (V2)
         swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
-        learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
+        learning_manager=None,  # Swarm-level SwarmLearningManager (V1 pipeline)
         transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
         swarm_terminal=None,  # SwarmTerminal for intelligent command execution
         swarm_intelligence=None,  # SwarmIntelligence for curriculum feedback (Agent0)

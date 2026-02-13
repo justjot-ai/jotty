@@ -1517,7 +1517,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
 
 @dataclass
-class ExecutionPlan:
+class AgentExecutionPlan:
     """Execution plan with enhanced metadata."""
     task_graph: Optional[Any] = None  # TaskGraph if available
     steps: List[Any] = field(default_factory=list)  # List[ExecutionStep] - imported lazily

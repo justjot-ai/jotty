@@ -87,7 +87,7 @@ _LAZY_IMPORTS: dict[str, str] = {
 
     # --- V2 PRIMARY EXPORTS (Preserved - No Breakage) ---
     "SwarmManager": ".core.orchestration",
-    "TodoItem": ".core.orchestration.v2.swarm_roadmap",
+    "TodoItem": ".core.orchestration.swarm_roadmap",
     "AgentConfig": ".core.foundation.agent_config",
     "JottyConfig": ".core.foundation.data_structures",
     "MemoryLevel": ".core.foundation.data_structures",
@@ -134,12 +134,12 @@ _LAZY_IMPORTS: dict[str, str] = {
     "jotty_universal": ".core.integration.universal_wrapper",
 
     # --- STATE ---
-    "AgenticState": ".core.orchestration.v2.swarm_roadmap",
-    "TrajectoryStep": ".core.orchestration.v2.swarm_roadmap",
-    "DecomposedQFunction": ".core.orchestration.v2.swarm_roadmap",
-    "MarkovianTODO": ".core.orchestration.v2.swarm_roadmap",
-    "SubtaskState": ".core.orchestration.v2.swarm_roadmap",
-    "TaskStatus": ".core.orchestration.v2.swarm_roadmap",
+    "AgenticState": ".core.orchestration.swarm_roadmap",
+    "TrajectoryStep": ".core.orchestration.swarm_roadmap",
+    "DecomposedQFunction": ".core.orchestration.swarm_roadmap",
+    "SwarmTaskBoard": ".core.orchestration.swarm_roadmap",
+    "SubtaskState": ".core.orchestration.swarm_roadmap",
+    "TaskStatus": ".core.orchestration.swarm_roadmap",
 
     # --- PREDICTIVE MARL ---
     "LLMTrajectoryPredictor": ".core.learning.predictive_marl",

@@ -3,7 +3,7 @@ JSON File Memory Backend
 ========================
 
 Simple file-based memory with TTL.
-Stores memories as JSON in ~/jotty/v3_memory/
+Stores memories as JSON in ~/jotty/memory/
 """
 
 import json
@@ -21,7 +21,7 @@ class JSONMemory:
     Simple JSON-based memory with TTL.
 
     Structure:
-    ~/jotty/v3_memory/
+    ~/jotty/memory/
         {hash}.json  # One file per unique goal pattern
 
     Each file contains:
@@ -44,7 +44,7 @@ class JSONMemory:
     def __init__(self, base_path: Path = None):
         """Initialize JSON memory backend."""
         if base_path is None:
-            base_path = Path.home() / "jotty" / "v3_memory"
+            base_path = Path.home() / "jotty" / "memory"
 
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)

@@ -8,7 +8,7 @@ import asyncio
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 
-from ..agents.agentic_planner import ExecutionPlan
+from ..agents.agentic_planner import AgentExecutionPlan
 from ..agents.auto_agent import AutoAgent
 from ..agents._execution_types import ExecutionStep, ExecutionResult
 
@@ -49,7 +49,7 @@ class AutonomousExecutor:
         except ImportError:
             self.dependency_manager = None
     
-    async def execute(self, plan: ExecutionPlan) -> EnhancedExecutionResult:
+    async def execute(self, plan: AgentExecutionPlan) -> EnhancedExecutionResult:
         """
         Execute plan autonomously.
         
@@ -71,7 +71,7 @@ class AutonomousExecutor:
         configurations_set = await self._configure_services(plan)
         
         # Step 3: Execute using AutoAgent (REUSE existing execution)
-        # Convert ExecutionPlan back to task string for AutoAgent
+        # Convert AgentExecutionPlan back to task string for AutoAgent
         task_string = plan.task_graph.metadata.get('original_request', '')
         
         # Execute using AutoAgent (reuses all its logic)
@@ -95,7 +95,7 @@ class AutonomousExecutor:
         
         return enhanced_result
     
-    async def _install_dependencies(self, plan: ExecutionPlan) -> List[str]:
+    async def _install_dependencies(self, plan: AgentExecutionPlan) -> List[str]:
         """Install dependencies using SkillDependencyManager (reuse existing)."""
         installed = []
         
@@ -120,7 +120,7 @@ class AutonomousExecutor:
         
         return installed
     
-    async def _configure_services(self, plan: ExecutionPlan) -> List[str]:
+    async def _configure_services(self, plan: AgentExecutionPlan) -> List[str]:
         """Configure services (may require user input)."""
         configured = []
         

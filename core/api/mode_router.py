@@ -137,11 +137,11 @@ class ModeRouter:
         self._initialized = True
 
     def _get_executor(self, context: Optional[ExecutionContext] = None):
-        """Get UnifiedExecutor with callbacks from context."""
-        from Jotty.core.orchestration.v2.unified_executor import UnifiedExecutor
+        """Get ToolCallingExecutor with callbacks from context."""
+        from Jotty.core.orchestration.unified_executor import ToolCallingExecutor
         status_cb = context.status_callback if context else None
         stream_cb = context.stream_callback if context else None
-        return UnifiedExecutor(
+        return ToolCallingExecutor(
             status_callback=status_cb,
             stream_callback=stream_cb,
         )

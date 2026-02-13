@@ -1,5 +1,5 @@
 """
-UnifiedExecutor - Native LLM Tool-Calling Executor
+ToolCallingExecutor - Native LLM Tool-Calling Executor
 =================================================================================
 
 Uses native LLM tool calling for ALL decisions:
@@ -222,7 +222,7 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 # =============================================================================
 # Provider Abstraction (extracted to llm_providers/ subpackage)
 # =============================================================================
-# All provider classes now live in core/orchestration/v2/llm_providers/:
+# All provider classes now live in core/orchestration/llm_providers/:
 #   base.py      - LLMProvider ABC
 #   anthropic.py - AnthropicProvider
 #   openai.py    - OpenAIProvider, OpenRouterProvider, GroqProvider
@@ -236,12 +236,12 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 
 
 # =============================================================================
-# Unified Executor
+# Tool-Calling Executor
 # =============================================================================
 
-class UnifiedExecutor:
+class ToolCallingExecutor:
     """
-    Unified executor using native LLM tool calling for all decisions.
+    Tool-calling executor using native LLM tool calling for all decisions.
 
     Uses native LLM tool calling for ALL decisions:
     - Input decisions (web search, file read)
@@ -252,10 +252,10 @@ class UnifiedExecutor:
 
     Example:
         # Auto-detect provider
-        executor = UnifiedExecutor()
+        executor = ToolCallingExecutor()
 
         # Specific provider
-        executor = UnifiedExecutor(provider='openai', model='gpt-4o')
+        executor = ToolCallingExecutor(provider='openai', model='gpt-4o')
 
         result = await executor.execute("Research AI trends and create a presentation")
     """
@@ -302,7 +302,7 @@ class UnifiedExecutor:
         else:
             self.provider_name, self.llm_provider = auto_detect_provider()
 
-        logger.debug(f"UnifiedExecutor initialized with provider: {self.provider_name}")
+        logger.debug(f"ToolCallingExecutor initialized with provider: {self.provider_name}")
 
         # Initialize tool generator
         self.tool_generator = UnifiedToolGenerator()
@@ -1013,9 +1013,9 @@ def create_unified_executor(
     status_callback: Optional[Callable[[str, str], None]] = None,
     enabled_tools: Optional[List[str]] = None,
     output_format: str = "auto"
-) -> UnifiedExecutor:
+) -> ToolCallingExecutor:
     """
-    Factory function to create UnifiedExecutor.
+    Factory function to create ToolCallingExecutor.
 
     Args:
         provider: LLM provider ('anthropic', 'openai', 'openrouter', 'groq', 'google')
@@ -1027,7 +1027,7 @@ def create_unified_executor(
         output_format: Force output format ('auto', 'pdf', 'docx', 'slides', etc.)
 
     Returns:
-        Configured UnifiedExecutor instance
+        Configured ToolCallingExecutor instance
 
     Example:
         # Auto-detect provider
@@ -1043,7 +1043,7 @@ def create_unified_executor(
 
         result = await executor.execute("Research AI trends")
     """
-    return UnifiedExecutor(
+    return ToolCallingExecutor(
         provider=provider,
         model=model,
         stream_callback=stream_callback,
@@ -1051,3 +1051,7 @@ def create_unified_executor(
         enabled_tools=enabled_tools,
         output_format=output_format
     )
+
+
+# Backward compatibility alias
+UnifiedExecutor = ToolCallingExecutor

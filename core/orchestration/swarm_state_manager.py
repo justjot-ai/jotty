@@ -20,7 +20,7 @@ Agent-Level State:
 - Per-agent trajectory
 - Per-agent validation results
 
-Integrates V1 StateManager capabilities into V2 architecture.
+Integrates StateManager capabilities into orchestration architecture.
 """
 
 import logging
@@ -30,13 +30,13 @@ from pathlib import Path
 import json
 
 if TYPE_CHECKING:
-    from .swarm_roadmap import MarkovianTODO, SubtaskState, TaskStatus
+    from .swarm_roadmap import SwarmTaskBoard, SubtaskState, TaskStatus
     from Jotty.core.foundation.agent_config import AgentConfig
     from Jotty.core.data.data_registry import DataRegistry
     from Jotty.core.data.io_manager import IOManager
     from Jotty.core.context.context_guard import SmartContextGuard
 else:
-    MarkovianTODO = Any
+    SwarmTaskBoard = Any
     SubtaskState = Any
     TaskStatus = Any
     AgentConfig = Any
@@ -211,7 +211,7 @@ class SwarmStateManager:
     
     def __init__(
         self,
-        swarm_task_board: MarkovianTODO,
+        swarm_task_board: SwarmTaskBoard,
         swarm_memory: Any,  # HierarchicalMemory
         io_manager: Optional[IOManager] = None,
         data_registry: Optional[DataRegistry] = None,
@@ -225,7 +225,7 @@ class SwarmStateManager:
         Initialize SwarmStateManager.
         
         Args:
-            swarm_task_board: SwarmTaskBoard (MarkovianTODO) for task tracking
+            swarm_task_board: SwarmTaskBoard (SwarmTaskBoard) for task tracking
             swarm_memory: SwarmMemory (HierarchicalMemory) for memory
             io_manager: IOManager for accessing actor outputs
             data_registry: DataRegistry for output registration
