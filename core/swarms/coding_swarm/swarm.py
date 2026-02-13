@@ -432,7 +432,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         is_trivial = self._is_trivial_task(requirements)
         if is_trivial:
             # Override config for speed: 1 iteration, skip team planning/review
-            config = type(config)(**{**config.__dict__,
+            config = type(config)(**{**config.to_flat_dict(),
                 'max_design_iterations': 1,
                 'skip_team_planning': True,
                 'skip_team_review': True,

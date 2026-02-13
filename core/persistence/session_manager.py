@@ -120,7 +120,7 @@ class SessionManager:
         """Save config used for this session."""
         config_file = self.session_dir / "config_snapshot.json"
         with open(config_file, 'w') as f:
-            json.dump(asdict(self.config), f, indent=2, default=str)
+            json.dump(self.config.to_flat_dict(), f, indent=2, default=str)
     
     # =========================================================================
     # AUTO-LOADING

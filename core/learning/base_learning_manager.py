@@ -133,7 +133,7 @@ class BaseLearningManager(ABC):
         """
         return {
             "learner_type": self.__class__.__name__,
-            "config": self.config.__dict__
+            "config": self.config.to_flat_dict()
         }
     
     def save_state(self, path: str):

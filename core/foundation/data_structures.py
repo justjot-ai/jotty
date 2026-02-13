@@ -113,6 +113,15 @@ __all__ = [
     'SDKRequest',
     # Configuration
     'SwarmConfig',
+    # Config views
+    'PersistenceView',
+    'ExecutionView',
+    'MemoryView',
+    'ContextBudgetView',
+    'LearningView',
+    'ValidationView',
+    'MonitoringView',
+    'SwarmIntelligenceView',
     # Parameter aliases
     'DEFAULT_PARAM_ALIASES',
 ]
@@ -147,6 +156,190 @@ DEFAULT_PARAM_ALIASES: Dict[str, List[str]] = {
     'file': ['file', 'filepath', 'path', 'file_path'],
     'url': ['url', 'uri', 'link', 'href'],
 }
+
+
+# =============================================================================
+# CONFIG VIEW SYSTEM (Phase 1b: Organized Sub-Config Access)
+# =============================================================================
+# SwarmConfig keeps all flat fields for backward compatibility.
+# Views provide organized access: config.execution.max_actor_iters
+# Views are read/write proxies — changes propagate to the parent config.
+
+class _ConfigView:
+    """Base class for SwarmConfig sub-views. Proxies attribute access to the parent."""
+    __slots__ = ('_parent',)
+    _FIELDS: frozenset = frozenset()
+
+    def __init__(self, parent: 'SwarmConfig'):
+        object.__setattr__(self, '_parent', parent)
+
+    def __getattr__(self, name: str):
+        if name in type(self)._FIELDS:
+            return getattr(object.__getattribute__(self, '_parent'), name)
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value):
+        if name in type(self)._FIELDS:
+            setattr(object.__getattribute__(self, '_parent'), name, value)
+            return
+        object.__setattr__(self, name, value)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return this view's fields as a flat dictionary."""
+        parent = object.__getattribute__(self, '_parent')
+        return {f: getattr(parent, f) for f in sorted(type(self)._FIELDS)}
+
+    def __repr__(self) -> str:
+        items = ', '.join(f'{k}={v!r}' for k, v in self.to_dict().items())
+        return f"{type(self).__name__}({items})"
+
+
+class PersistenceView(_ConfigView):
+    """Storage and persistence settings."""
+    _FIELDS = frozenset({
+        'output_base_dir', 'create_run_folder',
+        'auto_save_interval', 'auto_load_on_start', 'save_interval',
+        'persist_memories', 'persist_q_tables', 'persist_brain_state',
+        'persist_todos', 'persist_agent_outputs',
+        'storage_format', 'compress_large_files',
+        'max_runs_to_keep', 'enable_backups', 'backup_interval', 'max_backups',
+        'base_path', 'auto_load', 'auto_save',
+    })
+
+
+class ExecutionView(_ConfigView):
+    """Runtime execution limits, timeouts, and parallelism."""
+    _FIELDS = frozenset({
+        'max_actor_iters', 'max_eval_iters', 'max_episode_iterations',
+        'async_timeout', 'actor_timeout', 'max_concurrent_agents',
+        'allow_partial_execution', 'max_eval_retries',
+        'stream_message_timeout', 'llm_timeout_seconds',
+        'parallel_architect', 'parallel_auditor',
+        'random_seed', 'numpy_seed', 'torch_seed',
+        'python_hash_seed', 'enable_deterministic',
+    })
+
+
+class MemoryView(_ConfigView):
+    """Memory capacities and RAG retrieval settings."""
+    _FIELDS = frozenset({
+        'episodic_capacity', 'semantic_capacity', 'procedural_capacity',
+        'meta_capacity', 'causal_capacity', 'max_entry_tokens',
+        'enable_llm_rag', 'rag_window_size', 'rag_max_candidates',
+        'rag_relevance_threshold', 'rag_use_cot',
+        'retrieval_mode', 'synthesis_fetch_size', 'synthesis_max_tokens',
+        'chunk_size', 'chunk_overlap',
+    })
+
+
+class ContextBudgetView(_ConfigView):
+    """Token budget allocation and context management."""
+    _FIELDS = frozenset({
+        'max_context_tokens', 'system_prompt_budget', 'current_input_budget',
+        'trajectory_budget', 'tool_output_budget',
+        'enable_dynamic_budget', 'min_memory_budget', 'max_memory_budget',
+        'preview_token_budget', 'max_description_tokens',
+        'compression_trigger_ratio', 'chunking_threshold_tokens',
+        'preview_char_limit', 'max_description_chars', 'token_model_name',
+    })
+
+
+class LearningView(_ConfigView):
+    """RL, exploration, credit assignment, consolidation, and protection."""
+    _FIELDS = frozenset({
+        # Q-Learning / TD
+        'auto_load_learning', 'per_agent_learning', 'shared_learning',
+        'learning_alpha', 'learning_gamma', 'learning_epsilon',
+        'max_q_table_size', 'q_prune_percentage', 'enable_domain_transfer',
+        'enable_rl', 'rl_verbosity',
+        'gamma', 'lambda_trace', 'alpha', 'baseline', 'n_step',
+        'enable_adaptive_alpha', 'alpha_min', 'alpha_max', 'alpha_adaptation_rate',
+        'q_value_mode',
+        # Intermediate rewards
+        'enable_intermediate_rewards', 'architect_proceed_reward', 'tool_success_reward',
+        # Cooperative rewards
+        'base_reward_weight', 'cooperation_bonus', 'predictability_bonus',
+        'adaptive_window_size', 'instability_threshold_multiplier',
+        'slow_learning_threshold', 'goal_transfer_discount',
+        # Exploration
+        'epsilon_start', 'epsilon_end', 'epsilon_decay_episodes', 'ucb_coefficient',
+        'enable_adaptive_exploration', 'exploration_boost_on_stall',
+        'max_exploration_iterations', 'policy_update_threshold',
+        # Credit assignment
+        'credit_decay', 'min_contribution',
+        'enable_reasoning_credit', 'reasoning_weight', 'evidence_weight',
+        # Consolidation
+        'consolidation_threshold', 'consolidation_interval',
+        'min_cluster_size', 'pattern_confidence_threshold',
+        # Offline learning
+        'episode_buffer_size', 'offline_update_interval',
+        'replay_batch_size', 'counterfactual_samples',
+        # Adaptive learning
+        'enable_adaptive_learning', 'stall_detection_window',
+        'stall_threshold', 'learning_boost_factor',
+        # Deduplication
+        'enable_deduplication', 'similarity_threshold',
+        # Components
+        'learning_components',
+        # Goal hierarchy
+        'enable_goal_hierarchy', 'goal_transfer_weight',
+        # Causal learning
+        'enable_causal_learning', 'causal_confidence_threshold', 'causal_min_support',
+        # Protection
+        'protected_memory_threshold', 'task_memory_ratio',
+        'suspicion_threshold', 'ood_entropy_threshold',
+        'min_rejection_rate', 'approval_reward_bonus', 'rejection_penalty',
+    })
+
+
+class ValidationView(_ConfigView):
+    """Validation, confidence override, and multi-round settings."""
+    _FIELDS = frozenset({
+        'max_validation_rounds', 'refinement_timeout',
+        'enable_validation', 'validation_mode',
+        'advisory_confidence_threshold', 'max_validation_retries',
+        'enable_confidence_override', 'confidence_override_threshold',
+        'confidence_moving_average_alpha', 'min_confidence_for_override',
+        'max_validator_confidence_to_override',
+        'require_all_architect', 'require_all_auditor',
+        'enable_per_actor_swarm_auditor', 'enable_final_swarm_auditor',
+        'swarm_validation_confidence_threshold',
+        'enable_llm_planning', 'min_confidence',
+        'default_confidence_on_error', 'default_confidence_no_validation',
+        'default_confidence_insight_share', 'default_estimated_reward',
+        'enable_multi_round', 'refinement_on_low_confidence',
+        'refinement_on_disagreement', 'max_refinement_rounds',
+    })
+
+
+class MonitoringView(_ConfigView):
+    """Logging, profiling, and budget enforcement."""
+    _FIELDS = frozenset({
+        'enable_beautified_logs', 'enable_debug_logs', 'log_level',
+        'enable_profiling', 'profiling_verbosity',
+        'verbose', 'log_file',
+        'enable_debug_logging', 'enable_metrics',
+        'enable_monitoring', 'baseline_cost_per_success',
+        'max_llm_calls_per_episode', 'max_llm_calls_per_agent',
+        'max_total_tokens_per_episode',
+        'enable_budget_enforcement', 'budget_warning_threshold',
+    })
+
+
+class SwarmIntelligenceView(_ConfigView):
+    """Trust tuning, routing, agent communication, and local mode."""
+    _FIELDS = frozenset({
+        'trust_decrease_on_struggle', 'trust_increase_on_excel', 'trust_min',
+        'adaptation_interval', 'adaptation_struggle_threshold',
+        'adaptation_excel_threshold',
+        'stigmergy_routing_threshold', 'morph_min_rcs',
+        'judge_intervention_confidence',
+        'memory_retrieval_budget', 'collective_memory_limit',
+        'enable_agent_registry', 'auto_infer_capabilities',
+        'enable_agent_communication', 'share_tool_results',
+        'share_insights', 'max_messages_per_episode',
+        'local_mode', 'local_model',
+    })
 
 
 # =============================================================================
@@ -673,3 +866,52 @@ class SwarmConfig:
             self.meta_capacity +
             self.causal_capacity
         )
+
+    # =========================================================================
+    # Sub-Config Views (Phase 1b: organized access without breaking flat API)
+    # Usage: config.execution.max_actor_iters (read/write proxy to parent)
+    # =========================================================================
+    @property
+    def persistence(self) -> 'PersistenceView':
+        """Storage and persistence settings."""
+        return PersistenceView(self)
+
+    @property
+    def execution(self) -> 'ExecutionView':
+        """Runtime execution limits, timeouts, and parallelism."""
+        return ExecutionView(self)
+
+    @property
+    def memory_settings(self) -> 'MemoryView':
+        """Memory capacities and RAG retrieval settings."""
+        return MemoryView(self)
+
+    @property
+    def context_budget(self) -> 'ContextBudgetView':
+        """Token budget allocation."""
+        return ContextBudgetView(self)
+
+    @property
+    def learning(self) -> 'LearningView':
+        """RL, exploration, credit assignment, and consolidation."""
+        return LearningView(self)
+
+    @property
+    def validation_settings(self) -> 'ValidationView':
+        """Validation and multi-round configuration."""
+        return ValidationView(self)
+
+    @property
+    def monitoring(self) -> 'MonitoringView':
+        """Logging, profiling, and budget enforcement."""
+        return MonitoringView(self)
+
+    @property
+    def intelligence(self) -> 'SwarmIntelligenceView':
+        """Trust tuning, routing, and agent communication."""
+        return SwarmIntelligenceView(self)
+
+    def to_flat_dict(self) -> Dict[str, Any]:
+        """Serialize all config fields to a flat dictionary (replaces dataclasses.asdict)."""
+        from dataclasses import fields as dc_fields
+        return {f.name: getattr(self, f.name) for f in dc_fields(self)}

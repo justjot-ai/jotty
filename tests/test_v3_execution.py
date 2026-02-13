@@ -86,7 +86,7 @@ class TestExecutionTypes:
             cost_usd=0.0012,
         )
         s = str(result)
-        assert "✓" in s
+        assert "OK" in s
         assert "Tier 1" in s
         assert "1 calls" in s
         assert "123ms" in s
