@@ -309,6 +309,19 @@ class ProviderResult:
         }
 
 
+@dataclass
+class ContributedSkill:
+    """
+    Skill contributed by a provider (e.g. n8n workflow, Activepieces flow).
+    Used for unified skill list: Jotty skills + workflow-engine skills.
+    """
+    id: str
+    name: str
+    description: str = ""
+    provider: str = ""
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
 class SkillProvider(ABC):
     """
     Abstract base class for all skill providers.
@@ -374,6 +387,13 @@ class SkillProvider(ABC):
     def get_categories(self) -> List[SkillCategory]:
         """Get list of skill categories this provider supports."""
         pass
+
+    def list_skills(self) -> List[ContributedSkill]:
+        """
+        Optional: skills this provider contributes (e.g. n8n workflows, Activepieces flows).
+        Default: empty. Override in workflow-engine providers.
+        """
+        return []
 
     async def health_check(self) -> bool:
         """Check if provider is healthy and available."""

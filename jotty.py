@@ -12,7 +12,7 @@ Usage:
 """
 
 import logging
-from typing import Optional, Callable, Any, Dict, List
+from typing import AsyncGenerator, Optional, Callable, Any, Dict, List
 from pathlib import Path
 
 from .core.execution import (
@@ -22,6 +22,7 @@ from .core.execution import (
     ExecutionResult,
     TierDetector,
 )
+from .core.execution.types import StreamEvent, StreamEventType
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,55 @@ class Jotty:
         )
 
         return result
+
+    async def stream(
+        self,
+        goal: str,
+        tier: Optional[ExecutionTier] = None,
+        config: Optional[ExecutionConfig] = None,
+        **kwargs
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """
+        Stream execution events as an async generator.
+
+        Yields events as execution progresses:
+        - STATUS: phase changes (planning, executing, validating...)
+        - TOKEN: individual LLM tokens (Tier 1 streaming)
+        - STEP_COMPLETE: step finished with partial output
+        - RESULT: final ExecutionResult
+        - ERROR: execution error
+
+        Args:
+            goal: Task description
+            tier: Override auto-detection with explicit tier
+            config: Override default config
+            **kwargs: Additional arguments
+
+        Yields:
+            StreamEvent objects
+
+        Examples:
+            # Token streaming (Tier 1)
+            async for event in jotty.stream("What is 2+2?"):
+                if event.type == StreamEventType.TOKEN:
+                    print(event.data, end="", flush=True)
+                elif event.type == StreamEventType.RESULT:
+                    print(f"\\nDone: {event.data.cost_usd}")
+
+            # Progress streaming (any tier)
+            async for event in jotty.stream("Research AI trends"):
+                if event.type == StreamEventType.STATUS:
+                    print(f"[{event.data['stage']}] {event.data['detail']}")
+        """
+        exec_config = config or self.config
+        if tier:
+            exec_config = ExecutionConfig(**{
+                **exec_config.__dict__,
+                'tier': tier,
+            })
+
+        async for event in self.executor.stream(goal, config=exec_config, **kwargs):
+            yield event
 
     def explain_tier(self, goal: str) -> str:
         """

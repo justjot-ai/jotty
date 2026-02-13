@@ -8,6 +8,8 @@ provider works best for each use case using swarm intelligence.
 
 Providers:
 - jotty (default): Built-in implementations
+- n8n: Workflows as skills (N8N_BASE_URL, N8N_API_KEY)
+- activepieces: Flows as skills (ACTIVEPIECES_BASE_URL, ACTIVEPIECES_API_KEY)
 - browser-use: Web automation via browser-use library
 - openhands: Terminal/code via OpenHands SDK
 - agent-s: GUI/computer control via Agent-S
@@ -27,6 +29,7 @@ from .base import (
     SkillCategory,
     ProviderCapability,
     ProviderResult,
+    ContributedSkill,
     JottyDefaultProvider,
     SKILL_CATEGORY_MAP,
     CATEGORY_KEYWORDS,
@@ -54,6 +57,7 @@ __all__ = [
     'SkillCategory',
     'ProviderCapability',
     'ProviderResult',
+    'ContributedSkill',
     'JottyDefaultProvider',
     'SKILL_CATEGORY_MAP',
     'CATEGORY_KEYWORDS',

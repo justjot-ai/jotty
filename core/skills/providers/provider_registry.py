@@ -17,7 +17,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from collections import defaultdict
 
-from .base import SkillProvider, SkillCategory, ProviderResult, JottyDefaultProvider, CATEGORY_KEYWORDS
+from .base import (
+    SkillProvider,
+    SkillCategory,
+    ProviderResult,
+    JottyDefaultProvider,
+    CATEGORY_KEYWORDS,
+    ContributedSkill,
+)
 
 # Lazy import to avoid circular dependency
 if TYPE_CHECKING:
@@ -375,6 +382,7 @@ class ProviderRegistry:
         'jotty', 'browser-use', 'openhands', 'agent-s', 'open-interpreter',
         'skyvern', 'playwright', 'selenium', 'requests', 'httpx', 'aiohttp',
         'morph', 'morph-data', 'streamlit', 'gradio',
+        'n8n', 'activepieces',
     }
 
     def __init__(self, swarm_intelligence: SwarmIntelligence = None):
@@ -406,6 +414,8 @@ class ProviderRegistry:
 
         # Register app building providers (Streamlit first as default)
         self._register_app_building_providers()
+        # Register workflow-engine providers (n8n, Activepieces as skills)
+        self._register_workflow_providers()
 
         logger.info("📦 ProviderRegistry initialized")
 
@@ -424,6 +434,19 @@ class ProviderRegistry:
             self.register(MorphProvider(), trust_level='trusted')
         except Exception as e:
             logger.debug(f"Could not register MorphProvider: {e}")
+
+    def _register_workflow_providers(self):
+        """Register n8n and Activepieces as skill providers (workflows as skills)."""
+        try:
+            from .n8n_provider import N8nProvider
+            self.register(N8nProvider(), trust_level='trusted')
+        except Exception as e:
+            logger.debug(f"Could not register N8nProvider: {e}")
+        try:
+            from .activepieces_provider import ActivepiecesProvider
+            self.register(ActivepiecesProvider(), trust_level='trusted')
+        except Exception as e:
+            logger.debug(f"Could not register ActivepiecesProvider: {e}")
 
     def _get_sandbox_manager(self) -> 'SandboxManager':
         """Lazy load sandbox manager."""
@@ -523,6 +546,22 @@ class ProviderRegistry:
     def get_provider(self, name: str) -> Optional[SkillProvider]:
         """Get a specific provider by name."""
         return self._providers.get(name)
+
+    def get_all_contributed_skills(self) -> List[ContributedSkill]:
+        """
+        Merge skills contributed by all providers (e.g. n8n workflows, Activepieces flows).
+        KISS: sync; returns whatever each provider's list_skills() returns (may be empty until inited).
+        """
+        out: List[ContributedSkill] = []
+        for provider in self._providers.values():
+            if hasattr(provider, "list_skills"):
+                try:
+                    skills = provider.list_skills()
+                    if skills:
+                        out.extend(skills)
+                except Exception as e:
+                    logger.debug("list_skills from %s: %s", provider.name, e)
+        return out
 
     def get_providers_for_category(self, category: SkillCategory) -> List[SkillProvider]:
         """Get all providers that support a category."""
