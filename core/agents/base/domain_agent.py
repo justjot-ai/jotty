@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 class DomainAgentConfig(AgentRuntimeConfig):
     """Configuration specific to DomainAgent."""
     use_chain_of_thought: bool = True
+    use_react: bool = False          # ReAct loop with tools (multi-step)
+    max_react_iters: int = 5         # Max ReAct iterations before stopping
     streaming: bool = False
     progress_callback: Optional[Callable[[str, float], None]] = None
 
@@ -160,14 +162,29 @@ class DomainAgent(BaseAgent):
                 import dspy
 
                 config: DomainAgentConfig = self.config
-                if config.use_chain_of_thought:
+                if config.use_react:
+                    # ReAct mode: multi-step tool-using agent loop
+                    tools = self._get_react_tools()
+                    if hasattr(dspy, 'ReAct'):
+                        self._module = dspy.ReAct(
+                            self.signature,
+                            tools=tools,
+                            max_iters=config.max_react_iters,
+                        )
+                    else:
+                        # DSPy version without ReAct — fall back to ChainOfThought
+                        logger.warning("dspy.ReAct not available, falling back to ChainOfThought")
+                        self._module = dspy.ChainOfThought(self.signature)
+                elif config.use_chain_of_thought:
                     self._module = dspy.ChainOfThought(self.signature)
                 else:
                     self._module = dspy.Predict(self.signature)
 
+                mode = "ReAct" if config.use_react else (
+                    "ChainOfThought" if config.use_chain_of_thought else "Predict"
+                )
                 logger.debug(
-                    f"Initialized {'ChainOfThought' if config.use_chain_of_thought else 'Predict'} "
-                    f"module for {self.signature.__name__}"
+                    f"Initialized {mode} module for {self.signature.__name__}"
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize DSPy module: {e}")
@@ -222,6 +239,26 @@ class DomainAgent(BaseAgent):
         except Exception as e:
             logger.debug(f"Module enrichment skipped: {e}")
             return self._module
+
+    def _get_react_tools(self) -> list:
+        """Build DSPy-compatible tool list from skills registry for ReAct mode.
+
+        Returns list of callables that DSPy ReAct can use as tools.
+        Empty list if no skills registry available.
+        """
+        if self.skills_registry is None:
+            return []
+        try:
+            tools = []
+            for skill_dict in self.skills_registry.list_skills():
+                skill_name = skill_dict.get('name', '')
+                skill_def = self.skills_registry.get_skill(skill_name)
+                if skill_def and hasattr(skill_def, 'tool_function') and skill_def.tool_function:
+                    tools.append(skill_def.tool_function)
+            return tools[:10]  # Cap at 10 tools to avoid context bloat
+        except Exception as e:
+            logger.debug(f"Could not build ReAct tools: {e}")
+            return []
 
     async def _execute_impl(self, **kwargs) -> Dict[str, Any]:
         """

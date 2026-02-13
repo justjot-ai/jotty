@@ -801,340 +801,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         logger.info(f"Formatted {len(formatted_skills)} skills with tool schemas for LLM")
         return formatted_skills
 
-    def _normalize_raw_plan(
-        self,
-        raw_plan,
-        skills: Optional[List[Dict[str, Any]]] = None,
-        task: str = '',
-        task_type=None,
-    ) -> list:
-        """
-        Single, robust normalizer: convert any LLM plan output to a list of dicts.
-
-        Handles all known LLM output formats in a single pipeline:
-        1. Already a list (JSONAdapter working correctly)
-        2. Direct JSON string starting with '['
-        3. JSON inside markdown code block (```json ... ```)
-        4. JSON array embedded in prose text
-        5. Skill-name extraction from unstructured text
-        6. Direct LLM retry with explicit JSON-only prompt (last resort)
-
-        Args:
-            raw_plan: Raw plan from DSPy (list, Pydantic model, string, or None)
-            skills: Available skills (needed for Method 6 LLM retry)
-            task: Original task description (needed for Method 6)
-            task_type: Task type (needed for Method 6)
-
-        Returns:
-            List of dicts (may be empty if all parsing fails)
-        """
-        import re
-
-        # Already a list — nothing to normalize
-        if isinstance(raw_plan, list):
-            logger.info(f"   Plan data is list: {len(raw_plan)} steps")
-            return raw_plan
-
-        if not raw_plan:
-            return []
-
-        plan_str = str(raw_plan).strip()
-
-        # Method 1: Direct JSON parse (LLM returned clean JSON string)
-        if plan_str.startswith('['):
-            try:
-                plan_data = json.loads(plan_str)
-                logger.info(f"   Direct JSON parse successful: {len(plan_data)} steps")
-                return plan_data if isinstance(plan_data, list) else [plan_data]
-            except json.JSONDecodeError:
-                pass
-
-        # Method 2: Extract from markdown code block
-        if '```' in plan_str:
-            json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', plan_str, re.DOTALL)
-            if json_match:
-                try:
-                    plan_data = json.loads(json_match.group(1).strip())
-                    logger.info(f"   Extracted from code block: {len(plan_data)} steps")
-                    return plan_data if isinstance(plan_data, list) else [plan_data]
-                except json.JSONDecodeError:
-                    pass
-
-        # Method 3: Find JSON array anywhere in text
-        array_match = re.search(r'\[\s*\{.*?\}\s*\]', plan_str, re.DOTALL)
-        if array_match:
-            try:
-                plan_data = json.loads(array_match.group(0))
-                logger.info(f"   Extracted JSON array from text: {len(plan_data)} steps")
-                return plan_data if isinstance(plan_data, list) else [plan_data]
-            except json.JSONDecodeError:
-                pass
-
-        # Method 4: Extract skill names from unstructured text
-        plan_data = self._extract_plan_from_text(plan_str)
-        if plan_data:
-            logger.info(f"   Extracted via skill-name helper: {len(plan_data)} steps")
-            return plan_data
-
-        # Method 5: Direct LLM retry with explicit JSON-only prompt (last resort)
-        if skills:
-            try:
-                dspy = _get_dspy()
-                lm = dspy.settings.lm if dspy else None
-                if lm:
-                    skill_info = []
-                    for s in skills:
-                        tools = s.get('tools', [])
-                        if isinstance(tools, list) and tools:
-                            tool_name = tools[0].get('name', tools[0]) if isinstance(tools[0], dict) else tools[0]
-                            skill_info.append(f"{s.get('name')}/{tool_name}")
-                        else:
-                            skill_info.append(s.get('name', ''))
-
-                    task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type or 'general')
-                    direct_prompt = (
-                        f"Return ONLY a JSON array with 2-3 steps. Select ONLY the most relevant skills.\n\n"
-                        f"Task: {task}\nTask type: {task_type_str}\n"
-                        f"Available skills: {skill_info}\n\n"
-                        f'Select 2-3 most relevant skills. Return JSON array:\n'
-                        f'[{{"skill_name": "skill-name", "tool_name": "tool-name", "params": {{}}, '
-                        f'"description": "what it does", "depends_on": [], "output_key": "step_0", "optional": false}}]\n\n'
-                        f'JSON:'
-                    )
-
-                    response = lm(prompt=direct_prompt)
-                    response_text = (response[0] if isinstance(response, list) else str(response)).strip()
-                    logger.debug(f"   Direct LLM response (first 200): {response_text[:200]}")
-
-                    if response_text.startswith('['):
-                        plan_data = json.loads(response_text)
-                        logger.info(f"   Direct LLM retry successful: {len(plan_data)} steps")
-                        return plan_data if isinstance(plan_data, list) else [plan_data]
-                    elif '[' in response_text:
-                        start = response_text.find('[')
-                        end = response_text.rfind(']') + 1
-                        if end > start:
-                            plan_data = json.loads(response_text[start:end])
-                            logger.info(f"   Extracted from direct LLM: {len(plan_data)} steps")
-                            return plan_data if isinstance(plan_data, list) else [plan_data]
-            except Exception as e:
-                logger.warning(f"   Direct LLM retry failed: {e}")
-
-        logger.error(f"Could not parse plan. Raw (first 300 chars): {plan_str[:300]}")
-        return []
-
-    def _parse_plan_to_steps(
-        self,
-        raw_plan,
-        skills: List[Dict[str, Any]],
-        task: str,
-        task_type=None,
-        max_steps: int = 10,
-    ) -> list:
-        """
-        Parse raw plan data into ExecutionStep objects.
-
-        Phase 1 (normalization) is delegated to _normalize_raw_plan().
-        Phase 2 converts the normalized list of dicts into ExecutionStep objects
-        with fuzzy skill matching, tool inference, and param building.
-
-        Args:
-            raw_plan: Raw plan from DSPy (list of dicts/Pydantic models, or string, or None)
-            skills: Available skills list
-            task: Original task description
-            task_type: Task type (for fallback plan, optional)
-            max_steps: Maximum steps to parse
-
-        Returns:
-            List of ExecutionStep objects
-        """
-        # --- Phase 1: Normalize to list of dicts ---
-        plan_data = self._normalize_raw_plan(raw_plan, skills=skills, task=task, task_type=task_type)
-
-        if not plan_data:
-            return []
-
-        # --- Phase 2: Convert plan_data to ExecutionStep objects ---
-        # ExecutionStep imported at module level from _execution_types
-        steps = []
-
-        # Build tool-to-skill mapping
-        tool_to_skill = {}
-        for s in skills:
-            skill_name_map = s.get('name', '')
-            for t in s.get('tools', []):
-                t_name = t.get('name') if isinstance(t, dict) else t
-                if t_name:
-                    tool_to_skill[t_name] = skill_name_map
-
-        available_skill_names = {s.get('name', '') for s in skills if s.get('name')}
-        logger.info(f" Available skills for validation: {sorted(available_skill_names)}")
-
-        def get_val(obj, key, default=''):
-            if isinstance(obj, dict):
-                return obj.get(key, default)
-            return getattr(obj, key, default)
-
-        def find_matching_skill(name: str) -> str:
-            """Find matching skill using exact, contains, or word-overlap match."""
-            if not name:
-                return ''
-            name_lower = name.lower().strip()
-            if name_lower in {s.lower() for s in available_skill_names}:
-                for s in available_skill_names:
-                    if s.lower() == name_lower:
-                        return s
-            for s in available_skill_names:
-                if name_lower in s.lower() or s.lower() in name_lower:
-                    logger.debug(f"Fuzzy matched '{name}' -> '{s}'")
-                    return s
-            name_words = set(name_lower.replace('-', '_').replace(' ', '_').split('_'))
-            for s in available_skill_names:
-                skill_words = set(s.lower().replace('-', '_').split('_'))
-                if name_words & skill_words:
-                    logger.debug(f"Word overlap matched '{name}' -> '{s}'")
-                    return s
-            return ''
-
-        for i, step_data in enumerate(plan_data[:max_steps]):
-            try:
-                logger.debug(f"Processing step {i+1}: {step_data}")
-
-                skill_name = get_val(step_data, 'skill_name') or get_val(step_data, 'skill', '')
-                tool_name = get_val(step_data, 'tool_name') or get_val(step_data, 'tool', '') or get_val(step_data, 'action', '')
-
-                # Infer skill from tool if skill is empty
-                if not skill_name and tool_name:
-                    skill_name = tool_to_skill.get(tool_name, '')
-
-                # Infer skill from available skills if only one selected
-                if not skill_name and len(available_skill_names) == 1:
-                    skill_name = list(available_skill_names)[0]
-                    logger.info(f"Auto-inferred skill_name='{skill_name}' (only one skill available)")
-                elif not skill_name and len(available_skill_names) <= 3:
-                    desc = str(get_val(step_data, 'description', task)).lower()
-                    for candidate in available_skill_names:
-                        if candidate.replace('-', ' ') in desc or any(w in desc for w in candidate.split('-')):
-                            skill_name = candidate
-                            logger.info(f"Inferred skill_name='{skill_name}' from description match")
-                            break
-
-                # Try fuzzy matching if exact skill not found
-                if skill_name and skill_name not in available_skill_names:
-                    matched = find_matching_skill(skill_name)
-                    if matched:
-                        logger.info(f"Skill name normalized: '{skill_name}' -> '{matched}'")
-                        skill_name = matched
-
-                # FALLBACK: Infer from description or use default
-                description = get_val(step_data, 'description', f'Step {i+1}')
-                if not skill_name or skill_name not in available_skill_names:
-                    desc_lower = str(description).lower()
-
-                    inferred_skill = None
-                    if any(w in desc_lower for w in ['search', 'find', 'lookup', 'research', 'web', 'news', 'fetch data']):
-                        inferred_skill = 'web-search'
-                    elif any(w in desc_lower for w in ['create', 'write', 'generate', 'save', 'file', 'report']):
-                        inferred_skill = 'file-operations'
-                    elif any(w in desc_lower for w in ['chart', 'graph', 'plot', 'visualiz']):
-                        inferred_skill = 'chart-creator'
-                    elif any(w in desc_lower for w in ['mindmap', 'diagram', 'map']):
-                        inferred_skill = 'mindmap-generator'
-                    elif any(w in desc_lower for w in ['analyz', 'compar', 'evaluat']):
-                        inferred_skill = 'web-search'
-
-                    if inferred_skill and inferred_skill in available_skill_names:
-                        logger.info(f"Step {i+1}: Inferred skill '{inferred_skill}' from description")
-                        skill_name = inferred_skill
-                    elif 'web-search' in available_skill_names:
-                        skill_name = 'web-search'
-                    elif 'file-operations' in available_skill_names:
-                        skill_name = 'file-operations'
-                    elif available_skill_names:
-                        skill_name = list(available_skill_names)[0]
-                    else:
-                        logger.warning(f"Skipping step {i+1}: '{str(description)[:50]}' - no skills available")
-                        continue
-
-                # Infer tool_name from skill if empty
-                if not tool_name:
-                    for s in skills:
-                        if s.get('name') == skill_name:
-                            skill_tools = s.get('tools', [])
-                            if skill_tools:
-                                tool_names_list = [t.get('name') if isinstance(t, dict) else t for t in skill_tools]
-                                desc_lower = description.lower()
-                                task_lower = task.lower()
-
-                                if skill_name == 'file-operations':
-                                    if any(w in desc_lower for w in ['directory', 'folder', 'mkdir']):
-                                        if 'create_directory_tool' in tool_names_list:
-                                            tool_name = 'create_directory_tool'
-                                    elif any(w in task_lower or w in desc_lower for w in ['create', 'write', 'generate', 'make']):
-                                        if any(ext in desc_lower for ext in ['.py', '.js', '.ts', '.json', '.md', '.txt', '.html', '.css', 'file']):
-                                            if 'write_file_tool' in tool_names_list:
-                                                tool_name = 'write_file_tool'
-                                        elif 'write_file_tool' in tool_names_list:
-                                            tool_name = 'write_file_tool'
-                                    elif any(w in task_lower or w in desc_lower for w in ['read', 'load', 'get']):
-                                        if 'read_file_tool' in tool_names_list:
-                                            tool_name = 'read_file_tool'
-
-                                if not tool_name:
-                                    first_tool = skill_tools[0]
-                                    tool_name = first_tool.get('name') if isinstance(first_tool, dict) else first_tool
-
-                                logger.debug(f"Inferred tool_name='{tool_name}' from skill '{skill_name}'")
-                            break
-
-                # Handle params
-                step_params = (
-                    get_val(step_data, 'params') or
-                    get_val(step_data, 'parameters') or
-                    get_val(step_data, 'tool_parameters') or
-                    get_val(step_data, 'inputs') or
-                    get_val(step_data, 'tool_input') or
-                    {}
-                )
-                if isinstance(step_params, str):
-                    step_params = {}
-
-                # Build fallback params, then merge: LLM params override fallback,
-                # but fallback fills in any required params the LLM missed.
-                prev_output = f'step_{i-1}' if i > 0 else None
-                param_source = task if tool_name in ['write_file_tool', 'read_file_tool'] else task
-                fallback_params = self._build_skill_params(skill_name, param_source, prev_output, tool_name)
-
-                if not step_params:
-                    step_params = fallback_params
-                    logger.debug(f"Built params for step {i+1}: {list(step_params.keys())}")
-                else:
-                    # Merge: fill missing required params from fallback
-                    merged = dict(fallback_params)
-                    merged.update(step_params)  # LLM params take priority
-                    step_params = merged
-
-                # Extract verification and fallback_skill (research-backed fields)
-                verification = get_val(step_data, 'verification', '')
-                fallback_skill = get_val(step_data, 'fallback_skill', '')
-
-                step = ExecutionStep(
-                    skill_name=skill_name,
-                    tool_name=tool_name,
-                    params=step_params,
-                    description=description,
-                    depends_on=get_val(step_data, 'depends_on', []),
-                    output_key=get_val(step_data, 'output_key', f'step_{i}'),
-                    optional=get_val(step_data, 'optional', False),
-                    verification=verification,
-                    fallback_skill=fallback_skill,
-                )
-                steps.append(step)
-            except Exception as e:
-                logger.warning(f"Failed to create step {i+1}: {e}")
-                continue
-
-        return steps
+    # _normalize_raw_plan, _parse_plan_to_steps → moved to PlanUtilsMixin
 
     def replan_with_reflection(
         self,
@@ -1232,288 +899,129 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.error(f"Fallback replanning also failed: {e}")
             return [], f"All replanning failed: {e}", ""
 
+    # _maybe_decompose_plan, _extract_comparison_entities → moved to PlanUtilsMixin
+
     # =========================================================================
-    # POST-PLAN QUALITY CHECK: Decompose composite skills for complex tasks
+    # POLICY EXPLORER — Alternative plan generation when stuck
     # =========================================================================
 
-    def _maybe_decompose_plan(
+    def explore_alternative_plans(
         self,
-        steps: list,
-        skills: List[Dict[str, Any]],
         task: str,
         task_type,
-    ) -> Optional[list]:
-        """
-        Check if plan quality can be improved by decomposing composite skills.
+        skills: List[Dict[str, Any]],
+        failed_approaches: List[str],
+        max_alternatives: int = 3,
+    ) -> List[tuple]:
+        """Generate alternative approaches when the current plan is stuck.
 
-        For comparison/research tasks with 1-step composite plans, decompose
-        into granular steps for better quality (separate searches per entity,
-        dedicated synthesis, dedicated formatting).
+        Uses LLM to brainstorm fundamentally different strategies, not just
+        minor variations. Each alternative avoids previously failed approaches.
+
+        Args:
+            task: Original task description
+            task_type: Task type
+            skills: Available skills
+            failed_approaches: Descriptions of what was already tried and failed
+            max_alternatives: Max number of alternatives to generate
 
         Returns:
-            Decomposed steps list, or None if no decomposition needed.
+            List of (steps, reasoning) tuples — each is a complete alternative plan
         """
-        if not steps or len(steps) > 2:
-            # Multi-step plans are already decomposed
-            return None
+        dspy = _get_dspy()
+        if not dspy:
+            return []
 
-        # Clean task: strip injected learning context before entity extraction
-        clean_task = self._clean_task_for_query(task) if hasattr(self, '_clean_task_for_query') else task
-        task_lower = clean_task.lower()
+        failed_summary = "\n".join(f"- FAILED: {a}" for a in failed_approaches[-5:])
+        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+        formatted_skills = self._format_skills_for_planner(skills) if hasattr(self, '_format_skills_for_planner') else skills
+        skills_json = json.dumps(formatted_skills, indent=2)
 
-        # Detect comparison tasks
-        comparison_markers = ['vs', 'versus', 'compare', 'comparison', 'difference between', 'vs.']
-        is_comparison = any(m in task_lower for m in comparison_markers)
-
-        # Detect deep research tasks (multi-entity or requiring depth)
-        research_markers = ['research on', 'deep dive', 'comprehensive', 'detailed analysis']
-        is_deep_research = any(m in task_lower for m in research_markers)
-
-        if not is_comparison and not is_deep_research:
-            return None
-
-        # Check if current plan uses a composite skill
-        composite_skills = {'search-summarize-pdf-telegram', 'search-summarize-pdf-telegram-v2',
-                           'content-research-writer', 'content-pipeline'}
-        uses_composite = any(s.skill_name in composite_skills for s in steps)
-
-        if not uses_composite and len(steps) >= 2:
-            return None  # Already granular enough
-
-        # Extract entities from comparison task (e.g., "Paytm vs PhonePe")
-        entities = self._extract_comparison_entities(clean_task)
-        if not entities:
-            entities = [task]  # Fallback: treat whole task as one entity
-
-        # Build available skill names — check FULL registry, not just selected skills
-        available = {s.get('name', ''): s for s in skills}
-        try:
-            from ..registry.skills_registry import get_skills_registry
-            registry = get_skills_registry()
-            if registry:
-                for sname, sdef in registry.loaded_skills.items():
-                    if sname not in available:
-                        available[sname] = {'name': sname}
-        except Exception:
-            pass
-
-        # Build decomposed plan
-        # ExecutionStep imported at module level from _execution_types
-        decomposed = []
-
-        # Detect delivery channels
-        delivery_skills = []
-        task_wants_pdf = any(w in task_lower for w in ['pdf', 'report', 'document'])
-        task_wants_telegram = 'telegram' in task_lower
-        task_wants_slack = 'slack' in task_lower
-
-        # Extract the topic/context from the task (e.g., "payment gateway" from "Paytm vs PhonePe payment gateway")
-        # Strategy: look for domain terms that appear near the entities
-        import re as _re
-        stop_words = {
-            'vs', 'vs.', 'versus', 'compare', 'comparison', 'research', 'create',
-            'generate', 'send', 'via', 'telegram', 'slack', 'pdf', 'report',
-            'and', 'the', 'a', 'an', 'on', 'for', 'with', 'difference', 'between',
-            'it', 'its', 'to', 'of', 'in', 'is', 'be', 'document', 'make', 'build',
-        }
-        # All words from entity names (lowercased)
-        entity_words = set()
-        for e in entities:
-            for w in e.lower().split():
-                entity_words.add(w)
-
-        topic_words = []
-        for w in clean_task.lower().split():
-            w_clean = w.strip('.,;!?')
-            if len(w_clean) <= 2:
-                continue
-            if w_clean in stop_words:
-                continue
-            if w_clean in entity_words:
-                continue
-            topic_words.append(w_clean)
-        topic_context = ' '.join(topic_words[:3])  # e.g., "payment gateway"
-
-        # If one entity is longer (contains domain context like "payment gateway"),
-        # extract the shared domain words to enrich shorter entities
-        domain_context = ''
-        if len(entities) >= 2:
-            # Find the longest entity — it likely has the domain context
-            longest = max(entities, key=len)
-            shortest = min(entities, key=len)
-            if len(longest.split()) > len(shortest.split()):
-                # Extract domain words from longest that aren't in the shortest
-                shortest_words = {w.lower() for w in shortest.split()}
-                domain_words = [w for w in longest.split() if w.lower() not in shortest_words
-                               and w.lower() not in {e.split()[0].lower() for e in entities}]
-                domain_context = ' '.join(domain_words)
-
-        # If no domain context from entities, use topic_context from task
-        if not domain_context:
-            domain_context = topic_context
-
-        # Step(s): Research each entity separately
-        for i, entity in enumerate(entities[:4]):  # Max 4 entities
-            entity_clean = entity.strip()
-            # Enrich short entities with domain context
-            if domain_context and domain_context.lower() not in entity_clean.lower():
-                search_query = f'{entity_clean} {domain_context}'.strip()
-            else:
-                search_query = entity_clean
-            search_params = {
-                'query': search_query,
-                'max_results': 5,
-            }
-            decomposed.append(ExecutionStep(
-                skill_name='web-search',
-                tool_name='search_web_tool',
-                params=search_params,
-                description=f'Research: {search_query}',
-                output_key=f'research_{i}',
-                depends_on=[],
-            ))
-
-        # Step: Synthesize comparison using LLM
-        # Build content reference from previous steps
-        research_refs = ' '.join(
-            f'${{research_{i}.results}}' for i in range(len(entities[:4]))
+        prompt = (
+            f"Task: {task}\n"
+            f"Task type: {task_type_str}\n"
+            f"Previous failed approaches:\n{failed_summary}\n\n"
+            f"Generate a COMPLETELY DIFFERENT approach using these skills:\n{skills_json}\n"
+            f"The new approach must avoid the failed strategies entirely."
         )
-        entity_names = ' vs '.join(e.strip() for e in entities[:4])
 
-        # Prefer claude-cli-llm for synthesis (more control), fallback to summarize
-        if 'claude-cli-llm' in available:
-            synth_skill = 'claude-cli-llm'
-            synth_tool = 'generate_text_tool'
-        elif 'summarize' in available:
-            synth_skill = 'summarize'
-            synth_tool = 'summarize_text_tool'
-        else:
-            synth_skill = 'claude-cli-llm'
-            synth_tool = 'generate_text_tool'
+        alternatives = []
+        for i in range(max_alternatives):
+            try:
+                result = self._call_with_retry(
+                    module=self.execution_planner,
+                    kwargs={
+                        'task_description': prompt,
+                        'task_type': task_type_str,
+                        'available_skills': skills_json,
+                        'previous_outputs': json.dumps({"failed": failed_approaches}),
+                        'max_steps': 5,
+                    },
+                    max_retries=1,
+                    lm=self._fast_lm,
+                )
+                raw_plan = getattr(result, 'execution_plan', None)
+                steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, 5)
+                if steps:
+                    reasoning = getattr(result, 'reasoning', f'Alternative plan {i+1}')
+                    alternatives.append((steps, str(reasoning)))
+            except Exception as e:
+                logger.debug(f"Alternative plan {i+1} generation failed: {e}")
+                break
 
-        decomposed.append(ExecutionStep(
-            skill_name=synth_skill,
-            tool_name=synth_tool,
-            params={
-                'prompt': (
-                    f'Create a detailed, structured comparison of {entity_names}. '
-                    f'Format as a professional markdown report with these sections:\n'
-                    f'# {entity_names} Comparison Report\n'
-                    f'## Executive Summary\n'
-                    f'## Feature Comparison\n'
-                    f'| Feature | {" | ".join(e.strip() for e in entities[:4])} |\n'
-                    f'## Pricing & Plans\n'
-                    f'## Pros and Cons\n'
-                    f'## Recommendation\n\n'
-                    f'Use the following research data:\n{research_refs}'
-                ),
-            },
-            description=f'Synthesize structured comparison: {entity_names}',
-            output_key='synthesis',
-            depends_on=list(range(len(entities[:4]))),
-        ))
+        logger.info(f"Policy explorer: generated {len(alternatives)} alternative plans")
+        return alternatives
 
-        # Step: Generate PDF if requested
-        if task_wants_pdf or task_wants_telegram:
-            pdf_skill = 'simple-pdf-generator' if 'simple-pdf-generator' in available else 'document-converter'
-            pdf_tool = 'generate_pdf_tool' if pdf_skill == 'simple-pdf-generator' else 'convert_to_pdf_tool'
-            # Content comes from synthesis — handle both generate_text_tool (text) and summarize_text_tool (summary)
-            content_ref = '${synthesis.text}' if synth_skill == 'claude-cli-llm' else '${synthesis.summary}'
-            decomposed.append(ExecutionStep(
-                skill_name=pdf_skill,
-                tool_name=pdf_tool,
-                params={
-                    'content': content_ref,
-                    'title': f'{entity_names} Comparison Report',
-                    'topic': entity_names,
-                },
-                description=f'Generate PDF report: {entity_names}',
-                output_key='pdf_output',
-                depends_on=[len(entities[:4])],  # Depends on synthesis step
-            ))
+    # =========================================================================
+    # DATA-FLOW DEPENDENCY INFERENCE
+    # =========================================================================
 
-        # Step: Send via Telegram if requested
-        if task_wants_telegram and 'telegram-sender' in available:
-            decomposed.append(ExecutionStep(
-                skill_name='telegram-sender',
-                tool_name='send_telegram_file_tool',
-                params={
-                    'file_path': '${pdf_output.pdf_path}',
-                    'caption': f' {entity_names} Comparison Report',
-                },
-                description=f'Send comparison report via Telegram',
-                output_key='telegram_send',
-                depends_on=[len(decomposed) - 1],
-                optional=True,
-            ))
+    @staticmethod
+    def infer_data_dependencies(steps: list) -> list:
+        """Infer data-flow dependencies between execution steps.
 
-        # Step: Send via Slack if requested
-        if task_wants_slack and 'slack' in available:
-            decomposed.append(ExecutionStep(
-                skill_name='slack',
-                tool_name='send_slack_message_tool',
-                params={
-                    'file_path': '${pdf_output.pdf_path}',
-                    'message': f' {entity_names} Comparison Report',
-                },
-                description=f'Send comparison report via Slack',
-                output_key='slack_send',
-                depends_on=[len(decomposed) - 1],
-                optional=True,
-            ))
+        Analyzes step parameters and output keys to determine which steps
+        produce data that other steps consume. This enables DAG-based
+        parallel execution of independent steps.
 
-        logger.info(f" Decomposed {len(steps)}-step composite plan → {len(decomposed)} granular steps")
-        for i, step in enumerate(decomposed):
-            logger.info(f"   Step {i+1}: {step.skill_name}/{step.tool_name} → {step.output_key}")
+        Args:
+            steps: List of ExecutionStep objects
 
-        return decomposed
-
-    def _extract_comparison_entities(self, task: str) -> List[str]:
+        Returns:
+            Same steps with updated depends_on fields
         """
-        Extract entities being compared from task description.
+        # Build a map of output_key → step_index
+        output_map: Dict[str, int] = {}
+        for i, step in enumerate(steps):
+            out_key = getattr(step, 'output_key', None) or f'step_{i}'
+            output_map[out_key] = i
 
-        Examples:
-            "Compare Paytm vs PhonePe" -> ["Paytm", "PhonePe"]
-            "Research Paytm vs PhonePe vs Razorpay" -> ["Paytm", "PhonePe", "Razorpay"]
-            "difference between React and Vue" -> ["React", "Vue"]
-        """
-        import re
+        # For each step, check if its params reference earlier step outputs
+        for i, step in enumerate(steps):
+            params = getattr(step, 'params', {}) or {}
+            inferred_deps = set(getattr(step, 'depends_on', None) or [])
 
-        # Normalize separators
-        task_clean = task
+            for param_value in params.values():
+                if not isinstance(param_value, str):
+                    continue
+                # Check for template references like {{step_0.result}} or {research_output}
+                for out_key, step_idx in output_map.items():
+                    if step_idx >= i:
+                        continue  # Can't depend on later or self
+                    if out_key in param_value:
+                        inferred_deps.add(step_idx)
 
-        # Pattern 1: "X vs Y vs Z" or "X vs. Y"
-        vs_match = re.split(r'\b(?:vs\.?|versus)\b', task_clean, flags=re.IGNORECASE)
-        if len(vs_match) >= 2:
-            entities = []
-            for part in vs_match:
-                # Clean each part: remove common prefixes/suffixes
-                part = re.sub(r'^\s*(compare|research|analyze|research on|create|generate|send|make|build)\s+', '', part, flags=re.IGNORECASE)
-                part = re.sub(r'\s*(comparison|compare|report|pdf|document|analysis|review|overview)\b.*$', '', part, flags=re.IGNORECASE)
-                part = re.sub(r'\s*(via telegram|via slack|and send|and create|,.*$)\s*$', '', part, flags=re.IGNORECASE)
-                part = part.strip().rstrip(',. ')
-                if part and len(part) > 1:
-                    entities.append(part)
-            if len(entities) >= 2:
-                return entities
+            # If no explicit or inferred deps and this isn't step 0,
+            # assume sequential dependency (safe default)
+            if not inferred_deps and i > 0:
+                # Check if this step's skill produces data the next needs
+                # If it can't be determined, leave depends_on empty (= parallelizable)
+                pass
 
-        # Pattern 2: "difference between X and Y"
-        between_match = re.search(
-            r'(?:difference|comparison)\s+between\s+(.+?)\s+and\s+(.+?)(?:\s*[,.]|\s+(?:and|create|generate|send|via))',
-            task_clean, flags=re.IGNORECASE
-        )
-        if between_match:
-            return [between_match.group(1).strip(), between_match.group(2).strip()]
+            if hasattr(step, 'depends_on'):
+                step.depends_on = sorted(inferred_deps)
 
-        # Pattern 3: "compare X and Y"
-        compare_match = re.search(
-            r'compare\s+(.+?)\s+and\s+(.+?)(?:\s*[,.]|\s+(?:create|generate|send|via)|$)',
-            task_clean, flags=re.IGNORECASE
-        )
-        if compare_match:
-            return [compare_match.group(1).strip(), compare_match.group(2).strip()]
-
-        return []
+        return steps
 
 
 @dataclass

@@ -1493,6 +1493,113 @@ class CompletionReviewer:
 
 
 # =============================================================================
+# FAILURE ROUTER — Route failures to the right recovery agent
+# =============================================================================
+
+
+class FailureRouter:
+    """Routes execution failures to the appropriate recovery handler.
+
+    When a step fails, the router classifies the failure and determines
+    which agent/skill is best suited to handle recovery. This prevents
+    the common pattern of blindly retrying with the same approach.
+
+    Usage:
+        router = FailureRouter(agent_directory)
+        action = router.route("timeout connecting to API", "web-search")
+        # → {"action": "retry_with_different_agent", "suggested_agent": "http-client",
+        #    "reason": "API timeout — try alternative HTTP tool"}
+    """
+
+    # Failure → recovery mapping
+    ROUTING_RULES = {
+        'timeout': {'action': 'retry_with_backoff', 'reason': 'Transient timeout — retry with longer timeout'},
+        'rate_limit': {'action': 'wait_and_retry', 'delay': 60, 'reason': 'Rate limited — wait and retry'},
+        'not_found': {'action': 'try_alternative', 'reason': 'Resource not found — try alternative skill'},
+        'permission': {'action': 'escalate', 'reason': 'Permission denied — needs elevated access'},
+        'parse_error': {'action': 'retry_with_fix', 'reason': 'Output parsing failed — retry with stricter format'},
+        'ssl': {'action': 'use_env_bypass', 'reason': 'SSL error — apply environment overrides'},
+    }
+
+    def __init__(self, agent_directory: Optional[Dict[str, Any]] = None):
+        self._agents = agent_directory or {}
+
+    def route(self, error_msg: str, failed_skill: str = "") -> Dict[str, Any]:
+        """Classify failure and return routing decision.
+
+        Args:
+            error_msg: The error message from the failed step
+            failed_skill: Name of the skill that failed
+
+        Returns:
+            Dict with 'action', 'reason', and optionally 'suggested_agent' or 'delay'
+        """
+        from Jotty.core.execution.types import ErrorType
+        error_type = ErrorType.classify(error_msg)
+        lower = error_msg.lower()
+
+        # Check specific patterns first
+        for pattern, routing in self.ROUTING_RULES.items():
+            if pattern in lower:
+                result = dict(routing)
+                result['error_type'] = error_type.value
+                result['failed_skill'] = failed_skill
+                return result
+
+        # Fallback: use error type classification
+        if error_type == ErrorType.INFRASTRUCTURE:
+            return {
+                'action': 'retry_with_backoff',
+                'reason': f'Infrastructure error in {failed_skill}',
+                'error_type': error_type.value,
+                'failed_skill': failed_skill,
+            }
+        elif error_type == ErrorType.LOGIC:
+            # Find an alternative agent that could handle this
+            alternatives = self._find_alternatives(failed_skill)
+            if alternatives:
+                return {
+                    'action': 'try_alternative',
+                    'suggested_agent': alternatives[0],
+                    'reason': f'Logic error — try {alternatives[0]} instead',
+                    'error_type': error_type.value,
+                    'failed_skill': failed_skill,
+                }
+            return {
+                'action': 'replan',
+                'reason': 'Logic error with no alternative — needs replanning',
+                'error_type': error_type.value,
+                'failed_skill': failed_skill,
+            }
+        elif error_type == ErrorType.DATA:
+            return {
+                'action': 'validate_inputs',
+                'reason': 'Data error — validate inputs before retry',
+                'error_type': error_type.value,
+                'failed_skill': failed_skill,
+            }
+        else:
+            return {
+                'action': 'retry',
+                'reason': f'Unknown error in {failed_skill}',
+                'error_type': error_type.value,
+                'failed_skill': failed_skill,
+            }
+
+    def _find_alternatives(self, failed_skill: str) -> List[str]:
+        """Find alternative agents/skills that could handle the same task type."""
+        # Simple heuristic: skills with similar names or tags
+        skill_alternatives = {
+            'web-search': ['http-client', 'research-assistant'],
+            'browser-automation': ['http-client', 'web-search'],
+            'http-client': ['web-search', 'browser-automation'],
+            'claude-cli-llm': ['openai-llm', 'groq-llm'],
+            'openai-llm': ['claude-cli-llm', 'groq-llm'],
+        }
+        return skill_alternatives.get(failed_skill, [])
+
+
+# =============================================================================
 # BACKWARD COMPATIBILITY - DEPRECATED ALIASES
 # =============================================================================
 # REFACTORING PHASE 1.3: Deprecation aliases for renamed signature classes

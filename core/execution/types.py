@@ -6,9 +6,15 @@ Core types for the tiered execution system.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 from enum import IntEnum, Enum
 from datetime import datetime
+from collections import deque
+import threading
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionTier(IntEnum):
@@ -333,3 +339,289 @@ class ValidationVerdict:
             issues=[error_msg],
             retryable=retryable,
         )
+
+
+# =============================================================================
+# CIRCUIT BREAKER
+# =============================================================================
+
+class CircuitState(Enum):
+    """Circuit breaker states."""
+    CLOSED = "closed"        # Normal operation — calls pass through
+    OPEN = "open"            # Failing — calls rejected immediately
+    HALF_OPEN = "half_open"  # Testing — one probe call allowed
+
+
+class CircuitBreaker:
+    """Thread-safe circuit breaker preventing cascading failures.
+
+    State machine: CLOSED → (failures >= threshold) → OPEN → (cooldown expires) →
+    HALF_OPEN → (success) → CLOSED  |  (failure) → OPEN
+
+    Usage:
+        breaker = CircuitBreaker("llm", failure_threshold=5, cooldown_seconds=60)
+        if breaker.allow_request():
+            try:
+                result = call_llm(...)
+                breaker.record_success()
+            except Exception as e:
+                breaker.record_failure()
+                raise
+    """
+
+    def __init__(self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._last_failure_time = 0.0
+        self._lock = threading.Lock()
+
+    @property
+    def state(self) -> CircuitState:
+        with self._lock:
+            if self._state == CircuitState.OPEN:
+                if time.time() - self._last_failure_time >= self.cooldown_seconds:
+                    self._state = CircuitState.HALF_OPEN
+            return self._state
+
+    def allow_request(self) -> bool:
+        """Check if a request should be allowed through."""
+        current = self.state
+        if current == CircuitState.CLOSED:
+            return True
+        if current == CircuitState.HALF_OPEN:
+            return True  # Allow one probe
+        return False  # OPEN — reject
+
+    def record_success(self) -> None:
+        """Record a successful call — resets breaker to CLOSED."""
+        with self._lock:
+            self._failure_count = 0
+            self._state = CircuitState.CLOSED
+
+    def record_failure(self) -> None:
+        """Record a failed call — may trip breaker to OPEN."""
+        with self._lock:
+            self._failure_count += 1
+            self._last_failure_time = time.time()
+            if self._failure_count >= self.failure_threshold:
+                self._state = CircuitState.OPEN
+                logger.warning(
+                    f"Circuit breaker '{self.name}' OPEN after "
+                    f"{self._failure_count} failures"
+                )
+
+    def reset(self) -> None:
+        """Manually reset to CLOSED."""
+        with self._lock:
+            self._failure_count = 0
+            self._state = CircuitState.CLOSED
+
+
+# Global circuit breakers — shared across all agents
+LLM_CIRCUIT_BREAKER = CircuitBreaker("llm", failure_threshold=5, cooldown_seconds=60)
+TOOL_CIRCUIT_BREAKER = CircuitBreaker("tool", failure_threshold=3, cooldown_seconds=30)
+
+
+# =============================================================================
+# ADAPTIVE TIMEOUT
+# =============================================================================
+
+class AdaptiveTimeout:
+    """Track observed latencies and compute adaptive timeouts per operation.
+
+    Uses P95 of last N observations with configurable floor/ceiling.
+    Falls back to default_seconds when no observations exist.
+
+    Usage:
+        timeout = AdaptiveTimeout()
+        t = timeout.get("llm_call")       # Returns adaptive or default
+        timeout.record("llm_call", 2.3)   # Record observed latency
+    """
+
+    def __init__(self, default_seconds: float = 30.0, min_seconds: float = 5.0,
+                 max_seconds: float = 300.0, window_size: int = 50):
+        self.default_seconds = default_seconds
+        self.min_seconds = min_seconds
+        self.max_seconds = max_seconds
+        self.window_size = window_size
+        self._observations: Dict[str, deque] = {}
+        self._lock = threading.Lock()
+
+    def record(self, operation: str, latency_seconds: float) -> None:
+        """Record an observed latency for an operation."""
+        with self._lock:
+            if operation not in self._observations:
+                self._observations[operation] = deque(maxlen=self.window_size)
+            self._observations[operation].append(latency_seconds)
+
+    def get(self, operation: str, multiplier: float = 2.0) -> float:
+        """Get adaptive timeout = P95 * multiplier, bounded by [min, max].
+
+        Args:
+            operation: Operation name (e.g. "llm_call", "web_search")
+            multiplier: Safety multiplier applied to P95 (default 2x)
+        """
+        with self._lock:
+            obs = self._observations.get(operation)
+            if not obs or len(obs) < 3:
+                return self.default_seconds
+            sorted_obs = sorted(obs)
+            p95_idx = int(len(sorted_obs) * 0.95)
+            p95 = sorted_obs[min(p95_idx, len(sorted_obs) - 1)]
+        timeout = p95 * multiplier
+        return max(self.min_seconds, min(self.max_seconds, timeout))
+
+
+# Global adaptive timeout tracker
+ADAPTIVE_TIMEOUT = AdaptiveTimeout()
+
+
+# =============================================================================
+# DEAD LETTER QUEUE
+# =============================================================================
+
+@dataclass
+class DeadLetter:
+    """A failed operation stored for later retry."""
+    operation: str
+    args: Dict[str, Any]
+    error: str
+    error_type: ErrorType
+    timestamp: float = field(default_factory=time.time)
+    retry_count: int = 0
+    max_retries: int = 3
+
+
+class DeadLetterQueue:
+    """Thread-safe queue for failed operations that can be retried later.
+
+    Usage:
+        dlq = DeadLetterQueue()
+        dlq.enqueue("web_search", {"query": "..."}, "timeout", ErrorType.INFRASTRUCTURE)
+        retryable = dlq.get_retryable()  # Get items eligible for retry
+        dlq.mark_resolved(letter)         # Remove after successful retry
+    """
+
+    def __init__(self, max_size: int = 100):
+        self._queue: List[DeadLetter] = []
+        self._lock = threading.Lock()
+        self._max_size = max_size
+
+    def enqueue(self, operation: str, args: Dict[str, Any], error: str,
+                error_type: ErrorType = ErrorType.INFRASTRUCTURE) -> DeadLetter:
+        """Add a failed operation to the queue."""
+        letter = DeadLetter(
+            operation=operation, args=args, error=error, error_type=error_type
+        )
+        with self._lock:
+            if len(self._queue) >= self._max_size:
+                self._queue.pop(0)  # Drop oldest
+            self._queue.append(letter)
+        logger.debug(f"DLQ: enqueued {operation} ({error_type.value}): {error[:80]}")
+        return letter
+
+    def get_retryable(self) -> List[DeadLetter]:
+        """Get all items eligible for retry (retry_count < max_retries)."""
+        with self._lock:
+            return [l for l in self._queue if l.retry_count < l.max_retries]
+
+    def mark_resolved(self, letter: DeadLetter) -> None:
+        """Remove a successfully retried item."""
+        with self._lock:
+            if letter in self._queue:
+                self._queue.remove(letter)
+
+    def retry_all(self, executor_fn: Callable[[DeadLetter], bool]) -> int:
+        """Attempt to retry all retryable items. Returns count of successes."""
+        retryable = self.get_retryable()
+        successes = 0
+        for letter in retryable:
+            letter.retry_count += 1
+            try:
+                if executor_fn(letter):
+                    self.mark_resolved(letter)
+                    successes += 1
+            except Exception:
+                pass  # Will be retried next cycle
+        return successes
+
+    @property
+    def size(self) -> int:
+        with self._lock:
+            return len(self._queue)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._queue.clear()
+
+
+# Global DLQ
+DEAD_LETTER_QUEUE = DeadLetterQueue()
+
+
+# =============================================================================
+# TIMEOUT WARNING
+# =============================================================================
+
+class TimeoutWarning:
+    """Track elapsed time and generate warnings at threshold percentages.
+
+    Agents inject these warnings into LLM context so models can wrap up
+    gracefully instead of being abruptly cut off.
+
+    Usage:
+        tw = TimeoutWarning(timeout_seconds=120)
+        tw.start()
+        ...
+        warning = tw.check()  # Returns warning string or None
+    """
+
+    THRESHOLDS = [
+        (0.80, "80% of time budget used. Start wrapping up your current work."),
+        (0.95, "95% of time budget used. Finalize output immediately."),
+    ]
+
+    def __init__(self, timeout_seconds: float):
+        self.timeout_seconds = timeout_seconds
+        self._start_time: Optional[float] = None
+        self._triggered: set = set()
+
+    def start(self) -> None:
+        """Start the timer."""
+        self._start_time = time.time()
+        self._triggered.clear()
+
+    @property
+    def elapsed(self) -> float:
+        if self._start_time is None:
+            return 0.0
+        return time.time() - self._start_time
+
+    @property
+    def remaining(self) -> float:
+        return max(0.0, self.timeout_seconds - self.elapsed)
+
+    @property
+    def fraction_used(self) -> float:
+        if self.timeout_seconds <= 0:
+            return 1.0
+        return min(1.0, self.elapsed / self.timeout_seconds)
+
+    def check(self) -> Optional[str]:
+        """Check if any warning threshold has been crossed. Returns message or None."""
+        if self._start_time is None:
+            return None
+        frac = self.fraction_used
+        for threshold, message in self.THRESHOLDS:
+            if frac >= threshold and threshold not in self._triggered:
+                self._triggered.add(threshold)
+                remaining = self.remaining
+                return f"[TIMEOUT WARNING] {message} ({remaining:.0f}s remaining)"
+        return None
+
+    @property
+    def is_expired(self) -> bool:
+        return self.elapsed >= self.timeout_seconds

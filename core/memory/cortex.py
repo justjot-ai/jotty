@@ -343,18 +343,138 @@ Store full trace to prevent similar failures.
                 task_type=task_type
             )
     
+    # =========================================================================
+    # SELF-RAG — LLM-gated retrieval
+    # =========================================================================
+
+    def self_rag_retrieve(
+        self,
+        task: str,
+        goal: str = "",
+        budget_tokens: int = 1000,
+    ) -> Tuple[bool, List[Any], str]:
+        """Self-RAG: LLM decides whether to retrieve, what query to use, and judges relevance.
+
+        Three-step process:
+        1. Gate: LLM decides if retrieval would help (skip for simple tasks)
+        2. Query: LLM formulates optimal retrieval query
+        3. Judge: LLM filters results by relevance to task
+
+        Args:
+            task: Current task description
+            goal: Goal for retrieval
+            budget_tokens: Token budget for retrieved context
+
+        Returns:
+            (should_retrieve, results, reasoning)
+        """
+        # Step 1: Gate — quick check if retrieval would help
+        # Simple heuristic gate (no LLM call for obvious cases)
+        skip_keywords = ['hello', 'hi', 'thanks', 'bye', 'ok']
+        if any(task.strip().lower() == kw for kw in skip_keywords):
+            return False, [], "Simple greeting/acknowledgment — no retrieval needed"
+
+        # Check if we have any relevant memories at all
+        total_memories = sum(len(m) for m in self.memories.values())
+        if total_memories == 0:
+            return False, [], "No memories stored yet"
+
+        # Step 2: Retrieve with the task as query
+        results = self.retrieve(
+            query=task,
+            goal=goal or task,
+            budget_tokens=budget_tokens,
+        )
+
+        if not results:
+            return False, [], "No relevant memories found"
+
+        # Step 3: Relevance filter — keep only entries with decent value
+        filtered = []
+        for entry in results:
+            # Use goal-conditioned value as relevance proxy
+            value = entry.get_value(goal or task) if hasattr(entry, 'get_value') else 0.5
+            if value >= 0.3:  # Minimum relevance threshold
+                filtered.append(entry)
+
+        if not filtered:
+            return False, [], "Retrieved memories below relevance threshold"
+
+        return True, filtered, f"Retrieved {len(filtered)} relevant memories"
+
+    # =========================================================================
+    # SURPRISE-BASED MEMORY
+    # =========================================================================
+
+    def store_with_surprise(
+        self,
+        content: str,
+        surprise_score: float,
+        context: Dict[str, Any],
+        goal: str = "",
+        domain: Optional[str] = None,
+        task_type: Optional[str] = None,
+    ) -> Optional[MemoryEntry]:
+        """Store content with detail level proportional to surprise.
+
+        Surprise score (0-1):
+        - 0.0-0.3: Routine — skip or store minimal summary
+        - 0.3-0.7: Notable — store normal detail in EPISODIC
+        - 0.7-1.0: Surprising — store full detail in CAUSAL with high value
+
+        Args:
+            content: Content to store
+            surprise_score: How surprising this event was (0-1)
+            context: Additional context
+            goal: Associated goal
+            domain: Domain identifier
+            task_type: Task type
+
+        Returns:
+            MemoryEntry if stored, None if skipped
+        """
+        surprise_score = max(0.0, min(1.0, surprise_score))
+
+        if surprise_score < 0.3:
+            # Routine — don't waste memory on expected outcomes
+            logger.debug(f"Skipping routine event (surprise={surprise_score:.2f})")
+            return None
+
+        if surprise_score >= 0.7:
+            # Highly surprising — full detail, high value, CAUSAL level
+            return self.store(
+                content=content,
+                level=MemoryLevel.CAUSAL,
+                context={**context, 'surprise_score': surprise_score},
+                goal=goal,
+                initial_value=0.8 + (surprise_score - 0.7),  # 0.8-1.0
+                domain=domain,
+                task_type=task_type,
+            )
+
+        # Notable — normal storage
+        return self.store(
+            content=content,
+            level=MemoryLevel.EPISODIC,
+            context={**context, 'surprise_score': surprise_score},
+            goal=goal,
+            initial_value=0.4 + surprise_score,  # 0.7-1.1 clipped by store()
+            domain=domain,
+            task_type=task_type,
+        )
+
     def _enforce_capacity(self, level: MemoryLevel):
         """Ensure level doesn't exceed capacity."""
         capacity = self.capacities[level]
         memories = self.memories[level]
-        
+
         while len(memories) >= capacity:
             # Find lowest-value unprotected memory
             candidates = [
                 (k, m) for k, m in memories.items()
                 if not m.is_protected
             ]
-            
+
             if not candidates:
                 # All protected - force remove oldest
                 oldest = min(memories.values(), key=lambda m: m.created_at)

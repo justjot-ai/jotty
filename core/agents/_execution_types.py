@@ -840,6 +840,184 @@ class AgentIOSchema:
 
 
 # =============================================================================
+# PER-TOOL PERFORMANCE STATS
+# =============================================================================
+
+
+class ToolStats:
+    """Track per-tool performance statistics for informed skill selection.
+
+    Records call count, success rate, and average latency per tool.
+    These stats can be injected into LLM prompts so the planner knows
+    which tools are reliable and which are slow/flaky.
+
+    Usage:
+        stats = ToolStats()
+        stats.record("web-search", "search_web_tool", success=True, latency_ms=1200)
+        summary = stats.get_summary("web-search", "search_web_tool")
+        # → "web-search/search_web_tool: 95% success, avg 1.2s (20 calls)"
+    """
+
+    def __init__(self, max_history: int = 200):
+        self._max_history = max_history
+        # Key: "skill:tool" → list of (success, latency_ms)
+        self._records: Dict[str, List[Tuple[bool, float]]] = {}
+
+    def _key(self, skill: str, tool: str) -> str:
+        return f"{skill}:{tool}"
+
+    def record(self, skill: str, tool: str, success: bool, latency_ms: float) -> None:
+        """Record a tool execution result."""
+        key = self._key(skill, tool)
+        if key not in self._records:
+            self._records[key] = []
+        self._records[key].append((success, latency_ms))
+        if len(self._records[key]) > self._max_history:
+            self._records[key] = self._records[key][-self._max_history:]
+
+    def get_stats(self, skill: str, tool: str) -> Dict[str, Any]:
+        """Get stats for a specific tool."""
+        key = self._key(skill, tool)
+        records = self._records.get(key, [])
+        if not records:
+            return {'call_count': 0, 'success_rate': 0.0, 'avg_latency_ms': 0.0}
+        successes = sum(1 for s, _ in records if s)
+        avg_lat = sum(lat for _, lat in records) / len(records)
+        return {
+            'call_count': len(records),
+            'success_rate': successes / len(records),
+            'avg_latency_ms': avg_lat,
+        }
+
+    def get_summary(self, skill: str, tool: str) -> str:
+        """Get human-readable summary for LLM prompt injection."""
+        s = self.get_stats(skill, tool)
+        if s['call_count'] == 0:
+            return f"{skill}/{tool}: no history"
+        return (
+            f"{skill}/{tool}: {s['success_rate']:.0%} success, "
+            f"avg {s['avg_latency_ms']/1000:.1f}s ({s['call_count']} calls)"
+        )
+
+    def get_all_summaries(self, min_calls: int = 1) -> List[str]:
+        """Get summaries for all tracked tools (sorted by success rate desc)."""
+        items = []
+        for key in self._records:
+            skill, tool = key.split(":", 1)
+            s = self.get_stats(skill, tool)
+            if s['call_count'] >= min_calls:
+                items.append((s['success_rate'], self.get_summary(skill, tool)))
+        items.sort(key=lambda x: -x[0])
+        return [summary for _, summary in items]
+
+    def to_dict(self) -> Dict:
+        return dict(self._records)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'ToolStats':
+        obj = cls()
+        obj._records = {k: [(s, l) for s, l in v] for k, v in data.items()}
+        return obj
+
+
+# Global tool stats tracker
+TOOL_STATS = ToolStats()
+
+
+# =============================================================================
+# CAPABILITY INDEX — Tool I/O chaining graph
+# =============================================================================
+
+
+class CapabilityIndex:
+    """Graph of tool capabilities for discovering multi-hop tool chains.
+
+    Each tool is a node with typed inputs and outputs. An edge exists from
+    tool A to tool B if A produces an output type that B consumes as input.
+
+    Usage:
+        idx = CapabilityIndex()
+        idx.register("web-search", inputs=["query"], outputs=["search_results"])
+        idx.register("summarizer", inputs=["text", "search_results"], outputs=["summary"])
+        chain = idx.find_chain("query", "summary")
+        # → ["web-search", "summarizer"]
+    """
+
+    def __init__(self):
+        # tool_name → (input_types, output_types)
+        self._tools: Dict[str, Tuple[List[str], List[str]]] = {}
+        # output_type → list of tool_names that produce it
+        self._producers: Dict[str, List[str]] = {}
+        # input_type → list of tool_names that consume it
+        self._consumers: Dict[str, List[str]] = {}
+
+    def register(self, tool_name: str, inputs: List[str], outputs: List[str]) -> None:
+        """Register a tool's I/O types."""
+        self._tools[tool_name] = (inputs, outputs)
+        for out_type in outputs:
+            self._producers.setdefault(out_type, []).append(tool_name)
+        for in_type in inputs:
+            self._consumers.setdefault(in_type, []).append(tool_name)
+
+    def register_from_schema(self, tool_name: str, schema: ToolSchema) -> None:
+        """Register from a ToolSchema, using param names as type proxies."""
+        inputs = [p.name for p in schema.params if p.required]
+        outputs = [tool_name + "_result"]  # Default: tool produces its own result type
+        self.register(tool_name, inputs, outputs)
+
+    def find_chain(self, start_type: str, end_type: str, max_depth: int = 5) -> List[str]:
+        """BFS to find a chain of tools from start_type to end_type.
+
+        Returns ordered list of tool names forming the shortest chain,
+        or empty list if no chain exists.
+        """
+        from collections import deque
+
+        if start_type == end_type:
+            return []
+
+        # BFS: each state is (current_available_types, path_of_tools)
+        queue: deque = deque()
+        # Start with tools that can consume start_type
+        for tool in self._consumers.get(start_type, []):
+            _, outputs = self._tools[tool]
+            queue.append((set(outputs), [tool]))
+
+        visited: Set[frozenset] = set()
+
+        while queue:
+            available_types, path = queue.popleft()
+            if len(path) > max_depth:
+                continue
+
+            # Check if we can produce the end_type
+            if end_type in available_types:
+                return path
+
+            state_key = frozenset(available_types)
+            if state_key in visited:
+                continue
+            visited.add(state_key)
+
+            # Expand: find tools whose inputs are satisfied
+            for tool_name, (inputs, outputs) in self._tools.items():
+                if tool_name in path:
+                    continue  # No cycles
+                if all(inp in available_types or inp == start_type for inp in inputs):
+                    new_available = available_types | set(outputs)
+                    queue.append((new_available, path + [tool_name]))
+
+        return []  # No chain found
+
+    def get_tools_for_type(self, type_name: str) -> Dict[str, List[str]]:
+        """Get tools that produce or consume a given type."""
+        return {
+            'producers': self._producers.get(type_name, []),
+            'consumers': self._consumers.get(type_name, []),
+        }
+
+
+# =============================================================================
 # FILE REFERENCE (Lazy handle for large outputs)
 # =============================================================================
 
@@ -1127,6 +1305,9 @@ __all__ = [
     'ToolValidationResult',
     'ToolSchema',
     'AgentIOSchema',
+    'ToolStats',
+    'TOOL_STATS',
+    'CapabilityIndex',
     'FileReference',
     'SwarmArtifactStore',
     'ExecutionStepSchema',

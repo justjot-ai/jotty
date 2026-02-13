@@ -755,5 +755,242 @@ class TDLambdaLearner:
 
 
 # =============================================================================
+# Q-LEARNING FOR SKILL SELECTION
+# =============================================================================
+
+class SkillQTable:
+    """Q-value table for skill selection: Q(task_type, skill) → expected reward.
+
+    Used by planners to prefer skills with higher historical success rates
+    for a given task type. Updated after each skill execution.
+
+    Usage:
+        q = SkillQTable()
+        best = q.select("research", ["web-search", "calculator", "pdf-gen"])
+        # ... execute skill ...
+        q.update("research", "web-search", reward=0.9)
+    """
+
+    def __init__(self, alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.15):
+        self.alpha = alpha      # Learning rate
+        self.gamma = gamma      # Discount factor
+        self.epsilon = epsilon  # Exploration rate (epsilon-greedy)
+        self._q: Dict[str, Dict[str, float]] = {}  # task_type → {skill → Q-value}
+        self._counts: Dict[str, Dict[str, int]] = {}  # task_type → {skill → count}
+
+    def get_q(self, task_type: str, skill: str) -> float:
+        """Get Q-value for a (task_type, skill) pair. Default 0.5 (optimistic)."""
+        return self._q.get(task_type, {}).get(skill, 0.5)
+
+    def update(self, task_type: str, skill: str, reward: float) -> float:
+        """Update Q-value after skill execution. Returns TD error."""
+        if task_type not in self._q:
+            self._q[task_type] = {}
+            self._counts[task_type] = {}
+
+        old_q = self._q[task_type].get(skill, 0.5)
+        td_error = reward - old_q
+        new_q = old_q + self.alpha * td_error
+        self._q[task_type][skill] = max(0.0, min(1.0, new_q))
+        self._counts[task_type][skill] = self._counts[task_type].get(skill, 0) + 1
+
+        logger.debug(f"Q-update: ({task_type}, {skill}): {old_q:.3f} → {new_q:.3f}")
+        return td_error
+
+    def select(self, task_type: str, available_skills: List[str]) -> List[str]:
+        """Rank skills by Q-value with epsilon-greedy exploration.
+
+        Returns skills sorted by Q-value (highest first). With probability
+        epsilon, shuffles to encourage exploration.
+        """
+        import random
+        if not available_skills:
+            return []
+
+        if random.random() < self.epsilon:
+            # Explore: random shuffle
+            shuffled = list(available_skills)
+            random.shuffle(shuffled)
+            return shuffled
+
+        # Exploit: sort by Q-value descending
+        return sorted(available_skills, key=lambda s: self.get_q(task_type, s), reverse=True)
+
+    def get_top_skills(self, task_type: str, n: int = 5) -> List[Tuple[str, float]]:
+        """Get top N skills by Q-value for a task type."""
+        skills = self._q.get(task_type, {})
+        sorted_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)
+        return sorted_skills[:n]
+
+    def to_dict(self) -> Dict:
+        return {'q': self._q, 'counts': self._counts,
+                'alpha': self.alpha, 'gamma': self.gamma, 'epsilon': self.epsilon}
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'SkillQTable':
+        obj = cls(alpha=data.get('alpha', 0.1), gamma=data.get('gamma', 0.9),
+                  epsilon=data.get('epsilon', 0.15))
+        obj._q = data.get('q', {})
+        obj._counts = data.get('counts', {})
+        return obj
+
+
+# =============================================================================
+# COMA COUNTERFACTUAL CREDIT
+# =============================================================================
+
+class COMACredit:
+    """Counterfactual Multi-Agent credit assignment.
+
+    Answers: "How much did each agent/skill contribute to the outcome?"
+    by computing: credit(agent) = team_reward - reward_without_agent
+
+    The counterfactual baseline is approximated by the average team reward
+    when that agent is excluded from similar past episodes.
+
+    Usage:
+        coma = COMACredit()
+        coma.record_episode(
+            team_reward=0.85,
+            agent_contributions={"researcher": 0.4, "analyzer": 0.35, "writer": 0.1}
+        )
+        credits = coma.get_credits("researcher")  # ~0.15 (team with - team without)
+    """
+
+    def __init__(self):
+        # Per-agent history of (team_reward, agent_contribution)
+        self._history: Dict[str, List[Tuple[float, float]]] = {}
+        # Team reward history when agent was NOT present
+        self._counterfactual: Dict[str, List[float]] = {}
+
+    def record_episode(self, team_reward: float, agent_contributions: Dict[str, float]) -> None:
+        """Record an episode's reward and per-agent contributions.
+
+        Args:
+            team_reward: Total team reward (0-1)
+            agent_contributions: {agent_name: contribution_score}
+        """
+        all_agents = set(agent_contributions.keys())
+        for agent, contrib in agent_contributions.items():
+            if agent not in self._history:
+                self._history[agent] = []
+                self._counterfactual[agent] = []
+            self._history[agent].append((team_reward, contrib))
+            # Keep bounded
+            if len(self._history[agent]) > 200:
+                self._history[agent] = self._history[agent][-200:]
+
+        # For each agent, record this as a counterfactual for agents NOT in this episode
+        for agent in self._history:
+            if agent not in all_agents:
+                self._counterfactual[agent].append(team_reward)
+                if len(self._counterfactual[agent]) > 200:
+                    self._counterfactual[agent] = self._counterfactual[agent][-200:]
+
+    def get_credit(self, agent: str) -> float:
+        """Get counterfactual credit for an agent.
+
+        credit = avg(team_reward when present) - avg(team_reward when absent)
+        Positive = agent helps the team. Negative = agent hurts.
+        """
+        history = self._history.get(agent, [])
+        counterfactual = self._counterfactual.get(agent, [])
+
+        if not history:
+            return 0.0
+
+        avg_with = sum(r for r, _ in history) / len(history)
+        avg_without = sum(counterfactual) / len(counterfactual) if counterfactual else 0.5
+
+        return avg_with - avg_without
+
+    def get_all_credits(self) -> Dict[str, float]:
+        """Get credits for all known agents."""
+        return {agent: self.get_credit(agent) for agent in self._history}
+
+    def to_dict(self) -> Dict:
+        return {'history': self._history, 'counterfactual': self._counterfactual}
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'COMACredit':
+        obj = cls()
+        obj._history = data.get('history', {})
+        obj._counterfactual = data.get('counterfactual', {})
+        return obj
+
+
+# =============================================================================
+# LEARNED CONTEXT GENERATOR
+# =============================================================================
+
+def get_learned_context(
+    td_learner: TDLambdaLearner,
+    skill_q: Optional[SkillQTable] = None,
+    coma: Optional[COMACredit] = None,
+    task_type: str = "",
+    domain: str = "",
+    max_lines: int = 10,
+) -> str:
+    """Convert learned values into natural language for LLM prompt injection.
+
+    Produces a concise summary of what the system has learned about
+    task types, skill effectiveness, and agent contributions.
+
+    Args:
+        td_learner: TDLambdaLearner with learned baselines
+        skill_q: Optional SkillQTable with Q-values
+        coma: Optional COMACredit with agent credits
+        task_type: Current task type to focus on
+        domain: Current domain
+        max_lines: Maximum output lines
+
+    Returns:
+        Natural language string suitable for LLM system prompt injection
+    """
+    lines: List[str] = []
+
+    # 1. Task type baseline info
+    stats = td_learner.get_grouped_learning_stats()
+    baselines = stats.get('group_baselines', {})
+    if task_type and task_type in baselines:
+        baseline = baselines[task_type]
+        variance = td_learner.grouped_baseline.get_group_variance(task_type)
+        confidence = "high" if variance < 0.05 else ("medium" if variance < 0.15 else "low")
+        lines.append(
+            f"Historical success for '{task_type}' tasks: {baseline:.0%} "
+            f"(confidence: {confidence})"
+        )
+
+    # 2. Top skills from Q-table
+    if skill_q and task_type:
+        top_skills = skill_q.get_top_skills(task_type, n=3)
+        if top_skills:
+            skill_strs = [f"{name} ({q:.0%})" for name, q in top_skills]
+            lines.append(f"Best skills for '{task_type}': {', '.join(skill_strs)}")
+
+    # 3. Agent credits from COMA
+    if coma:
+        credits = coma.get_all_credits()
+        if credits:
+            top_agents = sorted(credits.items(), key=lambda x: x[1], reverse=True)[:3]
+            if any(c > 0.05 for _, c in top_agents):
+                agent_strs = [f"{name} (+{credit:.0%})" for name, credit in top_agents if credit > 0.05]
+                if agent_strs:
+                    lines.append(f"Most effective agents: {', '.join(agent_strs)}")
+
+    # 4. Cross-task transfer insights
+    transfer = td_learner.grouped_baseline.transfer_matrix.get(task_type, {})
+    similar = [(t, w) for t, w in transfer.items() if w > 0.5]
+    if similar:
+        similar_strs = [f"{t} ({w:.0%})" for t, w in sorted(similar, key=lambda x: -x[1])[:2]]
+        lines.append(f"Similar task types: {', '.join(similar_strs)}")
+
+    if not lines:
+        return ""
+
+    return "LEARNED CONTEXT:\n" + "\n".join(f"- {l}" for l in lines[:max_lines])
+
+
+# =============================================================================
 # REASONING-BASED CREDIT ASSIGNER (Dr. Chen Enhancement)
 # =============================================================================

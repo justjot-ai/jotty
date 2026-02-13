@@ -2,11 +2,23 @@
 
 import json
 import logging
+from enum import IntEnum
 from typing import Dict, Any, List, Optional
 
 from ._execution_types import TaskType
 
 logger = logging.getLogger(__name__)
+
+
+class ContextPriority(IntEnum):
+    """Priority levels for context sections during compression.
+
+    Higher priority sections are preserved; lower ones are compressed first.
+    """
+    CRITICAL = 4   # Current instruction, tool schemas — never compress
+    HIGH = 3       # Recent tool results, last 2-3 trajectory steps
+    MEDIUM = 2     # Older conversation history, memory context
+    LOW = 1        # System boilerplate, examples, verbose descriptions
 
 
 class InferenceMixin:
@@ -223,6 +235,85 @@ class InferenceMixin:
         'notebooklm-pdf',              # Requires browser sign-in
         'oauth-automation',            # Requires browser interaction
     }
+
+    # =========================================================================
+    # PROACTIVE CONTEXT GUARD
+    # =========================================================================
+
+    # Rough chars-per-token for estimation (conservative for Claude/GPT)
+    _CHARS_PER_TOKEN = 3.5
+    # Default context budget (tokens). Override via model-specific values.
+    _DEFAULT_CONTEXT_BUDGET = 100_000
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Estimate token count from text length. ~3.5 chars/token for English."""
+        return int(len(text) / InferenceMixin._CHARS_PER_TOKEN)
+
+    def _proactive_context_guard(
+        self,
+        sections: List[tuple],
+        budget_tokens: int = 0,
+        reserve_output_tokens: int = 4000,
+    ) -> str:
+        """Assemble context from prioritized sections, compressing to fit budget.
+
+        Builds context by including sections in priority order (CRITICAL first).
+        If total exceeds budget, LOW sections are truncated, then MEDIUM, etc.
+        CRITICAL sections are never compressed.
+
+        Args:
+            sections: List of (ContextPriority, label, text) tuples
+            budget_tokens: Max input tokens. 0 = use _DEFAULT_CONTEXT_BUDGET
+            reserve_output_tokens: Tokens reserved for model output
+
+        Returns:
+            Assembled context string fitting within budget
+        """
+        budget = budget_tokens or self._DEFAULT_CONTEXT_BUDGET
+        available = budget - reserve_output_tokens
+
+        # Sort by priority descending (CRITICAL first)
+        sorted_sections = sorted(sections, key=lambda s: s[0], reverse=True)
+
+        # First pass: compute total
+        total_tokens = sum(self._estimate_tokens(s[2]) for s in sorted_sections)
+
+        if total_tokens <= available:
+            # Everything fits — no compression needed
+            return "\n\n".join(s[2] for s in sorted_sections if s[2])
+
+        # Second pass: compress from lowest priority up
+        result_sections = []
+        used_tokens = 0
+
+        for priority, label, text in sorted_sections:
+            section_tokens = self._estimate_tokens(text)
+
+            if priority >= ContextPriority.CRITICAL:
+                # Never compress critical sections
+                result_sections.append(text)
+                used_tokens += section_tokens
+            elif used_tokens + section_tokens <= available:
+                # Fits within remaining budget
+                result_sections.append(text)
+                used_tokens += section_tokens
+            else:
+                # Must truncate
+                remaining_budget = max(0, available - used_tokens)
+                if remaining_budget > 100:  # Only include if meaningful space left
+                    max_chars = int(remaining_budget * self._CHARS_PER_TOKEN)
+                    truncated = text[:max_chars] + f"\n[...{label} truncated...]"
+                    result_sections.append(truncated)
+                    used_tokens += remaining_budget
+                else:
+                    result_sections.append(f"[{label} omitted — context budget]")
+
+        logger.debug(
+            f"Context guard: {total_tokens} tokens → ~{used_tokens} tokens "
+            f"(budget: {available})"
+        )
+        return "\n\n".join(s for s in result_sections if s)
 
     # =========================================================================
     # CONTEXT COMPRESSION RETRY

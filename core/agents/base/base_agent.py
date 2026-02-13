@@ -146,6 +146,9 @@ class BaseAgent(ABC):
     # Maximum exponential backoff delay (seconds) — caps retry waits
     MAX_RETRY_DELAY = 60.0
 
+    # Error patterns that are never worth LLM-analyzing (just retry)
+    _BLIND_RETRY_PATTERNS = ('rate limit', '429', 'overloaded', 'capacity')
+
     def __init__(self, config: AgentRuntimeConfig = None):
         """
         Initialize BaseAgent with optional configuration.
@@ -335,7 +338,13 @@ class BaseAgent(ABC):
 
     async def execute(self, **kwargs) -> AgentResult:
         """
-        Execute the agent with retry logic and hook support.
+        Execute the agent with intelligent retry and trajectory preservation.
+
+        On failure:
+        1. Classifies error type (infrastructure vs logic vs data)
+        2. For non-trivial errors, uses LLM to analyze failure and suggest fix
+        3. Injects analysis + trajectory into next attempt's kwargs
+        4. Preserves what was tried across retries (trajectory)
 
         Args:
             **kwargs: Arguments passed to _execute_impl
@@ -347,6 +356,7 @@ class BaseAgent(ABC):
         start_time = time.time()
         retries = 0
         last_error = None
+        trajectory: List[Dict[str, Any]] = []  # What was tried and what happened
 
         # Run pre-execution hooks
         try:
@@ -354,9 +364,14 @@ class BaseAgent(ABC):
         except Exception as e:
             logger.warning(f"Pre-hook failed: {e}")
 
-        # Retry loop with exponential backoff
+        # Retry loop with LLM-analyzed recovery
         for attempt in range(self.config.max_retries):
             try:
+                # Inject trajectory context for retries
+                if trajectory:
+                    kwargs['_retry_trajectory'] = trajectory
+                    kwargs['_retry_guidance'] = trajectory[-1].get('guidance', '')
+
                 # Execute the implementation
                 if asyncio.iscoroutinefunction(self._execute_impl):
                     output = await asyncio.wait_for(
@@ -401,6 +416,13 @@ class BaseAgent(ABC):
                 last_error = str(e)
                 logger.warning(f"Attempt {attempt + 1}/{self.config.max_retries} failed: {e}")
 
+            # Record trajectory entry for this failed attempt
+            trajectory.append({
+                'attempt': attempt + 1,
+                'error': last_error,
+                'guidance': '',  # Filled by LLM analysis below
+            })
+
             # Exponential backoff with max cap before retry
             if attempt < self.config.max_retries - 1:
                 retries += 1
@@ -408,6 +430,13 @@ class BaseAgent(ABC):
                     self.config.retry_delay * (2 ** attempt),
                     self.MAX_RETRY_DELAY,
                 )
+
+                # LLM-analyzed retry: analyze failure for non-trivial errors
+                guidance = self._analyze_failure(last_error, kwargs)
+                if guidance:
+                    trajectory[-1]['guidance'] = guidance
+                    logger.info(f"Retry guidance: {guidance[:100]}")
+
                 logger.info(f"Retrying in {delay:.1f}s (attempt {attempt + 2}/{self.config.max_retries})")
                 await asyncio.sleep(delay)
 
@@ -425,7 +454,48 @@ class BaseAgent(ABC):
             execution_time=execution_time,
             retries=retries,
             error=last_error,
+            metadata={'trajectory': trajectory},
         )
+
+    def _analyze_failure(self, error: str, kwargs: Dict[str, Any]) -> str:
+        """Analyze a failure and return guidance for the next retry attempt.
+
+        For rate-limit/capacity errors, returns empty (blind retry is fine).
+        For logic/data errors, uses ErrorType classification to provide guidance.
+
+        Returns guidance string or empty if blind retry is appropriate.
+        """
+        error_lower = error.lower()
+
+        # Don't waste LLM call on rate limits — just retry
+        if any(p in error_lower for p in self._BLIND_RETRY_PATTERNS):
+            return ""
+
+        try:
+            from Jotty.core.execution.types import ErrorType
+            error_type = ErrorType.classify(error)
+
+            guidance_map = {
+                ErrorType.LOGIC: (
+                    f"Previous attempt failed with a logic error: {error[:200]}. "
+                    "Try a different approach — check parameter names, types, and formats."
+                ),
+                ErrorType.DATA: (
+                    f"Previous attempt got bad data: {error[:200]}. "
+                    "Validate inputs, try alternative data sources or formats."
+                ),
+                ErrorType.ENVIRONMENT: (
+                    f"Environment issue detected: {error[:200]}. "
+                    "Consider SSL bypass, proxy settings, or alternative endpoints."
+                ),
+                ErrorType.INFRASTRUCTURE: (
+                    f"Infrastructure error: {error[:200]}. "
+                    "Retrying with same approach."
+                ),
+            }
+            return guidance_map.get(error_type, "")
+        except Exception:
+            return ""
 
     @abstractmethod
     async def _execute_impl(self, **kwargs) -> Any:

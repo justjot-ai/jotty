@@ -1645,6 +1645,885 @@ class TestVisualVerificationProtocol:
         assert "'get_visual_verification_guidance'" in content  # in __all__
 
 
+# =============================================================================
+# ParameterResolver Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestParameterResolver:
+    """Test ParameterResolver from step_processors.py."""
+
+    def test_resolve_simple_passthrough(self):
+        """Params with no templates pass through unchanged."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        result = resolver.resolve({'query': 'test', 'max': 5})
+        assert result == {'query': 'test', 'max': 5}
+
+    def test_resolve_template_substitution(self):
+        """${ref} templates are resolved from outputs."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'path': '/tmp/report.pdf', 'success': True}}
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({'file': '${step_0.path}'})
+        assert result['file'] == '/tmp/report.pdf'
+
+    def test_resolve_bare_key_to_path(self):
+        """Bare output keys (e.g. 'step_0') resolve to matching field."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'path': '/tmp/result.txt', 'success': True}}
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({'path': 'step_0'})
+        assert result['path'] == '/tmp/result.txt'
+
+    def test_resolve_nested_dict(self):
+        """Nested dict params are resolved recursively."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'url': 'https://example.com'}}
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({'config': {'target': '${step_0.url}'}})
+        assert result['config']['target'] == 'https://example.com'
+
+    def test_resolve_max_depth_protection(self):
+        """Deeply nested params hit max depth and return as-is."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        result = resolver.resolve({'key': 'val'}, _depth=11)
+        assert result == {'key': 'val'}
+
+    def test_is_bad_content_short(self):
+        """Short strings are detected as bad content."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        assert resolver._is_bad_content("too short") is True
+
+    def test_is_bad_content_success_json(self):
+        """Success JSON responses are detected as bad content."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        assert resolver._is_bad_content('{"success": true, "bytes_written": 42}') is True
+
+    def test_is_bad_content_good(self):
+        """Real content passes the check."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        # Must be >300 chars or >80 chars without instruction prefixes
+        good_content = "Python is a versatile language used in web development, data science, and AI. " * 5
+        assert resolver._is_bad_content(good_content) is False
+
+    def test_resolve_path_dotted(self):
+        """Dotted paths like 'step_0.output' are resolved."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'output': 'hello world'}}
+        resolver = ParameterResolver(outputs)
+        assert resolver.resolve_path('step_0.output') == 'hello world'
+
+    def test_resolve_path_array_index(self):
+        """Array index paths like 'step_0.items[0]' are resolved."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'items': ['first', 'second']}}
+        resolver = ParameterResolver(outputs)
+        assert resolver.resolve_path('step_0.items[0]') == 'first'
+
+    def test_resolve_path_missing_falls_back(self):
+        """Missing path keys trigger fallback resolution."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'content': 'actual content that is long enough to be valid for fallback resolution purposes'}}
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve_path('step_99.content')
+        # Should fall back to last output's content field
+        assert 'actual content' in result
+
+    def test_sanitize_command_long_text(self):
+        """Long non-command text in 'command' param gets auto-fixed."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'path': '/tmp/script.py', 'success': True}}
+        resolver = ParameterResolver(outputs)
+        long_text = "This is a very long text " * 20  # > 150 chars, > 15 spaces
+        result = resolver._sanitize_command_param('command', long_text, None)
+        assert result == 'python /tmp/script.py'
+
+    def test_sanitize_path_long_content(self):
+        """Long content in 'path' param gets auto-fixed to real path."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {'step_0': {'path': '/tmp/output.txt', 'success': True}}
+        resolver = ParameterResolver(outputs)
+        long_content = "x" * 300  # > 200 chars
+        result = resolver._sanitize_path_param('path', long_content, None)
+        assert result == '/tmp/output.txt'
+
+    def test_find_best_content(self):
+        """_find_best_content returns longest valid content from outputs."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        short_content = "short"
+        good_content = "A" * 200
+        outputs = {
+            'step_0': {'text': short_content},
+            'step_1': {'content': good_content},
+        }
+        resolver = ParameterResolver(outputs)
+        assert resolver._find_best_content() == good_content
+
+    def test_aggregate_research_outputs(self):
+        """Research outputs are aggregated into formatted markdown."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        outputs = {
+            'research_0': {
+                'query': 'AI trends',
+                'results': [
+                    {'title': 'Result 1', 'snippet': 'Snippet 1', 'url': 'http://example.com/1'}
+                ]
+            }
+        }
+        resolver = ParameterResolver(outputs)
+        result = resolver._aggregate_research_outputs()
+        assert '## Research: AI trends' in result
+        assert 'Result 1' in result
+
+    def test_backward_compat_import(self):
+        """ParameterResolver can still be imported from skill_plan_executor."""
+        from Jotty.core.agents.base.skill_plan_executor import ParameterResolver
+        assert ParameterResolver is not None
+        resolver = ParameterResolver({})
+        assert resolver.resolve({'key': 'val'}) == {'key': 'val'}
+
+
+# =============================================================================
+# ParadigmExecutor and TrainingDaemon Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestParadigmExecutorUnit:
+    """Test ParadigmExecutor aggregate_results logic."""
+
+    def test_aggregate_empty_results(self):
+        """Empty results produce failed EpisodeResult."""
+        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from unittest.mock import Mock
+        manager = Mock()
+        manager.episode_count = 0
+        executor = ParadigmExecutor(manager)
+        result = executor.aggregate_results({}, "test goal")
+        assert result.success is False
+        assert result.output is None
+
+    def test_aggregate_single_result(self):
+        """Single result is returned as-is."""
+        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.foundation.data_structures import EpisodeResult
+        from unittest.mock import Mock
+        manager = Mock()
+        executor = ParadigmExecutor(manager)
+        ep = EpisodeResult(
+            output="test output", success=True, trajectory=[],
+            tagged_outputs=[], episode=0, execution_time=1.0,
+            architect_results=[], auditor_results=[], agent_contributions={},
+        )
+        result = executor.aggregate_results({'agent1': ep}, "goal")
+        assert result is ep
+
+    def test_aggregate_multiple_results(self):
+        """Multiple results are combined with merged contributions."""
+        from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+        from Jotty.core.foundation.data_structures import EpisodeResult
+        from unittest.mock import Mock
+        manager = Mock()
+        manager.episode_count = 1
+        manager._mas_zero_verify = Mock(return_value=None)
+        executor = ParadigmExecutor(manager)
+        ep1 = EpisodeResult(
+            output="output1", success=True, trajectory=[{'step': 1}],
+            tagged_outputs=[], episode=0, execution_time=1.0,
+            architect_results=[], auditor_results=[],
+            agent_contributions={'agent1': 'contrib1'},
+        )
+        ep2 = EpisodeResult(
+            output="output2", success=True, trajectory=[{'step': 2}],
+            tagged_outputs=[], episode=0, execution_time=2.0,
+            architect_results=[], auditor_results=[],
+            agent_contributions={'agent2': 'contrib2'},
+        )
+        result = executor.aggregate_results({'a1': ep1, 'a2': ep2}, "goal")
+        assert result.success is True
+        assert result.execution_time == 3.0
+        assert 'agent1' in result.agent_contributions
+        assert 'agent2' in result.agent_contributions
+
+
+@pytest.mark.unit
+class TestTrainingDaemonUnit:
+    """Test TrainingDaemon status and control."""
+
+    def test_status_not_running(self):
+        """Status shows not running when no daemon task exists."""
+        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from unittest.mock import Mock
+        manager = Mock()
+        daemon = TrainingDaemon(manager)
+        status = daemon.status()
+        assert status['running'] is False
+        assert status['completed'] == 0
+        assert status['succeeded'] == 0
+        assert status['success_rate'] == 0.0
+
+    def test_pending_count_no_learning(self):
+        """Pending count returns 0 when learning unavailable."""
+        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from unittest.mock import Mock
+        manager = Mock()
+        manager.learning.pending_training_count.side_effect = Exception("no learning")
+        daemon = TrainingDaemon(manager)
+        assert daemon.pending_count == 0
+
+    def test_stop_not_running(self):
+        """Stop returns False when daemon is not running."""
+        from Jotty.core.orchestration.training_daemon import TrainingDaemon
+        from unittest.mock import Mock
+        manager = Mock()
+        daemon = TrainingDaemon(manager)
+        assert daemon.stop() is False
+
+
+# =============================================================================
+# PlanUtilsMixin moved methods Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestPlanParsing:
+    """Test plan normalization and parsing methods moved to PlanUtilsMixin."""
+
+    def test_normalize_raw_plan_list_passthrough(self):
+        """Lists pass through normalization unchanged."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        result = mixin._normalize_raw_plan([{'step': 1}])
+        assert result == [{'step': 1}]
+
+    def test_normalize_raw_plan_json_string(self):
+        """JSON string is parsed to list."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        import json
+        mixin = PlanUtilsMixin()
+        plan_data = [{'skill_name': 'web-search', 'tool_name': 'search'}]
+        result = mixin._normalize_raw_plan(json.dumps(plan_data))
+        assert len(result) == 1
+        assert result[0]['skill_name'] == 'web-search'
+
+    def test_normalize_raw_plan_code_block(self):
+        """JSON in markdown code block is extracted."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        import json
+        mixin = PlanUtilsMixin()
+        plan_data = [{'skill_name': 'test'}]
+        raw = f"Here's the plan:\n```json\n{json.dumps(plan_data)}\n```"
+        result = mixin._normalize_raw_plan(raw)
+        assert len(result) == 1
+
+    def test_normalize_raw_plan_empty(self):
+        """None/empty input returns empty list."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        assert mixin._normalize_raw_plan(None) == []
+        assert mixin._normalize_raw_plan('') == []
+
+    def test_extract_comparison_entities_vs(self):
+        """'vs' pattern extracts entities."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        result = mixin._extract_comparison_entities("Compare Python vs JavaScript")
+        assert len(result) == 2
+        assert 'Python' in result[0]
+        assert 'JavaScript' in result[1]
+
+    def test_extract_comparison_entities_between(self):
+        """'difference between X and Y' pattern works."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        result = mixin._extract_comparison_entities("difference between React and Vue, create report")
+        assert len(result) == 2
+
+    def test_extract_comparison_entities_none(self):
+        """Non-comparison tasks return empty list."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        result = mixin._extract_comparison_entities("Research AI trends")
+        assert result == []
+
+    def test_extract_comparison_entities_triple(self):
+        """Three-way comparison extracts all entities."""
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        mixin = PlanUtilsMixin()
+        result = mixin._extract_comparison_entities("Compare Python vs JavaScript vs Ruby")
+        assert len(result) == 3
+
+
+# =============================================================================
+# TierDetector Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestTierDetector:
+    """Tests for tier_detector.py — keyword heuristics, caching, LLM fallback."""
+
+    def test_force_tier_overrides(self):
+        """force_tier bypasses all detection logic."""
+        detector = TierDetector()
+        result = detector.detect("sandbox autonomous agent", force_tier=ExecutionTier.DIRECT)
+        assert result == ExecutionTier.DIRECT
+
+    def test_detect_direct_simple_query(self):
+        """Short queries with direct indicators → DIRECT."""
+        detector = TierDetector()
+        assert detector.detect("what is 2+2") == ExecutionTier.DIRECT
+
+    def test_detect_direct_short_query(self):
+        """Very short queries (<=10 words) without multi-step → DIRECT."""
+        detector = TierDetector()
+        assert detector.detect("hello") == ExecutionTier.DIRECT
+
+    def test_detect_agentic_multi_step(self):
+        """Multi-step indicators → AGENTIC."""
+        detector = TierDetector()
+        result = detector.detect("Research the topic and then create a summary report for distribution")
+        assert result == ExecutionTier.AGENTIC
+
+    def test_detect_learning(self):
+        """Learning indicators → LEARNING."""
+        detector = TierDetector()
+        assert detector.detect("learn from past mistakes and improve accuracy") == ExecutionTier.LEARNING
+
+    def test_detect_research(self):
+        """Research indicators → RESEARCH."""
+        detector = TierDetector()
+        assert detector.detect("experiment with different approaches and benchmark results") == ExecutionTier.RESEARCH
+
+    def test_detect_autonomous(self):
+        """Autonomous indicators → AUTONOMOUS."""
+        detector = TierDetector()
+        assert detector.detect("run in sandbox isolated environment with trust verification") == ExecutionTier.AUTONOMOUS
+
+    def test_detect_agentic_ambiguous(self):
+        """Ambiguous longer tasks without specific keywords → AGENTIC (default)."""
+        detector = TierDetector()
+        # Long enough to not be simple, no specific tier keywords
+        result = detector.detect(
+            "Write a comprehensive analysis of the current market trends "
+            "including all major sectors and their quarterly performance data"
+        )
+        assert result == ExecutionTier.AGENTIC
+
+    def test_caching(self):
+        """Repeated queries use cache."""
+        detector = TierDetector()
+        result1 = detector.detect("what is Python")
+        assert "what is python" in detector.detection_cache
+        result2 = detector.detect("what is Python")
+        assert result1 == result2
+
+    def test_cache_key_normalization(self):
+        """Cache key is lowercase and stripped."""
+        detector = TierDetector()
+        detector.detect("  What Is Python  ")
+        assert "what is python" in detector.detection_cache
+
+    def test_clear_cache(self):
+        """clear_cache() empties the cache."""
+        detector = TierDetector()
+        detector.detect("hello")
+        assert len(detector.detection_cache) == 1
+        detector.clear_cache()
+        assert len(detector.detection_cache) == 0
+
+    def test_confidence_autonomous_high(self):
+        """Autonomous keywords get high confidence (0.85)."""
+        detector = TierDetector()
+        _, conf = detector._detect_tier_with_confidence("sandbox execution")
+        assert conf == 0.85
+
+    def test_confidence_research_high(self):
+        """Research keywords get high confidence (0.85)."""
+        detector = TierDetector()
+        _, conf = detector._detect_tier_with_confidence("benchmark approaches")
+        assert conf == 0.85
+
+    def test_confidence_direct_moderate(self):
+        """Simple queries get 0.80 confidence."""
+        detector = TierDetector()
+        _, conf = detector._detect_tier_with_confidence("what is Python")
+        assert conf == 0.80
+
+    def test_confidence_multi_step_moderate(self):
+        """Multi-step indicators get 0.75 confidence."""
+        detector = TierDetector()
+        _, conf = detector._detect_tier_with_confidence(
+            "first gather all the data then compile it and after that generate the final report"
+        )
+        assert conf == 0.75
+
+    def test_confidence_ambiguous_low(self):
+        """Ambiguous fall-through gets 0.40 confidence."""
+        detector = TierDetector()
+        _, conf = detector._detect_tier_with_confidence(
+            "Write a comprehensive analysis of the current market trends "
+            "including all major sectors and their quarterly performance data"
+        )
+        assert conf == 0.40
+
+    def test_explain_detection_direct(self):
+        """explain_detection returns human-readable explanation for DIRECT."""
+        detector = TierDetector()
+        explanation = detector.explain_detection("what is Python")
+        assert "Tier 1" in explanation
+        assert "DIRECT" in explanation
+        assert "direct query keywords" in explanation.lower() or "Short query" in explanation
+
+    def test_explain_detection_agentic(self):
+        """explain_detection mentions multi-step or default for AGENTIC."""
+        detector = TierDetector()
+        explanation = detector.explain_detection("analyze and create a report then send it")
+        assert "AGENTIC" in explanation
+
+    def test_explain_detection_autonomous(self):
+        """explain_detection identifies autonomous keywords."""
+        detector = TierDetector()
+        explanation = detector.explain_detection("sandbox isolated execution")
+        assert "AUTONOMOUS" in explanation
+
+    @pytest.mark.asyncio
+    async def test_adetect_force_tier(self):
+        """adetect respects force_tier."""
+        detector = TierDetector()
+        result = await detector.adetect("sandbox test", force_tier=ExecutionTier.DIRECT)
+        assert result == ExecutionTier.DIRECT
+
+    @pytest.mark.asyncio
+    async def test_adetect_uses_cache(self):
+        """adetect populates and uses cache."""
+        detector = TierDetector()
+        r1 = await detector.adetect("what is Python")
+        assert r1 == ExecutionTier.DIRECT
+        assert "what is python" in detector.detection_cache
+        r2 = await detector.adetect("what is Python")
+        assert r2 == r1
+
+    @pytest.mark.asyncio
+    async def test_adetect_llm_fallback_when_ambiguous(self):
+        """adetect calls LLM classifier for low-confidence results."""
+        detector = TierDetector(enable_llm_fallback=True)
+        mock_classifier = AsyncMock()
+        mock_classifier.classify = AsyncMock(return_value=ExecutionTier.LEARNING)
+        detector._llm_classifier = mock_classifier
+
+        # Ambiguous task (confidence=0.40)
+        result = await detector.adetect(
+            "Write a comprehensive analysis of the current market trends "
+            "including all major sectors and their quarterly performance data"
+        )
+        assert result == ExecutionTier.LEARNING
+        mock_classifier.classify.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_adetect_llm_fallback_skipped_high_confidence(self):
+        """adetect skips LLM for high-confidence heuristic results."""
+        detector = TierDetector(enable_llm_fallback=True)
+        mock_classifier = AsyncMock()
+        detector._llm_classifier = mock_classifier
+
+        result = await detector.adetect("what is Python")
+        assert result == ExecutionTier.DIRECT
+        mock_classifier.classify.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_adetect_llm_fallback_error_uses_heuristic(self):
+        """adetect falls back to heuristic when LLM fails."""
+        detector = TierDetector(enable_llm_fallback=True)
+        mock_classifier = AsyncMock()
+        mock_classifier.classify = AsyncMock(side_effect=RuntimeError("LLM unavailable"))
+        detector._llm_classifier = mock_classifier
+
+        # Ambiguous task - should still return AGENTIC (heuristic default)
+        result = await detector.adetect(
+            "Write a comprehensive analysis of the current market trends "
+            "including all major sectors and their quarterly performance data"
+        )
+        assert result == ExecutionTier.AGENTIC
+
+    @pytest.mark.asyncio
+    async def test_adetect_llm_fallback_none_keeps_heuristic(self):
+        """adetect keeps heuristic when LLM returns None."""
+        detector = TierDetector(enable_llm_fallback=True)
+        mock_classifier = AsyncMock()
+        mock_classifier.classify = AsyncMock(return_value=None)
+        detector._llm_classifier = mock_classifier
+
+        result = await detector.adetect(
+            "Write a comprehensive analysis of the current market trends "
+            "including all major sectors and their quarterly performance data"
+        )
+        assert result == ExecutionTier.AGENTIC
+
+    def test_tier_priority_autonomous_over_direct(self):
+        """Autonomous keywords take priority even with short/simple queries."""
+        detector = TierDetector()
+        result = detector.detect("sandbox test")
+        assert result == ExecutionTier.AUTONOMOUS
+
+    def test_tier_priority_research_over_learning(self):
+        """Research checked before learning in priority chain."""
+        detector = TierDetector()
+        result = detector.detect("experiment and benchmark to improve accuracy")
+        # Has both research and learning indicators, research checked first
+        assert result == ExecutionTier.RESEARCH
+
+
+# =============================================================================
+# EffectivenessTracker Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestEffectivenessTracker:
+    """Tests for learning_pipeline.py EffectivenessTracker."""
+
+    def test_record_and_report(self):
+        """Basic record + improvement_report."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=3, historical_window=10)
+        tracker.record("analysis", success=True, quality=0.8)
+        tracker.record("analysis", success=False, quality=0.2)
+        report = tracker.improvement_report()
+        assert "analysis" in report
+        assert "_global" in report
+        assert report["analysis"]["total_episodes"] == 2
+
+    def test_split_windows(self):
+        """Records split into recent and historical correctly."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=2, historical_window=10)
+        # Add 5 records
+        for i in range(5):
+            tracker.record("task", success=(i >= 3), quality=i * 0.2)
+        recent, historical = tracker._split_windows(tracker._records["task"])
+        assert len(recent) == 2  # last 2
+        assert len(historical) == 3  # first 3
+
+    def test_split_windows_few_records(self):
+        """With fewer records than recent_window, all go to recent."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=10, historical_window=50)
+        tracker.record("task", success=True, quality=0.5)
+        recent, historical = tracker._split_windows(tracker._records["task"])
+        assert len(recent) == 1
+        assert len(historical) == 0
+
+    def test_rate_empty(self):
+        """_rate of empty list returns (0.0, 0.0)."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker()
+        rate, quality = tracker._rate([])
+        assert rate == 0.0
+        assert quality == 0.0
+
+    def test_rate_calculation(self):
+        """_rate computes success rate and avg quality correctly."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        import time
+        tracker = EffectivenessTracker()
+        records = [
+            (time.time(), True, 0.8, "agent1"),
+            (time.time(), False, 0.2, "agent1"),
+            (time.time(), True, 0.6, "agent1"),
+        ]
+        rate, quality = tracker._rate(records)
+        assert abs(rate - 2 / 3) < 0.01
+        assert abs(quality - (0.8 + 0.2 + 0.6) / 3) < 0.01
+
+    def test_is_improving_insufficient_history(self):
+        """is_improving returns False without enough historical data."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=2, historical_window=10)
+        tracker.record("task", success=True, quality=0.9)
+        tracker.record("task", success=True, quality=0.9)
+        # Only 2 records total, all recent, no historical
+        assert tracker.is_improving("task") is False
+
+    def test_is_improving_with_trend(self):
+        """is_improving returns True when recent > historical and enough data."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=3, historical_window=10)
+        # Historical: all failures (5 records)
+        for _ in range(5):
+            tracker.record("task", success=False, quality=0.1)
+        # Recent: all successes (3 records)
+        for _ in range(3):
+            tracker.record("task", success=True, quality=0.9)
+        assert tracker.is_improving("task") is True
+
+    def test_is_improving_global(self):
+        """is_improving() without task_type checks global."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=3, historical_window=10)
+        # Historical: failures
+        for _ in range(5):
+            tracker.record("any", success=False, quality=0.1)
+        # Recent: successes
+        for _ in range(3):
+            tracker.record("any", success=True, quality=0.9)
+        assert tracker.is_improving() is True
+
+    def test_to_dict_roundtrip(self):
+        """to_dict / from_dict roundtrip preserves data."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=5, historical_window=20)
+        tracker.record("analysis", success=True, quality=0.8, agent="planner")
+        tracker.record("analysis", success=False, quality=0.3, agent="executor")
+        tracker.record("coding", success=True, quality=0.9)
+
+        data = tracker.to_dict()
+        restored = EffectivenessTracker.from_dict(data, recent_window=5, historical_window=20)
+
+        # Same number of records per task_type
+        assert len(restored._records["analysis"]) == 2
+        assert len(restored._records["coding"]) == 1
+        # Global gets all records
+        assert len(restored._global) == 3
+
+    def test_quality_clamped(self):
+        """Quality values are clamped to [0.0, 1.0]."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker()
+        tracker.record("task", success=True, quality=-0.5)
+        tracker.record("task", success=True, quality=2.0)
+        records = list(tracker._records["task"])
+        assert records[0][2] == 0.0  # clamped from -0.5
+        assert records[1][2] == 1.0  # clamped from 2.0
+
+    def test_report_trend_positive(self):
+        """Report shows positive trend when recent beats historical."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=2, historical_window=10)
+        # All historical failures
+        for _ in range(5):
+            tracker.record("task", success=False, quality=0.1)
+        # All recent successes
+        for _ in range(2):
+            tracker.record("task", success=True, quality=0.9)
+        report = tracker.improvement_report()
+        assert report["task"]["trend"] > 0
+        assert report["task"]["quality_trend"] > 0
+        assert report["task"]["improving"] is True
+
+    def test_report_trend_negative(self):
+        """Report shows negative trend when recent is worse."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker(recent_window=2, historical_window=10)
+        # Historical successes
+        for _ in range(5):
+            tracker.record("task", success=True, quality=0.9)
+        # Recent failures
+        for _ in range(2):
+            tracker.record("task", success=False, quality=0.1)
+        report = tracker.improvement_report()
+        assert report["task"]["trend"] < 0
+        assert report["task"]["improving"] is False
+
+    def test_multiple_task_types(self):
+        """Different task types tracked independently."""
+        from Jotty.core.orchestration.learning_pipeline import EffectivenessTracker
+        tracker = EffectivenessTracker()
+        tracker.record("analysis", success=True, quality=0.9)
+        tracker.record("coding", success=False, quality=0.2)
+        report = tracker.improvement_report()
+        assert "analysis" in report
+        assert "coding" in report
+        assert report["analysis"]["recent_success_rate"] == 1.0
+        assert report["coding"]["recent_success_rate"] == 0.0
+
+
+# =============================================================================
+# AsyncUtils Tests — safe_status, StatusReporter, AgentEventBroadcaster
+# =============================================================================
+
+@pytest.mark.unit
+class TestAsyncUtils:
+    """Tests for core/utils/async_utils.py utilities."""
+
+    def test_safe_status_none_callback(self):
+        """safe_status with None callback is a no-op."""
+        from Jotty.core.utils.async_utils import safe_status
+        safe_status(None, "Planning", "step 1")  # Should not raise
+
+    def test_safe_status_calls_callback(self):
+        """safe_status invokes the callback with stage and detail."""
+        from Jotty.core.utils.async_utils import safe_status
+        cb = Mock()
+        safe_status(cb, "Planning", "step 1")
+        cb.assert_called_once_with("Planning", "step 1")
+
+    def test_safe_status_suppresses_exception(self):
+        """safe_status swallows callback exceptions."""
+        from Jotty.core.utils.async_utils import safe_status
+        cb = Mock(side_effect=RuntimeError("callback broken"))
+        safe_status(cb, "Planning", "step 1")  # Should not raise
+
+    def test_status_reporter_calls_callback_and_logs(self):
+        """StatusReporter invokes callback and logs."""
+        from Jotty.core.utils.async_utils import StatusReporter
+        cb = Mock()
+        mock_logger = Mock()
+        reporter = StatusReporter(cb, mock_logger, emoji="")
+        reporter("Planning", "step 1")
+        cb.assert_called_once_with("Planning", "step 1")
+        mock_logger.info.assert_called_once()
+
+    def test_status_reporter_with_prefix(self):
+        """StatusReporter.with_prefix() prepends prefix to stage."""
+        from Jotty.core.utils.async_utils import StatusReporter
+        cb = Mock()
+        reporter = StatusReporter(cb)
+        sub = reporter.with_prefix("[agent1]")
+        sub("Executing", "step 2")
+        cb.assert_called_once_with("[agent1] Executing", "step 2")
+
+    def test_status_reporter_no_callback(self):
+        """StatusReporter with None callback only logs."""
+        from Jotty.core.utils.async_utils import StatusReporter
+        mock_logger = Mock()
+        reporter = StatusReporter(None, mock_logger)
+        reporter("Planning", "detail")
+        mock_logger.info.assert_called_once()
+
+    def test_ensure_async_wraps_sync(self):
+        """ensure_async wraps a sync function to be awaitable."""
+        from Jotty.core.utils.async_utils import ensure_async
+        def sync_fn(x):
+            return x * 2
+        async_fn = ensure_async(sync_fn)
+        assert asyncio.iscoroutinefunction(async_fn)
+
+    def test_ensure_async_passthrough_async(self):
+        """ensure_async returns async functions unchanged."""
+        from Jotty.core.utils.async_utils import ensure_async
+        async def async_fn(x):
+            return x * 2
+        result = ensure_async(async_fn)
+        assert result is async_fn
+
+    @pytest.mark.asyncio
+    async def test_ensure_async_result(self):
+        """ensure_async wrapped function returns correct result."""
+        from Jotty.core.utils.async_utils import ensure_async
+        def sync_fn(x):
+            return x * 2
+        async_fn = ensure_async(sync_fn)
+        result = await async_fn(5)
+        assert result == 10
+
+    @pytest.mark.asyncio
+    async def test_gather_with_limit(self):
+        """gather_with_limit runs coroutines with concurrency limiting."""
+        from Jotty.core.utils.async_utils import gather_with_limit
+        results = []
+        async def task(n):
+            results.append(n)
+            return n * 2
+        out = await gather_with_limit([task(1), task(2), task(3)], limit=2)
+        assert sorted(out) == [2, 4, 6]
+        assert sorted(results) == [1, 2, 3]
+
+    def test_agent_event_creation(self):
+        """AgentEvent initializes with correct fields."""
+        from Jotty.core.utils.async_utils import AgentEvent
+        event = AgentEvent(type="tool_start", data={"skill": "web-search"}, agent_id="agent1")
+        assert event.type == "tool_start"
+        assert event.data == {"skill": "web-search"}
+        assert event.agent_id == "agent1"
+        assert event.timestamp > 0
+
+    def test_agent_event_unknown_type_no_error(self):
+        """AgentEvent with unknown type doesn't raise (just logs debug)."""
+        from Jotty.core.utils.async_utils import AgentEvent
+        event = AgentEvent(type="unknown_type")  # Should not raise
+        assert event.type == "unknown_type"
+
+    def test_broadcaster_singleton(self):
+        """AgentEventBroadcaster.get_instance() returns singleton."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        AgentEventBroadcaster.reset_instance()
+        try:
+            b1 = AgentEventBroadcaster.get_instance()
+            b2 = AgentEventBroadcaster.get_instance()
+            assert b1 is b2
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+    def test_broadcaster_reset(self):
+        """reset_instance() creates fresh singleton on next call."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        AgentEventBroadcaster.reset_instance()
+        try:
+            b1 = AgentEventBroadcaster.get_instance()
+            AgentEventBroadcaster.reset_instance()
+            b2 = AgentEventBroadcaster.get_instance()
+            assert b1 is not b2
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+    def test_broadcaster_subscribe_and_emit(self):
+        """subscribe + emit delivers events to listeners."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        AgentEventBroadcaster.reset_instance()
+        try:
+            bus = AgentEventBroadcaster.get_instance()
+            received = []
+            bus.subscribe("tool_start", lambda e: received.append(e))
+            event = AgentEvent(type="tool_start", data={"skill": "test"})
+            bus.emit(event)
+            assert len(received) == 1
+            assert received[0].data == {"skill": "test"}
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+    def test_broadcaster_unsubscribe(self):
+        """unsubscribe removes listener."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        AgentEventBroadcaster.reset_instance()
+        try:
+            bus = AgentEventBroadcaster.get_instance()
+            received = []
+            handler = lambda e: received.append(e)
+            bus.subscribe("tool_end", handler)
+            bus.unsubscribe("tool_end", handler)
+            bus.emit(AgentEvent(type="tool_end"))
+            assert len(received) == 0
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+    def test_broadcaster_emit_suppresses_listener_error(self):
+        """emit swallows exceptions from listeners."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        AgentEventBroadcaster.reset_instance()
+        try:
+            bus = AgentEventBroadcaster.get_instance()
+            bus.subscribe("error", lambda e: (_ for _ in ()).throw(RuntimeError("boom")))
+            received = []
+            bus.subscribe("error", lambda e: received.append(e))
+            bus.emit(AgentEvent(type="error", data={"msg": "test"}))
+            # Second listener still receives despite first one raising
+            assert len(received) == 1
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+    def test_broadcaster_unsubscribe_nonexistent(self):
+        """unsubscribe with non-subscribed callback is a no-op."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        AgentEventBroadcaster.reset_instance()
+        try:
+            bus = AgentEventBroadcaster.get_instance()
+            bus.unsubscribe("tool_start", lambda e: None)  # Should not raise
+        finally:
+            AgentEventBroadcaster.reset_instance()
+
+
 # Run tests
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
