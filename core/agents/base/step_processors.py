@@ -161,15 +161,28 @@ class ParameterResolver:
 
             # Direct match: param name exists as key
             if param_name in obj:
-                return str(obj[param_name])
+                val = obj[param_name]
+                # Format list results (e.g. search results) into readable text
+                if isinstance(val, list) and param_name in ('content', 'text', 'body'):
+                    return self._format_list_results(val)
+                return str(val)
 
             # Content-like params: prefer rich text fields
             if param_name in ('content', 'text', 'body'):
                 for fk in self._CONTENT_FIELDS:
                     if fk in obj:
-                        val = str(obj[fk])
-                        if len(val) > 50 and not val.strip().startswith('{"success"'):
-                            return val
+                        val = obj[fk]
+                        if isinstance(val, list):
+                            return self._format_list_results(val)
+                        val_str = str(val)
+                        if len(val_str) > 50 and not val_str.strip().startswith('{"success"'):
+                            return val_str
+
+                # Fallback for content: format 'results' list (search results, etc.)
+                if 'results' in obj and isinstance(obj['results'], list):
+                    formatted = self._format_list_results(obj['results'])
+                    if formatted and len(formatted) > 50:
+                        return formatted
 
             # Common field mappings
             for fk in ('path', 'output', 'content', 'stdout', 'result', 'response'):
@@ -186,6 +199,36 @@ class ParameterResolver:
         except (ValueError, KeyError):
             pass
         return None
+
+    @staticmethod
+    def _format_list_results(items: list) -> str:
+        """Format a list of result dicts into human-readable text.
+
+        Handles search results, API responses, and other structured lists.
+        Each item is formatted as a section with title, snippet, and URL.
+        """
+        if not items:
+            return ""
+        lines = []
+        for i, item in enumerate(items, 1):
+            if isinstance(item, dict):
+                title = item.get('title', item.get('name', ''))
+                snippet = item.get('snippet', item.get('description', item.get('text', '')))
+                url = item.get('link', item.get('url', ''))
+                parts = []
+                if title:
+                    parts.append(f"{i}. {title}")
+                if snippet:
+                    parts.append(f"   {snippet}")
+                if url:
+                    parts.append(f"   Source: {url}")
+                if parts:
+                    lines.append("\n".join(parts))
+                else:
+                    lines.append(f"{i}. {json.dumps(item, default=str)[:200]}")
+            else:
+                lines.append(f"{i}. {str(item)[:200]}")
+        return "\n\n".join(lines)
 
     def _resolve_bare_keys(self, key: str, value: str) -> str:
         """Handle bare output keys (e.g. "step_2" without ${} wrapping)."""

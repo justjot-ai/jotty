@@ -158,6 +158,57 @@ class SkillPlanExecutor:
                 logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner: {e}")
         return self._planner
 
+    def _ensure_lm(self) -> None:
+        """Ensure DSPy LM is configured before tool execution.
+
+        Tools like claude-cli-llm check dspy.settings.lm and fail if None.
+        This is normally set by BaseAgent._init_dspy_lm(), but when running
+        the executor standalone (without an agent), the global LM is missing.
+        """
+        try:
+            import dspy
+            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+                return  # Already configured
+        except ImportError:
+            return
+
+        import os
+        # Load API keys from .env.anthropic if not in environment
+        from pathlib import Path as _Path
+        env_file = _Path(__file__).parents[4] / '.env.anthropic'
+        if env_file.exists():
+            try:
+                with open(env_file) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if '=' in line:
+                            k, v = line.split('=', 1)
+                            k, v = k.strip(), v.strip()
+                            if v and k not in os.environ:
+                                os.environ[k] = v
+            except Exception:
+                pass
+
+        try:
+            from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+            if is_api_key_available():
+                lm = DirectAnthropicLM()
+                dspy.configure(lm=lm)
+                logger.info("SkillPlanExecutor: Auto-configured DSPy LM with DirectAnthropicLM")
+                return
+        except Exception as e:
+            logger.debug(f"DirectAnthropicLM not available: {e}")
+
+        try:
+            from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
+            lm = PersistentClaudeCLI()
+            dspy.configure(lm=lm)
+            logger.info("SkillPlanExecutor: Auto-configured DSPy LM with PersistentClaudeCLI")
+        except Exception as e:
+            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM: {e}")
+
     # =========================================================================
     # SKILL SELECTION
     # =========================================================================
@@ -1064,6 +1115,9 @@ class SkillPlanExecutor:
         _status = StatusReporter(status_callback, logger)
 
         self._excluded_skills.clear()
+
+        # Ensure DSPy LM is configured (tools depend on it)
+        self._ensure_lm()
 
         # Step 1: Infer task type
         _status("Analyzing", "inferring task type")

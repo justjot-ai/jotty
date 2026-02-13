@@ -1012,7 +1012,7 @@ class TestBaseAgentMemoryContext:
     def test_store_memory_no_memory(self):
         """store_memory is no-op when memory is None."""
         agent = self._make_agent()
-        agent.memory = None
+        agent._memory = None
         agent.store_memory("test content")  # Should not raise
 
     @pytest.mark.unit
@@ -1020,7 +1020,7 @@ class TestBaseAgentMemoryContext:
         """store_memory delegates to self.memory.store()."""
         agent = self._make_agent()
         mock_memory = MagicMock()
-        agent.memory = mock_memory
+        agent._memory = mock_memory
         agent.store_memory("test content", level="semantic", goal="test goal")
         mock_memory.store.assert_called_once()
         call_kwargs = mock_memory.store.call_args[1]
@@ -1033,14 +1033,14 @@ class TestBaseAgentMemoryContext:
         agent = self._make_agent()
         mock_memory = MagicMock()
         mock_memory.store.side_effect = RuntimeError("store failed")
-        agent.memory = mock_memory
+        agent._memory = mock_memory
         agent.store_memory("test")  # Should not raise
 
     @pytest.mark.unit
     def test_retrieve_memory_no_memory(self):
         """retrieve_memory returns empty list when memory is None."""
         agent = self._make_agent()
-        agent.memory = None
+        agent._memory = None
         result = agent.retrieve_memory("test query")
         assert result == []
 
@@ -1050,7 +1050,7 @@ class TestBaseAgentMemoryContext:
         agent = self._make_agent()
         mock_memory = MagicMock()
         mock_memory.retrieve.return_value = ["mem1", "mem2"]
-        agent.memory = mock_memory
+        agent._memory = mock_memory
         result = agent.retrieve_memory("test query", goal="goal", budget_tokens=500)
         assert result == ["mem1", "mem2"]
         mock_memory.retrieve.assert_called_once_with(
@@ -1063,7 +1063,7 @@ class TestBaseAgentMemoryContext:
         agent = self._make_agent()
         mock_memory = MagicMock()
         mock_memory.retrieve.side_effect = RuntimeError("retrieve failed")
-        agent.memory = mock_memory
+        agent._memory = mock_memory
         result = agent.retrieve_memory("test")
         assert result == []
 
@@ -1072,7 +1072,7 @@ class TestBaseAgentMemoryContext:
         """register_context delegates to context.set()."""
         agent = self._make_agent()
         mock_context = MagicMock()
-        agent.context = mock_context
+        agent._context_manager = mock_context
         agent.register_context("key1", "value1")
         mock_context.set.assert_called_once_with("key1", "value1")
 
@@ -1080,7 +1080,8 @@ class TestBaseAgentMemoryContext:
     def test_register_context_no_context(self):
         """register_context is no-op when context is None."""
         agent = self._make_agent()
-        agent.context = None
+        agent._context_manager = None
+        agent.config.enable_context = False
         agent.register_context("key", "val")  # Should not raise
 
     @pytest.mark.unit
@@ -1089,7 +1090,7 @@ class TestBaseAgentMemoryContext:
         agent = self._make_agent()
         mock_context = MagicMock()
         mock_context.get.return_value = "found_value"
-        agent.context = mock_context
+        agent._context_manager = mock_context
         result = agent.get_context("key1")
         assert result == "found_value"
 
@@ -1097,7 +1098,8 @@ class TestBaseAgentMemoryContext:
     def test_get_context_no_context_returns_default(self):
         """get_context returns default when context is None."""
         agent = self._make_agent()
-        agent.context = None
+        agent._context_manager = None
+        agent.config.enable_context = False
         result = agent.get_context("key1", default="fallback")
         assert result == "fallback"
 
@@ -1105,7 +1107,8 @@ class TestBaseAgentMemoryContext:
     def test_get_compressed_context_no_context(self):
         """get_compressed_context returns '' when context is None."""
         agent = self._make_agent()
-        agent.context = None
+        agent._context_manager = None
+        agent.config.enable_context = False
         assert agent.get_compressed_context() == ""
 
     @pytest.mark.unit
@@ -1117,7 +1120,7 @@ class TestBaseAgentMemoryContext:
             'current_task': 'do X',
             'current_goal': 'achieve Y',
         }.get(key)
-        agent.context = mock_context
+        agent._context_manager = mock_context
         result = agent.get_compressed_context()
         assert 'do X' in result
         assert 'achieve Y' in result
@@ -1131,7 +1134,7 @@ class TestBaseAgentMemoryContext:
         mock_context.get.side_effect = lambda key, *a: {
             'current_task': long_value,
         }.get(key)
-        agent.context = mock_context
+        agent._context_manager = mock_context
         result = agent.get_compressed_context(max_tokens=100)
         assert len(result) <= 100 * 4 + 10  # 4 chars/token + margin for "..."
         assert result.endswith("...")

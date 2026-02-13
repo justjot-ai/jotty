@@ -364,3 +364,122 @@ class TestBaseAgentProperties:
         agent = make_concrete_agent(name="NoMem", enable_memory=False)
         result = agent.retrieve_memory("query")
         assert result == [] or result is None
+
+
+# =============================================================================
+# DomainAgent Tests
+# =============================================================================
+
+class TestDomainAgent:
+    """Tests for DomainAgent field extraction, I/O properties, and factory."""
+
+    @pytest.fixture
+    def mock_signature(self):
+        """Create a mock DSPy Signature with input/output fields."""
+        import dspy
+        class TestSig(dspy.Signature):
+            """Test signature for unit testing."""
+            task: str = dspy.InputField(desc="The task to perform")
+            context: str = dspy.InputField(desc="Context information")
+            output: str = dspy.OutputField(desc="The result")
+            confidence: float = dspy.OutputField(desc="Confidence score")
+        return TestSig
+
+    @pytest.mark.unit
+    def test_extract_fields_from_signature(self, mock_signature):
+        """DomainAgent extracts input/output fields from DSPy Signature."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        assert 'task' in agent.input_fields
+        assert 'context' in agent.input_fields
+        assert 'output' in agent.output_fields
+        assert 'confidence' in agent.output_fields
+
+    @pytest.mark.unit
+    def test_input_fields_returns_copy(self, mock_signature):
+        """input_fields property returns a copy, not a reference."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        fields1 = agent.input_fields
+        fields2 = agent.input_fields
+        assert fields1 == fields2
+        # Modifying one shouldn't affect the other
+        fields1.append("extra")
+        assert "extra" not in agent.input_fields
+
+    @pytest.mark.unit
+    def test_output_fields_returns_copy(self, mock_signature):
+        """output_fields property returns a copy."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        fields = agent.output_fields
+        fields.append("extra")
+        assert "extra" not in agent.output_fields
+
+    @pytest.mark.unit
+    def test_no_signature_empty_fields(self):
+        """DomainAgent with signature=None has empty field lists."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(None, config)
+        assert agent.input_fields == []
+        assert agent.output_fields == []
+
+    @pytest.mark.unit
+    def test_get_io_schema(self, mock_signature):
+        """get_io_schema returns AgentIOSchema with correct fields."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        schema = agent.get_io_schema()
+        input_names = [p.name for p in schema.inputs]
+        output_names = [p.name for p in schema.outputs]
+        assert 'task' in input_names
+        assert 'output' in output_names
+
+    @pytest.mark.unit
+    def test_get_io_schema_cached(self, mock_signature):
+        """get_io_schema caches result after first call."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        schema1 = agent.get_io_schema()
+        schema2 = agent.get_io_schema()
+        assert schema1 is schema2
+
+    @pytest.mark.unit
+    def test_create_domain_agent_factory(self, mock_signature):
+        """create_domain_agent factory returns configured DomainAgent."""
+        from Jotty.core.agents.base.domain_agent import create_domain_agent
+        agent = create_domain_agent(mock_signature, use_chain_of_thought=True)
+        assert 'task' in agent.input_fields
+        assert agent.config.use_chain_of_thought is True
+
+    @pytest.mark.unit
+    def test_create_domain_agent_no_cot(self, mock_signature):
+        """create_domain_agent with use_chain_of_thought=False."""
+        from Jotty.core.agents.base.domain_agent import create_domain_agent
+        agent = create_domain_agent(mock_signature, use_chain_of_thought=False)
+        assert agent.config.use_chain_of_thought is False
+
+    @pytest.mark.unit
+    def test_domain_agent_config_defaults(self):
+        """DomainAgentConfig has sensible defaults."""
+        from Jotty.core.agents.base.domain_agent import DomainAgentConfig
+        config = DomainAgentConfig()
+        assert config.use_chain_of_thought is True
+        assert config.use_react is False
+        assert config.max_react_iters == 5
+
+    @pytest.mark.unit
+    def test_build_task_from_kwargs(self, mock_signature):
+        """_build_task_from_kwargs builds task string from keyword args."""
+        from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+        config = DomainAgentConfig(name="test")
+        agent = DomainAgent(mock_signature, config)
+        result = agent._build_task_from_kwargs(task="do X", context="some context")
+        assert "do X" in result
+        assert "some context" in result

@@ -917,15 +917,21 @@ class TestN8nWorkflowFactory:
     def test_create_all_handles_failure(self, mock_req, tmp_cache_dir):
         """create_all_workflows handles individual workflow creation failures."""
         mock_req.side_effect = [
-            # list_workflows (empty)
+            # 1: list_workflows (empty)
             {"success": True, "data": []},
-            # First workflow succeeds
+            # 2: list tags
+            {"success": True, "data": [{"id": "t1", "name": "pmi"}]},
+            # 3-4: workflow #1 create + tag
             {"success": True, "id": "new1"},
-            # Second workflow fails
+            {"success": True},
+            # 5: workflow #2 create fails (no tag call)
             {"success": False, "error": "Internal error"},
-            # Remaining succeed
-            *[{"success": True, "id": f"new{i}"} for i in range(2, 14)],
-            # Cache refresh
+            # 6-31: workflows #3-#15 create + tag (13 workflows x 2 calls)
+            *[resp for i in range(2, 15) for resp in (
+                {"success": True, "id": f"new{i}"},
+                {"success": True},
+            )],
+            # 32: cache refresh
             {"success": True, "data": []},
         ]
         client = N8nAPIClient(api_key="k", base_url="https://n8n.test")

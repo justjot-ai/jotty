@@ -84,10 +84,13 @@ class PlanUtilsMixin:
         prev_ref = f"${{{prev_output_key}}}" if prev_output_key else task
 
         # Special handling for write_file_tool - generate actual content
+        # Only short-circuit if LLM generation succeeds AND no previous step output
+        # to wire. When prev_output_key exists, prefer wiring step output as content.
         if skill_name == 'file-operations' and tool_name == 'write_file_tool':
-            params = self._generate_file_content(task)
-            if params.get('path') and params.get('content'):
-                return params
+            if not prev_output_key:
+                params = self._generate_file_content(task)
+                if params.get('path') and params.get('content'):
+                    return params
 
         try:
             from ..registry.skills_registry import get_skills_registry
@@ -129,13 +132,16 @@ class PlanUtilsMixin:
                             )
                             params[param_name] = math_match.group(1).strip() if math_match else clean_task
                         elif param_name in ['message', 'text', 'content', 'body']:
-                            # For write_file_tool, try to get generated content
+                            # For write_file_tool, try LLM content gen first, then
+                            # fall back to previous step output (prev_ref), never TODO stub
                             if tool_name == 'write_file_tool':
                                 file_content = self._generate_file_content(task)
                                 if file_content and file_content.get('content'):
                                     params[param_name] = file_content['content']
                                 else:
-                                    params[param_name] = f"# TODO: Generated content for: {clean_task}"
+                                    # Wire previous step output — ParameterResolver will
+                                    # substitute ${step_key} at execution time
+                                    params[param_name] = prev_ref
                             else:
                                 params[param_name] = prev_ref
                         elif param_name in ['file_path', 'pdf_path', 'path', 'input_path']:
