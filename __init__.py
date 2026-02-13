@@ -2,10 +2,8 @@
 JOTTY - Multi-Agent AI Framework
 ==================================
 
-V3 Architecture: Tiered Execution (NEW - Recommended)
-V2 Architecture: Orchestrator + Skills + Learning (Preserved)
+Tiered Execution with 5 progressive complexity levels:
 
-V3 - Simple, Progressive Complexity:
     from Jotty import Jotty, ExecutionTier
 
     jotty = Jotty()
@@ -20,11 +18,11 @@ V3 - Simple, Progressive Complexity:
     response = await jotty.chat("What is 2+2?")
     result = await jotty.plan("Complex task...")
     result = await jotty.learn("Task with memory")
-    result = await jotty.research("Full V2 features")
+    result = await jotty.research("Full features")
     result = await jotty.swarm("Build API", swarm_name="coding")
     result = await jotty.autonomous("Execute in sandbox")
 
-V2 - Full Control (Still Available):
+Full Control:
     from Jotty import Orchestrator, AgentConfig
 
     # Or use the high-level entry points:
@@ -64,7 +62,7 @@ warnings.filterwarnings(
     message='.*Pydantic serializer warnings.*'
 )
 
-__version__ = "3.0.0"  # V3 Release
+__version__ = "3.0.0"
 __author__ = "Jotty AI"
 
 # =============================================================================
@@ -72,7 +70,7 @@ __author__ = "Jotty AI"
 # =============================================================================
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # --- V3 EXPORTS (NEW - Recommended) ---
+    # --- TIERED EXECUTION ---
     "Jotty": ".jotty",
     "ExecutionTier": ".core.execution.types",
     "ExecutionConfig": ".core.execution.types",
@@ -85,7 +83,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "CompositeAgentConfig": ".core.agents.base.composite_agent",
     "UnifiedResult": ".core.agents.base.composite_agent",
 
-    # --- V2 PRIMARY EXPORTS (Preserved - No Breakage) ---
+    # --- ORCHESTRATION & FOUNDATION ---
     "Orchestrator": ".core.orchestration",
     "TodoItem": ".core.orchestration.swarm_roadmap",
     "AgentConfig": ".core.foundation.agent_config",
@@ -116,7 +114,7 @@ _LAZY_IMPORTS: dict[str, str] = {
 
     # --- MEMORY ---
     "SwarmMemory": ".core.memory.cortex",
-    "MemoryCluster": ".core.memory.cortex",
+    "MemoryCluster": ".core.memory.consolidation",
 
     # --- LEARNING ---
     "TDLambdaLearner": ".core.learning.learning",
