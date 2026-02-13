@@ -1,0 +1,29 @@
+{
+  "name": "whatsapp-reader",
+  "version": "1.0.0",
+  "description": "Read messages from WhatsApp Web chats and summarize learnings (Baileys session)",
+  "category": "messaging",
+  "tools": [
+    {
+      "name": "read_whatsapp_chat_messages_tool",
+      "description": "Read messages from a WhatsApp chat or group by name or chat_id",
+      "parameters": {
+        "chat_name": { "type": "string", "description": "Chat/group name to match (e.g. my-ai-ml or #my-ai-ml)" },
+        "chat_id": { "type": "string", "description": "WhatsApp chat JID if known" },
+        "limit": { "type": "integer", "default": 100, "description": "Max messages (max 500)" }
+      }
+    },
+    {
+      "name": "summarize_whatsapp_chat_learnings_tool",
+      "description": "Read messages from a WhatsApp chat and summarize key learnings",
+      "parameters": {
+        "chat_name": { "type": "string", "required": true, "description": "Chat/group name (e.g. my-ai-ml)" },
+        "limit": { "type": "integer", "default": 200, "description": "Max messages to include" },
+        "length": { "type": "string", "default": "medium", "description": "Summary length: short, medium, long" },
+        "style": { "type": "string", "default": "bullet", "description": "bullet, paragraph, numbered" }
+      }
+    }
+  ],
+  "environment": [],
+  "setup": "Run /whatsapp login in Jotty CLI first (same session). Then use /run to read and summarize a chat."
+}
