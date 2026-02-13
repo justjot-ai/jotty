@@ -800,3 +800,131 @@ class TestCachedRegistration:
             registry._load_cached_dynamic_skills()
 
         assert len([n for n in registry.loaded_skills if n == "n8n-idempotent-test"]) == 1
+
+
+# =============================================================================
+# Load N8nWorkflowFactory from updated module
+# =============================================================================
+
+N8nWorkflowFactory = _mod.N8nWorkflowFactory
+setup_n8n_workflows_tool = _mod.setup_n8n_workflows_tool
+
+
+# =============================================================================
+# TestN8nWorkflowFactory
+# =============================================================================
+
+@pytest.mark.unit
+class TestN8nWorkflowFactory:
+    """Tests for N8nWorkflowFactory workflow creation."""
+
+    def test_schedule_to_http_to_telegram_structure(self):
+        """Factory creates valid schedule->http->telegram workflow."""
+        wf = N8nWorkflowFactory.create_schedule_to_http_to_telegram(
+            name="test.morning_brief",
+            cron="45 8 * * 1-5",
+            http_url="http://localhost:5000/v2/get_indices",
+            http_method="GET",
+            message_template="*Morning Brief*\n{{$json.data}}",
+            tags=["pmi", "prod"],
+        )
+        assert wf["name"] == "test.morning_brief"
+        assert len(wf["nodes"]) == 3
+        assert wf["active"] is False
+
+        # Verify node types
+        node_types = [n["type"] for n in wf["nodes"]]
+        assert "n8n-nodes-base.scheduleTrigger" in node_types
+        assert "n8n-nodes-base.httpRequest" in node_types
+        assert "n8n-nodes-base.telegram" in node_types
+
+        # Verify connections
+        assert "Schedule Trigger" in wf["connections"]
+        assert "HTTP Request" in wf["connections"]
+
+        # Verify tags
+        tag_names = [t["name"] for t in wf["tags"]]
+        assert "pmi" in tag_names
+
+    def test_webhook_workflow_structure(self):
+        """Factory creates valid webhook->http->telegram workflow."""
+        wf = N8nWorkflowFactory.create_webhook_to_http_to_telegram(
+            name="test.order_alerts",
+            webhook_path="test-orders",
+            http_url="http://localhost:5000/v2/orders",
+            message_template="*Order Alert*\n{{$json.data}}",
+            tags=["pmi", "prod"],
+        )
+        assert wf["name"] == "test.order_alerts"
+        assert len(wf["nodes"]) == 3
+
+        # Verify webhook trigger
+        trigger = next(n for n in wf["nodes"] if "webhook" in n["type"])
+        assert trigger["parameters"]["path"] == "test-orders"
+        assert "Webhook" in wf["connections"]
+
+    def test_ssh_workflow_structure(self):
+        """Factory creates valid schedule->ssh pipeline workflow."""
+        wf = N8nWorkflowFactory.create_schedule_to_ssh_pipeline(
+            name="test.db_backup",
+            cron="0 2 * * *",
+            ssh_command="mongodump --gzip",
+            tags=["cmd", "dev"],
+        )
+        assert wf["name"] == "test.db_backup"
+        assert len(wf["nodes"]) == 3
+
+        # Verify SSH node
+        ssh_node = next(n for n in wf["nodes"] if "ssh" in n["type"])
+        assert ssh_node["parameters"]["command"] == "mongodump --gzip"
+
+    def test_get_all_workflow_definitions(self):
+        """get_all_workflow_definitions returns 15 workflows."""
+        workflows = N8nWorkflowFactory.get_all_workflow_definitions()
+        assert len(workflows) == 15
+
+        names = [w["name"] for w in workflows]
+        assert "pmi.prod.morning_brief" in names
+        assert "pmi.prod.closing_brief" in names
+        assert "cmd.dev.db_backup" in names
+        assert "cmd.dev.ssl_monitor" in names
+
+    @patch.object(N8nAPIClient, "_make_request")
+    @patch.dict("os.environ", {"N8N_API_KEY": "k", "N8N_BASE_URL": "https://n8n.test"})
+    def test_create_all_idempotent(self, mock_req, tmp_cache_dir):
+        """create_all_workflows skips existing workflows by name."""
+        # list_workflows returns 2 already existing
+        mock_req.side_effect = [
+            # First call: list_workflows
+            {"success": True, "data": [
+                {"name": "pmi.prod.morning_brief", "id": "existing1"},
+                {"name": "pmi.prod.closing_brief", "id": "existing2"},
+            ]},
+            # Remaining 13 POST calls succeed
+            *[{"success": True, "id": f"new{i}"} for i in range(13)],
+            # Final list_workflows for cache refresh
+            {"success": True, "data": []},
+        ]
+        client = N8nAPIClient(api_key="k", base_url="https://n8n.test")
+        count = N8nWorkflowFactory.create_all_workflows(client)
+        assert count == 13  # 15 total minus 2 existing
+
+    @patch.object(N8nAPIClient, "_make_request")
+    @patch.dict("os.environ", {"N8N_API_KEY": "k", "N8N_BASE_URL": "https://n8n.test"})
+    def test_create_all_handles_failure(self, mock_req, tmp_cache_dir):
+        """create_all_workflows handles individual workflow creation failures."""
+        mock_req.side_effect = [
+            # list_workflows (empty)
+            {"success": True, "data": []},
+            # First workflow succeeds
+            {"success": True, "id": "new1"},
+            # Second workflow fails
+            {"success": False, "error": "Internal error"},
+            # Remaining succeed
+            *[{"success": True, "id": f"new{i}"} for i in range(2, 14)],
+            # Cache refresh
+            {"success": True, "data": []},
+        ]
+        client = N8nAPIClient(api_key="k", base_url="https://n8n.test")
+        count = N8nWorkflowFactory.create_all_workflows(client)
+        assert count == 14  # 15 total minus 1 failure

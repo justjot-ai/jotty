@@ -689,13 +689,374 @@ async def activate_n8n_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+# =============================================================================
+# WORKFLOW FACTORY
+# =============================================================================
+
+class N8nWorkflowFactory:
+    """Creates n8n workflow definitions programmatically.
+
+    Provides factory methods for common workflow patterns:
+    - Schedule -> HTTP -> Telegram (scheduled reports)
+    - Webhook -> HTTP -> Telegram (event-driven alerts)
+    - Schedule -> SSH pipeline (devops automation)
+
+    All methods return workflow JSON dicts suitable for n8n API POST.
+    """
+
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+    PMI_BASE_URL = os.getenv("PMI_API_URL", "http://localhost:5000")
+
+    @classmethod
+    def _base_workflow(cls, name: str, tags: list) -> Dict[str, Any]:
+        """Create base workflow structure."""
+        return {
+            "name": name,
+            "nodes": [],
+            "connections": {},
+            "active": False,
+            "settings": {"executionOrder": "v1"},
+            "tags": [{"name": t} for t in tags],
+        }
+
+    @classmethod
+    def _schedule_trigger_node(cls, cron: str) -> Dict[str, Any]:
+        """Create a schedule trigger node."""
+        return {
+            "id": "schedule-trigger",
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [250, 300],
+            "parameters": {
+                "rule": {"interval": [{"field": "cronExpression", "expression": cron}]},
+            },
+        }
+
+    @classmethod
+    def _webhook_trigger_node(cls, webhook_path: str) -> Dict[str, Any]:
+        """Create a webhook trigger node."""
+        return {
+            "id": "webhook-trigger",
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [250, 300],
+            "parameters": {"path": webhook_path, "httpMethod": "POST"},
+            "webhookId": webhook_path,
+        }
+
+    @classmethod
+    def _http_request_node(cls, url: str, method: str = "GET",
+                           node_id: str = "http-request") -> Dict[str, Any]:
+        """Create an HTTP request node."""
+        return {
+            "id": node_id,
+            "name": "HTTP Request",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [470, 300],
+            "parameters": {"url": url, "method": method},
+        }
+
+    @classmethod
+    def _telegram_node(cls, message_template: str,
+                       node_id: str = "telegram-send") -> Dict[str, Any]:
+        """Create a Telegram send message node."""
+        return {
+            "id": node_id,
+            "name": "Telegram",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [690, 300],
+            "parameters": {
+                "chatId": cls.TELEGRAM_CHAT_ID,
+                "text": message_template,
+                "additionalFields": {"parse_mode": "Markdown"},
+            },
+            "credentials": {"telegramApi": {"id": "telegram", "name": "Telegram"}},
+        }
+
+    @classmethod
+    def _ssh_node(cls, command: str, node_id: str = "ssh-exec") -> Dict[str, Any]:
+        """Create an SSH execute command node."""
+        return {
+            "id": node_id,
+            "name": "SSH",
+            "type": "n8n-nodes-base.ssh",
+            "typeVersion": 1,
+            "position": [470, 300],
+            "parameters": {"command": command},
+            "credentials": {"sshPassword": {"id": "ssh", "name": "SSH"}},
+        }
+
+    @classmethod
+    def create_schedule_to_http_to_telegram(
+        cls, name: str, cron: str, http_url: str, http_method: str,
+        message_template: str, tags: List[str],
+    ) -> Dict[str, Any]:
+        """Build: ScheduleTrigger -> HTTP Request -> Telegram."""
+        wf = cls._base_workflow(name, tags)
+        trigger = cls._schedule_trigger_node(cron)
+        http_req = cls._http_request_node(http_url, http_method)
+        telegram = cls._telegram_node(message_template)
+        wf["nodes"] = [trigger, http_req, telegram]
+        wf["connections"] = {
+            "Schedule Trigger": {"main": [[{"node": "HTTP Request", "type": "main", "index": 0}]]},
+            "HTTP Request": {"main": [[{"node": "Telegram", "type": "main", "index": 0}]]},
+        }
+        return wf
+
+    @classmethod
+    def create_webhook_to_http_to_telegram(
+        cls, name: str, webhook_path: str, http_url: str,
+        message_template: str, tags: List[str],
+    ) -> Dict[str, Any]:
+        """Build: Webhook -> HTTP Request -> Telegram."""
+        wf = cls._base_workflow(name, tags)
+        trigger = cls._webhook_trigger_node(webhook_path)
+        http_req = cls._http_request_node(http_url, "POST")
+        telegram = cls._telegram_node(message_template)
+        wf["nodes"] = [trigger, http_req, telegram]
+        wf["connections"] = {
+            "Webhook": {"main": [[{"node": "HTTP Request", "type": "main", "index": 0}]]},
+            "HTTP Request": {"main": [[{"node": "Telegram", "type": "main", "index": 0}]]},
+        }
+        return wf
+
+    @classmethod
+    def create_schedule_to_ssh_pipeline(
+        cls, name: str, cron: str, ssh_command: str, tags: List[str],
+    ) -> Dict[str, Any]:
+        """Build: ScheduleTrigger -> SSH -> conditional Telegram on error."""
+        wf = cls._base_workflow(name, tags)
+        trigger = cls._schedule_trigger_node(cron)
+        ssh = cls._ssh_node(ssh_command)
+        telegram = cls._telegram_node(
+            f"[ALERT] {name} failed: {{{{$json.stderr}}}}",
+            node_id="telegram-alert",
+        )
+        telegram["position"] = [690, 300]
+        wf["nodes"] = [trigger, ssh, telegram]
+        wf["connections"] = {
+            "Schedule Trigger": {"main": [[{"node": "SSH", "type": "main", "index": 0}]]},
+            "SSH": {"main": [[{"node": "Telegram", "type": "main", "index": 0}]]},
+        }
+        return wf
+
+    @classmethod
+    def get_all_workflow_definitions(cls) -> List[Dict[str, Any]]:
+        """Return all 15 planned workflow definitions."""
+        base = cls.PMI_BASE_URL
+        return [
+            # --- PMI Production Workflows ---
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.morning_brief",
+                cron="45 8 * * 1-5",
+                http_url=f"{base}/v2/get_indices",
+                http_method="GET",
+                message_template="*Morning Brief*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.closing_brief",
+                cron="45 15 * * 1-5",
+                http_url=f"{base}/v2/get_pnl_summary",
+                http_method="GET",
+                message_template="*Closing Brief*\nP&L: {{$json.total_pnl}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.portfolio_snapshot",
+                cron="0 16 * * 1-5",
+                http_url=f"{base}/v2/portfolio",
+                http_method="GET",
+                message_template="*Portfolio Snapshot*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.fii_dii_tracker",
+                cron="0 18 * * 1-5",
+                http_url="https://www.nseindia.com/api/fiidiiTradeReact",
+                http_method="GET",
+                message_template="*FII/DII Activity*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_webhook_to_http_to_telegram(
+                name="pmi.prod.strategy_signals",
+                webhook_path="pmi-strategy-signals",
+                http_url=f"{base}/api/strategies/generate-signals",
+                message_template="*Strategy Signals*\n{{$json.signals}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_webhook_to_http_to_telegram(
+                name="pmi.prod.order_alerts",
+                webhook_path="pmi-order-alerts",
+                http_url=f"{base}/v2/orders",
+                message_template="*Order Alert*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.earnings_calendar",
+                cron="0 9 * * 1",
+                http_url=f"{base}/v2/earnings_calendar",
+                http_method="GET",
+                message_template="*Earnings This Week*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.global_markets",
+                cron="0 7 * * 1-5",
+                http_url=f"{base}/v2/get_global_indices",
+                http_method="GET",
+                message_template="*Global Markets*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.weekly_report",
+                cron="0 18 * * 0",
+                http_url=f"{base}/v2/portfolio",
+                http_method="GET",
+                message_template="*Weekly Portfolio Report*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance", "report"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.ipo_tracker",
+                cron="0 10 * * *",
+                http_url=f"{base}/v2/ipo_list",
+                http_method="GET",
+                message_template="*IPO Tracker*\n{{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            cls.create_schedule_to_http_to_telegram(
+                name="pmi.prod.watchlist_alerts",
+                cron="*/15 9-16 * * 1-5",
+                http_url=f"{base}/v2/watchlists/refresh",
+                http_method="GET",
+                message_template="*Watchlist Alert*\nPrice change >2%: {{$json.data}}",
+                tags=["pmi", "prod", "finance"],
+            ),
+            # --- DevOps Workflows ---
+            cls.create_schedule_to_http_to_telegram(
+                name="cmd.dev.health_check",
+                cron="*/5 * * * *",
+                http_url="http://localhost:5000/health",
+                http_method="GET",
+                message_template="[ALERT] Health check failed: {{$json.error}}",
+                tags=["cmd", "dev", "devops"],
+            ),
+            cls.create_schedule_to_ssh_pipeline(
+                name="cmd.dev.db_backup",
+                cron="0 2 * * *",
+                ssh_command="mongodump --gzip --archive=/backups/mongo_$(date +%Y%m%d).gz",
+                tags=["cmd", "dev", "devops"],
+            ),
+            cls.create_schedule_to_ssh_pipeline(
+                name="cmd.dev.ssl_monitor",
+                cron="0 6 * * *",
+                ssh_command="echo | openssl s_client -connect planmyinvesting.com:443 2>/dev/null | openssl x509 -noout -enddate",
+                tags=["cmd", "dev", "devops"],
+            ),
+            cls.create_schedule_to_ssh_pipeline(
+                name="cmd.dev.log_errors",
+                cron="0 * * * *",
+                ssh_command="tail -n 1000 /var/log/pmi/error.log | grep -c ERROR",
+                tags=["cmd", "dev", "devops"],
+            ),
+        ]
+
+    @classmethod
+    def create_all_workflows(cls, client: N8nAPIClient) -> int:
+        """Create all 15 planned workflows in n8n. Idempotent (skips existing).
+
+        Args:
+            client: Configured N8nAPIClient instance.
+
+        Returns:
+            Number of workflows created.
+        """
+        workflows = cls.get_all_workflow_definitions()
+
+        # Get existing workflow names
+        result = client.list_workflows()
+        existing = set()
+        if result.get("success"):
+            existing = {w.get("name", "") for w in result.get("data", [])}
+
+        count = 0
+        for wf_def in workflows:
+            if wf_def["name"] in existing:
+                logger.debug("Workflow '%s' already exists, skipping", wf_def["name"])
+                continue
+
+            create_result = client._make_request(
+                "/api/v1/workflows", method="POST", json_data=wf_def,
+            )
+            if create_result.get("success"):
+                count += 1
+                logger.info("Created workflow: %s", wf_def["name"])
+            else:
+                logger.warning(
+                    "Failed to create workflow '%s': %s",
+                    wf_def["name"], create_result.get("error"),
+                )
+
+        # Refresh cache with all workflows (existing + new)
+        try:
+            refresh = client.list_workflows()
+            if refresh.get("success"):
+                N8nDynamicSkillRegistrar.save_cache(refresh["data"], client.BASE_URL)
+        except Exception as e:
+            logger.warning("Cache refresh failed after workflow creation: %s", e)
+
+        return count
+
+
+@async_tool_wrapper()
+async def setup_n8n_workflows_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    One-time setup: create all standard n8n workflows.
+
+    Creates 15 workflows (11 PMI finance + 4 DevOps) in the configured n8n instance.
+    Idempotent: skips workflows that already exist by name.
+
+    Args:
+        params: Dictionary containing:
+            - api_key (str, optional): n8n API key
+            - base_url (str, optional): n8n instance URL
+
+    Returns:
+        Dictionary with created count and total available
+    """
+    status.set_callback(params.pop("_status_callback", None))
+
+    client, error = _get_client(params)
+    if error:
+        return error
+
+    status.emit("Creating", "Setting up n8n workflows...")
+    count = N8nWorkflowFactory.create_all_workflows(client)
+
+    status.emit("Verifying", "Verifying workflows...")
+    result = client.list_workflows()
+    total = len(result.get("data", [])) if result.get("success") else 0
+
+    return tool_response(
+        created=count,
+        total_workflows=total,
+        message=f"Created {count} new workflows ({total} total)",
+    )
+
+
 __all__ = [
     "N8nAPIClient",
     "N8nWorkflowAnalyzer",
     "WorkflowCapabilityInferrer",
     "N8nDynamicSkillRegistrar",
+    "N8nWorkflowFactory",
     "list_n8n_workflows_tool",
     "trigger_n8n_workflow_tool",
     "get_n8n_execution_tool",
     "activate_n8n_workflow_tool",
+    "setup_n8n_workflows_tool",
 ]
