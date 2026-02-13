@@ -111,7 +111,7 @@ class SwarmResearcher:
         """
         self._init_dependencies()
         
-        logger.info(f"🔍 SwarmResearcher: Researching '{query}' (type: {research_type})")
+        logger.info(f" SwarmResearcher: Researching '{query}' (type: {research_type})")
         
         findings = []
         tools_found = []
@@ -121,7 +121,7 @@ class SwarmResearcher:
         # STEP 1: Check skills registry first (DRY: reuse existing skills)
         registry_tools = self._search_registries(query, research_type)
         if registry_tools:
-            logger.info(f"✅ Found {len(registry_tools)} tools in registries")
+            logger.info(f" Found {len(registry_tools)} tools in registries")
             tools_found.extend(registry_tools)
             # Create findings from registry results
             for tool in registry_tools:
@@ -140,13 +140,13 @@ class SwarmResearcher:
                 search_findings = search_result.get("results", [])
                 if search_findings:
                     findings.extend(search_findings)
-                    logger.info(f"✅ Found {len(search_findings)} results from web-search skill")
+                    logger.info(f" Found {len(search_findings)} results from web-search skill")
             except Exception as e:
                 logger.debug(f"Web-search skill failed: {e}")
         
         # STEP 3: Only use LLM research if registries didn't find anything
         if not tools_found and not findings:
-            logger.info("ℹ️  No tools found in registries, using LLM research as fallback")
+            logger.info("ℹ No tools found in registries, using LLM research as fallback")
             llm_findings = await self._research_with_llm(query, research_type)
             if llm_findings:
                 findings.extend(llm_findings)
@@ -683,7 +683,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
             for p in providers:
                 print(f"{p.name}: {p.description} (stars: {p.stars})")
         """
-        logger.info(f"🔍 Discovering providers for: {capability}")
+        logger.info(f" Discovering providers for: {capability}")
 
         # Search multiple sources in parallel
         tasks = [

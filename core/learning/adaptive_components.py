@@ -51,7 +51,7 @@ class AdaptiveLearningRate:
         # Tracking
         self.td_errors: List[float] = []
         self.success_rates: List[float] = []
-        self.window_size = config.adaptive_window_size  # 🔧 STANFORD FIX
+        self.window_size = config.adaptive_window_size # STANFORD FIX
     
     def record_td_error(self, td_error: float):
         """Record a TD error for variance analysis."""
@@ -92,11 +92,11 @@ class AdaptiveLearningRate:
         adjustment = 0.0
         
         # High variance → unstable → decrease α
-        if std_dev > mean_error * self.config.instability_threshold_multiplier:  # 🔧 STANFORD FIX
+        if std_dev > mean_error * self.config.instability_threshold_multiplier: # STANFORD FIX
             adjustment -= self.adaptation_rate
         
         # Low mean error → slow learning → increase α
-        elif mean_error < self.config.slow_learning_threshold:  # 🔧 STANFORD FIX
+        elif mean_error < self.config.slow_learning_threshold: # STANFORD FIX
             adjustment += self.adaptation_rate
         
         # Check success rate trend

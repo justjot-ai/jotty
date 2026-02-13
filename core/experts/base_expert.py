@@ -72,7 +72,7 @@ class BaseExpert(ABC):
         self.config = config
         self.memory = memory
 
-        logger.info(f"✨ {self.domain.title()} Expert initialized")
+        logger.info(f" {self.domain.title()} Expert initialized")
 
     # =========================================================================
     # ABSTRACT METHODS - Must be implemented by subclasses

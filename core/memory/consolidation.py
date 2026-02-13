@@ -432,7 +432,7 @@ class MemoryLevelClassifier:
         
         try:
             result = self.classifier(
-                experience=experience,  # 🔥 NO LIMIT - FULL content
+                experience=experience, # NO LIMIT - FULL content
                 context=json.dumps(context)
             )
             

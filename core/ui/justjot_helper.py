@@ -88,9 +88,9 @@ def return_section(
     if isinstance(content, dict):
         try:
             content = schema_registry.validate_and_transform(section_type, content)
-            logger.debug(f"✅ Validated {section_type} content")
+            logger.debug(f" Validated {section_type} content")
         except Exception as e:
-            logger.warning(f"⚠️  Schema validation failed for {section_type}: {e}")
+            logger.warning(f" Schema validation failed for {section_type}: {e}")
             # Continue with original content
 
     return format_section(section_type, content, title, props)
@@ -335,7 +335,7 @@ def return_file_download(
     return return_section(
         section_type="file-download",
         content=content,
-        title=title or f"📄 {filename}"
+        title=title or f" {filename}"
     )
 
 

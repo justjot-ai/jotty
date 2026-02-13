@@ -95,7 +95,7 @@ class LotusArxiv:
         if self._initialized:
             return
 
-        logger.info("🌸 Initializing LOTUS...")
+        logger.info(" Initializing LOTUS...")
 
         # Language model for semantic operations
         self.lm = LM(model=self.config.model)
@@ -117,7 +117,7 @@ class LotusArxiv:
             lotus.settings.configure(lm=self.lm, rm=self.rm)
 
         self._initialized = True
-        logger.info("✅ LOTUS initialized")
+        logger.info(" LOTUS initialized")
 
     async def search_papers(
         self,
@@ -136,7 +136,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f"🔍 Searching ArXiv: {query}")
+        logger.info(f" Searching ArXiv: {query}")
 
         # Run in executor since LOTUS web_search may block
         loop = asyncio.get_running_loop()
@@ -169,7 +169,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f"🔍 Searching and ranking: {query}")
+        logger.info(f" Searching and ranking: {query}")
 
         loop = asyncio.get_running_loop()
 
@@ -210,7 +210,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f"🔎 Filtering papers: {filter_by}")
+        logger.info(f" Filtering papers: {filter_by}")
 
         loop = asyncio.get_running_loop()
         strategy = "cot" if self.config.use_cot else "quick"
@@ -239,7 +239,7 @@ class LotusArxiv:
 
         self._init_lotus()
 
-        logger.info(f"📄 Extracting full text: {arxiv_id}")
+        logger.info(f" Extracting full text: {arxiv_id}")
 
         loop = asyncio.get_running_loop()
 
@@ -284,7 +284,7 @@ class LotusArxiv:
                 "prerequisites": "What you need to know first"
             }
 
-        logger.info("🧠 Extracting concepts...")
+        logger.info(" Extracting concepts...")
 
         loop = asyncio.get_running_loop()
 
@@ -317,7 +317,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info("📊 Aggregating insights across papers...")
+        logger.info(" Aggregating insights across papers...")
 
         loop = asyncio.get_running_loop()
 
@@ -351,7 +351,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f"🔗 Finding similar papers...")
+        logger.info(f" Finding similar papers...")
 
         loop = asyncio.get_running_loop()
 
@@ -391,7 +391,7 @@ class LotusArxiv:
         """
         self._init_lotus()
 
-        logger.info(f"🗺️ Mapping papers: {instruction}")
+        logger.info(f" Mapping papers: {instruction}")
 
         loop = asyncio.get_running_loop()
 

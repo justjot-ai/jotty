@@ -205,7 +205,7 @@ class WhatsAppCommand(BaseCommand):
             cli.renderer.header("WhatsApp Chats")
             for chat in chats[:20]:
                 unread = f" ({chat['unread_count']} unread)" if chat.get('unread_count') else ""
-                group_icon = "👥" if chat.get('is_group') else "👤"
+                group_icon = "" if chat.get('is_group') else ""
                 cli.renderer.print(f"  {group_icon} {chat['name']}{unread}")
 
             return CommandResult.ok(data={"chats": chats})

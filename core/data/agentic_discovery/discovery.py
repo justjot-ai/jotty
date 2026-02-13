@@ -176,7 +176,7 @@ class ArtifactAnalyzer:
         else:
             self.analyzer = None
         
-        logger.info("🔍 ArtifactAnalyzer initialized")
+        logger.info(" ArtifactAnalyzer initialized")
     
     def analyze(
         self,
@@ -302,7 +302,7 @@ class SemanticTagger:
         else:
             self.tagger = None
         
-        logger.info("🏷️ SemanticTagger initialized")
+        logger.info(" SemanticTagger initialized")
     
     def tag(self, analysis: AnalysisResult) -> TaggingResult:
         """Generate tags from analysis result."""
@@ -352,7 +352,7 @@ class InformationExtractor:
     """
     
     def __init__(self):
-        logger.info("📊 InformationExtractor initialized")
+        logger.info(" InformationExtractor initialized")
     
     def extract(self, artifact: Any, artifact_type: ArtifactType) -> ExtractionResult:
         """Extract statistics and schema from artifact."""
@@ -475,7 +475,7 @@ class ArtifactValidator:
     
     def __init__(self, strict: bool = False):
         self.strict = strict
-        logger.info("✅ ArtifactValidator initialized")
+        logger.info(" ArtifactValidator initialized")
     
     def validate(
         self,
@@ -628,7 +628,7 @@ class RegistrationOrchestrator:
         self._registrations = 0
         self._failures = 0
         
-        logger.info("🎯 RegistrationOrchestrator initialized")
+        logger.info(" RegistrationOrchestrator initialized")
         logger.info(f"   LLM Analysis: {'enabled' if enable_llm_analysis else 'disabled'}")
         logger.info(f"   Validation: {'enabled' if enable_validation else 'disabled'}")
     

@@ -93,7 +93,7 @@ class SwarmProviderGateway:
                     if os.getenv('OPENCODE_ZEN_API_KEY'):
                         try:
                             self._configured_lm = UnifiedLMProvider.create_lm(provider='zen')
-                            logger.info("🌐 SwarmProviderGateway (async): Using OpenCode Zen (free)")
+                            logger.info(" SwarmProviderGateway (async): Using OpenCode Zen (free)")
                         except Exception as e:
                             logger.debug(f"Zen failed: {e}")
 
@@ -111,7 +111,7 @@ class SwarmProviderGateway:
                             if os.getenv(env_key):
                                 try:
                                     self._configured_lm = UnifiedLMProvider.create_lm(provider=provider_name)
-                                    logger.info(f"🌐 SwarmProviderGateway (async): Using {provider_name} API")
+                                    logger.info(f" SwarmProviderGateway (async): Using {provider_name} API")
                                     break
                                 except Exception:
                                     continue
@@ -123,7 +123,7 @@ class SwarmProviderGateway:
                             if is_claude_available():
                                 provider = JottyClaudeProvider(auto_start=True)
                                 self._configured_lm = provider.get_lm()
-                                logger.info("🌐 SwarmProviderGateway (async): Using JottyClaudeProvider")
+                                logger.info(" SwarmProviderGateway (async): Using JottyClaudeProvider")
                         except Exception as e:
                             logger.debug(f"JottyClaudeProvider failed: {e}")
 
@@ -132,7 +132,7 @@ class SwarmProviderGateway:
                         try:
                             from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
                             self._configured_lm = DirectClaudeCLI()
-                            logger.info("🌐 SwarmProviderGateway (async): Using DirectClaudeCLI")
+                            logger.info(" SwarmProviderGateway (async): Using DirectClaudeCLI")
                         except Exception as e:
                             logger.debug(f"DirectClaudeCLI failed: {e}")
 
@@ -141,22 +141,22 @@ class SwarmProviderGateway:
                         try:
                             from Jotty.core.foundation.opencode_lm import OpenCodeLM
                             self._configured_lm = OpenCodeLM(model="glm-4")
-                            logger.info("🌐 SwarmProviderGateway (async): Using OpenCode GLM")
+                            logger.info(" SwarmProviderGateway (async): Using OpenCode GLM")
                         except Exception as e:
                             logger.debug(f"OpenCode failed: {e}")
 
                 if self._configured_lm:
                     provider_name = getattr(self._configured_lm, 'provider', 'unknown')
                     model_name = getattr(self._configured_lm, 'model', 'unknown')
-                    logger.info(f"🌐 SwarmProviderGateway configured (async-safe): {provider_name}/{model_name}")
+                    logger.info(f" SwarmProviderGateway configured (async-safe): {provider_name}/{model_name}")
             else:
                 # In sync context, configure DSPy normally
                 self._configured_lm = self._configure_fn(provider=self.provider)
                 provider_name = getattr(self._configured_lm, 'provider', 'unknown')
                 model_name = getattr(self._configured_lm, 'model', 'unknown')
-                logger.info(f"🌐 SwarmProviderGateway configured: {provider_name}/{model_name}")
+                logger.info(f" SwarmProviderGateway configured: {provider_name}/{model_name}")
         except Exception as e:
-            logger.warning(f"⚠️  Provider auto-configuration failed: {e}, will use DSPy defaults")
+            logger.warning(f" Provider auto-configuration failed: {e}, will use DSPy defaults")
             # Try to get current DSPy LM if configured
             try:
                 import asyncio
@@ -166,14 +166,14 @@ class SwarmProviderGateway:
                     with dspy.context():
                         if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
                             self._configured_lm = dspy.settings.lm
-                            logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration (async)")
+                            logger.info(" SwarmProviderGateway using existing DSPy LM configuration (async)")
                 except RuntimeError:
                     # Not in async context
                     if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
                         self._configured_lm = dspy.settings.lm
-                        logger.info("🌐 SwarmProviderGateway using existing DSPy LM configuration")
+                        logger.info(" SwarmProviderGateway using existing DSPy LM configuration")
             except Exception:
-                logger.warning("⚠️  No LM provider configured")
+                logger.warning(" No LM provider configured")
     
     def get_lm(self) -> Optional[BaseLM]:
         """
@@ -249,7 +249,7 @@ class SwarmProviderGateway:
         
         self._configured_lm = lm
         self.provider = provider
-        logger.info(f"🌐 SwarmProviderGateway configured: {provider}/{model or 'default'}")
+        logger.info(f" SwarmProviderGateway configured: {provider}/{model or 'default'}")
         return lm
     
     def list_available_providers(self) -> list:

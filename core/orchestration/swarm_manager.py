@@ -509,9 +509,9 @@ class ExecutionEngine:
             lm = sm.swarm_provider_gateway.get_lm()
             if lm:
                 dspy.configure(lm=lm)
-                logger.info(f"✅ DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
+                logger.info(f" DSPy LM configured: {getattr(lm, 'model', 'unknown')}")
 
-        _status = StatusReporter(status_callback, logger, emoji="📍")
+        _status = StatusReporter(status_callback, logger, emoji="")
 
         # ── FAST PATH: Simple tasks bypass the entire agent pipeline ──
         # ValidationGate classifies task complexity using a cheap LLM (or heuristic).
@@ -659,7 +659,7 @@ class ExecutionEngine:
                 # LLM detected parallel sub-goals - upgrade to multi-agent
                 sm.agents = new_agents
                 sm.mode = "multi"
-                logger.info(f"🔄 Zero-config: Upgraded to {len(sm.agents)} agents for parallel execution")
+                logger.info(f" Zero-config: Upgraded to {len(sm.agents)} agents for parallel execution")
 
                 # Create runners for new agents
                 from Jotty.core.orchestration.agent_runner import AgentRunner, AgentRunnerConfig
@@ -1006,11 +1006,11 @@ class ExecutionEngine:
                 ).strip()
                 _status("Intelligence", f"{len(learned_hints)} learned hints applied")
                 logger.info(
-                    f"📚 Single-agent intelligence: {len(learned_hints)} hints "
+                    f" Single-agent intelligence: {len(learned_hints)} hints "
                     f"for task_type='{task_type}'"
                 )
                 for i, hint in enumerate(learned_hints, 1):
-                    logger.info(f"  📚 Hint {i}: {hint}")
+                    logger.info(f" Hint {i}: {hint}")
 
         except Exception as e:
             logger.warning(f"Pre-execution intelligence read failed: {e}")
@@ -1101,7 +1101,7 @@ class ExecutionEngine:
                 _intelligence_applied = bool(getattr(sm, 'learning', None))
                 if _intelligence_applied and sm.agents:
                     top = sm.agents[0].name if hasattr(sm.agents[0], 'name') else '?'
-                    logger.info(f"🛡️ Router: agents ordered for goal (lead={top})")
+                    logger.info(f" Router: agents ordered for goal (lead={top})")
         except Exception as e:
             logger.warning(f"Intelligence-guided selection failed: {e}")
 
@@ -1131,7 +1131,7 @@ class ExecutionEngine:
                 _task_type = sm.learning.transfer_learning.extractor.extract_task_type(goal)
                 discussion_paradigm = sm.learning.recommend_paradigm(_task_type)
                 logger.info(
-                    f"🧠 Auto paradigm: selected '{discussion_paradigm}' "
+                    f" Auto paradigm: selected '{discussion_paradigm}' "
                     f"for task_type='{_task_type}'"
                 )
             except Exception as e:
@@ -1173,7 +1173,7 @@ class ExecutionEngine:
                     min_agents=min(2, len(available)),
                     available_agents=available
                 )
-                logger.info(f"🤝 Coalition formed for '{_task_type}' with {len(available)} agents")
+                logger.info(f" Coalition formed for '{_task_type}' with {len(available)} agents")
             except Exception as e:
                 logger.debug(f"Coalition formation skipped: {e}")
 
@@ -1204,7 +1204,7 @@ class ExecutionEngine:
                 actor=agent_config.name,
                 depends_on=deps  # Empty for parallel execution
             )
-            logger.info(f"📋 Added task {task_id} for {agent_config.name}: {sub_goal[:50]}... (parallel: {len(deps)==0})")
+            logger.info(f" Added task {task_id} for {agent_config.name}: {sub_goal[:50]}... (parallel: {len(deps)==0})")
 
         all_results = {}  # agent_name -> EpisodeResult
         attempt_counts = {}  # task_id -> attempts
@@ -1351,7 +1351,7 @@ class ExecutionEngine:
                 attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
 
                 # Show agent completion status
-                status_icon = "✓" if result.success else "✗"
+                status_icon = "" if result.success else ""
                 safe_status(status_callback, f"{status_icon} Agent {task.actor}", "completed" if result.success else "failed")
                 reward = 1.0 if result.success else -0.5
 
@@ -1545,7 +1545,7 @@ class ExecutionEngine:
 
                     _elapsed = _time.time() - _start
                     logger.info(
-                        f"⚡ Paradigm fast-path: {agent_name} "
+                        f" Paradigm fast-path: {agent_name} "
                         f"({_elapsed:.1f}s, 1 LLM call)"
                     )
 
@@ -1960,7 +1960,7 @@ class ExecutionEngine:
             await swarm.autonomous_setup("Set up Reddit scraping")
         """
         sm = self._manager
-        _status = StatusReporter(status_callback, logger, emoji="📍")
+        _status = StatusReporter(status_callback, logger, emoji="")
 
         # Cache check: skip if already set up for this goal
         cache_key = hash(goal)
@@ -2335,7 +2335,7 @@ class Orchestrator:
         Returns:
             Dict with training results and improvement metrics
         """
-        _status = StatusReporter(status_callback, logger, emoji="🎓")
+        _status = StatusReporter(status_callback, logger, emoji="")
 
         # Checkpoint before training — enables rollback if training degrades
         checkpoint_path = None
@@ -2746,7 +2746,7 @@ class Orchestrator:
             }
         )
         
-        logger.info(f"✅ Converted natural language to AgentConfig: {task_graph.task_type.value}")
+        logger.info(f" Converted natural language to AgentConfig: {task_graph.task_type.value}")
         return agent_config
     
     def compose_prompt(
@@ -2912,7 +2912,7 @@ class Orchestrator:
                 done, still_pending = await asyncio.wait(pending, timeout=timeout)
                 if still_pending:
                     logger.warning(
-                        f"⚠️  {len(still_pending)} background task(s) didn't finish in {timeout}s, "
+                        f" {len(still_pending)} background task(s) didn't finish in {timeout}s, "
                         f"cancelling (learnings will be saved next run)"
                     )
                     for t in still_pending:
@@ -2952,9 +2952,9 @@ class Orchestrator:
                 if errors:
                     parts.append(f"Errors: {'; '.join(str(e) for e in errors[:3])}")
 
-                logger.info(f"\n📋 Execution Summary:\n" + '\n'.join(parts))
+                logger.info(f"\n Execution Summary:\n" + '\n'.join(parts))
             elif hasattr(_output, 'summary'):
-                logger.info(f"\n📋 Execution Summary:\n{_output.summary}")
+                logger.info(f"\n Execution Summary:\n{_output.summary}")
         except Exception as e:
             logger.debug(f"Summary logging skipped: {e}")
 
@@ -3033,7 +3033,7 @@ class Orchestrator:
             return None
 
         logger.info(
-            f"🎓 Running training task: {task.description[:60]} "
+            f" Running training task: {task.description[:60]} "
             f"(difficulty={task.difficulty:.2f})"
         )
         try:
@@ -3043,7 +3043,7 @@ class Orchestrator:
                 skip_validation=True,
             )
             logger.info(
-                f"🎓 Training task {'passed' if result.success else 'failed'}: "
+                f" Training task {'passed' if result.success else 'failed'}: "
                 f"{task.description[:40]}"
             )
             return result
@@ -3091,7 +3091,7 @@ class Orchestrator:
                     al = self.learning.adaptive_learning
                     if al.state.is_converging and al.should_stop_early():
                         logger.info(
-                            f"🎓 Training loop: converged after {i} tasks, stopping"
+                            f" Training loop: converged after {i} tasks, stopping"
                         )
                         break
                 except Exception as e:
@@ -3099,7 +3099,7 @@ class Orchestrator:
 
             result = await self.run_training_task()
             if result is None:
-                logger.info(f"🎓 Training loop: queue empty after {i} tasks")
+                logger.info(f" Training loop: queue empty after {i} tasks")
                 break
 
             results.append(result)
@@ -3108,7 +3108,7 @@ class Orchestrator:
                 await asyncio.sleep(interval_seconds)
 
         logger.info(
-            f"🎓 Training loop complete: {len(results)} tasks, "
+            f" Training loop complete: {len(results)} tasks, "
             f"{sum(1 for r in results if r.success)}/{len(results)} succeeded"
         )
         return results
@@ -3134,7 +3134,7 @@ class Orchestrator:
             True if daemon was started, False if already running.
         """
         if self._training_daemon and not self._training_daemon.done():
-            logger.info("🎓 Training daemon already running")
+            logger.info(" Training daemon already running")
             return False
 
         self._training_daemon_results = []
@@ -3148,13 +3148,13 @@ class Orchestrator:
                 )
                 self._training_daemon_results = results
             except asyncio.CancelledError:
-                logger.info("🎓 Training daemon cancelled")
+                logger.info(" Training daemon cancelled")
             except Exception as e:
-                logger.warning(f"🎓 Training daemon error: {e}")
+                logger.warning(f" Training daemon error: {e}")
 
         self._training_daemon = asyncio.ensure_future(_daemon())
         logger.info(
-            f"🎓 Training daemon started (max_tasks={max_tasks}, "
+            f" Training daemon started (max_tasks={max_tasks}, "
             f"interval={interval_seconds}s)"
         )
         return True
@@ -3169,7 +3169,7 @@ class Orchestrator:
         if not self._training_daemon or self._training_daemon.done():
             return False
         self._training_daemon.cancel()
-        logger.info("🎓 Training daemon stop requested")
+        logger.info(" Training daemon stop requested")
         return True
 
     def training_daemon_status(self) -> Dict[str, Any]:

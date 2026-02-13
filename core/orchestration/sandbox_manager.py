@@ -118,7 +118,7 @@ class SandboxManager:
             self.e2b_api_key = self.config.get('e2b_api_key') or os.getenv('E2B_API_KEY')
             if self.e2b_api_key:
                 self.e2b_available = True
-                logger.info("✅ E2B sandbox available")
+                logger.info(" E2B sandbox available")
             else:
                 logger.debug("E2B installed but no API key configured")
         except ImportError:
@@ -133,7 +133,7 @@ class SandboxManager:
             )
             if result.returncode == 0:
                 self.docker_available = True
-                logger.info("✅ Docker sandbox available")
+                logger.info(" Docker sandbox available")
             else:
                 logger.debug("Docker not running or accessible")
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -141,7 +141,7 @@ class SandboxManager:
 
         # Log fallback
         if not self.e2b_available and not self.docker_available:
-            logger.info("ℹ️  Using subprocess sandbox (fallback)")
+            logger.info("ℹ Using subprocess sandbox (fallback)")
 
     def get_sandbox_config(self, trust_level: TrustLevel) -> SandboxConfig:
         """
@@ -226,7 +226,7 @@ class SandboxManager:
         context = context or {}
 
         config = self.get_sandbox_config(trust_level)
-        logger.info(f"🔒 Executing with {config.sandbox_type.value} sandbox (trust: {trust_level.value})")
+        logger.info(f" Executing with {config.sandbox_type.value} sandbox (trust: {trust_level.value})")
 
         try:
             if config.sandbox_type == SandboxType.NONE:

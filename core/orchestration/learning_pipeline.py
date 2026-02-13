@@ -1189,7 +1189,7 @@ class SwarmLearningPipeline:
                             operations.append(str(skill))
 
         logger.info(
-            f"📝 Workflow learning: task_type={task_type}, "
+            f" Workflow learning: task_type={task_type}, "
             f"operations={operations[:5]}, tools={skills_used[:5]}"
         )
         workflow_learner.learn_from_execution(

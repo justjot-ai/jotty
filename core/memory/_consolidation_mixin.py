@@ -117,7 +117,7 @@ class ConsolidationMixin:
         """Extract semantic pattern from episodic cluster."""
         # Format memories for LLM
         memory_data = []
-        for mem in cluster.memories:  # 🔥 NO LIMIT - FULL content
+        for mem in cluster.memories: # NO LIMIT - FULL content
             memory_data.append({
                 "content": mem.content,
                 "value": mem.default_value,

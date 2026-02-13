@@ -1,5 +1,5 @@
 """
-🗜️ AGENTIC COMPRESSOR
+ AGENTIC COMPRESSOR
 ====================
 
 NO RULE-BASED COMPRESSION!
@@ -26,7 +26,7 @@ class CompressionSignature(dspy.Signature):
     """
     Intelligently compress content while preserving task-critical information.
     
-    🔬 A-TEAM ENHANCEMENT: Shapley-impact-based prioritization.
+     A-TEAM ENHANCEMENT: Shapley-impact-based prioritization.
     Content that contributed to past successes gets higher preservation priority.
     """
     
@@ -35,7 +35,7 @@ class CompressionSignature(dspy.Signature):
     target_tokens = dspy.InputField(desc="Target token count after compression")
     priority_keywords = dspy.InputField(desc="Keywords/concepts that MUST be preserved")
     content_type = dspy.InputField(desc="Type of content: metadata, conversation, code, etc.")
-    # 🔬 NEW: Shapley impact hints
+    # NEW: Shapley impact hints
     high_impact_items = dspy.InputField(desc="Items with HIGH Shapley credit (preserve these first!)")
     low_impact_items = dspy.InputField(desc="Items with LOW Shapley credit (can be compressed/removed)")
     
@@ -78,7 +78,7 @@ class AgenticCompressor:
         """
         Intelligently compress content based on task needs.
         
-        🔬 A-TEAM ENHANCEMENT: Shapley-impact-based prioritization.
+         A-TEAM ENHANCEMENT: Shapley-impact-based prioritization.
         
         Args:
             content: FULL content (NO pre-slicing!)
@@ -97,12 +97,12 @@ class AgenticCompressor:
         """
         tokenizer = SmartTokenizer.get_instance()
         current_tokens = tokenizer.count_tokens(content)
-        logger.info(f"🗜️ Agentic compression for {task_context.get('actor_name', 'unknown')}...")
+        logger.info(f" Agentic compression for {task_context.get('actor_name', 'unknown')}...")
         logger.info(f"   Original length: {len(content)} chars (~{current_tokens} tokens)")
         logger.info(f"   Target: {target_tokens} tokens")
         
         if current_tokens <= target_tokens:
-            logger.info(f"✅ No compression needed ({current_tokens} <= {target_tokens} tokens)")
+            logger.info(f" No compression needed ({current_tokens} <= {target_tokens} tokens)")
             return content
         
         # Build priority keywords
@@ -113,7 +113,7 @@ class AgenticCompressor:
             goal = task_context.get('goal', '')
             priority_keywords = f"Query: {query}, Goal: {goal}"
         
-        # 🔬 A-TEAM: Extract high/low impact items from Shapley credits
+        # A-TEAM: Extract high/low impact items from Shapley credits
         high_impact_items = ""
         low_impact_items = ""
         if shapley_credits:
@@ -136,7 +136,7 @@ class AgenticCompressor:
         # Call the agentic compressor
         with dspy.context(lm=self.lm):
             result = self.compressor(
-                full_content=content,  # 🔥 FULL content, NO slicing!
+                full_content=content, # FULL content, NO slicing!
                 high_impact_items=high_impact_items,
                 low_impact_items=low_impact_items,
                 task_description=f"Actor '{task_context.get('actor_name')}' needs to: {task_context.get('goal', 'process this content')}",
@@ -148,7 +148,7 @@ class AgenticCompressor:
         compressed = result.compressed_content
         compressed_tokens = tokenizer.count_tokens(compressed)
         
-        logger.info(f"✅ Compressed: {current_tokens} → {compressed_tokens} tokens ({result.compression_ratio})")
+        logger.info(f" Compressed: {current_tokens} → {compressed_tokens} tokens ({result.compression_ratio})")
         logger.info(f"   Quality score: {result.quality_score}/10")
         logger.info(f"   Removed: {result.what_was_removed}")
         
@@ -166,7 +166,7 @@ class AgenticCompressor:
         try:
             quality = float(result.quality_score)
             if quality < 5.0:
-                logger.warning(f"⚠️ Low compression quality ({quality}/10)!")
+                logger.warning(f" Low compression quality ({quality}/10)!")
                 logger.warning(f"   Consider increasing target_tokens or reviewing compression")
         except (ValueError, TypeError, AttributeError) as e:
             logger.debug(f"Quality score parsing failed: {e}")
@@ -174,7 +174,7 @@ class AgenticCompressor:
         
         return compressed
     
-    # 🔥 NEW: AgentSlack-compatible simpler API
+    # NEW: AgentSlack-compatible simpler API
     async def compress_simple(
         self,
         data: str,
@@ -192,10 +192,10 @@ class AgenticCompressor:
         Returns:
             Compressed string
         """
-        logger.info(f"🗜️ [AgentSlack API] Compressing: {len(data)} chars, target_ratio={target_ratio}")
+        logger.info(f" [AgentSlack API] Compressing: {len(data)} chars, target_ratio={target_ratio}")
 
         if not data:
-            logger.info("   ✅ Empty data, returning empty string")
+            logger.info(" Empty data, returning empty string")
             return ""
 
         # Calculate target tokens using SmartTokenizer
@@ -204,7 +204,7 @@ class AgenticCompressor:
         target_tokens = int(current_tokens * target_ratio)
         
         if current_tokens <= target_tokens:
-            logger.info(f"   ✅ No compression needed ({current_tokens} <= {target_tokens} tokens)")
+            logger.info(f" No compression needed ({current_tokens} <= {target_tokens} tokens)")
             return data
         
         # If we have LM, use intelligent compression
@@ -220,7 +220,7 @@ class AgenticCompressor:
                 
                 return await self.compress(data, task_context, target_tokens)
             except Exception as e:
-                logger.warning(f"   ⚠️  LLM compression failed: {e}, using simple truncation")
+                logger.warning(f" LLM compression failed: {e}, using simple truncation")
         
         # Fallback: simple truncation (preserving CRITICAL sections if requested)
         if preserve_critical:
@@ -244,13 +244,13 @@ class AgenticCompressor:
             else:
                 result = critical_text[:target_chars]
             
-            logger.info(f"   ✅ Compressed with CRITICAL preservation: {len(data)} → {len(result)} chars")
+            logger.info(f" Compressed with CRITICAL preservation: {len(data)} → {len(result)} chars")
             return result
         else:
             # Simple truncation
             target_chars = target_tokens * 4
             result = data[:target_chars]
-            logger.info(f"   ✅ Simple truncation: {len(data)} → {len(result)} chars")
+            logger.info(f" Simple truncation: {len(data)} → {len(result)} chars")
             return result
     
     def get_stats(self) -> Dict:

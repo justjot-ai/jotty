@@ -1,5 +1,5 @@
 """
-📄 AGENTIC CHUNKER
+ AGENTIC CHUNKER
 ==================
 
 NO RULE-BASED CHUNKING!
@@ -94,13 +94,13 @@ class ContextChunker:
         content_length = len(content)
         tokenizer = SmartTokenizer.get_instance()
         estimated_tokens = tokenizer.count_tokens(content)
-        logger.info(f"📄 Agentic chunking for {task_context.get('actor_name', 'unknown')}...")
+        logger.info(f" Agentic chunking for {task_context.get('actor_name', 'unknown')}...")
         logger.info(f"   Content length: {content_length} chars (~{estimated_tokens} tokens)")
         logger.info(f"   Max chunk size: {max_chunk_size} tokens")
 
         # Check if chunking needed
         if estimated_tokens <= max_chunk_size:
-            logger.info(f"✅ No chunking needed ({estimated_tokens} <= {max_chunk_size} tokens)")
+            logger.info(f" No chunking needed ({estimated_tokens} <= {max_chunk_size} tokens)")
             return await processor_fn(content)
         
         # Create content preview (head + tail, NO middle slicing!)
@@ -116,7 +116,7 @@ class ContextChunker:
                 max_chunk_size=str(max_chunk_size)
             )
         
-        logger.info(f"📋 Chunking plan:")
+        logger.info(f" Chunking plan:")
         logger.info(f"   Num chunks: {chunk_plan.num_chunks}")
         logger.info(f"   Chunk overlap: {chunk_plan.chunk_overlap}")
         logger.info(f"   Strategy: {chunk_plan.processing_strategy}")
@@ -128,7 +128,7 @@ class ContextChunker:
             logger.debug(f"Chunk count parsing failed: {e}")
             # Fallback: estimate
             num_chunks = max(2, (estimated_tokens // max_chunk_size) + 1)
-            logger.warning(f"⚠️ Could not parse num_chunks, using estimate: {num_chunks}")
+            logger.warning(f" Could not parse num_chunks, using estimate: {num_chunks}")
 
         # Parse overlap
         try:
@@ -154,22 +154,22 @@ class ContextChunker:
             chunk_preview = chunk[:200] if len(chunk) > 200 else chunk
             chunk_summaries.append(f"Chunk {i+1}: {chunk_preview}...")
         
-        logger.info(f"✅ Created {len(chunks)} chunks")
+        logger.info(f" Created {len(chunks)} chunks")
         
         # Process each chunk
         chunk_results = []
         for i, chunk in enumerate(chunks, 1):
-            logger.info(f"📄 Processing chunk {i}/{len(chunks)}...")
+            logger.info(f" Processing chunk {i}/{len(chunks)}...")
             try:
                 result = await processor_fn(chunk)
                 chunk_results.append(str(result))
-                logger.info(f"✅ Chunk {i} processed successfully")
+                logger.info(f" Chunk {i} processed successfully")
             except Exception as e:
-                logger.error(f"❌ Chunk {i} processing failed: {e}")
+                logger.error(f" Chunk {i} processing failed: {e}")
                 chunk_results.append(f"[Error processing chunk {i}: {str(e)}]")
         
         # Combine results using LLM
-        logger.info(f"🔄 Combining {len(chunk_results)} chunk results...")
+        logger.info(f" Combining {len(chunk_results)} chunk results...")
         
         chunk_results_str = "\n\n".join([
             f"## Chunk {i+1} Result:\n{result}"
@@ -185,11 +185,11 @@ class ContextChunker:
                 chunk_summaries=chunk_summaries_str
             )
         
-        logger.info(f"✅ Combined results (confidence: {combined.confidence}/10)")
+        logger.info(f" Combined results (confidence: {combined.confidence}/10)")
         
         return combined.combined_result
     
-    # 🔥 NEW: AgentSlack-compatible simpler API
+    # NEW: AgentSlack-compatible simpler API
     async def chunk(
         self,
         data: str,
@@ -209,11 +209,11 @@ class ContextChunker:
         Returns:
             List of chunks
         """
-        logger.info(f"📄 [AgentSlack API] Chunking: {len(data)} chars, chunk_size={chunk_size}, overlap={overlap}")
+        logger.info(f" [AgentSlack API] Chunking: {len(data)} chars, chunk_size={chunk_size}, overlap={overlap}")
         
         # Simple implementation for now (can be enhanced with LLM later)
         if not data:
-            logger.info("   ✅ Empty data, returning empty list")
+            logger.info(" Empty data, returning empty list")
             return []
         
         # Estimate chars per chunk (rough: 4 chars per token)
@@ -222,7 +222,7 @@ class ContextChunker:
         
         # Check if chunking needed
         if len(data) <= chunk_size_chars:
-            logger.info(f"   ✅ No chunking needed ({len(data)} <= {chunk_size_chars} chars)")
+            logger.info(f" No chunking needed ({len(data)} <= {chunk_size_chars} chars)")
             return [data]
         
         # Create chunks
@@ -239,7 +239,7 @@ class ContextChunker:
             if start >= len(data):
                 break
         
-        logger.info(f"   ✅ Created {len(chunks)} chunks")
+        logger.info(f" Created {len(chunks)} chunks")
         return chunks
 
 

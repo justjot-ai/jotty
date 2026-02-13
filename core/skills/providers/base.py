@@ -585,7 +585,7 @@ class JottyDefaultProvider(SkillProvider):
             self.is_available = True
 
             skill_count = len(self._skills_registry.loaded_skills) if self._skills_registry else 0
-            logger.info(f"✅ {self.name} provider initialized ({skill_count} skills available)")
+            logger.info(f" {self.name} provider initialized ({skill_count} skills available)")
             return True
         except Exception as e:
             logger.error(f"Failed to initialize {self.name} provider: {e}")
@@ -671,7 +671,7 @@ class JottyDefaultProvider(SkillProvider):
         if not skill_name:
             return None
 
-        logger.info(f"🎯 Executing via skill: {skill_name}")
+        logger.info(f" Executing via skill: {skill_name}")
 
         try:
             skill = self._skills_registry.get_skill(skill_name)

@@ -153,7 +153,7 @@ class AutoProviderDiscovery:
 
         result = DiscoveryResult(success=False)
 
-        logger.info(f"🔍 Auto-discovering provider for: {capability_needed}")
+        logger.info(f" Auto-discovering provider for: {capability_needed}")
 
         try:
             # Step 1: Discover providers
@@ -183,13 +183,13 @@ class AutoProviderDiscovery:
 
             result.package_name = candidate.package_name
             result.steps_completed.append("discover")
-            logger.info(f"✅ Selected: {candidate.name} ({candidate.source})")
+            logger.info(f" Selected: {candidate.name} ({candidate.source})")
 
             # Step 2: Assess trust level
             trust_level = self._assess_trust_level(candidate)
             result.trust_level = trust_level
             result.steps_completed.append("assess_trust")
-            logger.info(f"🔒 Trust level: {trust_level}")
+            logger.info(f" Trust level: {trust_level}")
 
             # Step 3: Install package
             install_result = await self._installer.install(candidate.package_name)
@@ -199,7 +199,7 @@ class AutoProviderDiscovery:
                 return None
 
             result.steps_completed.append("install")
-            logger.info(f"📦 Installed: {candidate.package_name}")
+            logger.info(f" Installed: {candidate.package_name}")
 
             # Step 4: Generate provider adapter
             categories = candidate.categories or self._infer_categories(capability_needed)
@@ -217,13 +217,13 @@ class AutoProviderDiscovery:
             )
 
             result.steps_completed.append("generate")
-            logger.info(f"🔧 Generated adapter: {generated.file_path}")
+            logger.info(f" Generated adapter: {generated.file_path}")
 
             # Step 5: Save adapter to providers directory
             adapter_path = self._save_adapter(generated)
             result.adapter_path = str(adapter_path)
             result.steps_completed.append("save")
-            logger.info(f"💾 Saved to: {adapter_path}")
+            logger.info(f" Saved to: {adapter_path}")
 
             # Step 6: Test adapter (basic import test)
             test_success = await self._test_adapter(adapter_path)
@@ -243,7 +243,7 @@ class AutoProviderDiscovery:
                 if provider_name:
                     result.provider_name = provider_name
                     result.steps_completed.append("register")
-                    logger.info(f"✅ Registered provider: {provider_name}")
+                    logger.info(f" Registered provider: {provider_name}")
             else:
                 result.provider_name = candidate.package_name.replace('-', '_')
 
@@ -252,7 +252,7 @@ class AutoProviderDiscovery:
 
         except Exception as e:
             result.error = str(e)
-            logger.error(f"❌ Auto-discovery failed: {e}")
+            logger.error(f" Auto-discovery failed: {e}")
             import traceback
             logger.debug(traceback.format_exc())
             return None

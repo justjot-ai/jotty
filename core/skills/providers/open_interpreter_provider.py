@@ -84,7 +84,7 @@ class OpenInterpreterProvider(SkillProvider):
             # Try fallback with direct code execution
             self.is_initialized = True
             self.is_available = True
-            logger.info(f"✅ {self.name} provider initialized (fallback mode)")
+            logger.info(f" {self.name} provider initialized (fallback mode)")
             return True
 
         try:
@@ -96,7 +96,7 @@ class OpenInterpreterProvider(SkillProvider):
 
             self.is_initialized = True
             self.is_available = True
-            logger.info(f"✅ {self.name} provider initialized (model: {self.model})")
+            logger.info(f" {self.name} provider initialized (model: {self.model})")
             return True
 
         except Exception as e:
@@ -142,7 +142,7 @@ class OpenInterpreterProvider(SkillProvider):
         start_time = time.time()
 
         try:
-            logger.info(f"🐍 Open Interpreter executing: {task[:50]}...")
+            logger.info(f" Open Interpreter executing: {task[:50]}...")
 
             # Run in thread pool to avoid blocking
             loop = asyncio.get_running_loop()
@@ -186,7 +186,7 @@ class OpenInterpreterProvider(SkillProvider):
             )
 
             self.record_execution(result)
-            logger.info(f"✅ Open Interpreter completed in {execution_time:.2f}s")
+            logger.info(f" Open Interpreter completed in {execution_time:.2f}s")
             return result
 
         except asyncio.TimeoutError:

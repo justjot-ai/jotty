@@ -44,7 +44,7 @@ def load_justjot_tools_and_widgets(
                 parameters=tool_data.get('parameters', {}),
                 returns=tool_data.get('returns'),
             )
-        logger.info(f"✅ Loaded {len(tools_data['available'])} tools from JustJot.ai")
+        logger.info(f" Loaded {len(tools_data['available'])} tools from JustJot.ai")
     
     # Load widgets
     if widgets_data and 'available' in widgets_data:
@@ -52,13 +52,13 @@ def load_justjot_tools_and_widgets(
             reg.widgets.register(
                 value=widget_data.get('value', ''),
                 label=widget_data.get('label', ''),
-                icon=widget_data.get('icon', '📦'),
+                icon=widget_data.get('icon', ''),
                 description=widget_data.get('description', ''),
                 category=widget_data.get('category', 'General'),
                 hasOwnUI=widget_data.get('hasOwnUI', False),
                 contentType=widget_data.get('contentType', 'text'),
                 contentSchema=widget_data.get('contentSchema', ''),
             )
-        logger.info(f"✅ Loaded {len(widgets_data['available'])} widgets from JustJot.ai")
+        logger.info(f" Loaded {len(widgets_data['available'])} widgets from JustJot.ai")
     
     return reg

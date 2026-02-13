@@ -79,12 +79,12 @@ class MessageBus:
     def __init__(self):
         self.subscribers: Dict[str, Callable] = {}
         self.message_count = 0
-        logger.info("📡 [MESSAGE BUS] Initialized")
+        logger.info(" [MESSAGE BUS] Initialized")
         
     def subscribe(self, agent_name: str, callback: Callable):
         """Subscribe agent to messages."""
         self.subscribers[agent_name] = callback
-        logger.debug(f"📡 [MESSAGE BUS] Subscribed: {agent_name}")
+        logger.debug(f" [MESSAGE BUS] Subscribed: {agent_name}")
         
     def publish(self, message: Message):
         """Publish message to target agent."""
@@ -92,16 +92,16 @@ class MessageBus:
         target = message.to_agent
         
         if target not in self.subscribers:
-            logger.error(f"❌ [MESSAGE BUS] No subscriber: {target}")
+            logger.error(f" [MESSAGE BUS] No subscriber: {target}")
             return False
             
         try:
             callback = self.subscribers[target]
             callback(message)
-            logger.debug(f"✅ [MESSAGE BUS] Delivered #{self.message_count}: {message}")
+            logger.debug(f" [MESSAGE BUS] Delivered #{self.message_count}: {message}")
             return True
         except Exception as e:
-            logger.error(f"❌ [MESSAGE BUS] Delivery failed: {e}")
+            logger.error(f" [MESSAGE BUS] Delivery failed: {e}")
             return False
 
 
@@ -110,12 +110,12 @@ class FormatRegistry:
     
     def __init__(self):
         self.registry: Dict[str, AgentCapabilities] = {}
-        logger.info("📋 [FORMAT REGISTRY] Initialized")
+        logger.info(" [FORMAT REGISTRY] Initialized")
         
     def register(self, agent_name: str, capabilities: AgentCapabilities):
         """Register agent's capabilities."""
         self.registry[agent_name] = capabilities
-        logger.debug(f"📋 [FORMAT REGISTRY] Registered: {agent_name}")
+        logger.debug(f" [FORMAT REGISTRY] Registered: {agent_name}")
         
     def get_capabilities(self, agent_name: str) -> Optional[AgentCapabilities]:
         """Get agent's capabilities."""
@@ -158,7 +158,7 @@ class SmartAgentSlack:
         # Agent capabilities registry
         self.agent_capabilities: Dict[str, AgentCapabilities] = {}
         
-        # 🔥 CRITICAL: Agent Slack HAS helper agents internally!
+        # CRITICAL: Agent Slack HAS helper agents internally!
         # These are initialized lazily when first needed
         self._transformer = None
         self._chunker = None
@@ -170,17 +170,17 @@ class SmartAgentSlack:
         self.cooperation_events: List[Dict] = []  # Track all cooperation events
         self.help_matrix: Dict[Tuple[str, str], int] = {}  # (from, to) -> count
         
-        logger.info("💬 [SMART AGENT SLACK] Initialized")
-        logger.info("  📊 Core: MessageBus + FormatRegistry ready")
-        logger.info("  🔧 Helpers: Transformer, Chunker, Compressor (lazy-init)")
+        logger.info(" [SMART AGENT SLACK] Initialized")
+        logger.info(" Core: MessageBus + FormatRegistry ready")
+        logger.info(" Helpers: Transformer, Chunker, Compressor (lazy-init)")
         if enable_cooperation:
-            logger.info("  🤝 Cooperation: Tracking enabled")
+            logger.info(" Cooperation: Tracking enabled")
         
     @property
     def transformer(self):
         """Lazy-init Transformer agent."""
         if self._transformer is None:
-            logger.info("🔧 [SMART AGENT SLACK] Lazy-initializing Transformer...")
+            logger.info(" [SMART AGENT SLACK] Lazy-initializing Transformer...")
             from Jotty.core.smart_data_transformer import SmartDataTransformer
             # Get LM from config or use global DSPy LM
             lm = self._config.get('lm') if self._config else None
@@ -192,14 +192,14 @@ class SmartAgentSlack:
                     logger.debug(f"Could not get LM from dspy.settings: {e}")
                     pass
             self._transformer = SmartDataTransformer(lm=lm)
-            logger.info("  ✅ [HELPER] Transformer initialized")
+            logger.info(" [HELPER] Transformer initialized")
         return self._transformer
     
     @property
     def chunker(self):
         """Lazy-init Chunker agent."""
         if self._chunker is None:
-            logger.info("🔧 [SMART AGENT SLACK] Lazy-initializing Chunker...")
+            logger.info(" [SMART AGENT SLACK] Lazy-initializing Chunker...")
             from Jotty.core.context.chunker import ContextChunker
             # Get LM from config or use global DSPy LM
             lm = self._config.get('lm') if self._config else None
@@ -211,14 +211,14 @@ class SmartAgentSlack:
                     logger.debug(f"Could not get LM from dspy.settings: {e}")
                     pass
             self._chunker = ContextChunker(lm=lm)
-            logger.info("  ✅ [HELPER] Chunker initialized")
+            logger.info(" [HELPER] Chunker initialized")
         return self._chunker
     
     @property
     def compressor(self):
         """Lazy-init Compressor agent."""
         if self._compressor is None:
-            logger.info("🔧 [SMART AGENT SLACK] Lazy-initializing Compressor...")
+            logger.info(" [SMART AGENT SLACK] Lazy-initializing Compressor...")
             from Jotty.core.agentic_compressor import AgenticCompressor
             # Get LM from config or use global DSPy LM
             lm = self._config.get('lm') if self._config else None
@@ -230,7 +230,7 @@ class SmartAgentSlack:
                     logger.debug(f"Could not get LM from dspy.settings: {e}")
                     pass
             self._compressor = AgenticCompressor(lm=lm)
-            logger.info("  ✅ [HELPER] Compressor initialized")
+            logger.info(" [HELPER] Compressor initialized")
         return self._compressor
         
     def register_agent(
@@ -257,7 +257,7 @@ class SmartAgentSlack:
             callback: Callback for receiving messages
             capabilities: Explicitly provided capabilities (if signature not available)
         """
-        logger.info(f"📋 [AGENT SLACK] Registering '{agent_name}'")
+        logger.info(f" [AGENT SLACK] Registering '{agent_name}'")
         
         # Extract or use provided capabilities
         if capabilities:
@@ -286,12 +286,12 @@ class SmartAgentSlack:
             self.message_bus.subscribe(agent_name, callback)
         
         # Log what we learned about this agent
-        logger.info(f"  📊 Capabilities:")
+        logger.info(f" Capabilities:")
         logger.info(f"    • Preferred format: {caps.preferred_format}")
         logger.info(f"    • Accepts formats: {caps.acceptable_formats}")
         logger.info(f"    • Max input size: {caps.max_input_size} bytes")
         logger.info(f"    • Max context: {caps.max_context_tokens} tokens")
-        logger.info(f"  ✅ Registered successfully")
+        logger.info(f" Registered successfully")
         
     def send(
         self,
@@ -324,12 +324,12 @@ class SmartAgentSlack:
         Returns:
             True if message delivered successfully
         """
-        logger.info(f"💬 [SMART AGENT SLACK] {from_agent} → {to_agent}")
+        logger.info(f" [SMART AGENT SLACK] {from_agent} → {to_agent}")
         
         # Get target's capabilities (what they need)
         target_caps = self.agent_capabilities.get(to_agent)
         if not target_caps:
-            logger.error(f"❌ Unknown agent: {to_agent} (not registered)")
+            logger.error(f" Unknown agent: {to_agent} (not registered)")
             logger.error(f"   Known agents: {list(self.agent_capabilities.keys())}")
             return False
             
@@ -338,23 +338,23 @@ class SmartAgentSlack:
         target_max = target_caps.max_context_tokens
         
         if target_caps.needs_compression(target_context):
-            logger.info(f"  ⚠️  {to_agent}'s context at {target_context}/{target_max} ({int(target_context/target_max*100)}%)")
+            logger.info(f" {to_agent}'s context at {target_context}/{target_max} ({int(target_context/target_max*100)}%)")
             if self.compressor:
-                logger.info(f"  🗜️  [AUTO] Invoking internal Compressor for {to_agent}")
+                logger.info(f" [AUTO] Invoking internal Compressor for {to_agent}")
                 self._compress_agent_context(to_agent)
             else:
-                logger.warning(f"  ⚠️  [AUTO] Compressor not available (skipping)")
+                logger.warning(f" [AUTO] Compressor not available (skipping)")
             
         # STEP 2: Detect current data format
         current_format = self._detect_format(data)
         current_size = self._estimate_size(data)
-        logger.info(f"  📊 Data: format={current_format}, size={current_size} bytes")
+        logger.info(f" Data: format={current_format}, size={current_size} bytes")
         
         # STEP 3: Check if format transformation needed
         if not target_caps.can_accept_format(current_format):
             target_format = target_caps.preferred_format
-            logger.info(f"  🔄 [AUTO] Format mismatch: '{current_format}' not in {target_caps.acceptable_formats}")
-            logger.info(f"  🔄 [AUTO] Invoking internal Transformer: {current_format} → {target_format}")
+            logger.info(f" [AUTO] Format mismatch: '{current_format}' not in {target_caps.acceptable_formats}")
+            logger.info(f" [AUTO] Invoking internal Transformer: {current_format} → {target_format}")
             
             try:
                 transformed_data = self.transformer.transform(
@@ -367,16 +367,16 @@ class SmartAgentSlack:
                 data = transformed_data
                 current_format = target_format
                 current_size = self._estimate_size(data)
-                logger.info(f"  ✅ Transformed: new size={current_size} bytes, format={current_format}")
+                logger.info(f" Transformed: new size={current_size} bytes, format={current_format}")
             except Exception as e:
-                logger.error(f"  ❌ Transformation failed: {e}")
-                logger.info(f"  ℹ️  Proceeding with original format (may cause issues)")
+                logger.error(f" Transformation failed: {e}")
+                logger.info(f" ℹ Proceeding with original format (may cause issues)")
             
         # STEP 4: Check if chunking needed (data too large for target)
         if current_size > target_caps.max_input_size:
-            logger.info(f"  🔧 [AUTO] Data too large: {current_size} > {target_caps.max_input_size}")
+            logger.info(f" [AUTO] Data too large: {current_size} > {target_caps.max_input_size}")
             if self.chunker:
-                logger.info(f"  🔧 [AUTO] Invoking internal Chunker")
+                logger.info(f" [AUTO] Invoking internal Chunker")
                 
                 try:
                     chunked_file = self.chunker.chunk_and_consolidate(
@@ -388,12 +388,12 @@ class SmartAgentSlack:
                     
                     data = chunked_file
                     current_size = self._estimate_size(data)
-                    logger.info(f"  ✅ Chunked: new size={current_size} bytes")
+                    logger.info(f" Chunked: new size={current_size} bytes")
                 except Exception as e:
-                    logger.error(f"  ❌ Chunking failed: {e}")
-                    logger.info(f"  ℹ️  Proceeding with original data (may exceed limits)")
+                    logger.error(f" Chunking failed: {e}")
+                    logger.info(f" ℹ Proceeding with original data (may exceed limits)")
             else:
-                logger.warning(f"  ⚠️  [AUTO] Chunker not available (data may exceed limits)")
+                logger.warning(f" [AUTO] Chunker not available (data may exceed limits)")
             
         # STEP 5: Deliver message
         message = Message(
@@ -424,10 +424,10 @@ class SmartAgentSlack:
                     impact=1.0  # Positive impact (helping)
                 )
             
-            logger.info(f"  📨 Message delivered successfully")
-            logger.info(f"  📊 {to_agent} context now: {self.context_budget_tracker[to_agent]}/{target_max} tokens")
+            logger.info(f" Message delivered successfully")
+            logger.info(f" {to_agent} context now: {self.context_budget_tracker[to_agent]}/{target_max} tokens")
         else:
-            logger.error(f"  ❌ Message delivery failed")
+            logger.error(f" Message delivery failed")
         
         return success
         
@@ -442,7 +442,7 @@ class SmartAgentSlack:
             List of messages for this agent
         """
         messages = [m for m in self.message_history if m.to_agent == agent_name]
-        logger.debug(f"📬 [AGENT SLACK] {agent_name} received {len(messages)} messages")
+        logger.debug(f" [AGENT SLACK] {agent_name} received {len(messages)} messages")
         return messages
 
     # =========================================================================
@@ -497,7 +497,7 @@ class SmartAgentSlack:
 
         delivered = sum(1 for v in results.values() if v)
         logger.info(
-            f"📢 [AGENT SLACK] {from_agent} broadcast to "
+            f" [AGENT SLACK] {from_agent} broadcast to "
             f"{delivered}/{len(targets)} agents"
         )
         return results
@@ -512,7 +512,7 @@ class SmartAgentSlack:
         agent_messages = [m for m in self.message_history if m.to_agent == agent_name]
         
         if not agent_messages:
-            logger.debug(f"  ℹ️  No messages to compress for {agent_name}")
+            logger.debug(f" ℹ No messages to compress for {agent_name}")
             return
             
         # Compress using internal Compressor
@@ -529,9 +529,9 @@ class SmartAgentSlack:
             new_tokens = int(original_tokens * 0.5)
             self.context_budget_tracker[agent_name] = new_tokens
             
-            logger.info(f"  ✅ Compressed {agent_name} context: {original_tokens} → {new_tokens} tokens")
+            logger.info(f" Compressed {agent_name} context: {original_tokens} → {new_tokens} tokens")
         except Exception as e:
-            logger.error(f"  ❌ Compression failed: {e}")
+            logger.error(f" Compression failed: {e}")
         
     def _extract_capabilities_from_signature(
         self,
@@ -592,8 +592,8 @@ class SmartAgentSlack:
                             preferred_format = 'list'
                             acceptable_formats = ['list', 'json']
         except Exception as e:
-            logger.warning(f"  ⚠️  Could not extract format from signature: {e}")
-            logger.warning(f"  ℹ️  Using default capabilities")
+            logger.warning(f" Could not extract format from signature: {e}")
+            logger.warning(f" ℹ Using default capabilities")
         
         return AgentCapabilities(
             agent_name=agent_name,
@@ -659,10 +659,10 @@ class SmartAgentSlack:
         """Reset context budget for agent(s)."""
         if agent_name:
             self.context_budget_tracker[agent_name] = 0
-            logger.info(f"🔄 [AGENT SLACK] Reset context for {agent_name}")
+            logger.info(f" [AGENT SLACK] Reset context for {agent_name}")
         else:
             self.context_budget_tracker = {name: 0 for name in self.agent_capabilities.keys()}
-            logger.info(f"🔄 [AGENT SLACK] Reset context for all agents")
+            logger.info(f" [AGENT SLACK] Reset context for all agents")
     
     # =========================================================================
     # 🆕 COOPERATION METHODS
@@ -701,7 +701,7 @@ class SmartAgentSlack:
         key = (from_agent, to_agent)
         self.help_matrix[key] = self.help_matrix.get(key, 0) + 1
         
-        logger.debug(f"🤝 [COOPERATION] {from_agent} → {to_agent}: {event_type}")
+        logger.debug(f" [COOPERATION] {from_agent} → {to_agent}: {event_type}")
     
     def get_cooperation_stats(self) -> Dict[str, Any]:
         """
@@ -756,7 +756,7 @@ class SmartAgentSlack:
         """
         Nash Equilibrium: Should I communicate this information?
         
-        🔬 A-TEAM ENHANCEMENTS (per GRF MARL paper):
+         A-TEAM ENHANCEMENTS (per GRF MARL paper):
         - Learn value from (receiver confidence lift, predicted reward lift)
         - Learn cost from context budget + latency history
         - Log decisions for learning
@@ -774,7 +774,7 @@ class SmartAgentSlack:
         Returns:
             True if should communicate
         """
-        # 🔬 LEARNED VALUE: Incorporate historical cooperation success
+        # LEARNED VALUE: Incorporate historical cooperation success
         pair_key = (from_agent, to_agent)
         historical_success = self._get_cooperation_success_rate(from_agent, to_agent)
         
@@ -783,7 +783,7 @@ class SmartAgentSlack:
         confidence_gap = 1.0 - receiver_confidence_before
         learned_value = information_value * (0.5 + 0.5 * historical_success) * (0.5 + 0.5 * confidence_gap)
         
-        # 🔬 LEARNED COST: Incorporate context budget and latency
+        # LEARNED COST: Incorporate context budget and latency
         # Higher cost if receiver has low context budget (might get compressed/lost)
         budget_penalty = 0.2 * (1.0 - context_budget_remaining)  # 0-0.2 extra cost
         latency_history = self._get_average_latency(from_agent, to_agent)
@@ -796,7 +796,7 @@ class SmartAgentSlack:
         
         should_send = net_value > 0
         
-        # 🔬 LOG FOR LEARNING
+        # LOG FOR LEARNING
         self._log_communication_decision(
             from_agent=from_agent,
             to_agent=to_agent,
@@ -809,9 +809,9 @@ class SmartAgentSlack:
         )
         
         if should_send:
-            logger.debug(f"🤝 [NASH] {from_agent} → {to_agent}: SEND (learned_value={learned_value:.2f}, learned_cost={learned_cost:.2f}, history_success={historical_success:.2f})")
+            logger.debug(f" [NASH] {from_agent} → {to_agent}: SEND (learned_value={learned_value:.2f}, learned_cost={learned_cost:.2f}, history_success={historical_success:.2f})")
         else:
-            logger.debug(f"🤝 [NASH] {from_agent} → {to_agent}: SKIP (learned_value={learned_value:.2f}, learned_cost={learned_cost:.2f}, history_success={historical_success:.2f})")
+            logger.debug(f" [NASH] {from_agent} → {to_agent}: SKIP (learned_value={learned_value:.2f}, learned_cost={learned_cost:.2f}, history_success={historical_success:.2f})")
         
         return should_send
     

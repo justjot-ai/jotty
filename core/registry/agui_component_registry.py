@@ -123,7 +123,7 @@ class AGUIComponentRegistry:
         self._adapters: Dict[str, AGUIComponentAdapter] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._by_client: Dict[str, List[str]] = {}
-        logger.info("🎨 AGUIComponentRegistry initialized")
+        logger.info(" AGUIComponentRegistry initialized")
 
     def register(
         self,
@@ -204,7 +204,7 @@ class AGUIComponentRegistry:
         if section_type not in self._by_client[client_id]:
             self._by_client[client_id].append(section_type)
 
-        logger.debug(f"✅ Registered AGUI adapter: {section_type} from {client_id}")
+        logger.debug(f" Registered AGUI adapter: {section_type} from {client_id}")
 
     def register_batch(self, adapters: List[Dict[str, Any]]):
         """
@@ -226,7 +226,7 @@ class AGUIComponentRegistry:
         """
         for adapter_data in adapters:
             self.register(**adapter_data)
-        logger.info(f"📦 Registered {len(adapters)} AGUI adapters in batch")
+        logger.info(f" Registered {len(adapters)} AGUI adapters in batch")
 
     def get(self, section_type: str) -> Optional[AGUIComponentAdapter]:
         """Get adapter by section type."""
@@ -344,7 +344,7 @@ class AGUIComponentRegistry:
         self._adapters.clear()
         self._by_category.clear()
         self._by_client.clear()
-        logger.info("🗑️  AGUIComponentRegistry cleared")
+        logger.info(" AGUIComponentRegistry cleared")
 
 
 # Global instance

@@ -70,7 +70,7 @@ class SwarmCodeGenerator:
         """
         self._init_dependencies()
         
-        logger.info(f"🔧 SwarmCodeGenerator: Generating glue code {source_tool} → {destination_tool}")
+        logger.info(f" SwarmCodeGenerator: Generating glue code {source_tool} → {destination_tool}")
         
         # Use LLM to generate code (DRY: reuse TaskPlanner's LLM)
         prompt = f"""
@@ -121,9 +121,9 @@ Generate complete, runnable code.
                         )
                     except Exception as e:
                         if "timeout" in str(e).lower() or "timed out" in str(e).lower():
-                            logger.warning(f"⚠️  Code generation timed out: {e}, using template")
+                            logger.warning(f" Code generation timed out: {e}, using template")
                         else:
-                            logger.warning(f"⚠️  Code generation LLM call failed: {e}, using template")
+                            logger.warning(f" Code generation LLM call failed: {e}, using template")
                         raise
                 
                 # Use DSPy ChainOfThought with timeout
@@ -159,9 +159,9 @@ Generate complete, runnable code.
                         lm.timeout = original_timeout
                     
                     if "timeout" in str(e).lower() or "timed out" in str(e).lower():
-                        logger.warning(f"⚠️  Code generation timed out: {e}, using template")
+                        logger.warning(f" Code generation timed out: {e}, using template")
                     else:
-                        logger.warning(f"⚠️  Code generation LLM call failed: {e}, using template")
+                        logger.warning(f" Code generation LLM call failed: {e}, using template")
                     raise
             else:
                 # No LM available, use template
@@ -191,7 +191,7 @@ Generate complete, runnable code.
         """
         self._init_dependencies()
         
-        logger.info(f"🔧 SwarmCodeGenerator: Generating {operation} code for {service}")
+        logger.info(f" SwarmCodeGenerator: Generating {operation} code for {service}")
         
         # Use LLM to generate integration code (DRY: reuse TaskPlanner)
         prompt = f"""
@@ -238,10 +238,10 @@ Generate complete, runnable code.
                         usage_example=self._generate_usage_example(service, operation)
                     )
                 except TimeoutError:
-                    logger.warning("⚠️  Integration code generation timed out, using template")
+                    logger.warning(" Integration code generation timed out, using template")
                     raise
                 except Exception as e:
-                    logger.warning(f"⚠️  Integration code generation LLM call failed: {e}, using template")
+                    logger.warning(f" Integration code generation LLM call failed: {e}, using template")
                     raise
         except (TimeoutError, Exception) as e:
             logger.debug(f"Integration code generation LLM failed: {e}, falling back to template")
@@ -331,11 +331,11 @@ def connect_{source_tool.replace("-", "_")}_to_{destination_tool.replace("-", "_
         # Placeholder transformation
         result = {{"data": data}}
         
-        logger.info(f"✅ Connected {source_tool} to {destination_tool}")
+        logger.info(f" Connected {source_tool} to {destination_tool}")
         return result
         
     except Exception as e:
-        logger.error(f"❌ Connection failed: {{e}}")
+        logger.error(f" Connection failed: {{e}}")
         raise
 '''
         
@@ -395,7 +395,7 @@ class {service.title()}Client:
             logger.info(f"Executing {{operation}} on {{service}}")
             return {{"success": True}}
         except Exception as e:
-            logger.error(f"❌ {{operation}} failed: {{e}}")
+            logger.error(f" {{operation}} failed: {{e}}")
             raise
 '''
 
@@ -439,7 +439,7 @@ class {service.title()}Client:
         """
         self._init_dependencies()
 
-        logger.info(f"🔧 Generating provider adapter for: {package_name}")
+        logger.info(f" Generating provider adapter for: {package_name}")
 
         # Try LLM-based generation first
         try:
@@ -605,15 +605,15 @@ class {class_name}Provider(SkillProvider):
             self._package = pkg
             self.is_initialized = True
             self.is_available = True
-            logger.info(f"✅ {{self.name}} provider initialized")
+            logger.info(f" {{self.name}} provider initialized")
             return True
         except ImportError as e:
-            logger.warning(f"⚠️  {{self.name}} not available: {{e}}")
+            logger.warning(f" {{self.name}} not available: {{e}}")
             self.is_initialized = True
             self.is_available = False
             return False
         except Exception as e:
-            logger.error(f"❌ {{self.name}} initialization failed: {{e}}")
+            logger.error(f" {{self.name}} initialization failed: {{e}}")
             self.is_initialized = True
             self.is_available = False
             return False

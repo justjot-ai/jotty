@@ -104,7 +104,7 @@ class ShapleyValueEstimator:
     2. Compute marginal contribution in each ordering
     3. Average across samples
     
-    🔬 A-TEAM ENHANCEMENTS (per GRF MARL paper):
+     A-TEAM ENHANCEMENTS (per GRF MARL paper):
     - Auto-tune samples by agent count: min(20, 5 * n!)
     - Track variance/CI on φ estimates
     - Cache coalition values for efficiency
@@ -118,7 +118,7 @@ class ShapleyValueEstimator:
         
         self.coalition_estimator = None  # Lazy-created on first use
         
-        logger.info(f"📊 ShapleyValueEstimator initialized (base_samples={num_samples}, auto-tuned)")
+        logger.info(f" ShapleyValueEstimator initialized (base_samples={num_samples}, auto-tuned)")
     
     def _auto_tune_samples(self, n_agents: int) -> int:
         """
@@ -150,7 +150,7 @@ class ShapleyValueEstimator:
         """
         Estimate Shapley value for each agent with variance/CI tracking.
         
-        🔬 A-TEAM ENHANCEMENTS:
+         A-TEAM ENHANCEMENTS:
         - Auto-tune samples by agent count
         - Compute variance and 95% CI
         - Confidence based on CI width
@@ -344,7 +344,7 @@ class DifferenceRewardEstimator:
     def __init__(self):
         self.counterfactual_estimator = None  # Lazy-created on first use
         
-        logger.info("🔄 DifferenceRewardEstimator initialized")
+        logger.info(" DifferenceRewardEstimator initialized")
     
     async def compute_difference_rewards(
         self,
@@ -451,7 +451,7 @@ class AlgorithmicCreditAssigner:
         self.min_shapley_weight = 0.3
         self.max_shapley_weight = 0.7
         
-        logger.info("🎯 AlgorithmicCreditAssigner initialized")
+        logger.info(" AlgorithmicCreditAssigner initialized")
     
     async def assign_credit(
         self,

@@ -75,7 +75,7 @@ class ChatAPI:
 
         # Create and register ChatAssistant
         try:
-            logger.info("🤖 Auto-registering ChatAssistant agent (world-class Jotty defaults)")
+            logger.info(" Auto-registering ChatAssistant agent (world-class Jotty defaults)")
             chat_agent = create_chat_assistant(state_manager=self.state_manager)
 
             # Wrap in AgentConfig (Jotty's standard agent configuration)
@@ -103,22 +103,22 @@ class ChatAPI:
                             config=self.conductor.config,
                             agent_name="ChatAssistant"
                         )
-                        logger.debug("✅ ChatAssistant local_memories initialized with SwarmMemory")
+                        logger.debug(" ChatAssistant local_memories initialized with SwarmMemory")
                     except ImportError as e:
                         # Fallback to empty object with memories attribute
-                        logger.debug(f"⚠️  SwarmMemory import failed ({e}), using empty fallback")
+                        logger.debug(f" SwarmMemory import failed ({e}), using empty fallback")
                         class EmptyMemory:
                             def __init__(self):
                                 self.memories = {}
                         self.conductor.local_memories["ChatAssistant"] = EmptyMemory()
-                        logger.debug("✅ ChatAssistant local_memories initialized with empty fallback")
+                        logger.debug(" ChatAssistant local_memories initialized with empty fallback")
 
-                logger.info("✅ ChatAssistant registered successfully")
+                logger.info(" ChatAssistant registered successfully")
             else:
-                logger.warning("⚠️  Orchestrator doesn't have 'actors' dict - ChatAssistant not registered")
+                logger.warning(" Orchestrator doesn't have 'actors' dict - ChatAssistant not registered")
 
         except Exception as e:
-            logger.error(f"❌ Failed to auto-register ChatAssistant: {e}")
+            logger.error(f" Failed to auto-register ChatAssistant: {e}")
             # Don't fail - just log the error
             pass
     

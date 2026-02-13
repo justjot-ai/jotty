@@ -3,7 +3,7 @@ Agent Configuration for JOTTY.
 
 Defines configuration for individual agents in the swarm.
 
-# ✅ GENERIC: No domain-specific logic.
+# GENERIC: No domain-specific logic.
 
 JOTTY Naming Convention:
 - Architect = Pre-execution planner
@@ -13,7 +13,7 @@ JOTTY Naming Convention:
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
-# 🔧 A-TEAM: Import ContextRequirements
+# A-TEAM: Import ContextRequirements
 try:
     from ..utils.context_logger import ContextRequirements
 except ImportError:
@@ -43,7 +43,7 @@ class AgentConfig:
     outputs: Optional[List[str]] = None  # Output field names this agent produces
     provides: Optional[List[str]] = None  # Parameter names this agent can provide to others
     
-    # 🔧 A-TEAM: Context management
+    # A-TEAM: Context management
     context_requirements: Optional[Any] = None
     
     # Tool configuration (JOTTY v1.0)

@@ -260,7 +260,7 @@ class SwarmStateManager:
             'failed': {}
         }
         
-        logger.info("✅ SwarmStateManager initialized")
+        logger.info(" SwarmStateManager initialized")
     
     def get_agent_tracker(self, agent_name: str) -> AgentStateTracker:
         """Get or create agent state tracker."""
@@ -272,7 +272,7 @@ class SwarmStateManager:
         """
         Get RICH current state for Q-prediction (swarm-level).
         
-        🔥 CRITICAL: State must capture semantic context!
+         CRITICAL: State must capture semantic context!
         
         Includes:
         1. Task progress (completed, pending, failed)
@@ -495,7 +495,7 @@ class SwarmStateManager:
         with open(file_path, 'w') as f:
             json.dump(state_data, f, indent=2, default=str)
         
-        logger.info(f"✅ Saved swarm state to {file_path}")
+        logger.info(f" Saved swarm state to {file_path}")
     
     def load_state(self, file_path: Path):
         """Load swarm and agent state from file."""
@@ -516,4 +516,4 @@ class SwarmStateManager:
                 # Restore agent state (simplified - full restoration would need more logic)
                 tracker.stats = agent_state.get('stats', tracker.stats)
         
-        logger.info(f"✅ Loaded swarm state from {file_path}")
+        logger.info(f" Loaded swarm state from {file_path}")

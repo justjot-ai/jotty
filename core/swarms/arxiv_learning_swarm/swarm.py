@@ -75,7 +75,7 @@ class ArxivLearningSwarm(DomainSwarm):
             raise ValueError(f"Invalid mode: {mode}. Use 'unified' or 'sequential'")
         self._optimization_mode = mode
         self._agents_initialized = False  # Force re-init
-        logger.info(f"🔧 Optimization mode set to: {mode}")
+        logger.info(f" Optimization mode set to: {mode}")
 
     async def _execute_domain(
         self,
@@ -117,7 +117,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if isinstance(learning_depth, str):
             learning_depth = LearningDepth(learning_depth.lower())
 
-        logger.info(f"📚 ArxivLearningSwarm starting...")
+        logger.info(f" ArxivLearningSwarm starting...")
 
         return await self._safe_execute_domain(
             task_type='paper_learning',
@@ -295,7 +295,7 @@ class ArxivLearningSwarm(DomainSwarm):
             html_path=html_path
         )
 
-        logger.info(f"✅ ArxivLearningSwarm complete: {paper.title[:40]}...")
+        logger.info(f" ArxivLearningSwarm complete: {paper.title[:40]}...")
         logger.info(f"   {len(concepts)} concepts, {bingo_count} {config.celebration_word} moments")
 
         # Record orchestrator-level execution trace
@@ -317,9 +317,9 @@ class ArxivLearningSwarm(DomainSwarm):
         try:
             if hasattr(dspy.settings, 'lm') and hasattr(dspy.settings.lm, 'get_metrics'):
                 metrics = dspy.settings.lm.get_metrics()
-                logger.info(f"📈 LLM Metrics: {metrics.get('successful_calls', 0)}/{metrics.get('total_calls', 0)} calls succeeded ({metrics.get('success_rate', 'N/A')})")
+                logger.info(f" LLM Metrics: {metrics.get('successful_calls', 0)}/{metrics.get('total_calls', 0)} calls succeeded ({metrics.get('success_rate', 'N/A')})")
                 if metrics.get('retried_calls', 0) > 0:
-                    logger.info(f"   🔄 Retried {metrics['retried_calls']} calls")
+                    logger.info(f" Retried {metrics['retried_calls']} calls")
         except Exception:
             pass
 
@@ -327,10 +327,10 @@ class ArxivLearningSwarm(DomainSwarm):
         should_send = send_telegram if send_telegram is not None else config.send_telegram
 
         if should_send and TELEGRAM_AVAILABLE:
-            logger.info("📱 Sending to Telegram...")
+            logger.info(" Sending to Telegram...")
             await self._send_to_telegram(paper, learning_content, final_content, pdf_path=pdf_path, pptx_path=pptx_path, pptx_pdf_path=pptx_pdf_path, html_path=html_path)
         elif should_send and not TELEGRAM_AVAILABLE:
-            logger.warning("⚠️ Telegram sending requested but tools not available")
+            logger.warning(" Telegram sending requested but tools not available")
 
         return result
 
@@ -351,7 +351,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if config.use_swarm_cache:
             concepts = self._get_cached(cache_key)
             if concepts:
-                logger.info(f"  📦 Loaded {len(concepts)} concepts from cache")
+                logger.info(f" Loaded {len(concepts)} concepts from cache")
 
         if not concepts:
             concepts = await self._concept_extractor.extract(paper)
@@ -409,7 +409,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if config.use_swarm_cache:
             unified_result = self._get_cached(content_cache_key)
             if unified_result:
-                logger.info(f"  📦 Loaded parallel deep content from cache")
+                logger.info(f" Loaded parallel deep content from cache")
 
         if not unified_result:
             unified_result = await executor.run_phase(
@@ -450,7 +450,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if config.use_swarm_cache:
             unified_result = self._get_cached(content_cache_key)
             if unified_result:
-                logger.info(f"  📦 Loaded unified content from cache")
+                logger.info(f" Loaded unified content from cache")
 
         if not unified_result:
             unified_result = await executor.run_phase(
@@ -670,7 +670,7 @@ class ArxivLearningSwarm(DomainSwarm):
             if intuition.get('intuition_build'):
                 draft_parts.append(f"\n{intuition['intuition_build']}\n")
             if intuition.get('aha_moment'):
-                draft_parts.append(f"\n💡 **{config.celebration_word}!** {intuition['aha_moment']}\n")
+                draft_parts.append(f"\n **{config.celebration_word}!** {intuition['aha_moment']}\n")
             if math.get('step_by_step'):
                 draft_parts.append(f"\n### The Math\n{math['step_by_step']}\n")
             if example.get('code_example'):
@@ -745,7 +745,7 @@ class ArxivLearningSwarm(DomainSwarm):
         Returns:
             Tuple of (pdf_path, pptx_path, pptx_pdf_path, html_path)
         """
-        logger.info("📄 Generating outputs (PDF, PPTX, HTML in parallel)...")
+        logger.info(" Generating outputs (PDF, PPTX, HTML in parallel)...")
 
         async def gen_pdf():
             return await self._generate_pdf(paper, learning_content)
@@ -802,7 +802,7 @@ class ArxivLearningSwarm(DomainSwarm):
 
         # Use LOTUS for semantic search if available and enabled
         if self.config.use_lotus and LOTUS_AVAILABLE:
-            logger.info("🌸 Using LOTUS for semantic paper search...")
+            logger.info(" Using LOTUS for semantic paper search...")
             papers = await self._paper_fetcher.search_and_rank_with_lotus(
                 topic=topic,
                 max_results=max_papers,
@@ -847,7 +847,7 @@ class ArxivLearningSwarm(DomainSwarm):
             # =============================================================
             # GENERATE VISUALIZATIONS FOR KEY CONCEPTS (PARALLEL)
             # =============================================================
-            logger.info("🎨 Generating concept visualizations (parallel)...")
+            logger.info(" Generating concept visualizations (parallel)...")
             visualization_paths = {}
 
             # Build a map of concept name -> intuition text from sections
@@ -932,7 +932,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 total_words=content.total_words
             )
 
-            logger.info(f"✅ Generated PDF: {pdf_path}")
+            logger.info(f" Generated PDF: {pdf_path}")
             return pdf_path
 
         except Exception as e:
@@ -1012,17 +1012,17 @@ class ArxivLearningSwarm(DomainSwarm):
             )
 
             if pptx_path:
-                logger.info(f"✅ Generated PPTX: {pptx_path}")
+                logger.info(f" Generated PPTX: {pptx_path}")
 
                 # Convert PPTX to PDF if enabled (default: True)
                 if self.config.convert_pptx_to_pdf:
                     if is_libreoffice_available():
-                        logger.info("📄 Converting PPTX to PDF...")
+                        logger.info(" Converting PPTX to PDF...")
                         pptx_pdf_path = await convert_pptx_to_pdf(pptx_path)
                         if pptx_pdf_path:
-                            logger.info(f"✅ Converted PPTX to PDF: {pptx_pdf_path}")
+                            logger.info(f" Converted PPTX to PDF: {pptx_pdf_path}")
                     else:
-                        logger.warning("⚠️ PPTX-to-PDF conversion skipped (LibreOffice not installed)")
+                        logger.warning(" PPTX-to-PDF conversion skipped (LibreOffice not installed)")
 
             return pptx_path, pptx_pdf_path
 
@@ -1095,7 +1095,7 @@ class ArxivLearningSwarm(DomainSwarm):
             html_path = await generate_learning_html(paper_data, output_path)
 
             if html_path:
-                logger.info(f"✅ Generated HTML slides: {html_path}")
+                logger.info(f" Generated HTML slides: {html_path}")
 
             return html_path
 
@@ -1137,33 +1137,33 @@ class ArxivLearningSwarm(DomainSwarm):
             has_pptx_pdf = pptx_pdf_path and Path(pptx_pdf_path).exists()
             has_pptx = pptx_path and Path(pptx_path).exists()
             has_html = html_path and Path(html_path).exists()
-            presentation_label = "📊 Presentation PDF" if has_pptx_pdf else "📊 PPTX"
-            html_label = " + 🌐 HTML Slides" if has_html else ""
+            presentation_label = " Presentation PDF" if has_pptx_pdf else " PPTX"
+            html_label = " + HTML Slides" if has_html else ""
 
             # =================================================================
             # SEND TELEGRAM MESSAGE (Summary)
             # =================================================================
-            header = f"📚 *ArXiv Learning: {paper.title[:60]}*\n"
-            header += f"📎 ID: `{paper.arxiv_id}`\n"
-            header += f"👥 {', '.join(paper.authors[:3])}\n"
-            header += f"🔗 {paper.arxiv_url}\n\n"
+            header = f" *ArXiv Learning: {paper.title[:60]}*\n"
+            header += f" ID: `{paper.arxiv_id}`\n"
+            header += f" {', '.join(paper.authors[:3])}\n"
+            header += f" {paper.arxiv_url}\n\n"
 
-            hook_section = f"*🎯 Why Should You Care?*\n{content.hook[:400] if content.hook else 'Learn about cutting-edge research!'}\n\n"
+            hook_section = f"* Why Should You Care?*\n{content.hook[:400] if content.hook else 'Learn about cutting-edge research!'}\n\n"
 
             insights_section = ""
             if content.key_insights:
-                insights_section = f"*✨ Key Insights ({celebration}!)*\n"
+                insights_section = f"* Key Insights ({celebration}!)*\n"
                 for i, insight in enumerate(content.key_insights[:4], 1):
                     insights_section += f"{i}. {insight[:150]}\n"
                 insights_section += "\n"
 
-            concepts_section = f"*🧠 Concepts ({len(content.concepts)})*\n"
+            concepts_section = f"* Concepts ({len(content.concepts)})*\n"
             for concept in content.concepts[:4]:
                 concepts_section += f"• {concept.name}\n"
             concepts_section += "\n"
 
-            stats = f"📊 {content.total_words} words | {len(content.concepts)} concepts | {len(content.key_insights)} insights\n"
-            stats += f"📄 Learning PDF + {presentation_label}{html_label} attached below"
+            stats = f" {content.total_words} words | {len(content.concepts)} concepts | {len(content.key_insights)} insights\n"
+            stats += f" Learning PDF + {presentation_label}{html_label} attached below"
 
             message = header + hook_section + insights_section + concepts_section + stats
 
@@ -1176,9 +1176,9 @@ class ArxivLearningSwarm(DomainSwarm):
             })
 
             if result.get('success'):
-                logger.info(f"✅ Sent summary to Telegram: message_id {result.get('message_id')}")
+                logger.info(f" Sent summary to Telegram: message_id {result.get('message_id')}")
             else:
-                logger.error(f"❌ Telegram message failed: {result.get('error')}")
+                logger.error(f" Telegram message failed: {result.get('error')}")
 
             # =================================================================
             # SEND PDF FILE (Learning Guide)
@@ -1186,13 +1186,13 @@ class ArxivLearningSwarm(DomainSwarm):
             if pdf_path and Path(pdf_path).exists():
                 file_result = await send_telegram_file_tool({
                     'file_path': pdf_path,
-                    'caption': f"📖 {paper.title[:50]} - Learning Guide"
+                    'caption': f" {paper.title[:50]} - Learning Guide"
                 })
 
                 if file_result.get('success'):
-                    logger.info(f"✅ Sent Learning PDF to Telegram")
+                    logger.info(f" Sent Learning PDF to Telegram")
                 else:
-                    logger.error(f"❌ Learning PDF send failed: {file_result.get('error')}")
+                    logger.error(f" Learning PDF send failed: {file_result.get('error')}")
 
             # =================================================================
             # SEND PRESENTATION (prefer PDF from PPTX, fallback to raw PPTX)
@@ -1201,24 +1201,24 @@ class ArxivLearningSwarm(DomainSwarm):
                 # Send PDF converted from PPTX (better Telegram experience)
                 file_result = await send_telegram_file_tool({
                     'file_path': pptx_pdf_path,
-                    'caption': f"📊 {paper.title[:50]} - Presentation (PDF)"
+                    'caption': f" {paper.title[:50]} - Presentation (PDF)"
                 })
 
                 if file_result.get('success'):
-                    logger.info(f"✅ Sent Presentation PDF to Telegram")
+                    logger.info(f" Sent Presentation PDF to Telegram")
                 else:
-                    logger.error(f"❌ Presentation PDF send failed: {file_result.get('error')}")
+                    logger.error(f" Presentation PDF send failed: {file_result.get('error')}")
             elif has_pptx:
                 # Fallback: Send raw PPTX (when LibreOffice not available)
                 file_result = await send_telegram_file_tool({
                     'file_path': pptx_path,
-                    'caption': f"📊 {paper.title[:50]} - Presentation (PPTX)"
+                    'caption': f" {paper.title[:50]} - Presentation (PPTX)"
                 })
 
                 if file_result.get('success'):
-                    logger.info(f"✅ Sent PPTX to Telegram")
+                    logger.info(f" Sent PPTX to Telegram")
                 else:
-                    logger.error(f"❌ PPTX send failed: {file_result.get('error')}")
+                    logger.error(f" PPTX send failed: {file_result.get('error')}")
 
             # =================================================================
             # SEND HTML SLIDES
@@ -1226,13 +1226,13 @@ class ArxivLearningSwarm(DomainSwarm):
             if html_path and Path(html_path).exists():
                 file_result = await send_telegram_file_tool({
                     'file_path': html_path,
-                    'caption': f"🌐 {paper.title[:50]} - Interactive HTML Slides"
+                    'caption': f" {paper.title[:50]} - Interactive HTML Slides"
                 })
 
                 if file_result.get('success'):
-                    logger.info(f"✅ Sent HTML slides to Telegram")
+                    logger.info(f" Sent HTML slides to Telegram")
                 else:
-                    logger.error(f"❌ HTML slides send failed: {file_result.get('error')}")
+                    logger.error(f" HTML slides send failed: {file_result.get('error')}")
 
             if not pdf_path or not Path(pdf_path).exists():
                 # Fallback: Send markdown
@@ -1246,11 +1246,11 @@ class ArxivLearningSwarm(DomainSwarm):
 
                 file_result = await send_telegram_file_tool({
                     'file_path': str(temp_path),
-                    'caption': f"📖 Learning content for {paper.arxiv_id}"
+                    'caption': f" Learning content for {paper.arxiv_id}"
                 })
 
                 if file_result.get('success'):
-                    logger.info(f"✅ Sent markdown to Telegram")
+                    logger.info(f" Sent markdown to Telegram")
 
                 try:
                     temp_path.unlink()
@@ -1295,7 +1295,7 @@ class ArxivLearningSwarm(DomainSwarm):
             }
         )
 
-        logger.info("✅ Seeded gold standards for ArxivLearningSwarm")
+        logger.info(" Seeded gold standards for ArxivLearningSwarm")
 
     def get_learning_stats(self) -> Dict[str, Any]:
         """Get learning statistics."""

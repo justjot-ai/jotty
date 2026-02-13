@@ -901,7 +901,7 @@ class LearningSwarm(DomainSwarm):
         results = {}
 
         for name in swarm_names:
-            logger.info(f"🔄 Running improvement cycle for {name}...")
+            logger.info(f" Running improvement cycle for {name}...")
             results[name] = await self.evaluate_and_improve(name)
 
         return results

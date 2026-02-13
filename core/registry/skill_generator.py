@@ -81,9 +81,9 @@ class SkillGenerator:
                 try:
                     from ..foundation.unified_lm_provider import UnifiedLMProvider
                     self.lm = UnifiedLMProvider.configure_default_lm()
-                    logger.info("✅ SkillGenerator using unified LLM provider (auto-detected)")
+                    logger.info(" SkillGenerator using unified LLM provider (auto-detected)")
                 except Exception as e:
-                    logger.warning(f"⚠️  Could not configure unified LM provider: {e}")
+                    logger.warning(f" Could not configure unified LM provider: {e}")
                     raise ValueError(
                         "No LLM available. Provide 'lm' parameter or ensure DSPy is configured with "
                         "UnifiedLMProvider.configure_default_lm()"
@@ -133,7 +133,7 @@ class SkillGenerator:
         tools_py_path = skill_dir / "tools.py"
         tools_py_path.write_text(tools_py_content)
         
-        logger.info(f"✅ Generated skill: {skill_name}")
+        logger.info(f" Generated skill: {skill_name}")
         
         # Auto-reload skill if registry is available
         reloaded = False
@@ -144,7 +144,7 @@ class SkillGenerator:
                 # Reload skills to pick up new one
                 self.skills_registry.load_all_skills()
                 reloaded = True
-                logger.info(f"✅ Skill '{skill_name}' auto-reloaded")
+                logger.info(f" Skill '{skill_name}' auto-reloaded")
                 
                 # Test tool execution if possible
                 skill = self.skills_registry.get_skill(skill_name)
@@ -158,15 +158,15 @@ class SkillGenerator:
                         test_result = first_tool({})
                         tool_tested = True
                         if test_result.get('success'):
-                            logger.info(f"✅ Tool '{first_tool_name}' test passed")
+                            logger.info(f" Tool '{first_tool_name}' test passed")
                         else:
-                            logger.info(f"⚠️  Tool '{first_tool_name}' test returned: {test_result.get('error', 'unknown')}")
+                            logger.info(f" Tool '{first_tool_name}' test returned: {test_result.get('error', 'unknown')}")
                     except Exception as e:
-                        logger.warning(f"⚠️  Tool '{first_tool_name}' test failed: {e}")
+                        logger.warning(f" Tool '{first_tool_name}' test failed: {e}")
             except Exception as e:
-                logger.warning(f"⚠️  Auto-reload failed: {e}")
+                logger.warning(f" Auto-reload failed: {e}")
         else:
-            logger.info(f"💡 Skill '{skill_name}' generated. Pass skills_registry to generator for auto-reload.")
+            logger.info(f" Skill '{skill_name}' generated. Pass skills_registry to generator for auto-reload.")
         
         return {
             "name": skill_name,
@@ -387,7 +387,7 @@ def {skill_name.replace("-", "_")}_tool(params: dict) -> dict:
             improved_py = self._improve_tools_py(existing_py, feedback, changes)
             tools_py_path.write_text(improved_py)
         
-        logger.info(f"✅ Improved skill: {skill_name}")
+        logger.info(f" Improved skill: {skill_name}")
         
         return {
             "name": skill_name,

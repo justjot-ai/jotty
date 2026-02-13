@@ -34,7 +34,7 @@ class LLMContextManager:
         self.max_tokens = max_tokens
         self.safety_margin = safety_margin
         self.usable_tokens = max_tokens - safety_margin
-        self.compress_fn = compress_fn  # ✅ A-TEAM: Use provided compression function
+        self.compress_fn = compress_fn # A-TEAM: Use provided compression function
         
         # Priority buffers
         self.buffers: Dict[int, List[Tuple[str, str, int]]] = {
@@ -64,7 +64,7 @@ class LLMContextManager:
         Returns:
             (context_string, metadata)
             
-#         ✅ A-TEAM: Now async to support async compression.
+# A-TEAM: Now async to support async compression.
         """
         context_parts = []
         total_tokens = 0
@@ -84,7 +84,7 @@ class LLMContextManager:
                 total_tokens += tokens
                 included[key] = tokens
             else:
-                # ✅ A-TEAM: Use contextual compression if available
+                # A-TEAM: Use contextual compression if available
                 available = self.usable_tokens - total_tokens
                 if available > 200:
                     if self.compress_fn:
@@ -94,20 +94,20 @@ class LLMContextManager:
                         except Exception as e:
                             # Fallback if compression fails
                             tokens_lost = tokens - available
-                            logger.error(f"❌ Compression failed for '{key}': {e}. Using emergency truncation. "
+                            logger.error(f" Compression failed for '{key}': {e}. Using emergency truncation. "
                                        f"Losing ~{tokens_lost} tokens of context!")
                             compressed_content = (
                                 content[:available * 4 - 50] + 
-                                f"\n... (⚠️ Emergency truncation: ~{tokens_lost} tokens omitted due to compression failure) ..."
+                                f"\n... ( Emergency truncation: ~{tokens_lost} tokens omitted due to compression failure) ..."
                             )
                     else:
                         # Fallback: emergency truncation (no compressor provided)
                         tokens_lost = tokens - available
-                        logger.warning(f"⚠️  No compressor provided for '{key}', using emergency truncation. "
+                        logger.warning(f" No compressor provided for '{key}', using emergency truncation. "
                                      f"Consider providing compress_fn to preserve context.")
                         compressed_content = (
                             content[:available * 4 - 50] + 
-                            f"\n... (⚠️ Emergency truncation: ~{tokens_lost} tokens omitted - no compressor available) ..."
+                            f"\n... ( Emergency truncation: ~{tokens_lost} tokens omitted - no compressor available) ..."
                         )
                     context_parts.append(f"## {key} (compressed)\n{compressed_content}\n")
                     total_tokens += available
@@ -123,18 +123,18 @@ class LLMContextManager:
                             compressed_content = await self.compress_fn(content, f"for_{key}", available * 4)
                         except Exception as e:
                             tokens_lost = tokens - available
-                            logger.error(f"❌ Compression failed for '{key}' (MEDIUM priority): {e}. "
+                            logger.error(f" Compression failed for '{key}' (MEDIUM priority): {e}. "
                                        f"Losing ~{tokens_lost} tokens!")
                             compressed_content = (
                                 content[:available * 4 - 50] + 
-                                f"\n... (⚠️ Emergency truncation: ~{tokens_lost} tokens omitted) ..."
+                                f"\n... ( Emergency truncation: ~{tokens_lost} tokens omitted) ..."
                             )
                     else:
                         tokens_lost = tokens - available
-                        logger.warning(f"⚠️  No compressor for '{key}' (MEDIUM priority), using emergency truncation.")
+                        logger.warning(f" No compressor for '{key}' (MEDIUM priority), using emergency truncation.")
                         compressed_content = (
                             content[:available * 4 - 50] + 
-                            f"\n... (⚠️ Emergency truncation: ~{tokens_lost} tokens omitted) ..."
+                            f"\n... ( Emergency truncation: ~{tokens_lost} tokens omitted) ..."
                         )
                     context_parts.append(f"## {key}\n{compressed_content}\n")
                     total_tokens += available
@@ -206,7 +206,7 @@ class LLMContextManager:
             if goal_words:
                 score += sum(1 for w in goal_words if w in lower) / max(len(goal_words), 1)
             # Boost lines that look like results / conclusions
-            if any(marker in lower for marker in ['result', 'output', 'found', 'error', 'success', 'fail', '✅', '❌']):
+            if any(marker in lower for marker in ['result', 'output', 'found', 'error', 'success', 'fail', '', '']):
                 score += 0.5
             # Boost short structural lines (headers, keys)
             if stripped.startswith(('#', '-', '*', '•')) or ':' in stripped[:40]:
@@ -268,7 +268,7 @@ class LLMContextManager:
         if doc_tokens < self.usable_tokens * 0.6:
             return document
         
-        logger.info(f"📄 Auto-chunking large document: {doc_tokens} tokens > {int(self.usable_tokens * 0.6)} limit")
+        logger.info(f" Auto-chunking large document: {doc_tokens} tokens > {int(self.usable_tokens * 0.6)} limit")
         
         # Calculate chunk size (25% of usable context)
         chunk_size_chars = (self.usable_tokens * 4) // 4
@@ -297,7 +297,7 @@ class LLMContextManager:
         
         if extractions:
             result = "\n\n".join(extractions)
-            logger.info(f"📄 Extracted {len(extractions)}/{len(chunks)} relevant chunks")
+            logger.info(f" Extracted {len(extractions)}/{len(chunks)} relevant chunks")
             return result
         else:
             # No relevant chunks found - return compressed summary
@@ -317,19 +317,19 @@ class LLMContextManager:
         for num_str in numbers:
             num = int(num_str)
             if num > self.usable_tokens:
-                logger.warning(f"🔄 Detected token overflow ({num} > {self.usable_tokens})")
+                logger.warning(f" Detected token overflow ({num} > {self.usable_tokens})")
                 return self._smart_compress(current_context, (self.usable_tokens - 2000) * 4)
         
         # Method 2: Check error type name (structure-based)
         error_type = type(error).__name__.lower()
         overflow_indicators = ['length', 'limit', 'overflow', 'size', 'token', 'context']
         if any(ind in error_type for ind in overflow_indicators):
-            logger.warning(f"🔄 Detected overflow error by type: {type(error).__name__}")
+            logger.warning(f" Detected overflow error by type: {type(error).__name__}")
             return self._smart_compress(current_context, (self.usable_tokens - 2000) * 4)
         
         # Method 3: Check if error has specific attributes
         if hasattr(error, 'max_tokens') or hasattr(error, 'token_count'):
-            logger.warning(f"🔄 Detected token error by attribute")
+            logger.warning(f" Detected token error by attribute")
             return self._smart_compress(current_context, (self.usable_tokens - 2000) * 4)
         
         return None  # Not a context overflow error

@@ -120,7 +120,7 @@ class SwarmWorkflowLearner:
             except Exception as e:
                 logger.debug(f"Failed to store pattern in memory: {e}")
         
-        logger.info(f"📚 Learned pattern: {pattern_signature} (success_rate: {pattern.success_rate:.2f})")
+        logger.info(f" Learned pattern: {pattern_signature} (success_rate: {pattern.success_rate:.2f})")
     
     def find_similar_pattern(
         self,
@@ -162,7 +162,7 @@ class SwarmWorkflowLearner:
                 best_match = pattern
         
         if best_match and best_score > 0.5:  # Threshold
-            logger.info(f"✅ Found similar pattern: {best_match.pattern_id} (score: {best_score:.2f})")
+            logger.info(f" Found similar pattern: {best_match.pattern_id} (score: {best_score:.2f})")
             return best_match
         
         return None

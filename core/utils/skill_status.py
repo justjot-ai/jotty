@@ -13,10 +13,10 @@ Usage in a skill's tools.py:
     def my_tool(params: dict) -> dict:
         status.set_callback(params.pop('_status_callback', None))
 
-        status.emit("Searching", "🔍 Searching web...")
+        status.emit("Searching", " Searching web...")
         results = search_web(query)
 
-        status.emit("Processing", "⚙️ Processing results...")
+        status.emit("Processing", " Processing results...")
         processed = process(results)
 
         return {"success": True, "data": processed}
@@ -64,7 +64,7 @@ class SkillStatus:
 
         Args:
             stage: Stage name (e.g., "Searching", "Processing")
-            detail: Detail message with emoji (e.g., "🔍 Searching web...")
+            detail: Detail message with emoji (e.g., " Searching web...")
         """
         if self._callback:
             try:
@@ -75,39 +75,39 @@ class SkillStatus:
 
     def searching(self, target: str):
         """Emit searching status."""
-        self.emit("Searching", f"🔍 Searching {target}...")
+        self.emit("Searching", f" Searching {target}...")
 
     def fetching(self, url: str):
         """Emit fetching status."""
         # Truncate long URLs
         display_url = url[:60] + "..." if len(url) > 60 else url
-        self.emit("Fetching", f"🌐 {display_url}")
+        self.emit("Fetching", f" {display_url}")
 
     def processing(self, item: str = ""):
         """Emit processing status."""
-        msg = f"⚙️ Processing {item}..." if item else "⚙️ Processing..."
+        msg = f" Processing {item}..." if item else " Processing..."
         self.emit("Processing", msg)
 
     def analyzing(self, item: str = ""):
         """Emit analyzing status."""
-        msg = f"🧠 Analyzing {item}..." if item else "🧠 Analyzing..."
+        msg = f" Analyzing {item}..." if item else " Analyzing..."
         self.emit("Analyzing", msg)
 
     def creating(self, item: str):
         """Emit creating status."""
-        self.emit("Creating", f"📝 Creating {item}...")
+        self.emit("Creating", f" Creating {item}...")
 
     def sending(self, destination: str):
         """Emit sending status."""
-        self.emit("Sending", f"📤 Sending to {destination}...")
+        self.emit("Sending", f" Sending to {destination}...")
 
     def done(self, message: str = "Complete"):
         """Emit completion status."""
-        self.emit("Done", f"✅ {message}")
+        self.emit("Done", f" {message}")
 
     def error(self, message: str):
         """Emit error status."""
-        self.emit("Error", f"❌ {message}")
+        self.emit("Error", f" {message}")
 
 
 # Global instances for common skills (optional convenience)

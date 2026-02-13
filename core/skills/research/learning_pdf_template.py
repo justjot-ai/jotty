@@ -260,7 +260,7 @@ h4 {
 }
 
 .bingo-box::before {
-    content: "🎯 Bingo!";
+    content: " Bingo!";
     display: block;
     font-weight: 700;
     font-size: 12pt;
@@ -1565,7 +1565,7 @@ def generate_learning_html(
         insights_items = "\n".join([f"<li>{insight}</li>" for insight in key_insights[:6]])
         insights_html = f'''
         <div class="insights-list">
-            <h4>✨ Key Insights ({bingo_word}!)</h4>
+            <h4> Key Insights ({bingo_word}!)</h4>
             <ol>{insights_items}</ol>
         </div>
         '''
@@ -1576,7 +1576,7 @@ def generate_learning_html(
         next_items = "\n".join([f"<li>{step}</li>" for step in next_steps[:5]])
         next_html = f'''
         <div class="next-steps">
-            <h4>📈 What to Learn Next</h4>
+            <h4> What to Learn Next</h4>
             <ul>{next_items}</ul>
         </div>
         '''
@@ -1598,7 +1598,7 @@ def generate_learning_html(
         <div class="arxiv-id">arXiv:{arxiv_id}</div>
         <div class="authors">{', '.join(authors[:4])}</div>
 
-        <div class="learning-badge">📚 Interactive Learning Guide</div>
+        <div class="learning-badge"> Interactive Learning Guide</div>
 
         <div class="stats">
             <div class="stat-item">
@@ -1620,18 +1620,18 @@ def generate_learning_html(
 
     <!-- Hook Section -->
     <div class="hook-section">
-        <h3>🎯 Why Should You Care?</h3>
+        <h3> Why Should You Care?</h3>
         <p>{hook if hook else 'Discover cutting-edge research that could change how you think about AI.'}</p>
     </div>
 
     <!-- Concepts Overview -->
-    <h2>🧠 Concepts You'll Learn</h2>
+    <h2> Concepts You'll Learn</h2>
     {concepts_html}
 
     <div class="page-break"></div>
 
     <!-- Main Content Sections -->
-    <h2>📖 Learning Journey</h2>
+    <h2> Learning Journey</h2>
     {sections_html}
 
     <!-- Key Insights -->
@@ -1639,7 +1639,7 @@ def generate_learning_html(
 
     <!-- Summary -->
     <div class="summary-box">
-        <h4>📝 Summary</h4>
+        <h4> Summary</h4>
         <p>{summary if summary else 'This paper introduces innovative concepts that build on existing research to push the boundaries of what is possible.'}</p>
     </div>
 
@@ -1702,7 +1702,7 @@ async def convert_learning_to_pdf(
         from weasyprint import HTML
 
         HTML(string=html_content).write_pdf(str(output_file))
-        logger.info(f"✅ Generated PDF: {output_file}")
+        logger.info(f" Generated PDF: {output_file}")
         return str(output_file)
 
     except ImportError:
@@ -1722,7 +1722,7 @@ async def convert_learning_to_pdf(
         }
 
         pdfkit.from_string(html_content, str(output_file), options=options)
-        logger.info(f"✅ Generated PDF: {output_file}")
+        logger.info(f" Generated PDF: {output_file}")
         return str(output_file)
 
     except ImportError:
@@ -1733,7 +1733,7 @@ async def convert_learning_to_pdf(
     with open(html_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-    logger.info(f"📄 Saved HTML (PDF libraries not available): {html_path}")
+    logger.info(f" Saved HTML (PDF libraries not available): {html_path}")
     return html_path
 
 

@@ -97,7 +97,7 @@ class AgentSProvider(SkillProvider):
                 self._agent = GUIAgent()
                 self.is_initialized = True
                 self.is_available = True
-                logger.info(f"✅ {self.name} provider initialized with full Agent-S")
+                logger.info(f" {self.name} provider initialized with full Agent-S")
                 return True
             except Exception as e:
                 logger.warning(f"Agent-S init failed: {e}, trying fallback")
@@ -107,7 +107,7 @@ class AgentSProvider(SkillProvider):
             self._use_fallback = True
             self.is_initialized = True
             self.is_available = True
-            logger.info(f"✅ {self.name} provider initialized (pyautogui fallback)")
+            logger.info(f" {self.name} provider initialized (pyautogui fallback)")
             return True
 
         logger.warning("Neither Agent-S nor pyautogui available")
@@ -154,7 +154,7 @@ class AgentSProvider(SkillProvider):
 
         try:
             # Agent-S handles the task autonomously
-            logger.info(f"🖥️  Agent-S executing: {task[:50]}...")
+            logger.info(f" Agent-S executing: {task[:50]}...")
 
             # This would call the actual Agent-S execution
             # result = await self._agent.execute(task)

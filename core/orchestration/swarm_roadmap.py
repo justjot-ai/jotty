@@ -171,7 +171,7 @@ class AgenticState:
         self.tool_calls.append({
             'tool': tool_name,
             'args': args,
-            'result': str(result),  # 🔥 NO TRUNCATION - FULL content
+            'result': str(result), # NO TRUNCATION - FULL content
             'success': success,
             'step_idx': len(self.trajectory)
         })
@@ -495,7 +495,7 @@ class SubtaskState:
         self.status = TaskStatus.IN_PROGRESS
         self.started_at = datetime.now()
         self.attempts += 1
-        logger.info(f"▶️  Task {self.task_id} STARTED (attempt {self.attempts}/{self.max_attempts})")
+        logger.info(f"▶ Task {self.task_id} STARTED (attempt {self.attempts}/{self.max_attempts})")
     
     def complete(self, result: Dict = None):
         """Mark task as completed."""
@@ -625,10 +625,10 @@ class SwarmTaskBoard:
         ]
 
         # Debug: Show all task statuses
-        logger.info(f"🔍 Task statuses: {', '.join([f'{t.task_id}={t.status.name}' for t in self.subtasks.values()])}")
+        logger.info(f" Task statuses: {', '.join([f'{t.task_id}={t.status.name}' for t in self.subtasks.values()])}")
 
         if not available_tasks:
-            logger.info("⚠️  No available tasks (all completed/failed/blocked)")
+            logger.info(" No available tasks (all completed/failed/blocked)")
             return None
 
         # If only one task available, return it
@@ -636,14 +636,14 @@ class SwarmTaskBoard:
             return available_tasks[0]
 
         # Log Q-predictor availability and parameters
-        logger.info(f"🔍 [get_next_task] q_predictor={q_predictor is not None}, state={current_state is not None}, goal={goal is not None}, epsilon={epsilon}")
-        logger.info(f"🔍 [get_next_task] Available tasks: {[t.actor for t in available_tasks]}")
+        logger.info(f" [get_next_task] q_predictor={q_predictor is not None}, state={current_state is not None}, goal={goal is not None}, epsilon={epsilon}")
+        logger.info(f" [get_next_task] Available tasks: {[t.actor for t in available_tasks]}")
 
-        # 🔥 RL-AWARE SELECTION: Use Q-values to choose best agent
+        # RL-AWARE SELECTION: Use Q-values to choose best agent
         if q_predictor and current_state and goal:
             import random
 
-            logger.info("🎯 [get_next_task] Using Q-value-based selection!")
+            logger.info(" [get_next_task] Using Q-value-based selection!")
 
             # ε-greedy: explore with probability epsilon
             rand_value = random.random()
@@ -651,11 +651,11 @@ class SwarmTaskBoard:
                 # EXPLORE: Random selection
                 selected_task = random.choice(available_tasks)
                 logger.debug(f"EXPLORE ({rand_value:.2f} < {epsilon}) -> {selected_task.actor}")
-                logger.info(f"🎲 [get_next_task] EXPLORE mode (rand={rand_value:.3f} < eps={epsilon:.3f}) → selected {selected_task.actor}")
+                logger.info(f" [get_next_task] EXPLORE mode (rand={rand_value:.3f} < eps={epsilon:.3f}) → selected {selected_task.actor}")
                 return selected_task
             else:
                 logger.debug(f"EXPLOIT ({rand_value:.2f} >= {epsilon})")
-                logger.info(f"🏆 [get_next_task] EXPLOIT mode (rand={rand_value:.3f} >= eps={epsilon:.3f})")
+                logger.info(f" [get_next_task] EXPLOIT mode (rand={rand_value:.3f} >= eps={epsilon:.3f})")
 
                 # EXPLOIT: Select task with highest Q-value
                 best_task = None
@@ -672,20 +672,20 @@ class SwarmTaskBoard:
                             best_task = task
                     except Exception as e:
                         # If Q-prediction fails, skip this task
-                        logger.warning(f"⚠️  [get_next_task] Q-prediction failed for {task.actor}: {e}")
+                        logger.warning(f" [get_next_task] Q-prediction failed for {task.actor}: {e}")
                         pass
 
                 logger.debug(f"Q-values: {', '.join(q_values_debug)}")
                 logger.debug(f"Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
-                logger.info(f"📊 [get_next_task] Q-values: {', '.join(q_values_debug)}")
-                logger.info(f"🏆 [get_next_task] Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
+                logger.info(f" [get_next_task] Q-values: {', '.join(q_values_debug)}")
+                logger.info(f" [get_next_task] Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
 
                 # If we found a task with valid Q-value, use it
                 if best_task:
                     return best_task
 
-        # 🔄 FALLBACK: Use fixed execution order (original behavior)
-        logger.info("🔄 [get_next_task] Falling back to fixed execution order")
+        # FALLBACK: Use fixed execution order (original behavior)
+        logger.info(" [get_next_task] Falling back to fixed execution order")
         for task_id in self.execution_order:
             task = self.subtasks[task_id]
             if task.status == TaskStatus.PENDING and task.can_start(self.completed_tasks):
@@ -812,7 +812,7 @@ class SwarmTaskBoard:
         success_threshold: float = 0.7   # Replan if progress < 70%
     ) -> Tuple[bool, str]:
         """
-        🔬 A-TEAM ENHANCEMENT: Periodic success-based replanning + global deadlines.
+         A-TEAM ENHANCEMENT: Periodic success-based replanning + global deadlines.
         
         Returns:
             (should_replan: bool, reason: str)
@@ -851,7 +851,7 @@ class SwarmTaskBoard:
     
     def replan(self, observation: str = "") -> List[str]:
         """
-        🔬 A-TEAM ENHANCEMENT: Trigger replanning.
+         A-TEAM ENHANCEMENT: Trigger replanning.
         
         Actions:
         1. Skip blocked tasks with failed dependencies
@@ -935,7 +935,7 @@ class SwarmTaskBoard:
         summary += f"**Progress:** {len(self.completed_tasks)}/{len(self.subtasks)} completed\n\n"
         
         if in_progress:
-            summary += "#### 🔄 In Progress\n"
+            summary += "#### In Progress\n"
             for task in in_progress:
                 q_val = task.estimated_reward
                 priority = task.priority
@@ -952,7 +952,7 @@ class SwarmTaskBoard:
             summary += "\n"
         
         if self.failed_tasks:
-            summary += "#### ❌ Failed (Need Retry/Exploration)\n"
+            summary += "#### Failed (Need Retry/Exploration)\n"
             for task_id in list(self.failed_tasks):  # Show 2
                 task = self.subtasks[task_id]
                 reason = task.failure_reasons[-1] if task.failure_reasons else "Unknown"

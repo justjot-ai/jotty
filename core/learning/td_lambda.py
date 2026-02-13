@@ -716,7 +716,7 @@ class TDLambdaLearner:
                           goal_hierarchy: GoalHierarchy,
                           updates: List[Tuple[str, float, float]]):
         """Transfer value updates to related goals with discounting."""
-        transfer_weight = self.config.goal_transfer_weight * self.config.goal_transfer_discount  # 🔧 STANFORD FIX
+        transfer_weight = self.config.goal_transfer_weight * self.config.goal_transfer_discount # STANFORD FIX
         
         # Find related goals
         goal_id = None

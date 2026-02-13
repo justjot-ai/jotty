@@ -47,7 +47,7 @@ class RLComponents:
         top_k: int = 10
     ) -> List[Dict]:
         """
-#         ✅ TASK 1: Semantic experience retrieval with similarity scoring.
+# TASK 1: Semantic experience retrieval with similarity scoring.
         
         A-TEAM CONSENSUS: Use semantic similarity, not just recency.
         
@@ -124,7 +124,7 @@ class RLComponents:
         v_current: float
     ) -> Dict[str, Any]:
         """
-#         ✅ TASK 2: Add TD_error and WHY to experience.
+# TASK 2: Add TD_error and WHY to experience.
         
         A-TEAM CONSENSUS: Causal explanation critical for learning.
         
@@ -151,7 +151,7 @@ class RLComponents:
                 context=f"Expected value ~{v_current:.2f}, but got reward {reward:.2f}"
             )
             experience['why'] = why
-            logger.debug(f"💡 WHY: {why}...")
+            logger.debug(f" WHY: {why}...")
         else:
             experience['why'] = ""
         
@@ -166,7 +166,7 @@ class RLComponents:
         context: str
     ) -> str:
         """
-#         ✅ TASK 6: LLM reflection for learning.
+# TASK 6: LLM reflection for learning.
         
         Generate WHY reflection using LLM to understand prediction errors.
         
@@ -223,7 +223,7 @@ Provide concise causal explanation (2-3 sentences):
         predictability_bonus: float
     ) -> Tuple[float, float]:
         """
-#         ✅ TASK 4: Q-divergence bonus calculation.
+# TASK 4: Q-divergence bonus calculation.
         
         A-TEAM CONSENSUS: Reward accurate predictions to improve learning.
         
@@ -246,7 +246,7 @@ Provide concise causal explanation (2-3 sentences):
         # Large error (divergence≥1) → no bonus
         bonus = (1.0 - min(q_divergence, 1.0)) * predictability_bonus
         
-        logger.debug(f"📊 Q-prediction: predicted={q_predicted:.3f}, actual={q_actual:.3f}, divergence={q_divergence:.3f}, bonus={bonus:.3f}")
+        logger.debug(f" Q-prediction: predicted={q_predicted:.3f}, actual={q_actual:.3f}, divergence={q_divergence:.3f}, bonus={bonus:.3f}")
         
         return q_divergence, bonus
     
@@ -256,7 +256,7 @@ Provide concise causal explanation (2-3 sentences):
         min_frequency: int = 3
     ) -> List[Dict[str, Any]]:
         """
-#         ✅ TASK 3: Pattern extraction from experiences.
+# TASK 3: Pattern extraction from experiences.
         
         A-TEAM CONSENSUS: Identify recurring success/failure patterns.
         
@@ -307,7 +307,7 @@ Provide concise causal explanation (2-3 sentences):
         gamma: float = 0.99
     ) -> Dict[str, float]:
         """
-#         ✅ TASK 8: Counterfactual credit assignment.
+# TASK 8: Counterfactual credit assignment.
         
         A-TEAM CONSENSUS: Use "what if we didn't take this action?" logic.
         
@@ -367,7 +367,7 @@ Provide concise causal explanation (2-3 sentences):
         current_state: Dict
     ) -> Dict[str, float]:
         """
-#         ✅ TASK 9: Theory of Mind modeling.
+# TASK 9: Theory of Mind modeling.
         
         A-TEAM CONSENSUS: Predict what other actors will do to coordinate better.
         

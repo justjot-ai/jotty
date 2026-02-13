@@ -520,7 +520,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
         """
         cache_key = f"parallel_{paper.arxiv_id}_{audience_level}_{len(concepts)}"
         if cache_key in self._content_cache:
-            logger.info(f"📦 Using cached parallel content for {paper.arxiv_id}")
+            logger.info(f" Using cached parallel content for {paper.arxiv_id}")
             return self._content_cache[cache_key]
 
         paper_context = f"{paper.title}: {paper.abstract[:300]}"
@@ -565,14 +565,14 @@ class UnifiedLearningAgent(BaseSwarmAgent):
                     }
 
         # Run all concept generations in parallel
-        logger.info(f"🚀 Generating deep content for {len(concepts)} concepts in parallel (max {max_concurrent} concurrent)...")
+        logger.info(f" Generating deep content for {len(concepts)} concepts in parallel (max {max_concurrent} concurrent)...")
         start = datetime.now()
 
         tasks = [generate_one_concept(c) for c in concepts]
         concept_results = await asyncio.gather(*tasks)
 
         elapsed = (datetime.now() - start).total_seconds()
-        logger.info(f"✅ Parallel generation complete in {elapsed:.1f}s")
+        logger.info(f" Parallel generation complete in {elapsed:.1f}s")
 
         # Build result structure
         intuitions = {}
@@ -632,7 +632,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
                 sections.append(f"\n### Building Intuition\n\n{cr['intuition']}\n")
 
             if cr.get('aha_moment'):
-                sections.append(f"\n💡 **{celebration_word}!** {cr['aha_moment']}\n")
+                sections.append(f"\n **{celebration_word}!** {cr['aha_moment']}\n")
 
             if cr.get('math_motivation') or cr.get('math_steps'):
                 sections.append(f"\n### The Mathematics\n")
@@ -675,7 +675,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
         # Check cache first
         cache_key = f"{paper.arxiv_id}_{audience_level}"
         if cache_key in self._content_cache:
-            logger.info(f"📦 Using cached learning content for {paper.arxiv_id}")
+            logger.info(f" Using cached learning content for {paper.arxiv_id}")
             return self._content_cache[cache_key]
 
         try:
@@ -814,7 +814,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
                 sections.append(f"\n### Understanding {name}\n{c['intuition']}\n")
 
             if c.get('aha_moment'):
-                sections.append(f"\n💡 **{content.get('celebration_word', 'Bingo!')}!** {c['aha_moment']}\n")
+                sections.append(f"\n **{content.get('celebration_word', 'Bingo!')}!** {c['aha_moment']}\n")
 
             if c.get('math_steps'):
                 sections.append(f"\n### The Math\n{c.get('math_motivation', '')}\n\n{c['math_steps']}\n")

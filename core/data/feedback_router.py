@@ -1,5 +1,5 @@
 """
-🤖 AGENTIC FEEDBACK ROUTER
+ AGENTIC FEEDBACK ROUTER
 ===========================
 
 NO USER CONFIGURATION NEEDED!
@@ -79,7 +79,7 @@ class AgenticFeedbackRouter:
         
         NO user configuration needed!
         """
-        logger.info(f"🤖 Agentic feedback routing for {failing_actor_name}...")
+        logger.info(f" Agentic feedback routing for {failing_actor_name}...")
         
         # Build context for the routing agent
         available_agents_desc = self._describe_agents(available_actors)
@@ -105,7 +105,7 @@ class AgenticFeedbackRouter:
         # Parse target agents
         target_agents = self._parse_target_agents_json(result.target_agents)
         
-        logger.info(f"✅ Agentic routing decision:")
+        logger.info(f" Agentic routing decision:")
         logger.info(f"   Target agents: {target_agents}")
         logger.info(f"   Feedback type: {result.feedback_type}")
         logger.info(f"   Reasoning: {result.reasoning}")
@@ -219,7 +219,7 @@ class AgenticFeedbackRouter:
                 return out
             return []
         except Exception:
-            logger.warning("⚠️ AgenticFeedbackRouter: target_agents was not valid JSON; treating as no targets.")
+            logger.warning(" AgenticFeedbackRouter: target_agents was not valid JSON; treating as no targets.")
             return []
     
     def _parse_feedback_type(self, feedback_type_str: str) -> FeedbackType:

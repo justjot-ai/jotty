@@ -123,10 +123,10 @@ class JottyClaudeProvider:
     def _start_server(self) -> bool:
         """Start the wrapper server."""
         if self._is_server_running():
-            logger.info("✅ Wrapper server already running")
+            logger.info(" Wrapper server already running")
             return True
 
-        logger.info(f"🚀 Starting Claude wrapper server on port {self.port}...")
+        logger.info(f" Starting Claude wrapper server on port {self.port}...")
 
         try:
             # Build the server command
@@ -152,15 +152,15 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
             # Wait for server to be ready
             for i in range(STARTUP_TIMEOUT):
                 if self._is_server_running():
-                    logger.info(f"✅ Wrapper server started in {i+1}s")
+                    logger.info(f" Wrapper server started in {i+1}s")
                     return True
                 time.sleep(1)
 
-            logger.error("❌ Wrapper server failed to start")
+            logger.error(" Wrapper server failed to start")
             return False
 
         except Exception as e:
-            logger.error(f"❌ Failed to start wrapper: {e}")
+            logger.error(f" Failed to start wrapper: {e}")
             return False
 
     def _stop_server(self):
@@ -169,7 +169,7 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
             try:
                 os.killpg(os.getpgid(self._server_process.pid), signal.SIGTERM)
                 self._server_process = None
-                logger.info("🛑 Wrapper server stopped")
+                logger.info(" Wrapper server stopped")
             except Exception:
                 pass
 
@@ -209,11 +209,11 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
                     timeout=300,  # 5 minutes to handle queued requests
                 )
                 self._lm._model = model
-                logger.info(f"✅ Using OpenAI wrapper LM: {model} (JSON mode, 300s timeout)")
+                logger.info(f" Using OpenAI wrapper LM: {model} (JSON mode, 300s timeout)")
             return self._lm
 
         # Fallback to direct CLI
-        logger.warning("⚠️ Wrapper not available, using DirectClaudeCLI")
+        logger.warning(" Wrapper not available, using DirectClaudeCLI")
         try:
             from .direct_claude_cli_lm import DirectClaudeCLI
             return DirectClaudeCLI(model="sonnet")

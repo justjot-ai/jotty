@@ -143,7 +143,7 @@ class ActivepiecesProvider(SkillProvider):
             skills = await self._fetch_skills()
             self.is_initialized = True
             self.is_available = True
-            logger.info("✅ activepieces provider initialized (%d flows as skills)", len(skills))
+            logger.info(" activepieces provider initialized (%d flows as skills)", len(skills))
             return True
         except Exception as e:
             logger.warning("activepieces provider init failed (will retry on use): %s", e)

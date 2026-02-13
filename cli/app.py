@@ -1010,8 +1010,8 @@ class JottyCLI:
         html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
 
         # Lists
-        html = re.sub(r'^- \[ \] (.+)$', r'<li>☐ \1</li>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- \[x\] (.+)$', r'<li>☑ \1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- \[ \] (.+)$', r'<li> \1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r'^- \[x\] (.+)$', r'<li> \1</li>', html, flags=re.MULTILINE)
         html = re.sub(r'^- (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
         html = re.sub(r'^• (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
 

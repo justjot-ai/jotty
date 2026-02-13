@@ -1095,7 +1095,7 @@ class UnifiedToolGenerator:
                 size=size,
                 preview=preview,
                 description=description,
-                title=f"📄 {filename}"
+                title=f" {filename}"
             )
         except ImportError:
             # Fallback if helper not available
@@ -1115,7 +1115,7 @@ class UnifiedToolGenerator:
                         "preview": preview,
                         "description": description
                     },
-                    "title": f"📄 {filename}"
+                    "title": f" {filename}"
                 }
             }
 

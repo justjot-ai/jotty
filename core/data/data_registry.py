@@ -112,7 +112,7 @@ class DataRegistry:
         self.index_by_tag: Dict[str, List[str]] = {}
         self.index_by_actor: Dict[str, List[str]] = {}
         
-        logger.info("📚 DataRegistry initialized")
+        logger.info(" DataRegistry initialized")
     
     def register(self, artifact: DataArtifact):
         """Register a new data artifact."""
@@ -135,7 +135,7 @@ class DataRegistry:
         self.index_by_actor[artifact.source_actor].append(artifact.id)
         
         logger.info(
-            f"📝 Registered artifact '{artifact.name}' "
+            f" Registered artifact '{artifact.name}' "
             f"(type={artifact.data_type}, tags={artifact.tags}, size={artifact.size})"
         )
     

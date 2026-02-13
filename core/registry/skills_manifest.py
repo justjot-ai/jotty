@@ -23,7 +23,7 @@ class SkillInfo:
     category: str = "uncategorized"
     tags: List[str] = field(default_factory=list)
     description: str = ""
-    icon: str = "📦"
+    icon: str = ""
     requires_auth: bool = False
     env_vars: List[str] = field(default_factory=list)
     requires_cli: List[str] = field(default_factory=list)
@@ -104,7 +104,7 @@ class SkillsManifest:
                 self.categories[cat_name] = CategoryInfo(
                     name=cat_name,
                     description=cat_data.get('description', ''),
-                    icon=cat_data.get('icon', '📦'),
+                    icon=cat_data.get('icon', ''),
                     skills=cat_data.get('skills', [])
                 )
 
@@ -114,11 +114,11 @@ class SkillsManifest:
                         self.skills[skill_name] = SkillInfo(
                             name=skill_name,
                             category=cat_name,
-                            icon=cat_data.get('icon', '📦')
+                            icon=cat_data.get('icon', '')
                         )
                     else:
                         self.skills[skill_name].category = cat_name
-                        self.skills[skill_name].icon = cat_data.get('icon', '📦')
+                        self.skills[skill_name].icon = cat_data.get('icon', '')
 
             # Load tags
             for tag_name, tag_data in data.get('tags', {}).items():
@@ -292,11 +292,11 @@ class SkillsManifest:
                 for skill_name in cat_info.skills:
                     skill = self.skills.get(skill_name)
                     if skill:
-                        auth_note = " 🔐" if skill.requires_auth else ""
+                        auth_note = " " if skill.requires_auth else ""
                         lines.append(f"- `{skill_name}`{auth_note}")
 
         # Add tags section
-        lines.append("\n## 🏷️ Tags")
+        lines.append("\n## Tags")
         for tag_name, tag_skills in self.tags.items():
             lines.append(f"- **{tag_name}**: {', '.join(tag_skills[:5])}{'...' if len(tag_skills) > 5 else ''}")
 

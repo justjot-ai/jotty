@@ -73,7 +73,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
         # Providers will be accessed via registry
         self.is_initialized = True
         self.is_available = True
-        logger.info(f"✅ {self.name} composite provider initialized")
+        logger.info(f" {self.name} composite provider initialized")
         return True
 
     def get_categories(self) -> List[SkillCategory]:
@@ -88,7 +88,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
             results = {}
 
             # Step 1: Web research
-            logger.info(f"📚 Step 1: Web research for '{task[:30]}...'")
+            logger.info(f" Step 1: Web research for '{task[:30]}...'")
             if self._registry:
                 browser_result = await self._registry.execute(
                     SkillCategory.BROWSER,
@@ -100,7 +100,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
                 results['research'] = {'status': 'skipped', 'reason': 'no registry'}
 
             # Step 2: Data analysis
-            logger.info(f"🔬 Step 2: Analyzing gathered data...")
+            logger.info(f" Step 2: Analyzing gathered data...")
             if self._registry and results.get('research'):
                 analysis_task = f"Analyze this data and extract insights: {results['research']}"
                 code_result = await self._registry.execute(
@@ -113,7 +113,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
                 results['analysis'] = {'status': 'skipped'}
 
             # Step 3: Synthesis
-            logger.info(f"📝 Step 3: Synthesizing results...")
+            logger.info(f" Step 3: Synthesizing results...")
             results['synthesis'] = {
                 'task': task,
                 'research_summary': str(results.get('research', ''))[:500],
@@ -182,7 +182,7 @@ class AutomateWorkflowProvider(SkillProvider):
     async def initialize(self) -> bool:
         self.is_initialized = True
         self.is_available = True
-        logger.info(f"✅ {self.name} composite provider initialized")
+        logger.info(f" {self.name} composite provider initialized")
         return True
 
     def get_categories(self) -> List[SkillCategory]:
@@ -199,7 +199,7 @@ class AutomateWorkflowProvider(SkillProvider):
             results: Dict[str, Dict] = {}  # step_id -> result dict
 
             for i, step in enumerate(steps):
-                logger.info(f"⚙️  Step {i+1}/{len(steps)}: {step.task[:30]}...")
+                logger.info(f" Step {i+1}/{len(steps)}: {step.task[:30]}...")
 
                 # Check dependency satisfaction
                 if step.depends_on:
@@ -343,7 +343,7 @@ class FullStackAgentProvider(SkillProvider):
     async def initialize(self) -> bool:
         self.is_initialized = True
         self.is_available = True
-        logger.info(f"✅ {self.name} fullstack agent initialized")
+        logger.info(f" {self.name} fullstack agent initialized")
         return True
 
     def get_categories(self) -> List[SkillCategory]:
@@ -357,7 +357,7 @@ class FullStackAgentProvider(SkillProvider):
         try:
             # Analyze task to determine required capabilities
             required_categories = self._analyze_task(task)
-            logger.info(f"🤖 Fullstack agent: Task requires {[c.value for c in required_categories]}")
+            logger.info(f" Fullstack agent: Task requires {[c.value for c in required_categories]}")
 
             results = {}
 

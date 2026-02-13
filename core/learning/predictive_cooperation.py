@@ -142,7 +142,7 @@ class NashBargainingSolver:
         Returns:
             {agent_name: reward}
         """
-        logger.info(f"🤝 Nash Bargaining: Distributing {system_reward:.2f} among {len(agents)} agents")
+        logger.info(f" Nash Bargaining: Distributing {system_reward:.2f} among {len(agents)} agents")
         
         # Format inputs
         agents_desc = self._format_contributions(agents, contributions)
@@ -165,12 +165,12 @@ class NashBargainingSolver:
             # Validate
             total = sum(distribution.values())
             if abs(total - system_reward) > 0.01:
-                logger.warning(f"⚠️  Distribution sum ({total:.2f}) != system_reward ({system_reward:.2f})")
+                logger.warning(f" Distribution sum ({total:.2f}) != system_reward ({system_reward:.2f})")
                 # Normalize
                 factor = system_reward / total if total > 0 else 1.0
                 distribution = {k: v * factor for k, v in distribution.items()}
             
-            logger.info(f"✅ Nash Bargaining complete:")
+            logger.info(f" Nash Bargaining complete:")
             for agent, reward in distribution.items():
                 logger.info(f"   {agent}: {reward:.3f}")
             logger.info(f"   Fairness: {result.fairness_score}")
@@ -179,7 +179,7 @@ class NashBargainingSolver:
             return distribution
         
         except Exception as e:
-            logger.error(f"❌ Failed to parse distribution: {e}")
+            logger.error(f" Failed to parse distribution: {e}")
             # Fallback: Equal distribution
             equal_share = system_reward / len(agents)
             return {agent: equal_share for agent in agents}
@@ -305,7 +305,7 @@ class CooperationReasoner:
                 'expected_system_reward': float
             }
         """
-        logger.info(f"🤝 {agent_name}: Reasoning about cooperation...")
+        logger.info(f" {agent_name}: Reasoning about cooperation...")
         
         # Format inputs
         state_desc = self._format_state(state)
@@ -340,7 +340,7 @@ class CooperationReasoner:
             'expected_system_reward': float(result.expected_system_reward) if result.expected_system_reward else 0.5
         }
         
-        logger.info(f"✅ {agent_name} decided: {decision['action']}")
+        logger.info(f" {agent_name} decided: {decision['action']}")
         logger.info(f"   Expected system reward: {decision['expected_system_reward']:.2f}")
         logger.info(f"   Will communicate with: {list(comm_plan.keys())}")
         
@@ -418,7 +418,7 @@ class PredictiveCooperativeAgent:
         # State
         self.cooperation_state = CooperationState(agent_name=agent_name)
         
-        logger.info(f"🤝 PredictiveCooperativeAgent '{agent_name}' initialized")
+        logger.info(f" PredictiveCooperativeAgent '{agent_name}' initialized")
     
     def decide_action(
         self,
@@ -444,7 +444,7 @@ class PredictiveCooperativeAgent:
                 'predictions': {agent: predicted_actions}
             }
         """
-        logger.info(f"🎯 {self.agent_name}: Deciding cooperative action...")
+        logger.info(f" {self.agent_name}: Deciding cooperative action...")
         
         # STEP 1: Predict other agents (DQN)
         predictions = {}
@@ -496,7 +496,7 @@ class PredictiveCooperativeAgent:
             self.cooperation_state.help_given[other_agent] = \
                 self.cooperation_state.help_given.get(other_agent, 0) + 1
         
-        logger.info(f"🤝 {self.agent_name} → {other_agent}: {event_type} ({description})")
+        logger.info(f" {self.agent_name} → {other_agent}: {event_type} ({description})")
     
     def distribute_system_reward(
         self,

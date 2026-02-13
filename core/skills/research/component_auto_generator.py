@@ -33,10 +33,10 @@ def configure_dspy_with_claude_cli():
 
         lm = DirectClaudeCLI(model="sonnet", max_retries=2)
         dspy.configure(lm=lm)
-        logger.info("✅ DSPy configured with Claude CLI (sonnet)")
+        logger.info(" DSPy configured with Claude CLI (sonnet)")
         return True
     except Exception as e:
-        logger.warning(f"⚠️ Could not configure Claude CLI: {e}")
+        logger.warning(f" Could not configure Claude CLI: {e}")
         return False
 
 
@@ -494,7 +494,7 @@ class ComponentAutoGenerator:
 
         features_html = ""
         for i, feat in enumerate(features[:6]):
-            icon = feat.get("icon", "⭐")
+            icon = feat.get("icon", "")
             feat_title = html.escape(feat.get("title", ""))
             description = html.escape(feat.get("description", ""))
 
@@ -562,14 +562,14 @@ Animation Pattern:
 
         Returns list of newly generated components with their code.
         """
-        logger.info("🔍 Starting auto-discovery loop...")
+        logger.info(" Starting auto-discovery loop...")
 
         # Step 1: Analyze what the paper needs
-        logger.info("📊 Analyzing paper component needs...")
+        logger.info(" Analyzing paper component needs...")
         paper_needs = await self.analyze_paper_needs(paper_data)
 
         # Step 2: Suggest new components
-        logger.info("💡 Suggesting new components...")
+        logger.info(" Suggesting new components...")
         suggestions = await self.suggest_new_components(
             paper_data,
             num_suggestions=max_new_components
@@ -578,7 +578,7 @@ Animation Pattern:
         # Step 3: Generate code for top suggestions
         generated = []
         for suggestion in suggestions[:max_new_components]:
-            logger.info(f"🔧 Generating component: {suggestion.get('name', 'unknown')}")
+            logger.info(f" Generating component: {suggestion.get('name', 'unknown')}")
 
             code, example = await self.generate_component_code(suggestion)
 
@@ -596,7 +596,7 @@ Animation Pattern:
                 # Register the component
                 self.component_registry[suggestion.get("name", "")] = code
 
-        logger.info(f"✅ Generated {len(generated)} new components")
+        logger.info(f" Generated {len(generated)} new components")
         return generated
 
     def get_component_roadmap(self) -> Dict[str, Any]:
@@ -637,7 +637,7 @@ class ComponentLibraryExpander:
         num_components: int = 10
     ) -> List[Dict[str, Any]]:
         """Generate multiple components for a specific category"""
-        logger.info(f"📁 Expanding category: {category}")
+        logger.info(f" Expanding category: {category}")
 
         # Get component ideas for this category
         ideas = ComponentAutoGenerator.COMPONENT_IDEAS.get(category, [])
@@ -707,7 +707,7 @@ class ComponentLibraryExpander:
         with open(output_file, 'w') as f:
             f.write('\n'.join(code_parts))
 
-        logger.info(f"💾 Saved {len(components)} components to {output_file}")
+        logger.info(f" Saved {len(components)} components to {output_file}")
 
 
 # Quick test function

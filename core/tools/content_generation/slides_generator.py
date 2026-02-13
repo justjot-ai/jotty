@@ -106,7 +106,7 @@ class SlidesGenerator:
                 'checkpoint_dir': Path to checkpoint directory
             }
         """
-        logger.info(f"🎨 Generating {output_type} from: {input_pdf.name}")
+        logger.info(f" Generating {output_type} from: {input_pdf.name}")
         logger.info(f"   Style: {style}")
         logger.info(f"   Length: {length}")
 
@@ -114,7 +114,7 @@ class SlidesGenerator:
         try:
             input_path = normalize_input_path(str(input_pdf))
         except FileNotFoundError as e:
-            logger.error(f"❌ Input file not found: {e}")
+            logger.error(f" Input file not found: {e}")
             raise
 
         # Build config
@@ -138,17 +138,17 @@ class SlidesGenerator:
         )
         config_dir = get_config_dir(base_dir, config)
 
-        logger.info(f"📁 Output directory: {base_dir}")
+        logger.info(f" Output directory: {base_dir}")
         logger.info(f"   Config: {config_dir.name}")
 
         # Determine start stage
         if from_stage:
             start_stage = from_stage
-            logger.info(f"🔄 Force re-running from stage: {start_stage}")
+            logger.info(f" Force re-running from stage: {start_stage}")
         else:
             start_stage = detect_start_stage(base_dir, config_dir, config)
             if start_stage != "rag":
-                logger.info(f"♻️  Reusing checkpoints, starting from: {start_stage}")
+                logger.info(f" Reusing checkpoints, starting from: {start_stage}")
 
         # Run Paper2Slides pipeline
         logger.info("")
@@ -160,7 +160,7 @@ class SlidesGenerator:
         try:
             await run_pipeline(base_dir, config_dir, config, start_stage)
         except Exception as e:
-            logger.error(f"❌ Pipeline failed: {e}")
+            logger.error(f" Pipeline failed: {e}")
             raise
 
         # Find generated files
@@ -181,9 +181,9 @@ class SlidesGenerator:
         logger.info("  SLIDES GENERATION COMPLETE!")
         logger.info("=" * 80)
         logger.info("")
-        logger.info(f"✅ Generated {len(png_files)} slides")
-        logger.info(f"✅ PDF: {pdf_path.name} ({pdf_path.stat().st_size / 1024:.1f} KB)")
-        logger.info(f"📁 Output: {slides_dir}")
+        logger.info(f" Generated {len(png_files)} slides")
+        logger.info(f" PDF: {pdf_path.name} ({pdf_path.stat().st_size / 1024:.1f} KB)")
+        logger.info(f" Output: {slides_dir}")
         logger.info("")
 
         return {

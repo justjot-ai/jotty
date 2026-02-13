@@ -42,16 +42,16 @@ class SDKCommand(BaseCommand):
         super().__init__()
         self._show_events = True
         self._event_icons = {
-            "start": "🚀",
-            "thinking": "🧠",
-            "planning": "📋",
-            "skill_start": "🔧",
-            "skill_complete": "✅",
-            "agent_start": "🤖",
-            "agent_complete": "✅",
-            "stream": "💬",
-            "complete": "🎉",
-            "error": "❌",
+            "start": "",
+            "thinking": "",
+            "planning": "",
+            "skill_start": "",
+            "skill_complete": "",
+            "agent_start": "",
+            "agent_complete": "",
+            "stream": "",
+            "complete": "",
+            "error": "",
         }
 
     async def execute(
@@ -109,15 +109,15 @@ Test the SDK client with real-time event visualization.
   /sdk events on/off                - Toggle event display
 
 [bold]Events shown:[/bold]
-  🚀 START      - Request started
-  🧠 THINKING   - LLM thinking
-  📋 PLANNING   - Workflow planning
-  🔧 SKILL_START - Skill execution started
-  ✅ SKILL_COMPLETE - Skill execution done
-  🤖 AGENT_START - Agent started
-  💬 STREAM     - Streaming content
-  🎉 COMPLETE   - Request complete
-  ❌ ERROR      - Error occurred
+   START - Request started
+   THINKING - LLM thinking
+   PLANNING - Workflow planning
+   SKILL_START - Skill execution started
+   SKILL_COMPLETE - Skill execution done
+   AGENT_START - Agent started
+   STREAM - Streaming content
+   COMPLETE - Request complete
+   ERROR - Error occurred
 """, title="SDK Help", style="cyan")
         return CommandResult.ok()
 
@@ -198,28 +198,28 @@ Test the SDK client with real-time event visualization.
             # Engaging status messages mapped from AutoAgent stages
             _status_messages = {
                 # AutoAgent stages
-                'AutoAgent': '🤖 Starting agent...',
-                'Analyzing': '🧠 Analyzing task...',
-                'Discovering': '🔍 Finding skills...',
-                'Selecting': '🎯 Selecting best approach...',
-                'Planning': '📋 Planning steps...',
-                'Generating': '✍️ Generating content...',
-                'Processing': '💭 Processing...',
+                'AutoAgent': ' Starting agent...',
+                'Analyzing': ' Analyzing task...',
+                'Discovering': ' Finding skills...',
+                'Selecting': ' Selecting best approach...',
+                'Planning': ' Planning steps...',
+                'Generating': ' Generating content...',
+                'Processing': ' Processing...',
                 # Skill loading/execution
-                'Loading': '📦 Loading skill...',
-                'Executing': '⚡ Executing...',
-                'Done': '✅ Completed',
+                'Loading': ' Loading skill...',
+                'Executing': ' Executing...',
+                'Done': ' Completed',
                 # Skill execution types (from skill_plan_executor)
-                'Step': '⚡ Executing step...',
-                'Searching': '🔍 Searching...',
-                'Researching': '📚 Researching...',
-                'Writing': '✍️ Writing...',
-                'Creating': '🔨 Creating...',
+                'Step': ' Executing step...',
+                'Searching': ' Searching...',
+                'Researching': ' Researching...',
+                'Writing': ' Writing...',
+                'Creating': ' Creating...',
                 # Other
-                'Retrying': '🔄 Retrying...',
-                'Replanning': '🔄 Adapting...',
-                'Ensemble': '🧩 Multi-perspective analysis...',
-                'Error': '❌ Error',
+                'Retrying': ' Retrying...',
+                'Replanning': ' Adapting...',
+                'Ensemble': ' Multi-perspective analysis...',
+                'Error': ' Error',
             }
             _last_status = [None]
             _last_print_time = [0]
@@ -244,7 +244,7 @@ Test the SDK client with real-time event visualization.
                     msg = None
 
                     # If detail contains emoji, show it directly (already formatted)
-                    if detail and any(c in detail for c in '📚🔍🌐📄📊📨💬📁📈💹🔧✓✗'):
+                    if detail and any(c in detail for c in ''):
                         msg = detail
                     else:
                         # Look up friendly message
@@ -255,7 +255,7 @@ Test the SDK client with real-time event visualization.
 
                     # Show step progress with detail
                     if status.startswith('Step '):
-                        msg = f"⚡ {status}"
+                        msg = f" {status}"
                         if detail:
                             msg += f": {detail[:80]}"
 
@@ -267,13 +267,13 @@ Test the SDK client with real-time event visualization.
 
                 # Handle planning event
                 if event_type == 'planning':
-                    print(f"\033[90m  📋 Planning execution...\033[0m", flush=True)
+                    print(f"\033[90m Planning execution...\033[0m", flush=True)
                     return
 
                 # Handle skill events
                 if event_type == 'skill_start' and event.data:
                     skill = event.data.get('skill', 'skill')
-                    print(f"\033[90m  🔧 Using {skill}...\033[0m", flush=True)
+                    print(f"\033[90m Using {skill}...\033[0m", flush=True)
                     return
 
                 # Only show other events if _show_events is enabled
@@ -286,7 +286,7 @@ Test the SDK client with real-time event visualization.
                         raw_error = event.data.get('error', '')
                         if raw_error and 'Traceback' not in raw_error:
                             error_msg = raw_error[:80]
-                    print(f"\033[91m  ❌ {error_msg}\033[0m", flush=True)
+                    print(f"\033[91m {error_msg}\033[0m", flush=True)
 
             for event_type in SDKEventType:
                 client.on(event_type, chat_event_callback)
@@ -410,12 +410,12 @@ Test the SDK client with real-time event visualization.
             conv_history = []
 
             _status_msgs = {
-                'Searching': '🔍 Searching the web...',
-                'Analyzing': '🧠 Analyzing...',
-                'Generating': '✍️ Crafting response...',
-                'Processing': '💭 Processing...',
-                'Retrying': '🔄 Refining response...',
-                'Thinking': '💭 Thinking...',
+                'Searching': ' Searching the web...',
+                'Analyzing': ' Analyzing...',
+                'Generating': ' Crafting response...',
+                'Processing': ' Processing...',
+                'Retrying': ' Refining response...',
+                'Thinking': ' Thinking...',
             }
             _hidden = {'Decision', 'Generated', 'Preparing', 'step'}
             _last_status = [None]
@@ -435,13 +435,13 @@ Test the SDK client with real-time event visualization.
                     elif 'search' in status.lower():
                         if _last_status[0] != 'search':
                             _last_status[0] = 'search'
-                            print(f"\033[90m  🔍 Searching the web...\033[0m")
+                            print(f"\033[90m Searching the web...\033[0m")
                     return
 
                 if not self._show_events:
                     return
                 if event_type == 'error':
-                    print(f"  ❌ Something went wrong. Please try again.")
+                    print(f" Something went wrong. Please try again.")
 
             for event_type in SDKEventType:
                 client.on(event_type, chat_event_callback)
@@ -498,45 +498,45 @@ Test the SDK client with real-time event visualization.
 
             # Header with nice formatting
             if company and ticker:
-                lines.append(f"📊 **{company}** ({ticker})")
+                lines.append(f" **{company}** ({ticker})")
             elif company:
-                lines.append(f"📊 **{company}**")
+                lines.append(f" **{company}**")
             elif ticker:
-                lines.append(f"📊 **Research Report: {ticker}**")
+                lines.append(f" **Research Report: {ticker}**")
             else:
-                lines.append("📊 **Research Report Complete**")
+                lines.append(" **Research Report Complete**")
             lines.append("")
 
             # Rating with color emoji
             if rating:
                 rating_upper = str(rating).upper()
-                rating_emoji = {'BUY': '🟢', 'STRONG BUY': '🟢', 'HOLD': '🟡',
-                               'NEUTRAL': '🟡', 'SELL': '🔴', 'STRONG SELL': '🔴'}.get(rating_upper, '⚪')
+                rating_emoji = {'BUY': '', 'STRONG BUY': '', 'HOLD': '',
+                               'NEUTRAL': '', 'SELL': '', 'STRONG SELL': ''}.get(rating_upper, '')
                 lines.append(f"  {rating_emoji} Rating: **{rating}**")
 
             # Price info in a clean format
             if current:
-                lines.append(f"  💰 Current: ₹{float(current):,.2f}")
+                lines.append(f" Current: ₹{float(current):,.2f}")
             if target:
-                lines.append(f"  🎯 Target: ₹{float(target):,.2f}")
+                lines.append(f" Target: ₹{float(target):,.2f}")
             if upside:
                 upside_val = float(upside)
-                upside_emoji = '📈' if upside_val > 0 else '📉'
+                upside_emoji = '' if upside_val > 0 else ''
                 lines.append(f"  {upside_emoji} Upside: {upside_val:.1f}%")
 
             # Files section (PDF and MD only, no charts)
             if pdf_path or md_path:
                 lines.append("")
-                lines.append("📁 **Files:**")
+                lines.append(" **Files:**")
                 if pdf_path:
-                    lines.append(f"  📄 PDF: {pdf_path}")
+                    lines.append(f" PDF: {pdf_path}")
                 if md_path:
-                    lines.append(f"  📝 MD: {md_path}")
+                    lines.append(f" MD: {md_path}")
 
             # Telegram status
             if result.get('telegram_sent'):
                 lines.append("")
-                lines.append("✅ Sent to Telegram")
+                lines.append(" Sent to Telegram")
 
             # Data sources
             sources = result.get('data_sources', []) or result.get('sources', [])
@@ -559,15 +559,15 @@ Test the SDK client with real-time event visualization.
             errors = result.get('errors', [])
             if errors:
                 error_msg = errors[0] if isinstance(errors[0], str) else str(errors[0])
-                return f"❌ Task failed: {error_msg}"
+                return f" Task failed: {error_msg}"
 
             # If dict has success=True but only paths, format as completion message
             if result.get('success'):
-                return "✅ Task completed successfully."
+                return " Task completed successfully."
 
             # If stopped early, show that
             if result.get('stopped_early'):
-                return "⚠️ Task stopped early due to errors."
+                return " Task stopped early due to errors."
 
         return str(result)
 
@@ -582,7 +582,7 @@ Test the SDK client with real-time event visualization.
 
         # Progress is shown via event callback (chat_event_callback)
         # Just show initial indicator
-        print("\033[90m  🚀 Starting...\033[0m")
+        print("\033[90m Starting...\033[0m")
 
         try:
             response = await client.chat(message, history=history[:-1])
@@ -622,7 +622,7 @@ Test the SDK client with real-time event visualization.
                 else:
                     error = "No response received"
                 print()
-                print(f"\033[94mjotty>\033[0m \033[91m❌ {error}\033[0m")
+                print(f"\033[94mjotty>\033[0m \033[91m {error}\033[0m")
                 print(f"\033[90m({elapsed:.1f}s)\033[0m\n")
 
         except Exception as e:
@@ -719,7 +719,7 @@ Test the SDK client with real-time event visualization.
                         raw_error = event.data.get('error', '')
                         if raw_error and 'Traceback' not in raw_error and 'File "/' not in raw_error:
                             error_msg = raw_error[:100]  # Limit length
-                    cli.renderer.print(f"  [❌] {error_msg}")
+                    cli.renderer.print(f" [] {error_msg}")
                 elif event_type == "thinking":
                     # Show engaging status messages, hide technical ones
                     if event.data and isinstance(event.data, dict):
@@ -728,17 +728,17 @@ Test the SDK client with real-time event visualization.
                         if status in ('Decision', 'Generated', 'Preparing') or '=' in status:
                             continue
                         if 'search' in status.lower() or status == 'Searching':
-                            cli.renderer.print(f"  [🔍] Searching the web...")
+                            cli.renderer.print(f" [] Searching the web...")
                         elif status == 'Analyzing':
-                            cli.renderer.print(f"  [🧠] Analyzing...")
+                            cli.renderer.print(f" [] Analyzing...")
                         elif status == 'Generating':
-                            cli.renderer.print(f"  [✍️] Crafting response...")
+                            cli.renderer.print(f" [] Crafting response...")
                         elif status == 'Processing':
-                            cli.renderer.print(f"  [💭] Processing...")
+                            cli.renderer.print(f" [] Processing...")
                         elif status == 'Retrying':
-                            cli.renderer.print(f"  [🔄] Refining response...")
+                            cli.renderer.print(f" [] Refining response...")
                         elif status == 'Thinking':
-                            cli.renderer.print(f"  [💭] Thinking...")
+                            cli.renderer.print(f" [] Thinking...")
                 elif event_type in ("skill_start", "skill_complete"):
                     # Show skill events if enabled
                     if self._show_events and event.data and isinstance(event.data, dict):

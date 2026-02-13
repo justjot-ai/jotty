@@ -21,7 +21,7 @@ import json
 import re
 import logging
 import asyncio
-import time  # 🔥 CRITICAL FIX: Missing import causing "name 'time' is not defined"
+import time # CRITICAL FIX: Missing import causing "name 'time' is not defined"
 
 from ..foundation.data_structures import (
     SwarmConfig, ValidationResult, OutputTag, ValidationRound,
@@ -151,10 +151,10 @@ class InternalReasoningTool:
                 budget_tokens=5000,
                 levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META]
             )
-            # ✅ Return FULL memory content, not truncated 
+            # Return FULL memory content, not truncated 
             result["relevant_memories"] = [
                 {"content": m.content, "value": m.default_value}
-                for m in memories  # 🔥 NO LIMIT - FULL content
+                for m in memories # NO LIMIT - FULL content
             ]
         
         # Get causal knowledge
@@ -210,7 +210,7 @@ class CachingToolWrapper:
             content={
                 "tool": self.name, 
                 "args": str(kwargs), 
-                "result_summary": str(result)  # ✅ FULL result, no  truncation!
+                "result_summary": str(result) # FULL result, no truncation!
             },
             tool_name=self.name,
             tool_args=kwargs,
@@ -269,7 +269,7 @@ class ValidatorAgent:
         # Budget manager
         self.budget_manager = DynamicBudgetManager(config)
         
-        # 🔥 A-TEAM CRITICAL FIX: Don't double-wrap tools!
+        # A-TEAM CRITICAL FIX: Don't double-wrap tools!
         # Tools from _get_auto_discovered_dspy_tools() are ALREADY smart wrappers
         # with caching, param resolution, etc. Don't wrap them again!
         self.user_tools = tools
@@ -278,11 +278,11 @@ class ValidatorAgent:
         if tools and len(tools) > 0 and hasattr(tools[0], 'func'):
             # New architecture: Individual DSPy tools with smart wrappers
             # NO additional wrapping needed!
-            logger.debug(f"✅ Using {len(tools)} individual DSPy tools (already wrapped)")
+            logger.debug(f" Using {len(tools)} individual DSPy tools (already wrapped)")
             self.cached_tools = tools  # Use as-is!
         else:
             # Legacy: Wrap with CachingToolWrapper
-            logger.debug(f"⚠️  Wrapping {len(tools)} legacy tools with CachingToolWrapper")
+            logger.debug(f" Wrapping {len(tools)} legacy tools with CachingToolWrapper")
             self.cached_tools = [
                 CachingToolWrapper(t, self.scratchpad, self.agent_name)
                 for t in tools
@@ -297,7 +297,7 @@ class ValidatorAgent:
         dspy = _get_dspy()
         self.signature = _get_planner_signature() if is_architect else _get_reviewer_signature()
 
-        logger.debug(f"⚡ [{self.agent_name}] ChainOfThought validation (fast mode)")
+        logger.debug(f" [{self.agent_name}] ChainOfThought validation (fast mode)")
         self.agent = dspy.ChainOfThought(self.signature)
         
         # Refinement agent
@@ -385,22 +385,22 @@ class ValidatorAgent:
         self.total_calls += 1
         self.tool_calls = []
         
-        # 🎨 AGENT STATUS: Show what agent is doing with nice icons
-        agent_type = "🔍 Architect" if self.is_architect else "✅ Auditor"
+        # AGENT STATUS: Show what agent is doing with nice icons
+        agent_type = " Architect" if self.is_architect else " Auditor"
         logger.info(f"")
         logger.info(f"{'='*80}")
         logger.info(f"{agent_type} Agent: {self.agent_name}")
-        logger.info(f"🎯 Task: Validate inputs/output for goal")
+        logger.info(f" Task: Validate inputs/output for goal")
         logger.info(f"⏰ Started: {datetime.now().strftime('%H:%M:%S')}")
-        logger.info(f"🔄 Status: WORKING... (Agent is analyzing with LLM)")
+        logger.info(f" Status: WORKING... (Agent is analyzing with LLM)")
         logger.info(f"{'='*80}")
         
-        # 🎯 A-TEAM FIX: SMART MEMORY for Learning, NOT Blocking!
+        # A-TEAM FIX: SMART MEMORY for Learning, NOT Blocking!
         # Memory should HELP actors improve, not block them based on past failures
         if self.is_architect:
             # Architect: Retrieve SUCCESS PATTERNS ONLY (not blocking decisions)
             memory_context = self._build_smart_memory_for_architect(goal, inputs)
-            logger.info(f"✅ [ARCHITECT SMART MEMORY] Retrieved success patterns for learning")
+            logger.info(f" [ARCHITECT SMART MEMORY] Retrieved success patterns for learning")
         else:
             # Auditor: Retrieve all patterns for validation
             memory_context = self._build_memory_context(goal, inputs)
@@ -408,8 +408,8 @@ class ValidatorAgent:
         causal_context = self._build_causal_context(goal, inputs)
         shared_insights = self._get_shared_insights()
         
-        # 🔧 FIX: Convert trajectory items to serializable format
-        # ✅ A-TEAM FIX: FILTER trajectory for Architect - keep success patterns, remove failures!
+        # FIX: Convert trajectory items to serializable format
+        # A-TEAM FIX: FILTER trajectory for Architect - keep success patterns, remove failures!
         # Auditor needs recent trajectory to understand what actor did
         if self.is_architect:
             # Filter trajectory: Keep success patterns, remove blocking/failure patterns
@@ -426,7 +426,7 @@ class ValidatorAgent:
                     filtered_trajectory.append(item)
             
             serializable_trajectory = filtered_trajectory[-3:] if len(filtered_trajectory) > 3 else filtered_trajectory
-            logger.info(f"✅ [ARCHITECT TRAJECTORY] Filtered trajectory: {len(trajectory)} → {len(serializable_trajectory)} (kept success patterns)")
+            logger.info(f" [ARCHITECT TRAJECTORY] Filtered trajectory: {len(trajectory)} → {len(serializable_trajectory)} (kept success patterns)")
         else:
             # Auditor: Only send RECENT trajectory - Auditor validates output, not full history
             # Full trajectory causes 15K+ tokens, hanging for 60s per validation
@@ -448,7 +448,7 @@ class ValidatorAgent:
                             item_str = item_str[:500] + f"...[{len(item_str)-500} chars truncated]"
                         serializable_trajectory.append(item_str)
         
-        # 🎯 USE JOTTY'S BUDGET MANAGER - NO HARDCODING!
+        # USE JOTTY'S BUDGET MANAGER - NO HARDCODING!
         # Compute budget allocation intelligently
         system_tokens = len(self.system_prompt) // 4
         input_tokens = sum(len(str(v)) // 4 for v in inputs.values())
@@ -461,7 +461,7 @@ class ValidatorAgent:
             tool_output_tokens=0  # Will be computed dynamically
         )
         
-        # 🎯 BUILD CONTEXT PARTS WITH BUDGET ALLOCATION
+        # BUILD CONTEXT PARTS WITH BUDGET ALLOCATION
         # LLMContextManager will handle intelligent truncation if needed
         context_parts = []
         
@@ -474,7 +474,7 @@ class ValidatorAgent:
                 memory_context = self._smart_truncate(memory_context, memory_budget * 4)
             context_parts.append(f"{memory_context}")
         elif self.is_architect:
-            # ✅ EXPLICIT: Architect validates CURRENT inputs, learns from SUCCESS
+            # EXPLICIT: Architect validates CURRENT inputs, learns from SUCCESS
             context_parts.append(
                 "IMPORTANT: You are validating CURRENT inputs for THIS execution attempt. "
                 "Focus on whether the current inputs are sufficient NOW. "
@@ -504,7 +504,7 @@ class ValidatorAgent:
         if causal_context:
             context_parts.append(f"Causal: {causal_context}")
         
-        # 🔥 A-TEAM GENERIC SOLUTION: Inject ALL extra inputs into context
+        # A-TEAM GENERIC SOLUTION: Inject ALL extra inputs into context
         # ANY field in inputs that's NOT part of the agent's signature gets added to context.
         # This allows integration layers to pass domain-specific data WITHOUT hardcoding in JOTTY!
         # Examples: schemas, business terms, metadata, constraints, etc.
@@ -530,7 +530,7 @@ class ValidatorAgent:
                 formatted_name = field_name.replace('_', ' ').title()
                 context_parts.append(f"\n{formatted_name}:\n{value_str}")
             
-            logger.info(f"✅ [GENERIC CONTEXT] Injected {len(extra_fields)} extra fields into {self.agent_name}: {list(extra_fields.keys())}")
+            logger.info(f" [GENERIC CONTEXT] Injected {len(extra_fields)} extra fields into {self.agent_name}: {list(extra_fields.keys())}")
         
         context_str = "\n".join(context_parts)
         
@@ -571,7 +571,7 @@ class ValidatorAgent:
         # =====================================================================
         # RETRY LOOP with signature validation and regeneration feedback
         # =====================================================================
-        max_retries = self.config.max_eval_retries  # ✅ FROM CONFIG! (was hardcoded=3)
+        max_retries = self.config.max_eval_retries # FROM CONFIG! (was hardcoded=3)
         last_error = None
         validation_result = None
         
@@ -616,7 +616,7 @@ Auditor Required Outputs:
                     }
                 
                 # Run agent WITH TIMEOUT (to prevent hanging on API failures)
-                # ⚡ A-TEAM FIX: Add timeout for LLM calls to prevent indefinite hangs
+                # A-TEAM FIX: Add timeout for LLM calls to prevent indefinite hangs
                 timeout_seconds = getattr(self.config, 'llm_timeout_seconds', 180)  # 3 minutes default
                 
                 try:
@@ -636,7 +636,7 @@ Auditor Required Outputs:
                         continue
                     else:
                         # Final timeout - return default result
-                        logger.error(f"❌ [{self.agent_name}] All {max_retries} attempts timed out. Using default.")
+                        logger.error(f" [{self.agent_name}] All {max_retries} attempts timed out. Using default.")
                         raise Exception(last_error)
                 
                 # Validate the result has required fields
@@ -668,7 +668,7 @@ Auditor Required Outputs:
                     validation_result = ValidationResult(
                         agent_name=self.agent_name,
                         is_valid=True if self.is_architect else False,  # Default to proceed for architect
-                        confidence=self.config.default_confidence_on_error,  # ✅ FROM CONFIG! (was 0.3)
+                        confidence=self.config.default_confidence_on_error, # FROM CONFIG! (was 0.3)
                         reasoning=f"Error after {max_retries} attempts: {last_error}",
                         should_proceed=True if self.is_architect else None,  # Default proceed
                         output_tag=OutputTag.ENQUIRY if not self.is_architect else None,
@@ -680,7 +680,7 @@ Auditor Required Outputs:
             validation_result = ValidationResult(
                 agent_name=self.agent_name,
                 is_valid=True,
-                confidence=self.config.default_confidence_no_validation,  # ✅ FROM CONFIG! (was 0.5)
+                confidence=self.config.default_confidence_no_validation, # FROM CONFIG! (was 0.5)
                 reasoning="Default result - no validation performed",
                 should_proceed=True if self.is_architect else None,
                 validation_round=round
@@ -738,12 +738,12 @@ Auditor Required Outputs:
         """
         Build SMART memory context for Architect.
         
-        🎯 USER CRITICAL FIX: Memory should HELP, not BLOCK!
+         USER CRITICAL FIX: Memory should HELP, not BLOCK!
         
         Architect should learn from:
-        - ✅ Successful validation patterns ("what inputs led to success?")
-        - ✅ Overcoming blocks ("how did we fix previous blocks?")
-        - ❌ NOT past blocking decisions
+        - Successful validation patterns ("what inputs led to success?")
+        - Overcoming blocks ("how did we fix previous blocks?")
+        - NOT past blocking decisions
         
         This is like a mentor saying "here's what worked before" 
         instead of "you failed before, so fail again".
@@ -764,7 +764,7 @@ Auditor Required Outputs:
         
         memory_budget = allocation['memory']
         
-        # 🎯 CRITICAL: Retrieve SUCCESS patterns, NOT blocking decisions!
+        # CRITICAL: Retrieve SUCCESS patterns, NOT blocking decisions!
         memories = self.memory.retrieve(
             query=query,
             goal=goal,
@@ -772,7 +772,7 @@ Auditor Required Outputs:
             context_hints=f"Looking for successful patterns that helped similar tasks: {goal}"
         )
         
-        # 🔥 FILTER OUT blocked/failed memories after retrieval
+        # FILTER OUT blocked/failed memories after retrieval
         if memories:
             filtered_memories = []
             for mem in memories:
@@ -802,7 +802,7 @@ Auditor Required Outputs:
         """
         Build memory context string.
         
-        🎯 NO HARDCODED SLICING - Uses budget manager allocation!
+         NO HARDCODED SLICING - Uses budget manager allocation!
         """
         # Get query from inputs
         query = inputs.get('proposed_action', '') or inputs.get('action_result', '') or goal
@@ -825,7 +825,7 @@ Auditor Required Outputs:
             query=query,
             goal=goal,
             budget_tokens=memory_budget,
-            context_hints=f"Looking for memories relevant to: {goal}"  # ✅ NO  limit!
+            context_hints=f"Looking for memories relevant to: {goal}" # NO limit!
         )
         
         if not memories:
@@ -866,7 +866,7 @@ Auditor Required Outputs:
         """
         Get insights shared by other agents.
         
-        🎯 NO HARDCODED  - Returns ALL relevant insights!
+         NO HARDCODED - Returns ALL relevant insights!
         Let context manager handle sizing if needed.
         """
         if not self.config.enable_agent_communication:
@@ -899,7 +899,7 @@ Auditor Required Outputs:
             message_type=CommunicationType.INSIGHT,
             content={"insight": insight},
             insight=insight,
-            confidence=self.config.default_confidence_insight_share  # ✅ FROM CONFIG! (was 0.7)
+            confidence=self.config.default_confidence_insight_share # FROM CONFIG! (was 0.7)
         )
         self.scratchpad.add_message(message)
     
@@ -950,35 +950,35 @@ Auditor Required Outputs:
             injected_context = getattr(result, 'injected_context', '') or ''
             injected_instructions = getattr(result, 'injected_instructions', '') or ''
             
-            # 🎨 AGENT COMPLETION STATUS
+            # AGENT COMPLETION STATUS
             elapsed = time.time() - start_time
-            decision_icon = "✅" if should_proceed else "🛑"
+            decision_icon = "" if should_proceed else ""
             
             # Confidence level indicator
             if confidence >= 0.7:
                 confidence_level = "HIGH"
-                confidence_icon = "🟢"
+                confidence_icon = ""
             elif confidence >= 0.5:
                 confidence_level = "MEDIUM"
-                confidence_icon = "🟡"
+                confidence_icon = ""
             elif confidence >= 0.3:
                 confidence_level = "LOW"
-                confidence_icon = "🟠"
+                confidence_icon = ""
             else:
                 confidence_level = "VERY LOW"
-                confidence_icon = "🔴"
+                confidence_icon = ""
             
             # Warning if low confidence but proceeding
             confidence_warning = ""
             if should_proceed and confidence < 0.5:
-                confidence_warning = f"\n⚠️  WARNING: Low confidence ({confidence:.2f}) but proceeding. Consider gathering more information."
+                confidence_warning = f"\n WARNING: Low confidence ({confidence:.2f}) but proceeding. Consider gathering more information."
             
             logger.info(f"")
             logger.info(f"{'='*80}")
-            logger.info(f"🔍 Architect Agent: {self.agent_name} - COMPLETE")
+            logger.info(f" Architect Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'PROCEED' if should_proceed else 'BLOCKED'}")
             logger.info(f"{confidence_icon} Confidence: {confidence:.2f} ({confidence_level}){confidence_warning}")
-            logger.info(f"⏱️  Duration: {elapsed:.2f}s")
+            logger.info(f"⏱ Duration: {elapsed:.2f}s")
             logger.info(f"{'='*80}")
             logger.info(f"")
             
@@ -1000,7 +1000,7 @@ Auditor Required Outputs:
             if isinstance(is_valid, str):
                 is_valid = is_valid.lower() in ('true', 'yes', '1', 'valid')
             
-            # 🎯 CRITICAL FIX: Check if output indicates task failure
+            # CRITICAL FIX: Check if output indicates task failure
             # Only override if ExecutionResult explicitly shows success=False
             output_str = str(inputs.get('output', inputs.get('action_result', '')))
             if output_str and is_valid:
@@ -1027,7 +1027,7 @@ Auditor Required Outputs:
 
                     if has_failure or has_real_errors:
                         logger.warning(
-                            f"⚠️  [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
+                            f" [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
                             f"Overriding to INVALID. Failure indicators found in output."
                         )
                         is_valid = False
@@ -1049,9 +1049,9 @@ Auditor Required Outputs:
             fix_instructions = getattr(result, 'fix_instructions', '') or ''
             output_name = getattr(result, 'output_name', '') or ''
             
-            # 🎨 AGENT COMPLETION STATUS
+            # AGENT COMPLETION STATUS
             elapsed = time.time() - start_time
-            decision_icon = "✅" if is_valid else "❌"
+            decision_icon = "" if is_valid else ""
             
             # Extract what was validated
             validated_output = str(inputs.get('output', inputs.get('action_result', 'N/A')))
@@ -1064,49 +1064,49 @@ Auditor Required Outputs:
             # Confidence level indicator
             if confidence >= 0.7:
                 confidence_level = "HIGH"
-                confidence_icon = "🟢"
+                confidence_icon = ""
             elif confidence >= 0.5:
                 confidence_level = "MEDIUM"
-                confidence_icon = "🟡"
+                confidence_icon = ""
             elif confidence >= 0.3:
                 confidence_level = "LOW"
-                confidence_icon = "🟠"
+                confidence_icon = ""
             else:
                 confidence_level = "VERY LOW"
-                confidence_icon = "🔴"
+                confidence_icon = ""
             
             logger.info(f"")
             logger.info(f"{'='*80}")
-            logger.info(f"✅ Auditor Agent: {self.agent_name} - COMPLETE")
+            logger.info(f" Auditor Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'VALID' if is_valid else 'INVALID'}")
             logger.info(f"{confidence_icon} Confidence: {confidence:.2f} ({confidence_level})")
-            logger.info(f"🏷️  Tag: {output_tag.value}")
-            logger.info(f"⏱️  Duration: {elapsed:.2f}s")
+            logger.info(f" Tag: {output_tag.value}")
+            logger.info(f"⏱ Duration: {elapsed:.2f}s")
             logger.info(f"")
-            logger.info(f"📋 What was validated:")
+            logger.info(f" What was validated:")
             logger.info(f"   Output: {output_preview}")
             if output_name:
                 logger.info(f"   Output Name: {output_name}")
             logger.info(f"")
             if is_valid and why_useful:
-                logger.info(f"✅ Why VALID:")
+                logger.info(f" Why VALID:")
                 why_lines = why_useful.split('\n')[:3]  # First 3 lines
                 for line in why_lines:
                     if line.strip():
                         logger.info(f"   • {line.strip()}")
             elif not is_valid and fix_instructions:
-                logger.info(f"❌ Why INVALID:")
+                logger.info(f" Why INVALID:")
                 fix_lines = fix_instructions.split('\n')[:3]  # First 3 lines
                 for line in fix_lines:
                     if line.strip():
                         logger.info(f"   • {line.strip()}")
             logger.info(f"")
             if key_points:
-                logger.info(f"🔍 Key validation points:")
+                logger.info(f" Key validation points:")
                 for point in key_points[:3]:  # Top 3 key points
                     logger.info(f"   • {point}")
                 logger.info(f"")
-            logger.info(f"💭 Full reasoning available in ValidationResult.reasoning")
+            logger.info(f" Full reasoning available in ValidationResult.reasoning")
             logger.info(f"{'='*80}")
             logger.info(f"")
             
@@ -1128,7 +1128,7 @@ Auditor Required Outputs:
         """
         Store experience in memory.
         
-        🎯 NO HARDCODED TRUNCATION - Store FULL reasoning!
+         NO HARDCODED TRUNCATION - Store FULL reasoning!
         Memory system handles deduplication and prioritization.
         """
         # Format experience WITHOUT arbitrary truncation
@@ -1159,7 +1159,7 @@ Reasoning: {result.reasoning}
             level=MemoryLevel.EPISODIC,
             context={
                 'goal': goal,
-                'inputs': {k: str(v) for k, v in inputs.items()},  # ✅ Full values!
+                'inputs': {k: str(v) for k, v in inputs.items()}, # Full values!
                 'round': result.validation_round.value
             },
             goal=goal,
@@ -1237,7 +1237,7 @@ class MultiRoundValidator:
                     initial_results[i] = refined
         
         # Combine decisions
-        # ✅ A-TEAM FIX: Detect reasoning-vote contradictions and fix them
+        # A-TEAM FIX: Detect reasoning-vote contradictions and fix them
         # If reasoning says "block" but vote is True, flip it!
         corrected_results = []
         for r in all_results:
@@ -1253,7 +1253,7 @@ class MultiRoundValidator:
             
             # If reasoning strongly suggests blocking but vote says valid, flip it
             if not is_architect and r.is_valid and block_count > proceed_count + 2:
-                logger.warning(f"⚠️ [VOTE CORRECTION] {r.agent_name}: Reasoning suggests blocking but vote is valid=True. Flipping to False.")
+                logger.warning(f" [VOTE CORRECTION] {r.agent_name}: Reasoning suggests blocking but vote is valid=True. Flipping to False.")
                 logger.warning(f"   Block keywords: {block_count}, Proceed keywords: {proceed_count}")
                 logger.warning(f"   Reasoning snippet: {reasoning_lower[:200]}...")
                 
@@ -1278,7 +1278,7 @@ class MultiRoundValidator:
                 combined = weighted_proceed > 0.5
         else:
             # For Auditor: Conservative voting - ANY confident rejection blocks
-            # 🎯 A-TEAM FIX: Don't let high-confidence "valid=True" override a well-reasoned "valid=False"
+            # A-TEAM FIX: Don't let high-confidence "valid=True" override a well-reasoned "valid=False"
             # If ANY validator identifies a real issue (confidence > 0.5), BLOCK
             confident_rejections = [
                 r for r in corrected_results 
@@ -1327,7 +1327,7 @@ class MultiRoundValidator:
         """
         Build feedback summary for refinement.
         
-        🎯 NO HARDCODED  - Include FULL reasoning for refinement!
+         NO HARDCODED - Include FULL reasoning for refinement!
         """
         parts = []
         for r in results:

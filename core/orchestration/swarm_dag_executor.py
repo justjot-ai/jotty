@@ -56,7 +56,7 @@ class SwarmDAGExecutor:
                     status_callback(stage, detail)
                 except Exception:
                     pass
-            logger.info(f"📍 [DAG] {stage}" + (f": {detail}" if detail else ""))
+            logger.info(f" [DAG] {stage}" + (f": {detail}" if detail else ""))
 
         _status("Initializing", "DAG-based orchestration")
 

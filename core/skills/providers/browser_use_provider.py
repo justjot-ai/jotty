@@ -106,7 +106,7 @@ class BrowserUseProvider(SkillProvider):
 
             self.is_initialized = True
             self.is_available = True
-            logger.info(f"✅ {self.name} provider initialized (headless={self.headless})")
+            logger.info(f" {self.name} provider initialized (headless={self.headless})")
             return True
 
         except Exception as e:
@@ -157,7 +157,7 @@ class BrowserUseProvider(SkillProvider):
             )
 
             # Run the agent
-            logger.info(f"🌐 browser-use executing: {task[:50]}...")
+            logger.info(f" browser-use executing: {task[:50]}...")
             result = await asyncio.wait_for(
                 agent.run(),
                 timeout=self.timeout
@@ -182,7 +182,7 @@ class BrowserUseProvider(SkillProvider):
             )
 
             self.record_execution(provider_result)
-            logger.info(f"✅ browser-use completed in {execution_time:.2f}s")
+            logger.info(f" browser-use completed in {execution_time:.2f}s")
             return provider_result
 
         except asyncio.TimeoutError:

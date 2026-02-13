@@ -551,7 +551,7 @@ class BacktestReportGenerator:
         # Performance verdict
         outperformance = sm.total_return - bm.total_return
         verdict = "OUTPERFORMS" if outperformance > 0 else "UNDERPERFORMS"
-        verdict_emoji = "🟢" if outperformance > 5 else "🟡" if outperformance > -5 else "🔴"
+        verdict_emoji = "" if outperformance > 5 else "" if outperformance > -5 else ""
 
         md = f"""
 # ML Backtest Report: {result.symbol}
@@ -666,7 +666,7 @@ class BacktestReportGenerator:
 |-------|--------:|--------:|----:|:----:|
 """
             for model in result.models:
-                best_marker = "✓" if model.is_best else ""
+                best_marker = "" if model.is_best else ""
                 md += f"| {model.name} | {model.accuracy*100:.2f}% | {model.f1_score*100:.2f}% | {model.auc*100:.2f}% | {best_marker} |\n"
         else:
             md += """
@@ -674,7 +674,7 @@ class BacktestReportGenerator:
 |-------|--------:|-----:|:----:|
 """
             for model in result.models:
-                best_marker = "✓" if model.is_best else ""
+                best_marker = "" if model.is_best else ""
                 md += f"| {model.name} | {model.r2:.4f} | {model.rmse:.4f} | {best_marker} |\n"
 
         md += f"""
@@ -738,15 +738,15 @@ class BacktestReportGenerator:
 """
 
         if sm.sharpe_ratio > 1:
-            md += "✓ Strong risk-adjusted returns (Sharpe > 1)\n"
+            md += " Strong risk-adjusted returns (Sharpe > 1)\n"
         if sm.win_rate > 50:
-            md += f"✓ Positive win rate ({sm.win_rate:.1f}%)\n"
+            md += f" Positive win rate ({sm.win_rate:.1f}%)\n"
         if sm.profit_factor > 1.5:
-            md += f"✓ Good profit factor ({sm.profit_factor:.2f})\n"
+            md += f" Good profit factor ({sm.profit_factor:.2f})\n"
         if outperformance > 0:
-            md += f"✓ Outperforms benchmark by {outperformance:.1f}%\n"
+            md += f" Outperforms benchmark by {outperformance:.1f}%\n"
         if sm.max_drawdown > bm.max_drawdown * 0.8:
-            md += "✓ Controlled drawdown vs benchmark\n"
+            md += " Controlled drawdown vs benchmark\n"
 
         md += """
 ### Key Risks
@@ -754,13 +754,13 @@ class BacktestReportGenerator:
 """
 
         if sm.max_drawdown < -20:
-            md += f"⚠ Significant drawdown risk ({sm.max_drawdown:.1f}%)\n"
+            md += f" Significant drawdown risk ({sm.max_drawdown:.1f}%)\n"
         if sm.win_rate < 50:
-            md += f"⚠ Win rate below 50% ({sm.win_rate:.1f}%)\n"
+            md += f" Win rate below 50% ({sm.win_rate:.1f}%)\n"
         if sm.sharpe_ratio < 0.5:
-            md += "⚠ Low risk-adjusted returns\n"
+            md += " Low risk-adjusted returns\n"
         if outperformance < 0:
-            md += f"⚠ Underperforms buy-and-hold by {abs(outperformance):.1f}%\n"
+            md += f" Underperforms buy-and-hold by {abs(outperformance):.1f}%\n"
 
         md += f"""
 ---
@@ -777,7 +777,7 @@ overfitting, look-ahead bias, and other statistical artifacts.
 
 ---
 
-*© {datetime.now().year} Jotty Research. All rights reserved.*
+* {datetime.now().year} Jotty Research. All rights reserved.*
 """
 
         return md
@@ -970,7 +970,7 @@ class BacktestReportSkill:
                     outperformance = sm.total_return - bm.total_return
 
                     caption = (
-                        f"📊 ML Backtest Report: {result.symbol}\n\n"
+                        f" ML Backtest Report: {result.symbol}\n\n"
                         f"Strategy Return: {sm.total_return:+.1f}%\n"
                         f"Sharpe Ratio: {sm.sharpe_ratio:.2f}\n"
                         f"{'Outperforms' if outperformance > 0 else 'Underperforms'} B&H by: {abs(outperformance):+.1f}%\n"

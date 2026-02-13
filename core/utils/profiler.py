@@ -59,11 +59,11 @@ class ExecutionTimer:
     def print_summary(self):
         """Print a formatted summary of all timings."""
         if not self.timings:
-            logger.info("⏱️  No timing data collected")
+            logger.info("⏱ No timing data collected")
             return
 
         logger.info("=" * 70)
-        logger.info("⏱️  PERFORMANCE SUMMARY")
+        logger.info("⏱ PERFORMANCE SUMMARY")
         logger.info("=" * 70)
 
         # Sort by total time descending
@@ -75,7 +75,7 @@ class ExecutionTimer:
 
         for operation, times in sorted_ops:
             stats = self.get_stats(operation)
-            logger.info(f"\n📊 {operation}")
+            logger.info(f"\n {operation}")
             logger.info(f"   Count: {stats['count']}")
             logger.info(f"   Total: {stats['total']:.2f}s")
             logger.info(f"   Avg:   {stats['avg']:.2f}s")
@@ -107,7 +107,7 @@ def set_output_dir(output_dir: str):
     """Initialize ProfilingReport with output directory."""
     if PROFILING_REPORT_AVAILABLE:
         _global_timer.profiling_report = ProfilingReport(output_dir)
-        logger.debug(f"⏱️  Profiling report initialized: {output_dir}")
+        logger.debug(f"⏱ Profiling report initialized: {output_dir}")
 
 
 def set_overall_timing(start_time: float, end_time: float):
@@ -207,13 +207,13 @@ def timed(operation: Optional[str] = None, enabled: bool = True):
 def enable_profiling():
     """Enable global profiling."""
     _global_timer.enabled = True
-    logger.info("⏱️  Profiling enabled")
+    logger.info("⏱ Profiling enabled")
 
 
 def disable_profiling():
     """Disable global profiling."""
     _global_timer.enabled = False
-    logger.info("⏱️  Profiling disabled")
+    logger.info("⏱ Profiling disabled")
 
 
 def print_profile_summary():
@@ -225,12 +225,12 @@ def save_profiling_reports():
     """Save detailed profiling reports to files."""
     if _global_timer.profiling_report:
         files = _global_timer.profiling_report.save_reports()
-        logger.info("⏱️  Profiling reports saved:")
+        logger.info("⏱ Profiling reports saved:")
         for report_type, path in files.items():
-            logger.info(f"   📄 {report_type}: {path}")
+            logger.info(f" {report_type}: {path}")
         return files
     else:
-        logger.warning("⏱️  No profiling report available to save")
+        logger.warning("⏱ No profiling report available to save")
         return None
 
 

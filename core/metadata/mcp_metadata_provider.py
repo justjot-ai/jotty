@@ -138,7 +138,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         # Initialize base class (auto-registers methods as tools)
         super().__init__(token_budget=token_budget, enable_caching=enable_caching)
 
-        logger.info(f"✅ MCPMetadataProvider initialized")
+        logger.info(f" MCPMetadataProvider initialized")
         logger.info(f"   Server filter: {server or 'all servers'}")
         logger.info(f"   List function: {'provided' if list_resources_fn else 'not provided'}")
         logger.info(f"   Read function: {'provided' if read_resource_fn else 'not provided'}")
@@ -187,7 +187,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
             ```
         """
         if not self._list_resources_fn:
-            logger.warning("⚠️  No list_resources_fn provided - returning empty list")
+            logger.warning(" No list_resources_fn provided - returning empty list")
             return []
 
         # Use cached resources if available
@@ -200,7 +200,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
                 resources = self._list_resources_fn(server=server_filter)
                 self._resources_cache = resources
             except Exception as e:
-                logger.error(f"❌ Failed to list MCP resources: {e}")
+                logger.error(f" Failed to list MCP resources: {e}")
                 return []
 
         # Filter by server if specified
@@ -210,7 +210,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         # Limit results
         resources = resources[:limit]
 
-        logger.info(f"📋 Listed {len(resources)} MCP resources (server={server or self.server or 'all'})")
+        logger.info(f" Listed {len(resources)} MCP resources (server={server or self.server or 'all'})")
         return resources
 
     def read_mcp_resource(
@@ -251,11 +251,11 @@ class MCPMetadataProvider(BaseMetadataProvider):
                     server_name = uri.split("://")[0]
 
             result = self._read_resource_fn(server=server_name, uri=uri)
-            logger.info(f"📖 Read MCP resource: {uri}")
+            logger.info(f" Read MCP resource: {uri}")
             return result
 
         except Exception as e:
-            logger.error(f"❌ Failed to read MCP resource {uri}: {e}")
+            logger.error(f" Failed to read MCP resource {uri}: {e}")
             raise
 
     def search_mcp_resources(
@@ -303,7 +303,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         # Limit results
         matching = matching[:limit]
 
-        logger.info(f"🔍 Found {len(matching)} resources matching '{query}'")
+        logger.info(f" Found {len(matching)} resources matching '{query}'")
         return matching
 
     # =========================================================================
@@ -382,7 +382,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
                             context['mcp_search_results'] = results
 
             except Exception as e:
-                logger.warning(f"⚠️  Failed to fetch MCP resources: {e}")
+                logger.warning(f" Failed to fetch MCP resources: {e}")
 
         return context
 

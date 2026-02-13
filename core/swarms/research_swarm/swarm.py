@@ -88,7 +88,7 @@ class ResearchSwarm(DomainSwarm):
                 from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
                 lm = DirectClaudeCLI()  # model resolved from config_defaults
                 dspy.configure(lm=lm)
-                logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
+                logger.info(" Auto-configured DSPy with DirectClaudeCLI")
             except Exception as e:
                 logger.warning(f"Could not configure DSPy LM: {e}")
 
@@ -104,7 +104,7 @@ class ResearchSwarm(DomainSwarm):
             self._context = resources.context
             self._bus = resources.bus
 
-            logger.info("✅ Shared swarm resources initialized")
+            logger.info(" Shared swarm resources initialized")
         except Exception as e:
             logger.warning(f"SwarmResources not available: {e}")
 
@@ -651,7 +651,7 @@ class ResearchSwarm(DomainSwarm):
                         send_tool = telegram_skill.tools.get('send_telegram_file_tool')
                         if send_tool:
                             import inspect
-                            caption = f"📊 {topic} – Research Swarm (5th grade summary)"
+                            caption = f" {topic} – Research Swarm (5th grade summary)"
                             params = {'file_path': pdf_path, 'caption': caption}
                             if inspect.iscoroutinefunction(send_tool):
                                 tg_result = await send_tool(params)

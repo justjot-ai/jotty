@@ -1,5 +1,5 @@
 """
-🎯 SOTA Agentic Parameter Resolver
+ SOTA Agentic Parameter Resolver
 
 Replaces ALL fuzzy/regex/rule-based matching with intelligent LLM-based resolution.
 
@@ -65,7 +65,7 @@ class AgenticParameterResolver(dspy.Module):
         
         # Use dspy.settings.lm if available, otherwise ChainOfThought will use default
         self.resolver = dspy.ChainOfThought(ParameterMatchingSignature)
-        logger.info("✅ AgenticParameterResolver initialized with LLM-based matching")
+        logger.info(" AgenticParameterResolver initialized with LLM-based matching")
     
     def resolve_parameter(
         self,
@@ -93,7 +93,7 @@ class AgenticParameterResolver(dspy.Module):
         Returns:
             (matched_key, confidence, reasoning) or (None, 0.0, reason_for_no_match)
         """
-        logger.info(f"🔍 [AGENTIC RESOLVER] Resolving '{parameter_name}' for {actor_name}")
+        logger.info(f" [AGENTIC RESOLVER] Resolving '{parameter_name}' for {actor_name}")
         # Handle parameter_type being a Type or a string
         type_name = parameter_type.__name__ if hasattr(parameter_type, '__name__') else str(parameter_type)
         logger.info(f"    Type: {type_name}, Purpose: {parameter_purpose}")
@@ -127,19 +127,19 @@ class AgenticParameterResolver(dspy.Module):
             reasoning = result.reasoning
             explanation = result.semantic_explanation
             
-            logger.info(f"✅ [AGENTIC RESOLVER] Best match: '{best_match}' (confidence: {confidence:.2f})")
+            logger.info(f" [AGENTIC RESOLVER] Best match: '{best_match}' (confidence: {confidence:.2f})")
             logger.info(f"    Reasoning: {reasoning[:200]}...")
             logger.info(f"    Explanation: {explanation[:150]}...")
             
             if best_match == "NO_MATCH" or confidence < min_confidence:
-                logger.warning(f"⚠️  [AGENTIC RESOLVER] No confident match found (confidence: {confidence:.2f})")
+                logger.warning(f" [AGENTIC RESOLVER] No confident match found (confidence: {confidence:.2f})")
                 logger.warning(f"    Reasoning: {reasoning[:200]}...")
                 return None, confidence, reasoning
             
             return best_match, confidence, explanation
             
         except Exception as e:
-            logger.error(f"❌ [AGENTIC RESOLVER] Error: {e}")
+            logger.error(f" [AGENTIC RESOLVER] Error: {e}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             return None, 0.0, f"Resolver failed: {e}"

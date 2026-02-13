@@ -63,7 +63,7 @@ class SkillToAgentConverter:
         self.analyzer = dspy.ChainOfThought(SkillAnalysisSignature)
         self._signature_cache: Dict[str, type] = {}  # Cache generated signatures
         
-        logger.info("🔄 SkillToAgentConverter initialized")
+        logger.info(" SkillToAgentConverter initialized")
     
     async def convert_skill_to_agent(
         self,
@@ -117,7 +117,7 @@ class SkillToAgentConverter:
                 is_executor=True  # Skills execute tools
             )
             
-            logger.info(f"✅ Converted skill '{skill.name}' to agent '{agent_config.name}'")
+            logger.info(f" Converted skill '{skill.name}' to agent '{agent_config.name}'")
             return agent_config
             
         except Exception as e:
@@ -176,7 +176,7 @@ class SkillToAgentConverter:
                 logger.warning(f"Skipping skill '{skill.name}': {e}")
                 continue
         
-        logger.info(f"✅ Converted {len(agents)}/{len(skills)} skills to agents")
+        logger.info(f" Converted {len(agents)}/{len(skills)} skills to agents")
         return agents
     
     async def _analyze_skill(self, skill: SkillDefinition) -> Dict[str, Any]:

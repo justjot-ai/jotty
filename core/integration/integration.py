@@ -88,7 +88,7 @@ class JottyIntegration:
             'credit_assignments': 0
         }
         
-        logger.info("🧠 JottyIntegration initialized (v8.0 Algorithmic Edition)")
+        logger.info(" JottyIntegration initialized (v8.0 Algorithmic Edition)")
     
     @classmethod
     def get_instance(cls, config: SwarmConfig = None) -> 'JottyIntegration':
@@ -108,12 +108,12 @@ class JottyIntegration:
             return
         
         patch_dspy_with_guard(self.context_guard)
-        logger.info("✅ DSPy patched with GlobalContextGuard")
+        logger.info(" DSPy patched with GlobalContextGuard")
     
     def unpatch_dspy(self):
         """Remove DSPy patch."""
         unpatch_dspy()
-        logger.info("✅ DSPy unpatched")
+        logger.info(" DSPy unpatched")
     
     def read_document(self, 
                       path: str, 
@@ -248,7 +248,7 @@ def initialize_jotty(config: SwarmConfig = None) -> JottyIntegration:
     # Patch DSPy to protect all LLM calls
     integration.patch_dspy()
     
-    logger.info("🚀 Jotty v8.0 initialized with full algorithmic protection")
+    logger.info(" Jotty v8.0 initialized with full algorithmic protection")
     
     return integration
 

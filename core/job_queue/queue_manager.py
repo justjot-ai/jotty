@@ -46,7 +46,7 @@ class TaskQueueManager:
     
     async def start(self):
         """Start processing tasks from queue"""
-        logger.info(f"🚀 Starting TaskQueueManager (max_concurrent={self.max_concurrent})")
+        logger.info(f" Starting TaskQueueManager (max_concurrent={self.max_concurrent})")
         
         while not self._stop_event.is_set():
             try:
@@ -58,7 +58,7 @@ class TaskQueueManager:
                     task = await self.task_queue.dequeue()
                     
                     if task:
-                        logger.info(f"📥 Dequeued task: {task.task_id} ({task.title})")
+                        logger.info(f" Dequeued task: {task.task_id} ({task.title})")
                         self.running_tasks[task.task_id] = asyncio.create_task(
                             self._process_task(task)
                         )
@@ -73,12 +73,12 @@ class TaskQueueManager:
                 await asyncio.sleep(self.poll_interval)
                 
             except Exception as e:
-                logger.error(f"❌ Error in task queue manager loop: {e}", exc_info=True)
+                logger.error(f" Error in task queue manager loop: {e}", exc_info=True)
                 await asyncio.sleep(self.poll_interval)
     
     async def stop(self):
         """Stop processing tasks"""
-        logger.info("🛑 Stopping TaskQueueManager...")
+        logger.info(" Stopping TaskQueueManager...")
         self._stop_event.set()
         
         # Wait for running tasks to complete (with timeout)
@@ -90,7 +90,7 @@ class TaskQueueManager:
                 return_when=asyncio.ALL_COMPLETED
             )
         
-        logger.info("✅ TaskQueueManager stopped")
+        logger.info(" TaskQueueManager stopped")
     
     async def _process_task(self, task: Task):
         """Process a single task"""
@@ -104,7 +104,7 @@ class TaskQueueManager:
                 started_at=datetime.now(),
             )
             
-            logger.info(f"🔄 Processing task: {task_id} - {task.title}")
+            logger.info(f" Processing task: {task_id} - {task.title}")
             
             # Extract goal from task payload
             goal = task.description or task.title
@@ -135,10 +135,10 @@ class TaskQueueManager:
                 }
             )
             
-            logger.info(f"✅ Task completed: {task_id}")
+            logger.info(f" Task completed: {task_id}")
             
         except Exception as e:
-            logger.error(f"❌ Task failed: {task_id} - {e}", exc_info=True)
+            logger.error(f" Task failed: {task_id} - {e}", exc_info=True)
             
             # Check retry logic
             if task.retry_count < task.max_retries:
@@ -148,7 +148,7 @@ class TaskQueueManager:
                     error=str(e),
                     retry_count=task.retry_count + 1,
                 )
-                logger.info(f"🔄 Task will be retried: {task_id} (attempt {task.retry_count + 1}/{task.max_retries})")
+                logger.info(f" Task will be retried: {task_id} (attempt {task.retry_count + 1}/{task.max_retries})")
             else:
                 await self.task_queue.update_status(
                     task_id,
@@ -156,4 +156,4 @@ class TaskQueueManager:
                     error=str(e),
                     completed_at=datetime.now(),
                 )
-                logger.error(f"❌ Task failed permanently: {task_id}")
+                logger.error(f" Task failed permanently: {task_id}")

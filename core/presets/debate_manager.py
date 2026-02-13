@@ -161,7 +161,7 @@ class DebateManager:
         self.current_round = 0
 
         logger.info(
-            f"🎯 DebateManager initialized: {len(experts)} experts, "
+            f" DebateManager initialized: {len(experts)} experts, "
             f"max_rounds={max_rounds}, threshold={consensus_threshold*100}%"
         )
 
@@ -180,7 +180,7 @@ class DebateManager:
         Returns:
             ConsensusResult with final decision
         """
-        logger.info(f"🗣️  Starting A-TEAM debate: {len(self.experts)} experts")
+        logger.info(f" Starting A-TEAM debate: {len(self.experts)} experts")
         logger.info(f"   Task: {task_description[:100]}...")
 
         self.current_round = 0
@@ -189,7 +189,7 @@ class DebateManager:
 
         while self.current_round < self.max_rounds:
             self.current_round += 1
-            logger.info(f"\n📍 Round {self.current_round}/{self.max_rounds}")
+            logger.info(f"\n Round {self.current_round}/{self.max_rounds}")
 
             # Run debate round
             debate_round = await self._run_round(
@@ -204,7 +204,7 @@ class DebateManager:
 
             # Check consensus
             if debate_round.consensus_reached:
-                logger.info(f"✅ CONSENSUS REACHED in round {self.current_round}!")
+                logger.info(f" CONSENSUS REACHED in round {self.current_round}!")
                 break
 
             # Prepare for next round
@@ -216,7 +216,7 @@ class DebateManager:
             goal_context=goal_context
         )
 
-        logger.info(f"\n🎉 Debate complete: {final_result.total_rounds} rounds")
+        logger.info(f"\n Debate complete: {final_result.total_rounds} rounds")
         logger.info(f"   Consensus: {final_result.consensus_reached}")
 
         return final_result
@@ -241,9 +241,9 @@ class DebateManager:
             expert_responses.append(response)
 
             vote_emoji = {
-                ExpertVote.APPROVE: "✅",
-                ExpertVote.CONCERNS: "⚠️",
-                ExpertVote.REJECT: "❌"
+                ExpertVote.APPROVE: "",
+                ExpertVote.CONCERNS: "",
+                ExpertVote.REJECT: ""
             }
             logger.info(f"   {vote_emoji[response.vote]} {expert.name}: {response.vote.value}")
 

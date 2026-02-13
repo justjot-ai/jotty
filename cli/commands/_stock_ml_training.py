@@ -110,7 +110,7 @@ class StockMLTrainingMixin:
         sorted_results = sorted(all_results, key=lambda x: -x['auc'])
 
         for r in sorted_results:
-            marker = "★" if r == sorted_results[0] else " "
+            marker = "" if r == sorted_results[0] else " "
             cli.renderer.info(
                 f"│{marker}{r['timeframe']:<11} │ {r['target']:<10} │ {r['days']:^9} │ {r['samples']:^8} │ "
                 f"{r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │ {r['best_model']:<15} │"
@@ -456,7 +456,7 @@ class StockMLTrainingMixin:
             try:
                 sent = await report_generator.send_to_telegram(pdf_path or md_path, result)
                 if sent:
-                    cli.renderer.info("✓ Report sent to Telegram")
+                    cli.renderer.info(" Report sent to Telegram")
                 else:
                     cli.renderer.warning("Telegram send failed")
             except Exception as e:
@@ -597,7 +597,7 @@ class StockMLTrainingMixin:
         cli.renderer.info("├──────────────┼─────────────┼───────────┼──────────┼────────┼──────────┼──────────┤")
 
         for i, r in enumerate(sorted_results[:20]):
-            marker = "★" if i == 0 else " "
+            marker = "" if i == 0 else " "
             cli.renderer.info(
                 f"│{marker}{r['symbol']:<12} │ {r['target']:<11} │ {r['timeframe']:<9} │ {r['years']:^8} │ "
                 f"{r['samples']:^6} │ {r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │"
@@ -953,7 +953,7 @@ class StockMLTrainingMixin:
             cli.renderer.info("│     Model       │ Accuracy │    F1    │  ROC-AUC │")
             cli.renderer.info("├─────────────────┼──────────┼──────────┼──────────┤")
             for r in results:
-                marker = "★ " if r['model'] == best_name else "  "
+                marker = " " if r['model'] == best_name else " "
                 cli.renderer.info(f"│{marker}{r['model']:<13} │ {r['accuracy']:^8.4f} │ {r['f1']:^8.4f} │ {r['auc']:^8.4f} │")
             cli.renderer.info("└─────────────────┴──────────┴──────────┴──────────┘")
 

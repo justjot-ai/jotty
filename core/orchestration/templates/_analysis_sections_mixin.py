@@ -1198,7 +1198,7 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
             table_md = "| KPI | Value | Status |\n|-----|-------|--------|\n"
             for name, value in kpis.items():
                 status = "Excellent" if value > 0.9 else ("Good" if value > 0.7 else "Needs Improvement")
-                color_indicator = "🟢" if value > 0.9 else ("🟡" if value > 0.7 else "🔴")
+                color_indicator = "" if value > 0.9 else ("" if value > 0.7 else "")
                 table_md += f"| {name.upper()} | {value:.4f} | {status} |\n"
 
             content = f"""

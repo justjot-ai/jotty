@@ -48,7 +48,7 @@ class ZeroConfigAgentFactory:
         from Jotty.core.agents.auto_agent import AutoAgent
         import dspy
 
-        _status = StatusReporter(status_callback, logger, emoji="📍")
+        _status = StatusReporter(status_callback, logger, emoji="")
 
         try:
             if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
@@ -126,7 +126,7 @@ class ZeroConfigAgentFactory:
             predictor = dspy.Predict(AgentDecisionSignature)
             result = predictor(task=task)
 
-            logger.info(f"🤖 LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}")
+            logger.info(f" LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}")
 
             if result.is_parallel:
                 sub_goals = self._parse_sub_goals(result.sub_goals)
@@ -134,12 +134,12 @@ class ZeroConfigAgentFactory:
                     sub_goals = self._deduplicate_sub_goals(sub_goals)
                     sub_goals = sub_goals[:4]
                     if len(sub_goals) > 1:
-                        logger.info(f"🔀 LLM detected {len(sub_goals)} parallel sub-goals: {sub_goals}")
+                        logger.info(f" LLM detected {len(sub_goals)} parallel sub-goals: {sub_goals}")
                         return sub_goals
                     else:
-                        logger.info("📝 After deduplication: single agent optimal")
+                        logger.info(" After deduplication: single agent optimal")
             else:
-                logger.info("📝 LLM detected sequential workflow - single agent optimal")
+                logger.info(" LLM detected sequential workflow - single agent optimal")
         except Exception as e:
             logger.debug(f"Agent decision parsing failed: {e}")
 

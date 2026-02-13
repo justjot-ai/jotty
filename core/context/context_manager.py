@@ -128,17 +128,17 @@ class SmartContextManager:
     def register_todo(self, todo_content: str):
         """Register current TODO for preservation (NEVER compressed)."""
         self._current_todo = todo_content
-        logger.debug(f"📋 Registered TODO ({len(todo_content)} chars)")
+        logger.debug(f" Registered TODO ({len(todo_content)} chars)")
     
     def register_goal(self, goal: str):
         """Register current goal for preservation."""
         self._current_goal = goal
-        logger.debug(f"🎯 Registered goal: {goal}...")
+        logger.debug(f" Registered goal: {goal}...")
     
     def register_critical_memory(self, memory: str):
         """Register a critical memory that must be preserved."""
         self._critical_memories.append(memory)
-        logger.debug(f"💾 Registered critical memory ({len(memory)} chars)")
+        logger.debug(f" Registered critical memory ({len(memory)} chars)")
     
     def add_chunk(self, content: str, category: str, priority: ContextPriority = None):
         """Add a context chunk with auto-detected priority."""
@@ -206,7 +206,7 @@ class SmartContextManager:
         
         if available < 500:
             # Not enough space - need aggressive compression
-            logger.warning(f"⚠️ Very limited context budget: {available} tokens")
+            logger.warning(f" Very limited context budget: {available} tokens")
             available = max(500, available)
         
         # Sort chunks by priority (CRITICAL first)
@@ -354,7 +354,7 @@ class SmartContextManager:
             return None
         
         self.api_errors_recovered += 1
-        logger.warning(f"🔄 Token limit error detected - auto-recovering...")
+        logger.warning(f" Token limit error detected - auto-recovering...")
         
         # Extract required reduction
         # Try to find number in error message
@@ -370,7 +370,7 @@ class SmartContextManager:
         target_tokens = self.effective_limit - 1000  # Extra safety margin
         compressed = self._simple_compress(current_context, target_tokens)
         
-        logger.info(f"✅ Context compressed: {len(current_context)} → {len(compressed)} chars")
+        logger.info(f" Context compressed: {len(current_context)} → {len(compressed)} chars")
         
         return compressed
     
@@ -430,7 +430,7 @@ def with_smart_context(max_tokens: int = 28000):
                 
                 if compressed:
                     kwargs['context'] = compressed
-                    logger.info("🔄 Retrying with compressed context...")
+                    logger.info(" Retrying with compressed context...")
                     return await func(*args, **kwargs)
                 
                 raise

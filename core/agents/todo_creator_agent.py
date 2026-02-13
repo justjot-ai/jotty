@@ -78,7 +78,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         # Register with message bus for inter-agent communication
         self.bus.subscribe("TodoCreatorAgent", self._handle_message)
 
-        logger.info("✓ TodoCreatorAgent initialized with SHARED swarm resources")
+        logger.info(" TodoCreatorAgent initialized with SHARED swarm resources")
 
     def _handle_message(self, message):
         """Handle incoming messages from other agents."""
@@ -222,9 +222,9 @@ class TodoCreatorAgent(DAGAgentMixin):
         )
 
         if is_valid:
-            logger.info("✓ DAG validation passed")
+            logger.info(" DAG validation passed")
         else:
-            logger.warning(f"⚠ DAG validation found {len(issues)} issues")
+            logger.warning(f" DAG validation found {len(issues)} issues")
             for i, issue in enumerate(issues, 1):
                 logger.warning(f"   {i}. {issue}")
 
@@ -606,7 +606,7 @@ class TodoCreatorAgent(DAGAgentMixin):
                 (a for a in executable_dag.assignments.values() if a.name == actor_name),
                 None
             )
-            output.append(f"\n👤 {actor_name}")
+            output.append(f"\n {actor_name}")
             if actor:
                 output.append(f"   Capabilities: {', '.join(actor.capabilities)}")
             output.append(f"   Assigned Tasks: {len(tasks)}")

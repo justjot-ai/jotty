@@ -172,7 +172,7 @@ class DiagramImageGenerator:
         for i, item in enumerate(left_items[:4]):
             text = item.get("point", item) if isinstance(item, dict) else item
             text = str(text).replace('"', "'")[:40]
-            lines.append(f'        L{i}["✗ {text}"]')
+            lines.append(f' L{i}[" {text}"]')
         lines.append("    end")
 
         # Right side
@@ -180,7 +180,7 @@ class DiagramImageGenerator:
         for i, item in enumerate(right_items[:4]):
             text = item.get("point", item) if isinstance(item, dict) else item
             text = str(text).replace('"', "'")[:40]
-            lines.append(f'        R{i}["✓ {text}"]')
+            lines.append(f' R{i}[" {text}"]')
         lines.append("    end")
 
         # VS connection
@@ -361,13 +361,13 @@ class DiagramImageGenerator:
             flow_spec = self._auto_generate_flow_spec(paper_data)
 
         if flow_spec:
-            logger.info("🎨 Generating flow diagram (Mermaid)...")
+            logger.info(" Generating flow diagram (Mermaid)...")
             path = await self.generate_flow_diagram(flow_spec, paper_title)
             if path:
                 results["flow"] = path
 
         if results:
-            logger.info(f"✅ Generated {len(results)} Mermaid diagram image(s)")
+            logger.info(f" Generated {len(results)} Mermaid diagram image(s)")
         return results
 
 

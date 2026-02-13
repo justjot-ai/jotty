@@ -83,7 +83,7 @@ def jotty_method(
     """
     Decorator to add metadata to user's methods.
     
-    🔥 A-TEAM PHASE 2 FIX: Added for_architect and for_auditor flags!
+     A-TEAM PHASE 2 FIX: Added for_architect and for_auditor flags!
     
     Usage:
         # Tool for Architect only (exploration)
@@ -135,10 +135,10 @@ def jotty_method(
             'when': when,
             'cache': cache,
             'timeout': timeout,
-            'for_architect': for_architect,    # 🔥 A-TEAM PHASE 2
-            'for_auditor': for_auditor   # 🔥 A-TEAM PHASE 2
+            'for_architect': for_architect, # A-TEAM PHASE 2
+            'for_auditor': for_auditor # A-TEAM PHASE 2
         }
-        # 🔥 A-TEAM PHASE 2: Also store as top-level attributes for easy access
+        # A-TEAM PHASE 2: Also store as top-level attributes for easy access
         func._jotty_for_architect = for_architect
         func._jotty_for_auditor = for_auditor
         return func
@@ -193,11 +193,11 @@ class MetadataIntrospector:
             try:
                 method_meta = self._analyze_method(name, attr)
                 methods.append(method_meta)
-                logger.debug(f"📋 Discovered metadata method: {name}")
+                logger.debug(f" Discovered metadata method: {name}")
             except Exception as e:
-                logger.warning(f"⚠️  Could not analyze method {name}: {e}")
+                logger.warning(f" Could not analyze method {name}: {e}")
         
-        logger.info(f"✅ Discovered {len(methods)} metadata methods")
+        logger.info(f" Discovered {len(methods)} metadata methods")
         
         # Cache results
         self.cache[obj_id] = methods
@@ -294,7 +294,7 @@ class MetadataToolWrapper:
         if self.cache is not None:
             cache_key = (self.meta.name, frozenset(kwargs.items()))
             if cache_key in self.cache:
-                logger.debug(f"🎯 Cache hit for {self.meta.name}({kwargs})")
+                logger.debug(f" Cache hit for {self.meta.name}({kwargs})")
                 return self.cache[cache_key]
         
         # Get method
@@ -321,15 +321,15 @@ class MetadataToolWrapper:
             
             elapsed = time.time() - start_time
             self.total_time += elapsed
-            logger.debug(f"✅ {self.meta.name}({kwargs}) -> {type(result).__name__} ({elapsed:.3f}s)")
+            logger.debug(f" {self.meta.name}({kwargs}) -> {type(result).__name__} ({elapsed:.3f}s)")
             
             return result
             
         except asyncio.TimeoutError:
-            logger.error(f"⏱️  Timeout calling {self.meta.name}({kwargs}) after {self.meta.timeout}s")
+            logger.error(f"⏱ Timeout calling {self.meta.name}({kwargs}) after {self.meta.timeout}s")
             return None
         except Exception as e:
-            logger.error(f"❌ Error calling {self.meta.name}({kwargs}): {e}")
+            logger.error(f" Error calling {self.meta.name}({kwargs}): {e}")
             return None
     
     def get_description(self) -> str:
@@ -442,9 +442,9 @@ class JottyMetadataBase:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
                     setattr(self, field_name, content)
-                    logger.info(f"📄 Loaded metadata file: {file_path.name}")
+                    logger.info(f" Loaded metadata file: {file_path.name}")
                 except Exception as e:
-                    logger.error(f"❌ Error loading {file_path.name}: {e}")
+                    logger.error(f" Error loading {file_path.name}: {e}")
     
     def get_tools(self) -> List[MetadataToolWrapper]:
         """
@@ -476,17 +476,17 @@ class JottyMetadataBase:
         methods = self._introspector.discover(self)
         
         if not methods:
-            logger.error("❌ No public methods found in metadata class")
+            logger.error(" No public methods found in metadata class")
             return False
         
         for method in methods:
             if not method.docstring:
-                logger.warning(f"⚠️  Method {method.name} has no docstring")
+                logger.warning(f" Method {method.name} has no docstring")
             if not method.parameters:
-                logger.warning(f"⚠️  Method {method.name} has no parameters")
+                logger.warning(f" Method {method.name} has no parameters")
         
         self._validated = True
-        logger.info(f"✅ Metadata validation passed: {len(methods)} methods")
+        logger.info(f" Metadata validation passed: {len(methods)} methods")
         return True
     
     def __jotty_validate__(self) -> bool:
@@ -526,31 +526,31 @@ class MetadataValidator:
         Returns:
             True if valid, False otherwise
         """
-        logger.info("🔍 Validating metadata class...")
+        logger.info(" Validating metadata class...")
         
         # Check if has __jotty_validate__ (or legacy __reval_validate__)
         validate_method = getattr(metadata_obj, '__jotty_validate__', None) or getattr(metadata_obj, '__reval_validate__', None)
         if validate_method:
             if not validate_method():
-                logger.error("❌ Metadata validation failed (__jotty_validate__ returned False)")
+                logger.error(" Metadata validation failed (__jotty_validate__ returned False)")
                 return False
         
         # Discover methods
         methods = self.introspector.discover(metadata_obj)
         
         if not methods:
-            logger.error("❌ No public methods found")
+            logger.error(" No public methods found")
             return False
         
-        logger.info(f"✅ Found {len(methods)} methods")
+        logger.info(f" Found {len(methods)} methods")
         
         # Check each method
         for method in methods:
-            logger.info(f"  📋 {method.name}: {method.description}")
+            logger.info(f" {method.name}: {method.description}")
             if not method.docstring:
-                logger.warning(f"    ⚠️  No docstring")
+                logger.warning(f" No docstring")
             if not method.parameters:
-                logger.warning(f"    ⚠️  No parameters")
+                logger.warning(f" No parameters")
         
         return True
     
@@ -567,7 +567,7 @@ class MetadataValidator:
         methods = self.introspector.discover(metadata_obj)
         tools = [MetadataToolWrapper(metadata_obj, m) for m in methods]
         
-        logger.info(f"🔧 Created {len(tools)} tools:")
+        logger.info(f" Created {len(tools)} tools:")
         for tool in tools:
             logger.info(f"  {tool.get_description()}")
         
@@ -585,22 +585,22 @@ class MetadataValidator:
         Returns:
             Method result
         """
-        logger.info(f"🧪 Testing {method_name}({kwargs})...")
+        logger.info(f" Testing {method_name}({kwargs})...")
         
         # Find method
         methods = self.introspector.discover(metadata_obj)
         method_meta = next((m for m in methods if m.name == method_name), None)
         
         if not method_meta:
-            logger.error(f"❌ Method {method_name} not found")
+            logger.error(f" Method {method_name} not found")
             return None
         
         # Wrap and call
         tool = MetadataToolWrapper(metadata_obj, method_meta)
         result = await tool(**kwargs)
         
-        logger.info(f"✅ Result: {result}")
-        logger.info(f"📊 Stats: {tool.get_stats()}")
+        logger.info(f" Result: {result}")
+        logger.info(f" Stats: {tool.get_stats()}")
         
         return result
 

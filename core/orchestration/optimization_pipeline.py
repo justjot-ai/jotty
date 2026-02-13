@@ -8,7 +8,7 @@ This module provides a generic pipeline for iterative optimization that:
 4. Updates knowledge base (KB) metadata for learning
 5. Runs iterative loops until success or max iterations
 
-# ✅ GENERIC: No domain-specific logic (works with any agents, any domain)
+# GENERIC: No domain-specific logic (works with any agents, any domain)
 """
 
 import asyncio
@@ -816,7 +816,7 @@ class OptimizationPipeline:
                     # Check if we've reached required consecutive passes
                     if self.consecutive_passes >= self.config.required_pass_count:
                         self._write_thinking_log(
-                            f"✓ Optimization complete! Evaluation passed {self.consecutive_passes} times consecutively."
+                            f" Optimization complete! Evaluation passed {self.consecutive_passes} times consecutively."
                         )
                         # Record the successful iteration before breaking
                         iteration_result = IterationResult(
@@ -975,11 +975,11 @@ class OptimizationPipeline:
         
         if final_result["optimization_complete"]:
             self._write_thinking_log(
-                f"✓ Optimization completed successfully after {self.iteration_count} iterations"
+                f" Optimization completed successfully after {self.iteration_count} iterations"
             )
         else:
             self._write_thinking_log(
-                f"⚠ Optimization stopped after {self.iteration_count} iterations. "
+                f" Optimization stopped after {self.iteration_count} iterations. "
                 f"Consecutive passes: {self.consecutive_passes}/{self.config.required_pass_count}"
             )
         

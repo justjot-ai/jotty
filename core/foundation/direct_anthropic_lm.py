@@ -206,7 +206,7 @@ class DirectAnthropicLM(dspy.BaseLM):
                 duration=duration,
             )
             logger.info(
-                f"💰 LLM call: {self.model_id} | "
+                f" LLM call: {self.model_id} | "
                 f"{input_tokens}+{output_tokens} tokens | "
                 f"${record.cost:.6f} | {duration:.1f}s"
             )
@@ -292,7 +292,7 @@ class DirectAnthropicLM(dspy.BaseLM):
                 duration=duration,
             )
             logger.info(
-                f"💰 LLM call: {self.model_id} | "
+                f" LLM call: {self.model_id} | "
                 f"{input_tokens}+{output_tokens} tokens | "
                 f"${record.cost:.6f} | {duration:.1f}s"
             )

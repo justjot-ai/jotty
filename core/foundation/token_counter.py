@@ -114,14 +114,14 @@ class TokenCounter:
                 pass
         
         # Final fallback
-        self.model = model or 'gpt-4.1'  # ✅ Changed from gpt-4o to gpt-4.1
+        self.model = model or 'gpt-4.1' # Changed from gpt-4o to gpt-4.1
         self.tokencost_model = self._map_model_name(self.model)
         
         if not TOKENCOST_AVAILABLE:
             # Fallback to approximation (tokencost is optional)
             pass
         else:
-            logger.info(f"✅ TokenCounter initialized for {self.tokencost_model}")
+            logger.info(f" TokenCounter initialized for {self.tokencost_model}")
     
     def _map_model_name(self, model: str) -> str:
         """
@@ -137,7 +137,7 @@ class TokenCounter:
         model_lower = model.lower()
         for dspy_name, tokencost_name in self.MODEL_MAPPING.items():
             if dspy_name in model_lower or model_lower in dspy_name:
-                logger.info(f"📝 Mapped '{model}' → '{tokencost_name}'")
+                logger.info(f" Mapped '{model}' → '{tokencost_name}'")
                 return tokencost_name
         
         # Try to extract base model name
@@ -155,7 +155,7 @@ class TokenCounter:
             return 'claude-3-opus-20240229'
         
         # Return as-is (tokencost might recognize it)
-        logger.warning(f"⚠️ Unknown model: '{model}', using as-is")
+        logger.warning(f" Unknown model: '{model}', using as-is")
         return model
     
     def count_tokens(self, text: str, model: Optional[str] = None) -> int:
@@ -178,7 +178,7 @@ class TokenCounter:
         if TOKENCOST_AVAILABLE:
             try:
                 count = count_string_tokens(str(text), model=tokencost_model)
-                logger.debug(f"🔢 Counted {count} tokens in {len(text)} chars ({model_to_use})")
+                logger.debug(f" Counted {count} tokens in {len(text)} chars ({model_to_use})")
                 return count
             except Exception as e:
                 # Fallback to approximation silently
@@ -186,7 +186,7 @@ class TokenCounter:
         
         # Fallback: approximation
         approx = len(str(text)) // 4 + 1
-        logger.debug(f"🔢 Approximate: {approx} tokens (fallback)")
+        logger.debug(f" Approximate: {approx} tokens (fallback)")
         return approx
     
     def count_messages(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> int:
@@ -209,7 +209,7 @@ class TokenCounter:
         if TOKENCOST_AVAILABLE:
             try:
                 count = count_message_tokens(messages, model=tokencost_model)
-                logger.debug(f"🔢 Counted {count} tokens in {len(messages)} messages ({model_to_use})")
+                logger.debug(f" Counted {count} tokens in {len(messages)} messages ({model_to_use})")
                 return count
             except Exception as e:
                 # Fallback to approximation silently
@@ -221,7 +221,7 @@ class TokenCounter:
             content = msg.get('content', '')
             total += len(str(content)) // 4 + 10  # +10 for message formatting
         
-        logger.debug(f"🔢 Approximate: {total} tokens (fallback)")
+        logger.debug(f" Approximate: {total} tokens (fallback)")
         return total
     
     def get_model_limits(self, model: Optional[str] = None) -> Dict[str, int]:
@@ -246,7 +246,7 @@ class TokenCounter:
         )
         
         logger.debug(
-            f"📊 Model limits for {tokencost_model}: "
+            f" Model limits for {tokencost_model}: "
             f"max_prompt={limits['max_prompt']:,}, max_output={limits['max_output']:,}"
         )
         
@@ -280,7 +280,7 @@ class TokenCounter:
         
         if will_overflow:
             logger.warning(
-                f"⚠️ Will overflow: {current_tokens} + {additional_tokens} = "
+                f" Will overflow: {current_tokens} + {additional_tokens} = "
                 f"{current_tokens + additional_tokens} > {max_allowed} "
                 f"({safety_margin*100:.0f}% of {limits['max_prompt']})"
             )
@@ -308,7 +308,7 @@ class TokenCounter:
         max_allowed = int(limits['max_prompt'] * safety_margin)
         remaining = max(0, max_allowed - current_tokens)
         
-        logger.debug(f"📊 Remaining: {remaining} tokens ({current_tokens}/{max_allowed})")
+        logger.debug(f" Remaining: {remaining} tokens ({current_tokens}/{max_allowed})")
         return remaining
 
 
@@ -366,7 +366,7 @@ def count_tokens_accurate(text: str, model: Optional[str] = None) -> int:
     """
     Count tokens accurately using tokencost library.
 
-    ✅ USER REQUIREMENT: Use tokencost (not tiktoken/transformers)
+     USER REQUIREMENT: Use tokencost (not tiktoken/transformers)
     - Accurate for 400+ models
     - Unified interface
     - Model-specific tokenization
@@ -397,7 +397,7 @@ def estimate_tokens(text: str) -> int:
     """
     Quick approximation of token count.
 
-    ⚠️  This is approximate! Use count_tokens_accurate() when precision matters.
+     This is approximate! Use count_tokens_accurate() when precision matters.
 
     Args:
         text: Text to estimate tokens for

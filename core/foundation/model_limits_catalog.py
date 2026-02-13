@@ -183,12 +183,12 @@ def get_model_limits(model_name: str, conservative: bool = False) -> Dict[str, i
     # Try direct match
     if model_name in MODEL_LIMITS_CATALOG:
         limits = MODEL_LIMITS_CATALOG[model_name]
-        logger.debug(f"📊 Found exact match for '{model_name}': {limits}")
+        logger.debug(f" Found exact match for '{model_name}': {limits}")
         
         # Apply conservative cap if requested
         if conservative and limits['max_prompt'] > 30000:
             logger.info(
-                f"⚠️  Conservative mode: Capping {model_name} from "
+                f" Conservative mode: Capping {model_name} from "
                 f"{limits['max_prompt']:,} to 30,000 tokens"
             )
             return {'max_prompt': 30000, 'max_output': limits['max_output']}
@@ -198,7 +198,7 @@ def get_model_limits(model_name: str, conservative: bool = False) -> Dict[str, i
     # Try lowercase match
     for key, limits in MODEL_LIMITS_CATALOG.items():
         if key.lower() == model_lower:
-            logger.debug(f"📊 Found case-insensitive match: '{key}' for '{model_name}'")
+            logger.debug(f" Found case-insensitive match: '{key}' for '{model_name}'")
             
             if conservative and limits['max_prompt'] > 30000:
                 return {'max_prompt': 30000, 'max_output': limits['max_output']}
@@ -209,7 +209,7 @@ def get_model_limits(model_name: str, conservative: bool = False) -> Dict[str, i
     for key, limits in MODEL_LIMITS_CATALOG.items():
         key_lower = key.lower()
         if model_lower in key_lower or key_lower in model_lower:
-            logger.info(f"📊 Found partial match: '{key}' for '{model_name}'")
+            logger.info(f" Found partial match: '{key}' for '{model_name}'")
             
             if conservative and limits['max_prompt'] > 30000:
                 return {'max_prompt': 30000, 'max_output': limits['max_output']}
@@ -219,12 +219,12 @@ def get_model_limits(model_name: str, conservative: bool = False) -> Dict[str, i
     # Try extracting base model (e.g., 'openai/gpt-4o' → 'gpt-4o')
     if '/' in model_name:
         base_model = model_name.split('/')[-1]
-        logger.info(f"🔍 Trying base model: '{base_model}' from '{model_name}'")
+        logger.info(f" Trying base model: '{base_model}' from '{model_name}'")
         return get_model_limits(base_model, conservative)
     
     # Default fallback
     logger.warning(
-        f"⚠️  Model '{model_name}' not found in catalog. "
+        f" Model '{model_name}' not found in catalog. "
         f"Using conservative default: 30k/4k tokens"
     )
     return {'max_prompt': 30000, 'max_output': 4096}

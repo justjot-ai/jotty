@@ -225,5 +225,5 @@ class ExecutionResult:
         }
 
     def __str__(self) -> str:
-        status = "✓" if self.success else "✗"
+        status = "OK" if self.success else "FAIL"
         return f"[{status}] Tier {self.tier.value} | {self.llm_calls} calls | {self.latency_ms:.0f}ms | ${self.cost_usd:.4f}"

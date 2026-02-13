@@ -97,7 +97,7 @@ class UniversalRetryHandler:
         else:
             self.analyzer = None
         
-        logger.info("🔄 UniversalRetryHandler initialized (NO heuristic fallbacks)")
+        logger.info(" UniversalRetryHandler initialized (NO heuristic fallbacks)")
     
     async def execute_with_retry(
         self,
@@ -292,7 +292,7 @@ class PatternDetector:
         else:
             self.detector = None
         
-        logger.info("🔍 PatternDetector initialized (NO keyword matching)")
+        logger.info(" PatternDetector initialized (NO keyword matching)")
     
     async def detect(
         self,
@@ -392,7 +392,7 @@ class LLMCounterfactualCritic:
         else:
             self.critic = None
         
-        logger.info("🎯 LLMCounterfactualCritic initialized (COMA-style, 2018)")
+        logger.info(" LLMCounterfactualCritic initialized (COMA-style, 2018)")
     
     async def assign_credit(
         self,
@@ -519,7 +519,7 @@ class SelfRAGMemoryRetriever:
             self.retrieval_decider = None
             self.relevance_judge = None
         
-        logger.info("📚 SelfRAGMemoryRetriever initialized (Self-RAG 2023)")
+        logger.info(" SelfRAGMemoryRetriever initialized (Self-RAG 2023)")
     
     async def retrieve(
         self,
@@ -661,7 +661,7 @@ class LLMSurpriseEstimator:
         else:
             self.estimator = None
         
-        logger.info("😮 LLMSurpriseEstimator initialized (modern alternative to Shannon)")
+        logger.info(" LLMSurpriseEstimator initialized (modern alternative to Shannon)")
     
     async def estimate_surprise(
         self,

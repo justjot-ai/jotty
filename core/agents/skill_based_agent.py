@@ -51,7 +51,7 @@ class SkillBasedAgent(dspy.Module):
         # Lazy load AutoAgent
         self._auto_agent = None
         
-        logger.info(f"🔧 SkillBasedAgent created for skill: {skill_name}")
+        logger.info(f" SkillBasedAgent created for skill: {skill_name}")
     
     def forward(self, task: str, **kwargs) -> dspy.Prediction:
         """

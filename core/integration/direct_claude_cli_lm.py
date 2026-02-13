@@ -108,7 +108,7 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         # Check for non-retryable errors first (policy violations)
         if any(pattern.lower() in error_lower for pattern in self.NON_RETRYABLE_ERRORS):
-            logger.error(f"🚫 Policy violation detected - will not retry")
+            logger.error(f" Policy violation detected - will not retry")
             return False
 
         # Everything else is retryable (default to retry for unknown errors)
@@ -209,7 +209,7 @@ class DirectClaudeCLI(dspy.BaseLM):
                 # Success
                 self.successful_calls += 1
                 if attempt > 0:
-                    logger.info(f"✅ Succeeded on retry {attempt}")
+                    logger.info(f" Succeeded on retry {attempt}")
 
                 # Store in history
                 self.history.append({
@@ -225,7 +225,7 @@ class DirectClaudeCLI(dspy.BaseLM):
 
             except subprocess.TimeoutExpired:
                 last_error = f"Timeout after {timeout}s"
-                logger.warning(f"⏱️ Attempt {attempt + 1}/{self.max_retries + 1}: {last_error}")
+                logger.warning(f"⏱ Attempt {attempt + 1}/{self.max_retries + 1}: {last_error}")
 
             except FileNotFoundError as e:
                 logger.error("Claude CLI binary not found")
@@ -238,26 +238,26 @@ class DirectClaudeCLI(dspy.BaseLM):
 
                 # Check if retryable
                 if not self._is_retryable_error(error_msg):
-                    logger.error(f"❌ Non-retryable error: {error_msg[:200]}")
+                    logger.error(f" Non-retryable error: {error_msg[:200]}")
                     self.failed_calls += 1
                     raise
 
-                logger.warning(f"⚠️ Attempt {attempt + 1}/{self.max_retries + 1}: {error_msg[:100]}")
+                logger.warning(f" Attempt {attempt + 1}/{self.max_retries + 1}: {error_msg[:100]}")
 
             except Exception as e:
                 last_error = str(e)
-                logger.warning(f"⚠️ Attempt {attempt + 1}/{self.max_retries + 1}: {last_error[:100]}")
+                logger.warning(f" Attempt {attempt + 1}/{self.max_retries + 1}: {last_error[:100]}")
 
             # Should we retry?
             if attempt < self.max_retries:
                 delay = self._calculate_delay(attempt)
-                logger.info(f"🔄 Retrying in {delay:.1f}s...")
+                logger.info(f" Retrying in {delay:.1f}s...")
                 self.retried_calls += 1
                 time.sleep(delay)
 
         # All retries exhausted
         self.failed_calls += 1
-        logger.error(f"❌ All {self.max_retries + 1} attempts failed. Last error: {last_error}")
+        logger.error(f" All {self.max_retries + 1} attempts failed. Last error: {last_error}")
         raise LLMError(f"Claude CLI failed after {self.max_retries + 1} attempts: {last_error}")
 
     def inspect_history(self, n: int = 1) -> Dict[str, Any]:

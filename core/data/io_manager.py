@@ -8,8 +8,8 @@ Manages actor outputs with:
 - No manual extraction needed
 - Tagged predictions from ReAct exploration
 
-# ✅ GENERIC: No domain-specific logic
-# ✅ NO HARDCODING: Works with any actors/signatures
+# GENERIC: No domain-specific logic
+# NO HARDCODING: Works with any actors/signatures
 """
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Type, Callable
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class KnowledgeProvenance:
     """
-    🔬 A-TEAM: Track who knew what when (per GRF MARL paper).
+     A-TEAM: Track who knew what when (per GRF MARL paper).
     
     Enables:
     - Asymmetric learning (agents learn what others don't know)
@@ -63,7 +63,7 @@ class ActorOutput:
     Extracted automatically from DSPy signature output fields.
     Tagged attempts allow filtering 'answer' vs 'error' vs 'exploratory'.
     
-    🔬 A-TEAM: Includes knowledge provenance tracking.
+     A-TEAM: Includes knowledge provenance tracking.
     """
     actor_name: str
     output_fields: Dict[str, Any]  # field_name -> value
@@ -73,7 +73,7 @@ class ActorOutput:
     success: bool = True
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
-    # 🔬 A-TEAM: Knowledge provenance
+    # A-TEAM: Knowledge provenance
     provenance: List[KnowledgeProvenance] = field(default_factory=list)
     
     def get(self, field_name: str, default: Any = None) -> Any:
@@ -168,14 +168,14 @@ class IOManager:
     - Tool exposure for DSPy actors
     - No manual extraction needed
     
-#     ✅ GENERIC: Works with any actors/signatures
-#     ✅ NO HARDCODING: Discovers structure automatically
+# GENERIC: Works with any actors/signatures
+# NO HARDCODING: Discovers structure automatically
     """
     
     def __init__(self):
         self.outputs: Dict[str, ActorOutput] = {}  # actor_name -> ActorOutput
         self.execution_order: List[str] = []  # Track execution order
-        logger.info("📦 IOManager initialized - typed output management enabled")
+        logger.info(" IOManager initialized - typed output management enabled")
     
     def register_output(
         self,
@@ -202,16 +202,16 @@ class IOManager:
             error: Error message if failed
             tagged_attempts: List of TaggedAttempt objects from trajectory parser
         """
-        # 🔍 A-TEAM DEBUG: Log EVERYTHING received
-        logger.info(f"🔍 [IOManager RECV] actor_name: {actor_name}")
-        logger.info(f"🔍 [IOManager RECV] output type: {type(output)}")
-        logger.info(f"🔍 [IOManager RECV] output is None: {output is None}")
-        logger.info(f"🔍 [IOManager RECV] success: {success}")
-        logger.info(f"🔍 [IOManager RECV] tagged_attempts: {len(tagged_attempts) if tagged_attempts else 0}")
+        # A-TEAM DEBUG: Log EVERYTHING received
+        logger.info(f" [IOManager RECV] actor_name: {actor_name}")
+        logger.info(f" [IOManager RECV] output type: {type(output)}")
+        logger.info(f" [IOManager RECV] output is None: {output is None}")
+        logger.info(f" [IOManager RECV] success: {success}")
+        logger.info(f" [IOManager RECV] tagged_attempts: {len(tagged_attempts) if tagged_attempts else 0}")
         if output and hasattr(output, '_store'):
-            logger.info(f"🔍 [IOManager RECV] output has _store with keys: {list(output._store.keys())}")
+            logger.info(f" [IOManager RECV] output has _store with keys: {list(output._store.keys())}")
         if output and hasattr(output, '__dict__'):
-            logger.info(f"🔍 [IOManager RECV] output.__dict__ keys: {list(output.__dict__.keys())[:10]}")
+            logger.info(f" [IOManager RECV] output.__dict__ keys: {list(output.__dict__.keys())[:10]}")
         
         # Extract signature from actor if not provided
         if signature is None and actor is not None:
@@ -220,12 +220,12 @@ class IOManager:
         # Extract output fields
         output_fields = self._extract_output_fields(output, signature)
         
-        # 🔍 A-TEAM DEBUG: Log extraction results
-        logger.info(f"🔍 [IOManager EXTRACT] Extracted {len(output_fields)} fields: {list(output_fields.keys())}")
+        # A-TEAM DEBUG: Log extraction results
+        logger.info(f" [IOManager EXTRACT] Extracted {len(output_fields)} fields: {list(output_fields.keys())}")
         if output_fields:
             for key, value in list(output_fields.items())[:5]:  # Show first 5
                 value_preview = str(value)[:100] if value is not None else "None"
-                logger.info(f"🔍 [IOManager EXTRACT]   - {key}: {type(value).__name__} = {value_preview}")
+                logger.info(f" [IOManager EXTRACT] - {key}: {type(value).__name__} = {value_preview}")
         
         # Create ActorOutput WITH tagged attempts
         actor_output = ActorOutput(
@@ -244,7 +244,7 @@ class IOManager:
             self.execution_order.append(actor_name)
         
         logger.info(
-            f"📦 Registered output from '{actor_name}': "
+            f" Registered output from '{actor_name}': "
             f"{len(output_fields)} fields, {len(tagged_attempts or [])} tagged attempts, success={success}"
         )
         logger.debug(f"   Fields: {list(output_fields.keys())}")
@@ -253,7 +253,7 @@ class IOManager:
         """
         Extract DSPy signature from actor automatically.
         
-#         ✅ GENERIC: Works with ANY DSPy module structure
+# GENERIC: Works with ANY DSPy module structure
         
         Strategies:
         1. actor.resolver.signature (ChainOfThought)
@@ -295,7 +295,7 @@ class IOManager:
                 logger.debug(f"   Extracted signature from forward() annotation")
                 return sig.return_annotation
         
-        logger.debug(f"   ⚠️  Could not extract signature from {type(actor).__name__}")
+        logger.debug(f" Could not extract signature from {type(actor).__name__}")
         return None
     
     def _extract_output_fields(
@@ -315,13 +315,13 @@ class IOManager:
         """
         output_fields = {}
         
-        # 🎯 Strategy 0: TaggedOutput (GENERIC handling for ReAct exploration)
+        # Strategy 0: TaggedOutput (GENERIC handling for ReAct exploration)
         if TAGGED_OUTPUT_AVAILABLE and isinstance(output, TaggedOutput):
             best = output.get_best_attempt()
             
             if best and best.tag == 'correct':
                 output_fields = {
-                    # ✅ GENERIC fields (works for ANY actor)
+                    # GENERIC fields (works for ANY actor)
                     'final_output': best.output,  # Could be query, code, config, etc.
                     'execution_result': best.execution_result,
                     'execution_status': best.execution_status,
@@ -330,22 +330,22 @@ class IOManager:
                     'explanation': output.explanation,
                     'validation_notes': output.validation_notes,
                     
-                    # 🔄 BACKWARD COMPATIBILITY: For SQL actors
+                    # BACKWARD COMPATIBILITY: For SQL actors
                     'sql_query': best.output if isinstance(best.output, str) else str(best.output),
                     'query_explanation': output.explanation
                 }
                 
-                logger.info(f"✅ [TAGGED EXTRACTION] Extracted output with tag='{best.tag}'")
+                logger.info(f" [TAGGED EXTRACTION] Extracted output with tag='{best.tag}'")
                 logger.info(f"   Total attempts: {len(output.all_attempts)}")
                 logger.info(f"   Successful attempts: {len(output.get_correct_attempts())}")
                 logger.info(f"   Failed attempts: {len(output.get_wrong_attempts())}")
                 
                 return output_fields
             else:
-                # 🔥 A-TEAM CRITICAL FIX: When no attempts or all failed, use TaggedOutput's direct fields!
+                # A-TEAM CRITICAL FIX: When no attempts or all failed, use TaggedOutput's direct fields!
                 # SQLGenerator populates final_output even when attempts=[] by extracting from _store
-                logger.warning(f"⚠️ [TAGGED EXTRACTION] No correct attempts found (total: {len(output.all_attempts)})")
-                logger.info(f"🔍 [FALLBACK] Checking TaggedOutput direct fields: final_output={output.final_output is not None}")
+                logger.warning(f" [TAGGED EXTRACTION] No correct attempts found (total: {len(output.all_attempts)})")
+                logger.info(f" [FALLBACK] Checking TaggedOutput direct fields: final_output={output.final_output is not None}")
                 
                 # Use TaggedOutput's direct fields (populated from _store)
                 output_fields = {
@@ -363,29 +363,29 @@ class IOManager:
                 }
                 
                 if output.final_output:
-                    logger.info(f"✅ [FALLBACK SUCCESS] Extracted from TaggedOutput.final_output: {len(str(output.final_output))} chars")
+                    logger.info(f" [FALLBACK SUCCESS] Extracted from TaggedOutput.final_output: {len(str(output.final_output))} chars")
                 else:
-                    logger.warning(f"⚠️ [FALLBACK FAILED] TaggedOutput.final_output is None/empty!")
+                    logger.warning(f" [FALLBACK FAILED] TaggedOutput.final_output is None/empty!")
                 
                 return output_fields
         
         # Strategy 1: DSPy Prediction (has _store)
-        # 🔥 A-TEAM CRITICAL FIX: DSPy Prediction stores output in _store dict!
+        # A-TEAM CRITICAL FIX: DSPy Prediction stores output in _store dict!
         if hasattr(output, '_store') and isinstance(output._store, dict):
             output_fields = output._store.copy()
-            logger.debug(f"   ✅ Extracted {len(output_fields)} fields from DSPy Prediction._store")
+            logger.debug(f" Extracted {len(output_fields)} fields from DSPy Prediction._store")
             return output_fields
         
         # Strategy 2: Dict
         if isinstance(output, dict):
             output_fields = output.copy()
-            logger.debug(f"   ✅ Extracted {len(output_fields)} fields from dict")
+            logger.debug(f" Extracted {len(output_fields)} fields from dict")
             return output_fields
         
         # Strategy 3: Dataclass
         if hasattr(output, '__dataclass_fields__'):
             output_fields = {k: getattr(output, k) for k in output.__dataclass_fields__}
-            logger.debug(f"   ✅ Extracted {len(output_fields)} fields from dataclass")
+            logger.debug(f" Extracted {len(output_fields)} fields from dataclass")
             return output_fields
         
         # Strategy 4: Object attributes
@@ -393,10 +393,10 @@ class IOManager:
             for key, value in output.__dict__.items():
                 if not key.startswith('_'):  # Skip private attributes (except _store which we handled)
                     output_fields[key] = value
-            logger.debug(f"   ✅ Extracted {len(output_fields)} fields from object attributes")
+            logger.debug(f" Extracted {len(output_fields)} fields from object attributes")
             return output_fields
         
-        logger.warning(f"   ⚠️  Could not extract fields from {type(output).__name__}")
+        logger.warning(f" Could not extract fields from {type(output).__name__}")
         return output_fields
 
     
@@ -469,7 +469,7 @@ class IOManager:
         """Clear all outputs."""
         self.outputs.clear()
         self.execution_order.clear()
-        logger.info("📦 IOManager cleared")
+        logger.info(" IOManager cleared")
     
     def __repr__(self) -> str:
         return (

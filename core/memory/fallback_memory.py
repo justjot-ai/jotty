@@ -481,11 +481,11 @@ class SimpleFallbackMemory:
                 json.dump(data, f, indent=2, default=str)
 
             total = sum(len(s) for s in self._memories.values())
-            logger.info(f"✅ SimpleFallbackMemory saved: {total} entries to {path}")
+            logger.info(f" SimpleFallbackMemory saved: {total} entries to {path}")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to save SimpleFallbackMemory: {e}")
+            logger.error(f" Failed to save SimpleFallbackMemory: {e}")
             return False
 
     def load(self, path: str) -> bool:
@@ -502,7 +502,7 @@ class SimpleFallbackMemory:
         from pathlib import Path
 
         if not Path(path).exists():
-            logger.info(f"ℹ️ No previous memory state at {path}")
+            logger.info(f"ℹ No previous memory state at {path}")
             return False
 
         try:
@@ -532,11 +532,11 @@ class SimpleFallbackMemory:
                 self._total_evicted = stats.get('total_evicted', 0)
 
             total = sum(len(s) for s in self._memories.values())
-            logger.info(f"✅ SimpleFallbackMemory loaded: {total} entries from {path}")
+            logger.info(f" SimpleFallbackMemory loaded: {total} entries from {path}")
             return True
 
         except Exception as e:
-            logger.error(f"❌ Failed to load SimpleFallbackMemory: {e}")
+            logger.error(f" Failed to load SimpleFallbackMemory: {e}")
             return False
 
     def to_dict(self) -> Dict[str, Any]:

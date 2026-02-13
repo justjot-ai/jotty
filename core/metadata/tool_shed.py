@@ -2,8 +2,8 @@
 ToolShed - Agentic Tool Discovery and Management
 =================================================
 
-🎯 NO HARDCODING - All tool mappings are discovered agentically.
-🔬 SWARM INTELLIGENCE - Internal micro-agents handle tool selection.
+ NO HARDCODING - All tool mappings are discovered agentically.
+ SWARM INTELLIGENCE - Internal micro-agents handle tool selection.
 
 Key Features:
 - Automatic tool discovery from metadata providers
@@ -42,7 +42,7 @@ class ToolSchema:
     """
     Schema describing a tool's inputs and outputs.
     
-    🔬 A-TEAM: Enables intelligent tool selection and chaining.
+     A-TEAM: Enables intelligent tool selection and chaining.
     """
     name: str
     description: str
@@ -125,7 +125,7 @@ if DSPY_AVAILABLE:
 
 class AgenticToolSelector:
     """
-    🔬 NO HARDCODING - LLM selects tools based on task.
+     NO HARDCODING - LLM selects tools based on task.
     
     This replaces regex/keyword matching with pure reasoning.
     """
@@ -135,7 +135,7 @@ class AgenticToolSelector:
             self.selector = dspy.ChainOfThought(ToolSelectionSignature)
         else:
             self.selector = None
-        logger.info("🔧 AgenticToolSelector initialized (pure LLM, no regex)")
+        logger.info(" AgenticToolSelector initialized (pure LLM, no regex)")
     
     def select_tools(
         self,
@@ -177,13 +177,13 @@ class AgenticToolSelector:
             valid_names = {t.name for t in available_tools}
             selected = [t for t in selected if t in valid_names]
             
-            logger.debug(f"🎯 Selected tools: {selected}")
+            logger.debug(f" Selected tools: {selected}")
             logger.debug(f"   Reasoning: {result.reasoning}")
             
             return selected
             
         except Exception as e:
-            logger.warning(f"⚠️ Agentic selection failed: {e}, returning all tools")
+            logger.warning(f" Agentic selection failed: {e}, returning all tools")
             return [t.name for t in available_tools]
 
 
@@ -193,7 +193,7 @@ class AgenticToolSelector:
 
 class CapabilityIndex:
     """
-    🔬 A-TEAM: Maps (output_type, schema) → producers.
+     A-TEAM: Maps (output_type, schema) → producers.
     
     Enables:
     - "I need a DataFrame with columns [a,b,c]" → "Use SQLGenerator"
@@ -208,7 +208,7 @@ class CapabilityIndex:
         # producer → list of what it consumes
         self.consumes: Dict[str, List[str]] = {}
         
-        logger.info("📊 CapabilityIndex initialized")
+        logger.info(" CapabilityIndex initialized")
     
     def register_tool(self, schema: ToolSchema):
         """Register a tool's capabilities."""
@@ -222,7 +222,7 @@ class CapabilityIndex:
         self.produces[schema.name] = schema.producer_of.copy()
         self.consumes[schema.name] = schema.consumer_of.copy()
         
-        logger.debug(f"📝 Registered {schema.name}: produces={schema.producer_of}, consumes={schema.consumer_of}")
+        logger.debug(f" Registered {schema.name}: produces={schema.producer_of}, consumes={schema.consumer_of}")
     
     def find_producers(self, output_type: str) -> List[str]:
         """Find tools that can produce a given output type."""
@@ -285,8 +285,8 @@ class ToolShed:
     """
     Central repository for tools with agentic discovery.
     
-    🎯 NO HARDCODING - All mappings are discovered.
-    🔬 SWARM INTELLIGENCE - LLM selects appropriate tools.
+     NO HARDCODING - All mappings are discovered.
+     SWARM INTELLIGENCE - LLM selects appropriate tools.
     
     Features:
     - Automatic schema extraction from callables
@@ -309,7 +309,7 @@ class ToolShed:
         # Usage statistics
         self.call_stats: Dict[str, Dict[str, Any]] = {}
         
-        logger.info("🏠 ToolShed initialized (agentic discovery, no hardcoding)")
+        logger.info(" ToolShed initialized (agentic discovery, no hardcoding)")
     
     def register(
         self,
@@ -354,7 +354,7 @@ class ToolShed:
         self.schemas[tool_name] = schema
         self.capability_index.register_tool(schema)
         
-        logger.debug(f"📦 Registered tool: {tool_name}")
+        logger.debug(f" Registered tool: {tool_name}")
     
     def _extract_schema(
         self,
@@ -463,7 +463,7 @@ class ToolShed:
         if use_cache and cache_key in self.cache:
             cached_result, cached_time = self.cache[cache_key]
             if time.time() - cached_time < self.cache_ttl:
-                logger.debug(f"🎯 Cache hit: {tool_name}")
+                logger.debug(f" Cache hit: {tool_name}")
                 return ToolResult(
                     tool_name=tool_name,
                     success=True,
@@ -527,7 +527,7 @@ class ToolShed:
         """
         Get tools for an agent based on its signature.
         
-        🔬 NO HARDCODING - Uses capability matching.
+         NO HARDCODING - Uses capability matching.
         """
         if signature is None:
             return list(self.tools.values())
@@ -552,7 +552,7 @@ class ToolShed:
     def clear_cache(self):
         """Clear all cached results."""
         self.cache.clear()
-        logger.info("🗑️  ToolShed cache cleared")
+        logger.info(" ToolShed cache cleared")
     
     def get_all_schemas(self) -> List[ToolSchema]:
         """Get all tool schemas."""

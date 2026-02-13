@@ -221,7 +221,7 @@ class SlideRenderersMixin:
         features_html = ""
 
         for i, feat in enumerate(features[:6]):
-            icon = feat.get("icon", "⭐")
+            icon = feat.get("icon", "")
             feat_title = html.escape(feat.get("title", ""))
             description = self._format_text(feat.get("description", ""))
             code = feat.get("code", "")
@@ -469,7 +469,7 @@ class SlideRenderersMixin:
 
         items_html = ""
         for i, item in enumerate(items[:8]):
-            icon = item.get("icon", "⭐")
+            icon = item.get("icon", "")
             item_title = html.escape(item.get("title", ""))
             description = self._format_text(item.get("description", ""))
             url = item.get("url", "")
@@ -747,14 +747,14 @@ class SlideRenderersMixin:
     <div class="animate-slide-left opacity-0 delay-100">
       <div class="text-center mb-4"><span class="tag bg-red-500/20 text-red-300 text-lg px-4 py-1">Before</span></div>
       <div class="glass rounded-2xl p-6 border-2 border-red-500/30">
-        <h3 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-[{self.colors['accent_red']}]">✗</span> {html.escape(before.get("title", "Old Approach"))}</h3>
+        <h3 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-[{self.colors['accent_red']}]"></span> {html.escape(before.get("title", "Old Approach"))}</h3>
         <ul class="mt-4 space-y-3">{before_items}</ul>
       </div>
     </div>
     <div class="animate-slide-right opacity-0 delay-200">
       <div class="text-center mb-4"><span class="tag bg-green-500/20 text-green-300 text-lg px-4 py-1">After</span></div>
       <div class="glass rounded-2xl p-6 border-2 border-green-500/30">
-        <h3 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-[{self.colors['accent_green']}]">✓</span> {html.escape(after.get("title", "New Approach"))}</h3>
+        <h3 class="text-xl font-semibold text-white flex items-center gap-2"><span class="text-[{self.colors['accent_green']}]"></span> {html.escape(after.get("title", "New Approach"))}</h3>
         <ul class="mt-4 space-y-3">{after_items}</ul>
       </div>
     </div>
@@ -822,7 +822,7 @@ class SlideRenderersMixin:
   <div class="max-w-5xl mx-auto animate-scale opacity-0 delay-200">
     <div class="glass rounded-2xl p-8 border-l-4 border-[{self.config.accent_color}]">
       <div class="flex items-center gap-3 mb-4">
-        <span class="text-3xl">📖</span>
+        <span class="text-3xl"></span>
         <span class="tag bg-[{self.config.accent_color}]/20 text-[{self.config.accent_color}]">Definition</span>
       </div>
       <h3 class="text-3xl font-bold text-white">{term}</h3>
@@ -858,11 +858,11 @@ class SlideRenderersMixin:
   <h2 class="text-4xl font-bold text-white mt-4">{title}</h2>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10 max-w-5xl mx-auto">
     <div class="animate-slide-left opacity-0 delay-100">
-      <h3 class="text-xl font-semibold text-green-400 mb-4 flex items-center gap-2"><span class="text-2xl">✓</span> Advantages</h3>
+      <h3 class="text-xl font-semibold text-green-400 mb-4 flex items-center gap-2"><span class="text-2xl"></span> Advantages</h3>
       <div class="space-y-3">{pros_html}</div>
     </div>
     <div class="animate-slide-right opacity-0 delay-200">
-      <h3 class="text-xl font-semibold text-red-400 mb-4 flex items-center gap-2"><span class="text-2xl">✗</span> Limitations</h3>
+      <h3 class="text-xl font-semibold text-red-400 mb-4 flex items-center gap-2"><span class="text-2xl"></span> Limitations</h3>
       <div class="space-y-3">{cons_html}</div>
     </div>
   </div>
@@ -883,7 +883,7 @@ class SlideRenderersMixin:
             if status == "done":
                 completed += 1
                 icon_class = f"bg-green-500/20 text-green-400"
-                icon = "✓"
+                icon = ""
                 tag = f'<span class="tag bg-green-500/20 text-green-300">Done</span>'
             elif status == "in_progress":
                 icon_class = f"bg-blue-500/20 text-blue-400"
@@ -957,9 +957,9 @@ class SlideRenderersMixin:
 
         cta_html = ""
         if cta_secondary:
-            cta_html += f'<a href="{html.escape(cta_secondary.get("url", "#"))}" class="glass-glow px-6 py-3 rounded-full text-white hover:bg-white/10 transition-all hover:scale-105 flex items-center gap-2">{cta_secondary.get("icon", "📄")} {html.escape(cta_secondary.get("label", "Learn More"))}</a>'
+            cta_html += f'<a href="{html.escape(cta_secondary.get("url", "#"))}" class="glass-glow px-6 py-3 rounded-full text-white hover:bg-white/10 transition-all hover:scale-105 flex items-center gap-2">{cta_secondary.get("icon", "")} {html.escape(cta_secondary.get("label", "Learn More"))}</a>'
         if cta_primary:
-            cta_html += f'<a href="{html.escape(cta_primary.get("url", "#"))}" class="bg-gradient-to-r from-[{self.config.accent_color}] to-[#ed8936] px-6 py-3 rounded-full text-[{self.colors["bg_primary"]}] font-semibold hover:opacity-90 transition-all hover:scale-105 shadow-lg shadow-[{self.config.accent_color}]/30 flex items-center gap-2">{cta_primary.get("icon", "💬")} {html.escape(cta_primary.get("label", "Start Discussion"))}</a>'
+            cta_html += f'<a href="{html.escape(cta_primary.get("url", "#"))}" class="bg-gradient-to-r from-[{self.config.accent_color}] to-[#ed8936] px-6 py-3 rounded-full text-[{self.colors["bg_primary"]}] font-semibold hover:opacity-90 transition-all hover:scale-105 shadow-lg shadow-[{self.config.accent_color}]/30 flex items-center gap-2">{cta_primary.get("icon", "")} {html.escape(cta_primary.get("label", "Start Discussion"))}</a>'
 
         return f'''
 <div class="relative w-full min-h-screen bg-gradient-to-br from-[{self.colors['bg_secondary']}] via-[{self.colors['bg_tertiary']}] to-[{self.colors['bg_primary']}] flex items-center justify-center px-4 sm:px-8 md:px-12 pt-16 sm:pt-20 pb-8 sm:pb-12 overflow-hidden">
@@ -980,8 +980,8 @@ class SlideRenderersMixin:
   <div class="text-center animate-scale opacity-0 delay-200 relative z-10">
     <!-- Pulsing question mark -->
     <div class="relative inline-block mb-6">
-      <div class="text-8xl animate-bounce-in" style="animation-delay: 0.3s">❓</div>
-      <div class="absolute inset-0 text-8xl opacity-30 animate-ping">❓</div>
+      <div class="text-8xl animate-bounce-in" style="animation-delay: 0.3s"></div>
+      <div class="absolute inset-0 text-8xl opacity-30 animate-ping"></div>
     </div>
 
     <h2 class="text-5xl md:text-6xl font-bold text-white gradient-text animate-slide-up opacity-0 delay-300">{title}</h2>

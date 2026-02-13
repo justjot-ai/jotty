@@ -700,7 +700,7 @@ class TransferableLearningStore:
         if learnings['similar_experiences']:
             lines.append("## Similar Past Queries:")
             for exp in learnings['similar_experiences'][:3]:
-                status = "✓" if exp['success'] else "✗"
+                status = "OK" if exp['success'] else "FAIL"
                 lines.append(f"  {status} {exp['lesson']} (similarity: {exp['similarity']:.0%})")
 
         # Task pattern
@@ -716,7 +716,7 @@ class TransferableLearningStore:
             lines.append(f"\n## Role Advice ({ra['role']}):")
             lines.append(f"  - {ra['advice']}")
             if 'warning' in ra:
-                lines.append(f"  - ⚠️ {ra['warning']}")
+                lines.append(f" - {ra['warning']}")
 
         # Meta advice
         if learnings['meta_advice']:

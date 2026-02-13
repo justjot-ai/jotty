@@ -176,7 +176,7 @@ class MorphMixin:
         if self.morph_scorer:
             rds = self.morph_scorer.compute_rds(self.agent_profiles)
             lines.append(f"## Swarm Role Differentiation (RDS): {rds:.2f}")
-            lines.append(f"   {'✓ Good diversity' if rds >= 0.5 else '⚠️ Agents too similar'}")
+            lines.append(f" {' Good diversity' if rds >= 0.5 else ' Agents too similar'}")
             lines.append("")
 
         lines.append("## Per-Agent Role Clarity (RCS)")
@@ -185,7 +185,7 @@ class MorphMixin:
         for name, profile in self.agent_profiles.items():
             if self.morph_scorer:
                 rcs, components = self.morph_scorer.compute_rcs(profile)
-                status = "✓" if rcs >= 0.5 else "⚠️"
+                status = "OK" if rcs >= 0.5 else "WARN"
                 lines.append(f"  {status} {name}: RCS={rcs:.2f}")
                 lines.append(f"      Focus: {components.get('focus', 0):.2f}, "
                            f"Consistency: {components.get('consistency', 0):.2f}, "

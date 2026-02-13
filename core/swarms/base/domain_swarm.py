@@ -541,7 +541,7 @@ class DomainSwarm(BaseSwarm):
             return result
 
         except Exception as e:
-            logger.error(f"❌ {self.__class__.__name__} error: {e}")
+            logger.error(f" {self.__class__.__name__} error: {e}")
             traceback.print_exc()
             exec_time = executor.elapsed()
             await self._post_execute_learning(

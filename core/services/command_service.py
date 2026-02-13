@@ -232,15 +232,15 @@ class CommandService:
 
             # Monkey-patch to capture output
             cli.renderer.print = lambda t, *a, **kw: captured_output.append(clean_text(t))
-            cli.renderer.info = lambda t: captured_output.append(f"ℹ️ {clean_text(t)}")
-            cli.renderer.success = lambda t: captured_output.append(f"✅ {clean_text(t)}")
-            cli.renderer.warning = lambda t: captured_output.append(f"⚠️ {clean_text(t)}")
-            cli.renderer.error = lambda t: captured_output.append(f"❌ {clean_text(t)}")
+            cli.renderer.info = lambda t: captured_output.append(f"ℹ {clean_text(t)}")
+            cli.renderer.success = lambda t: captured_output.append(f" {clean_text(t)}")
+            cli.renderer.warning = lambda t: captured_output.append(f" {clean_text(t)}")
+            cli.renderer.error = lambda t: captured_output.append(f" {clean_text(t)}")
 
             # Capture panel output
             original_panel = getattr(cli.renderer, 'panel', None)
             cli.renderer.panel = lambda content, **kwargs: captured_output.append(
-                f"📋 {kwargs.get('title', 'Panel')}:\n{clean_text(content)}"
+                f" {kwargs.get('title', 'Panel')}:\n{clean_text(content)}"
             )
 
             # Capture tree output
@@ -248,12 +248,12 @@ class CommandService:
             def capture_tree(data, **kwargs):
                 title = kwargs.get('title', 'Data')
                 if isinstance(data, dict):
-                    lines = [f"🌳 {title}:"]
+                    lines = [f" {title}:"]
                     for k, v in data.items():
                         lines.append(f"  • {k}: {v}")
                     captured_output.append("\n".join(lines))
                 else:
-                    captured_output.append(f"🌳 {title}: {data}")
+                    captured_output.append(f" {title}: {data}")
             cli.renderer.tree = capture_tree
 
             # Capture table output

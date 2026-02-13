@@ -166,7 +166,7 @@ class ProviderSelector:
         if random.random() < self.epsilon:
             self.exploration_count += 1
             selected = random.choice(available_providers)
-            logger.debug(f"🎲 Exploring: selected {selected.name} randomly")
+            logger.debug(f" Exploring: selected {selected.name} randomly")
             return selected
 
         self.exploitation_count += 1
@@ -181,7 +181,7 @@ class ProviderSelector:
         best_name = max(scores.keys(), key=lambda n: scores[n])
         best_provider = next(p for p in available_providers if p.name == best_name)
 
-        logger.debug(f"🎯 Exploiting: selected {best_name} (score: {scores[best_name]:.3f})")
+        logger.debug(f" Exploiting: selected {best_name} (score: {scores[best_name]:.3f})")
         return best_provider
 
     def _score_provider(
@@ -264,7 +264,7 @@ class ProviderSelector:
             if perf.q_value > 0.6:
                 self.selection_weights.update_from_feedback('q_value', 0.05, reward=1.0)
 
-        logger.debug(f"📊 Recorded {provider.name} result: success={result.success}, q={perf.q_value:.3f}")
+        logger.debug(f" Recorded {provider.name} result: success={result.success}, q={perf.q_value:.3f}")
 
     def _hash_task(self, task: str) -> str:
         """Create a hash for task pattern matching."""
@@ -417,7 +417,7 @@ class ProviderRegistry:
         # Register workflow-engine providers (n8n, Activepieces as skills)
         self._register_workflow_providers()
 
-        logger.info("📦 ProviderRegistry initialized")
+        logger.info(" ProviderRegistry initialized")
 
     def _register_app_building_providers(self):
         """Register app building providers. Streamlit first (default, open source)."""
@@ -492,7 +492,7 @@ class ProviderRegistry:
             self._trust_levels[provider.name] = self._detect_trust_level(provider)
 
         trust_str = self._trust_levels[provider.name].value
-        logger.info(f"✅ Registered provider: {provider.name} (trust: {trust_str}, categories: {[c.value for c in provider.get_categories()]})")
+        logger.info(f" Registered provider: {provider.name} (trust: {trust_str}, categories: {[c.value for c in provider.get_categories()]})")
 
     def _detect_trust_level(self, provider: SkillProvider) -> 'TrustLevel':
         """
@@ -618,7 +618,7 @@ class ProviderRegistry:
         category = self.detect_category(task)
 
         if category:
-            logger.info(f"🎯 Detected category: {category.value} for task: {task[:50]}...")
+            logger.info(f" Detected category: {category.value} for task: {task[:50]}...")
             return self.get_best_provider(category, task, context)
 
         logger.warning(f"Could not detect category for task: {task[:50]}...")
@@ -647,7 +647,7 @@ class ProviderRegistry:
             logger.warning(f"Could not detect category, using default")
             category = SkillCategory.CODE_EXECUTION  # Fallback
 
-        logger.info(f"🤖 Auto-executing: {task[:50]}... (category: {category.value})")
+        logger.info(f" Auto-executing: {task[:50]}... (category: {category.value})")
 
         return await self.execute(category, task, context)
 
@@ -726,7 +726,7 @@ class ProviderRegistry:
         from Jotty.core.orchestration.sandbox_manager import TrustLevel
         needs_sandbox = force_sandbox or (trust_level and trust_level != TrustLevel.TRUSTED)
 
-        logger.info(f"🚀 Executing via {provider.name}: {task[:50]}... (trust: {trust_level.value if trust_level else 'unknown'})")
+        logger.info(f" Executing via {provider.name}: {task[:50]}... (trust: {trust_level.value if trust_level else 'unknown'})")
 
         if needs_sandbox and trust_level:
             result = await self._execute_sandboxed(provider, task, context, trust_level)
@@ -783,7 +783,7 @@ class ProviderRegistry:
             try:
                 if not provider.is_initialized:
                     success = await provider.initialize()
-                    logger.info(f"Initialized {name}: {'✅' if success else '❌'}")
+                    logger.info(f"Initialized {name}: {'' if success else ''}")
             except Exception as e:
                 logger.error(f"Failed to initialize {name}: {e}")
 

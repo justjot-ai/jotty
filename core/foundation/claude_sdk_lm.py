@@ -62,7 +62,7 @@ class ClaudeSDKLM(dspy.BaseLM):
             from claude_agent_sdk import query, ClaudeAgentOptions
             self._query = query
             self._options_class = ClaudeAgentOptions
-            logger.info("✓ Claude Agent SDK available")
+            logger.info(" Claude Agent SDK available")
         except ImportError as e:
             raise LLMError(
                 "claude-agent-sdk not installed. "

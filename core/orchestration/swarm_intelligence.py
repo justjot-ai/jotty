@@ -745,7 +745,7 @@ class SwarmIntelligence:
         if wisdom['warnings']:
             lines.append("\n## Warnings:")
             for warning in wisdom['warnings']:
-                lines.append(f"  - ⚠️ {warning}")
+                lines.append(f" - {warning}")
 
         # Add specialization info
         specs = self.get_specialization_summary()

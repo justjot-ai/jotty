@@ -363,7 +363,7 @@ class LIDAStylePlanner:
                 logger.warning("Could not parse deck plan")
                 return None
 
-            logger.info(f"📋 Deck plan generated: {plan_data.get('estimated_slides', '?')} slides")
+            logger.info(f" Deck plan generated: {plan_data.get('estimated_slides', '?')} slides")
 
             # Build DeckPlan object
             deck_plan = DeckPlan(
@@ -542,35 +542,35 @@ class LIDAStylePlanner:
         """
         specs = {}
 
-        logger.info("🎨 Generating LIDA-style visualization specs...")
+        logger.info(" Generating LIDA-style visualization specs...")
 
         # Generate each spec type
         arch_spec = self.generate_architecture_spec(paper_data)
         if arch_spec:
             specs['architecture'] = arch_spec
-            logger.info(f"  ✅ Architecture: {len(arch_spec.nodes)} nodes")
+            logger.info(f" Architecture: {len(arch_spec.nodes)} nodes")
 
         flow_spec = self.generate_flow_spec(paper_data)
         if flow_spec:
             specs['flow'] = flow_spec
-            logger.info(f"  ✅ Flow: {len(flow_spec.nodes)} steps")
+            logger.info(f" Flow: {len(flow_spec.nodes)} steps")
 
         comparison_spec = self.generate_comparison_spec(paper_data)
         if comparison_spec:
             specs['comparison'] = comparison_spec
-            logger.info(f"  ✅ Comparison: {len(comparison_spec.left_items)} vs {len(comparison_spec.right_items)} points")
+            logger.info(f" Comparison: {len(comparison_spec.left_items)} vs {len(comparison_spec.right_items)} points")
 
         concept_map_spec = self.generate_concept_map_spec(paper_data)
         if concept_map_spec:
             specs['concept_map'] = concept_map_spec
-            logger.info(f"  ✅ Concept Map: {len(concept_map_spec.related_concepts)} concepts")
+            logger.info(f" Concept Map: {len(concept_map_spec.related_concepts)} concepts")
 
         metrics_spec = self.generate_metrics_spec(paper_data)
         if metrics_spec:
             specs['metrics'] = metrics_spec
-            logger.info(f"  ✅ Metrics: {len(metrics_spec.metrics)} stats")
+            logger.info(f" Metrics: {len(metrics_spec.metrics)} stats")
 
-        logger.info(f"📊 Generated {len(specs)} visualization specs")
+        logger.info(f" Generated {len(specs)} visualization specs")
 
         return specs
 

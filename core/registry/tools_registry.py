@@ -49,7 +49,7 @@ class ToolsRegistry:
         self._tools: Dict[str, ToolSchema] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._implementations: Dict[str, Callable] = {}  # Optional: store actual implementations
-        logger.info("🔧 ToolsRegistry initialized")
+        logger.info(" ToolsRegistry initialized")
     
     def register(
         self,
@@ -83,7 +83,7 @@ class ToolsRegistry:
         if implementation:
             self._implementations[name] = implementation
         
-        logger.debug(f"✅ Registered tool: {name} ({category})")
+        logger.debug(f" Registered tool: {name} ({category})")
     
     def register_batch(self, tools: List[Dict[str, Any]]):
         """Register multiple tools at once."""
@@ -129,7 +129,7 @@ class ToolsRegistry:
         self._tools.clear()
         self._by_category.clear()
         self._implementations.clear()
-        logger.info("🗑️  ToolsRegistry cleared")
+        logger.info(" ToolsRegistry cleared")
 
 
 # Global instance (can be extended by projects)

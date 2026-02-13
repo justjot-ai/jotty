@@ -32,7 +32,7 @@ class InferenceMixin:
         cache_key = task[:200]
         if cache_key in InferenceMixin._task_type_cache:
             cached = InferenceMixin._task_type_cache[cache_key]
-            logger.info(f"📋 Task type inferred: {cached[0].value} (confidence: {cached[2]:.2f}) [cached]")
+            logger.info(f" Task type inferred: {cached[0].value} (confidence: {cached[2]:.2f}) [cached]")
             return cached
 
         try:
@@ -85,7 +85,7 @@ class InferenceMixin:
 
             reasoning = str(result.reasoning).strip() if result.reasoning else f"Inferred as {task_type_str}"
 
-            logger.info(f"📋 Task type inferred: {task_type.value} (confidence: {confidence:.2f})")
+            logger.info(f" Task type inferred: {task_type.value} (confidence: {confidence:.2f})")
             result_tuple = (task_type, reasoning, confidence)
             InferenceMixin._task_type_cache[cache_key] = result_tuple
             return result_tuple
@@ -184,7 +184,7 @@ class InferenceMixin:
 
             reasoning = str(result.reasoning).strip() if result.reasoning else "Inferred from task"
 
-            logger.info(f"🎯 Capabilities inferred: {capabilities}")
+            logger.info(f" Capabilities inferred: {capabilities}")
             return capabilities, reasoning
 
         except Exception as e:

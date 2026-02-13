@@ -42,7 +42,7 @@ class ChatAssistant:
         """
         self.state_manager = state_manager
         self.config = config or {}
-        logger.info("✅ ChatAssistant initialized (A2UI enabled)")
+        logger.info(" ChatAssistant initialized (A2UI enabled)")
 
     async def run(self, **kwargs) -> Dict[str, Any]:
         """
@@ -304,10 +304,10 @@ class ChatAssistant:
         # Use return_kanban() helper (DRY way!)
         try:
             from ..ui import return_kanban
-            logger.info("✅ Using return_kanban() - DRY section rendering")
+            logger.info(" Using return_kanban() - DRY section rendering")
             return return_kanban(columns=columns, title=f'Task Summary ({len(all_tasks)} total)')
         except Exception as e:
-            logger.warning(f"⚠️  return_kanban() not available, falling back: {e}")
+            logger.warning(f" return_kanban() not available, falling back: {e}")
             import traceback
             logger.debug(traceback.format_exc())
 
@@ -398,11 +398,11 @@ class ChatAssistant:
         high_priority = [t for t in all_tasks if t.get('priority', 0) >= 3 and t.get('status') != 'completed']
         if high_priority:
             summary_lines.extend([
-                "## 🔥 High Priority Items",
+                "## High Priority Items",
                 ""
             ])
             for task in high_priority[:5]:  # Top 5
-                status_emoji = "⏳" if task.get('status') == 'in_progress' else "📋"
+                status_emoji = "⏳" if task.get('status') == 'in_progress' else ""
                 summary_lines.append(f"- {status_emoji} **{task.get('title', 'Untitled')}**")
             summary_lines.append("")
 
@@ -415,7 +415,7 @@ class ChatAssistant:
 
         if recent_completed:
             summary_lines.extend([
-                "## ✅ Recently Completed",
+                "## Recently Completed",
                 ""
             ])
             for task in recent_completed:
@@ -425,7 +425,7 @@ class ChatAssistant:
         # Add failed tasks if any
         if by_status['failed']:
             summary_lines.extend([
-                "## ⚠️ Failed Tasks (Need Attention)",
+                "## Failed Tasks (Need Attention)",
                 ""
             ])
             for task in by_status['failed'][:5]:
@@ -447,7 +447,7 @@ class ChatAssistant:
         return format_card(
             title="System Status",
             subtitle="All systems operational",
-            body="✅ Chat API: Online\n✅ Task Manager: Online\n✅ A2UI Widgets: Enabled"
+            body=" Chat API: Online\n Task Manager: Online\n A2UI Widgets: Enabled"
         )
 
     def _handle_help_query(self) -> Dict[str, Any]:
@@ -455,16 +455,16 @@ class ChatAssistant:
         help_text = """
 **I can help you with:**
 
-🎯 **Task Management**
+ **Task Management**
 - "How many tasks in backlog?"
 - "Show completed tasks"
 - "What tasks are in progress?"
 
-📊 **System Status**
+ **System Status**
 - "System status"
 - "Health check"
 
-💬 **General Chat**
+ **General Chat**
 - Ask me anything!
         """.strip()
 
@@ -660,29 +660,29 @@ def create_chat_assistant(state_manager=None, config: Optional[Dict[str, Any]] =
     import os
 
     logger.error("="*80)
-    logger.error("🔍 DEBUG: create_chat_assistant() CALLED!")
+    logger.error(" DEBUG: create_chat_assistant() CALLED!")
     logger.error("="*80)
 
     # Check if Anthropic API key is available for V2
     api_key = os.getenv('ANTHROPIC_API_KEY')
 
-    logger.error(f"🔍 DEBUG create_chat_assistant: API key present={bool(api_key)}, value={'***' + api_key[-10:] if api_key else 'None'}")
+    logger.error(f" DEBUG create_chat_assistant: API key present={bool(api_key)}, value={'***' + api_key[-10:] if api_key else 'None'}")
 
     if api_key:
         # Use V2 (LLM-driven, truly DRY!)
         try:
             from .chat_assistant_v2 import ChatAssistantV2
-            logger.error("✅ Using ChatAssistant V2 (LLM-driven section selection)")
+            logger.error(" Using ChatAssistant V2 (LLM-driven section selection)")
             return ChatAssistantV2(
                 state_manager=state_manager,
                 anthropic_api_key=api_key
             )
         except Exception as e:
-            logger.error(f"⚠️  Failed to initialize ChatAssistant V2: {e}")
+            logger.error(f" Failed to initialize ChatAssistant V2: {e}")
             import traceback
             logger.error(traceback.format_exc())
             # Fall through to V1
 
     # Use V1 (keyword-based, stable fallback)
-    logger.error("✅ Using ChatAssistant V1 (keyword-based intent detection)")
+    logger.error(" Using ChatAssistant V1 (keyword-based intent detection)")
     return ChatAssistant(state_manager=state_manager, config=config)

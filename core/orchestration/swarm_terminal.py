@@ -219,7 +219,7 @@ class SwarmTerminal:
         self._read_file = None
         self._load_file_operations()
 
-        logger.info("🖥️  SwarmTerminal initialized (intelligent terminal agent)")
+        logger.info(" SwarmTerminal initialized (intelligent terminal agent)")
 
     def _load_web_search(self):
         """Load web search capability."""
@@ -410,7 +410,7 @@ class SwarmTerminal:
             return result
 
         # Error handling pipeline
-        logger.info(f"⚠️  Command failed: {command}")
+        logger.info(f" Command failed: {command}")
         logger.debug(f"   Error: {result.error[:200]}")
 
         if not auto_fix:
@@ -418,7 +418,7 @@ class SwarmTerminal:
 
         # Try to fix
         for attempt in range(self.max_fix_attempts):
-            logger.info(f"🔧 Fix attempt {attempt + 1}/{self.max_fix_attempts}")
+            logger.info(f" Fix attempt {attempt + 1}/{self.max_fix_attempts}")
 
             # Find solution
             solution = await self._find_solution(command, result.error)
@@ -444,7 +444,7 @@ class SwarmTerminal:
 
                 # Cache successful fix
                 self._cache_fix(result.error, solution)
-                logger.info(f"✅ Fixed: {solution.solution}")
+                logger.info(f" Fixed: {solution.solution}")
                 return result
 
         return result
@@ -871,7 +871,7 @@ Auto-generated skill to solve: {problem[:100]}
                 for dep in result.dependencies:
                     await self.execute(f"pip install {dep}", auto_fix=False)
 
-            logger.info(f"✨ Generated new skill: {final_name}")
+            logger.info(f" Generated new skill: {final_name}")
 
             return {
                 "name": final_name,

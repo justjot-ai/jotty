@@ -83,10 +83,10 @@ class StatusReporter:
 
     Usage::
 
-        report = StatusReporter(callback, logger, emoji="📍")
+        report = StatusReporter(callback, logger, emoji="")
         report("Planning", "discovering skills")
         # → calls callback("Planning", "discovering skills")
-        # → logs  "📍 Planning: discovering skills"
+        # → logs " Planning: discovering skills"
 
         # With prefix (for multi-agent):
         sub = report.with_prefix("[agent1]")

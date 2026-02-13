@@ -44,7 +44,7 @@ class SharedContext:
         self.data: Dict[str, Any] = {}
         self._lock = Lock()
         
-        logger.info("🗂️  SharedContext initialized (simple dict store)")
+        logger.info(" SharedContext initialized (simple dict store)")
     
     def set(self, key: str, value: Any):
         """
@@ -58,7 +58,7 @@ class SharedContext:
         """
         with self._lock:
             self.data[key] = value
-            logger.debug(f"🗂️  SharedContext.set('{key}') - type: {type(value).__name__}")
+            logger.debug(f" SharedContext.set('{key}') - type: {type(value).__name__}")
     
     def get(self, key: str) -> Optional[Any]:
         """
@@ -75,9 +75,9 @@ class SharedContext:
         with self._lock:
             value = self.data.get(key)
             if value is not None:
-                logger.debug(f"🗂️  SharedContext.get('{key}') - found")
+                logger.debug(f" SharedContext.get('{key}') - found")
             else:
-                logger.debug(f"🗂️  SharedContext.get('{key}') - not found")
+                logger.debug(f" SharedContext.get('{key}') - not found")
             return value
     
     def get_all(self) -> Dict[str, Any]:
@@ -127,7 +127,7 @@ class SharedContext:
         """
         with self._lock:
             self.data.clear()
-            logger.debug("🗂️  SharedContext cleared")
+            logger.debug(" SharedContext cleared")
     
     def summary(self) -> str:
         """

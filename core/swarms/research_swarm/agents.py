@@ -509,7 +509,7 @@ class ChartGeneratorAgent(BaseSwarmAgent):
                 plt.close()
                 chart_paths.append(str(volume_chart))
 
-            logger.info(f"📊 Generated {len(chart_paths)} charts for {ticker}")
+            logger.info(f" Generated {len(chart_paths)} charts for {ticker}")
 
             self._broadcast("charts_generated", {'ticker': ticker, 'count': len(chart_paths)})
 
@@ -698,7 +698,7 @@ class EnhancedChartGeneratorAgent(BaseSwarmAgent):
                 if basic_chart:
                     chart_paths.append(basic_chart)
 
-        logger.info(f"📊 Generated {len(chart_paths)} enhanced charts for {ticker}")
+        logger.info(f" Generated {len(chart_paths)} enhanced charts for {ticker}")
         self._broadcast("charts_generated", {'ticker': ticker, 'count': len(chart_paths)})
 
         return {'chart_paths': chart_paths}

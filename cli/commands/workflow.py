@@ -161,7 +161,7 @@ class WorkflowCommand(BaseCommand):
                             return CommandResult.ok()
 
                         for wf in workflows[:20]:
-                            active = "✓" if wf.get("active") else "○"
+                            active = "" if wf.get("active") else "○"
                             cli.renderer.print(
                                 f"  {active} [cyan]{wf.get('name', 'Unnamed')}[/cyan] "
                                 f"[dim](ID: {wf.get('id')})[/dim]"
@@ -498,7 +498,7 @@ class WorkflowCommand(BaseCommand):
             workflow = self._generate_n8n_workflow(name, template, flags)
             path = output_dir / f"{name}.json"
             path.write_text(json.dumps(workflow, indent=2))
-            cli.renderer.print(f"  ✓ {name}.json")
+            cli.renderer.print(f" {name}.json")
 
         cli.renderer.success(f"Exported to: {output_dir}")
         cli.renderer.info("Import into n8n via Settings > Import")

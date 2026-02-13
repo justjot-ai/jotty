@@ -245,14 +245,14 @@ class BatchBacktestReportCommand(BaseCommand):
                         'sharpe': backtest.get('strategy', {}).get('sharpe', 0),
                         'outperformance': backtest.get('outperformance', 0),
                     })
-                    cli.renderer.info(f"  ✓ {symbol}: Return={backtest.get('strategy', {}).get('total_return', 0):+.1f}%, Sharpe={backtest.get('strategy', {}).get('sharpe', 0):.2f}")
+                    cli.renderer.info(f" {symbol}: Return={backtest.get('strategy', {}).get('total_return', 0):+.1f}%, Sharpe={backtest.get('strategy', {}).get('sharpe', 0):.2f}")
                 else:
                     results.append({'symbol': symbol, 'status': 'failed'})
-                    cli.renderer.info(f"  ✗ {symbol}: Failed")
+                    cli.renderer.info(f" {symbol}: Failed")
 
             except Exception as e:
                 results.append({'symbol': symbol, 'status': 'error', 'error': str(e)})
-                cli.renderer.info(f"  ✗ {symbol}: Error - {e}")
+                cli.renderer.info(f" {symbol}: Error - {e}")
 
         # Summary
         successful = [r for r in results if r['status'] == 'success']

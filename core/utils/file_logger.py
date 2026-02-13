@@ -69,7 +69,7 @@ def setup_file_logging(
         root_logger.addHandler(debug_handler)
 
     # Log that file logging is active
-    root_logger.info(f"📁 File logging enabled: {logs_dir}/")
+    root_logger.info(f" File logging enabled: {logs_dir}/")
     if enable_beautified:
         root_logger.info(f"   • Beautified log: {beautified_path}")
     if enable_debug:

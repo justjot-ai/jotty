@@ -92,7 +92,7 @@ class OpenHandsProvider(SkillProvider):
                 self._agent = OpenHandsAgent()
                 self.is_initialized = True
                 self.is_available = True
-                logger.info(f"✅ {self.name} provider initialized with full SDK")
+                logger.info(f" {self.name} provider initialized with full SDK")
                 return True
             except Exception as e:
                 logger.warning(f"OpenHands SDK init failed: {e}, using fallback")
@@ -100,7 +100,7 @@ class OpenHandsProvider(SkillProvider):
         # Fallback: Use subprocess-based terminal
         self.is_initialized = True
         self.is_available = True
-        logger.info(f"✅ {self.name} provider initialized (fallback mode)")
+        logger.info(f" {self.name} provider initialized (fallback mode)")
         return True
 
     def get_categories(self) -> List[SkillCategory]:
@@ -164,7 +164,7 @@ class OpenHandsProvider(SkillProvider):
                 category=SkillCategory.TERMINAL,
             )
 
-        logger.info(f"🖥️  Executing: {command}")
+        logger.info(f" Executing: {command}")
 
         try:
             # Run command

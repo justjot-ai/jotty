@@ -2,12 +2,12 @@
 Shaped Rewards - Intermediate Rewards for Long-Horizon Tasks
 ============================================================
 
-🎯 ADDRESSES: Sparse reward problem (GRF MARL paper, Song et al. 2023)
+ ADDRESSES: Sparse reward problem (GRF MARL paper, Song et al. 2023)
 
 Long-horizon tasks (like SQL generation) have sparse final rewards.
 Shaped rewards provide intermediate signals for partial progress.
 
-🔬 NO HARDCODING - Reward conditions are LLM-evaluated, not rule-based.
+ NO HARDCODING - Reward conditions are LLM-evaluated, not rule-based.
 
 Research Foundations:
 - Yang & Tang (2020): "Adaptive inner-reward shaping in sparse reward games"
@@ -47,7 +47,7 @@ class RewardCondition:
     """
     A condition that triggers an intermediate reward.
     
-    🔬 NO HARDCODING - Condition is evaluated by LLM, not regex.
+     NO HARDCODING - Condition is evaluated by LLM, not regex.
     """
     name: str
     description: str
@@ -102,7 +102,7 @@ def _get_reward_condition_signature():
 
 class AgenticRewardEvaluator:
     """
-    🔬 NO HARDCODING - LLM evaluates reward conditions.
+     NO HARDCODING - LLM evaluates reward conditions.
     
     Instead of regex checking for "table_name in output", the LLM
     reasons about whether progress conditions are met.
@@ -115,7 +115,7 @@ class AgenticRewardEvaluator:
             self.evaluator = dspy.ChainOfThought(sig)
         else:
             self.evaluator = None
-        logger.info("🎁 AgenticRewardEvaluator initialized (pure LLM, no regex)")
+        logger.info(" AgenticRewardEvaluator initialized (pure LLM, no regex)")
     
     def evaluate_condition(
         self,
@@ -157,7 +157,7 @@ class AgenticRewardEvaluator:
             return is_met, confidence, result.evidence
             
         except Exception as e:
-            logger.warning(f"⚠️ Condition evaluation failed: {e}")
+            logger.warning(f" Condition evaluation failed: {e}")
             return False, 0.0, str(e)
     
     def _format_trajectory(self, trajectory: List[Dict]) -> str:
@@ -191,8 +191,8 @@ class ShapedRewardManager:
     """
     Manages intermediate shaped rewards for long-horizon tasks.
     
-    🎯 ADDRESSES: Sparse reward problem (GRF MARL paper)
-    🔬 NO HARDCODING: Conditions evaluated by LLM
+     ADDRESSES: Sparse reward problem (GRF MARL paper)
+     NO HARDCODING: Conditions evaluated by LLM
     
     Standard Conditions (generic, not domain-specific):
     - input_validated: All required inputs are present and valid
@@ -280,7 +280,7 @@ class ShapedRewardManager:
         self.total_shaped_reward = 0.0
         self.reward_history: List[Dict] = []
         
-        logger.info(f"🎁 ShapedRewardManager initialized with {len(self.conditions)} conditions")
+        logger.info(f" ShapedRewardManager initialized with {len(self.conditions)} conditions")
     
     def check_rewards(
         self,
@@ -343,7 +343,7 @@ class ShapedRewardManager:
                     'timestamp': time.time(),
                 })
                 
-                logger.info(f"🎁 Shaped reward: {condition.name} = {reward:.3f} (confidence={confidence:.2f})")
+                logger.info(f" Shaped reward: {condition.name} = {reward:.3f} (confidence={confidence:.2f})")
                 logger.debug(f"   Evidence: {evidence}")
         
         self.total_shaped_reward += total_reward
@@ -376,7 +376,7 @@ class ShapedRewardManager:
     def add_condition(self, condition: RewardCondition):
         """Add a custom condition at runtime."""
         self.conditions.append(condition)
-        logger.info(f"📝 Added custom condition: {condition.name}")
+        logger.info(f" Added custom condition: {condition.name}")
 
 
 # =============================================================================

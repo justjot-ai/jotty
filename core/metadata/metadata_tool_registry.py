@@ -1,11 +1,11 @@
 """
 MetadataToolRegistry: Automatic discovery and registration of metadata tools.
 
-# ✅ A-TEAM UNANIMOUS DESIGN (Vote: 5-0)
-# ✅ LLM-driven tool selection
-# ✅ Automatic discovery via @jotty_method decorator
-# ✅ Rich metadata for LLM guidance
-# ✅ Tool caching and monitoring
+# A-TEAM UNANIMOUS DESIGN (Vote: 5-0)
+# LLM-driven tool selection
+# Automatic discovery via @jotty_method decorator
+# Rich metadata for LLM guidance
+# Tool caching and monitoring
 
 Design Philosophy:
 - Discovers ALL @jotty_method decorated methods via introspection
@@ -27,7 +27,7 @@ class MetadataToolRegistry:
     """
     Discovers and manages metadata tools for Jotty actors.
     
-#     ✅ A-TEAM DESIGN: Automatic discovery + LLM-driven selection
+# A-TEAM DESIGN: Automatic discovery + LLM-driven selection
     
     Features:
     1. **Automatic Discovery**: Finds all @jotty_method decorated methods
@@ -66,15 +66,15 @@ class MetadataToolRegistry:
         self._cache: Dict[str, Any] = {}
         self._usage_stats: Dict[str, int] = {}
         
-        logger.info(f"🔍 Discovering tools from {type(metadata_instance).__name__}...")
+        logger.info(f" Discovering tools from {type(metadata_instance).__name__}...")
         self._discover_tools()
-        logger.info(f"✅ Discovered {len(self.tools)} ReVal tools")
+        logger.info(f" Discovered {len(self.tools)} ReVal tools")
     
     def _discover_tools(self):
         """
         Discover all @jotty_method decorated methods via introspection.
         
-#         ✅ A-TEAM DESIGN: Zero configuration, automatic discovery
+# A-TEAM DESIGN: Zero configuration, automatic discovery
         
         Process:
         1. Iterate through all attributes of metadata instance
@@ -92,12 +92,12 @@ class MetadataToolRegistry:
             try:
                 attr = getattr(self.metadata, attr_name)
                 
-                # 🔧 A-TEAM FIX: Check for _jotty_meta (from metadata_protocol.py)
+                # A-TEAM FIX: Check for _jotty_meta (from metadata_protocol.py)
                 if hasattr(attr, '_jotty_meta'):
                     tool_info = attr._jotty_meta
                     tool_name = attr_name  # Use the actual method name
                     
-                    # 🔥 A-TEAM CRITICAL FIX: Extract for_architect/for_auditor flags!
+                    # A-TEAM CRITICAL FIX: Extract for_architect/for_auditor flags!
                     for_architect = getattr(attr, '_jotty_for_architect', False)
                     for_auditor = getattr(attr, '_jotty_for_auditor', False)
                     
@@ -111,19 +111,19 @@ class MetadataToolRegistry:
                         'cache': tool_info['cache'],
                         'callable': attr,  # Bound method
                         'signature': self._extract_signature(attr),
-                        'for_architect': for_architect,  # 🔥 A-TEAM: Val agent flag
-                        'for_auditor': for_auditor  # 🔥 A-TEAM: Val agent flag
+                        'for_architect': for_architect, # A-TEAM: Val agent flag
+                        'for_auditor': for_auditor # A-TEAM: Val agent flag
                     }
                     
-                    logger.debug(f"  ✅ {tool_name}(): {tool_info['desc'][:60]}... (architect={for_architect}, auditor={for_auditor})")
+                    logger.debug(f" {tool_name}(): {tool_info['desc'][:60]}... (architect={for_architect}, auditor={for_auditor})")
                     discovered_count += 1
             
             except Exception as e:
-                logger.warning(f"  ⚠️  Failed to inspect {attr_name}: {e}")
+                logger.warning(f" Failed to inspect {attr_name}: {e}")
         
         if discovered_count == 0:
             logger.warning(
-                f"⚠️  No @jotty_method decorated methods found in {type(self.metadata).__name__}. "
+                f" No @jotty_method decorated methods found in {type(self.metadata).__name__}. "
                 f"Did you forget to add @jotty_method decorator?"
             )
     
@@ -161,14 +161,14 @@ class MetadataToolRegistry:
             }
         
         except Exception as e:
-            logger.warning(f"⚠️  Failed to extract signature: {e}")
+            logger.warning(f" Failed to extract signature: {e}")
             return {'parameters': {}, 'return_annotation': Any}
     
     def get_tool_catalog_for_llm(self) -> str:
         """
         Generate LLM-friendly tool catalog.
         
-#         ✅ A-TEAM DESIGN: Rich context for LLM decision-making
+# A-TEAM DESIGN: Rich context for LLM decision-making
         
         Returns:
             Formatted string describing all available tools
@@ -191,7 +191,7 @@ class MetadataToolRegistry:
         if not self.tools:
             return "No metadata tools available."
         
-        catalog = "📚 Available Metadata Tools:\n\n"
+        catalog = " Available Metadata Tools:\n\n"
         
         for tool_name, info in sorted(self.tools.items()):
             # Tool signature
@@ -200,7 +200,7 @@ class MetadataToolRegistry:
                 param_names = list(info['signature']['parameters'].keys())
                 params_str = f"({', '.join(param_names)})"
             
-            catalog += f"🔧 Tool: {tool_name}{params_str}\n"
+            catalog += f" Tool: {tool_name}{params_str}\n"
             catalog += f"   Description: {info['desc']}\n"
             catalog += f"   When to use: {info['when']}\n"
             
@@ -227,7 +227,7 @@ class MetadataToolRegistry:
         """
         Call a tool by name with parameters.
         
-#         ✅ A-TEAM DESIGN: Unified interface + smart caching
+# A-TEAM DESIGN: Unified interface + smart caching
         
         Args:
             tool_name: Name of the tool to call
@@ -250,7 +250,7 @@ class MetadataToolRegistry:
         if tool_name not in self.tools:
             available = ', '.join(self.tools.keys())
             raise ValueError(
-                f"❌ Tool '{tool_name}' not found. "
+                f" Tool '{tool_name}' not found. "
                 f"Available tools: {available}"
             )
         
@@ -260,7 +260,7 @@ class MetadataToolRegistry:
         if tool['cache']:
             cache_key = self._make_cache_key(tool_name, kwargs)
             if cache_key in self._cache:
-                logger.debug(f"💾 Cache hit for {tool_name}()")
+                logger.debug(f" Cache hit for {tool_name}()")
                 self._usage_stats[tool_name] = self._usage_stats.get(tool_name, 0) + 1
                 return self._cache[cache_key]
         
@@ -269,7 +269,7 @@ class MetadataToolRegistry:
         
         # Call tool
         try:
-            logger.debug(f"🔧 Calling {tool_name}({', '.join(f'{k}={v}' for k, v in kwargs.items())})")
+            logger.debug(f" Calling {tool_name}({', '.join(f'{k}={v}' for k, v in kwargs.items())})")
             result = tool['callable'](**kwargs)
             
             # Cache if enabled
@@ -280,11 +280,11 @@ class MetadataToolRegistry:
             # Track usage
             self._usage_stats[tool_name] = self._usage_stats.get(tool_name, 0) + 1
             
-            logger.debug(f"✅ {tool_name}() returned {type(result).__name__}")
+            logger.debug(f" {tool_name}() returned {type(result).__name__}")
             return result
         
         except Exception as e:
-            logger.error(f"❌ Tool {tool_name}() failed: {e}")
+            logger.error(f" Tool {tool_name}() failed: {e}")
             raise
     
     def _make_cache_key(self, tool_name: str, kwargs: Dict[str, Any]) -> str:
@@ -313,7 +313,7 @@ class MetadataToolRegistry:
         missing = [p for p in required_params if p not in kwargs]
         if missing:
             raise TypeError(
-                f"❌ Tool {tool['name']}() missing required parameters: {missing}"
+                f" Tool {tool['name']}() missing required parameters: {missing}"
             )
     
     def list_tools(self) -> List[str]:
@@ -349,7 +349,7 @@ class MetadataToolRegistry:
     def clear_cache(self):
         """Clear all cached tool results."""
         self._cache.clear()
-        logger.info(f"🗑️  Cleared tool cache")
+        logger.info(f" Cleared tool cache")
     
     def __repr__(self) -> str:
         return (

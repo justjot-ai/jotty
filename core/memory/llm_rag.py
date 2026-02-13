@@ -527,7 +527,7 @@ Score 0.0: Completely unrelated
 
 class MemorySynthesizer:
     """
-    🧠 Neuroscience-Aligned Memory Synthesis
+     Neuroscience-Aligned Memory Synthesis
 
     How human memory ACTUALLY works:
     - Hippocampus: Pattern completion across related memories
@@ -612,12 +612,12 @@ class MemorySynthesizer:
             if len(synthesized) > max_chars:
                 synthesized = synthesized[:max_chars] + "\n...(truncated for context limits)"
 
-            logger.debug(f"🧠 Synthesized {len(memories)} memories into {len(synthesized)} char wisdom")
+            logger.debug(f" Synthesized {len(memories)} memories into {len(synthesized)} char wisdom")
 
             return synthesized
 
         except Exception as e:
-            logger.warning(f"⚠️  Synthesis failed: {e}, falling back to discrete concatenation")
+            logger.warning(f" Synthesis failed: {e}, falling back to discrete concatenation")
 
             # Fallback: Simple concatenation of top memories
             fallback = []
@@ -709,13 +709,13 @@ class DeduplicationEngine:
         
         Returns deduplicated list with merged content.
         
-        🔥 A-TEAM FIX: Skip deduplication for very large memories (>10KB)
+         A-TEAM FIX: Skip deduplication for very large memories (>10KB)
         to prevent LLM context overflow and 400 Bad Request errors!
         """
         if len(memories) <= 1:
             return memories
         
-        # 🔥 A-TEAM: Filter out huge memories that would cause LLM timeout
+        # A-TEAM: Filter out huge memories that would cause LLM timeout
         MAX_MEMORY_SIZE = 10000  # 10KB limit
         normal_memories = []
         large_memories = []
@@ -723,7 +723,7 @@ class DeduplicationEngine:
         for mem in memories:
             if len(mem.content) > MAX_MEMORY_SIZE:
                 large_memories.append(mem)
-                logger.info(f"📦 Memory too large ({len(mem.content)} chars), skipping dedup for: {mem.key[:50]}...")
+                logger.info(f" Memory too large ({len(mem.content)} chars), skipping dedup for: {mem.key[:50]}...")
             else:
                 normal_memories.append(mem)
         
@@ -1019,7 +1019,7 @@ class LLMRAGRetriever:
                                  memories: List[MemoryEntry],
                                  context_hints: str = "") -> str:
         """
-        🧠 Brain-Inspired Retrieval: Fetch broadly + Synthesize wisdom
+         Brain-Inspired Retrieval: Fetch broadly + Synthesize wisdom
 
         How this is MORE intelligent than discrete retrieval:
         1. Fetches comprehensively (200 memories vs 10)
@@ -1052,7 +1052,7 @@ class LLMRAGRetriever:
 
         candidate_memories = [m for m, _ in candidates]
 
-        logger.info(f"🧠 Synthesis mode: Fetched {len(candidate_memories)} memories for synthesis")
+        logger.info(f" Synthesis mode: Fetched {len(candidate_memories)} memories for synthesis")
 
         # Step 2: Synthesize (like neocortical consolidation)
         synthesized_wisdom = self.synthesizer.synthesize_wisdom(

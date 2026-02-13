@@ -334,9 +334,9 @@ class SmartDataTransformer:
         
         self.tools = FormatTools()
         self.transformation_history = []
-        logger.info("✅ SmartDataTransformer initialized with ReAct + Format Tools")
+        logger.info(" SmartDataTransformer initialized with ReAct + Format Tools")
         if self.lm:
-            logger.info(f"   🔧 Using LM: {getattr(self.lm, 'model', 'unknown')}")
+            logger.info(f" Using LM: {getattr(self.lm, 'model', 'unknown')}")
     
     def transform(
         self,
@@ -362,29 +362,29 @@ class SmartDataTransformer:
         source_type = type(source).__name__
         target_type_name = getattr(target_type, '__name__', str(target_type))
         
-        logger.info(f"🔄 SmartDataTransformer: {source_type} → {target_type_name}")
+        logger.info(f" SmartDataTransformer: {source_type} → {target_type_name}")
         logger.info(f"   Context: {context}")
         logger.info(f"   Param: {param_name}")
         
-        # 🔥 A-TEAM FIX: Handle Union types properly!
+        # A-TEAM FIX: Handle Union types properly!
         # Union types can't be used with isinstance(), need to check each type in Union
         origin = get_origin(target_type)
         if origin is Union:
             # For Union types, check if source matches ANY type in the Union
             union_args = get_args(target_type)
-            logger.info(f"🔍 Union type detected: {union_args}")
+            logger.info(f" Union type detected: {union_args}")
             
             # Check if source already matches any type in Union
             for union_type in union_args:
                 if union_type is type(None):
                     # Handle NoneType specially
                     if source is None:
-                        logger.info(f"✅ Source is None, matches Union")
+                        logger.info(f" Source is None, matches Union")
                         return source
                 else:
                     try:
                         if isinstance(source, union_type):
-                            logger.info(f"✅ Source matches {union_type.__name__} in Union, no transformation needed")
+                            logger.info(f" Source matches {union_type.__name__} in Union, no transformation needed")
                             return source
                     except TypeError:
                         # Some types can't be used with isinstance either
@@ -393,53 +393,53 @@ class SmartDataTransformer:
             # If no match, try to transform to the first concrete type in Union
             for union_type in union_args:
                 if union_type is not type(None):
-                    logger.info(f"🔄 Attempting transformation to {union_type.__name__} (first concrete type in Union)")
+                    logger.info(f" Attempting transformation to {union_type.__name__} (first concrete type in Union)")
                     try:
                         result = self._transform_with_tools(source, union_type.__name__, context)
                         if result is not None:
-                            logger.info(f"✅ Transformation successful!")
+                            logger.info(f" Transformation successful!")
                             return result
                     except Exception as e:
-                        logger.debug(f"⚠️  Transformation to {union_type.__name__} failed: {e}")
+                        logger.debug(f" Transformation to {union_type.__name__} failed: {e}")
                         continue
             
             # If all transformations fail, just return the source as-is
             # DSPy ReAct will handle the rest!
-            logger.info(f"⚠️  No transformation succeeded, returning source as-is (DSPy will handle)")
+            logger.info(f" No transformation succeeded, returning source as-is (DSPy will handle)")
             return source
         
         # Fast path: already correct type (non-Union)
         try:
             if isinstance(source, target_type):
-                logger.info(f"✅ Already correct type, no transformation needed")
+                logger.info(f" Already correct type, no transformation needed")
                 return source
         except TypeError:
             # target_type can't be used with isinstance (e.g., generic types)
-            logger.info(f"⚠️  Can't check isinstance for {target_type_name}, attempting transformation")
+            logger.info(f" Can't check isinstance for {target_type_name}, attempting transformation")
         
         # Use tools to transform
         result = self._transform_with_tools(source, target_type_name, context)
         
         if result is None:
-            # 🔥 A-TEAM: Don't raise error, just return source
+            # A-TEAM: Don't raise error, just return source
             # Let DSPy ReAct handle type conversion!
-            logger.info(f"⚠️  Transformation failed, returning source as-is (DSPy will handle)")
+            logger.info(f" Transformation failed, returning source as-is (DSPy will handle)")
             return source
         
         # Validate result type (only for non-Union, non-generic types)
         try:
             if not isinstance(result, target_type):
-                logger.warning(f"⚠️  Transformation produced {type(result).__name__}, expected {target_type_name}")
+                logger.warning(f" Transformation produced {type(result).__name__}, expected {target_type_name}")
                 # Still return it, let DSPy handle
                 return result
         except TypeError:
             # Can't validate with isinstance, just return
             pass
         
-        logger.info(f"✅ Transformation successful!")
+        logger.info(f" Transformation successful!")
         return result
     
-    # 🔥 NEW: AgentSlack-compatible async API
+    # NEW: AgentSlack-compatible async API
     async def transform_async(
         self,
         data: Any,
@@ -459,16 +459,16 @@ class SmartDataTransformer:
         Returns:
             Transformed data in target_format
         """
-        logger.info(f"🔄 [AgentSlack API] Transform: {source_format or 'auto'} → {target_format}")
+        logger.info(f" [AgentSlack API] Transform: {source_format or 'auto'} → {target_format}")
         
         # Auto-detect source format if not provided
         if source_format is None:
             source_format = self._detect_format(data)
-            logger.info(f"   🔍 Auto-detected source format: {source_format}")
+            logger.info(f" Auto-detected source format: {source_format}")
         
         # If formats match, return as-is
         if source_format == target_format:
-            logger.info(f"   ✅ Formats match, no transformation needed")
+            logger.info(f" Formats match, no transformation needed")
             return data
         
         # Map format strings to types
@@ -490,10 +490,10 @@ class SmartDataTransformer:
             # dict/list → JSON string
             try:
                 result = json.dumps(data, ensure_ascii=False, indent=None)
-                logger.info(f"   ✅ Converted to JSON string ({len(result)} chars)")
+                logger.info(f" Converted to JSON string ({len(result)} chars)")
                 return result
             except Exception as e:
-                logger.error(f"   ❌ JSON conversion failed: {e}")
+                logger.error(f" JSON conversion failed: {e}")
                 raise
         
         elif target_format == 'csv_string':
@@ -510,7 +510,7 @@ class SmartDataTransformer:
                         writer.writeheader()
                         writer.writerows(data)
                         result = output.getvalue()
-                        logger.info(f"   ✅ Converted to CSV string ({len(result)} chars, {len(data)} rows)")
+                        logger.info(f" Converted to CSV string ({len(result)} chars, {len(data)} rows)")
                         return result
                     else:
                         # List of values → simple CSV
@@ -519,13 +519,13 @@ class SmartDataTransformer:
                         for item in data:
                             writer.writerow([item] if not isinstance(item, (list, tuple)) else item)
                         result = output.getvalue()
-                        logger.info(f"   ✅ Converted to CSV string ({len(result)} chars)")
+                        logger.info(f" Converted to CSV string ({len(result)} chars)")
                         return result
                 else:
-                    logger.warning(f"   ⚠️  Data is not a list, converting to string")
+                    logger.warning(f" Data is not a list, converting to string")
                     return str(data)
             except Exception as e:
-                logger.error(f"   ❌ CSV conversion failed: {e}")
+                logger.error(f" CSV conversion failed: {e}")
                 raise
         
         elif target_format == 'list_of_dicts':
@@ -534,14 +534,14 @@ class SmartDataTransformer:
                 try:
                     reader = csv.DictReader(io.StringIO(data))
                     result = list(reader)
-                    logger.info(f"   ✅ Converted CSV to list of dicts ({len(result)} rows)")
+                    logger.info(f" Converted CSV to list of dicts ({len(result)} rows)")
                     return result
                 except Exception as e:
-                    logger.error(f"   ❌ CSV parsing failed: {e}")
+                    logger.error(f" CSV parsing failed: {e}")
                     raise
             elif isinstance(data, list):
                 # Already a list, just return it
-                logger.info(f"   ✅ Already a list")
+                logger.info(f" Already a list")
                 return data
         
         # Generic transformation using existing method
@@ -596,63 +596,63 @@ class SmartDataTransformer:
         attempts = []
         
         # Attempt 1: Direct type conversion test
-        logger.debug("   🔧 Tool: test_type_conversion")
+        logger.debug(" Tool: test_type_conversion")
         test_result = self.tools.test_type_conversion(source, target_type_name)
         attempts.append(('test_type_conversion', test_result))
         
         if test_result['success']:
-            logger.debug(f"   ✅ Direct conversion worked!")
+            logger.debug(f" Direct conversion worked!")
             return test_result['result']
         
-        logger.debug(f"   ❌ Direct conversion failed: {test_result['error']}")
+        logger.debug(f" Direct conversion failed: {test_result['error']}")
         
         # Attempt 2: If target is dict, try JSON tools
         if target_type_name == 'dict' and isinstance(source, str):
             # Try JSON load
-            logger.debug("   🔧 Tool: test_json_load")
+            logger.debug(" Tool: test_json_load")
             json_result = self.tools.test_json_load(source_str)
             attempts.append(('test_json_load', json_result))
             
             if json_result['success'] and isinstance(json_result['result'], dict):
-                logger.debug(f"   ✅ JSON load worked!")
+                logger.debug(f" JSON load worked!")
                 return json_result['result']
             
             # JSON failed - try fixing quotes
             if not json_result['success'] and json_result['suggestions']:
-                logger.debug(f"   💡 Suggestion: {json_result['suggestions'][0]}")
-                logger.debug("   🔧 Tool: fix_json_quotes")
+                logger.debug(f" Suggestion: {json_result['suggestions'][0]}")
+                logger.debug(" Tool: fix_json_quotes")
                 fixed_str = self.tools.fix_json_quotes(source_str)
                 
                 # Try again with fixed quotes
-                logger.debug("   🔧 Tool: test_json_load (retry)")
+                logger.debug(" Tool: test_json_load (retry)")
                 json_retry = self.tools.test_json_load(fixed_str)
                 attempts.append(('test_json_load_retry', json_retry))
                 
                 if json_retry['success'] and isinstance(json_retry['result'], dict):
-                    logger.debug(f"   ✅ JSON load after fix worked!")
+                    logger.debug(f" JSON load after fix worked!")
                     return json_retry['result']
             
             # Try Python literal eval (handles single quotes)
-            logger.debug("   🔧 Tool: test_python_literal")
+            logger.debug(" Tool: test_python_literal")
             literal_result = self.tools.test_python_literal(source_str)
             attempts.append(('test_python_literal', literal_result))
             
             if literal_result['success'] and isinstance(literal_result['result'], dict):
-                logger.debug(f"   ✅ Python literal_eval worked!")
+                logger.debug(f" Python literal_eval worked!")
                 return literal_result['result']
         
         # Attempt 3: If target is list, try list tools
         if target_type_name == 'list' and isinstance(source, str):
-            logger.debug("   🔧 Tool: test_string_to_list")
+            logger.debug(" Tool: test_string_to_list")
             list_result = self.tools.test_string_to_list(source_str)
             attempts.append(('test_string_to_list', list_result))
             
             if list_result['success']:
-                logger.debug(f"   ✅ String to list worked! (method: {list_result.get('method')})")
+                logger.debug(f" String to list worked! (method: {list_result.get('method')})")
                 return list_result['result']
         
         # All attempts failed - but this is OK! DSPy will handle it
-        logger.info(f"   ⚠️  All transformation attempts completed without success")
+        logger.info(f" All transformation attempts completed without success")
         logger.debug(f"   Attempts: {len(attempts)}")
         for tool_name, result in attempts:
             logger.debug(f"     - {tool_name}: {result.get('error', 'Unknown error')}")

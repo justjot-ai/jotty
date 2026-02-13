@@ -89,10 +89,10 @@ class RichObservation:
             parts.append(f"COLUMNS: {', '.join(self.columns_touched)}")
 
         if self.anomalies:
-            parts.append(f"⚠️ ANOMALIES: {'; '.join(self.anomalies)}")
+            parts.append(f" ANOMALIES: {'; '.join(self.anomalies)}")
 
         if self.warnings:
-            parts.append(f"⚠️ WARNINGS: {'; '.join(self.warnings)}")
+            parts.append(f" WARNINGS: {'; '.join(self.warnings)}")
 
         if self.confidence_reason:
             parts.append(f"CONFIDENCE: {self.confidence_reason}")

@@ -126,7 +126,7 @@ class ATeamConductor:
         self.auto_selector = dspy.ChainOfThought(AutoTeamSelectionSignature)
 
         logger.info(
-            f"🎯 ATeamConductor initialized: mode={mode}, "
+            f" ATeamConductor initialized: mode={mode}, "
             f"experts={len(experts)}, max_rounds={max_rounds}"
         )
 
@@ -161,7 +161,7 @@ class ATeamConductor:
         config = get_preset_config(preset)
         experts = get_preset_experts(preset)
 
-        logger.info(f"📋 Creating conductor from preset: {preset.value}")
+        logger.info(f" Creating conductor from preset: {preset.value}")
         logger.info(f"   Experts: {len(experts)}, Max rounds: {config['max_rounds']}")
 
         return cls(
@@ -195,7 +195,7 @@ class ATeamConductor:
         if not experts:
             raise ValueError(f"No valid experts found in: {expert_names}")
 
-        logger.info(f"🎨 Creating conductor from custom team: {len(experts)} experts")
+        logger.info(f" Creating conductor from custom team: {len(experts)} experts")
         logger.info(f"   Experts: {', '.join([e.name for e in experts])}")
 
         return cls(
@@ -226,7 +226,7 @@ class ATeamConductor:
         # Actual selection happens in generate_task()
         experts = get_all_experts()
 
-        logger.info(f"🤖 Creating conductor with auto-selection")
+        logger.info(f" Creating conductor with auto-selection")
         logger.info(f"   Available: {len(experts)} experts")
 
         return cls(
@@ -267,7 +267,7 @@ class ATeamConductor:
             print(result.consensus_decision)
             print(result.comprehensive_task)
         """
-        logger.info(f"🚀 Generating task via A-TEAM ({self.mode} mode)")
+        logger.info(f" Generating task via A-TEAM ({self.mode} mode)")
         logger.info(f"   Task: {task_description[:100]}...")
 
         # Automatic mode: Select experts first
@@ -296,7 +296,7 @@ class ATeamConductor:
             mode=self.mode
         )
 
-        logger.info(f"✅ Task generation complete!")
+        logger.info(f" Task generation complete!")
         logger.info(f"   Rounds: {result.total_rounds}")
         logger.info(f"   Consensus: {result.consensus_reached}")
 
@@ -312,7 +312,7 @@ class ATeamConductor:
 
         Uses DSPy to analyze task and choose relevant experts.
         """
-        logger.info(f"🔍 Auto-selecting experts for task...")
+        logger.info(f" Auto-selecting experts for task...")
 
         # Format available experts for LLM
         import json

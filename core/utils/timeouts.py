@@ -85,7 +85,7 @@ class CircuitBreaker:
                     # Try half-open
                     self.state = CircuitState.HALF_OPEN
                     self.success_count = 0
-                    logger.info(f"🔄 [{self.config.name}] Circuit HALF_OPEN (testing recovery)")
+                    logger.info(f" [{self.config.name}] Circuit HALF_OPEN (testing recovery)")
                     return True, "Circuit half-open, testing recovery"
             
             return False, f"Circuit open, rejecting request (wait {self.config.timeout}s)"
@@ -102,7 +102,7 @@ class CircuitBreaker:
             if self.success_count >= self.config.success_threshold:
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
-                logger.info(f"✅ [{self.config.name}] Circuit CLOSED (system recovered)")
+                logger.info(f" [{self.config.name}] Circuit CLOSED (system recovered)")
         elif self.state == CircuitState.CLOSED:
             # Reset failure count on success
             self.failure_count = max(0, self.failure_count - 1)
@@ -116,13 +116,13 @@ class CircuitBreaker:
         if self.state == CircuitState.CLOSED:
             if self.failure_count >= self.config.failure_threshold:
                 self.state = CircuitState.OPEN
-                logger.error(f"🔴 [{self.config.name}] Circuit OPEN! {self.failure_count} consecutive failures")
+                logger.error(f" [{self.config.name}] Circuit OPEN! {self.failure_count} consecutive failures")
                 logger.error(f"   Last error: {error}")
         
         elif self.state == CircuitState.HALF_OPEN:
             # Failed during testing, back to open
             self.state = CircuitState.OPEN
-            logger.warning(f"⚠️  [{self.config.name}] Circuit back to OPEN (recovery test failed)")
+            logger.warning(f" [{self.config.name}] Circuit back to OPEN (recovery test failed)")
     
     def protect(self, func: Callable) -> Callable:
         """Decorator to protect a function with circuit breaker."""
@@ -222,7 +222,7 @@ def timeout(seconds: float, error_message: str = "Operation timed out"):
                 return result
             except AttributeError:
                 # Windows doesn't have signal.SIGALRM
-                logger.warning(f"⚠️  Timeout not supported on this platform, running without timeout")
+                logger.warning(f" Timeout not supported on this platform, running without timeout")
                 return func(*args, **kwargs)
         
         return wrapper
@@ -323,7 +323,7 @@ class DeadLetterQueue:
         self.queue.append(failed_op)
         self.total_added += 1
         
-        logger.warning(f"📮 DLQ: Added '{operation_name}' (total: {len(self.queue)})")
+        logger.warning(f" DLQ: Added '{operation_name}' (total: {len(self.queue)})")
         logger.warning(f"   Error: {error}")
     
     def retry_all(self, operation_func: Callable) -> Dict[str, int]:
@@ -339,7 +339,7 @@ class DeadLetterQueue:
         """
         stats = {'success': 0, 'failed': 0, 'total': len(self.queue)}
         
-        logger.info(f"🔄 DLQ: Retrying {len(self.queue)} failed operations...")
+        logger.info(f" DLQ: Retrying {len(self.queue)} failed operations...")
         
         # Process from oldest to newest
         while self.queue:
@@ -352,15 +352,15 @@ class DeadLetterQueue:
                 operation_func(failed_op.operation_name, *failed_op.args, **failed_op.kwargs)
                 stats['success'] += 1
                 self.total_successful_retries += 1
-                logger.info(f"✅ DLQ: Retry succeeded for '{failed_op.operation_name}'")
+                logger.info(f" DLQ: Retry succeeded for '{failed_op.operation_name}'")
             except Exception as e:
                 stats['failed'] += 1
                 # Put back in queue (up to max retries)
                 if failed_op.retry_count < 3:
                     self.queue.append(failed_op)
-                    logger.warning(f"⚠️  DLQ: Retry failed for '{failed_op.operation_name}' (attempt {failed_op.retry_count}/3)")
+                    logger.warning(f" DLQ: Retry failed for '{failed_op.operation_name}' (attempt {failed_op.retry_count}/3)")
                 else:
-                    logger.error(f"❌ DLQ: Gave up on '{failed_op.operation_name}' after 3 retries")
+                    logger.error(f" DLQ: Gave up on '{failed_op.operation_name}' after 3 retries")
         
         return stats
     

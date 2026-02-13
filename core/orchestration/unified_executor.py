@@ -417,7 +417,7 @@ The user has requested {section_name} visualization format. You MUST:
                         asyncio.run(result)
             except Exception as e:
                 logger.debug(f"Status callback error: {e}")
-        logger.info(f"📍 {stage}" + (f": {detail}" if detail else ""))
+        logger.info(f" {stage}" + (f": {detail}" if detail else ""))
 
     async def _stream(self, chunk: str):
         """Stream a content chunk."""

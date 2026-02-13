@@ -62,7 +62,7 @@ class SupervisorCommand(BaseCommand):
             # Build status info
             info = {
                 "Orchestrator": orchestrator_type,
-                "Running": "✅ Yes" if running else "❌ No",
+                "Running": " Yes" if running else " No",
                 "Tasks In Progress": len(in_progress),
                 "Tasks Pending": len(pending),
             }
@@ -96,7 +96,7 @@ class SupervisorCommand(BaseCommand):
             # Display credentials status
             lines = []
             for agent, available in result.items():
-                status = "✅ Available" if available else "❌ Missing"
+                status = " Available" if available else " Missing"
                 lines.append(f"{agent.capitalize():<12}: {status}")
 
             cli.renderer.panel("\n".join(lines), title="Agent Credentials", style="cyan")

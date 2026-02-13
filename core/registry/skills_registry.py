@@ -132,13 +132,13 @@ class BaseSkill:
                 pass
 
             async def execute(self, params: dict) -> dict:
-                self.status("Searching", "🔍 Searching the web...")
+                self.status("Searching", " Searching the web...")
                 results = await self.search(params['query'])
 
-                self.status("Analyzing", "🧠 Analyzing results...")
+                self.status("Analyzing", " Analyzing results...")
                 analysis = self.analyze(results)
 
-                self.status("Creating", "📄 Creating PDF...")
+                self.status("Creating", " Creating PDF...")
                 pdf_path = self.create_pdf(analysis)
 
                 return {"success": True, "pdf_path": pdf_path}
@@ -177,7 +177,7 @@ class BaseSkill:
 
         Args:
             stage: Stage name (e.g., "Searching", "Analyzing")
-            detail: Detail message with emoji (e.g., "🔍 Searching web...")
+            detail: Detail message with emoji (e.g., " Searching web...")
         """
         if self._status_callback:
             try:
@@ -1066,7 +1066,7 @@ class SkillsRegistry:
             # Retry once with isolated import (handles missing imports at module level)
             retry_tools = self._retry_load_with_isolation(tools_file, e)
             if retry_tools:
-                logger.info(f"✅ Retry succeeded for {tools_file.parent.name}: {len(retry_tools)} tools loaded")
+                logger.info(f" Retry succeeded for {tools_file.parent.name}: {len(retry_tools)} tools loaded")
                 return retry_tools
 
             # Track failed skills for diagnostics
@@ -1074,7 +1074,7 @@ class SkillsRegistry:
                 self._failed_skills = {}
             skill_name = tools_file.parent.name
             self._failed_skills[skill_name] = str(e)
-            logger.warning(f"⚠️ Skill '{skill_name}' failed to load: {e}. "
+            logger.warning(f" Skill '{skill_name}' failed to load: {e}. "
                           f"Fix: check imports in {tools_file}")
 
             # Fallback: create mock tools based on file content

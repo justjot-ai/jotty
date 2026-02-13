@@ -74,7 +74,7 @@ class EpisodeResult:
     validation_rounds: int = 1
     refinement_improvements: List[str] = field(default_factory=list)
 
-    # ✅ A-TEAM: Confidence-based override metadata (Dec 29, 2025)
+    # A-TEAM: Confidence-based override metadata (Dec 29, 2025)
     override_metadata: Optional[Dict[str, Any]] = None
 
 

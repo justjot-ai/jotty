@@ -106,7 +106,7 @@ class UnifiedRegistry:
         if widget_registry:
             self._ui.merge_from_widget_registry(widget_registry)
 
-        logger.info("🌐 UnifiedRegistry initialized (Skills + UI)")
+        logger.info(" UnifiedRegistry initialized (Skills + UI)")
 
     # =========================================================================
     # PROPERTIES

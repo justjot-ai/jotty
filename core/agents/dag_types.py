@@ -185,7 +185,7 @@ class SwarmResources:
         )
 
         self._initialized = True
-        logger.info("🔗 SwarmResources initialized (shared memory, context, bus, learner)")
+        logger.info(" SwarmResources initialized (shared memory, context, bus, learner)")
 
     @classmethod
     def get_instance(cls, config: SwarmConfig = None) -> 'SwarmResources':

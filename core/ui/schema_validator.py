@@ -70,7 +70,7 @@ class SectionSchemaRegistry:
                     except Exception as e:
                         logger.warning(f"Failed to load schema for {section_type}: {e}")
 
-                logger.info(f"✅ Loaded {len(self.schemas)} section schemas from API")
+                logger.info(f" Loaded {len(self.schemas)} section schemas from API")
 
                 # Cache for offline use
                 self._save_cache()
@@ -96,7 +96,7 @@ class SectionSchemaRegistry:
             if self.cache_file.exists():
                 with open(self.cache_file, 'r') as f:
                     self.schemas = json.load(f)
-                logger.info(f"✅ Loaded {len(self.schemas)} schemas from cache")
+                logger.info(f" Loaded {len(self.schemas)} schemas from cache")
             else:
                 logger.warning("No schema cache found, using empty registry")
         except Exception as e:

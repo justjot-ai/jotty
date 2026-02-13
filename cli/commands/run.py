@@ -63,12 +63,12 @@ class RunCommand(BaseCommand):
                 import re
                 step_match = re.match(r'Step (\d+)/(\d+)', stage)
                 if step_match:
-                    icon = "▶" if 'completed' not in (detail or '').lower() else "✓"
+                    icon = "▶" if 'completed' not in (detail or '').lower() else ""
                     cli.renderer.print(f"  [bold cyan]{icon}[/bold cyan] {stage}: {detail}")
                 elif 'error' in stage.lower() or 'failed' in (detail or '').lower():
-                    cli.renderer.print(f"  [bold red]✗[/bold red] {stage}: {detail}")
+                    cli.renderer.print(f" [bold red][/bold red] {stage}: {detail}")
                 elif 'complete' in stage.lower() or 'success' in (detail or '').lower():
-                    cli.renderer.print(f"  [bold green]✓[/bold green] {stage}: {detail}")
+                    cli.renderer.print(f" [bold green][/bold green] {stage}: {detail}")
                 elif detail:
                     cli.renderer.print(f"  [cyan]→[/cyan] {stage}: {detail}")
                 else:
@@ -124,14 +124,14 @@ class RunCommand(BaseCommand):
                             step_label = step_key.replace('_', ' ').title()
                             if step_result.get('query'):
                                 count = step_result.get('count', len(step_result.get('results', [])))
-                                step_summaries.append(f"🔍 {step_label}: {step_result['query']} ({count} results)")
+                                step_summaries.append(f" {step_label}: {step_result['query']} ({count} results)")
                             elif step_result.get('text') and len(step_result.get('text', '')) > 20:
                                 text_preview = step_result['text'][:80].replace('\n', ' ')
-                                step_summaries.append(f"📝 {step_label}: {text_preview}...")
+                                step_summaries.append(f" {step_label}: {text_preview}...")
                             elif step_result.get('pdf_path'):
-                                step_summaries.append(f"📄 {step_label}: {step_result['pdf_path']}")
+                                step_summaries.append(f" {step_label}: {step_result['pdf_path']}")
                             elif step_result.get('telegram_sent') or step_result.get('message_id'):
-                                step_summaries.append(f"📨 {step_label}: Delivered ✓")
+                                step_summaries.append(f" {step_label}: Delivered ")
 
                     # Add skills and steps to summary
                     if output.skills_used:
@@ -165,7 +165,7 @@ class RunCommand(BaseCommand):
                 # Display file paths prominently
                 if file_paths:
                     cli.renderer.newline()
-                    cli.renderer.print("[bold green]📁 Generated Files:[/bold green]")
+                    cli.renderer.print("[bold green] Generated Files:[/bold green]")
                     for label, path in file_paths:
                         cli.renderer.print(f"   {label}: [cyan]{path}[/cyan]")
 

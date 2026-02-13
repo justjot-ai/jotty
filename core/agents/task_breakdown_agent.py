@@ -70,7 +70,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Register with message bus for inter-agent communication
         self.bus.subscribe("TaskBreakdownAgent", self._handle_message)
 
-        logger.info("✓ TaskBreakdownAgent initialized with SHARED swarm resources")
+        logger.info(" TaskBreakdownAgent initialized with SHARED swarm resources")
 
     async def execute(self, implementation_plan: str, **kwargs) -> AgentResult:
         """

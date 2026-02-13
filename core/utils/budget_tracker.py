@@ -453,7 +453,7 @@ class BudgetTracker:
         )
 
         if self.config.enable_enforcement and not self.config.soft_limit_mode:
-            logger.error(f"❌ {message}")
+            logger.error(f" {message}")
             raise BudgetExceededError(
                 message=message,
                 scope=scope,
@@ -462,7 +462,7 @@ class BudgetTracker:
                 resource=resource
             )
         else:
-            logger.warning(f"⚠️ {message} (soft limit mode)")
+            logger.warning(f" {message} (soft limit mode)")
 
     def _emit_warning(
         self,
@@ -493,7 +493,7 @@ class BudgetTracker:
             if context:
                 message += f" for {context}"
 
-            logger.warning(f"⚠️ {message}")
+            logger.warning(f" {message}")
 
             # Call registered callbacks
             for callback in self._warning_callbacks:

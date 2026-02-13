@@ -623,7 +623,7 @@ class MLCommand(BaseCommand):
         cli.renderer.info("│  Iteration  │  Score   │ Features │    Strategy     │")
         cli.renderer.info("├─────────────┼──────────┼──────────┼─────────────────┤")
         for r in results:
-            marker = " ★" if r['iteration'] == best_iteration else "  "
+            marker = " " if r['iteration'] == best_iteration else " "
             cli.renderer.info(f"│{marker} {r['iteration']:^9} │ {r['score']:^8.4f} │ {r['features']:^8} │ {r['strategy'][:15]:^15} │")
         cli.renderer.info("└─────────────┴──────────┴──────────┴─────────────────┘")
 

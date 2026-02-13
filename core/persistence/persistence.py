@@ -66,7 +66,7 @@ class Vault:
         self.auto_save_interval = auto_save_interval
         self._ensure_directories()
         
-        logger.info(f"💾 JOTTY Vault initialized: {self.jotty_dir}")
+        logger.info(f" JOTTY Vault initialized: {self.jotty_dir}")
     
     def _ensure_directories(self):
         """Create all necessary directories (NO HARDCODED LIST - extensible)."""
@@ -105,7 +105,7 @@ class Vault:
         with open(display_file, 'w') as f:
             f.write(self._format_todo_markdown(todo))
         
-        logger.info(f"✅ Saved Markovian TODO: {len(todo.subtasks)} tasks, "
+        logger.info(f" Saved Markovian TODO: {len(todo.subtasks)} tasks, "
                    f"{len(todo.completed_tasks)} completed")
     
     def _serialize_todo(self, todo) -> Dict:
@@ -181,19 +181,19 @@ class Vault:
         failed = len(todo.failed_tasks)
         pending = total - completed - failed
         
-        md += "## 📊 Progress Overview\n\n"
-        md += f"- ✅ Completed: **{completed}/{total}** ({100*completed/total if total > 0 else 0:.0f}%)\n"
-        md += f"- ❌ Failed: **{failed}**\n"
+        md += "## Progress Overview\n\n"
+        md += f"- Completed: **{completed}/{total}** ({100*completed/total if total > 0 else 0:.0f}%)\n"
+        md += f"- Failed: **{failed}**\n"
         md += f"- ⏳ Pending: **{pending}**\n"
-        md += f"- 🎯 Completion Probability: **{todo.completion_probability:.0%}**\n"
-        md += f"- 📍 Estimated Remaining: **{todo.estimated_remaining_steps}** tasks\n\n"
+        md += f"- Completion Probability: **{todo.completion_probability:.0%}**\n"
+        md += f"- Estimated Remaining: **{todo.estimated_remaining_steps}** tasks\n\n"
         
         # In-progress tasks with FULL details (NO HARDCODING)
         in_progress = [t for t in todo.subtasks.values() 
                       if str(t.status.value if hasattr(t.status, 'value') else t.status) == 'in_progress']
         
         if in_progress:
-            md += "## 🔄 Currently In Progress\n\n"
+            md += "## Currently In Progress\n\n"
             for task in in_progress:
                 md += f"### {task.description}\n\n"
                 md += f"- **Actor:** `{task.actor}`\n"
@@ -242,7 +242,7 @@ class Vault:
                 score = task.priority * task.estimated_reward
                 deps = len(task.depends_on)
                 can_start = task.can_start(todo.completed_tasks)
-                status_icon = "🟢" if can_start else "🔴"
+                status_icon = "" if can_start else ""
                 
                 md += f"| {i} | {task.description}... | {task.actor} | {task.priority:.2f} | {task.estimated_reward:.3f} | {score:.3f} | {deps} {status_icon} |\n"
             
@@ -257,7 +257,7 @@ class Vault:
             # Sort by completion time (most recent first)
             completed_tasks.sort(key=lambda t: t.completed_at if t.completed_at else datetime.min, reverse=True)
             
-            md += "## ✅ Recently Completed\n\n"
+            md += "## Recently Completed\n\n"
             display_count = min(len(completed_tasks), 10)
             for task in completed_tasks[:display_count]:
                 duration = ""
@@ -279,7 +279,7 @@ class Vault:
         failed_tasks = [todo.subtasks[tid] for tid in todo.failed_tasks 
                        if tid in todo.subtasks]
         if failed_tasks:
-            md += "## ❌ Failed Tasks (Need Investigation)\n\n"
+            md += "## Failed Tasks (Need Investigation)\n\n"
             for task in failed_tasks:
                 md += f"### {task.description}\n\n"
                 md += f"- **Actor:** `{task.actor}`\n"
@@ -295,7 +295,7 @@ class Vault:
                 md += "\n"
         
         # State Insights (ALGORITHMIC - NO HARDCODING)
-        md += "## 🧠 State Insights\n\n"
+        md += "## State Insights\n\n"
         
         if total > 0:
             avg_q = sum(t.estimated_reward for t in todo.subtasks.values()) / total
@@ -336,7 +336,7 @@ class Vault:
         with open(buffer_file, 'w') as f:
             json.dump(buffer_data, f, indent=2, default=str)
         
-        logger.info(f"✅ Saved Q-predictor: {len(q_predictor.experience_buffer)} experiences")
+        logger.info(f" Saved Q-predictor: {len(q_predictor.experience_buffer)} experiences")
     
     # =========================================================================
     # MEMORY PERSISTENCE (NO HARDCODING)
@@ -388,7 +388,7 @@ class Vault:
         with open(memory_file, 'w') as f:
             json.dump(memory_data, f, indent=2, default=str)
         
-        logger.info(f"✅ Saved memory '{name}': {total_memories} memories across "
+        logger.info(f" Saved memory '{name}': {total_memories} memories across "
                    f"{len(memory_data)-1} levels")
     
     # =========================================================================
@@ -412,7 +412,7 @@ class Vault:
         with open(episode_file, 'w') as f:
             json.dump(episode_data, f, indent=2, default=str)
         
-        logger.info(f"✅ Saved episode {episode_num}: {len(trajectory)} steps")
+        logger.info(f" Saved episode {episode_num}: {len(trajectory)} steps")
     
     # =========================================================================
     # BRAIN STATE PERSISTENCE (NO HARDCODING)
@@ -459,7 +459,7 @@ class Vault:
         with open(brain_file, 'w') as f:
             json.dump(brain_data, f, indent=2, default=str)
         
-        logger.info("✅ Saved brain state")
+        logger.info(" Saved brain state")
     
     # =========================================================================
     # COMPLETE STATE SAVE (NO HARDCODING)
@@ -472,7 +472,7 @@ class Vault:
         NO HARDCODING: Saves all components that exist on the object.
         """
         logger.info(f"\n{'='*60}")
-        logger.info("💾 SAVING COMPLETE JOTTY STATE")
+        logger.info(" SAVING COMPLETE JOTTY STATE")
         logger.info(f"{'='*60}")
         
         # Save TODO
@@ -506,8 +506,8 @@ class Vault:
             self.save_brain_state(conductor.brain)
         
         logger.info(f"{'='*60}")
-        logger.info(f"✅ ALL JOTTY STATE SAVED")
-        logger.info(f"📁 Location: {self.jotty_dir}")
+        logger.info(f" ALL JOTTY STATE SAVED")
+        logger.info(f" Location: {self.jotty_dir}")
         logger.info(f"{'='*60}\n")
     
     # =========================================================================

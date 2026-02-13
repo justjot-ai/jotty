@@ -191,7 +191,7 @@ class SwarmConfig:
     # =========================================================================
     # 1. PERSISTENCE
     # =========================================================================
-    # 🔥 A-TEAM: Single source of truth for ALL persistence paths
+    # A-TEAM: Single source of truth for ALL persistence paths
     output_base_dir: str = "./outputs"  # Base directory for all outputs
     create_run_folder: bool = True  # Create timestamped run_YYYYMMDD_HHMMSS/ folders
 
@@ -245,23 +245,23 @@ class SwarmConfig:
     # =========================================================================
     # 2. EXECUTION
     # =========================================================================
-    max_actor_iters: int = 50  # ✅ Configurable! (was hardcoded in agents)
-    max_eval_iters: int = 1    # ✅ Architect/Auditor ReAct iterations (1=minimal, 2-3=balanced, 5-10=thorough)
-    max_episode_iterations: int = 12  # ✅ A-TEAM: Max task iterations per episode (used in swarm.run)
+    max_actor_iters: int = 50 # Configurable! (was hardcoded in agents)
+    max_eval_iters: int = 1 # Architect/Auditor ReAct iterations (1=minimal, 2-3=balanced, 5-10=thorough)
+    max_episode_iterations: int = 12 # A-TEAM: Max task iterations per episode (used in swarm.run)
     async_timeout: float = 60.0
     actor_timeout: float = 900.0  # Specific timeout for actor execution (15 minutes)
     max_concurrent_agents: int = 10
 
-    # 🔥 CRITICAL: Natural Dependencies (RL Learning)
+    # CRITICAL: Natural Dependencies (RL Learning)
     # Allow agents to execute even with missing required parameters
     # Agents can fail naturally when dependencies aren't met (instead of blocking at parameter resolution)
     allow_partial_execution: bool = False  # Default: False (strict parameter checking)
     # Set to True for RL with natural dependencies (agents detect missing data themselves)
 
     # NEW: Agent-specific overrides (can be set in ActorConfig)
-    max_eval_retries: int = 3  # ✅ Retry attempts for validation (was hardcoded in agent.py)
-    stream_message_timeout: float = 0.15  # ✅ Streaming timeout (was hardcoded in agents)
-    llm_timeout_seconds: float = 180.0  # ⚡ LLM call timeout to prevent API hangs (3 minutes)
+    max_eval_retries: int = 3 # Retry attempts for validation (was hardcoded in agent.py)
+    stream_message_timeout: float = 0.15 # Streaming timeout (was hardcoded in agents)
+    llm_timeout_seconds: float = 180.0 # LLM call timeout to prevent API hangs (3 minutes)
 
     # =========================================================================
     # 2.5 VALIDATION & MULTI-ROUND
@@ -269,13 +269,13 @@ class SwarmConfig:
     max_validation_rounds: int = 3
     refinement_timeout: float = 30.0
 
-    # ✅ NEW: Validation control flags
+    # NEW: Validation control flags
     enable_validation: bool = True  # Master switch for all validation
     validation_mode: str = 'full'  # 'full' | 'architect_only' | 'auditor_only' | 'none'
     advisory_confidence_threshold: float = 0.85  # Below this, advisory feedback triggers retry
     max_validation_retries: int = 5  # Increased from 3 for better learning
 
-    # ✅ A-TEAM: Confidence-Based Override Mechanism (Dec 29, 2025)
+    # A-TEAM: Confidence-Based Override Mechanism (Dec 29, 2025)
     enable_confidence_override: bool = True  # Allow confident actors to override uncertain validators
     confidence_override_threshold: float = 0.30  # Min gap (actor - validator) to allow override
     confidence_moving_average_alpha: float = 0.7  # Weight for exponential moving average
@@ -404,7 +404,7 @@ class SwarmConfig:
     # 8. CONSOLIDATION
     # =========================================================================
     consolidation_threshold: int = 100
-    consolidation_interval: int = 3  # 🔧 A-TEAM: Consolidate every 3 episodes (prevent memory buildup!)
+    consolidation_interval: int = 3 # A-TEAM: Consolidate every 3 episodes (prevent memory buildup!)
     min_cluster_size: int = 5
     pattern_confidence_threshold: float = 0.7
 
@@ -437,22 +437,22 @@ class SwarmConfig:
     require_all_architect: bool = True
     require_all_auditor: bool = False
 
-    # ✅ A-TEAM FIX: Swarm validation strategy
+    # A-TEAM FIX: Swarm validation strategy
     enable_per_actor_swarm_auditor: bool = False  # If True, run swarm Auditor after EACH actor (slow!)
     enable_final_swarm_auditor: bool = True       # If True, run swarm Auditor once at END (recommended)
     swarm_validation_confidence_threshold: float = 0.6  # Only retry if confidence below this
 
-    # ✅ USER FIX: Task planning strategy (NO HARDCODING!)
+    # USER FIX: Task planning strategy (NO HARDCODING!)
     enable_llm_planning: bool = False  # If True, use LLM to create initial TODO (future)
     # Users can provide task_plan in kwargs for full control
     min_confidence: float = 0.5
 
-    # ✅ NEW: Default values for validation (was hardcoded 0.3, 0.5, 0.7 in agent.py)
+    # NEW: Default values for validation (was hardcoded 0.3, 0.5, 0.7 in agent.py)
     default_confidence_on_error: float = 0.3  # Confidence when validation errors
     default_confidence_no_validation: float = 0.5  # Confidence when no validation
     default_confidence_insight_share: float = 0.7  # Confidence for shared insights
 
-    # ✅ NEW: Reward defaults (was hardcoded in conductor.py)
+    # NEW: Reward defaults (was hardcoded in conductor.py)
     default_estimated_reward: float = 0.6  # When no Auditor result yet
 
     # =========================================================================
@@ -469,7 +469,7 @@ class SwarmConfig:
 
     # 🆕 A-TEAM FIX #2: Debug logging control
     # User reported 144s wasted on debug logs! Default OFF for production.
-    enable_debug_logging: bool = False  # ✅ Set True only for debugging
+    enable_debug_logging: bool = False # Set True only for debugging
     enable_metrics: bool = True
 
     # =========================================================================
@@ -490,7 +490,7 @@ class SwarmConfig:
     rag_relevance_threshold: float = 0.6  # Minimum relevance score
     rag_use_cot: bool = True          # Chain-of-thought for scoring
 
-    # 🧠 RETRIEVAL STRATEGY (Brain-Inspired!)
+    # RETRIEVAL STRATEGY (Brain-Inspired!)
     # synthesize: Fetch broadly + LLM synthesizes wisdom (DEFAULT - neuroscience-aligned!)
     # discrete: Fetch selectively + return discrete memories (legacy, faster but less intelligent)
     retrieval_mode: str = "synthesize"  # "synthesize" or "discrete"

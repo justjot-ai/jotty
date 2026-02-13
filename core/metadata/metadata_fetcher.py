@@ -1,7 +1,7 @@
 """
 MetaDataFetcher - Production-Grade Proactive Metadata Fetching
 
-🎯 SOTA DESIGN PRINCIPLES:
+ SOTA DESIGN PRINCIPLES:
 - Automatic @jotty_method discovery via introspection
 - DSPy ReAct agent with intelligent tool selection
 - Caching with TTL for performance
@@ -161,9 +161,9 @@ class MetaDataFetcher:
         self._react_agent = None
         
         # Initialize
-        logger.info("🔍 MetaDataFetcher: Initializing SOTA metadata fetching system")
+        logger.info(" MetaDataFetcher: Initializing SOTA metadata fetching system")
         self._discover_and_convert_tools()
-        logger.info(f"✅ MetaDataFetcher: Ready with {len(self.tools)} tools discovered")
+        logger.info(f" MetaDataFetcher: Ready with {len(self.tools)} tools discovered")
     
     def _discover_and_convert_tools(self):
         """
@@ -218,16 +218,16 @@ class MetaDataFetcher:
                 self.tool_metadata[attr_name] = tool_meta
                 discovered_count += 1
                 
-                logger.debug(f"  ✅ Discovered: {attr_name} - {tool_meta.description}")
+                logger.debug(f" Discovered: {attr_name} - {tool_meta.description}")
                 
             except Exception as e:
-                logger.warning(f"  ⚠️  Error discovering {attr_name}: {e}")
+                logger.warning(f" Error discovering {attr_name}: {e}")
                 continue
         
         if discovered_count == 0:
-            logger.warning("⚠️  No @jotty_method tools found in metadata_provider!")
+            logger.warning(" No @jotty_method tools found in metadata_provider!")
         else:
-            logger.info(f"🔧 Tool discovery complete: {discovered_count} tools ready")
+            logger.info(f" Tool discovery complete: {discovered_count} tools ready")
     
     def fetch(
         self,
@@ -252,7 +252,7 @@ class MetaDataFetcher:
         start_time = time.time()
         self.total_fetches += 1
         
-        logger.info("🔍 MetaDataFetcher: Starting metadata fetch")
+        logger.info(" MetaDataFetcher: Starting metadata fetch")
         logger.info(f"   Query: {query[:100]}...")
         
         # Check cache first (unless force_refresh)
@@ -260,13 +260,13 @@ class MetaDataFetcher:
             cached_result = self._get_from_cache(query)
             if cached_result is not None:
                 self.cache_hits += 1
-                logger.info("✅ MetaDataFetcher: Cache HIT - returning cached metadata")
+                logger.info(" MetaDataFetcher: Cache HIT - returning cached metadata")
                 return cached_result
             self.cache_misses += 1
         
         # No cache hit - fetch fresh metadata
         if not self.tools:
-            logger.warning("⚠️  No tools available, returning empty metadata")
+            logger.warning(" No tools available, returning empty metadata")
             return {}
         
         # Fetch with retry logic
@@ -280,7 +280,7 @@ class MetaDataFetcher:
         elapsed = time.time() - start_time
         self.total_fetch_time += elapsed
         
-        logger.info(f"✅ MetaDataFetcher: Completed in {elapsed:.2f}s")
+        logger.info(f" MetaDataFetcher: Completed in {elapsed:.2f}s")
         logger.info(f"   Fetched {len(result)} metadata items: {list(result.keys())}")
         
         return result
@@ -300,20 +300,20 @@ class MetaDataFetcher:
         
         for attempt in range(1, self.max_retries + 1):
             try:
-                logger.debug(f"🔄 Fetch attempt {attempt}/{self.max_retries}")
+                logger.debug(f" Fetch attempt {attempt}/{self.max_retries}")
                 result = self._execute_fetch(query, previous_context)
                 return result
                 
             except Exception as e:
                 last_error = e
-                logger.warning(f"⚠️  Fetch attempt {attempt} failed: {e}")
+                logger.warning(f" Fetch attempt {attempt} failed: {e}")
                 
                 if attempt < self.max_retries:
                     logger.info(f"   Retrying in {retry_delay:.1f}s...")
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 else:
-                    logger.error(f"❌ All {self.max_retries} fetch attempts failed")
+                    logger.error(f" All {self.max_retries} fetch attempts failed")
                     logger.error(f"   Last error: {last_error}")
                     logger.error(traceback.format_exc())
         
@@ -338,7 +338,7 @@ class MetaDataFetcher:
                 tools=self.tools,
                 max_iters=self.react_max_iters
             )
-            logger.debug("🤖 ReAct agent initialized")
+            logger.debug(" ReAct agent initialized")
         
         # Generate tool catalog for LLM
         tool_catalog = self._generate_tool_catalog()
@@ -347,7 +347,7 @@ class MetaDataFetcher:
         context_str = json.dumps(previous_context or {}, indent=2)
         
         # Execute ReAct
-        logger.debug("🤖 Executing ReAct agent...")
+        logger.debug(" Executing ReAct agent...")
         result = self._react_agent(
             query=query,
             available_tools=tool_catalog,
@@ -359,21 +359,21 @@ class MetaDataFetcher:
         
         # Log reasoning if available
         if hasattr(result, 'reasoning') and result.reasoning:
-            logger.debug(f"💭 Agent reasoning: {result.reasoning[:200]}...")
+            logger.debug(f" Agent reasoning: {result.reasoning[:200]}...")
         
-        # 🔥 A-TEAM CRITICAL FIX: Ensure filter definitions are ALWAYS fetched!
+        # A-TEAM CRITICAL FIX: Ensure filter definitions are ALWAYS fetched!
         # If the ReAct agent didn't call get_all_filter_definitions(), do it manually
         if 'filter_conditions' not in fetched_data and 'get_all_filter_definitions' not in fetched_data:
-            logger.info("🔍 Filter conditions not fetched by ReAct agent, fetching manually...")
+            logger.info(" Filter conditions not fetched by ReAct agent, fetching manually...")
             try:
                 # Try to find and call the filter definitions method
                 if hasattr(self.metadata_provider, 'get_all_filter_definitions'):
                     filter_text = self.metadata_provider.get_all_filter_definitions()
                     if filter_text:
                         fetched_data['filter_conditions'] = filter_text
-                        logger.info(f"✅ Manually fetched filter conditions ({len(filter_text)} chars)")
+                        logger.info(f" Manually fetched filter conditions ({len(filter_text)} chars)")
             except Exception as e:
-                logger.warning(f"⚠️  Failed to manually fetch filter conditions: {e}")
+                logger.warning(f" Failed to manually fetch filter conditions: {e}")
         
         return fetched_data
     
@@ -417,15 +417,15 @@ class MetaDataFetcher:
         """
         Parse ReAct agent output to extract fetched metadata.
         
-        🔥 A-TEAM FIX: Extract tool outputs from DSPy ReAct trajectory!
+         A-TEAM FIX: Extract tool outputs from DSPy ReAct trajectory!
         DSPy ReAct stores trajectory as: {thought_0, tool_name_0, tool_args_0, observation_0, ...}
         """
         fetched_data = {}
         
-        # 🔥 STRATEGY 1: Extract from DSPy ReAct trajectory (CORRECT FORMAT!)
+        # STRATEGY 1: Extract from DSPy ReAct trajectory (CORRECT FORMAT!)
         if hasattr(result, 'trajectory') and result.trajectory:
             trajectory = result.trajectory
-            logger.info(f"🔍 Parsing DSPy ReAct trajectory with {len(trajectory)} keys")
+            logger.info(f" Parsing DSPy ReAct trajectory with {len(trajectory)} keys")
             
             # Find all observation keys (observation_0, observation_1, ...)
             tool_calls = {}
@@ -437,7 +437,7 @@ class MetaDataFetcher:
                     
                     if tool_name and observation and tool_name != 'finish':
                         tool_calls[idx] = {'tool': tool_name, 'output': observation}
-                        logger.info(f"✅ Found tool call {idx}: {tool_name}")
+                        logger.info(f" Found tool call {idx}: {tool_name}")
             
             # Map tool outputs to semantic keys
             for idx, call in tool_calls.items():
@@ -447,14 +447,14 @@ class MetaDataFetcher:
                 if tool_name == 'get_business_terms':
                     try:
                         fetched_data['business_terms'] = json.loads(observation) if isinstance(observation, str) else observation
-                        logger.info(f"✅ Extracted business_terms from trajectory[{idx}]")
+                        logger.info(f" Extracted business_terms from trajectory[{idx}]")
                     except (json.JSONDecodeError, ValueError, TypeError) as e:
                         logger.debug(f"JSON parsing failed for business_terms: {e}")
                         fetched_data['business_terms'] = observation
                 elif tool_name == 'get_all_tables':
                     try:
                         fetched_data['available_tables'] = json.loads(observation) if isinstance(observation, str) else observation
-                        logger.info(f"✅ Extracted available_tables from trajectory[{idx}]")
+                        logger.info(f" Extracted available_tables from trajectory[{idx}]")
                     except (json.JSONDecodeError, ValueError, TypeError) as e:
                         logger.debug(f"JSON parsing failed for available_tables: {e}")
                         fetched_data['available_tables'] = observation
@@ -462,14 +462,14 @@ class MetaDataFetcher:
                     try:
                         schema_data = json.loads(observation) if isinstance(observation, str) else observation
                         fetched_data['table_schema'] = schema_data
-                        logger.info(f"✅ Extracted table_schema from trajectory[{idx}]")
+                        logger.info(f" Extracted table_schema from trajectory[{idx}]")
                     except (json.JSONDecodeError, ValueError, TypeError) as e:
                         logger.debug(f"JSON parsing failed for table_schema: {e}")
                         fetched_data['table_schema'] = observation
                 else:
                     # Store with tool name as key
                     fetched_data[tool_name] = observation
-                    logger.info(f"✅ Extracted {tool_name} from trajectory[{idx}]")
+                    logger.info(f" Extracted {tool_name} from trajectory[{idx}]")
         
         # STRATEGY 2: Try to parse fetched_metadata field (if LLM followed instructions)
         if hasattr(result, 'fetched_metadata') and result.fetched_metadata:
@@ -479,14 +479,14 @@ class MetaDataFetcher:
                 for key, value in parsed.items():
                     if key not in fetched_data:
                         fetched_data[key] = value
-                logger.info(f"✅ Merged fetched_metadata: {len(parsed)} items")
+                logger.info(f" Merged fetched_metadata: {len(parsed)} items")
             except json.JSONDecodeError:
-                logger.debug("⚠️  fetched_metadata is not valid JSON, relying on trajectory extraction")
+                logger.debug(" fetched_metadata is not valid JSON, relying on trajectory extraction")
         
-        # 🔥 A-TEAM FIX: POST-PROCESS to parse filter conditions if present
+        # A-TEAM FIX: POST-PROCESS to parse filter conditions if present
         fetched_data = self._post_process_metadata(fetched_data)
         
-        logger.info(f"✅ Extracted {len(fetched_data)} metadata items: {list(fetched_data.keys())}")
+        logger.info(f" Extracted {len(fetched_data)} metadata items: {list(fetched_data.keys())}")
         
         return fetched_data
     
@@ -502,7 +502,7 @@ class MetaDataFetcher:
         for key in ['filter_conditions', 'get_all_filter_definitions', 'filters']:
             if key in fetched_data and isinstance(fetched_data[key], str):
                 filter_text = fetched_data[key]
-                logger.info(f"🔍 Found filter conditions in key '{key}' ({len(filter_text)} chars)")
+                logger.info(f" Found filter conditions in key '{key}' ({len(filter_text)} chars)")
                 break
         
         if not filter_text:
@@ -516,12 +516,12 @@ class MetaDataFetcher:
             if parsed_filters:
                 # Store both raw and parsed
                 fetched_data['filter_conditions_parsed'] = parsed_filters
-                logger.info(f"✅ Parsed {len(parsed_filters)} filter condition sections")
+                logger.info(f" Parsed {len(parsed_filters)} filter condition sections")
             else:
-                logger.warning("⚠️  Filter parsing returned empty result")
+                logger.warning(" Filter parsing returned empty result")
         
         except Exception as e:
-            logger.warning(f"⚠️  Failed to parse filter conditions: {e}")
+            logger.warning(f" Failed to parse filter conditions: {e}")
             # Don't crash - continue with unparsed data
         
         return fetched_data
@@ -542,7 +542,7 @@ class MetaDataFetcher:
         # Use configured LM (no hardcoding of model name!)
         lm = dspy.settings.lm if dspy.settings.lm else None
         if not lm:
-            logger.warning("⚠️  No LM configured, skipping filter parsing")
+            logger.warning(" No LM configured, skipping filter parsing")
             return {}
         
         prompt = f"""You are a metadata parser. Extract filter/condition specifications from text.
@@ -600,11 +600,11 @@ Return ONLY the JSON, no other text."""
             
             # Parse JSON
             parsed = json.loads(response_text)
-            logger.debug(f"✅ LLM parsed {len(parsed)} filter categories")
+            logger.debug(f" LLM parsed {len(parsed)} filter categories")
             return parsed
         
         except Exception as e:
-            logger.warning(f"⚠️  LLM parsing failed: {e}")
+            logger.warning(f" LLM parsing failed: {e}")
             return {}
     
     def _get_from_cache(self, query: str) -> Optional[Dict[str, Any]]:
@@ -616,10 +616,10 @@ Return ONLY the JSON, no other text."""
                 entry = self._cache[query_hash]
                 
                 if not entry.is_expired():
-                    logger.debug(f"📦 Cache hit for query (age: {(datetime.now() - entry.timestamp).seconds}s)")
+                    logger.debug(f" Cache hit for query (age: {(datetime.now() - entry.timestamp).seconds}s)")
                     return entry.data
                 else:
-                    logger.debug("📦 Cache entry expired, removing")
+                    logger.debug(" Cache entry expired, removing")
                     del self._cache[query_hash]
         
         return None
@@ -637,7 +637,7 @@ Return ONLY the JSON, no other text."""
         
         with self._cache_lock:
             self._cache[query_hash] = entry
-            logger.debug(f"📦 Cached result (TTL: {self.default_cache_ttl}s)")
+            logger.debug(f" Cached result (TTL: {self.default_cache_ttl}s)")
     
     def _hash_query(self, query: str) -> str:
         """Generate hash for query (for cache keys)."""
@@ -648,7 +648,7 @@ Return ONLY the JSON, no other text."""
         with self._cache_lock:
             cleared_count = len(self._cache)
             self._cache.clear()
-            logger.info(f"🗑️  Cleared {cleared_count} cache entries")
+            logger.info(f" Cleared {cleared_count} cache entries")
     
     def get_metrics(self) -> Dict[str, Any]:
         """

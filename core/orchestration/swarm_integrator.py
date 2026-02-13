@@ -91,7 +91,7 @@ class SwarmIntegrator:
             
             # Check if already exists
             if script_path in crontab_content:
-                logger.info(f"✅ Cron job already exists for {script_path}")
+                logger.info(f" Cron job already exists for {script_path}")
                 return IntegrationResult(
                     integration_type="cron",
                     success=True,
@@ -110,7 +110,7 @@ class SwarmIntegrator:
             process.communicate(input=crontab_content)
             
             if process.returncode == 0:
-                logger.info(f"✅ Cron job created: {cron_schedule} {script_path}")
+                logger.info(f" Cron job created: {cron_schedule} {script_path}")
                 return IntegrationResult(
                     integration_type="cron",
                     success=True,
@@ -131,7 +131,7 @@ class SwarmIntegrator:
                 error="crontab not found"
             )
         except Exception as e:
-            logger.error(f"❌ Cron setup failed: {e}")
+            logger.error(f" Cron setup failed: {e}")
             return IntegrationResult(
                 integration_type="cron",
                 success=False,
@@ -142,7 +142,7 @@ class SwarmIntegrator:
     async def _setup_systemd(self, script_path: str, schedule: str) -> IntegrationResult:
         """Set up systemd timer (DRY: reuse systemd)."""
         # TODO: Implement systemd timer setup
-        logger.warning("⚠️  systemd timer setup not yet implemented")
+        logger.warning(" systemd timer setup not yet implemented")
         return IntegrationResult(
             integration_type="systemd",
             success=False,
@@ -153,7 +153,7 @@ class SwarmIntegrator:
     async def _setup_cloud_scheduler(self, script_path: str, schedule: str) -> IntegrationResult:
         """Set up cloud scheduler (e.g., AWS EventBridge, GCP Cloud Scheduler)."""
         # TODO: Implement cloud scheduler setup
-        logger.warning("⚠️  Cloud scheduler setup not yet implemented")
+        logger.warning(" Cloud scheduler setup not yet implemented")
         return IntegrationResult(
             integration_type="cloud",
             success=False,
@@ -193,7 +193,7 @@ class SwarmIntegrator:
         Returns:
             IntegrationResult
         """
-        logger.info(f"📊 SwarmIntegrator: Setting up {monitoring_type} monitoring for {script_path}")
+        logger.info(f" SwarmIntegrator: Setting up {monitoring_type} monitoring for {script_path}")
         
         # For now, just ensure logging is set up
         # TODO: Add more sophisticated monitoring
@@ -219,7 +219,7 @@ class SwarmIntegrator:
         Returns:
             IntegrationResult
         """
-        logger.info(f"🔔 SwarmIntegrator: Setting up notifications on {notification_channels}")
+        logger.info(f" SwarmIntegrator: Setting up notifications on {notification_channels}")
         
         # TODO: Implement notification setup
         return IntegrationResult(

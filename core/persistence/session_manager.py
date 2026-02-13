@@ -84,7 +84,7 @@ class SessionManager:
         # Save config snapshot
         self._save_config_snapshot()
         
-        logger.info(f"📁 Session initialized: {self.session_dir}")
+        logger.info(f" Session initialized: {self.session_dir}")
     
     def _create_session_folder(self) -> Path:
         """Create timestamped session folder and update 'latest' symlink."""
@@ -98,7 +98,7 @@ class SessionManager:
             latest_link.unlink()
         latest_link.symlink_to(session_dir.name)
         
-        logger.info(f"✅ Created session folder: {session_dir.name}")
+        logger.info(f" Created session folder: {session_dir.name}")
         return session_dir
     
     def _setup_directories(self):
@@ -134,12 +134,12 @@ class SessionManager:
             Dict with loaded state or None if no previous state
         """
         if not self.config.auto_load_on_start:
-            logger.info("⏭️  Auto-load disabled")
+            logger.info("⏭ Auto-load disabled")
             return None
         
         latest_dir = self.base_dir / "latest"
         if not latest_dir.exists():
-            logger.info("📭 No previous state found")
+            logger.info(" No previous state found")
             return None
         
         try:
@@ -161,11 +161,11 @@ class SessionManager:
             if self.config.persist_todos:
                 state['todos'] = self._load_todos(latest_dir)
             
-            logger.info(f"✅ Loaded previous state from {latest_dir}")
+            logger.info(f" Loaded previous state from {latest_dir}")
             return state
         
         except Exception as e:
-            logger.warning(f"⚠️  Failed to load previous state: {e}")
+            logger.warning(f" Failed to load previous state: {e}")
             return None
     
     def _load_memories(self, source_dir: Path) -> Dict[str, Any]:
@@ -188,7 +188,7 @@ class SessionManager:
                 with open(mem_file) as f:
                     memories['agents'][agent_name] = json.load(f)
         
-        logger.info(f"  📚 Loaded {len(memories.get('agents', {}))} agent memories")
+        logger.info(f" Loaded {len(memories.get('agents', {}))} agent memories")
         return memories
     
     def _load_q_tables(self, source_dir: Path) -> Dict[str, Any]:
@@ -201,7 +201,7 @@ class SessionManager:
                 with open(q_file) as f:
                     q_tables[q_file.stem] = json.load(f)
         
-        logger.info(f"  🎯 Loaded {len(q_tables)} Q-tables")
+        logger.info(f" Loaded {len(q_tables)} Q-tables")
         return q_tables
     
     def _load_brain_state(self, source_dir: Path) -> Optional[Dict[str, Any]]:
@@ -210,7 +210,7 @@ class SessionManager:
         if brain_file.exists():
             with open(brain_file) as f:
                 state = json.load(f)
-            logger.info(f"  🧠 Loaded brain state")
+            logger.info(f" Loaded brain state")
             return state
         return None
     
@@ -220,7 +220,7 @@ class SessionManager:
         if todo_file.exists():
             with open(todo_file) as f:
                 content = f.read()
-            logger.info(f"  ✅ Loaded session TODO")
+            logger.info(f" Loaded session TODO")
             return content
         return None
     
@@ -248,10 +248,10 @@ class SessionManager:
             if self.config.persist_todos and 'todos' in state:
                 self._save_todos(state['todos'])
             
-            logger.info(f"💾 Saved state to {self.session_dir}")
+            logger.info(f" Saved state to {self.session_dir}")
         
         except Exception as e:
-            logger.error(f"❌ Failed to save state: {e}", exc_info=True)
+            logger.error(f" Failed to save state: {e}", exc_info=True)
     
     def _save_memories(self, memories: Dict[str, Any]):
         """Save all memory files."""
@@ -300,7 +300,7 @@ class SessionManager:
         result_file = self.session_dir / "results" / "query_results.json"
         with open(result_file, 'w') as f:
             json.dump(results, f, indent=2, default=str)
-        logger.info(f"💾 Saved results to {result_file}")
+        logger.info(f" Saved results to {result_file}")
     
     def get_log_path(self, log_type: str = "raw") -> Path:
         """Get path for log file."""
@@ -335,7 +335,7 @@ class SessionManager:
         to_remove = run_folders[self.config.max_runs_to_keep:]
         for folder in to_remove:
             shutil.rmtree(folder)
-            logger.info(f"🗑️  Removed old run: {folder.name}")
+            logger.info(f" Removed old run: {folder.name}")
     
     # =========================================================================
     # UTILITIES

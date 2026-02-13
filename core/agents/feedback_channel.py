@@ -104,7 +104,7 @@ class FeedbackChannel:
         self.messages: Dict[str, List[FeedbackMessage]] = defaultdict(list)
         self.message_history: List[FeedbackMessage] = []
         self.message_count = 0
-        logger.info("📧 FeedbackChannel initialized - agents can now communicate!")
+        logger.info(" FeedbackChannel initialized - agents can now communicate!")
     
     def send(self, message: FeedbackMessage) -> str:
         """
@@ -121,7 +121,7 @@ class FeedbackChannel:
         self.message_count += 1
         
         logger.info(
-            f"📧 {message.source_actor} → {message.target_actor}: "
+            f" {message.source_actor} → {message.target_actor}: "
             f"{message.feedback_type.value} "
             f"(priority={message.priority}, id={message.message_id})"
         )
@@ -166,7 +166,7 @@ class FeedbackChannel:
         
         if messages:
             logger.info(
-                f"📬 {actor_name} has {len(messages)} message(s) "
+                f" {actor_name} has {len(messages)} message(s) "
                 f"(priority <={priority_threshold})"
             )
         
@@ -290,7 +290,7 @@ class FeedbackChannel:
 
         if msg_ids:
             logger.info(
-                f"📢 {source_actor} broadcast to {len(msg_ids)} agents"
+                f" {source_actor} broadcast to {len(msg_ids)} agents"
             )
         return msg_ids
 
@@ -349,7 +349,7 @@ class FeedbackChannel:
                     # Found our response — remove from queue and return
                     pending.pop(i)
                     logger.info(
-                        f"📨 {source_actor} got reply from {target_actor} "
+                        f" {source_actor} got reply from {target_actor} "
                         f"({(_loop.time() - (deadline - timeout)):.1f}s)"
                     )
                     return response
@@ -363,7 +363,7 @@ class FeedbackChannel:
     def clear_all(self):
         """Clear all pending messages (but keep history)."""
         self.messages.clear()
-        logger.info("📧 FeedbackChannel: All pending messages cleared")
+        logger.info(" FeedbackChannel: All pending messages cleared")
     
     def format_messages_for_agent(
         self, 
@@ -383,7 +383,7 @@ class FeedbackChannel:
         if not messages:
             return ""
         
-        formatted = f"\n📧 MESSAGES FOR {actor_name}:\n\n"
+        formatted = f"\n MESSAGES FOR {actor_name}:\n\n"
         
         for i, msg in enumerate(messages, 1):
             formatted += f"{i}. FROM {msg.source_actor} ({msg.feedback_type.value}):\n"
@@ -393,7 +393,7 @@ class FeedbackChannel:
                 formatted += f"   Context: {str(msg.context)}\n"
             
             if msg.requires_response:
-                formatted += f"   ⚠️ Requires Response\n"
+                formatted += f" Requires Response\n"
             
             formatted += "\n"
         

@@ -55,7 +55,7 @@ def start_wrapper_server(port: int = 8765, wait_seconds: int = 15) -> bool:
     Returns True if server is running (started or already running).
     """
     if is_wrapper_running(f"http://127.0.0.1:{port}/v1"):
-        logger.info("✅ OpenAI wrapper already running")
+        logger.info(" OpenAI wrapper already running")
         return True
 
     try:
@@ -74,11 +74,11 @@ uvicorn.run(app, host='127.0.0.1', port={port}, log_level='warning')
         # Wait for server to be ready
         for i in range(wait_seconds):
             if is_wrapper_running(f"http://127.0.0.1:{port}/v1"):
-                logger.info(f"✅ OpenAI wrapper started after {i+1}s")
+                logger.info(f" OpenAI wrapper started after {i+1}s")
                 return True
             time.sleep(1)
 
-        logger.warning("⚠️ OpenAI wrapper failed to start")
+        logger.warning(" OpenAI wrapper failed to start")
         return False
 
     except Exception as e:
@@ -125,7 +125,7 @@ def create_claude_openai_lm(
         **kwargs
     )
 
-    logger.info(f"✅ Created Claude OpenAI LM: {model} @ {base_url}")
+    logger.info(f" Created Claude OpenAI LM: {model} @ {base_url}")
     return lm
 
 

@@ -40,7 +40,7 @@ provider = create_widget_provider(
     data_provider_fn=my_data_provider
 )
 
-# ✅ Now agents can render 30+ standard widgets!
+# Now agents can render 30+ standard widgets!
 ```
 
 **References:**
@@ -280,7 +280,7 @@ def create_standard_widgets() -> Dict[str, WidgetDefinition]:
             A2UIComponent(id="col-1", component_type="Column", children=["name-1", "cuisine-1", "rating-1", "address-1"]),
             A2UIComponent(id="name-1", component_type="Text", props={"value": "{{name}}", "style": "h4"}),
             A2UIComponent(id="cuisine-1", component_type="Text", props={"value": "{{cuisine}}", "style": "body"}),
-            A2UIComponent(id="rating-1", component_type="Text", props={"value": "⭐ {{rating}}/5", "style": "caption"}),
+            A2UIComponent(id="rating-1", component_type="Text", props={"value": " {{rating}}/5", "style": "caption"}),
             A2UIComponent(id="address-1", component_type="Text", props={"value": "{{address}}", "style": "caption"}),
         ],
         data_schema={

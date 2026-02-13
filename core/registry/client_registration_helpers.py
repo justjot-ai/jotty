@@ -82,7 +82,7 @@ def register_agui_adapter_from_registry(
         except Exception as e:
             logger.error(f"Failed to register adapter for {section_type}: {e}")
 
-    logger.info(f"✅ Registered {count} AGUI adapters from {client_id} registry")
+    logger.info(f" Registered {count} AGUI adapters from {client_id} registry")
     return count
 
 
@@ -154,7 +154,7 @@ def register_agui_adapters_from_module(
         except Exception as e:
             logger.error(f"Failed to register adapter for {section_type}: {e}")
 
-    logger.info(f"✅ Registered {count} AGUI adapters from {client_id} module")
+    logger.info(f" Registered {count} AGUI adapters from {client_id} module")
     return count
 
 
@@ -207,7 +207,7 @@ def register_generic_agui_adapter(
         **kwargs
     )
 
-    logger.info(f"✅ Registered AGUI adapter: {section_type} ({client_id})")
+    logger.info(f" Registered AGUI adapter: {section_type} ({client_id})")
 
 
 def get_registered_adapters_for_client(client_id: str) -> List[AGUIComponentAdapter]:

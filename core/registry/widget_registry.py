@@ -51,7 +51,7 @@ class WidgetRegistry:
     def __init__(self):
         self._widgets: Dict[str, WidgetSchema] = {}
         self._by_category: Dict[str, List[str]] = {}
-        logger.info("📦 WidgetRegistry initialized")
+        logger.info(" WidgetRegistry initialized")
     
     def register(
         self,
@@ -84,7 +84,7 @@ class WidgetRegistry:
         if value not in self._by_category[category]:
             self._by_category[category].append(value)
         
-        logger.debug(f"✅ Registered widget: {value} ({category})")
+        logger.debug(f" Registered widget: {value} ({category})")
     
     def register_batch(self, widgets: List[Dict[str, Any]]):
         """Register multiple widgets at once."""
@@ -124,7 +124,7 @@ class WidgetRegistry:
         """Clear all widgets (useful for testing)."""
         self._widgets.clear()
         self._by_category.clear()
-        logger.info("🗑️  WidgetRegistry cleared")
+        logger.info(" WidgetRegistry cleared")
 
 
 # Global instance (can be extended by projects)

@@ -243,7 +243,7 @@ class LLMSlideSelector:
         if self.use_llm:
             try:
                 self._selector = dspy.Predict(SlideSelectionSignature)
-                logger.info("🧠 LLM slide selector initialized")
+                logger.info(" LLM slide selector initialized")
             except Exception as e:
                 logger.warning(f"Could not init LLM selector: {e}, using heuristics")
                 self.use_llm = False

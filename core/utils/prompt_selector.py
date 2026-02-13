@@ -125,7 +125,7 @@ class PromptSelector:
             logger.warning(f"Auditor template not found: {auditor_path}, using base")
             auditor_path = str(self.base_path / "auditor" / "base_auditor.md")
 
-        logger.info(f"📋 Selected prompts for task type '{task_type}':")
+        logger.info(f" Selected prompts for task type '{task_type}':")
         logger.info(f"   Architect: {Path(architect_path).name}")
         logger.info(f"   Auditor: {Path(auditor_path).name}")
 

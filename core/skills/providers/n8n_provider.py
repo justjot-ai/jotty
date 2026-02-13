@@ -119,7 +119,7 @@ class N8nProvider(SkillProvider):
             skills = await self._fetch_skills()
             self.is_initialized = True
             self.is_available = True
-            logger.info("✅ n8n provider initialized (%d workflows as skills)", len(skills))
+            logger.info(" n8n provider initialized (%d workflows as skills)", len(skills))
             return True
         except Exception as e:
             logger.warning("n8n provider init failed (will retry on use): %s", e)

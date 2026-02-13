@@ -77,11 +77,11 @@ class HeartbeatCommand(BaseCommand):
             async def notify_handler(title, message, priority):
                 # Send to connected channels
                 if priority == "urgent":
-                    icon = "🔴"
+                    icon = ""
                 elif priority == "high":
-                    icon = "🟡"
+                    icon = ""
                 else:
-                    icon = "💡"
+                    icon = ""
 
                 cli.renderer.print(f"\n{icon} [bold]{title}[/bold]: {message}")
 
@@ -113,7 +113,7 @@ class HeartbeatCommand(BaseCommand):
         cli.renderer.print("[bold]Active tasks:[/bold]")
 
         for name, task in engine._tasks.items():
-            status = "✓" if task.enabled else "○"
+            status = "" if task.enabled else "○"
             cli.renderer.print(f"  {status} {name}: {task.description}")
 
         cli.renderer.newline()
@@ -143,7 +143,7 @@ class HeartbeatCommand(BaseCommand):
         cli.renderer.print(f"[bold]Tasks: {len(status['tasks'])}[/bold]")
 
         for name, task_status in status["tasks"].items():
-            enabled = "✓" if task_status["enabled"] else "○"
+            enabled = "" if task_status["enabled"] else "○"
             last_run = task_status["last_run"] or "never"
             cli.renderer.print(
                 f"  {enabled} {name} ({task_status['frequency']}) - "

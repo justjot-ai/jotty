@@ -6,9 +6,9 @@ Parses DSPy ReAct trajectories and tags attempts as:
 - 'error': Failed attempt or invalid result  
 - 'exploratory': Uncertain outcome, learning phase
 
-✅ GENERIC: Works for ANY domain (SQL, code, marketing, finance, etc.)
-✅ NO HARDCODING: Zero domain-specific assumptions
-✅ LLM-READY: Supports semantic tagging via LLM
+ GENERIC: Works for ANY domain (SQL, code, marketing, finance, etc.)
+ NO HARDCODING: Zero domain-specific assumptions
+ LLM-READY: Supports semantic tagging via LLM
 
 A-Team Design: Turing (architecture) + Sutton (RL tagging) + Chomsky (semantic understanding)
 """
@@ -30,8 +30,8 @@ class TaggedAttempt:
     - 'error': Failed attempt or invalid result
     - 'exploratory': Uncertain outcome, learning phase
     
-    ✅ GENERIC: No domain-specific fields
-    ✅ STANDARD: Same structure for SQL, code, marketing, etc.
+     GENERIC: No domain-specific fields
+     STANDARD: Same structure for SQL, code, marketing, etc.
     """
     output: Any                    # The actual output (query, code, config, etc.)
     tag: str                       # 'answer', 'error', or 'exploratory'
@@ -64,9 +64,9 @@ class TrajectoryParser:
     - 'error': Failed execution or invalid result
     - 'exploratory': Uncertain outcome, learning attempt
     
-    ✅ GENERIC: Works for SQL, code, marketing, finance, etc.
-    ✅ NO HARDCODING: No domain-specific assumptions
-    ✅ LLM-BASED: Semantic understanding of success/failure
+     GENERIC: Works for SQL, code, marketing, finance, etc.
+     NO HARDCODING: No domain-specific assumptions
+     LLM-BASED: Semantic understanding of success/failure
     
     A-Team Consensus: This is the ONLY place where trajectory parsing happens.
     Agents should NOT parse their own trajectories.
@@ -80,7 +80,7 @@ class TrajectoryParser:
             lm: Optional LLM for semantic tagging (future enhancement)
         """
         self.lm = lm
-        logger.info("🏷️  TrajectoryParser initialized (generic, domain-agnostic)")
+        logger.info(" TrajectoryParser initialized (generic, domain-agnostic)")
         
     def parse_trajectory(
         self,
@@ -103,21 +103,21 @@ class TrajectoryParser:
         
         # Check if result has trajectory data
         if not hasattr(result, '_store'):
-            logger.debug("🏷️  No trajectory (_store) in result")
+            logger.debug(" No trajectory (_store) in result")
             return attempts
             
         store = result._store
         
-        # 🔥 CRITICAL FIX: DSPy ReAct stores trajectory as a DICT in _store['trajectory']!
+        # CRITICAL FIX: DSPy ReAct stores trajectory as a DICT in _store['trajectory']!
         # NOT as top-level keys in _store!
         # See: https://dspy.ai/api/modules/ReAct/
         if 'trajectory' in store and isinstance(store['trajectory'], dict):
             trajectory = store['trajectory']
-            logger.info(f"🏷️  Parsing trajectory dict with {len(trajectory)} keys")
+            logger.info(f" Parsing trajectory dict with {len(trajectory)} keys")
         else:
             # Fallback: check if trajectory keys are at top level
             trajectory = store
-            logger.info(f"🏷️  Parsing trajectory (top-level) with {len(store)} keys")
+            logger.info(f" Parsing trajectory (top-level) with {len(store)} keys")
         
         i = 0
         
@@ -159,11 +159,11 @@ class TrajectoryParser:
             )
             
             attempts.append(attempt)
-            logger.info(f"🏷️  Attempt {attempt.attempt_number}: tag='{tag}', tool='{tool_name}'")
+            logger.info(f" Attempt {attempt.attempt_number}: tag='{tag}', tool='{tool_name}'")
             
             i += 1
         
-        logger.info(f"🏷️  Parsed {len(attempts)} attempts from trajectory")
+        logger.info(f" Parsed {len(attempts)} attempts from trajectory")
         return attempts
     
     def _tag_attempt(

@@ -299,7 +299,7 @@ class GlobalContextGuard:
         self.overflow_recovered = 0
         self.compression_applied = 0
 
-        logger.info(f"🛡️ GlobalContextGuard initialized (max_tokens={max_tokens})")
+        logger.info(f" GlobalContextGuard initialized (max_tokens={max_tokens})")
     
     def register(self, key: str, content: str, priority: int = None):
         """
@@ -423,7 +423,7 @@ class GlobalContextGuard:
             
             if overflow_info.is_overflow and retry_count < max_retries:
                 logger.warning(
-                    f"🔄 Context overflow detected (method={overflow_info.detection_method}). "
+                    f" Context overflow detected (method={overflow_info.detection_method}). "
                     f"Compressing and retrying ({retry_count + 1}/{max_retries})..."
                 )
                 self.overflow_recovered += 1
@@ -505,7 +505,7 @@ def patch_dspy_with_guard(guard: GlobalContextGuard):
             overflow_info = guard.detector.detect(e)
             
             if overflow_info.is_overflow:
-                logger.warning(f"🔄 DSPy LM overflow detected, compressing prompt...")
+                logger.warning(f" DSPy LM overflow detected, compressing prompt...")
                 guard.overflow_recovered += 1
                 
                 # Compress prompt
@@ -519,7 +519,7 @@ def patch_dspy_with_guard(guard: GlobalContextGuard):
             raise
     
     dspy.LM.__call__ = guarded_lm_call
-    logger.info("✅ DSPy patched with GlobalContextGuard")
+    logger.info(" DSPy patched with GlobalContextGuard")
 
 
 def unpatch_dspy():
@@ -527,7 +527,7 @@ def unpatch_dspy():
     if DSPY_AVAILABLE and hasattr(dspy, '_original_lm_call'):
         dspy.LM.__call__ = dspy._original_lm_call
         del dspy._original_lm_call
-        logger.info("✅ DSPy unpatched")
+        logger.info(" DSPy unpatched")
 
 
 # =============================================================================

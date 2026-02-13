@@ -184,7 +184,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         self._fast_model = fast_model
         self._init_fast_lm()
 
-        logger.info(f"🧠 TaskPlanner initialized (fast_model={fast_model} for classification)")
+        logger.info(f" TaskPlanner initialized (fast_model={fast_model} for classification)")
 
     def _init_fast_lm(self):
         """Initialize fast LM for routing/classification tasks.
@@ -540,15 +540,15 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             # Post-plan quality check: decompose composite skills for complex tasks
             decomposed = self._maybe_decompose_plan(steps, skills, task, task_type)
             if decomposed is not None:
-                logger.info(f"🔀 Plan decomposed: {len(steps)} steps → {len(decomposed)} steps")
+                logger.info(f" Plan decomposed: {len(steps)} steps → {len(decomposed)} steps")
                 steps = decomposed
                 reasoning = f"Decomposed for quality: {reasoning}"
 
             used_skills = {step.skill_name for step in steps}
             if len(steps) > 0:
-                logger.info(f"📋 Plan uses {len(used_skills)} skills: {used_skills}")
+                logger.info(f" Plan uses {len(used_skills)} skills: {used_skills}")
 
-            logger.info(f"📝 Planned {len(steps)} execution steps")
+            logger.info(f" Planned {len(steps)} execution steps")
             logger.debug(f"   Reasoning: {reasoning}")
             if hasattr(result, 'estimated_complexity'):
                 logger.debug(f"   Complexity: {result.estimated_complexity}")
@@ -560,7 +560,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.warning("Attempting fallback plan due to execution planning failure")
             try:
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                logger.info(f"🔧 Fallback plan generated {len(fallback_plan_data)} steps: {fallback_plan_data}")
+                logger.info(f" Fallback plan generated {len(fallback_plan_data)} steps: {fallback_plan_data}")
 
                 if not fallback_plan_data:
                     logger.error("Fallback plan returned empty list!")
@@ -569,10 +569,10 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
 
                 if steps:
-                    logger.info(f"✅ Fallback plan created: {len(steps)} steps")
+                    logger.info(f" Fallback plan created: {len(steps)} steps")
                     return steps, f"Fallback plan (planning failed: {str(e)[:100]})"
                 else:
-                    logger.error(f"❌ Fallback plan generated steps but 0 were converted to ExecutionStep objects")
+                    logger.error(f" Fallback plan generated steps but 0 were converted to ExecutionStep objects")
             except Exception as fallback_e:
                 logger.error(f"Fallback plan also failed: {fallback_e}", exc_info=True)
 
@@ -627,7 +627,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 'config': {"response_format": {"type": "json_object"}}
             }
 
-            logger.info(f"📤 Calling LLM for execution plan (async)...")
+            logger.info(f" Calling LLM for execution plan (async)...")
 
             # ── ASYNC LLM CALL ─────────────────────────────────
             result = await self._acall_with_retry(
@@ -638,7 +638,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 lm=self._fast_lm,
             )
 
-            logger.info(f"📥 LLM response received (async)")
+            logger.info(f" LLM response received (async)")
 
             # Post-processing: parse plan (reuse sync method — pure CPU)
             raw_plan = getattr(result, 'execution_plan', None)
@@ -968,7 +968,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                     tool_to_skill[t_name] = skill_name_map
 
         available_skill_names = {s.get('name', '') for s in skills if s.get('name')}
-        logger.info(f"📋 Available skills for validation: {sorted(available_skill_names)}")
+        logger.info(f" Available skills for validation: {sorted(available_skill_names)}")
 
         def get_val(obj, key, default=''):
             if isinstance(obj, dict):
@@ -1207,12 +1207,12 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             reflection = str(getattr(result, 'reflection', ''))
             reasoning = str(getattr(result, 'reasoning', ''))
 
-            logger.info(f"🔄 Reflective replanning: reflection='{reflection[:100]}...'")
+            logger.info(f" Reflective replanning: reflection='{reflection[:100]}...'")
 
             steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
 
             if steps:
-                logger.info(f"🔄 Reflective replan produced {len(steps)} new steps")
+                logger.info(f" Reflective replan produced {len(steps)} new steps")
                 return steps, reflection, reasoning
 
         except Exception as e:
@@ -1439,7 +1439,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 tool_name='send_telegram_file_tool',
                 params={
                     'file_path': '${pdf_output.pdf_path}',
-                    'caption': f'📊 {entity_names} Comparison Report',
+                    'caption': f' {entity_names} Comparison Report',
                 },
                 description=f'Send comparison report via Telegram',
                 output_key='telegram_send',
@@ -1454,7 +1454,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 tool_name='send_slack_message_tool',
                 params={
                     'file_path': '${pdf_output.pdf_path}',
-                    'message': f'📊 {entity_names} Comparison Report',
+                    'message': f' {entity_names} Comparison Report',
                 },
                 description=f'Send comparison report via Slack',
                 output_key='slack_send',
@@ -1462,7 +1462,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 optional=True,
             ))
 
-        logger.info(f"🔀 Decomposed {len(steps)}-step composite plan → {len(decomposed)} granular steps")
+        logger.info(f" Decomposed {len(steps)}-step composite plan → {len(decomposed)} granular steps")
         for i, step in enumerate(decomposed):
             logger.info(f"   Step {i+1}: {step.skill_name}/{step.tool_name} → {step.output_key}")
 

@@ -152,7 +152,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
                         from ..integration.direct_claude_cli_lm import DirectClaudeCLI
                         lm = DirectClaudeCLI()  # model resolved from config_defaults
                         dspy.configure(lm=lm)
-                        logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
+                        logger.info(" Auto-configured DSPy with DirectClaudeCLI")
                     except Exception as e:
                         logger.warning(f"Could not configure DSPy LM: {e}")
         except ImportError:
@@ -172,7 +172,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             self._bus = resources.bus
             self._td_learner = resources.learner
 
-            logger.info("✅ Shared swarm resources initialized")
+            logger.info(" Shared swarm resources initialized")
         except Exception as e:
             logger.warning(f"SwarmResources not available: {e}")
 
@@ -236,7 +236,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         self._auditor = AuditorAgent(auditor_config)
         self._learner = LearnerAgent(learner_config)
 
-        logger.info("✅ Self-improvement loop initialized")
+        logger.info(" Self-improvement loop initialized")
 
     def _get_intelligence_save_path(self) -> str:
         """Get persistent file path for SwarmIntelligence state."""
@@ -280,7 +280,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             if loaded:
                 stats = self._swarm_intelligence.curriculum_generator.get_curriculum_stats()
                 logger.info(
-                    f"📂 Loaded previous learning: {stats['feedback_count']} feedback events, "
+                    f" Loaded previous learning: {stats['feedback_count']} feedback events, "
                     f"{len(stats['tool_success_rates'])} tools tracked"
                 )
 
@@ -296,7 +296,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             self._swarm_intelligence.connect_td_learner(self._learner)
             logger.debug("RL loop closed: TD-Lambda learner connected to SwarmIntelligence")
 
-        logger.info(f"✅ SwarmIntelligence connected (training={enable_training})")
+        logger.info(f" SwarmIntelligence connected (training={enable_training})")
 
     def _send_executor_feedback(
         self,

@@ -58,7 +58,7 @@ class ToolInterceptor:
         self._attempt_counters: Dict[str, int] = {}  # Track attempts per tool
         self._lock = Lock()  # Thread-safe
         
-        logger.info(f"🔧 [INTERCEPTOR] Initialized for actor '{actor_name}'")
+        logger.info(f" [INTERCEPTOR] Initialized for actor '{actor_name}'")
     
     def wrap_tools(self, tools: Dict[str, Callable]) -> Dict[str, Callable]:
         """
@@ -74,9 +74,9 @@ class ToolInterceptor:
         
         for tool_name, tool_func in tools.items():
             wrapped[tool_name] = self._create_wrapper(tool_name, tool_func)
-            logger.debug(f"🔧 [INTERCEPTOR] Wrapped tool '{tool_name}' for {self.actor_name}")
+            logger.debug(f" [INTERCEPTOR] Wrapped tool '{tool_name}' for {self.actor_name}")
         
-        logger.info(f"🔧 [INTERCEPTOR] Wrapped {len(wrapped)} tools for {self.actor_name}")
+        logger.info(f" [INTERCEPTOR] Wrapped {len(wrapped)} tools for {self.actor_name}")
         return wrapped
     
     def _create_wrapper(self, tool_name: str, tool_func: Callable) -> Callable:
@@ -97,7 +97,7 @@ class ToolInterceptor:
                 self._attempt_counters[tool_name] = self._attempt_counters.get(tool_name, 0) + 1
                 attempt_num = self._attempt_counters[tool_name]
             
-            logger.info(f"🔧 [INTERCEPTOR] Tool call #{attempt_num}: {tool_name}({list(kwargs.keys())})")
+            logger.info(f" [INTERCEPTOR] Tool call #{attempt_num}: {tool_name}({list(kwargs.keys())})")
             
             # Call original tool
             success = False
@@ -107,12 +107,12 @@ class ToolInterceptor:
             try:
                 result = tool_func(**kwargs)
                 success = True
-                logger.info(f"✅ [INTERCEPTOR] Tool '{tool_name}' succeeded (attempt #{attempt_num})")
+                logger.info(f" [INTERCEPTOR] Tool '{tool_name}' succeeded (attempt #{attempt_num})")
             except Exception as e:
                 success = False
                 error = str(e)
                 result = f"Error: {error}"
-                logger.error(f"❌ [INTERCEPTOR] Tool '{tool_name}' failed: {error}")
+                logger.error(f" [INTERCEPTOR] Tool '{tool_name}' failed: {error}")
             
             # Record the call
             call_record = ToolCall(
@@ -181,7 +181,7 @@ class ToolInterceptor:
         with self._lock:
             self._calls.clear()
             self._attempt_counters.clear()
-        logger.debug(f"🔧 [INTERCEPTOR] Cleared all calls for {self.actor_name}")
+        logger.debug(f" [INTERCEPTOR] Cleared all calls for {self.actor_name}")
     
     def summary(self) -> Dict[str, Any]:
         """
@@ -259,7 +259,7 @@ class ToolInterceptor:
                 attempt_number=call.attempt_number
             ))
         
-        logger.info(f"🔧 [INTERCEPTOR] Converted {len(attempts)} tool calls to TaggedAttempts")
+        logger.info(f" [INTERCEPTOR] Converted {len(attempts)} tool calls to TaggedAttempts")
         return attempts
 
 
@@ -273,7 +273,7 @@ class ToolCallRegistry:
     def __init__(self):
         self._interceptors: Dict[str, ToolInterceptor] = {}
         self._lock = Lock()
-        logger.info("📋 [REGISTRY] ToolCallRegistry initialized")
+        logger.info(" [REGISTRY] ToolCallRegistry initialized")
     
     def get_or_create_interceptor(self, actor_name: str) -> ToolInterceptor:
         """
@@ -288,7 +288,7 @@ class ToolCallRegistry:
         with self._lock:
             if actor_name not in self._interceptors:
                 self._interceptors[actor_name] = ToolInterceptor(actor_name)
-                logger.info(f"📋 [REGISTRY] Created interceptor for '{actor_name}'")
+                logger.info(f" [REGISTRY] Created interceptor for '{actor_name}'")
             return self._interceptors[actor_name]
     
     def get_all_calls(self) -> List[ToolCall]:
@@ -323,5 +323,5 @@ class ToolCallRegistry:
         with self._lock:
             for interceptor in self._interceptors.values():
                 interceptor.clear()
-        logger.info("📋 [REGISTRY] Cleared all interceptors")
+        logger.info(" [REGISTRY] Cleared all interceptors")
 

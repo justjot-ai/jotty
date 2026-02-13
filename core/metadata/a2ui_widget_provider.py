@@ -304,9 +304,9 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             "Divider"
         }
 
-        logger.info(f"✅ A2UIWidgetProvider initialized")
+        logger.info(f" A2UIWidgetProvider initialized")
         logger.info(f"   Widget catalog: {len(self._widget_catalog)} widgets")
-        logger.info(f"   Data provider: {'✓' if data_provider_fn else '✗'}")
+        logger.info(f" Data provider: {'' if data_provider_fn else ''}")
         logger.info(f"   Caching: {'enabled' if enable_caching else 'disabled'}")
 
     # -------------------------------------------------------------------------
@@ -323,12 +323,12 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         for component in widget.component_tree:
             if component.component_type not in self._standard_components:
                 logger.warning(
-                    f"⚠️  Widget '{widget.id}' uses non-standard component: "
+                    f" Widget '{widget.id}' uses non-standard component: "
                     f"'{component.component_type}'"
                 )
 
         self._widget_catalog[widget.id] = widget
-        logger.info(f"✅ Registered widget: {widget.id} ({widget.name})")
+        logger.info(f" Registered widget: {widget.id} ({widget.name})")
 
     def get_widget_catalog(self) -> Dict[str, WidgetDefinition]:
         """Get all registered widgets."""
@@ -401,12 +401,12 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         if self._data_provider_fn:
             try:
                 data = self._data_provider_fn(widget_id, params or {})
-                logger.info(f"✅ Fetched data for widget: {widget_id}")
+                logger.info(f" Fetched data for widget: {widget_id}")
             except Exception as e:
-                logger.error(f"❌ Failed to fetch data for widget '{widget_id}': {e}")
+                logger.error(f" Failed to fetch data for widget '{widget_id}': {e}")
                 data = widget.example_data or {}
         else:
-            logger.warning(f"⚠️  No data provider, using example data for: {widget_id}")
+            logger.warning(f" No data provider, using example data for: {widget_id}")
             data = widget.example_data or {}
 
         # Create A2UI message with widget components and data
@@ -441,7 +441,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         lines = [
             "DISPLAY rich visual widget to the user instead of plain text.",
             "",
-            "⚠️ IMPORTANT: Use this tool to show visual content to users!",
+            " IMPORTANT: Use this tool to show visual content to users!",
             "Instead of returning plain text responses, use widgets for better UX.",
             ""
         ]
@@ -578,7 +578,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             get_widget_schema
         ])
 
-        logger.info(f"✅ Generated {len(tools)} A2UI widget tools for agents")
+        logger.info(f" Generated {len(tools)} A2UI widget tools for agents")
         return tools
 
     def get_tool_names(self) -> List[str]:

@@ -121,7 +121,7 @@ class PreviewCommand(BaseCommand):
         ]
 
         for tool, purpose, install in tool_info:
-            status = "[green]✓[/green]" if tools.get(tool) else "[red]✗[/red]"
+            status = "[green][/green]" if tools.get(tool) else "[red][/red]"
             cli.renderer.print(f"  {status} [cyan]{tool:12}[/cyan] {purpose:12} [dim]{install}[/dim]")
 
         cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
@@ -141,7 +141,7 @@ class PreviewCommand(BaseCommand):
         # File info header
         size = path.stat().st_size
         size_str = self._format_size(size)
-        cli.renderer.print(f"\n[bold cyan]📄 {path.name}[/bold cyan] [dim]({size_str})[/dim]")
+        cli.renderer.print(f"\n[bold cyan] {path.name}[/bold cyan] [dim]({size_str})[/dim]")
         cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
         try:

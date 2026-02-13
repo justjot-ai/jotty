@@ -77,7 +77,7 @@ class MongoDBMemoryBackend:
         # Create indexes
         self._ensure_indexes()
         
-        logger.info(f"✅ MongoDB backend initialized for agent '{self.agent_name}'")
+        logger.info(f" MongoDB backend initialized for agent '{self.agent_name}'")
     
     def _ensure_indexes(self):
         """Create necessary indexes for efficient queries."""
@@ -141,7 +141,7 @@ class MongoDBMemoryBackend:
                 
                 logger.debug(f"Saved {len(memories)} {level.value} memories to MongoDB")
             
-            logger.info(f"✅ Saved {saved_count} total memories to MongoDB")
+            logger.info(f" Saved {saved_count} total memories to MongoDB")
             return True
             
         except Exception as e:
@@ -178,7 +178,7 @@ class MongoDBMemoryBackend:
                 
                 logger.debug(f"Loaded {loaded_count} {level.value} memories from MongoDB")
             
-            logger.info(f"✅ Loaded {loaded_count} total memories from MongoDB")
+            logger.info(f" Loaded {loaded_count} total memories from MongoDB")
             return True
             
         except Exception as e:
@@ -349,7 +349,7 @@ class MongoDBMemoryBackend:
             # Persist to MongoDB
             self.save()
             
-            logger.info(f"✅ Stored task outcome: {task_id} ({status})")
+            logger.info(f" Stored task outcome: {task_id} ({status})")
             
             # Extract patterns if successful (using Jotty's consolidation)
             if status == "completed":
@@ -452,10 +452,10 @@ class MongoDBMemoryBackend:
             )
             
             self.save()
-            logger.info(f"   ✅ Extracted success pattern for category '{category}'")
+            logger.info(f" Extracted success pattern for category '{category}'")
             
         except Exception as e:
-            logger.warning(f"   ⚠️  Pattern extraction failed: {e}")
+            logger.warning(f" Pattern extraction failed: {e}")
     
     def _analyze_failure_pattern(self, task_spec: str, category: str, errors: List[str], task_id: str):
         """Analyze failure pattern using Jotty's memory API."""
@@ -484,10 +484,10 @@ class MongoDBMemoryBackend:
             )
             
             self.save()
-            logger.info(f"   ⚠️  Extracted failure pattern: {error_type} in {category}")
+            logger.info(f" Extracted failure pattern: {error_type} in {category}")
             
         except Exception as e:
-            logger.warning(f"   ⚠️  Failure pattern analysis failed: {e}")
+            logger.warning(f" Failure pattern analysis failed: {e}")
     
     def _categorize_error(self, error: str) -> str:
         """Categorize error message."""

@@ -293,7 +293,7 @@ class SwarmMemory(RetrievalMixin, ConsolidationMixin):
         if outcome == "failure":
             # Failures are rare = HIGH information content
             # Store MAXIMUM detail in CAUSAL memory (learn WHY it failed)
-            enhanced_content = f"""❌ FAILURE ANALYSIS (High Information Event)
+            enhanced_content = f""" FAILURE ANALYSIS (High Information Event)
 ═══════════════════════════════════════════════════
 {content}
 
@@ -322,7 +322,7 @@ Store full trace to prevent similar failures.
             summary = lines[0] if lines else content
             
             return self.store(
-                content=f"✅ Success: {summary}",
+                content=f" Success: {summary}",
                 level=MemoryLevel.SEMANTIC,  # Semantic for patterns
                 context=context,
                 goal=goal,

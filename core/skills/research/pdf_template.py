@@ -794,34 +794,34 @@ def _enhance_html(html: str) -> str:
 
     # Style cover page rating badge (large format)
     html = re.sub(
-        r'<div class="rating-badge rating-buy">\s*🟢\s*BUY\s*</div>',
-        '<div class="rating-badge rating-buy">✓ BUY</div>',
+        r'<div class="rating-badge rating-buy">\s*\s*BUY\s*</div>',
+        '<div class="rating-badge rating-buy"> BUY</div>',
         html
     )
     html = re.sub(
-        r'<div class="rating-badge rating-hold">\s*🟡\s*HOLD\s*</div>',
+        r'<div class="rating-badge rating-hold">\s*\s*HOLD\s*</div>',
         '<div class="rating-badge rating-hold">● HOLD</div>',
         html
     )
     html = re.sub(
-        r'<div class="rating-badge rating-sell">\s*🔴\s*SELL\s*</div>',
-        '<div class="rating-badge rating-sell">✗ SELL</div>',
+        r'<div class="rating-badge rating-sell">\s*\s*SELL\s*</div>',
+        '<div class="rating-badge rating-sell"> SELL</div>',
         html
     )
 
     # Style inline rating badges
     html = re.sub(
-        r'🟢\s*BUY',
+        r'\s*BUY',
         '<span class="rating-box rating-buy">BUY</span>',
         html
     )
     html = re.sub(
-        r'🟡\s*HOLD',
+        r'\s*HOLD',
         '<span class="rating-box rating-hold">HOLD</span>',
         html
     )
     html = re.sub(
-        r'🔴\s*SELL',
+        r'\s*SELL',
         '<span class="rating-box rating-sell">SELL</span>',
         html
     )
@@ -829,17 +829,17 @@ def _enhance_html(html: str) -> str:
     # Style scenario analysis section headers with background boxes
     html = re.sub(
         r'<h3>Bull Case([^<]*)</h3>',
-        r'</div><div class="scenario-bull"><h3 style="color:#276749;margin-top:0;">📈 Bull Case\1</h3>',
+        r'</div><div class="scenario-bull"><h3 style="color:#276749;margin-top:0;"> Bull Case\1</h3>',
         html
     )
     html = re.sub(
         r'<h3>Base Case([^<]*)</h3>',
-        r'</div><div class="scenario-base"><h3 style="color:#744210;margin-top:0;">📊 Base Case\1</h3>',
+        r'</div><div class="scenario-base"><h3 style="color:#744210;margin-top:0;"> Base Case\1</h3>',
         html
     )
     html = re.sub(
         r'<h3>Bear Case([^<]*)</h3>',
-        r'</div><div class="scenario-bear"><h3 style="color:#742a2a;margin-top:0;">📉 Bear Case\1</h3>',
+        r'</div><div class="scenario-bear"><h3 style="color:#742a2a;margin-top:0;"> Bear Case\1</h3>',
         html
     )
 
@@ -886,13 +886,13 @@ def _enhance_html(html: str) -> str:
     )
 
     # Style impact badges in catalysts (contained styling)
-    html = re.sub(r'🔴 High', '<strong style="color:#e53e3e">High</strong>', html)
-    html = re.sub(r'🟡 Medium', '<strong style="color:#d69e2e">Medium</strong>', html)
-    html = re.sub(r'🟢 Low', '<strong style="color:#38a169">Low</strong>', html)
+    html = re.sub(r' High', '<strong style="color:#e53e3e">High</strong>', html)
+    html = re.sub(r' Medium', '<strong style="color:#d69e2e">Medium</strong>', html)
+    html = re.sub(r' Low', '<strong style="color:#38a169">Low</strong>', html)
 
     # Style checkmarks and warnings (contained styling)
-    html = re.sub(r'✓ ', '<span style="color:#38a169;font-weight:bold">✓</span> ', html)
-    html = re.sub(r'⚠ ', '<span style="color:#d69e2e;font-weight:bold">⚠</span> ', html)
+    html = re.sub(r' ', '<span style="color:#38a169;font-weight:bold"></span> ', html)
+    html = re.sub(r' ', '<span style="color:#d69e2e;font-weight:bold"></span> ', html)
 
     return html
 

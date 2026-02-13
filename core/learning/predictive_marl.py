@@ -196,7 +196,7 @@ class LLMTrajectoryPredictor:
         self.learned_patterns: List[str] = []
         self.agent_models: Dict[str, AgentModel] = {}
         
-        logger.info(f"🔮 LLMTrajectoryPredictor initialized (horizon={horizon})")
+        logger.info(f" LLMTrajectoryPredictor initialized (horizon={horizon})")
     
     def predict(
         self,
@@ -317,7 +317,7 @@ class LLMTrajectoryPredictor:
         # Update agent models
         self._update_agent_models(divergence)
         
-        logger.info(f"📚 Learned: {divergence.learning}...")
+        logger.info(f" Learned: {divergence.learning}...")
     
     def _compute_action_divergence(
         self, 
@@ -387,7 +387,7 @@ class LLMTrajectoryPredictor:
             pred_agent = pred.get('agent', '')
             act_agent = act.get('agent', '')
             
-            # ✅ FIX: Only log if we have actual agent data
+            # FIX: Only log if we have actual agent data
             if pred_agent and act_agent and pred_agent != act_agent:
                 differences.append(
                     f"Step {i}: Expected {pred_agent} but {act_agent} acted"

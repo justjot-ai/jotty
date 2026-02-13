@@ -49,9 +49,9 @@ class SwarmConfigurator:
             try:
                 with open(self._config_path, 'r') as f:
                     self._config_store = json.load(f)
-                logger.debug(f"✅ Loaded {len(self._config_store)} saved configurations")
+                logger.debug(f" Loaded {len(self._config_store)} saved configurations")
             except Exception as e:
-                logger.warning(f"⚠️  Failed to load configs: {e}")
+                logger.warning(f" Failed to load configs: {e}")
                 self._config_store = {}
         else:
             self._config_store = {}
@@ -62,9 +62,9 @@ class SwarmConfigurator:
             self._config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._config_path, 'w') as f:
                 json.dump(self._config_store, f, indent=2)
-            logger.debug("✅ Saved configurations")
+            logger.debug(" Saved configurations")
         except Exception as e:
-            logger.warning(f"⚠️  Failed to save configs: {e}")
+            logger.warning(f" Failed to save configs: {e}")
     
     async def configure(
         self,
@@ -83,11 +83,11 @@ class SwarmConfigurator:
         Returns:
             ConfigurationResult
         """
-        logger.info(f"⚙️  SwarmConfigurator: Configuring '{service}'")
+        logger.info(f" SwarmConfigurator: Configuring '{service}'")
         
         # Check if already configured
         if service in self._config_store:
-            logger.info(f"✅ {service} already configured")
+            logger.info(f" {service} already configured")
             return ConfigurationResult(
                 service=service,
                 success=True,
@@ -101,7 +101,7 @@ class SwarmConfigurator:
             if auto_config:
                 self._config_store[service] = auto_config
                 self._save_configs()
-                logger.info(f"✅ Auto-configured {service} from environment")
+                logger.info(f" Auto-configured {service} from environment")
                 return ConfigurationResult(
                     service=service,
                     success=True,
@@ -201,4 +201,4 @@ class SwarmConfigurator:
         """Manually set configuration."""
         self._config_store[service] = config
         self._save_configs()
-        logger.info(f"✅ Saved configuration for {service}")
+        logger.info(f" Saved configuration for {service}")

@@ -117,12 +117,12 @@ class SwarmInstaller:
         
         # Check if already installed
         if package in self._installed_packages:
-            logger.info(f"✅ {package} already installed")
+            logger.info(f" {package} already installed")
             return self._installed_packages[package]
         
         # Skip built-in Python modules
         if self._is_builtin_python_module(package):
-            logger.info(f"ℹ️  Skipping built-in Python module: {package}")
+            logger.info(f"ℹ Skipping built-in Python module: {package}")
             return InstallationResult(
                 package=package,
                 success=True,
@@ -130,7 +130,7 @@ class SwarmInstaller:
                 version="built-in"
             )
         
-        logger.info(f"📦 SwarmInstaller: Installing '{package}'")
+        logger.info(f" SwarmInstaller: Installing '{package}'")
         
         # Try skill registry first (DRY: reuse existing skills)
         if package_type == "skill" or not package_type:
@@ -155,7 +155,7 @@ class SwarmInstaller:
         
         # If all methods failed
         error_msg = f"Failed to install {package} with any method"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f" {error_msg}")
         result = InstallationResult(
             package=package,
             success=False,
@@ -170,7 +170,7 @@ class SwarmInstaller:
         try:
             skill = self._skills_registry.get_skill(skill_name)
             if skill:
-                logger.info(f"✅ Found skill '{skill_name}' in registry")
+                logger.info(f" Found skill '{skill_name}' in registry")
                 return InstallationResult(
                     package=skill_name,
                     success=True,
@@ -190,7 +190,7 @@ class SwarmInstaller:
     async def _install_with_pip(self, package: str) -> InstallationResult:
         """Install Python package with pip."""
         try:
-            logger.info(f"📦 Installing {package} with pip...")
+            logger.info(f" Installing {package} with pip...")
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", package],
                 capture_output=True,
@@ -212,7 +212,7 @@ class SwarmInstaller:
                             version = line.split(':', 1)[1].strip()
                             break
                 
-                logger.info(f"✅ Installed {package} (version: {version or 'unknown'})")
+                logger.info(f" Installed {package} (version: {version or 'unknown'})")
                 return InstallationResult(
                     package=package,
                     success=True,
@@ -221,7 +221,7 @@ class SwarmInstaller:
                 )
             else:
                 error = result.stderr or result.stdout
-                logger.error(f"❌ Pip installation failed: {error}")
+                logger.error(f" Pip installation failed: {error}")
                 return InstallationResult(
                     package=package,
                     success=False,
@@ -236,7 +236,7 @@ class SwarmInstaller:
                 error="Installation timeout"
             )
         except Exception as e:
-            logger.error(f"❌ Pip installation error: {e}")
+            logger.error(f" Pip installation error: {e}")
             return InstallationResult(
                 package=package,
                 success=False,
@@ -250,10 +250,10 @@ class SwarmInstaller:
             # Normalize npm package name (must be lowercase)
             normalized_package = self._normalize_npm_package_name(package)
             if normalized_package != package:
-                logger.info(f"📦 Normalizing npm package name: {package} -> {normalized_package}")
+                logger.info(f" Normalizing npm package name: {package} -> {normalized_package}")
                 package = normalized_package
             
-            logger.info(f"📦 Installing {package} with npm...")
+            logger.info(f" Installing {package} with npm...")
             result = subprocess.run(
                 ["npm", "install", package],
                 capture_output=True,
@@ -262,7 +262,7 @@ class SwarmInstaller:
             )
             
             if result.returncode == 0:
-                logger.info(f"✅ Installed {package} with npm")
+                logger.info(f" Installed {package} with npm")
                 return InstallationResult(
                     package=package,
                     success=True,
@@ -270,7 +270,7 @@ class SwarmInstaller:
                 )
             else:
                 error = result.stderr or result.stdout
-                logger.error(f"❌ NPM installation failed: {error}")
+                logger.error(f" NPM installation failed: {error}")
                 return InstallationResult(
                     package=package,
                     success=False,
@@ -292,7 +292,7 @@ class SwarmInstaller:
                 error="Installation timeout"
             )
         except Exception as e:
-            logger.error(f"❌ NPM installation error: {e}")
+            logger.error(f" NPM installation error: {e}")
             return InstallationResult(
                 package=package,
                 success=False,
@@ -375,11 +375,11 @@ class SwarmInstaller:
                 package_name = req.split('>=')[0].split('==')[0].split('<')[0].strip()
 
                 if not self.is_installed(package_name):
-                    logger.info(f"📦 Installing skill dependency: {package_name}")
+                    logger.info(f" Installing skill dependency: {package_name}")
                     result = await self.install(package_name, package_type="pip")
                     results.append(result)
                 else:
-                    logger.debug(f"✅ Dependency already installed: {package_name}")
+                    logger.debug(f" Dependency already installed: {package_name}")
 
         except Exception as e:
             logger.error(f"Error installing skill dependencies: {e}")
@@ -401,7 +401,7 @@ class SwarmInstaller:
         # Check if all installations succeeded
         failed = [r for r in results if not r.success]
         if failed:
-            logger.warning(f"⚠️ Some dependencies failed for {skill_name}: {[r.package for r in failed]}")
+            logger.warning(f" Some dependencies failed for {skill_name}: {[r.package for r in failed]}")
             return False
 
         return True

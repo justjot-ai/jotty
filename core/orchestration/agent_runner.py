@@ -236,14 +236,14 @@ class AgentRunner:
                     auto_fix=True,
                     max_fix_attempts=3
                 )
-                logger.info(f"🖥️  SwarmTerminal enabled for agent '{self.agent_name}'")
+                logger.info(f" SwarmTerminal enabled for agent '{self.agent_name}'")
             except Exception as e:
                 logger.debug(f"SwarmTerminal not available for {self.agent_name}: {e}")
 
         # Get agent state tracker (creates if doesn't exist)
         if self.swarm_state_manager:
             self.agent_tracker = self.swarm_state_manager.get_agent_tracker(self.agent_name)
-            logger.info(f"📊 AgentStateTracker initialized for '{self.agent_name}'")
+            logger.info(f" AgentStateTracker initialized for '{self.agent_name}'")
         
         from pathlib import Path
         
@@ -441,7 +441,7 @@ class AgentRunner:
         hook_name = name or f"{hook_type}_{len(self._hooks[hook_type])}"
         fn._hook_name = hook_name  # tag for removal
         self._hooks[hook_type].append(fn)
-        logger.info(f"🪝 Hook registered: {hook_type}/{hook_name}")
+        logger.info(f" Hook registered: {hook_type}/{hook_name}")
         return hook_name
 
     def remove_hook(self, hook_type: str, name: str) -> bool:
@@ -474,7 +474,7 @@ class AgentRunner:
                     context.update(result)
             except Exception as e:
                 hook_name = getattr(fn, '_hook_name', '?')
-                logger.warning(f"🪝 Hook {hook_type}/{hook_name} failed: {e}")
+                logger.warning(f" Hook {hook_type}/{hook_name} failed: {e}")
         return context
 
     def _update_validators_for_task(self, goal: str) -> str:
@@ -529,7 +529,7 @@ class AgentRunner:
             self.auditor_validator = MultiRoundValidator(auditor_agents, self.config.config)
 
             self._current_task_type = task_type
-            logger.info(f"📋 Validators updated for task type: {task_type}")
+            logger.info(f" Validators updated for task type: {task_type}")
 
         except Exception as e:
             logger.warning(f"Failed to update validators for {task_type}: {e}")
@@ -678,7 +678,7 @@ class AgentRunner:
             )
 
         for i, p in enumerate(parts, 1):
-            logger.info(f"  📖 Context {i}: {p[:500]}")
+            logger.info(f" Context {i}: {p[:500]}")
         return parts
 
     async def _record_post_execution_learning(
@@ -876,7 +876,7 @@ class AgentRunner:
         validation_mode_override = ctx.kwargs.pop('validation_mode', None)
         ctx.status_callback = ctx.kwargs.pop('status_callback', None)
 
-        ctx._status = StatusReporter(ctx.status_callback, logger, emoji="  📍")
+        ctx._status = StatusReporter(ctx.status_callback, logger, emoji=" ")
 
         # ── Intelligent Validation Gate ───────────────────────────────
         if skip_validation:
@@ -1029,7 +1029,7 @@ class AgentRunner:
                     trajectory=[]
                 )
         else:
-            logger.info(f"⚡ Skipping architect: gate={ctx.gate_decision.mode.value}")
+            logger.info(f" Skipping architect: gate={ctx.gate_decision.mode.value}")
 
         ctx.task_progress.complete_step(1)  # Approach validated
         return ctx
@@ -1151,7 +1151,7 @@ class AgentRunner:
                 and len(ctx.auditor_reasoning) > 20
             ):
                 logger.info(
-                    f"🧑‍⚖️ Judge intervention: auditor rejected "
+                    f" Judge intervention: auditor rejected "
                     f"(confidence={ctx.auditor_confidence:.2f}), retrying with feedback"
                 )
                 ctx._status("Judge intervention", f"retrying with auditor feedback")
@@ -1209,8 +1209,8 @@ class AgentRunner:
                 ctx.auditor_confidence = ctx.auditor_results[0].confidence if ctx.auditor_results else 0.0
 
                 logger.info(
-                    f"🧑‍⚖️ Judge retry result: "
-                    f"{'✅ passed' if ctx.success else '❌ still failed'} "
+                    f" Judge retry result: "
+                    f"{' passed' if ctx.success else ' still failed'} "
                     f"(confidence={ctx.auditor_confidence:.2f})"
                 )
 
@@ -1234,7 +1234,7 @@ class AgentRunner:
                 })
         else:
             # DIRECT mode: skip auditor, but respect inner execution result
-            logger.info(f"⚡ Skipping auditor: gate={ctx.gate_decision.mode.value}")
+            logger.info(f" Skipping auditor: gate={ctx.gate_decision.mode.value}")
             ctx.success = ctx.inner_success
             ctx.auditor_reasoning = f"Gate={ctx.gate_decision.mode.value}: auditor skipped"
             ctx.auditor_confidence = 1.0
@@ -1300,7 +1300,7 @@ class AgentRunner:
 
         # Log task progress (Cline Focus Chain visibility)
         if ctx.task_progress:
-            logger.info(f"📋 {ctx.task_progress.render()}")
+            logger.info(f" {ctx.task_progress.render()}")
 
         # Hook: post_run — record metrics, log results, send notifications
         self._run_hooks(
@@ -1317,21 +1317,21 @@ class AgentRunner:
         import time
 
         if isinstance(error, (AgentExecutionError, ToolExecutionError)):
-            logger.error(f"❌ Agent execution error: {error}")
+            logger.error(f" Agent execution error: {error}")
             error_str = str(error)
             error_type = type(error).__name__
             fix_applied = False
             fix_description = ""
 
         elif isinstance(error, (LLMError, DSPyError)):
-            logger.error(f"❌ LLM/DSPy error during execution: {error}")
+            logger.error(f" LLM/DSPy error during execution: {error}")
             error_str = str(error)
             error_type = type(error).__name__
             fix_applied = False
             fix_description = ""
 
         elif isinstance(error, asyncio.TimeoutError):
-            logger.error(f"❌ Agent timed out: {error}")
+            logger.error(f" Agent timed out: {error}")
             error_str = f"Agent timed out: {error}"
             error_type = "TimeoutError"
             fix_applied = False
@@ -1339,7 +1339,7 @@ class AgentRunner:
 
         else:
             # Unexpected errors — log full traceback, attempt auto-fix
-            logger.error(f"❌ Agent execution failed (unexpected {type(error).__name__}): {error}", exc_info=True)
+            logger.error(f" Agent execution failed (unexpected {type(error).__name__}): {error}", exc_info=True)
             error_str = str(error)
             error_type = type(error).__name__
             fix_applied = False
@@ -1348,7 +1348,7 @@ class AgentRunner:
             # Try auto-fix using SwarmTerminal (only for unexpected errors)
             if self.swarm_terminal:
                 try:
-                    logger.info(f"🔧 Attempting auto-fix via SwarmTerminal...")
+                    logger.info(f" Attempting auto-fix via SwarmTerminal...")
                     error_keywords = ['command', 'module', 'import', 'pip', 'npm', 'permission', 'not found']
                     if any(kw in error_str.lower() for kw in error_keywords):
                         diagnostics = await self.swarm_terminal.diagnose_system()
@@ -1360,11 +1360,11 @@ class AgentRunner:
                                 if result.success:
                                     fix_applied = True
                                     fix_description = f"Applied: {cmd}"
-                                    logger.info(f"   ✅ Fix applied: {cmd}")
+                                    logger.info(f" Fix applied: {cmd}")
 
                             # Retry the original execution if fix was applied
                             if fix_applied:
-                                logger.info(f"   🔄 Retrying execution after fix...")
+                                logger.info(f" Retrying execution after fix...")
                                 ctx._status("Retrying", "after auto-fix")
                                 if not ctx.kwargs.get('_retry_after_fix'):
                                     ctx.kwargs['_retry_after_fix'] = True

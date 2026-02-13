@@ -135,13 +135,13 @@ FEATURE_SNIPPETS = {
         'code': '''
                             # Download PDF button
                             arxiv_id = paper.entry_id.split('/')[-1]
-                            if st.button(f"⬇️ Download PDF", key=f"dl_{i}"):
+                            if st.button(f" Download PDF", key=f"dl_{i}"):
                                 with st.spinner("Downloading..."):
                                     try:
                                         response = requests.get(paper.pdf_url)
                                         if response.status_code == 200:
                                             st.download_button(
-                                                label="💾 Save PDF",
+                                                label=" Save PDF",
                                                 data=response.content,
                                                 file_name=f"{arxiv_id}.pdf",
                                                 mime="application/pdf",
@@ -158,10 +158,10 @@ FEATURE_SNIPPETS = {
         'import': '',
         'code': '''
 # Export to CSV
-if st.button("📥 Export to CSV"):
+if st.button(" Export to CSV"):
     csv = df.to_csv(index=False)
     st.download_button(
-        label="💾 Download CSV",
+        label=" Download CSV",
         data=csv,
         file_name="export.csv",
         mime="text/csv"
@@ -186,7 +186,7 @@ with st.sidebar:
     )
 
 # Search button
-if st.button("🔍 Search arXiv", type="primary") or search_query:
+if st.button(" Search arXiv", type="primary") or search_query:
     with st.spinner("Searching arXiv..."):
         try:
             # Build query with categories
@@ -217,7 +217,7 @@ if st.button("🔍 Search arXiv", type="primary") or search_query:
 
                 # Display results
                 for i, paper in enumerate(results):
-                    with st.expander(f"📄 {paper.title}", expanded=(i < 3)):
+                    with st.expander(f" {paper.title}", expanded=(i < 3)):
                         col1, col2 = st.columns([3, 1])
 
                         with col1:
@@ -237,7 +237,7 @@ if st.button("🔍 Search arXiv", type="primary") or search_query:
                         st.markdown(paper.summary)
 
                         # Citation
-                        if st.button(f"📋 Copy BibTeX", key=f"cite_{i}"):
+                        if st.button(f" Copy BibTeX", key=f"cite_{i}"):
                             bibtex = f"""@article{{{paper.entry_id.split('/')[-1]},
     title={{{paper.title}}},
     author={{{' and '.join([a.name for a in paper.authors])}}},
@@ -247,7 +247,7 @@ if st.button("🔍 Search arXiv", type="primary") or search_query:
                             st.code(bibtex, language="bibtex")
 
                 # Summary table
-                st.subheader("📊 Results Summary")
+                st.subheader(" Results Summary")
                 df = pd.DataFrame([{
                     "Title": p.title[:60] + "..." if len(p.title) > 60 else p.title,
                     "Authors": ", ".join([a.name for a in p.authors[:2]]),
@@ -551,7 +551,7 @@ class StreamlitProvider(SkillProvider):
         return await self._create_app(
             app_name=app_name,
             title="AI Chat Assistant",
-            icon="💬",
+            icon="",
             imports=imports,
             body=body,
             description="Chat with the AI assistant below.",
@@ -571,7 +571,7 @@ class StreamlitProvider(SkillProvider):
         return await self._create_app(
             app_name=app_name,
             title="Stock Analysis Dashboard",
-            icon="📈",
+            icon="",
             layout="wide",
             imports=imports,
             body=body,
@@ -593,7 +593,7 @@ class StreamlitProvider(SkillProvider):
         return await self._create_app(
             app_name=app_name,
             title="arXiv Paper Search",
-            icon="📚",
+            icon="",
             layout="wide",
             imports=imports,
             body=body,
@@ -628,7 +628,7 @@ st.dataframe(df, use_container_width=True)'''
         return await self._create_app(
             app_name=app_name,
             title="Analytics Dashboard",
-            icon="📊",
+            icon="",
             layout="wide",
             imports=imports,
             body=body,
@@ -654,7 +654,7 @@ st.dataframe(df, use_container_width=True)'''
         return await self._create_app(
             app_name=app_name,
             title="Contact Form",
-            icon="📝",
+            icon="",
             imports=imports,
             body=body,
             description="Fill out the form below.",
@@ -799,7 +799,7 @@ st.dataframe(df, use_container_width=True)'''
         self,
         app_name: str,
         title: str,
-        icon: str = "🚀",
+        icon: str = "",
         layout: str = "centered",
         imports: List[str] = None,
         body: str = "",

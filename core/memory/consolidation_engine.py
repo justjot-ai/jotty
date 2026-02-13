@@ -120,7 +120,7 @@ class HippocampalExtractor:
         from ..foundation.robust_parsing import AdaptiveThreshold
         self._relevance_threshold = AdaptiveThreshold(initial_mean=0.5, initial_std=0.2)
         
-        logger.info(f"🧠 HippocampalExtractor initialized (threshold={config.memory_threshold})")
+        logger.info(f" HippocampalExtractor initialized (threshold={config.memory_threshold})")
     
     def should_remember(self, experience: Dict[str, Any]) -> Tuple[bool, MemoryCandidate]:
         """
@@ -159,7 +159,7 @@ class HippocampalExtractor:
         
         if should_store:
             logger.debug(
-                f"📝 Memory candidate accepted: strength={candidate.memory_strength:.2f} "
+                f" Memory candidate accepted: strength={candidate.memory_strength:.2f} "
                 f"(salience={candidate.reward_salience:.2f}, novelty={candidate.novelty_score:.2f}, "
                 f"relevance={candidate.goal_relevance:.2f})"
             )
@@ -279,7 +279,7 @@ class SharpWaveRippleConsolidator:
         self.memory_store = memory_store
         self.consolidation_count = 0
         
-        logger.info("🌙 SharpWaveRippleConsolidator initialized")
+        logger.info(" SharpWaveRippleConsolidator initialized")
     
     async def consolidate(
         self,
@@ -295,7 +295,7 @@ class SharpWaveRippleConsolidator:
         start_time = time.time()
         self.consolidation_count += 1
         
-        logger.info(f"🌙 Starting consolidation #{self.consolidation_count} "
+        logger.info(f" Starting consolidation #{self.consolidation_count} "
                    f"({len(recent_episodes)} episodes, {len(episodic_memories)} memories)")
         
         result = ConsolidationResult(
@@ -325,7 +325,7 @@ class SharpWaveRippleConsolidator:
         
         result.duration_seconds = time.time() - start_time
         
-        logger.info(f"☀️ Consolidation complete: {result.patterns_extracted} patterns, "
+        logger.info(f" Consolidation complete: {result.patterns_extracted} patterns, "
                    f"{result.memories_pruned} pruned, {result.memories_strengthened} strengthened "
                    f"({result.duration_seconds:.2f}s)")
         
@@ -513,7 +513,7 @@ class BrainStateMachine:
         self.recent_episodes: List[Dict[str, Any]] = []
         self.max_recent_episodes = 100
         
-        logger.info(f"🧠 BrainStateMachine initialized (sleep_interval={config.sleep_interval})")
+        logger.info(f" BrainStateMachine initialized (sleep_interval={config.sleep_interval})")
     
     @property
     def is_online(self) -> bool:
@@ -535,7 +535,7 @@ class BrainStateMachine:
         Returns MemoryCandidate if experience should be stored.
         """
         if self.is_offline:
-            logger.warning("🌙 Experience received during sleep - queueing for later")
+            logger.warning(" Experience received during sleep - queueing for later")
             return None
         
         self.total_episodes += 1
@@ -574,7 +574,7 @@ class BrainStateMachine:
         self.mode = BrainMode.OFFLINE
         self.total_consolidations += 1
         
-        logger.info(f"🌙 Entering sleep mode (consolidation #{self.total_consolidations})")
+        logger.info(f" Entering sleep mode (consolidation #{self.total_consolidations})")
         
         try:
             # Run consolidation with timeout
@@ -587,7 +587,7 @@ class BrainStateMachine:
                 timeout=self.config.consolidation_timeout
             )
         except asyncio.TimeoutError:
-            logger.warning("⚠️ Consolidation timed out")
+            logger.warning(" Consolidation timed out")
             result = ConsolidationResult(
                 patterns_extracted=0,
                 causal_links_found=0,
@@ -691,7 +691,7 @@ class AgentAbstractor:
         self.agent_roles: Dict[str, str] = {}  # agent -> role
         self.role_definitions: Dict[str, AgentRole] = {}
         
-        logger.info(f"🔄 AgentAbstractor initialized (detail_threshold={self.detail_threshold})")
+        logger.info(f" AgentAbstractor initialized (detail_threshold={self.detail_threshold})")
     
     def update_agent(self, agent: str, success: bool, task_type: str = ""):
         """Update agent statistics."""

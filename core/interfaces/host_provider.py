@@ -85,13 +85,13 @@ class CLIHost(Host):
     """CLI terminal host implementation."""
 
     def notify(self, message: str, level: str = "info") -> None:
-        icons = {'info': 'ℹ️', 'warning': '⚠️', 'error': '❌'}
+        icons = {'info': 'ℹ', 'warning': '', 'error': ''}
         icon = icons.get(level, '')
         logger.info(f" {icon} {message}")
 
     async def prompt_user(self, question: str, default: str = "") -> str:
         import asyncio
-        prompt = f" ❓ {question}"
+        prompt = f" {question}"
         if default:
             prompt += f" [{default}]"
         prompt += ": "

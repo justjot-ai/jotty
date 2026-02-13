@@ -79,7 +79,7 @@ class PersistenceMixin:
                 json.dumps(manifest, indent=2), encoding="utf-8"
             )
 
-            logger.info(f"📁 Output persisted to {base_dir}")
+            logger.info(f" Output persisted to {base_dir}")
             return str(base_dir)
 
         except Exception as e:

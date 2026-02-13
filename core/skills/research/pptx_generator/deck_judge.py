@@ -60,7 +60,7 @@ def get_default_lm():
         try:
             lm = DirectClaudeCLI(model="haiku", max_retries=2)
             dspy.configure(lm=lm)
-            logger.info("✅ DirectClaudeCLI configured (model=haiku)")
+            logger.info(" DirectClaudeCLI configured (model=haiku)")
             return lm
         except Exception as e:
             logger.warning(f"DirectClaudeCLI not available: {e}")
@@ -272,7 +272,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
                         data_available=rec.get("include", False)  # Assume if LLM says include, data exists
                     )
 
-                logger.info("✅ LLM diagram decisions generated successfully")
+                logger.info(" LLM diagram decisions generated successfully")
                 return decisions
 
             except Exception as e:
@@ -858,10 +858,10 @@ class AutoImprovementLoop:
     def should_continue(self, score: DeckScore, iteration: int) -> bool:
         """Check if improvement loop should continue."""
         if score.is_perfect():
-            logger.info(f"🎯 Perfect score achieved: {score.overall:.1f}/10")
+            logger.info(f" Perfect score achieved: {score.overall:.1f}/10")
             return False
         if iteration >= self.max_iterations:
-            logger.info(f"⚠️ Max iterations reached. Final score: {score.overall:.1f}/10")
+            logger.info(f" Max iterations reached. Final score: {score.overall:.1f}/10")
             return False
         return True
 
@@ -890,7 +890,7 @@ class AutoImprovementLoop:
     def record_iteration(self, iteration: int, score: DeckScore):
         """Record iteration results for tracking progress."""
         self.history.append((iteration, score))
-        logger.info(f"📊 Iteration {iteration}: {score.overall:.1f}/10 "
+        logger.info(f" Iteration {iteration}: {score.overall:.1f}/10 "
                    f"(diagram_relevance={score.diagram_relevance:.1f}, "
                    f"content={score.content_depth:.1f})")
 
@@ -911,9 +911,9 @@ class AutoImprovementLoop:
 
         final_score = self.history[-1][1].overall
         if final_score >= self.target_score:
-            lines.append(f"✅ Target score achieved: {final_score:.1f}/10")
+            lines.append(f" Target score achieved: {final_score:.1f}/10")
         else:
-            lines.append(f"🔄 Current best: {final_score:.1f}/10 (target: {self.target_score})")
+            lines.append(f" Current best: {final_score:.1f}/10 (target: {self.target_score})")
 
         return '\n'.join(lines)
 
@@ -951,25 +951,25 @@ def analyze_and_decide_diagrams(
 
     # Strategy 1: Try LLM-based decisions (primary)
     if use_llm and DSPY_AVAILABLE and LLMDiagramDecider is not None:
-        logger.info("🤖 Attempting LLM-based diagram analysis...")
+        logger.info(" Attempting LLM-based diagram analysis...")
         try:
             # Auto-configure ClaudeCLILM if no LM provided
             effective_lm = lm if lm is not None else get_default_lm()
             if effective_lm:
-                logger.info(f"📡 Using LM: {type(effective_lm).__name__}")
+                logger.info(f" Using LM: {type(effective_lm).__name__}")
 
             llm_decider = LLMDiagramDecider(lm=effective_lm)
             decisions = llm_decider.decide(paper_data)
             if decisions:
                 method_used = "LLM"
-                logger.info("✅ LLM diagram analysis successful")
+                logger.info(" LLM diagram analysis successful")
         except Exception as e:
             logger.warning(f"LLM diagram analysis failed: {e}")
             decisions = None
 
     # Strategy 2: Fallback to rule-based decisions
     if decisions is None:
-        logger.info("📏 Using rule-based diagram analysis (fallback)...")
+        logger.info(" Using rule-based diagram analysis (fallback)...")
         engine = DiagramDecisionEngine(paper_data)
         decisions = engine.analyze_all()
         method_used = "rules"
@@ -981,9 +981,9 @@ def analyze_and_decide_diagrams(
     ]
 
     # Log results
-    logger.info(f"📊 Diagram analysis ({method_used}): {len(approved)} approved out of {len(decisions)}")
+    logger.info(f" Diagram analysis ({method_used}): {len(approved)} approved out of {len(decisions)}")
     for dt, decision in decisions.items():
-        status = "✅" if decision.should_include and decision.confidence >= 0.7 else "❌"
+        status = "OK" if decision.should_include and decision.confidence >= 0.7 else "SKIP"
         logger.info(f"  {status} {dt.value}: {decision.reasoning} (conf={decision.confidence:.2f})")
 
     return decisions, approved
@@ -1018,12 +1018,12 @@ def evaluate_deck_quality(
             # Auto-configure ClaudeCLILM if no LM provided
             effective_lm = lm if lm is not None else get_default_lm()
             if effective_lm:
-                logger.info(f"📡 Using LM for evaluation: {type(effective_lm).__name__}")
+                logger.info(f" Using LM for evaluation: {type(effective_lm).__name__}")
 
             llm_judge = LLMDeckJudge(lm=effective_lm)
             score = llm_judge.evaluate(paper_data, deck_info)
             if score:
-                logger.info("✅ LLM deck evaluation successful")
+                logger.info(" LLM deck evaluation successful")
         except Exception as e:
             logger.warning(f"LLM deck evaluation failed: {e}")
             score = None

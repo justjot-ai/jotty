@@ -26,7 +26,7 @@ class SkillSelectionMixin:
         'creation':      {'code', 'document', 'media', 'visualize'},
         'analysis':      {'analyze', 'data-fetch', 'research', 'visualize'},
         'communication': {'communicate', 'document'},
-        'automation':    {'code', 'file-ops', 'data-fetch'},
+        'automation':    {'code', 'file-ops', 'data-fetch', 'automation', 'workflow-trigger'},
     }
 
     # Skills that are always relevant regardless of task type (core tooling)
@@ -52,6 +52,9 @@ class SkillSelectionMixin:
         if not relevant_caps:
             return available_skills  # Unknown task type: send all
 
+        # Extract task keywords for name-based matching (catches n8n, telegram, etc.)
+        task_words = {w.lower() for w in task.split() if len(w) > 2}
+
         filtered = []
         for s in available_skills:
             name = s.get('name', '')
@@ -66,6 +69,9 @@ class SkillSelectionMixin:
             # Include composites that reference relevant base skills
             elif s.get('skill_type') == 'composite' and s.get('base_skills'):
                 # A composite is relevant if any of its base skills would be relevant
+                filtered.append(s)
+            # Include if any task keyword appears in skill name (direct mention)
+            elif any(w in name for w in task_words):
                 filtered.append(s)
 
         # Safety: if filter is too aggressive (<10 skills), fall back to full list
@@ -320,6 +326,7 @@ class SkillSelectionMixin:
             ('image', 'picture', 'photo'): 'image-generator',
             ('calculate', 'math', 'compute', 'sum', 'add', 'multiply'): 'claude-cli-llm',
             ('what', 'how', 'why', 'explain', 'answer', 'tell', 'help'): 'claude-cli-llm',
+            ('n8n', 'workflow', 'automation'): 'n8n-workflows',
         }
 
         available_names = {s.get('name') for s in skills}

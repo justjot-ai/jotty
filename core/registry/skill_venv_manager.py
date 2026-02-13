@@ -98,7 +98,7 @@ class SkillVenvManager:
             if result.returncode != 0:
                 raise RuntimeError(f"Failed to create venv: {result.stderr}")
             
-            logger.info(f"✅ Created venv: {venv_path}")
+            logger.info(f" Created venv: {venv_path}")
             return venv_path
             
         except Exception as e:

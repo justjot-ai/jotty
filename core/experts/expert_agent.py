@@ -1,7 +1,7 @@
 """
 Base Expert Agent Framework
 
-⚠️ DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True instead.
+ DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True instead.
 
 Expert agents are specialized agents that use OptimizationPipeline to ensure
 they always produce correct outputs. They can be pre-trained and validated.
@@ -91,7 +91,7 @@ class ExpertAgent:
     """
     Base class for Expert Agents.
 
-    ⚠️ DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True
+     DEPRECATED (Phase 8): Use SingleAgentOrchestrator with enable_gold_standard_learning=True
     or use expert_templates.py factory functions instead.
 
     Expert agents use OptimizationPipeline to ensure they always produce

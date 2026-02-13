@@ -55,7 +55,7 @@ class ChatAssistantV2:
         # Auto-generate tool definitions from schemas
         self.tools = generate_section_tools()
 
-        logger.info(f"✅ ChatAssistant V2 initialized with {len(self.tools)} section tools")
+        logger.info(f" ChatAssistant V2 initialized with {len(self.tools)} section tools")
 
     async def run(self, **kwargs) -> Dict[str, Any]:
         """

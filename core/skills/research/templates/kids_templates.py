@@ -132,7 +132,7 @@ p {{
 }}
 
 .fun-fact::before {{
-    content: "✨ Fun Fact! ✨";
+    content: " Fun Fact! ";
     display: block;
     font-family: {self.typography.heading_font};
     font-size: 14pt;
@@ -188,9 +188,9 @@ img {{
     <style>{self.get_css()}</style>
 </head>
 <body>
-<div class="stars">⭐ ⭐ ⭐</div>
+<div class="stars"> </div>
 {content}
-<div class="stars">🌟 The End 🌟</div>
+<div class="stars"> The End </div>
 </body>
 </html>"""
 
@@ -285,7 +285,7 @@ h3 {{
 }}
 
 .did-you-know::before {{
-    content: "💡 Did You Know?";
+    content: " Did You Know?";
     display: block;
     font-weight: 700;
     color: {self.colors.primary_dark};
@@ -302,7 +302,7 @@ h3 {{
 }}
 
 .quiz-box::before {{
-    content: "🎯 Quiz Time!";
+    content: " Quiz Time!";
     display: block;
     font-weight: 700;
     font-size: 14pt;
@@ -460,7 +460,7 @@ h3 {{
 }}
 
 .activity-box::before {{
-    content: "🎨 Activity";
+    content: " Activity";
     display: inline-block;
     background: {self.colors.primary};
     color: white;
@@ -480,7 +480,7 @@ h3 {{
 }}
 
 .puzzle-box::before {{
-    content: "🧩 Puzzle";
+    content: " Puzzle";
     display: inline-block;
     background: {self.colors.secondary};
     color: white;
@@ -568,7 +568,7 @@ h3 {{
 }}
 
 .instructions::before {{
-    content: "📋 Instructions:";
+    content: " Instructions:";
     display: block;
     font-weight: 700;
     color: {self.colors.accent};
@@ -601,7 +601,7 @@ h3 {{
 </head>
 <body>
 {content}
-<div class="reward-stars">⭐⭐⭐ Great Job! ⭐⭐⭐</div>
+<div class="reward-stars"> Great Job! </div>
 </body>
 </html>"""
 

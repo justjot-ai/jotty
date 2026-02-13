@@ -46,7 +46,7 @@ class LLMQPredictor:
     LLMs can generalize across similar states/actions because they
     understand semantic similarity in natural language!
     
-    ✅ GENERIC: No domain-specific logic, works for any swarm.
+     GENERIC: No domain-specific logic, works for any swarm.
     """
     
     def __init__(self, config):
@@ -79,7 +79,7 @@ class LLMQPredictor:
         # ====================================
         
         # Experience buffer for replay
-        # 🔬 A-TEAM ENHANCEMENT: Prioritized replay buffer
+        # A-TEAM ENHANCEMENT: Prioritized replay buffer
         self.experience_buffer = []
         self.max_buffer_size = getattr(config, 'max_experience_buffer', 1000)
         self.priority_alpha = 0.6  # Priority exponent (0=uniform, 1=full prioritization)
@@ -133,7 +133,7 @@ class LLMQPredictor:
             'done': done,
             'timestamp': time.time()
         }
-        # 🔬 A-TEAM: Prioritized Experience Replay
+        # A-TEAM: Prioritized Experience Replay
         # Priority = |TD_error| + ε (per GRF MARL paper)
         td_error = abs(reward - self._get_q_value(state_desc, action_desc))
         priority = (td_error + self.priority_epsilon) ** self.priority_alpha
@@ -160,7 +160,7 @@ class LLMQPredictor:
         """
         Convert state dict to RICH natural language description.
         
-        🔥 A-TEAM CRITICAL FIX: State must capture SEMANTIC CONTEXT!
+         A-TEAM CRITICAL FIX: State must capture SEMANTIC CONTEXT!
         
         This enables:
         1. Similar query matching (Q-value transfer)
@@ -294,7 +294,7 @@ class LLMQPredictor:
             if isinstance(failed, list) and failed:
                 parts.append(f"TOOLS_FAILED: {','.join(failed[:3])}")
         
-        # 🔬 A-TEAM FIX: Tool I/O schemas (esp DataFrame)
+        # A-TEAM FIX: Tool I/O schemas (esp DataFrame)
         if 'tool_io_schemas' in state:
             schemas = state['tool_io_schemas']
             if isinstance(schemas, dict):
@@ -309,7 +309,7 @@ class LLMQPredictor:
                 if schema_parts:
                     parts.append(f"TOOL_SCHEMAS: {';'.join(schema_parts)}")
         
-        # 🔬 A-TEAM FIX: DataFrame schema hints
+        # A-TEAM FIX: DataFrame schema hints
         if 'df_schema' in state:
             df_schema = state['df_schema']
             if isinstance(df_schema, dict):
@@ -336,7 +336,7 @@ class LLMQPredictor:
                 pending = todo.get('pending', 0)
                 completed = todo.get('completed', 0)
                 failed = todo.get('failed', 0)
-                parts.append(f"TODO: {completed}✓/{pending}⏳/{failed}✗")
+                parts.append(f"TODO: {completed}/{pending}⏳/{failed}")
         
         # ====== 11. ACTOR CONTEXT ======
         if 'current_actor' in state:
@@ -348,7 +348,7 @@ class LLMQPredictor:
                 output_keys = list(output.keys())[:3]
                 parts.append(f"OUTPUT_KEYS: {','.join(output_keys)}")
         
-        # 🔬 A-TEAM: Role hints and specialization (per GRF MARL paper)
+        # A-TEAM: Role hints and specialization (per GRF MARL paper)
         if 'actor_role' in state:
             parts.append(f"ROLE: {state['actor_role']}")
         
@@ -391,7 +391,7 @@ class LLMQPredictor:
         if 'recent_outcomes' in state:
             outcomes = state['recent_outcomes']
             if isinstance(outcomes, list) and outcomes:
-                outcome_str = ''.join(['✓' if o else '✗' for o in outcomes[-5:]])
+                outcome_str = ''.join(['' if o else '' for o in outcomes[-5:]])
                 parts.append(f"RECENT: {outcome_str}")
         
         # ====== FALLBACK ======
@@ -406,7 +406,7 @@ class LLMQPredictor:
         """
         Convert action dict to RICH natural language description.
         
-        🔥 A-TEAM CRITICAL FIX: Action must capture SEMANTIC INTENT!
+         A-TEAM CRITICAL FIX: Action must capture SEMANTIC INTENT!
         
         Example:
         Instead of: "Actor: SQLGenerator; Task: SQLGenerator_main"
@@ -615,7 +615,7 @@ class LLMQPredictor:
         num_to_remove = max(num_to_remove, len(self.Q) - self.max_q_table_size)
 
         logger.info(
-            f"🗑️ Q-table limit exceeded ({len(self.Q)} > {self.max_q_table_size}). "
+            f" Q-table limit exceeded ({len(self.Q)} > {self.max_q_table_size}). "
             f"Pruning {num_to_remove} entries..."
         )
 
@@ -669,7 +669,7 @@ class LLMQPredictor:
             del self.Q[key]
 
         logger.info(
-            f"✅ Q-table pruned: {len(self.Q)} entries remaining "
+            f" Q-table pruned: {len(self.Q)} entries remaining "
             f"(removed {num_to_remove} with lowest retention scores)"
         )
 
@@ -819,7 +819,7 @@ class LLMQPredictor:
         """
         Extract ACTIONABLE natural language lesson from experience.
         
-        🔥 A-TEAM: Lessons must be SPECIFIC and ACTIONABLE!
+         A-TEAM: Lessons must be SPECIFIC and ACTIONABLE!
         
         Example (BAD):  "SUCCESS: In state 'TODO: 2 completed', action 'Actor: SQL' worked"
         Example (GOOD): "SUCCESS: For P2P transaction counts, use dl_last_updated as partition column (not txn_date/date/dt)"
@@ -872,22 +872,22 @@ class LLMQPredictor:
         if reward > 0.7:
             # Success lesson - capture what worked
             if 'WORKING_COL:' in state_desc or 'RESOLUTION:' in state_desc:
-                return f"✅ LEARNED: {insight_str} → SUCCESS (reward={reward:.2f})"
-            return f"✅ SUCCESS: {insight_str} (reward={reward:.2f})"
+                return f" LEARNED: {insight_str} → SUCCESS (reward={reward:.2f})"
+            return f" SUCCESS: {insight_str} (reward={reward:.2f})"
         
         elif reward < 0.3:
             # Failure lesson - capture what to avoid
             if 'COLS_TRIED:' in state_desc:
-                return f"❌ AVOID: {insight_str} → FAILED (reward={reward:.2f})"
-            return f"❌ FAILED: {insight_str} (reward={reward:.2f})"
+                return f" AVOID: {insight_str} → FAILED (reward={reward:.2f})"
+            return f" FAILED: {insight_str} (reward={reward:.2f})"
         
         elif td_error > 0.2:
             # Better than expected - good strategy found
-            return f"📈 DISCOVERY: {insight_str} performed better than expected (actual={reward:.2f}, expected={reward-td_error:.2f})"
+            return f" DISCOVERY: {insight_str} performed better than expected (actual={reward:.2f}, expected={reward-td_error:.2f})"
         
         elif td_error < -0.2:
             # Worse than expected - strategy didn't generalize
-            return f"📉 CAUTION: {insight_str} performed worse than expected (actual={reward:.2f}, expected={reward-td_error:.2f})"
+            return f" CAUTION: {insight_str} performed worse than expected (actual={reward:.2f}, expected={reward-td_error:.2f})"
         
         return None
     
@@ -929,7 +929,7 @@ class LLMQPredictor:
             q_mode = getattr(self.config, 'q_value_mode', 'simple')
 
             if q_mode == 'simple':
-                # 🔥 SIMPLE MODE: Average reward per actor
+                # SIMPLE MODE: Average reward per actor
                 # Fast, reliable, perfect for natural dependencies
                 actor = action.get('actor', '')
                 if actor:
@@ -942,7 +942,7 @@ class LLMQPredictor:
                         avg_reward = sum(rewards) / len(rewards)
                         return avg_reward, 0.9, None
 
-            # 🧠 LLM MODE: Semantic Q-value prediction (fallback for simple mode too)
+            # LLM MODE: Semantic Q-value prediction (fallback for simple mode too)
             # Get similar experiences for few-shot learning
             similar_exps = self._get_similar_experiences(state, action)
             
@@ -1102,7 +1102,7 @@ class LLMQPredictor:
         if len(self.experience_buffer) < batch_size:
             return 0
         
-        # 🔬 A-TEAM: Prioritized sampling (per GRF MARL paper)
+        # A-TEAM: Prioritized sampling (per GRF MARL paper)
         # Sample proportional to priority
         import random
         priorities = [e.get('priority', 1.0) for e in self.experience_buffer]
@@ -1523,7 +1523,7 @@ class LLMQPredictor:
         """
         Save Q-table and learning state for persistence across runs.
         
-        🧠 A-TEAM: This is CRITICAL for DQN convergence!
+         A-TEAM: This is CRITICAL for DQN convergence!
         Without persistence, agent never learns from past runs.
         
         Saves:
@@ -1577,13 +1577,13 @@ class LLMQPredictor:
         with open(path, 'w') as f:
             json.dump(state, f, indent=2, default=str)
 
-        logger.info(f"✅ Q-learning state saved: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
+        logger.info(f" Q-learning state saved: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
     
     def load_state(self, path: str) -> bool:
         """
         Load Q-table and learning state from previous run.
         
-        🧠 A-TEAM: This enables convergence across runs!
+         A-TEAM: This enables convergence across runs!
         
         Returns: True if loaded successfully, False otherwise
         """
@@ -1591,7 +1591,7 @@ class LLMQPredictor:
         from pathlib import Path
         
         if not Path(path).exists():
-            logger.info(f"ℹ️ No previous Q-learning state at {path}")
+            logger.info(f"ℹ No previous Q-learning state at {path}")
             return False
         
         try:
@@ -1644,11 +1644,11 @@ class LLMQPredictor:
             if 'retention_weights' in state:
                 self.retention_weights = AdaptiveWeightGroup.from_dict(state['retention_weights'])
 
-            logger.info(f"✅ Q-learning state loaded: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
+            logger.info(f" Q-learning state loaded: {len(self.Q)} Q-entries, {len(self.experience_buffer)} experiences")
             return True
             
         except Exception as e:
-            logger.warning(f"⚠️ Failed to load Q-learning state: {e}")
+            logger.warning(f" Failed to load Q-learning state: {e}")
             return False
     
     # ===== END NEUROCHUNK METHODS ====

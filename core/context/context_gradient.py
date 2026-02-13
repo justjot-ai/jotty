@@ -1,5 +1,5 @@
 """
-🧠 CONTEXT GRADIENT - Learning Mechanism for LLM-based RL
+ CONTEXT GRADIENT - Learning Mechanism for LLM-based RL
 ==========================================================
 
 Since we can't update model weights (models are frozen), context becomes our
@@ -116,7 +116,7 @@ class ContextGradient:
         self.memory_extractor = dspy.ChainOfThought(MemoryGradientSignature)
         self.cooperation_extractor = dspy.ChainOfThought(CooperationGradientSignature)
         
-        logger.info("🧠 ContextGradient initialized")
+        logger.info(" ContextGradient initialized")
     
     def compute_gradient(
         self,
@@ -148,7 +148,7 @@ class ContextGradient:
         Returns:
             List of ContextUpdate objects
         """
-        logger.info(f"🧠 Computing context gradient for {experience.get('agent', 'unknown')}...")
+        logger.info(f" Computing context gradient for {experience.get('agent', 'unknown')}...")
         
         updates = []
         
@@ -171,7 +171,7 @@ class ContextGradient:
         coop_updates = self._compute_cooperation_gradient(experience, past_context)
         updates.extend(coop_updates)
         
-        logger.info(f"✅ Computed {len(updates)} context updates")
+        logger.info(f" Computed {len(updates)} context updates")
         for update in updates:
             logger.info(f"   - {update.component}: {update.update_type} (confidence={update.confidence:.2f})")
         
@@ -217,7 +217,7 @@ class ContextGradient:
             return update
         
         except Exception as e:
-            logger.error(f"❌ Memory gradient failed: {e}")
+            logger.error(f" Memory gradient failed: {e}")
             return None
     
     def _compute_q_gradient(
@@ -272,7 +272,7 @@ class ContextGradient:
             return update
         
         except Exception as e:
-            logger.error(f"❌ Q-gradient failed: {e}")
+            logger.error(f" Q-gradient failed: {e}")
             return None
     
     def _compute_dqn_gradient(
@@ -283,7 +283,7 @@ class ContextGradient:
         """
         Update predictions about other agents.
         
-        🔬 A-TEAM ENHANCEMENT: Use divergence as TD error for context updates.
+         A-TEAM ENHANCEMENT: Use divergence as TD error for context updates.
         
         Traditional RL: θ ← θ - α * TD_error
         Agentic RL: context ← context + f(divergence)
@@ -306,7 +306,7 @@ class ContextGradient:
                     div = 0.0 if was_correct else 1.0
                     divergences[agent] = div
                     
-                    # 🔬 COMPUTE TD ERROR: δ = |actual_reward - predicted_reward|
+                    # COMPUTE TD ERROR: δ = |actual_reward - predicted_reward|
                     pred_reward = experience.get('predicted_reward', 0.5)
                     actual_reward = experience.get('reward', 0.5)
                     td_error = abs(actual_reward - pred_reward)
@@ -318,7 +318,7 @@ class ContextGradient:
             avg_divergence = sum(divergences.values()) / len(divergences)
             avg_td_error = sum(td_errors) / len(td_errors) if td_errors else 0.0
             
-            # 🔬 LEARNING RATE: Scale updates by TD error magnitude
+            # LEARNING RATE: Scale updates by TD error magnitude
             # Higher TD error = more aggressive update
             learning_rate = min(1.0, 0.3 + 0.7 * avg_td_error)
             
@@ -328,16 +328,16 @@ class ContextGradient:
                 if div > 0.5:  # Significant error
                     corrections.append(f"{agent}: predicted {predicted[agent]}, actually did {actual[agent]}")
             
-            # 🔬 ACTIONABLE LESSON based on divergence pattern
+            # ACTIONABLE LESSON based on divergence pattern
             if avg_divergence > 0.7:
                 lesson_type = "MAJOR_CORRECTION"
-                lesson = f"⚠️ Model of agents is significantly wrong. Re-learn: {'; '.join(corrections)}"
+                lesson = f" Model of agents is significantly wrong. Re-learn: {'; '.join(corrections)}"
             elif avg_divergence > 0.3:
                 lesson_type = "MINOR_ADJUSTMENT"
-                lesson = f"📝 Adjust predictions: {'; '.join(corrections)}"
+                lesson = f" Adjust predictions: {'; '.join(corrections)}"
             else:
                 lesson_type = "CONFIRMATION"
-                lesson = "✅ Predictions were mostly accurate - patterns confirmed"
+                lesson = " Predictions were mostly accurate - patterns confirmed"
             
             update = ContextUpdate(
                 component='dqn',
@@ -354,12 +354,12 @@ class ContextGradient:
                 }
             )
             
-            logger.debug(f"🔬 DQN gradient: divergence={avg_divergence:.2f}, TD_error={avg_td_error:.2f}, lr={learning_rate:.2f}")
+            logger.debug(f" DQN gradient: divergence={avg_divergence:.2f}, TD_error={avg_td_error:.2f}, lr={learning_rate:.2f}")
             
             return update
         
         except Exception as e:
-            logger.error(f"❌ DQN gradient failed: {e}")
+            logger.error(f" DQN gradient failed: {e}")
             return None
     
     def _compute_cooperation_gradient(
@@ -398,7 +398,7 @@ class ContextGradient:
                 updates.append(update)
         
         except Exception as e:
-            logger.error(f"❌ Cooperation gradient failed: {e}")
+            logger.error(f" Cooperation gradient failed: {e}")
         
         return updates
     
@@ -462,7 +462,7 @@ class ContextApplier:
     """
     
     def __init__(self):
-        logger.info("🧠 ContextApplier initialized")
+        logger.info(" ContextApplier initialized")
     
     def apply_updates(
         self,
@@ -479,7 +479,7 @@ class ContextApplier:
         Returns:
             Updated context dict
         """
-        logger.info(f"🧠 Applying {len(updates)} context updates...")
+        logger.info(f" Applying {len(updates)} context updates...")
         
         updated_context = current_context.copy()
         
@@ -493,7 +493,7 @@ class ContextApplier:
             elif update.component == 'cooperation':
                 self._apply_cooperation_update(update, updated_context)
         
-        logger.info("✅ Context updates applied")
+        logger.info(" Context updates applied")
         return updated_context
     
     def _apply_memory_update(self, update: ContextUpdate, context: Dict):
@@ -509,7 +509,7 @@ class ContextApplier:
             'timestamp': __import__('time').time()
         })
         
-        logger.info(f"   ✅ Memory: Added lesson (confidence={update.confidence:.2f})")
+        logger.info(f" Memory: Added lesson (confidence={update.confidence:.2f})")
     
     def _apply_q_update(self, update: ContextUpdate, context: Dict):
         """Apply Q-table update."""
@@ -522,7 +522,7 @@ class ContextApplier:
         
         if state_key and action:
             context['q_table'][(state_key, action)] = new_q
-            logger.info(f"   ✅ Q-table: Updated Q({state_key}, {action}) = {new_q:.3f}")
+            logger.info(f" Q-table: Updated Q({state_key}, {action}) = {new_q:.3f}")
     
     def _apply_dqn_update(self, update: ContextUpdate, context: Dict):
         """Apply DQN update."""
@@ -535,7 +535,7 @@ class ContextApplier:
             'timestamp': __import__('time').time()
         })
         
-        logger.info(f"   ✅ DQN: Added prediction corrections")
+        logger.info(f" DQN: Added prediction corrections")
     
     def _apply_cooperation_update(self, update: ContextUpdate, context: Dict):
         """Apply cooperation update."""
@@ -549,7 +549,7 @@ class ContextApplier:
             'timestamp': __import__('time').time()
         })
         
-        logger.info(f"   ✅ Cooperation: Added insight (confidence={update.confidence:.2f})")
+        logger.info(f" Cooperation: Added insight (confidence={update.confidence:.2f})")
 
 
 # =============================================================================

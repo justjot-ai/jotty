@@ -189,7 +189,7 @@ class InformationTheoreticStorage:
         # Stored memories
         self.memories: Dict[str, InformationWeightedMemory] = {}
         
-        logger.info("📊 InformationTheoreticStorage initialized")
+        logger.info(" InformationTheoreticStorage initialized")
     
     async def compute_information_content(
         self,
@@ -282,7 +282,7 @@ class InformationTheoreticStorage:
         self.memories[key] = memory
         
         logger.debug(
-            f"📝 Stored memory: info={info_content:.2f}, "
+            f" Stored memory: info={info_content:.2f}, "
             f"detail={detail_level}, freq={freq_est:.3f}"
         )
         
@@ -317,7 +317,7 @@ class InformationTheoreticStorage:
         raw_content: str
     ) -> str:
         """Maximum detail for high-information events."""
-        return f"""🔴 HIGH INFORMATION EVENT (Rare/Surprising)
+        return f""" HIGH INFORMATION EVENT (Rare/Surprising)
 ══════════════════════════════════════════════════════════════
 
 EVENT DETAILS:
@@ -341,7 +341,7 @@ Store full details to prevent similar issues.
         raw_content: str
     ) -> str:
         """High detail for somewhat rare events."""
-        return f"""🟠 NOTABLE EVENT
+        return f""" NOTABLE EVENT
 Event: {json.dumps(event, default=str)}
 Context Summary: {json.dumps(context, default=str)}
 Key Content: {raw_content}"""

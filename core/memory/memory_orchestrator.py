@@ -67,7 +67,7 @@ PRESET_CONFIGS = {
         'auto_consolidate': True
     },
     BrainPreset.BALANCED: {
-        'consolidation_interval': 3,  # 🔧 A-TEAM: Consolidate every 3 episodes (prevent memory buildup!)
+        'consolidation_interval': 3, # A-TEAM: Consolidate every 3 episodes (prevent memory buildup!)
         'memory_buffer_size': 100,
         'chunk_ratio': 0.64,  # 64% of model context
         'prune_threshold': 0.15,
@@ -233,7 +233,7 @@ class SimpleBrain:
         
         if preset != BrainPreset.OFF:
             logger.info(
-                f"🧠 SimpleBrain initialized: preset={preset.value}, "
+                f" SimpleBrain initialized: preset={preset.value}, "
                 f"model={model_name}, chunk_size={self.chunk_size}"
             )
     
@@ -384,7 +384,7 @@ class SimpleBrain:
         self.consolidation_count += 1
         
         logger.info(
-            f"🌙 Consolidating ({trigger.value}): "
+            f" Consolidating ({trigger.value}): "
             f"{len(self.experience_buffer)} experiences"
         )
         
@@ -404,7 +404,7 @@ class SimpleBrain:
             self.episode_count = 0
             
             logger.info(
-                f"☀️ Consolidation complete: "
+                f" Consolidation complete: "
                 f"{len(patterns)} patterns extracted"
             )
             
@@ -594,7 +594,7 @@ class BrainInspiredMemoryManager:
     - SWR: Consolidation during "sleep"
     - Pruning: Homeostatic plasticity
     
-    ✅ SCIENTIFICALLY ACCURATE per Dr. Rivera
+     SCIENTIFICALLY ACCURATE per Dr. Rivera
     """
     
     def __init__(self, 
@@ -638,7 +638,7 @@ class BrainInspiredMemoryManager:
         self.episodes_since_sleep = 0
         self.total_consolidations = 0
         
-        logger.info(f"🧠 BrainInspiredMemoryManager initialized (sleep_interval={sleep_interval})")
+        logger.info(f" BrainInspiredMemoryManager initialized (sleep_interval={sleep_interval})")
     
     def store_experience(self, experience: Dict[str, Any], reward: float):
         """
@@ -684,9 +684,9 @@ class BrainInspiredMemoryManager:
         4. Systems consolidation (hippocampus → neocortex)
         5. Synaptic pruning
         
-        ✅ Based on Buzsáki (2015), Wilson & McNaughton (1994)
+         Based on Buzsáki (2015), Wilson & McNaughton (1994)
         """
-        logger.info("🌙 Entering consolidation mode (simulating slow-wave sleep)")
+        logger.info(" Entering consolidation mode (simulating slow-wave sleep)")
         logger.info(f"   Hippocampus: {len(self.hippocampus)} memories")
         logger.info(f"   Neocortex: {len(self.neocortex)} patterns")
         
@@ -710,7 +710,7 @@ class BrainInspiredMemoryManager:
         self.episodes_since_sleep = 0
         self.total_consolidations += 1
         
-        logger.info(f"☀️  Consolidation #{self.total_consolidations} complete")
+        logger.info(f" Consolidation #{self.total_consolidations} complete")
         logger.info(f"   Final: Hippocampus={len(self.hippocampus)}, Neocortex={len(self.neocortex)}")
     
     def get_consolidated_knowledge(self, query: str = None, max_items: int = 10) -> str:
@@ -763,7 +763,7 @@ class BrainInspiredMemoryManager:
         2. Novel/surprising (prediction error)
         3. Not yet consolidated
         
-        ✅ Based on Dudai et al. (2015)
+         Based on Dudai et al. (2015)
         """
         candidates = []
         
@@ -785,7 +785,7 @@ class BrainInspiredMemoryManager:
         """
         Compute memory priority for replay/retention.
         
-        🔬 A-TEAM ENHANCEMENTS (per GRF MARL paper):
+         A-TEAM ENHANCEMENTS (per GRF MARL paper):
         - Recency decay: exp(-λt) where t = age in episodes
         - Causal impact bonus: memories with high Shapley credit get priority
         
@@ -807,13 +807,13 @@ class BrainInspiredMemoryManager:
         # Frequency (inverse of replay count - less replayed = higher priority initially)
         frequency = 1.0 / (1.0 + mem.replay_count)
         
-        # 🔬 RECENCY DECAY: exp(-λ * age_in_seconds / 3600)
+        # RECENCY DECAY: exp(-λ * age_in_seconds / 3600)
         # Half-life ~1 hour: λ = ln(2) ≈ 0.693
         age_seconds = time_module.time() - mem.timestamp
         recency_decay_lambda = 0.693 / 3600  # Half-life = 1 hour
         recency_factor = math.exp(-recency_decay_lambda * age_seconds)
         
-        # 🔬 CAUSAL IMPACT (from context if available)
+        # CAUSAL IMPACT (from context if available)
         causal_impact = getattr(mem, 'causal_impact', 0.0)
         if not causal_impact and hasattr(mem, 'context') and isinstance(mem.context, dict):
             causal_impact = mem.context.get('shapley_credit', 0.0)
@@ -839,7 +839,7 @@ class BrainInspiredMemoryManager:
         - Extract abstract patterns
         - Strengthen memory traces
         
-        ✅ Based on Buzsáki (2015), Wilson & McNaughton (1994)
+         Based on Buzsáki (2015), Wilson & McNaughton (1994)
         """
         patterns = []
         
@@ -875,11 +875,11 @@ class BrainInspiredMemoryManager:
         
         # Create abstract lesson
         if outcome == 'success':
-            lesson = f"✅ Strategy '{action}' tends to succeed (reward: {exp.reward:.2f})"
+            lesson = f" Strategy '{action}' tends to succeed (reward: {exp.reward:.2f})"
         elif outcome == 'failure':
-            lesson = f"❌ Strategy '{action}' tends to fail (reward: {exp.reward:.2f})"
+            lesson = f" Strategy '{action}' tends to fail (reward: {exp.reward:.2f})"
         else:
-            lesson = f"⚖️  Strategy '{action}' has mixed results (reward: {exp.reward:.2f})"
+            lesson = f" Strategy '{action}' has mixed results (reward: {exp.reward:.2f})"
         
         # Extract tags for semantic similarity
         tags = self._extract_tags(content)
@@ -897,7 +897,7 @@ class BrainInspiredMemoryManager:
         
         Neocortex stores abstracted, schema-based representations.
         
-        ✅ Based on McClelland et al. (1995)
+         Based on McClelland et al. (1995)
         """
         transferred = 0
         
@@ -940,7 +940,7 @@ class BrainInspiredMemoryManager:
         - Strong jottys → strengthen (LTP)
         - Weak jottys → prune (homeostatic downscaling)
         
-        ✅ Based on Tononi & Cirelli (2014)
+         Based on Tononi & Cirelli (2014)
         """
         # Prune hippocampus (more aggressive - shorter retention)
         initial_hippo = len(self.hippocampus)
@@ -1010,7 +1010,7 @@ class BrainInspiredMemoryManager:
         """
         Extract semantic tags from content.
         
-        🔬 A-TEAM ENHANCEMENTS:
+         A-TEAM ENHANCEMENTS:
         - Include causal impact (Shapley credit) as tag
         - Include tool I/O schema hints
         - Include knowledge provenance
@@ -1030,7 +1030,7 @@ class BrainInspiredMemoryManager:
         if 'status' in content:
             tags.append(f"status:{content['status']}")
         
-        # 🔬 CAUSAL IMPACT TAG (for ContextGradient)
+        # CAUSAL IMPACT TAG (for ContextGradient)
         if 'shapley_credit' in content:
             credit = content['shapley_credit']
             if credit > 0.7:
@@ -1040,14 +1040,14 @@ class BrainInspiredMemoryManager:
             else:
                 tags.append("causal:low_impact")
         
-        # 🔬 TOOL I/O SCHEMA HINTS
+        # TOOL I/O SCHEMA HINTS
         if 'tool_used' in content:
             tags.append(f"tool:{content['tool_used']}")
         
         if 'output_schema' in content:
             tags.append(f"schema:{content['output_schema']}")
         
-        # 🔬 KNOWLEDGE PROVENANCE (who knew what)
+        # KNOWLEDGE PROVENANCE (who knew what)
         if 'knowledge_source' in content:
             tags.append(f"source:{content['knowledge_source']}")
         

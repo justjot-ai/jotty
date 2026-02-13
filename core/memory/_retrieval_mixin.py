@@ -303,7 +303,7 @@ class RetrievalMixin:
                                  levels: List[MemoryLevel] = None,
                                  context_hints: str = "") -> str:
         """
-        🧠 Brain-Inspired Synthesis Retrieval (DEFAULT mode!)
+         Brain-Inspired Synthesis Retrieval (DEFAULT mode!)
 
         Retrieves memories and synthesizes them into coherent wisdom.
         This is MORE intelligent than discrete retrieval:
@@ -449,5 +449,5 @@ class RetrievalMixin:
         # Sort by confidence
         relevant.sort(key=lambda x: x.confidence, reverse=True)
         
-        return relevant  # 🔥 NO LIMIT - FULL content
+        return relevant # NO LIMIT - FULL content
     

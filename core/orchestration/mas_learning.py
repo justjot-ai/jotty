@@ -167,7 +167,7 @@ class MASLearning:
         # Load existing learnings
         self._load_all()
 
-        logger.info(f"🧠 MASLearning initialized (DRY): {len(self.fix_database)} fixes, "
+        logger.info(f" MASLearning initialized (DRY): {len(self.fix_database)} fixes, "
                    f"{len(self.session_learnings)} sessions")
 
     # =========================================================================
@@ -355,7 +355,7 @@ class MASLearning:
         # Get relevant fixes
         relevant_fixes = list(self.fix_database.values())[:10]
 
-        logger.info(f"📚 Loaded learnings: {len(relevant_sessions)} sessions, "
+        logger.info(f" Loaded learnings: {len(relevant_sessions)} sessions, "
                    f"{len(suggested_agents)} agents, {len(relevant_fixes)} fixes")
 
         return {
@@ -530,7 +530,7 @@ class MASLearning:
         """Save all learning data to disk."""
         self._save_fix_database()
         self._save_sessions()
-        logger.info("💾 MAS learnings saved (fix database + sessions)")
+        logger.info(" MAS learnings saved (fix database + sessions)")
 
     # =========================================================================
     # Integration with SwarmTerminal (UNIQUE - fix persistence)

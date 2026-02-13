@@ -1,5 +1,5 @@
 """
-🎯 SMART DATA EXTRACTOR
+ SMART DATA EXTRACTOR
 ======================
 
 Extracts data from ANY format - NO hardcoding!
@@ -55,7 +55,7 @@ class SmartDataExtractor:
         Returns:
             Extracted data (or None if all strategies fail)
         """
-        logger.debug(f"🔍 SmartDataExtractor: Extracting '{param_name}' from {type(data_source).__name__}")
+        logger.debug(f" SmartDataExtractor: Extracting '{param_name}' from {type(data_source).__name__}")
         
         strategies = [
             ('direct_string', self._extract_as_string),
@@ -72,7 +72,7 @@ class SmartDataExtractor:
             try:
                 result = await strategy_func(data_source, param_name, context_key)
                 if result is not None:
-                    logger.info(f"✅ Extracted '{param_name}' using strategy: {strategy_name}")
+                    logger.info(f" Extracted '{param_name}' using strategy: {strategy_name}")
                     self.extraction_stats.append({
                         'param': param_name,
                         'strategy': strategy_name,
@@ -84,7 +84,7 @@ class SmartDataExtractor:
                 continue
         
         # All strategies failed
-        logger.warning(f"⚠️  Could not extract '{param_name}' from {type(data_source).__name__}")
+        logger.warning(f" Could not extract '{param_name}' from {type(data_source).__name__}")
         self.extraction_stats.append({
             'param': param_name,
             'strategy': 'none',

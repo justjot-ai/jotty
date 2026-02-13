@@ -53,7 +53,7 @@ class ResearchDataFetcher:
             if web_skill:
                 self._web_search_tool = web_skill.tools.get('search_web_tool')
                 self._web_search_available = self._web_search_tool is not None
-                logger.info("✅ Web search enabled for real-time news")
+                logger.info(" Web search enabled for real-time news")
         except Exception as e:
             logger.debug(f"Web search init: {e}")
             self._web_search_available = False
@@ -107,7 +107,7 @@ class ResearchDataFetcher:
 
         # If no API data found, web search news becomes primary source
         if not api_data_found and data.get('web_search_news'):
-            logger.info("📰 Using web search as primary data source (API data unavailable)")
+            logger.info(" Using web search as primary data source (API data unavailable)")
             data['data_source'] = 'web_search'
 
         return data
@@ -265,7 +265,7 @@ class ResearchDataFetcher:
             return {"_source": "web_search", "error": "Web search not available"}
 
         try:
-            logger.info(f"🔍 Searching web for {ticker} news and data...")
+            logger.info(f" Searching web for {ticker} news and data...")
 
             # Run multiple search queries for comprehensive coverage
             search_queries = [
@@ -316,7 +316,7 @@ class ResearchDataFetcher:
                 for n in news_items[:15]
             ])
 
-            logger.info(f"📰 Found {len(unique_results)} web search results for {ticker}")
+            logger.info(f" Found {len(unique_results)} web search results for {ticker}")
 
             return {
                 "_source": "web_search",

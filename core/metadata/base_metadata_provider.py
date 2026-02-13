@@ -85,12 +85,12 @@ class BaseMetadataProvider:
         
         # Usage:
         provider = SQLMetadataProvider(metadata_manager)
-        metadata_tools = provider.get_tools()  # ✅ All methods exposed as tools!
+        metadata_tools = provider.get_tools() # All methods exposed as tools!
         
         ActorConfig(
             name="ColumnSelector",
             actor=cs_agent,
-            architect_tools=metadata_tools,  # ✅ Agent can discover and call!
+            architect_tools=metadata_tools, # Agent can discover and call!
             ...
         )
         ```
@@ -115,7 +115,7 @@ class BaseMetadataProvider:
         self._method_descriptions: Dict[str, str] = {}
         self._method_signatures: Dict[str, inspect.Signature] = {}
         
-        # ✅ A-Team Safeguards: Token budget and caching
+        # A-Team Safeguards: Token budget and caching
         self._token_budget = token_budget
         self._tokens_used = 0
         self._enable_caching = enable_caching
@@ -125,7 +125,7 @@ class BaseMetadataProvider:
         # Auto-register all public methods
         self._auto_register_methods()
         
-        logger.info(f"✅ {self.__class__.__name__} initialized")
+        logger.info(f" {self.__class__.__name__} initialized")
         logger.info(f"   Callable methods: {len(self._registered_methods)}")
         logger.info(f"   Token budget: {self._token_budget:,}")
         logger.info(f"   Caching: {'enabled' if self._enable_caching else 'disabled'}")
@@ -157,7 +157,7 @@ class BaseMetadataProvider:
             self._method_descriptions[name] = inspect.getdoc(method) or f"Call {name} on metadata provider"
             self._method_signatures[name] = inspect.signature(method)
             
-            logger.debug(f"📋 Registered metadata method: {name}{self._method_signatures[name]}")
+            logger.debug(f" Registered metadata method: {name}{self._method_signatures[name]}")
     
     def get_tools(self) -> List[Callable]:
         """
@@ -182,19 +182,19 @@ class BaseMetadataProvider:
             
             ActorConfig(
                 name="ColumnSelector",
-                architect_tools=tools,  # ✅ All metadata methods available!
+                architect_tools=tools, # All metadata methods available!
                 ...
             )
             
             # Agent calls tool:
             schema = metadata_get_schema("data_source_1")
-            # Log: 🔧 metadata_get_schema("data_source_1") [call #1]
-            #      ✅ Result: Dict (2,500 tokens)
-            #      📊 Budget: 2,500 / 50,000 (5.0% used)
+            # Log: metadata_get_schema("data_source_1") [call #1]
+            # Result: Dict (2,500 tokens)
+            # Budget: 2,500 / 50,000 (5.0% used)
             
             # Agent calls same tool again:
             schema = metadata_get_schema("data_source_1")
-            # Log: 🔧 metadata_get_schema("data_source_1") → CACHE HIT
+            # Log: metadata_get_schema("data_source_1") → CACHE HIT
             # (No tokens used, instant return!)
             ```
         """
@@ -203,7 +203,7 @@ class BaseMetadataProvider:
             tool = self._wrap_as_tool(name, method)
             tools.append(tool)
         
-        logger.info(f"🔧 Exposed {len(tools)} metadata methods as safeguarded tools")
+        logger.info(f" Exposed {len(tools)} metadata methods as safeguarded tools")
         logger.info(f"   Token budget: {self._token_budget:,}")
         logger.info(f"   Caching: {'enabled' if self._enable_caching else 'disabled'}")
         return tools
@@ -243,7 +243,7 @@ class BaseMetadataProvider:
         self._tokens_used = 0
         self._tool_call_count = 0
         self._tool_cache.clear()
-        logger.info("♻️  Tool statistics reset")
+        logger.info(" Tool statistics reset")
     
     def _wrap_as_tool(self, name: str, method: Callable) -> Callable:
         """
@@ -275,7 +275,7 @@ class BaseMetadataProvider:
                 cache_key = f"{name}:{args}:{tuple(sorted(kwargs.items()))}"
                 if cache_key in self._tool_cache:
                     cached_result = self._tool_cache[cache_key]
-                    logger.info(f"🔧 metadata_{name}(*{args[:2] if args else []}, **{list(kwargs.keys())[:2]}) → CACHE HIT")
+                    logger.info(f" metadata_{name}(*{args[:2] if args else []}, **{list(kwargs.keys())[:2]}) → CACHE HIT")
                     return cached_result
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -287,14 +287,14 @@ class BaseMetadataProvider:
                     f"{self._tokens_used:,} / {self._token_budget:,} tokens used. "
                     f"Attempted to call: metadata_{name}"
                 )
-                logger.error(f"❌ {error_msg}")
+                logger.error(f" {error_msg}")
                 raise ValueError(error_msg)
             
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             # Execute tool
             # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             self._tool_call_count += 1
-            logger.info(f"🔧 metadata_{name}(*{args[:2] if args else []}, **{list(kwargs.keys())[:2]}) [call #{self._tool_call_count}]")
+            logger.info(f" metadata_{name}(*{args[:2] if args else []}, **{list(kwargs.keys())[:2]}) [call #{self._tool_call_count}]")
             
             try:
                 result = method(*args, **kwargs)
@@ -305,8 +305,8 @@ class BaseMetadataProvider:
                 self._tokens_used += tokens
                 
                 usage_pct = (self._tokens_used / self._token_budget) * 100
-                logger.info(f"   ✅ Result: {type(result).__name__} ({tokens:,} tokens)")
-                logger.info(f"   📊 Budget: {self._tokens_used:,} / {self._token_budget:,} ({usage_pct:.1f}% used)")
+                logger.info(f" Result: {type(result).__name__} ({tokens:,} tokens)")
+                logger.info(f" Budget: {self._tokens_used:,} / {self._token_budget:,} ({usage_pct:.1f}% used)")
                 
                 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 # SAFEGUARD 3: Cache result (A-Team: Dr. Chen's cooperation)
@@ -314,14 +314,14 @@ class BaseMetadataProvider:
                 if self._enable_caching:
                     cache_key = f"{name}:{args}:{tuple(sorted(kwargs.items()))}"
                     self._tool_cache[cache_key] = result
-                    logger.debug(f"   💾 Cached result for future calls")
+                    logger.debug(f" Cached result for future calls")
                 
                 return result
                 
             except Exception as e:
-                logger.error(f"   ❌ Error calling metadata_{name}: {e}")
-                logger.error(f"   ❌ Args: {args}")
-                logger.error(f"   ❌ Kwargs: {kwargs}")
+                logger.error(f" Error calling metadata_{name}: {e}")
+                logger.error(f" Args: {args}")
+                logger.error(f" Kwargs: {kwargs}")
                 raise
         
         # Set tool attributes for DSPy
@@ -463,7 +463,7 @@ class BaseMetadataProvider:
             ```
         """
         setattr(self, f"{field_name}_str", field_value)
-        logger.debug(f"📝 Registered field: {field_name}_str")
+        logger.debug(f" Registered field: {field_name}_str")
 
 
 # =============================================================================
@@ -482,7 +482,7 @@ def create_metadata_provider(
     
     This is the RECOMMENDED way for most users. No subclassing needed!
     
-#     ✅ A-Team Consensus: 90% of users should use this factory function.
+# A-Team Consensus: 90% of users should use this factory function.
     
     What it does:
     1. Scans directory for metadata files
@@ -540,7 +540,7 @@ def create_metadata_provider(
     files = glob.glob(pattern)
     
     if not files:
-        logger.warning(f"⚠️  No {file_extension} files found in {data_directory}")
+        logger.warning(f" No {file_extension} files found in {data_directory}")
     
     # Create dynamic class
     class AutoMetadataProvider(BaseMetadataProvider):
@@ -569,7 +569,7 @@ def create_metadata_provider(
             # Initialize base class
             super().__init__(token_budget=token_budget, enable_caching=enable_caching)
             
-            logger.info(f"✅ Auto-created metadata provider from: {data_directory}")
+            logger.info(f" Auto-created metadata provider from: {data_directory}")
             logger.info(f"   Fields: {list(self._fields.keys())}")
             logger.info(f"   Actor mappings: {len(self._actor_mappings)}")
         
@@ -595,7 +595,7 @@ def create_metadata_provider(
     
     # Create and return instance
     provider = AutoMetadataProvider()
-    logger.info(f"🎉 Created metadata provider with {len(provider._fields)} fields")
+    logger.info(f" Created metadata provider with {len(provider._fields)} fields")
     
     return provider
 

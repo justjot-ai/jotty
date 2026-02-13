@@ -54,7 +54,7 @@ class PolicyExplorer:
         # Exploration state
         self.explored_paths: List[List[str]] = []
         self.exploration_count = 0
-        self.max_explorations = self.config.max_exploration_iterations  # 🔧 STANFORD FIX
+        self.max_explorations = self.config.max_exploration_iterations # STANFORD FIX
     
     def should_explore(self, todo: SwarmTaskBoard) -> bool:
         """Check if we should try a new exploration."""
@@ -124,12 +124,12 @@ class PolicyExplorer:
                         actor=item.get('actor', 'unknown'),
                         status="pending",
                         priority=0.8,  # High priority for explorations
-                        estimated_reward=self.config.default_estimated_reward  # ✅ FROM CONFIG! (was 0.6)
+                        estimated_reward=self.config.default_estimated_reward # FROM CONFIG! (was 0.6)
                     ))
             except json.JSONDecodeError:
                 pass
             
-            logger.info(f"🔍 Policy exploration generated {len(new_items)} new tasks")
+            logger.info(f" Policy exploration generated {len(new_items)} new tasks")
             return new_items
             
         except Exception as e:

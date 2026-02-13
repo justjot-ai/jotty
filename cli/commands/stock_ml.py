@@ -1149,7 +1149,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             cli.renderer.info("│     Model       │ Accuracy │    F1    │  ROC-AUC │")
             cli.renderer.info("├─────────────────┼──────────┼──────────┼──────────┤")
             for r in results:
-                marker = "★ " if r['model'] == best_name else "  "
+                marker = " " if r['model'] == best_name else " "
                 cli.renderer.info(f"│{marker}{r['model']:<13} │ {r['accuracy']:^8.4f} │ {r['f1']:^8.4f} │ {r['auc']:^8.4f} │")
             cli.renderer.info("└─────────────────┴──────────┴──────────┴──────────┘")
         else:
@@ -1157,7 +1157,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             cli.renderer.info("│     Model       │    R²    │   RMSE   │")
             cli.renderer.info("├─────────────────┼──────────┼──────────┤")
             for r in results:
-                marker = "★ " if r['model'] == best_name else "  "
+                marker = " " if r['model'] == best_name else " "
                 cli.renderer.info(f"│{marker}{r['model']:<13} │ {r['r2']:^8.4f} │ {r['rmse']:^8.4f} │")
             cli.renderer.info("└─────────────────┴──────────┴──────────┘")
 
@@ -1376,7 +1376,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                         if report_paths.get('pdf'):
                             await telegram.send_document(
                                 document_path=report_paths['pdf'],
-                                caption=f"📊 ML Backtest Report: {symbol}\n"
+                                caption=f" ML Backtest Report: {symbol}\n"
                                        f"Strategy Return: {bt_result.strategy_metrics.total_return:+.1f}%\n"
                                        f"Sharpe: {bt_result.strategy_metrics.sharpe_ratio:.2f}"
                             )
@@ -1778,7 +1778,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         cli.renderer.info("├──────────────┼─────────────┼───────────┼──────────┼──────────┤")
 
         for i, r in enumerate(sorted_results[:20]):
-            marker = "★" if i == 0 else " "
+            marker = "" if i == 0 else " "
             cli.renderer.info(
                 f"│{marker}{r['symbol']:<12} │ {r['target']:<11} │ {r['timeframe']:<9} │ "
                 f"{r.get('accuracy', 0):^8.4f} │ {r.get('auc', 0):^8.4f} │"

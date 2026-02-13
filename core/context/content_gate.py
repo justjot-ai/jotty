@@ -230,7 +230,7 @@ class ContentGate:
         self.chunked_count = 0
         
         logger.info(
-            f"📄 ContentGate initialized (max_tokens={max_tokens}, "
+            f" ContentGate initialized (max_tokens={max_tokens}, "
             f"chunk_size={self.chunk_size})"
         )
     

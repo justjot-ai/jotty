@@ -52,7 +52,7 @@ class ScratchpadPersistence:
         self.workspace_dir = Path(workspace_dir)
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"📝 ScratchpadPersistence initialized: {self.workspace_dir}")
+        logger.info(f" ScratchpadPersistence initialized: {self.workspace_dir}")
 
     def create_session(self, session_name: Optional[str] = None) -> Path:
         """
@@ -72,7 +72,7 @@ class ScratchpadPersistence:
         # Create empty file
         session_file.touch()
 
-        logger.info(f"📝 Created scratchpad session: {session_file}")
+        logger.info(f" Created scratchpad session: {session_file}")
 
         return session_file
 
@@ -127,7 +127,7 @@ class ScratchpadPersistence:
         with session_file.open('a') as f:
             f.write(json.dumps(metadata) + '\n')
 
-        logger.info(f"📝 Saved scratchpad: {len(scratchpad.messages)} messages to {session_file}")
+        logger.info(f" Saved scratchpad: {len(scratchpad.messages)} messages to {session_file}")
 
     def load_scratchpad(self, session_file: Path) -> SharedScratchpad:
         """
@@ -142,7 +142,7 @@ class ScratchpadPersistence:
         scratchpad = SharedScratchpad()
 
         if not session_file.exists():
-            logger.warning(f"⚠️  Scratchpad file not found: {session_file}")
+            logger.warning(f" Scratchpad file not found: {session_file}")
             return scratchpad
 
         # Read all lines
@@ -172,7 +172,7 @@ class ScratchpadPersistence:
 
                 scratchpad.add_message(message)
 
-        logger.info(f"📝 Loaded scratchpad: {len(scratchpad.messages)} messages from {session_file}")
+        logger.info(f" Loaded scratchpad: {len(scratchpad.messages)} messages from {session_file}")
 
         return scratchpad
 

@@ -1027,7 +1027,7 @@ class SkillPlanExecutor:
                     if _file_match:
                         _correct_path = _file_match.group(1)
                         if _correct_path != _write_path:
-                            logger.info(f"  🔧 Duplicate write to '{_write_path}' detected — "
+                            logger.info(f" Duplicate write to '{_write_path}' detected — "
                                        f"corrected to '{_correct_path}' from step description")
                             resolved_params['path'] = _correct_path
                     break
@@ -1036,20 +1036,20 @@ class SkillPlanExecutor:
         if resolved_params and step.skill_name in ('file-operations', 'shell-exec'):
             _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))
                              for k, v in resolved_params.items() if k != 'content'}
-            logger.info(f"  📎 Resolved params: {_param_preview}")
+            logger.info(f" Resolved params: {_param_preview}")
 
         # Emit status based on skill type
         skill_status_map = {
-            'research': '📚 Researching...',
-            'search': '🔍 Searching...',
-            'web': '🌐 Fetching web data...',
-            'pdf': '📄 Creating PDF...',
-            'chart': '📊 Generating charts...',
-            'telegram': '📨 Sending message...',
-            'slack': '💬 Posting to Slack...',
-            'file': '📁 Processing files...',
-            'data': '📈 Analyzing data...',
-            'stock': '💹 Fetching stock data...',
+            'research': ' Researching...',
+            'search': ' Searching...',
+            'web': ' Fetching web data...',
+            'pdf': ' Creating PDF...',
+            'chart': ' Generating charts...',
+            'telegram': ' Sending message...',
+            'slack': ' Posting to Slack...',
+            'file': ' Processing files...',
+            'data': ' Analyzing data...',
+            'stock': ' Fetching stock data...',
         }
 
         for key, msg in skill_status_map.items():
@@ -1057,7 +1057,7 @@ class SkillPlanExecutor:
                 _status("Executing", msg)
                 break
         else:
-            _status("Executing", f"🔧 Running {step.skill_name}...")
+            _status("Executing", f" Running {step.skill_name}...")
 
         try:
             import asyncio as _asyncio
@@ -1096,17 +1096,17 @@ class SkillPlanExecutor:
             # Sanitize/truncate tool output (JSON-aware: preserves keys)
             result = ToolResultProcessor().process(result, elapsed=_step_elapsed)
 
-            _status("Done", f"✓ {step.skill_name}")
+            _status("Done", f" {step.skill_name}")
             return result
 
         except _asyncio.TimeoutError:
             logger.error(f"Tool execution timed out after {step_timeout}s: {step.skill_name}")
-            _status("Timeout", f"✗ {step.skill_name} ({step_timeout}s)")
+            _status("Timeout", f" {step.skill_name} ({step_timeout}s)")
             return {'success': False, 'error': f'Tool timed out after {step_timeout}s'}
 
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
-            _status("Error", f"✗ {step.skill_name}")
+            _status("Error", f" {step.skill_name}")
             return {'success': False, 'error': str(e)}
 
     # =========================================================================

@@ -209,7 +209,7 @@ class HeartbeatEngine:
 
         # Also print to CLI if available
         if self._cli and hasattr(self._cli, 'renderer'):
-            icon = "🔴" if priority == "urgent" else "💡"
+            icon = "" if priority == "urgent" else ""
             self._cli.renderer.print(f"\n{icon} [bold]{title}[/bold]: {message}")
 
     def _load_state(self):

@@ -45,7 +45,7 @@ class SwarmWarmup:
             Dict with warmup statistics
         """
         if verbose:
-            logger.info(f"🔥 Starting DrZero warmup: {num_episodes} synthetic episodes")
+            logger.info(f" Starting DrZero warmup: {num_episodes} synthetic episodes")
 
         stats = {
             'episodes_run': 0,
@@ -114,7 +114,7 @@ class SwarmWarmup:
         stats['task_type_results'] = dict(stats['task_type_results'])
 
         if verbose:
-            logger.info(f"🔥 Warmup complete: {stats['success_rate']:.1%} success rate")
+            logger.info(f" Warmup complete: {stats['success_rate']:.1%} success rate")
             logger.info(f"   Episodes: {stats['episodes_run']}, Successes: {stats['successes']}")
             for task_type, results in stats['task_type_results'].items():
                 rate = results['success'] / max(1, results['total'])
