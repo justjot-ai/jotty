@@ -12,7 +12,7 @@ BaseAgent (ABC)
 
 Usage:
     from Jotty.core.agents.base import (
-        BaseAgent, AgentConfig, AgentResult,
+        BaseAgent, AgentRuntimeConfig, AgentResult,
         DomainAgent, DomainAgentConfig,
         MetaAgent, MetaAgentConfig,
         ValidationAgent, ValidationConfig, ValidationResult,
@@ -26,7 +26,7 @@ Date: February 2026
 # Base agent and core types
 from .base_agent import (
     BaseAgent,
-    AgentConfig,
+    AgentRuntimeConfig,
     AgentResult,
 )
 
@@ -85,7 +85,7 @@ from .composite_agent import (
 __all__ = [
     # Base
     'BaseAgent',
-    'AgentConfig',
+    'AgentRuntimeConfig',
     'AgentResult',
     # Domain
     'DomainAgent',

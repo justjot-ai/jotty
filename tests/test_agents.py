@@ -20,7 +20,7 @@ import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig, AgentResult
+from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
 from Jotty.core.agents.base.composite_agent import (
     CompositeAgent,
@@ -77,7 +77,7 @@ class TestBaseAgent:
                     raise RuntimeError("transient")
                 return "recovered"
 
-        agent = RetryAgent(AgentConfig(name="RetryAgent"))
+        agent = RetryAgent(AgentRuntimeConfig(name="RetryAgent"))
         agent._initialized = True
         agent.config.max_retries = 3
         agent.config.retry_delay = 0.001  # Fast retries for tests
@@ -97,7 +97,7 @@ class TestBaseAgent:
                 await asyncio.sleep(10)
                 return "never"
 
-        agent = SlowAgent(AgentConfig(name="SlowAgent"))
+        agent = SlowAgent(AgentRuntimeConfig(name="SlowAgent"))
         agent._initialized = True
         agent.config.timeout = 0.05
         agent.config.max_retries = 1
@@ -430,9 +430,9 @@ class TestCompositeAgent:
                 assert kwargs.get("step1") == "done"  # Output chained
                 return {"step2": "done"}
 
-        a1 = Agent1(AgentConfig(name="A1"))
+        a1 = Agent1(AgentRuntimeConfig(name="A1"))
         a1._initialized = True
-        a2 = Agent2(AgentConfig(name="A2"))
+        a2 = Agent2(AgentRuntimeConfig(name="A2"))
         a2._initialized = True
 
         composite = CompositeAgent.compose(
@@ -650,9 +650,9 @@ class TestCompositeAgent:
                 assert kwargs.get("task") == "string output"
                 return {"received": True}
 
-        a1 = StringAgent(AgentConfig(name="A1"))
+        a1 = StringAgent(AgentRuntimeConfig(name="A1"))
         a1._initialized = True
-        a2 = ReceivingAgent(AgentConfig(name="A2"))
+        a2 = ReceivingAgent(AgentRuntimeConfig(name="A2"))
         a2._initialized = True
 
         composite = CompositeAgent.compose(

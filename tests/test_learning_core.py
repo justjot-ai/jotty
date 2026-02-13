@@ -113,17 +113,16 @@ class TestTDLambdaLearner:
     @pytest.mark.unit
     def test_record_access_creates_trace(self, learner, minimal_jotty_config):
         """record_access creates eligibility trace for memory."""
-        from Jotty.core.foundation.data_structures import MemoryLevel, MemoryEntry
+        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.foundation.types.memory_types import MemoryEntry
         learner.start_episode("test goal")
 
         entry = MemoryEntry(
+            key="test:research:abc123",
             content="test content",
             level=MemoryLevel.EPISODIC,
             context={},
-            goal="test goal",
-            initial_value=0.5,
         )
-        entry.key = "test:research:abc123"
 
         trace_value = learner.record_access(entry)
         assert trace_value > 0
@@ -132,17 +131,16 @@ class TestTDLambdaLearner:
     @pytest.mark.unit
     def test_trace_accumulation(self, learner, minimal_jotty_config):
         """Multiple accesses accumulate traces (not replace)."""
-        from Jotty.core.foundation.data_structures import MemoryLevel, MemoryEntry
+        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.foundation.types.memory_types import MemoryEntry
         learner.start_episode("test")
 
         entry = MemoryEntry(
+            key="test:key:abc",
             content="test",
             level=MemoryLevel.EPISODIC,
             context={},
-            goal="test",
-            initial_value=0.5,
         )
-        entry.key = "test:key:abc"
 
         v1 = learner.record_access(entry)
         v2 = learner.record_access(entry)
@@ -152,15 +150,14 @@ class TestTDLambdaLearner:
     @pytest.mark.unit
     def test_trace_decay(self, learner, minimal_jotty_config):
         """Traces decay with gamma * lambda on each step."""
-        from Jotty.core.foundation.data_structures import MemoryLevel, MemoryEntry
+        from Jotty.core.foundation.data_structures import MemoryLevel
+        from Jotty.core.foundation.types.memory_types import MemoryEntry
         learner.start_episode("test")
 
-        entry1 = MemoryEntry(content="first", level=MemoryLevel.EPISODIC,
-                              context={}, goal="test", initial_value=0.5)
-        entry1.key = "key1"
-        entry2 = MemoryEntry(content="second", level=MemoryLevel.EPISODIC,
-                              context={}, goal="test", initial_value=0.5)
-        entry2.key = "key2"
+        entry1 = MemoryEntry(key="key1", content="first",
+                              level=MemoryLevel.EPISODIC, context={})
+        entry2 = MemoryEntry(key="key2", content="second",
+                              level=MemoryLevel.EPISODIC, context={})
 
         learner.record_access(entry1)
         initial_trace = learner.traces.get("key1", 0)
@@ -187,13 +184,13 @@ class TestTDLambdaLearner:
     @pytest.mark.unit
     def test_end_episode_returns_updates(self, learner, minimal_jotty_config):
         """end_episode returns list of (key, old_val, new_val) tuples."""
-        from Jotty.core.foundation.data_structures import MemoryLevel, MemoryEntry
+        from Jotty.core.foundation.data_structures import MemoryLevel, GoalValue
+        from Jotty.core.foundation.types.memory_types import MemoryEntry
         learner.start_episode("test goal", task_type="research")
 
-        entry = MemoryEntry(content="test", level=MemoryLevel.EPISODIC,
-                            context={}, goal="test goal", initial_value=0.5)
-        entry.key = "research:test:abc"
-        entry.goal_values = {"test goal": 0.5}
+        entry = MemoryEntry(key="research:test:abc", content="test",
+                            level=MemoryLevel.EPISODIC, context={})
+        entry.goal_values = {"test goal": GoalValue(value=0.5)}
 
         learner.record_access(entry)
         memories = {"research:test:abc": entry}
@@ -212,13 +209,14 @@ class TestTDLambdaLearner:
     @pytest.mark.unit
     def test_value_clipping(self, learner, minimal_jotty_config):
         """Values are clipped to [0, 1]."""
-        from Jotty.core.foundation.data_structures import MemoryLevel, MemoryEntry
+        from Jotty.core.foundation.data_structures import MemoryLevel, GoalValue
+        from Jotty.core.foundation.types.memory_types import MemoryEntry
         learner.start_episode("test", task_type="test")
 
-        entry = MemoryEntry(content="test", level=MemoryLevel.EPISODIC,
-                            context={}, goal="test", initial_value=0.99)
-        entry.key = "test:key:abc"
-        entry.goal_values = {"test": 0.99}
+        entry = MemoryEntry(key="test:key:abc", content="test",
+                            level=MemoryLevel.EPISODIC, context={},
+                            default_value=0.99)
+        entry.goal_values = {"test": GoalValue(value=0.99)}
 
         learner.record_access(entry)
         memories = {"test:key:abc": entry}

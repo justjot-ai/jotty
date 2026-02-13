@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
-from .base_agent import BaseAgent, AgentConfig, AgentResult
+from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 
 # Reuse canonical enums from agent_team — single source of truth
 from Jotty.core.swarms.base.agent_team import CoordinationPattern, MergeStrategy
@@ -42,10 +42,10 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 @dataclass
-class CompositeAgentConfig(AgentConfig):
+class CompositeAgentConfig(AgentRuntimeConfig):
     """Configuration for CompositeAgent.
 
-    Extends AgentConfig with coordination_pattern and merge_strategy.
+    Extends AgentRuntimeConfig with coordination_pattern and merge_strategy.
     """
     coordination_pattern: CoordinationPattern = CoordinationPattern.PIPELINE
     merge_strategy: MergeStrategy = MergeStrategy.COMBINE

@@ -486,7 +486,7 @@ def v3_observability_helpers():
 @pytest.fixture
 def make_concrete_agent():
     """Factory to create a concrete BaseAgent subclass with controllable _execute_impl."""
-    from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+    from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
 
     def _factory(name="TestAgent", output="agent output", raises=None, **config_kw):
         class ConcreteAgent(BaseAgent):
@@ -495,7 +495,7 @@ def make_concrete_agent():
                     raise raises
                 return output
 
-        config = AgentConfig(name=name, **config_kw)
+        config = AgentRuntimeConfig(name=name, **config_kw)
         agent = ConcreteAgent(config=config)
         # Skip DSPy LM initialization in tests
         agent._initialized = True

@@ -87,7 +87,7 @@ class TestBaseAgent:
     @pytest.mark.unit
     def test_creation_with_default_config(self):
         """BaseAgent creates with default config."""
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
 
         class TestAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -100,13 +100,13 @@ class TestBaseAgent:
     @pytest.mark.unit
     def test_creation_with_custom_config(self):
         """BaseAgent uses provided config."""
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
 
         class TestAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 return "ok"
 
-        config = AgentConfig(name="CustomAgent", enable_memory=False)
+        config = AgentRuntimeConfig(name="CustomAgent", enable_memory=False)
         agent = TestAgent(config=config)
         assert agent.config.name == "CustomAgent"
         assert agent.config.enable_memory is False
@@ -142,7 +142,7 @@ class TestBaseAgent:
         """execute() retries on failure."""
         call_count = 0
 
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
 
         class RetryAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -152,7 +152,7 @@ class TestBaseAgent:
                     raise RuntimeError("transient error")
                 return "success after retries"
 
-        config = AgentConfig(name="RetryAgent", max_retries=5, retry_delay=0.01)
+        config = AgentRuntimeConfig(name="RetryAgent", max_retries=5, retry_delay=0.01)
         agent = RetryAgent(config=config)
         agent._initialized = True
         result = await agent.execute()
@@ -164,13 +164,13 @@ class TestBaseAgent:
     @pytest.mark.asyncio
     async def test_execute_exhausts_retries(self, make_concrete_agent):
         """execute() fails after exhausting retries."""
-        from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
 
         class AlwaysFailAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 raise RuntimeError("persistent error")
 
-        config = AgentConfig(name="AlwaysFail", max_retries=2, retry_delay=0.01)
+        config = AgentRuntimeConfig(name="AlwaysFail", max_retries=2, retry_delay=0.01)
         agent = AlwaysFailAgent(config=config)
         agent._initialized = True
         result = await agent.execute()

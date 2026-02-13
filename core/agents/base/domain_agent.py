@@ -28,7 +28,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from .base_agent import BaseAgent, AgentConfig
+from .base_agent import BaseAgent, AgentRuntimeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 @dataclass
-class DomainAgentConfig(AgentConfig):
+class DomainAgentConfig(AgentRuntimeConfig):
     """Configuration specific to DomainAgent."""
     use_chain_of_thought: bool = True
     streaming: bool = False

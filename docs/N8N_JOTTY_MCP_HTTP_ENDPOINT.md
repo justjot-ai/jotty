@@ -63,6 +63,20 @@ If n8n only supports “command” (stdio) MCP, keep using the stdio server and 
    and forward `/messages/` to `http://127.0.0.1:8767/messages/`.
 3. Clients use `https://mcp.justjot.ai/sse` with the token; nginx does not need to validate the token if the server is not publicly listed (or add a small auth snippet in nginx and keep `JOTTY_MCP_TOKEN` as a second layer).
 
+## Test (E2E)
+
+With the server running (no token for local test):
+
+```bash
+# Terminal 1
+python -m Jotty.mcp.server_http
+
+# Terminal 2
+python Jotty/mcp/test_http_client.py
+```
+
+Expected: `Tools: ['jotty_chat', 'jotty_workflow', 'jotty_skill', 'jotty_list_skills']` and `OK`.
+
 ## Summary
 
 | Item        | Value |

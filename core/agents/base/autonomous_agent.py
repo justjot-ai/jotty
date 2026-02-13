@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .base_agent import BaseAgent, AgentConfig, AgentResult
+from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 from Jotty.core.utils.async_utils import StatusReporter, AgentEventBroadcaster, AgentEvent
 from .skill_plan_executor import SkillPlanExecutor
 from .._execution_types import ExecutionStep
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 @dataclass
-class AutonomousAgentConfig(AgentConfig):
+class AutonomousAgentConfig(AgentRuntimeConfig):
     """Configuration specific to AutonomousAgent."""
     max_steps: int = 10
     enable_replanning: bool = False  # Disabled: stop immediately on failure

@@ -24,7 +24,7 @@ import importlib as _importlib
 _LAZY_IMPORTS: dict[str, str] = {
     # Base classes (unified hierarchy)
     "BaseAgent": ".base",
-    "AgentConfig": ".base",
+    "AgentRuntimeConfig": ".base",
     "AgentResult": ".base",
     "DomainAgent": ".base",
     "DomainAgentConfig": ".base",

@@ -210,17 +210,17 @@ class TestFoundationAgentConfig:
 
 
 # =============================================================================
-# BaseAgent AgentConfig Tests
+# BaseAgent AgentRuntimeConfig Tests
 # =============================================================================
 
-class TestBaseAgentConfig:
-    """Tests for the BaseAgent-level AgentConfig (runtime config)."""
+class TestBaseAgentRuntimeConfig:
+    """Tests for the BaseAgent-level AgentRuntimeConfig (runtime config)."""
 
     @pytest.mark.unit
     def test_default_sentinel_resolution(self):
         """Zero sentinels resolve from DEFAULTS."""
-        from Jotty.core.agents.base.base_agent import AgentConfig
-        config = AgentConfig()
+        from Jotty.core.agents.base.base_agent import AgentRuntimeConfig
+        config = AgentRuntimeConfig()
         assert config.model != ""
         assert config.temperature > 0
         assert config.max_tokens > 0
@@ -229,8 +229,8 @@ class TestBaseAgentConfig:
     @pytest.mark.unit
     def test_explicit_values_preserved(self):
         """Explicit non-zero values are preserved."""
-        from Jotty.core.agents.base.base_agent import AgentConfig
-        config = AgentConfig(
+        from Jotty.core.agents.base.base_agent import AgentRuntimeConfig
+        config = AgentRuntimeConfig(
             name="MyAgent",
             model="claude-3",
             temperature=0.7,
@@ -246,8 +246,8 @@ class TestBaseAgentConfig:
     @pytest.mark.unit
     def test_enable_flags_defaults(self):
         """Enable flags default to True."""
-        from Jotty.core.agents.base.base_agent import AgentConfig
-        config = AgentConfig()
+        from Jotty.core.agents.base.base_agent import AgentRuntimeConfig
+        config = AgentRuntimeConfig()
         assert config.enable_memory is True
         assert config.enable_context is True
         assert config.enable_monitoring is True
@@ -256,8 +256,8 @@ class TestBaseAgentConfig:
     @pytest.mark.unit
     def test_enable_flags_override(self):
         """Enable flags can be disabled."""
-        from Jotty.core.agents.base.base_agent import AgentConfig
-        config = AgentConfig(
+        from Jotty.core.agents.base.base_agent import AgentRuntimeConfig
+        config = AgentRuntimeConfig(
             enable_memory=False,
             enable_context=False,
             enable_monitoring=False,

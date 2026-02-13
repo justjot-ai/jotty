@@ -26,7 +26,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Type
 
-from .base_agent import BaseAgent, AgentConfig, AgentResult
+from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 @dataclass
-class MetaAgentConfig(AgentConfig):
+class MetaAgentConfig(AgentRuntimeConfig):
     """Configuration specific to MetaAgent."""
     enable_gold_db: bool = True
     enable_improvement_history: bool = True

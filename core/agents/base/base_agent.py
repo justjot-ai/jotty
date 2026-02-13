@@ -40,12 +40,16 @@ _dspy_lm_lock = threading.Lock()
 # =============================================================================
 
 @dataclass
-class AgentConfig:
-    """Unified configuration for all agent types.
+class AgentRuntimeConfig:
+    """Unified runtime configuration for all agent types.
 
     All numeric defaults are 0 / 0.0 sentinels, resolved from
     ``Jotty.core.foundation.config_defaults`` in ``__post_init__``.
     This keeps a single source of truth for LLM settings.
+
+    Note: This is the *runtime* config (model, temperature, enable_memory, etc.).
+    For orchestration-level agent specification, see
+    ``Jotty.core.foundation.agent_config.AgentConfig``.
     """
     name: str = ""
     model: str = ""           # "" → DEFAULT_MODEL_ALIAS
@@ -127,7 +131,7 @@ class BaseAgent(ABC):
             async def _execute_impl(self, **kwargs) -> Any:
                 return {"result": "done"}
 
-        agent = MyAgent(config=AgentConfig(name="MyAgent"))
+        agent = MyAgent(config=AgentRuntimeConfig(name="MyAgent"))
         result = await agent.execute(task="do something")
     """
 
@@ -142,14 +146,14 @@ class BaseAgent(ABC):
     # Maximum exponential backoff delay (seconds) — caps retry waits
     MAX_RETRY_DELAY = 60.0
 
-    def __init__(self, config: AgentConfig = None):
+    def __init__(self, config: AgentRuntimeConfig = None):
         """
         Initialize BaseAgent with optional configuration.
 
         Args:
-            config: Agent configuration. Defaults to AgentConfig with class name.
+            config: Agent configuration. Defaults to AgentRuntimeConfig with class name.
         """
-        self.config = config or AgentConfig(name=self.__class__.__name__)
+        self.config = config or AgentRuntimeConfig(name=self.__class__.__name__)
         if not self.config.name:
             self.config.name = self.__class__.__name__
 
@@ -806,7 +810,7 @@ class BaseAgent(ABC):
 
 
 __all__ = [
-    'AgentConfig',
+    'AgentRuntimeConfig',
     'AgentResult',
     'BaseAgent',
 ]

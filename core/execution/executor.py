@@ -1243,7 +1243,8 @@ class TierExecutor:
 
         if is_multi_round:
             try:
-                trajectory = [{'goal': goal, 'output': str(result.output)[:500]}]
+                output_str = str(result.output)[:2000]
+                trajectory = [{'goal': goal, 'output': output_str}]
                 results_list, combined_decision = await validator.validate(
                     goal=goal,
                     inputs={'task': goal},
@@ -1252,20 +1253,33 @@ class TierExecutor:
                 )
                 if results_list:
                     first = results_list[0]
+                    confidence = getattr(first, 'confidence', 0.8)
+
+                    # Override low-confidence rejections when execution produced output
+                    # A rejection at confidence < 0.7 is uncertain — trust the execution
+                    if not combined_decision and confidence < 0.7 and len(output_str) > 50:
+                        logger.info(
+                            f"Validation rejected with low confidence ({confidence:.2f}), "
+                            f"overriding to pass — output has {len(output_str)} chars"
+                        )
+                        combined_decision = True
+
                     return ValidationResult(
                         success=combined_decision,
-                        confidence=getattr(first, 'confidence', 0.8),
+                        confidence=confidence,
                         feedback=getattr(first, 'reasoning', ''),
                         reasoning=getattr(first, 'reasoning', ''),
                     )
             except Exception as e:
                 logger.warning(f"MultiRoundValidator failed, using fallback: {e}")
 
-        # Fallback / mock validator: single prompt-based validation
+        # Fallback: use the validator directly unless it's a MultiRoundValidator
+        # (which means we fell through from the try/except above)
+        fallback = _FallbackValidator(self.provider) if is_multi_round else validator
         validation_prompt = f"""
 Task: {goal}
 
-Result: {str(result.output)[:500]}
+Result: {str(result.output)[:2000]}
 
 Is this result correct and complete? Provide:
 1. Success (yes/no)
@@ -1273,7 +1287,7 @@ Is this result correct and complete? Provide:
 3. Feedback (brief)
 4. Reasoning
 """
-        response = await validator.validate(validation_prompt)
+        response = await fallback.validate(validation_prompt)
 
         return ValidationResult(
             success=response.get('success', True),
