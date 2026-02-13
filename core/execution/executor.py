@@ -120,6 +120,53 @@ class LLMProvider:
             yield {'content': result['content'], 'usage': result.get('usage', {})}
 
 
+class ComplexityGate:
+    """LLM-based gate that decides whether a task can be answered directly
+    or needs the full planning pipeline.
+
+    Uses Haiku (~$0.0002/call, ~200ms) for fast classification.
+    """
+
+    _PROMPT = (
+        "You are a task complexity classifier. Determine if this task can be "
+        "answered directly with a single LLM response, or if it needs tools, "
+        "web search, file operations, or multi-step planning.\n\n"
+        "Respond with ONLY one word: DIRECT or TOOLS\n\n"
+        "Task: {goal}\n\nAnswer:"
+    )
+
+    def __init__(self):
+        self._client = None
+
+    def _get_client(self):
+        if self._client is None:
+            import anthropic
+            self._client = anthropic.AsyncAnthropic()
+        return self._client
+
+    async def should_skip_planning(self, goal: str) -> bool:
+        """Return True if the task can be answered directly without planning.
+
+        On any error, returns False (proceed with planning) as a safe default.
+        """
+        try:
+            client = self._get_client()
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=8,
+                temperature=0.0,
+                messages=[{
+                    "role": "user",
+                    "content": self._PROMPT.format(goal=goal[:500]),
+                }],
+            )
+            text = response.content[0].text.strip().upper() if response.content else ""
+            return text.startswith("DIRECT")
+        except Exception as e:
+            logger.warning(f"ComplexityGate classification failed, defaulting to planning: {e}")
+            return False
+
+
 class TierExecutor:
     """
     Unified Executor — single entry point for all execution tiers.
@@ -143,12 +190,13 @@ class TierExecutor:
         self.config = config or ExecutionConfig()
         self._registry = registry
         self._provider = provider
-        self._detector = TierDetector()
+        self._detector = TierDetector(enable_llm_fallback=True)
 
         # Lazy-loaded components
         self._planner = None
         self._memory = None
         self._validator = None
+        self._complexity_gate = None
 
         # Observability (lazy-loaded)
         self._metrics = None
@@ -220,6 +268,13 @@ class TierExecutor:
             self._cost_tracker = CostTracker()
         return self._cost_tracker
 
+    @property
+    def complexity_gate(self):
+        """Lazy-load ComplexityGate."""
+        if self._complexity_gate is None:
+            self._complexity_gate = ComplexityGate()
+        return self._complexity_gate
+
     # =========================================================================
     # COMPONENT FACTORIES
     # =========================================================================
@@ -277,7 +332,7 @@ class TierExecutor:
 
         # Auto-detect tier if not specified
         if config.tier is None:
-            config.tier = self._detector.detect(goal)
+            config.tier = await self._detector.adetect(goal)
             logger.info(f"Auto-detected tier: {config.tier.name}")
 
         # Start trace
@@ -365,7 +420,7 @@ class TierExecutor:
 
         # Auto-detect tier
         if config.tier is None:
-            config.tier = self._detector.detect(goal)
+            config.tier = await self._detector.adetect(goal)
 
         yield StreamEvent(
             type=StreamEventType.STATUS,
@@ -638,6 +693,52 @@ class TierExecutor:
 
         total_llm_calls = 0
         total_cost = 0.0
+
+        # ComplexityGate: check if this can be answered directly without planning
+        try:
+            skip_planning = await self.complexity_gate.should_skip_planning(goal)
+        except Exception as e:
+            logger.warning(f"ComplexityGate error, proceeding with planning: {e}")
+            skip_planning = False
+
+        if skip_planning:
+            logger.info("[Tier 2: AGENTIC] ComplexityGate: DIRECT — skipping planning")
+            if status_callback:
+                status_callback("direct", "Answering directly (no planning needed)...")
+
+            with self.tracer.span("tier2_direct_bypass") as bypass_span:
+                llm_start = time.time()
+                response = await self.provider.generate(
+                    prompt=goal,
+                    temperature=config.temperature,
+                    max_tokens=config.max_tokens,
+                )
+                llm_duration = time.time() - llm_start
+
+                usage = response.get('usage', {})
+                input_tokens = usage.get('input_tokens', 250)
+                output_tokens = usage.get('output_tokens', 250)
+                record = self.cost_tracker.record_llm_call(
+                    provider=self.config.provider or 'anthropic',
+                    model=self.config.model or 'claude-sonnet-4',
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=True,
+                    duration=llm_duration,
+                )
+                bypass_span.add_cost(input_tokens, output_tokens, record.cost)
+
+            return ExecutionResult(
+                output=response.get('content', response),
+                tier=ExecutionTier.AGENTIC,
+                success=True,
+                llm_calls=1,
+                cost_usd=record.cost,
+                metadata={
+                    'complexity_gate': 'direct',
+                    'tokens': input_tokens + output_tokens,
+                },
+            )
 
         if status_callback:
             status_callback("planning", "Creating execution plan...")
