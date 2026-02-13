@@ -7,7 +7,7 @@ Core types for the tiered execution system.
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-from enum import IntEnum
+from enum import IntEnum, Enum
 from datetime import datetime
 
 
@@ -18,6 +18,25 @@ class ExecutionTier(IntEnum):
     LEARNING = 3    # Memory + validation
     RESEARCH = 4    # Domain swarm execution
     AUTONOMOUS = 5  # Sandbox, coalition, curriculum, full V2 features
+
+
+class StreamEventType(Enum):
+    """Types of events emitted during streaming execution."""
+    STATUS = "status"            # Phase change (planning, executing, validating...)
+    STEP_COMPLETE = "step_complete"  # An execution step finished
+    PARTIAL_OUTPUT = "partial_output"  # Partial result from a step
+    TOKEN = "token"              # Individual token from LLM (Tier 1 streaming)
+    RESULT = "result"            # Final ExecutionResult
+    ERROR = "error"              # Execution error
+
+
+@dataclass
+class StreamEvent:
+    """A single event emitted during streaming execution."""
+    type: StreamEventType
+    data: Any
+    tier: Optional['ExecutionTier'] = None
+    timestamp: datetime = field(default_factory=datetime.now)
 
 
 @dataclass

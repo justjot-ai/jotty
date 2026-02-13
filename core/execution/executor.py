@@ -14,7 +14,7 @@ Tier 4 (RESEARCH):  Delegates to V2 SwarmManager - NO BREAKAGE
 import asyncio
 import logging
 import time
-from typing import Any, Dict, Optional, List, Callable
+from typing import Any, AsyncGenerator, Dict, Optional, List, Callable
 from datetime import datetime
 
 from .types import (
@@ -25,6 +25,8 @@ from .types import (
     ExecutionStep,
     ValidationResult,
     MemoryContext,
+    StreamEvent,
+    StreamEventType,
 )
 from .tier_detector import TierDetector
 from Jotty.core.observability.tracing import SpanStatus
@@ -235,6 +237,230 @@ class UnifiedExecutor:
             )
 
     # =========================================================================
+    # STREAMING
+    # =========================================================================
+
+    async def stream(
+        self,
+        goal: str,
+        config: Optional[ExecutionConfig] = None,
+        **kwargs
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """
+        Stream execution events as an async generator.
+
+        Yields StreamEvent objects for each phase of execution:
+        - STATUS events for phase changes (planning, executing, validating...)
+        - STEP_COMPLETE events when individual steps finish
+        - TOKEN events for individual LLM tokens (Tier 1 only, if provider supports it)
+        - RESULT event with final ExecutionResult
+        - ERROR event if execution fails
+
+        Args:
+            goal: Task description
+            config: Execution config (overrides default)
+            **kwargs: Additional arguments
+
+        Yields:
+            StreamEvent objects
+
+        Example:
+            async for event in executor.stream("Research AI"):
+                if event.type == StreamEventType.TOKEN:
+                    print(event.data, end="", flush=True)
+                elif event.type == StreamEventType.STATUS:
+                    print(f"[{event.data['stage']}] {event.data['detail']}")
+                elif event.type == StreamEventType.RESULT:
+                    print(f"Done: {event.data}")
+        """
+        config = config or self.config
+
+        # Auto-detect tier
+        if config.tier is None:
+            config.tier = self._detector.detect(goal)
+
+        yield StreamEvent(
+            type=StreamEventType.STATUS,
+            data={'stage': 'start', 'detail': f'Tier {config.tier.name} detected'},
+            tier=config.tier,
+        )
+
+        # Tier 1: support token-level streaming
+        if config.tier == ExecutionTier.DIRECT:
+            async for event in self._stream_tier1(goal, config, **kwargs):
+                yield event
+            return
+
+        # All other tiers: queue-based bridge from status_callback
+        queue = asyncio.Queue()
+
+        def _callback(stage: str, detail: str):
+            queue.put_nowait(StreamEvent(
+                type=StreamEventType.STATUS,
+                data={'stage': stage, 'detail': detail},
+                tier=config.tier,
+            ))
+
+        # Run execute() as a background task, feeding events via callback
+        task = asyncio.create_task(
+            self.execute(goal, config=config, status_callback=_callback, **kwargs)
+        )
+
+        # Yield events as they arrive until the task completes
+        while not task.done():
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=0.1)
+                yield event
+            except asyncio.TimeoutError:
+                continue
+
+        # Drain any remaining events
+        while not queue.empty():
+            yield queue.get_nowait()
+
+        # Yield final result or error
+        try:
+            result = task.result()
+            yield StreamEvent(
+                type=StreamEventType.RESULT,
+                data=result,
+                tier=config.tier,
+            )
+        except Exception as e:
+            yield StreamEvent(
+                type=StreamEventType.ERROR,
+                data={'error': str(e)},
+                tier=config.tier,
+            )
+
+    async def _stream_tier1(
+        self,
+        goal: str,
+        config: ExecutionConfig,
+        **kwargs
+    ) -> AsyncGenerator[StreamEvent, None]:
+        """
+        Stream Tier 1 execution with token-level streaming.
+
+        Falls back to non-streaming if provider doesn't support stream().
+        """
+        tier = ExecutionTier.DIRECT
+        start_time = time.time()
+
+        # Start trace
+        trace = self.tracer.new_trace(metadata={'goal': goal[:200], 'tier': 'DIRECT'})
+
+        yield StreamEvent(
+            type=StreamEventType.STATUS,
+            data={'stage': 'direct', 'detail': 'Discovering skills...'},
+            tier=tier,
+        )
+
+        # Discover skills
+        discovery = self.registry.discover_for_task(goal)
+        skill_names = discovery.get('skills', [])[:5]
+        tools = self.registry.get_claude_tools(skill_names) if skill_names else []
+
+        yield StreamEvent(
+            type=StreamEventType.STATUS,
+            data={'stage': 'direct', 'detail': f'Found {len(skill_names)} skills, calling LLM...'},
+            tier=tier,
+        )
+
+        model = self.config.model or 'claude-sonnet-4'
+        provider_name = self.config.provider or 'anthropic'
+
+        with self.tracer.span("execute", tier="DIRECT", goal=goal[:100]) as root_span:
+            with self.tracer.span("tier1_llm_call", tools=len(tools), streaming=True) as llm_span:
+                llm_start = time.time()
+
+                # Try token streaming if provider supports it
+                if hasattr(self.provider, 'stream'):
+                    collected_tokens = []
+                    usage = {}
+
+                    async for chunk in self.provider.stream(
+                        prompt=goal,
+                        tools=tools,
+                        temperature=config.temperature,
+                        max_tokens=config.max_tokens,
+                    ):
+                        token = chunk.get('content', chunk.get('delta', ''))
+                        if token:
+                            collected_tokens.append(token)
+                            yield StreamEvent(type=StreamEventType.TOKEN, data=token, tier=tier)
+
+                        # Last chunk often carries usage
+                        if 'usage' in chunk:
+                            usage = chunk['usage']
+
+                    output = ''.join(collected_tokens)
+                else:
+                    # Fallback to non-streaming
+                    response = await self.provider.generate(
+                        prompt=goal,
+                        tools=tools,
+                        temperature=config.temperature,
+                        max_tokens=config.max_tokens,
+                    )
+                    output = response.get('content', response)
+                    usage = response.get('usage', {})
+
+                llm_time = (time.time() - llm_start) * 1000
+
+                input_tokens = usage.get('input_tokens', 250)
+                output_tokens = usage.get('output_tokens', 250)
+                record = self.cost_tracker.record_llm_call(
+                    provider=provider_name,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    success=True,
+                    duration=llm_time / 1000,
+                )
+
+                llm_span.add_cost(input_tokens, output_tokens, record.cost)
+
+            root_span.set_status(SpanStatus.OK)
+
+        # Build result
+        latency_ms = (time.time() - start_time) * 1000
+        self.tracer.end_trace()
+        traces = self.tracer.get_trace_history()
+
+        result = ExecutionResult(
+            output=output,
+            tier=tier,
+            success=True,
+            llm_calls=1,
+            latency_ms=latency_ms,
+            cost_usd=record.cost,
+            completed_at=datetime.now(),
+            trace=traces[-1] if traces else trace,
+            metadata={
+                'skills_discovered': skill_names,
+                'tools_used': len(tools),
+                'tokens': input_tokens + output_tokens,
+                'streamed': hasattr(self.provider, 'stream'),
+            },
+        )
+
+        # Record to metrics
+        self.metrics.record_execution(
+            agent_name='tier_1',
+            task_type='direct',
+            duration_s=latency_ms / 1000,
+            success=True,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_usd=record.cost,
+            llm_calls=1,
+            metadata={'goal': goal[:200]},
+        )
+
+        yield StreamEvent(type=StreamEventType.RESULT, data=result, tier=tier)
+
+    # =========================================================================
     # TIER 1: DIRECT - Single LLM call
     # =========================================================================
 
@@ -352,10 +578,22 @@ class UnifiedExecutor:
 
         # Step 1: Plan
         with self.tracer.span("tier2_plan") as plan_span:
+            plan_start = time.time()
             plan_result = await self.planner.plan(goal)
+            plan_duration = time.time() - plan_start
             total_llm_calls += 1
-            total_cost += 0.01  # Rough estimate
-            plan_span.add_cost(0, 0, 0.01)
+
+            # Estimate ~500 input tokens (prompt+goal), ~300 output (plan JSON)
+            plan_record = self.cost_tracker.record_llm_call(
+                provider=self.config.provider or 'anthropic',
+                model=self.config.model or 'claude-sonnet-4',
+                input_tokens=500,
+                output_tokens=300,
+                success=True,
+                duration=plan_duration,
+            )
+            total_cost += plan_record.cost
+            plan_span.add_cost(500, 300, plan_record.cost)
 
         # Convert planner output to ExecutionPlan
         plan = self._parse_plan(goal, plan_result)
@@ -379,10 +617,14 @@ class UnifiedExecutor:
                     step.completed_at = datetime.now()
 
                     step_calls = step_result.get('llm_calls', 1)
-                    step_cost = step_result.get('cost', 0.01)
+                    step_cost = step_result.get('cost', 0.0)
                     total_llm_calls += step_calls
                     total_cost += step_cost
-                    step_span.add_cost(0, 0, step_cost)
+                    step_span.add_cost(
+                        step_result.get('input_tokens', 0),
+                        step_result.get('output_tokens', 0),
+                        step_cost,
+                    )
 
                     results.append(step_result)
 
@@ -477,10 +719,22 @@ class UnifiedExecutor:
                 status_callback("validating", "Validating result...")
 
             with self.tracer.span("tier3_validate") as val_span:
+                val_start = time.time()
                 validation = await self._validate_result(goal, result, config)
+                val_duration = time.time() - val_start
                 total_llm_calls += 1
-                total_cost += 0.01
-                val_span.add_cost(0, 0, 0.01)
+
+                # Estimate ~400 input tokens (validation prompt), ~200 output
+                val_record = self.cost_tracker.record_llm_call(
+                    provider=self.config.provider or 'anthropic',
+                    model=self.config.model or 'claude-sonnet-4',
+                    input_tokens=400,
+                    output_tokens=200,
+                    success=True,
+                    duration=val_duration,
+                )
+                total_cost += val_record.cost
+                val_span.add_cost(400, 200, val_record.cost)
                 val_span.set_attribute("validation_success", validation.success)
 
                 # Retry if validation fails and retries enabled
@@ -499,9 +753,20 @@ class UnifiedExecutor:
                         total_llm_calls += retry_result.llm_calls
                         total_cost += retry_result.cost_usd
 
+                        retry_val_start = time.time()
                         retry_validation = await self._validate_result(goal, retry_result, config)
+                        retry_val_duration = time.time() - retry_val_start
                         total_llm_calls += 1
-                        total_cost += 0.01
+
+                        retry_val_record = self.cost_tracker.record_llm_call(
+                            provider=self.config.provider or 'anthropic',
+                            model=self.config.model or 'claude-sonnet-4',
+                            input_tokens=400,
+                            output_tokens=200,
+                            success=True,
+                            duration=retry_val_duration,
+                        )
+                        total_cost += retry_val_record.cost
 
                         if retry_validation.success:
                             result = retry_result
@@ -774,17 +1039,34 @@ class UnifiedExecutor:
             tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
         # Execute step
+        llm_start = time.time()
         response = await self.provider.generate(
             prompt=step.description,
             tools=tools,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
         )
+        llm_duration = time.time() - llm_start
+
+        # Extract actual tokens and compute precise cost
+        usage = response.get('usage', {})
+        input_tokens = usage.get('input_tokens', 300)
+        output_tokens = usage.get('output_tokens', 200)
+        record = self.cost_tracker.record_llm_call(
+            provider=self.config.provider or 'anthropic',
+            model=self.config.model or 'claude-sonnet-4',
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            success=True,
+            duration=llm_duration,
+        )
 
         return {
             'output': response.get('content', response),
             'llm_calls': 1,
-            'cost': 0.01,
+            'cost': record.cost,
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
         }
 
     def _aggregate_results(self, results: List[Dict], goal: str) -> str:

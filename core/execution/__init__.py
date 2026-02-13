@@ -16,6 +16,7 @@ All tiers share:
 """
 
 from .executor import UnifiedExecutor, ExecutionConfig, ExecutionTier, ExecutionResult
+from .types import StreamEvent, StreamEventType
 from .tier_detector import TierDetector
 
 __all__ = [
@@ -23,5 +24,7 @@ __all__ = [
     'ExecutionConfig',
     'ExecutionTier',
     'ExecutionResult',
+    'StreamEvent',
+    'StreamEventType',
     'TierDetector',
 ]
