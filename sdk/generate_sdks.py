@@ -22,11 +22,14 @@ Usage:
 """
 
 import json
+import logging
 import sys
 import textwrap
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -910,9 +913,9 @@ def main():
 
     # Load or generate spec
     spec = load_spec(args.spec)
-    print(f"Loaded spec: {spec['info']['title']} v{spec['info']['version']}")
-    print(f"  Endpoints: {len(spec['paths'])}")
-    print(f"  Schemas: {len(spec['components']['schemas'])}")
+    logger.info("Loaded spec: %s v%s", spec['info']['title'], spec['info']['version'])
+    logger.info("  Endpoints: %d", len(spec['paths']))
+    logger.info("  Schemas: %d", len(spec['components']['schemas']))
 
     languages = args.languages or list(GENERATORS.keys())
 
@@ -920,27 +923,27 @@ def main():
     for lang in languages:
         gen = GENERATORS.get(lang)
         if not gen:
-            print(f"  Unknown language: {lang}")
+            logger.warning("  Unknown language: %s", lang)
             results[lang] = False
             continue
 
         output = args.output_dir / lang
         if args.dry_run:
-            print(f"  [DRY RUN] Would generate {lang} SDK in {output}")
+            logger.info("  [DRY RUN] Would generate %s SDK in %s", lang, output)
             results[lang] = True
             continue
 
         try:
             count = gen(spec, output)
-            print(f"  Generated {lang} SDK ({count} endpoints) -> {output}")
+            logger.info("  Generated %s SDK (%d endpoints) -> %s", lang, count, output)
             results[lang] = True
         except Exception as e:
-            print(f"  Failed {lang}: {e}")
+            logger.error("  Failed %s: %s", lang, e)
             results[lang] = False
 
     # Summary
     success = sum(1 for v in results.values() if v)
-    print(f"\n{success}/{len(results)} SDKs generated")
+    logger.info("%d/%d SDKs generated", success, len(results))
 
 
 if __name__ == "__main__":

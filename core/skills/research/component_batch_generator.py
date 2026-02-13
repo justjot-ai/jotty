@@ -365,15 +365,15 @@ def save_component_manifest(output_path: str = None):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
-    print("🔧 Generating Component Variants...")
-    print("=" * 50)
+    logger.info("Generating Component Variants...")
+    logger.info("=" * 50)
 
     registry = save_component_manifest()
 
-    print(f"\n📊 Component Summary:")
-    print(f"   Total components: {registry['total']}")
-    print(f"\n   By category:")
+    logger.info("Component Summary:")
+    logger.info(f"   Total components: {registry['total']}")
+    logger.info("   By category:")
     for cat, count in sorted(registry['by_category'].items()):
-        print(f"   - {cat}: {count}")
+        logger.info(f"   - {cat}: {count}")
 
-    print(f"\n✅ Component library now has {registry['total']}+ variants!")
+    logger.info(f"Component library now has {registry['total']}+ variants!")

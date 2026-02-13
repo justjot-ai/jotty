@@ -13,11 +13,14 @@ Usage:
 
 import json
 import inspect
+import logging
 from dataclasses import fields as dc_fields, MISSING
 from typing import Dict, Any, List, Optional, get_type_hints, Union
 from pathlib import Path
 from enum import Enum
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def _python_type_to_openapi(py_type, enums_collected: Dict[str, list] = None) -> Dict[str, Any]:
@@ -421,7 +424,7 @@ if __name__ == "__main__":
     spec = generate_openapi_spec()
     save_openapi_spec(spec, output_file)
 
-    print(f"OpenAPI spec generated: {output_file}")
-    print(f"  Version: {spec['info']['version']}")
-    print(f"  Endpoints: {len(spec['paths'])}")
-    print(f"  Schemas: {len(spec['components']['schemas'])}")
+    logger.info(f"OpenAPI spec generated: {output_file}")
+    logger.info(f"  Version: {spec['info']['version']}")
+    logger.info(f"  Endpoints: {len(spec['paths'])}")
+    logger.info(f"  Schemas: {len(spec['components']['schemas'])}")

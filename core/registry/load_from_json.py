@@ -6,9 +6,12 @@ Usage:
     python3 load_from_json.py <tools_json_file> <widgets_json_file>
 """
 
+import logging
 import sys
 import json
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -18,7 +21,7 @@ from core.registry.justjot_loader import load_justjot_tools_and_widgets
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python3 load_from_json.py <tools_json> <widgets_json>")
+        logger.error("Usage: python3 load_from_json.py <tools_json> <widgets_json>")
         sys.exit(1)
     
     tools_file = sys.argv[1]
@@ -33,7 +36,7 @@ def main():
     
     # Load into registry
     load_justjot_tools_and_widgets(tools_data, widgets_data)
-    print("✅ Loaded tools and widgets into Jotty registry")
+    logger.info("Loaded tools and widgets into Jotty registry")
 
 
 if __name__ == '__main__':

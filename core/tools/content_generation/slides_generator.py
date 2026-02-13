@@ -269,7 +269,7 @@ if __name__ == "__main__":
         fast_mode=args.fast
     )
 
-    print(f"\n✅ Success!")
-    print(f"   Slides PDF: {result['pdf']}")
-    print(f"   Total slides: {result['num_slides']}")
-    print(f"   Output directory: {result['slides_dir']}\n")
+    logger.info("Slides generation succeeded!")
+    logger.info(f"Slides PDF: {result['pdf']}")
+    logger.info(f"Total slides: {result['num_slides']}")
+    logger.info(f"Output directory: {result['slides_dir']}")

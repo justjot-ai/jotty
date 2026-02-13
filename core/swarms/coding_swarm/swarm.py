@@ -440,10 +440,9 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
             _progress("FastPath", "Detector", "Trivial task detected - using fast path (1 iteration, no team)")
 
         team_name = self._team_config.name if self._team_config else "auto"
-        print(f"\n{'='*60}", flush=True)
-        print(f"  CodingSwarm | {lang.value} | {code_style.value} | team={team_name}", flush=True)
-        print(f"{'='*60}", flush=True)
-        logger.info(f"CodingSwarm starting: {lang.value}, {code_style.value}")
+        logger.info("=" * 60)
+        logger.info("CodingSwarm | %s | %s | team=%s", lang.value, code_style.value, team_name)
+        logger.info("=" * 60)
 
         # Initialize workspace for terminal-based validation
         workspace = WorkspaceManager() if getattr(config, 'enable_workspace', True) else None
@@ -1271,11 +1270,10 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         validated_str = "validated" if validation_metadata.get("validated") else "not validated"
         simplicity_verdict = simplicity_result.get('verdict', 'ACCEPT') if simplicity_result else 'ACCEPT'
-        print(f"\n  {'='*56}", flush=True)
-        print(f"  DONE | {loc} LOC | {len(files)} file(s) | {len(tests)} test(s) | {validated_str}", flush=True)
-        print(f"  Time: {exec_time:.1f}s | Quality: {result.quality_score:.2f} | Simplicity: {simplicity_verdict}", flush=True)
-        print(f"  {'='*56}\n", flush=True)
-        logger.info(f"CodingSwarm complete: {loc} LOC, {len(tests)} test files")
+        logger.info("=" * 56)
+        logger.info("DONE | %d LOC | %d file(s) | %d test(s) | %s", loc, len(files), len(tests), validated_str)
+        logger.info("Time: %.1fs | Quality: %.2f | Simplicity: %s", exec_time, result.quality_score, simplicity_verdict)
+        logger.info("=" * 56)
 
         # Store team review metadata
         if team_review_result:

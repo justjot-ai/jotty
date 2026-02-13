@@ -397,9 +397,7 @@ Test the SDK client with real-time event visualization.
 
         except Exception as e:
             cli.renderer.error(f"SDK chat error: {e}")
-            if cli.config.debug:
-                import traceback
-                traceback.print_exc()
+            logger.debug("SDK chat error details", exc_info=True)
             return CommandResult.fail(str(e))
 
     async def _test_chat_basic(self, cli, message: str) -> CommandResult:
@@ -628,6 +626,7 @@ Test the SDK client with real-time event visualization.
                 print(f"\033[90m({elapsed:.1f}s)\033[0m\n")
 
         except Exception as e:
+            logger.debug("Chat message processing error", exc_info=True)
             print(f"\n\033[91mError: {e}\033[0m\n")
 
     async def _test_workflow(self, cli, goal: str) -> CommandResult:
@@ -676,9 +675,7 @@ Test the SDK client with real-time event visualization.
 
         except Exception as e:
             cli.renderer.error(f"SDK workflow error: {e}")
-            if cli.config.debug:
-                import traceback
-                traceback.print_exc()
+            logger.debug("SDK workflow error details", exc_info=True)
             return CommandResult.fail(str(e))
 
     async def _test_stream(self, cli, message: str) -> CommandResult:
@@ -755,9 +752,7 @@ Test the SDK client with real-time event visualization.
 
         except Exception as e:
             cli.renderer.error(f"SDK stream error: {e}")
-            if cli.config.debug:
-                import traceback
-                traceback.print_exc()
+            logger.debug("SDK stream error details", exc_info=True)
             return CommandResult.fail(str(e))
 
     async def _test_skill(self, cli, args: str) -> CommandResult:
@@ -810,9 +805,7 @@ Test the SDK client with real-time event visualization.
 
         except Exception as e:
             cli.renderer.error(f"SDK skill error: {e}")
-            if cli.config.debug:
-                import traceback
-                traceback.print_exc()
+            logger.debug("SDK skill error details", exc_info=True)
             return CommandResult.fail(str(e))
 
     async def _test_health(self, cli) -> CommandResult:

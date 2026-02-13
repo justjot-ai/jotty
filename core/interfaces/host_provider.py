@@ -87,7 +87,7 @@ class CLIHost(Host):
     def notify(self, message: str, level: str = "info") -> None:
         icons = {'info': 'ℹ️', 'warning': '⚠️', 'error': '❌'}
         icon = icons.get(level, '')
-        print(f" {icon} {message}")
+        logger.info(f" {icon} {message}")
 
     async def prompt_user(self, question: str, default: str = "") -> str:
         import asyncio
@@ -101,27 +101,27 @@ class CLIHost(Host):
 
     def display_progress(self, progress: Any) -> None:
         if hasattr(progress, 'render'):
-            print(progress.render())
+            logger.info(progress.render())
         elif isinstance(progress, str):
-            print(progress)
+            logger.info(progress)
 
     def display_diff(self, diff_text: str, title: str = "") -> None:
         if title:
-            print(f"\n{'='*40} {title} {'='*40}")
+            logger.info(f"\n{'='*40} {title} {'='*40}")
         # Basic colorization for +/- lines
         for line in diff_text.split('\n')[:50]:
             if line.startswith('+'):
-                print(f"\033[32m{line}\033[0m")
+                logger.info(f"\033[32m{line}\033[0m")
             elif line.startswith('-'):
-                print(f"\033[31m{line}\033[0m")
+                logger.info(f"\033[31m{line}\033[0m")
             else:
-                print(line)
+                logger.info(line)
         if diff_text.count('\n') > 50:
-            print(f"  ... ({diff_text.count(chr(10)) - 50} more lines)")
+            logger.info(f"  ... ({diff_text.count(chr(10)) - 50} more lines)")
 
     def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
         if not allowed:
-            print(f" 🛑 Tool blocked: {tool_name} ({trust_level}) — {reason}")
+            logger.warning(f"Tool blocked: {tool_name} ({trust_level}) — {reason}")
 
 
 class HostProvider:

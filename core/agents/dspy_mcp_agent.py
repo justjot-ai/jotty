@@ -4,9 +4,12 @@ Enables DSPy agents to call MCP tools from JustJot
 """
 import dspy
 import json
+import logging
 from typing import List, Dict, Any, Optional
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Import MCP Tool Executor with fallback
 try:
@@ -79,7 +82,7 @@ class DSPyMCPAgent:
 
         await self.mcp_executor.discover_tools()
         self.initialized = True
-        print(f"✅ {self.name}: Discovered {len(self.mcp_executor.available_tools)} MCP tools")
+        logger.info(f"{self.name}: Discovered {len(self.mcp_executor.available_tools)} MCP tools")
 
     async def execute(
         self,
@@ -125,7 +128,7 @@ class DSPyMCPAgent:
                     conversation_history=conversation_history
                 )
             except Exception as e:
-                print(f"⚠️  DSPy planning error: {e}")
+                logger.warning(f"DSPy planning error: {e}")
                 # Return error response
                 return {
                     "reasoning": f"Error in planning: {str(e)}",
@@ -182,7 +185,7 @@ class DSPyMCPAgent:
                 )
                 final_response = final_result.final_response
             except Exception as e:
-                print(f"⚠️  Error integrating tool results: {e}")
+                logger.warning(f"Error integrating tool results: {e}")
                 final_response = plan_result.response  # Fallback to initial response
         else:
             final_response = plan_result.response

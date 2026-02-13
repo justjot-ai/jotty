@@ -24,6 +24,9 @@ from datetime import datetime
 from pathlib import Path
 import json
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 _dspy_module = None
 def _get_dspy():
     global _dspy_module
@@ -489,9 +492,6 @@ class SubtaskState:
     
     def start(self):
         """Mark task as started."""
-        import logging
-        logger = logging.getLogger(__name__)
-
         self.status = TaskStatus.IN_PROGRESS
         self.started_at = datetime.now()
         self.attempts += 1
@@ -508,10 +508,10 @@ class SubtaskState:
         """Mark task as failed."""
         if self.attempts >= self.max_attempts:
             self.status = TaskStatus.FAILED
-            print(f"❌ Task {self.task_id} FAILED (attempts={self.attempts}, max={self.max_attempts})")
+            logger.error(f"Task {self.task_id} FAILED (attempts={self.attempts}, max={self.max_attempts})")
         else:
             self.status = TaskStatus.PENDING  # Retry
-            print(f"⚠️  Task {self.task_id} will RETRY (attempts={self.attempts}, max={self.max_attempts})")
+            logger.warning(f"Task {self.task_id} will RETRY (attempts={self.attempts}, max={self.max_attempts})")
         self.error = error
 
 
@@ -618,9 +618,6 @@ class MarkovianTODO:
         Returns:
             Next task to execute (Q-value based if RL enabled, else fixed order)
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         # Get all pending tasks that can start
         available_tasks = [
             task for task_id, task in self.subtasks.items()
@@ -653,11 +650,11 @@ class MarkovianTODO:
             if rand_value < epsilon:
                 # EXPLORE: Random selection
                 selected_task = random.choice(available_tasks)
-                print(f"🎲 EXPLORE ({rand_value:.2f} < {epsilon}) → {selected_task.actor}")
+                logger.debug(f"EXPLORE ({rand_value:.2f} < {epsilon}) -> {selected_task.actor}")
                 logger.info(f"🎲 [get_next_task] EXPLORE mode (rand={rand_value:.3f} < eps={epsilon:.3f}) → selected {selected_task.actor}")
                 return selected_task
             else:
-                print(f"🏆 EXPLOIT ({rand_value:.2f} >= {epsilon})")
+                logger.debug(f"EXPLOIT ({rand_value:.2f} >= {epsilon})")
                 logger.info(f"🏆 [get_next_task] EXPLOIT mode (rand={rand_value:.3f} >= eps={epsilon:.3f})")
 
                 # EXPLOIT: Select task with highest Q-value
@@ -678,8 +675,8 @@ class MarkovianTODO:
                         logger.warning(f"⚠️  [get_next_task] Q-prediction failed for {task.actor}: {e}")
                         pass
 
-                print(f"📊 Q-values: {', '.join(q_values_debug)}")
-                print(f"🏆 Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
+                logger.debug(f"Q-values: {', '.join(q_values_debug)}")
+                logger.debug(f"Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
                 logger.info(f"📊 [get_next_task] Q-values: {', '.join(q_values_debug)}")
                 logger.info(f"🏆 [get_next_task] Best task: {best_task.actor if best_task else 'None'} (Q={best_q_value:.3f})")
 

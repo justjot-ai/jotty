@@ -10,8 +10,11 @@ The single source of truth for the OpenAPI spec is:
     core/api/openapi.py
 """
 
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add parent to path so we can import core
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -27,11 +30,11 @@ if __name__ == "__main__":
     spec = generate_openapi_spec()
     save_openapi_spec(spec, output_file)
 
-    print(f"\n📋 OpenAPI specification generated:")
-    print(f"   - File: {output_file}")
-    print(f"   - Version: {spec['info']['version']}")
-    print(f"   - Endpoints: {len(spec['paths'])}")
-    print(f"   - Schemas: {len(spec['components']['schemas'])}")
-    print(f"\n💡 Next steps:")
-    print(f"   1. Review the spec: cat {output_file}")
-    print(f"   2. Generate SDKs: python sdk/generate_sdks.py")
+    logger.info("OpenAPI specification generated:")
+    logger.info("   - File: %s", output_file)
+    logger.info("   - Version: %s", spec['info']['version'])
+    logger.info("   - Endpoints: %d", len(spec['paths']))
+    logger.info("   - Schemas: %d", len(spec['components']['schemas']))
+    logger.info("Next steps:")
+    logger.info("   1. Review the spec: cat %s", output_file)
+    logger.info("   2. Generate SDKs: python sdk/generate_sdks.py")

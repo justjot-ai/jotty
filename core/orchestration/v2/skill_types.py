@@ -13,7 +13,6 @@ Note: SkillCategory and SkillResult are imported from core/skills/ml/base.py
 to follow DRY principles - single source of truth for ML skill types.
 """
 
-import sys
 import time
 import logging
 from typing import Dict, List, Any, Optional
@@ -127,15 +126,14 @@ class ProgressTracker:
         self._print_completion(stage_name, elapsed, metrics)
 
     def _print_progress(self):
-        """Print progress bar."""
+        """Log progress bar."""
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30
         filled = int(bar_len * pct / 100)
         bar = '█' * filled + '░' * (bar_len - filled)
         elapsed = time.time() - self.start_time
 
-        sys.stdout.write(f'\r[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s')
-        sys.stdout.flush()
+        logger.info(f'[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s')
 
     def _print_completion(self, stage_name: str, elapsed: float, metrics: Dict = None):
         """Print stage completion."""
@@ -152,14 +150,14 @@ class ProgressTracker:
                 for k, v in key_metrics.items()
             )
 
-        print(f'\r[{bar}] {pct:5.1f}% | ✅ {stage_name:<25} ({elapsed:.1f}s){metric_str}')
+        logger.info(f'[{bar}] {pct:5.1f}% | Done: {stage_name:<25} ({elapsed:.1f}s){metric_str}')
 
     def finish(self, final_score: float):
-        """Print final summary."""
+        """Log final summary."""
         total_time = time.time() - self.start_time
-        print(f'\n{"="*60}')
-        print(f'🏆 COMPLETE | Score: {final_score:.4f} | Total time: {total_time:.1f}s')
-        print(f'{"="*60}\n')
+        logger.info(f'{"="*60}')
+        logger.info(f'COMPLETE | Score: {final_score:.4f} | Total time: {total_time:.1f}s')
+        logger.info(f'{"="*60}')
 
 
 # =============================================================================

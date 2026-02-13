@@ -203,29 +203,29 @@ class PerformanceProfiler:
     def print_report(self, top_n: int = 10):
         """Print profiling report."""
         report = self.get_report(top_n)
-        
-        print("\n" + "=" * 60)
-        print("Performance Profiling Report")
-        print("=" * 60)
-        print(f"Total Duration: {report.total_duration:.2f}s")
-        print(f"\nTop {top_n} Slowest Segments:")
-        
+
+        logger.info("=" * 60)
+        logger.info("Performance Profiling Report")
+        logger.info("=" * 60)
+        logger.info("Total Duration: %.2fs", report.total_duration)
+        logger.info("Top %d Slowest Segments:", top_n)
+
         for i, segment in enumerate(report.slowest_segments, 1):
             percentage = (segment.duration / report.total_duration * 100) if report.total_duration > 0 else 0
-            print(f"\n{i}. {segment.name}")
-            print(f"   Duration: {segment.duration:.2f}s ({percentage:.1f}%)")
+            logger.info("%d. %s", i, segment.name)
+            logger.info("   Duration: %.2fs (%.1f%%)", segment.duration, percentage)
             if segment.metadata:
-                print(f"   Metadata: {segment.metadata}")
-        
+                logger.info("   Metadata: %s", segment.metadata)
+
         if self.profiler:
-            print("\n" + "=" * 60)
-            print("cProfile Details")
-            print("=" * 60)
+            logger.info("=" * 60)
+            logger.info("cProfile Details")
+            logger.info("=" * 60)
             s = io.StringIO()
             stats = pstats.Stats(self.profiler, stream=s)
             stats.sort_stats('cumulative')
             stats.print_stats(20)  # Top 20
-            print(s.getvalue())
+            logger.info(s.getvalue())
     
     def reset(self):
         """Reset profiler."""

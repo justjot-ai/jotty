@@ -29,6 +29,8 @@ import sys
 import argparse
 import logging
 
+logger = logging.getLogger(__name__)
+
 # Suppress warnings before imports
 os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
 os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
@@ -74,7 +76,6 @@ def main():
         level=logging.DEBUG if args.debug else logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    logger = logging.getLogger(__name__)
 
     # Import gateway components
     try:
@@ -96,26 +97,26 @@ def main():
             logger.warning(f"Could not initialize JottyCLI: {e}")
             logger.info("Running in echo mode (messages will be echoed back)")
 
-    # Print startup info
-    print("\n" + "=" * 60)
-    print("  JOTTY WEB SERVER")
-    print("=" * 60)
-    print(f"  Host:      {args.host}")
-    print(f"  Port:      {args.port}")
-    print(f"  Mode:      {'Full CLI' if cli else 'Echo'}")
-    print("=" * 60)
-    print(f"\n  PWA Chat:   http://{args.host}:{args.port}/")
-    print(f"  WebSocket:  ws://{args.host}:{args.port}/ws")
-    print(f"  Health:     http://{args.host}:{args.port}/health")
-    print(f"  API Docs:   http://{args.host}:{args.port}/docs")
-    print("=" * 60)
-    print("\n  Webhooks:")
-    print(f"    Telegram:  POST /webhook/telegram")
-    print(f"    Slack:     POST /webhook/slack")
-    print(f"    Discord:   POST /webhook/discord")
-    print(f"    WhatsApp:  POST /webhook/whatsapp")
-    print(f"    Generic:   POST /message")
-    print("=" * 60 + "\n")
+    # Log startup info
+    logger.info("=" * 60)
+    logger.info("  JOTTY WEB SERVER")
+    logger.info("=" * 60)
+    logger.info("  Host:      %s", args.host)
+    logger.info("  Port:      %s", args.port)
+    logger.info("  Mode:      %s", 'Full CLI' if cli else 'Echo')
+    logger.info("=" * 60)
+    logger.info("  PWA Chat:   http://%s:%s/", args.host, args.port)
+    logger.info("  WebSocket:  ws://%s:%s/ws", args.host, args.port)
+    logger.info("  Health:     http://%s:%s/health", args.host, args.port)
+    logger.info("  API Docs:   http://%s:%s/docs", args.host, args.port)
+    logger.info("=" * 60)
+    logger.info("  Webhooks:")
+    logger.info("    Telegram:  POST /webhook/telegram")
+    logger.info("    Slack:     POST /webhook/slack")
+    logger.info("    Discord:   POST /webhook/discord")
+    logger.info("    WhatsApp:  POST /webhook/whatsapp")
+    logger.info("    Generic:   POST /message")
+    logger.info("=" * 60)
 
     # Start server
     start_gateway(host=args.host, port=args.port, cli=cli)

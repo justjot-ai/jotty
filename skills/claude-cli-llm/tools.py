@@ -89,7 +89,7 @@ def _call_lm_with_retry(lm, *, prompt: str = None, messages=None,
                 delay = base_delay * (2 ** attempt)  # 8, 16, 32, 64
                 logger.info(f"Rate limited (attempt {attempt+1}/{max_retries}), "
                             f"retrying in {delay:.0f}s...")
-                print(f"      [rate limited, retry in {delay:.0f}s]")
+                logger.warning("      [rate limited, retry in %.0fs]", delay)
                 time.sleep(delay)
             else:
                 raise
@@ -297,11 +297,11 @@ Your analysis:"""
             response = _call_lm_with_retry(lm, prompt=perspective_prompt)
             text = response[0] if isinstance(response, list) else str(response)
             score = _score_perspective_quality(text, prompt)
-            print(f"    [{idx+1}/{total}] {name}... done (quality: {score:.0%})")
+            logger.info("    [%d/%d] %s... done (quality: %.0f%%)", idx+1, total, name, score * 100)
             return name, text, score
         except Exception as e:
             logger.warning(f"Perspective '{name}' failed: {e}")
-            print(f"    [{idx+1}/{total}] {name}... failed: {e}")
+            logger.warning("    [%d/%d] %s... failed: %s", idx+1, total, name, e)
             return name, f"[Failed: {e}]", 0.0
 
     # Rate-limit aware execution strategy:
@@ -309,13 +309,13 @@ Your analysis:"""
     # Otherwise, run in parallel for speed.
     rpm_limit = _rpm_state.get('detected_rpm_limit')
     if rpm_limit and rpm_limit <= 20:
-        print(f"  → Ensemble: generating {total} perspectives sequentially (RPM limit: {rpm_limit})...")
+        logger.info("Ensemble: generating %d perspectives sequentially (RPM limit: %s)...", total, rpm_limit)
         for idx, p in enumerate(perspectives):
             name, text, score = _generate_one(idx, p)
             individual_responses[name] = text
             quality_scores[name] = score
     else:
-        print(f"  → Ensemble: generating {total} perspectives in parallel...")
+        logger.info("Ensemble: generating %d perspectives in parallel...", total)
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=min(total, 4)) as executor:
             futures = {
@@ -330,7 +330,7 @@ Your analysis:"""
     if not individual_responses:
         return {'success': False, 'error': 'All perspectives failed'}
 
-    print(f"  → Ensemble: synthesizing {len(individual_responses)} perspectives...")
+    logger.info("Ensemble: synthesizing %d perspectives...", len(individual_responses))
 
     # Filter out low-quality perspectives (score < 0.3)
     valid_responses = {k: v for k, v in individual_responses.items()
@@ -409,7 +409,7 @@ def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4)
 
     if not lm:
         # Fallback to defaults if no LLM
-        print("  → Ensemble: using default perspectives (no LLM)")
+        logger.info("Ensemble: using default perspectives (no LLM)")
         return DEFAULT_PERSPECTIVES[:max_perspectives]
 
     # Adaptive: For 2 perspectives, use fast heuristic (skip LLM call for perspective selection)

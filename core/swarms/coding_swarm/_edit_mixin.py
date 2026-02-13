@@ -250,9 +250,9 @@ class EditMixin:
         config = self.config
         lang = config.language
 
-        print(f"\n{'='*60}", flush=True)
-        print(f"  CodingSwarm EDIT MODE | {len(target_files)} file(s)", flush=True)
-        print(f"{'='*60}", flush=True)
+        logger.info("=" * 60)
+        logger.info("CodingSwarm EDIT MODE | %d file(s)", len(target_files))
+        logger.info("=" * 60)
 
         try:
             # =================================================================
@@ -491,17 +491,17 @@ class EditMixin:
             result.metadata['test_iterations'] = iteration_history
             result.metadata['tests_passing'] = iteration_history[-1].get('success', False) if iteration_history else None
 
-            print(f"\n  {'='*56}", flush=True)
-            print(f"  EDIT DONE | {len(edit_summaries)} file(s) modified | {loc} LOC", flush=True)
+            logger.info("=" * 56)
+            logger.info("EDIT DONE | %d file(s) modified | %d LOC", len(edit_summaries), loc)
             if diffs:
-                print(f"  Diffs generated: {len(diffs)} | Tests preserved: {len(test_files)}", flush=True)
+                logger.info("Diffs generated: %d | Tests preserved: %d", len(diffs), len(test_files))
             if iteration_history:
                 tests_status = "PASSING" if iteration_history[-1].get('success') else "FAILING"
-                print(f"  Test iterations: {len(iteration_history)} | Tests: {tests_status}", flush=True)
+                logger.info("Test iterations: %d | Tests: %s", len(iteration_history), tests_status)
             if git_branch:
-                print(f"  Git branch: {git_branch} | Committed: {git_committed}", flush=True)
-            print(f"  Time: {exec_time:.1f}s", flush=True)
-            print(f"  {'='*56}\n", flush=True)
+                logger.info("Git branch: %s | Committed: %s", git_branch, git_committed)
+            logger.info("Time: %.1fs", exec_time)
+            logger.info("=" * 56)
 
             return result
 

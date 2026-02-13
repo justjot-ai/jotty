@@ -3,10 +3,13 @@
 MCP Server for Jotty Memory System
 Exposes Jotty's 5-level memory as MCP tools for JustJot agents
 """
+import logging
 import sys
 import json
 import asyncio
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Add Jotty and JustJot supervisor to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -16,7 +19,7 @@ try:
     from mongodb_memory import MongoDBMemory
 except ImportError:
     # Fallback: use mock memory for testing without MongoDB
-    print("⚠️  MongoDB memory not available, using mock memory", file=sys.stderr)
+    logger.warning("MongoDB memory not available, using mock memory")
     MongoDBMemory = None
 
 
@@ -118,10 +121,10 @@ class JottyMemoryMCPServer:
         if self.memory is None:
             try:
                 self.memory = MongoDBMemory(agent_name=self.agent_name)
-                print(f"✅ Memory system initialized for agent: {self.agent_name}", file=sys.stderr)
+                logger.info("Memory system initialized for agent: %s", self.agent_name)
             except Exception as e:
-                print(f"⚠️  Warning: Could not connect to MongoDB: {e}", file=sys.stderr)
-                print("   Memory operations will fail until MongoDB is available", file=sys.stderr)
+                logger.warning("Could not connect to MongoDB: %s", e)
+                logger.warning("   Memory operations will fail until MongoDB is available")
 
     async def handle_tool_call(self, tool_name: str, arguments: dict) -> dict:
         """Handle MCP tool calls"""
@@ -182,7 +185,7 @@ class JottyMemoryMCPServer:
 
     async def run_stdio(self):
         """Run MCP server using stdio protocol"""
-        print("Jotty Memory MCP Server starting (stdio mode)...", file=sys.stderr)
+        logger.info("Jotty Memory MCP Server starting (stdio mode)...")
 
         while True:
             try:
@@ -215,7 +218,7 @@ class JottyMemoryMCPServer:
                 print(json.dumps(response), flush=True)
 
             except Exception as e:
-                print(f"Error: {e}", file=sys.stderr)
+                logger.error("Error: %s", e)
                 response = {"error": str(e)}
                 print(json.dumps(response), flush=True)
 
@@ -238,7 +241,7 @@ class JottyMemoryMCPServer:
         app.router.add_get('/tools/list', list_tools)
         app.router.add_post('/tools/call', call_tool)
 
-        print(f"🚀 Jotty Memory MCP Server running on http://0.0.0.0:{port}", file=sys.stderr)
+        logger.info("Jotty Memory MCP Server running on http://0.0.0.0:%d", port)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, '0.0.0.0', port)

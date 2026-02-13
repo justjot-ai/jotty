@@ -6,11 +6,14 @@ Ported from JustJot.ai adapters/sinks/
 Provides PDF, HTML, Markdown, DOCX, and PPTX generation
 """
 
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 import subprocess
 import re
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from .document import Document, Section, SectionType
 
@@ -120,7 +123,7 @@ class ContentGenerators:
                 f.write("---\n\n")
                 f.write(markdown_content)
 
-            print(f"      Converting to PDF ({pdf_format.upper()})...")
+            logger.info(f"Converting to PDF ({pdf_format.upper()})...")
 
             # Use pandoc to convert to PDF with optimized settings
             cmd = [
@@ -152,7 +155,7 @@ class ContentGenerators:
                 if temp_md.exists():
                     temp_md.unlink()
             except Exception as cleanup_error:
-                print(f"      Warning: Failed to clean up temp file '{temp_md}': {cleanup_error}")
+                logger.warning(f"Failed to clean up temp file '{temp_md}': {cleanup_error}")
 
         # Verify output file was created
         if not pdf_path.exists():
@@ -167,7 +170,7 @@ class ContentGenerators:
             pdf_path.unlink()
             raise RuntimeError(f"Generated PDF file is empty (0 bytes) - conversion failed")
 
-        print(f"      ✅ PDF created: {pdf_path.name} ({file_size} bytes)")
+        logger.info(f"PDF created: {pdf_path.name} ({file_size} bytes)")
         return pdf_path
 
     # =========================================================================
@@ -218,7 +221,7 @@ class ContentGenerators:
                 f.write("---\n\n")
                 f.write(markdown_content)
 
-            print(f"      Converting to HTML...")
+            logger.info("Converting to HTML...")
 
             # Use pandoc to convert markdown to HTML
             cmd = [
@@ -259,7 +262,7 @@ class ContentGenerators:
             # Clean up temp file
             temp_md.unlink()
 
-            print(f"      ✅ HTML: {html_path.name}")
+            logger.info(f"HTML created: {html_path.name}")
 
             return html_path
 
@@ -306,7 +309,7 @@ class ContentGenerators:
         date_prefix = document.created.strftime('%Y-%m-%d')
         md_path = output_path / f"{date_prefix}-{filename}.md"
 
-        print(f"      Exporting to Markdown...")
+        logger.info("Exporting to Markdown...")
 
         # Build markdown content
         md_content = []
@@ -336,7 +339,7 @@ class ContentGenerators:
         with open(md_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(md_content))
 
-        print(f"      ✅ MD: {md_path.name}")
+        logger.info(f"Markdown created: {md_path.name}")
 
         return md_path
 
@@ -378,7 +381,7 @@ class ContentGenerators:
         filename = self._sanitize_filename(document.title)
         docx_path = output_path / f"{filename}.docx"
 
-        print(f"      Generating DOCX...")
+        logger.info("Generating DOCX...")
 
         # Create document
         doc = DocxDocument()
@@ -442,7 +445,7 @@ class ContentGenerators:
         # Save
         doc.save(docx_path)
 
-        print(f"      ✅ DOCX: {docx_path.name}")
+        logger.info(f"DOCX created: {docx_path.name}")
 
         return docx_path
 
@@ -484,7 +487,7 @@ class ContentGenerators:
         filename = self._sanitize_filename(document.title)
         pptx_path = output_path / f"{filename}.pptx"
 
-        print(f"      Generating PPTX...")
+        logger.info("Generating PPTX...")
 
         # Create presentation
         prs = Presentation()
@@ -534,6 +537,6 @@ class ContentGenerators:
         # Save
         prs.save(pptx_path)
 
-        print(f"      ✅ PPTX: {pptx_path.name}")
+        logger.info(f"PPTX created: {pptx_path.name}")
 
         return pptx_path

@@ -252,17 +252,15 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         total_stages = len(self.PIPELINE_ORDER) + (1 if self._use_llm_features else 0)
         self._progress = ProgressTracker(total_stages) if self._show_progress else None
 
-        print("\n" + "=" * 60)
-        print("🚀 SKILL ORCHESTRATOR - AUTONOMOUS ML PIPELINE")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("SKILL ORCHESTRATOR - AUTONOMOUS ML PIPELINE")
+        logger.info("=" * 60)
 
         # Step 1: Detect problem type
         if problem_type == "auto":
             prob_type = self._detect_problem_type(y)
         else:
             prob_type = ProblemType(problem_type)
-
-        print(f"📋 Problem: {prob_type.value} | 📊 Metric: ", end="")
 
         # Step 2: Select target metric
         if target_metric == "auto":
@@ -273,8 +271,8 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             else:
                 target_metric = "silhouette"
 
-        print(f"{target_metric} | 📦 Features: {X.shape[1]} | 📝 Samples: {len(X)}")
-        print("=" * 60 + "\n")
+        logger.info(f"Problem: {prob_type.value} | Metric: {target_metric} | Features: {X.shape[1]} | Samples: {len(X)}")
+        logger.info("=" * 60)
 
         # Step 3: Execute pipeline
         context = {
@@ -378,7 +376,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         if (self._use_llm_features and self._llm_reasoner and
             feature_importance and time_budget >= 60 and len(feature_importance) > 5):
 
-            print("\n   🔄 Running LLM Feedback Loop...")
+            logger.info("Running LLM Feedback Loop...")
             try:
                 import lightgbm as lgb
                 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
@@ -420,13 +418,13 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
                     feedback_score = cross_val_score(test_model, X_scaled, y, cv=cv, scoring=scoring).mean()
 
                     if feedback_score > best_score:
-                        print(f"   ✅ Feedback Loop IMPROVED: {best_score:.4f} → {feedback_score:.4f}")
+                        logger.info(f"Feedback Loop IMPROVED: {best_score:.4f} -> {feedback_score:.4f}")
                         best_score = feedback_score
                         test_model.fit(X_scaled, y)
                         best_model = test_model
                         context['X'] = X_improved
                     else:
-                        print(f"   ℹ️ Feedback Loop: no improvement ({feedback_score:.4f} vs {best_score:.4f})")
+                        logger.info(f"Feedback Loop: no improvement ({feedback_score:.4f} vs {best_score:.4f})")
 
             except Exception as e:
                 logger.debug(f"LLM feedback loop failed: {e}")
@@ -446,9 +444,9 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         if self._progress:
             self._progress.finish(best_score)
         else:
-            print(f"\n{'='*60}")
-            print(f"🏆 COMPLETE | Score: {best_score:.4f} | Features: {X.shape[1]} → {result.feature_count}")
-            print(f"{'='*60}\n")
+            logger.info("=" * 60)
+            logger.info(f"COMPLETE | Score: {best_score:.4f} | Features: {X.shape[1]} -> {result.feature_count}")
+            logger.info("=" * 60)
 
         return result
 

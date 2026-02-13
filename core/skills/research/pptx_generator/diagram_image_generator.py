@@ -385,9 +385,9 @@ async def test_mermaid_diagram():
 
     result = await generator.generate_diagram(mermaid_code, use_cache=False)
     if result:
-        print(f"✅ Mermaid diagram: {result}")
+        logger.info(f"Mermaid diagram generated: {result}")
     else:
-        print("❌ Mermaid diagram failed")
+        logger.error("Mermaid diagram failed")
     return result
 
 
@@ -410,9 +410,9 @@ async def test_architecture_diagram():
 
     result = await generator.generate_architecture_diagram(spec, "Transformer")
     if result:
-        print(f"✅ Architecture diagram: {result}")
+        logger.info(f"Architecture diagram generated: {result}")
     else:
-        print("❌ Architecture diagram failed")
+        logger.error("Architecture diagram failed")
     return result
 
 
@@ -421,7 +421,7 @@ async def test_all_diagrams():
     generator = DiagramImageGenerator()
 
     # Test architecture
-    print("1. Testing architecture diagram...")
+    logger.info("1. Testing architecture diagram...")
     arch = await generator.generate_architecture_diagram({
         "nodes": [
             {"id": "a", "label": "Input", "row": 0},
@@ -430,28 +430,28 @@ async def test_all_diagrams():
             {"id": "d", "label": "Output", "row": 2},
         ]
     })
-    print(f"   {'✅' if arch else '❌'} Architecture: {arch}")
+    logger.info(f"   Architecture: {'OK' if arch else 'FAILED'} - {arch}")
 
     # Test comparison
-    print("2. Testing comparison diagram...")
+    logger.info("2. Testing comparison diagram...")
     comp = await generator.generate_comparison_diagram({
         "left_title": "RNN",
         "right_title": "Transformer",
         "left_items": ["Sequential", "Slow", "Limited context"],
         "right_items": ["Parallel", "Fast", "Global context"],
     })
-    print(f"   {'✅' if comp else '❌'} Comparison: {comp}")
+    logger.info(f"   Comparison: {'OK' if comp else 'FAILED'} - {comp}")
 
     # Test concept map
-    print("3. Testing concept map...")
+    logger.info("3. Testing concept map...")
     cmap = await generator.generate_concept_map({
         "central_concept": "Attention",
         "related_concepts": ["Query", "Key", "Value", "Softmax"],
     })
-    print(f"   {'✅' if cmap else '❌'} Concept map: {cmap}")
+    logger.info(f"   Concept map: {'OK' if cmap else 'FAILED'} - {cmap}")
 
     # Test flow
-    print("4. Testing flow diagram...")
+    logger.info("4. Testing flow diagram...")
     flow = await generator.generate_flow_diagram({
         "nodes": [
             {"label": "Input"},
@@ -460,6 +460,6 @@ async def test_all_diagrams():
             {"label": "Output"},
         ]
     })
-    print(f"   {'✅' if flow else '❌'} Flow: {flow}")
+    logger.info(f"   Flow: {'OK' if flow else 'FAILED'} - {flow}")
 
     return arch, comp, cmap, flow

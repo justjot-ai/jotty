@@ -96,8 +96,8 @@ _active_trace_callback = None
 
 
 def _progress(phase: str, agent: str, message: str):
-    """Print live progress to console."""
-    print(f"  [{phase}] {agent}: {message}", flush=True)
+    """Log live progress."""
+    logger.info("[%s] %s: %s", phase, agent, message)
     if _active_progress_callback is not None:
         try:
             _active_progress_callback(phase, agent, message)
@@ -156,7 +156,7 @@ async def _stream_call(module, phase: str, agent: str, listener_field: str = "re
             last_error = asyncio.TimeoutError(f"Timeout after {timeout}s")
             # Increase timeout for next attempt
             timeout = min(timeout * 1.5, 180.0)
-            print(f"⏱️ Attempt {attempt}/{max_retries}: Timeout after {timeout/1.5:.0f}s", flush=True)
+            logger.warning("Attempt %d/%d: Timeout after %.0fs", attempt, max_retries, timeout / 1.5)
         except Exception as e:
             last_error = e
             if attempt < max_retries:

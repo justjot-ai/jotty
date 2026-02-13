@@ -197,13 +197,13 @@ class Swarm:
             template_instance = template
 
         # Log start
-        print(f"\n{'='*60}")
-        print(f"🚀 JOTTY SWARM - {template_instance.name}")
-        print(f"{'='*60}")
+        logger.info(f"{'='*60}")
+        logger.info(f"JOTTY SWARM - {template_instance.name}")
+        logger.info(f"{'='*60}")
 
         # Detect problem type
         problem_type = template_instance.detect_problem_type(X, y)
-        print(f"📋 Problem: {problem_type}")
+        logger.info(f"Problem type: {problem_type}")
 
         # For ML templates, use the existing SkillOrchestrator
         # (which we'll eventually migrate to the new template system)
@@ -241,9 +241,9 @@ class Swarm:
             model = results.get('final_model')
             data = results.get('selected_X', X)
 
-            print(f"\n{'='*60}")
-            print(f"🏆 COMPLETE | Score: {score:.4f} | Time: {execution_time:.1f}s")
-            print(f"{'='*60}\n")
+            logger.info(f"{'='*60}")
+            logger.info(f"COMPLETE | Score: {score:.4f} | Time: {execution_time:.1f}s")
+            logger.info(f"{'='*60}")
 
             return SwarmResult(
                 success=True,
@@ -451,12 +451,12 @@ class Swarm:
     def _progress_callback(cls, stage_name: str, status: str, result: Dict = None):
         """Progress callback for visual feedback."""
         if status == 'start':
-            print(f"  ⏳ {stage_name}...")
+            logger.info(f"  Stage starting: {stage_name}...")
         elif status == 'complete':
             metrics = result or {}
             metric_str = ", ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
                                   for k, v in list(metrics.items())[:3])
-            print(f"  ✅ {stage_name} | {metric_str}")
+            logger.info(f"  Stage complete: {stage_name} | {metric_str}")
 
     @classmethod
     def list_templates(cls) -> List[Dict]:

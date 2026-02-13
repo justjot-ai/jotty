@@ -725,22 +725,22 @@ async def test_auto_generation():
 
     generator = ComponentAutoGenerator()
 
-    print(f"\n📊 Component Library Status:")
+    logger.info("Component Library Status:")
     roadmap = generator.get_component_roadmap()
-    print(f"   Current: {roadmap['current_count']} components")
-    print(f"   Planned: {roadmap['total_planned']} component ideas")
-    print(f"   Progress: {roadmap['progress_percent']}% toward 1000")
+    logger.info(f"   Current: {roadmap['current_count']} components")
+    logger.info(f"   Planned: {roadmap['total_planned']} component ideas")
+    logger.info(f"   Progress: {roadmap['progress_percent']}% toward 1000")
 
-    print(f"\n📁 Categories:")
+    logger.info("Categories:")
     for cat, info in roadmap['categories'].items():
-        print(f"   {cat}: {info['planned']} planned - {info['examples'][:3]}...")
+        logger.info(f"   {cat}: {info['planned']} planned - {info['examples'][:3]}...")
 
-    print("\n🔍 Running auto-discovery...")
+    logger.info("Running auto-discovery...")
     new_components = await generator.auto_discover_and_generate(sample_paper, max_new_components=3)
 
-    print(f"\n✅ Generated {len(new_components)} new components:")
+    logger.info(f"Generated {len(new_components)} new components:")
     for comp in new_components:
-        print(f"   - {comp['name']}: {comp['description'][:50]}...")
+        logger.info(f"   - {comp['name']}: {comp['description'][:50]}...")
 
     return new_components
 
