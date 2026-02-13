@@ -46,10 +46,11 @@ class SwarmRegistry:
         if not swarm_class:
             return None
 
-        if config is None:
-            config = SwarmConfig(name=name, domain=name)
-
-        return swarm_class(config)
+        # Let swarms use their own default config when None is passed,
+        # since each swarm may have a specialized config subclass.
+        if config is not None:
+            return swarm_class(config)
+        return swarm_class()
 
 
 def register_swarm(name: str):

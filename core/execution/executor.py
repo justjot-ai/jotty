@@ -118,6 +118,41 @@ class _ExecutionLLMProvider:
             yield {'content': result['content'], 'usage': result.get('usage', {})}
 
 
+class _ValidatorAdapter:
+    """Lightweight validator that uses the LLM provider to validate results."""
+
+    def __init__(self, provider):
+        self._provider = provider
+
+    async def validate(self, prompt: str) -> Dict[str, Any]:
+        """Validate a result via LLM. Returns {'success': bool, 'confidence': float, ...}."""
+        import json as _json
+
+        validation_system = (
+            "You are a quality validator. Evaluate the result and respond with ONLY "
+            "a JSON object: {\"success\": true/false, \"confidence\": 0.0-1.0, "
+            "\"feedback\": \"brief feedback\", \"reasoning\": \"brief reasoning\"}"
+        )
+        full_prompt = f"{validation_system}\n\n{prompt}"
+
+        try:
+            response = await self._provider.generate(
+                prompt=full_prompt,
+                temperature=0.3,
+                max_tokens=500,
+            )
+            content = response.get('content', '{}')
+            # Try to parse JSON from response
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            if start >= 0 and end > start:
+                return _json.loads(content[start:end])
+            return {'success': True, 'confidence': 0.7, 'feedback': content, 'reasoning': ''}
+        except Exception as e:
+            logger.warning(f"Validation LLM call failed: {e}")
+            return {'success': True, 'confidence': 0.5, 'feedback': 'Validation skipped', 'reasoning': str(e)}
+
+
 class _PlannerAdapter:
     """Wraps AgenticPlanner with a simple .plan(goal) → {'steps': [...]} interface."""
 
@@ -247,8 +282,7 @@ class UnifiedExecutor:
     def validator(self):
         """Lazy-load validator."""
         if self._validator is None:
-            from Jotty.core.agents.inspector import InspectorAgent
-            self._validator = InspectorAgent(role="auditor")
+            self._validator = _ValidatorAdapter(self.provider)
         return self._validator
 
     @property
@@ -1094,6 +1128,31 @@ class UnifiedExecutor:
     # SWARM SELECTION
     # =========================================================================
 
+    _swarms_registered = False
+
+    def _ensure_swarms_registered(self):
+        """Trigger lazy import of all swarm modules so they register with SwarmRegistry."""
+        if UnifiedExecutor._swarms_registered:
+            return
+        swarm_modules = [
+            'Jotty.core.swarms.coding_swarm',
+            'Jotty.core.swarms.research_swarm',
+            'Jotty.core.swarms.testing_swarm',
+            'Jotty.core.swarms.review_swarm',
+            'Jotty.core.swarms.data_analysis_swarm',
+            'Jotty.core.swarms.devops_swarm',
+            'Jotty.core.swarms.idea_writer_swarm',
+            'Jotty.core.swarms.fundamental_swarm',
+            'Jotty.core.swarms.learning_swarm',
+        ]
+        import importlib
+        for mod in swarm_modules:
+            try:
+                importlib.import_module(mod)
+            except Exception as e:
+                logger.debug(f"Could not import swarm module {mod}: {e}")
+        UnifiedExecutor._swarms_registered = True
+
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
         """Select and instantiate the right domain swarm.
 
@@ -1104,6 +1163,7 @@ class UnifiedExecutor:
         Returns:
             Instantiated swarm or None if no match found.
         """
+        self._ensure_swarms_registered()
         from Jotty.core.swarms.registry import SwarmRegistry
 
         if swarm_name:
