@@ -20,6 +20,8 @@ class RatingType(Enum):
 @dataclass
 class ResearchConfig:
     """Configuration for research swarm."""
+    name: str = "ResearchSwarm"
+    domain: str = "research"
     output_dir: str = field(default_factory=lambda: os.path.expanduser('~/jotty/reports'))
     send_telegram: bool = True
     include_charts: bool = True

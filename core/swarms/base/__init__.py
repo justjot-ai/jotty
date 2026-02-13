@@ -49,7 +49,7 @@ from .agent_team import (
     CoordinationPattern,
     MergeStrategy,
 )
-from .domain_swarm import DomainSwarm, PhaseExecutor
+from .domain_swarm import DomainSwarm, PhaseExecutor, _split_field, _safe_join, _safe_num
 
 __all__ = [
     # Team composition
@@ -62,4 +62,8 @@ __all__ = [
     # Swarm base
     'DomainSwarm',
     'PhaseExecutor',
+    # Defensive utilities
+    '_split_field',
+    '_safe_join',
+    '_safe_num',
 ]

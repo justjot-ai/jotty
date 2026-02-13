@@ -60,7 +60,7 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import TestingSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -374,8 +374,8 @@ class CodeAnalyzerAgent(BaseTestAgent):
             except Exception:
                 dependencies = []
 
-            edge_cases = [e.strip() for e in str(result.edge_cases).split('|') if e.strip()]
-            integration_points = [i.strip() for i in str(result.integration_points).split('|') if i.strip()]
+            edge_cases = _split_field(result.edge_cases)
+            integration_points = _split_field(result.integration_points)
 
             self._broadcast("code_analyzed", {
                 'units': len(testable_units),
@@ -419,8 +419,8 @@ class UnitTestAgent(BaseTestAgent):
                 mocks=json.dumps(mocks or [])
             )
 
-            test_cases = [t.strip() for t in str(result.test_cases).split('|') if t.strip()]
-            coverage_areas = [c.strip() for c in str(result.coverage_areas).split('|') if c.strip()]
+            test_cases = _split_field(result.test_cases)
+            coverage_areas = _split_field(result.coverage_areas)
 
             self._broadcast("unit_tests_generated", {
                 'unit': unit,
@@ -463,8 +463,8 @@ class IntegrationTestAgent(BaseTestAgent):
                 setup_info=enriched_setup
             )
 
-            scenarios = [s.strip() for s in str(result.test_scenarios).split('|') if s.strip()]
-            fixtures = [f.strip() for f in str(result.fixtures_needed).split('|') if f.strip()]
+            scenarios = _split_field(result.test_scenarios)
+            fixtures = _split_field(result.fixtures_needed)
 
             self._broadcast("integration_tests_generated", {
                 'integration_point': integration_point,
@@ -507,8 +507,8 @@ class E2ETestAgent(BaseTestAgent):
                 config=enriched_config
             )
 
-            steps = [s.strip() for s in str(result.steps).split('|') if s.strip()]
-            assertions = [a.strip() for a in str(result.assertions).split('|') if a.strip()]
+            steps = _split_field(result.steps)
+            assertions = _split_field(result.assertions)
 
             self._broadcast("e2e_tests_generated", {
                 'user_flow': user_flow,
@@ -549,9 +549,9 @@ class CoverageAgent(BaseTestAgent):
                 coverage_data=enriched_coverage_data
             )
 
-            gaps = [g.strip() for g in str(result.gaps).split('|') if g.strip()]
-            recommendations = [r.strip() for r in str(result.recommendations).split('|') if r.strip()]
-            priority_areas = [p.strip() for p in str(result.priority_areas).split('|') if p.strip()]
+            gaps = _split_field(result.gaps)
+            recommendations = _split_field(result.recommendations)
+            priority_areas = _split_field(result.priority_areas)
 
             self._broadcast("coverage_analyzed", {
                 'estimated_coverage': float(result.estimated_coverage) if result.estimated_coverage else 0,
@@ -591,8 +591,8 @@ class QualityAgent(BaseTestAgent):
                 code=enriched_code
             )
 
-            issues = [i.strip() for i in str(result.issues).split('|') if i.strip()]
-            improvements = [i.strip() for i in str(result.improvements).split('|') if i.strip()]
+            issues = _split_field(result.issues)
+            improvements = _split_field(result.improvements)
 
             self._broadcast("quality_assessed", {
                 'quality_score': float(result.quality_score) if result.quality_score else 0
@@ -656,7 +656,8 @@ class TestingSwarm(DomainSwarm):
         code: str,
         language: str = None,
         test_types: List[TestType] = None,
-        framework: TestFramework = None
+        framework: TestFramework = None,
+        **kwargs
     ) -> TestingResult:
         """
         Generate comprehensive test suite.
@@ -736,8 +737,17 @@ class TestingSwarm(DomainSwarm):
             )
 
         testable_units = analysis.get('testable_units', [])
-        dependencies = analysis.get('dependencies', [])
-        integration_points = analysis.get('integration_points', [])
+        raw_deps = analysis.get('dependencies', [])
+        # LLM may return deps as dicts (e.g. {'name': 'os', 'type': 'stdlib'}) — coerce to strings
+        dependencies = [
+            d.get('name', str(d)) if isinstance(d, dict) else str(d)
+            for d in raw_deps
+        ] if isinstance(raw_deps, list) else []
+        raw_points = analysis.get('integration_points', [])
+        integration_points = [
+            p.get('name', str(p)) if isinstance(p, dict) else str(p)
+            for p in raw_points
+        ] if isinstance(raw_points, list) else []
 
         # =================================================================
         # PHASE 2: UNIT TEST GENERATION (parallel)

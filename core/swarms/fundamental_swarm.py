@@ -61,7 +61,7 @@ from .base_swarm import (
     SwarmConfig, SwarmResult, AgentRole,
     register_swarm,
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field, _safe_join, _safe_num
 from .swarm_signatures import FundamentalSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -445,7 +445,7 @@ class FinancialStatementAgent(BaseFundamentalAgent):
                 years=years
             )
 
-            red_flags = [r.strip() for r in str(result.red_flags).split('|') if r.strip()]
+            red_flags = _split_field(result.red_flags)
 
             self._broadcast("financials_analyzed", {
                 'company': company,
@@ -548,7 +548,7 @@ class ValuationAgent(BaseFundamentalAgent):
             intrinsic = float(result.intrinsic_value) if result.intrinsic_value else 0
             upside = ((intrinsic - current_price) / current_price * 100) if current_price > 0 else 0
 
-            assumptions = [a.strip() for a in str(result.key_assumptions).split('|') if a.strip()]
+            assumptions = _split_field(result.key_assumptions)
 
             self._broadcast("dcf_completed", {
                 'company': company,
@@ -602,8 +602,8 @@ class QualityEarningsAgent(BaseFundamentalAgent):
                 cash_flows=json.dumps(cash_flows)
             )
 
-            adjustments = [a.strip() for a in str(result.adjustments).split('|') if a.strip()]
-            concerns = [c.strip() for c in str(result.concerns).split('|') if c.strip()]
+            adjustments = _split_field(result.adjustments)
+            concerns = _split_field(result.concerns)
 
             self._broadcast("quality_assessed", {
                 'quality_score': float(result.quality_score) if result.quality_score else 0
@@ -647,8 +647,8 @@ class ManagementAgent(BaseFundamentalAgent):
                 governance=governance
             )
 
-            strengths = [s.strip() for s in str(result.strengths).split('|') if s.strip()]
-            concerns = [c.strip() for c in str(result.concerns).split('|') if c.strip()]
+            strengths = _split_field(result.strengths)
+            concerns = _split_field(result.concerns)
 
             self._broadcast("management_analyzed", {
                 'company': company,
@@ -694,8 +694,8 @@ class MoatAgent(BaseFundamentalAgent):
                 financials=json.dumps(financials)
             )
 
-            moat_sources = [m.strip() for m in str(result.moat_sources).split('|') if m.strip()]
-            threats = [t.strip() for t in str(result.threats).split('|') if t.strip()]
+            moat_sources = _split_field(result.moat_sources)
+            threats = _split_field(result.threats)
 
             self._broadcast("moat_analyzed", {
                 'company': company,
@@ -753,8 +753,8 @@ class ThesisAgent(BaseFundamentalAgent):
             target = float(result.target_price) if result.target_price else current_price
             upside = ((target - current_price) / current_price * 100) if current_price > 0 else 0
 
-            risks = [r.strip() for r in str(result.key_risks).split('|') if r.strip()]
-            catalysts = [c.strip() for c in str(result.catalysts).split('|') if c.strip()]
+            risks = _split_field(result.key_risks)
+            catalysts = _split_field(result.catalysts)
 
             self._broadcast("thesis_generated", {
                 'company': company,
@@ -987,7 +987,7 @@ class FundamentalSwarm(DomainSwarm):
         financial_summary = f"""
         Revenue Analysis: {financial_result.get('revenue_analysis', 'N/A') if isinstance(financial_result, dict) else 'N/A'}
         Margin Analysis: {financial_result.get('margin_analysis', 'N/A') if isinstance(financial_result, dict) else 'N/A'}
-        Red Flags: {', '.join(financial_result.get('red_flags', [])) if isinstance(financial_result, dict) else 'N/A'}
+        Red Flags: {_safe_join(financial_result.get('red_flags', [])) if isinstance(financial_result, dict) else 'N/A'}
         """
 
         valuation_summary = f"""
@@ -997,7 +997,7 @@ class FundamentalSwarm(DomainSwarm):
 
         quality_summary = f"""
         Earnings Quality: {quality_result.get('quality_score', 0)}/100
-        Moat Score: {moat_result.get('moat_score', 0)}/100
+        Moat Score: {_safe_num(moat_result.get('moat_score', 0))}/100
         """
 
         thesis = await executor.run_phase(
@@ -1038,8 +1038,8 @@ class FundamentalSwarm(DomainSwarm):
                 'rating': thesis.rating.value,
                 'target_price': thesis.target_price,
                 'thesis': thesis.recommendation,
-                'moat_score': moat_result.get('moat_score', 0),
-                'earnings_quality': quality_result.get('quality_score', 0),
+                'moat_score': _safe_num(moat_result.get('moat_score', 0)),
+                'earnings_quality': _safe_num(quality_result.get('quality_score', 0)),
             },
             execution_time=executor.elapsed(),
             ticker=ticker,
@@ -1049,9 +1049,9 @@ class FundamentalSwarm(DomainSwarm):
             quality_metrics=quality_metrics,
             valuations=[dcf_result],
             thesis=thesis,
-            moat_score=moat_result.get('moat_score', 0),
+            moat_score=_safe_num(moat_result.get('moat_score', 0)),
             management_score=0,
-            earnings_quality=quality_result.get('quality_score', 0)
+            earnings_quality=_safe_num(quality_result.get('quality_score', 0))
         )
 
 

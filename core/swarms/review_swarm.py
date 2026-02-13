@@ -60,7 +60,7 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import ReviewSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -377,8 +377,8 @@ class CodeReviewer(BaseReviewAgent):
             except Exception:
                 issues = []
 
-            positives = [p.strip() for p in str(result.positives).split('|') if p.strip()]
-            suggestions = [s.strip() for s in str(result.suggestions).split('|') if s.strip()]
+            positives = _split_field(result.positives)
+            suggestions = _split_field(result.suggestions)
 
             self._broadcast("code_reviewed", {
                 'issues_found': len(issues),
@@ -424,7 +424,7 @@ class SecurityScanner(BaseReviewAgent):
             except Exception:
                 vulnerabilities = []
 
-            recommendations = [r.strip() for r in str(result.recommendations).split('|') if r.strip()]
+            recommendations = _split_field(result.recommendations)
 
             self._broadcast("security_scanned", {
                 'vulnerabilities_found': len(vulnerabilities)
@@ -468,7 +468,7 @@ class PerformanceAnalyzer(BaseReviewAgent):
             except Exception:
                 issues = []
 
-            optimizations = [o.strip() for o in str(result.optimizations).split('|') if o.strip()]
+            optimizations = _split_field(result.optimizations)
 
             self._broadcast("performance_analyzed", {
                 'issues_found': len(issues)
@@ -512,8 +512,8 @@ class ArchitectureReviewer(BaseReviewAgent):
             except Exception:
                 concerns = []
 
-            patterns = [p.strip() for p in str(result.patterns_found).split('|') if p.strip()]
-            recommendations = [r.strip() for r in str(result.recommendations).split('|') if r.strip()]
+            patterns = _split_field(result.patterns_found)
+            recommendations = _split_field(result.recommendations)
 
             self._broadcast("architecture_reviewed", {
                 'concerns_found': len(concerns)
@@ -558,8 +558,8 @@ class StyleChecker(BaseReviewAgent):
             except Exception:
                 violations = []
 
-            formatting_issues = [f.strip() for f in str(result.formatting_issues).split('|') if f.strip()]
-            naming_issues = [n.strip() for n in str(result.naming_issues).split('|') if n.strip()]
+            formatting_issues = _split_field(result.formatting_issues)
+            naming_issues = _split_field(result.naming_issues)
 
             self._broadcast("style_checked", {
                 'violations_found': len(violations)
@@ -611,7 +611,7 @@ class ReviewSynthesizer(BaseReviewAgent):
                     status = s
                     break
 
-            priority_actions = [p.strip() for p in str(result.priority_actions).split('|') if p.strip()]
+            priority_actions = _split_field(result.priority_actions)
 
             return {
                 'status': status,

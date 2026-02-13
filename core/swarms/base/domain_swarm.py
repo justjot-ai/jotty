@@ -59,6 +59,51 @@ from .agent_team import AgentTeam, CoordinationPattern, TeamResult
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# DEFENSIVE UTILITIES — safe LLM output parsing
+# =============================================================================
+
+def _split_field(value, sep='|'):
+    """Safely split a DSPy output field into a list of strings.
+    Handles: str (pipe-split), list (coerce items to str), dict (flatten), None.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [
+            item.get('name', str(item)) if isinstance(item, dict) else str(item).strip()
+            for item in value if item is not None
+        ]
+    if isinstance(value, dict):
+        return [f"{k}: {v}" for k, v in value.items() if v]
+    return [s.strip() for s in str(value).split(sep) if s.strip()]
+
+
+def _safe_join(items, sep=', '):
+    """Safely join items into a string, coercing non-string elements."""
+    if not items:
+        return ''
+    if isinstance(items, str):
+        return items
+    return sep.join(str(item) for item in items)
+
+
+def _safe_num(value, default=0):
+    """Extract a number from LLM output. Returns default for non-numeric."""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    if isinstance(value, dict):
+        return default
+    return default
+
+
 class PhaseExecutor:
     """Manages phase execution with consistent tracing, timing, and error handling.
 
@@ -227,6 +272,11 @@ class DomainSwarm(BaseSwarm):
     # Subclasses set this to a DSPy Signature for typed I/O contracts
     SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
 
+    # Defensive utilities available as static methods on all swarms
+    _split_field = staticmethod(_split_field)
+    _safe_join = staticmethod(_safe_join)
+    _safe_num = staticmethod(_safe_num)
+
     def __init__(self, config: SwarmConfig):
         """
         Initialize DomainSwarm.
@@ -342,32 +392,42 @@ class DomainSwarm(BaseSwarm):
             return self._io_schema
         from Jotty.core.agents._execution_types import AgentIOSchema
         if self.SWARM_SIGNATURE is not None:
-            name = getattr(self.config, 'name', self.__class__.__name__)
             self._io_schema = AgentIOSchema.from_dspy_signature(
-                name, self.SWARM_SIGNATURE
+                self.config.name, self.SWARM_SIGNATURE
             )
         else:
             self._io_schema = None
         return self._io_schema
 
     def _validate_output_fields(self, result: SwarmResult):
-        """Warn if result.output is missing signature-declared fields."""
+        """Validate and auto-populate output fields from SWARM_SIGNATURE."""
         schema = self.get_io_schema()
         if schema is None:
             return
-        expected = {p.name for p in schema.outputs}
-        actual = (
-            set(result.output.keys())
-            if hasattr(result, 'output') and isinstance(result.output, dict)
-            else set()
-        )
-        missing = expected - actual
+        if not hasattr(result, 'output') or not isinstance(result.output, dict):
+            return
+
+        expected = {p.name: p for p in schema.outputs}
+        actual = set(result.output.keys())
+        missing = set(expected.keys()) - actual
+        name = self.config.name
+
+        # Auto-populate missing fields with type-appropriate defaults
         if missing:
-            name = getattr(self.config, 'name', self.__class__.__name__)
-            logger.warning(
-                "%s output missing signature fields: %s (have: %s)",
-                name, missing, actual,
-            )
+            logger.info("%s: auto-populating %d missing output fields: %s", name, len(missing), missing)
+            for field_name in missing:
+                result.output[field_name] = ''
+
+        # Coerce non-string values using TypeCoercer where type_hint != 'str'
+        from Jotty.core.agents._execution_types import TypeCoercer
+        for field_name, value in list(result.output.items()):
+            if field_name in expected:
+                param = expected[field_name]
+                hint = (param.type_hint or 'str').lower()
+                if hint not in ('str', 'string', ''):
+                    coerced, error = TypeCoercer.coerce(value, param.type_hint)
+                    if not error and coerced is not value:
+                        result.output[field_name] = coerced
 
     # =========================================================================
     # TEAM COORDINATION
@@ -567,6 +627,16 @@ class DomainSwarm(BaseSwarm):
         except Exception as e:
             logger.warning(f"Pre-execute learning failed: {e}")
 
+        # Auto-remap 'task' kwarg to the swarm's first signature input field.
+        # Pipeline passes 'task' generically; swarms expect domain-specific names
+        # (e.g. 'requirements', 'code', 'data'). SWARM_SIGNATURE enables auto-wiring.
+        if self.SWARM_SIGNATURE is not None and 'task' in kwargs:
+            schema = self.get_io_schema()
+            if schema and schema.inputs:
+                first_input = schema.inputs[0].name
+                if first_input != 'task' and first_input not in kwargs:
+                    kwargs[first_input] = kwargs.pop('task')
+
         result = None
         start_time = __import__('time').time()
         try:
@@ -655,4 +725,4 @@ class DomainSwarm(BaseSwarm):
         return f"{self.__class__.__name__}(agents={agent_count}, pattern={pattern}, initialized={self._agents_initialized})"
 
 
-__all__ = ['DomainSwarm', 'PhaseExecutor']
+__all__ = ['DomainSwarm', 'PhaseExecutor', '_split_field', '_safe_join', '_safe_num']

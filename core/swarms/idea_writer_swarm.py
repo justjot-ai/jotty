@@ -64,7 +64,7 @@ from .base_swarm import (
     SwarmConfig, SwarmResult, AgentRole,
     register_swarm,
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import IdeaWriterSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -762,7 +762,7 @@ class OutlineAgent(BaseWriterAgent):
             except Exception:
                 sections = [{'title': 'Main Content', 'key_points': []}]
 
-            key_points = [kp.strip() for kp in str(result.key_points).split('|') if kp.strip()]
+            key_points = _split_field(result.key_points)
 
             self._broadcast("outline_generated", {
                 'topic': topic,
@@ -815,10 +815,10 @@ class ResearchAgent(BaseWriterAgent):
                 depth=depth
             )
 
-            facts = [f.strip() for f in str(result.facts).split('|') if f.strip()]
-            expert_views = [e.strip() for e in str(result.expert_views).split('|') if e.strip()]
-            trends = [t.strip() for t in str(result.trends).split('|') if t.strip()]
-            sources = [s.strip() for s in str(result.sources).split('|') if s.strip()]
+            facts = _split_field(result.facts)
+            expert_views = _split_field(result.expert_views)
+            trends = _split_field(result.trends)
+            sources = _split_field(result.sources)
 
             self._broadcast("research_completed", {
                 'topic': topic,
@@ -859,7 +859,7 @@ class PolishAgent(BaseWriterAgent):
                 audience=config.audience
             )
 
-            improvements = [i.strip() for i in str(result.improvements).split('|') if i.strip()]
+            improvements = _split_field(result.improvements)
 
             self._broadcast("content_polished", {
                 'improvements': len(improvements)
@@ -929,7 +929,8 @@ class IdeaWriterSwarm(DomainSwarm):
         self,
         topic: str,
         sections: List[str] = None,
-        custom_outline: Outline = None
+        custom_outline: Outline = None,
+        **kwargs
     ) -> WriterResult:
         """
         Domain-specific content writing logic.

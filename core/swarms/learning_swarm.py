@@ -62,7 +62,7 @@ from .base_swarm import (
     ImprovementHistory, ImprovementSuggestion, ImprovementType,
     Evaluation, EvaluationResult, SwarmRegistry
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import LearningSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -338,8 +338,8 @@ class PerformanceEvaluator(BaseLearningAgent):
                 swarm_config=json.dumps(config, default=str)
             )
 
-            strengths = [s.strip() for s in str(result.strengths).split('|') if s.strip()]
-            weaknesses = [w.strip() for w in str(result.weaknesses).split('|') if w.strip()]
+            strengths = _split_field(result.strengths)
+            weaknesses = _split_field(result.weaknesses)
 
             # Calculate metrics
             avg_score = sum(e.overall_score for e in evaluations) / len(evaluations) if evaluations else 0
@@ -408,7 +408,7 @@ class GoldCurator(BaseLearningAgent):
             except Exception:
                 gold_data = []
 
-            criteria_list = [c.strip() for c in str(result.evaluation_criteria).split('|') if c.strip()]
+            criteria_list = _split_field(result.evaluation_criteria)
 
             gold_standards = []
             for i, gs in enumerate(gold_data):
@@ -457,7 +457,7 @@ class PromptOptimizer(BaseLearningAgent):
                 failure_cases=json.dumps(failure_cases)
             )
 
-            changes = [c.strip() for c in str(result.changes_made).split('|') if c.strip()]
+            changes = _split_field(result.changes_made)
 
             self._broadcast("prompt_optimized", {
                 'changes': len(changes),
@@ -616,10 +616,10 @@ class MetaLearner(BaseLearningAgent):
                 swarm_architectures=json.dumps(architectures)
             )
 
-            insights = [i.strip() for i in str(result.universal_insights).split('|') if i.strip()]
-            patterns = [p.strip() for p in str(result.transferable_patterns).split('|') if p.strip()]
-            anti_patterns = [a.strip() for a in str(result.anti_patterns).split('|') if a.strip()]
-            recommendations = [r.strip() for r in str(result.architectural_recommendations).split('|') if r.strip()]
+            insights = _split_field(result.universal_insights)
+            patterns = _split_field(result.transferable_patterns)
+            anti_patterns = _split_field(result.anti_patterns)
+            recommendations = _split_field(result.architectural_recommendations)
 
             self._broadcast("meta_learning_completed", {
                 'insights': len(insights),

@@ -59,7 +59,7 @@ from .base_swarm import (
     SwarmConfig, SwarmResult, AgentRole,
     register_swarm,
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import DevOpsSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -446,7 +446,7 @@ class CICDDesigner(BaseDevOpsAgent):
             except Exception:
                 stages = []
 
-            triggers = [t.strip() for t in str(result.triggers).split('|') if t.strip()]
+            triggers = _split_field(result.triggers)
 
             self._broadcast("pipeline_designed", {
                 'provider': ci_provider,
@@ -601,7 +601,7 @@ class MonitoringSpecialist(BaseDevOpsAgent):
                 sla_requirements=sla_requirements or "99.9% uptime"
             )
 
-            metrics = [m.strip() for m in str(result.metrics).split('|') if m.strip()]
+            metrics = _split_field(result.metrics)
 
             try:
                 alerts = json.loads(result.alerts)

@@ -59,7 +59,7 @@ from .base_swarm import (
     BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
-from .base import DomainSwarm, AgentTeam
+from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import DataAnalysisSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
@@ -388,8 +388,8 @@ class DataProfilerAgent(BaseDataAgent):
             except Exception:
                 column_profiles = {}
 
-            quality_issues = [q.strip() for q in str(result.quality_issues).split('|') if q.strip()]
-            recommendations = [r.strip() for r in str(result.recommendations).split('|') if r.strip()]
+            quality_issues = _split_field(result.quality_issues)
+            recommendations = _split_field(result.recommendations)
 
             self._broadcast("data_profiled", {
                 'columns': len(column_info),
@@ -431,9 +431,9 @@ class EDAAgent(BaseDataAgent):
                 question=question + context_suffix
             )
 
-            patterns = [p.strip() for p in str(result.patterns).split('|') if p.strip()]
-            relationships = [r.strip() for r in str(result.relationships).split('|') if r.strip()]
-            anomalies = [a.strip() for a in str(result.anomalies).split('|') if a.strip()]
+            patterns = _split_field(result.patterns)
+            relationships = _split_field(result.relationships)
+            anomalies = _split_field(result.anomalies)
 
             self._broadcast("eda_completed", {
                 'patterns': len(patterns),
@@ -481,7 +481,7 @@ class StatisticalAgent(BaseDataAgent):
                 # If not valid JSON, create a simple dict
                 descriptive = {'raw': str(result.descriptive)}
 
-            hypothesis_tests = [h.strip() for h in str(result.hypothesis_tests).split('|') if h.strip()]
+            hypothesis_tests = _split_field(result.hypothesis_tests)
 
             self._broadcast("statistics_completed", {
                 'tests': len(hypothesis_tests)
@@ -573,8 +573,8 @@ class MLRecommenderAgent(BaseDataAgent):
                 goal=(goal or "Build predictive model") + context_suffix
             )
 
-            models = [m.strip() for m in str(result.recommended_models).split('|') if m.strip()]
-            preprocessing = [p.strip() for p in str(result.preprocessing).split('|') if p.strip()]
+            models = _split_field(result.recommended_models)
+            preprocessing = _split_field(result.preprocessing)
 
             self._broadcast("ml_recommended", {
                 'task_type': str(result.task_type),
