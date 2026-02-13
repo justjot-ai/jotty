@@ -14,11 +14,11 @@ from core.experts.memory_integration import (
     retrieve_improvements_from_memory,
     retrieve_synthesized_improvements
 )
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig, MemoryLevel
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig, MemoryLevel
 
 
-def inspect_memory_for_expert(memory: HierarchicalMemory, expert_name: str, domain: str):
+def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str):
     """Inspect memory contents for a specific expert."""
     print(f"\n{'='*80}")
     print(f"EXPERT: {expert_name} (Domain: {domain})")
@@ -160,15 +160,15 @@ def main():
     print("-" * 80)
     
     # For PlantUML
-    plantuml_memory_config = JottyConfig()
-    plantuml_memory = HierarchicalMemory(
+    plantuml_memory_config = SwarmConfig()
+    plantuml_memory = SwarmMemory(
         agent_name="plantuml_expert_test",
         config=plantuml_memory_config
     )
     
     # For Mermaid
-    mermaid_memory_config = JottyConfig()
-    mermaid_memory = HierarchicalMemory(
+    mermaid_memory_config = SwarmConfig()
+    mermaid_memory = SwarmMemory(
         agent_name="mermaid_expert_test",
         config=mermaid_memory_config
     )

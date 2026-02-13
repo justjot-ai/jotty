@@ -28,30 +28,30 @@ class TestCoreImports:
         from core import SwarmConfig
         assert SwarmConfig is not None
 
-    def test_can_import_jotty_config_backward_compat(self):
-        """Test JottyConfig backward compatibility."""
-        from core import JottyConfig, SwarmConfig
-        assert JottyConfig == SwarmConfig
+    def test_can_import_jotty_config(self):
+        """Test SwarmConfig import."""
+        from core import SwarmConfig
+        assert SwarmConfig is not None
 
     def test_can_import_agent_spec(self):
-        """Test AgentSpec import."""
-        from core import AgentSpec
-        assert AgentSpec is not None
+        """Test AgentConfig import."""
+        from core import AgentConfig
+        assert AgentConfig is not None
 
-    def test_can_import_agent_config_backward_compat(self):
-        """Test AgentConfig backward compatibility."""
-        from core import AgentConfig, AgentSpec
-        assert AgentConfig == AgentSpec
+    def test_agent_config_from_foundation(self):
+        """Test AgentConfig from foundation module."""
+        from Jotty.core.foundation.agent_config import AgentConfig
+        assert AgentConfig is not None
 
     def test_can_import_swarm_manager(self):
-        """Test SwarmManager import (V2 main orchestrator)."""
-        from core import SwarmManager
-        assert SwarmManager is not None
+        """Test Orchestrator import (V2 main orchestrator)."""
+        from core import Orchestrator
+        assert Orchestrator is not None
 
     def test_can_import_jotty_core(self):
-        """Test JottyCore import."""
-        from core import JottyCore
-        assert JottyCore is not None
+        """Test Orchestrator import."""
+        from core import Orchestrator
+        assert Orchestrator is not None
 
 
 @pytest.mark.unit
@@ -59,9 +59,9 @@ class TestMemoryImports:
     """Verify memory module imports work."""
 
     def test_can_import_hierarchical_memory(self):
-        """Test HierarchicalMemory import."""
-        from core.memory import HierarchicalMemory
-        assert HierarchicalMemory is not None
+        """Test SwarmMemory import."""
+        from core.memory import SwarmMemory
+        assert SwarmMemory is not None
 
     def test_can_import_simple_brain(self):
         """Test SimpleBrain import."""
@@ -119,9 +119,9 @@ class TestBasicInstantiation:
         assert brain is not None
 
     def test_backward_compat_jotty_config_works(self):
-        """Test that old JottyConfig name still works."""
-        from core import JottyConfig
-        config = JottyConfig()
+        """Test that old SwarmConfig name still works."""
+        from core import SwarmConfig
+        config = SwarmConfig()
         assert config is not None
         assert hasattr(config, 'gamma')
 
@@ -150,8 +150,8 @@ class TestPlanDecomposition:
 
     def test_extract_comparison_entities_vs(self):
         """Test extracting entities from 'X vs Y' task."""
-        from core.agents.agentic_planner import AgenticPlanner
-        planner = AgenticPlanner()
+        from core.agents.agentic_planner import TaskPlanner
+        planner = TaskPlanner()
         entities = planner._extract_comparison_entities(
             "Research Paytm vs PhonePe payment gateway comparison"
         )
@@ -161,8 +161,8 @@ class TestPlanDecomposition:
 
     def test_extract_comparison_entities_three_way(self):
         """Test extracting three entities from 'X vs Y vs Z'."""
-        from core.agents.agentic_planner import AgenticPlanner
-        planner = AgenticPlanner()
+        from core.agents.agentic_planner import TaskPlanner
+        planner = TaskPlanner()
         entities = planner._extract_comparison_entities(
             "Compare React vs Vue vs Angular"
         )
@@ -170,8 +170,8 @@ class TestPlanDecomposition:
 
     def test_extract_comparison_entities_no_comparison(self):
         """Non-comparison task returns empty list."""
-        from core.agents.agentic_planner import AgenticPlanner
-        planner = AgenticPlanner()
+        from core.agents.agentic_planner import TaskPlanner
+        planner = TaskPlanner()
         entities = planner._extract_comparison_entities(
             "Research AI trends and create a PDF"
         )
@@ -179,10 +179,10 @@ class TestPlanDecomposition:
 
     def test_maybe_decompose_plan_comparison_with_composite(self):
         """Comparison task with 1-step composite plan should be decomposed."""
-        from core.agents.agentic_planner import AgenticPlanner
+        from core.agents.agentic_planner import TaskPlanner
         from core.agents.base.autonomous_agent import ExecutionStep
 
-        planner = AgenticPlanner()
+        planner = TaskPlanner()
         # Simulate a 1-step composite plan
         steps = [ExecutionStep(
             skill_name='search-summarize-pdf-telegram-v2',
@@ -210,10 +210,10 @@ class TestPlanDecomposition:
 
     def test_maybe_decompose_plan_simple_task_unchanged(self):
         """Simple non-comparison task should NOT be decomposed."""
-        from core.agents.agentic_planner import AgenticPlanner
+        from core.agents.agentic_planner import TaskPlanner
         from core.agents.base.autonomous_agent import ExecutionStep
 
-        planner = AgenticPlanner()
+        planner = TaskPlanner()
         steps = [ExecutionStep(
             skill_name='web-search',
             tool_name='search_web_tool',
@@ -228,10 +228,10 @@ class TestPlanDecomposition:
 
     def test_maybe_decompose_plan_already_multi_step(self):
         """Multi-step plan (3+ steps) should NOT be decomposed."""
-        from core.agents.agentic_planner import AgenticPlanner
+        from core.agents.agentic_planner import TaskPlanner
         from core.agents.base.autonomous_agent import ExecutionStep
 
-        planner = AgenticPlanner()
+        planner = TaskPlanner()
         steps = [
             ExecutionStep(skill_name='web-search', tool_name='search_web_tool',
                          params={}, description='s1'),

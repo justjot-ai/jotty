@@ -22,11 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import JOTTY components
 try:
-    from core.foundation.data_structures import SwarmConfig, JottyConfig, MemoryLevel, EpisodeResult
-    from core.foundation.agent_config import AgentSpec, AgentConfig
-    from core.orchestration.v2 import SwarmManager as Conductor  # V2 replacement
-    from core.memory.cortex import HierarchicalMemory
-    from core.orchestration.v2 import SwarmTaskBoard as MarkovianTODO  # V2 replacement
+    from core.foundation.data_structures import SwarmConfig, MemoryLevel, EpisodeResult
+    from core.foundation.agent_config import AgentConfig
+    from core.orchestration import Orchestrator
+    from core.memory.cortex import SwarmMemory
+    from core.orchestration import SwarmTaskBoard
     JOTTY_AVAILABLE = True
 except ImportError as e:
     print(f"JOTTY import failed: {e}")
@@ -133,11 +133,11 @@ def mock_async_agent():
 
 @pytest.fixture
 def simple_agent_config(mock_dspy_agent):
-    """Create a simple AgentSpec for testing."""
+    """Create a simple AgentConfig for testing."""
     if not JOTTY_AVAILABLE:
         pytest.skip("JOTTY not available")
 
-    return AgentSpec(
+    return AgentConfig(
         name="TestAgent",
         agent=mock_dspy_agent,
         architect_prompts=["test_architect.md"],
@@ -154,7 +154,7 @@ def multi_agent_configs(mock_dspy_agent):
         pytest.skip("JOTTY not available")
 
     return [
-        AgentSpec(
+        AgentConfig(
             name="Agent1",
             agent=mock_dspy_agent,
             architect_prompts=["architect1.md"],
@@ -162,7 +162,7 @@ def multi_agent_configs(mock_dspy_agent):
             enable_architect=False,
             enable_auditor=False,
         ),
-        AgentSpec(
+        AgentConfig(
             name="Agent2",
             agent=mock_dspy_agent,
             architect_prompts=["architect2.md"],
@@ -171,7 +171,7 @@ def multi_agent_configs(mock_dspy_agent):
             enable_architect=False,
             enable_auditor=False,
         ),
-        AgentSpec(
+        AgentConfig(
             name="Agent3",
             agent=mock_dspy_agent,
             architect_prompts=["architect3.md"],
@@ -189,8 +189,8 @@ def multi_agent_configs(mock_dspy_agent):
 
 @pytest.fixture
 def mock_memory():
-    """Create a mock HierarchicalMemory instance."""
-    memory = Mock(spec=HierarchicalMemory)
+    """Create a mock SwarmMemory instance."""
+    memory = Mock(spec=SwarmMemory)
     memory.store = Mock()
     memory.retrieve = Mock(return_value=[])
     memory.consolidate = Mock()
@@ -199,8 +199,8 @@ def mock_memory():
 
 @pytest.fixture
 def mock_roadmap():
-    """Create a mock MarkovianTODO instance."""
-    roadmap = Mock(spec=MarkovianTODO)
+    """Create a mock SwarmTaskBoard instance."""
+    roadmap = Mock(spec=SwarmTaskBoard)
     roadmap.add_item = Mock()
     roadmap.get_next_item = Mock(return_value=None)
     roadmap.mark_complete = Mock()
@@ -209,11 +209,11 @@ def mock_roadmap():
 
 @pytest.fixture
 async def conductor_instance(simple_agent_config, minimal_jotty_config):
-    """Create a Conductor instance for testing."""
+    """Create a Orchestrator instance for testing."""
     if not JOTTY_AVAILABLE:
         pytest.skip("JOTTY not available")
 
-    conductor = Conductor(
+    conductor = Orchestrator(
         actors=[simple_agent_config],
         config=minimal_jotty_config,
     )
@@ -309,9 +309,12 @@ def assert_async():
 
 @pytest.fixture(autouse=True)
 def reset_singletons():
-    """Reset any singleton instances between tests."""
-    # Add logic to reset singletons if needed
+    """Reset singleton instances between tests so state doesn't leak."""
     yield
+    from Jotty.core.observability.metrics import reset_metrics
+    from Jotty.core.observability.tracing import reset_tracer
+    reset_metrics()
+    reset_tracer()
 
 
 @pytest.fixture(autouse=True)
@@ -336,6 +339,9 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_llm: mark test as requiring LLM API access"
     )
+    config.addinivalue_line(
+        "markers", "unit: mark test as a fast, offline unit test"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -348,3 +354,204 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_dspy)
         if not JOTTY_AVAILABLE:
             item.add_marker(skip_jotty)
+
+
+# =============================================================================
+# Tiered Execution Fixtures
+# =============================================================================
+
+@pytest.fixture
+def mock_provider():
+    """Mock LLM provider with generate() and stream() support."""
+    provider = AsyncMock()
+
+    # generate() returns a dict matching UnifiedLMProvider contract
+    provider.generate = AsyncMock(return_value={
+        'content': 'Mock LLM response',
+        'usage': {'input_tokens': 100, 'output_tokens': 50},
+    })
+
+    # stream() yields token chunks as an async generator
+    async def _stream(**kwargs):
+        for token in ['Mock', ' streamed', ' response']:
+            yield {'content': token}
+        yield {'content': '', 'usage': {'input_tokens': 100, 'output_tokens': 50}}
+
+    provider.stream = _stream
+    return provider
+
+
+@pytest.fixture
+def mock_registry():
+    """Mock UnifiedRegistry with skill discovery."""
+    registry = Mock()
+    registry.discover_for_task = Mock(return_value={
+        'skills': ['web-search', 'calculator'],
+    })
+    registry.get_claude_tools = Mock(return_value=[
+        {'name': 'web_search', 'description': 'Search the web'},
+    ])
+    registry.get_skill = Mock(return_value=Mock(
+        to_claude_tools=Mock(return_value=[{'name': 'tool1'}]),
+    ))
+    return registry
+
+
+@pytest.fixture
+def mock_planner():
+    """Mock TaskPlanner."""
+    planner = AsyncMock()
+    planner.plan = AsyncMock(return_value={
+        'steps': [
+            {'description': 'Step 1: Research the topic'},
+            {'description': 'Step 2: Summarize findings'},
+        ],
+    })
+    return planner
+
+
+@pytest.fixture
+def mock_validator():
+    """Mock ValidatorAgent for validation."""
+    validator = AsyncMock()
+    validator.validate = AsyncMock(return_value={
+        'success': True,
+        'confidence': 0.9,
+        'feedback': 'Looks good',
+        'reasoning': 'Output matches expected criteria',
+    })
+    return validator
+
+
+@pytest.fixture
+def mock_v3_memory():
+    """Mock async memory backend for tier execution."""
+    memory = AsyncMock()
+    memory.retrieve = AsyncMock(return_value=[
+        {'summary': 'Previous analysis result', 'score': 0.85},
+        {'summary': 'Earlier research finding', 'score': 0.72},
+    ])
+    memory.store = AsyncMock()
+    return memory
+
+
+@pytest.fixture
+def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory):
+    """Pre-wired TierExecutor with all mocks injected."""
+    from Jotty.core.execution.executor import TierExecutor
+    from Jotty.core.execution.types import ExecutionConfig
+
+    executor = TierExecutor(config=ExecutionConfig())
+    executor._provider = mock_provider
+    executor._registry = mock_registry
+    executor._planner = mock_planner
+    executor._validator = mock_validator
+    executor._memory = mock_v3_memory
+    return executor
+
+
+@pytest.fixture
+def v3_observability_helpers():
+    """Reusable assertion helpers for observability checks."""
+
+    def assert_metrics_recorded(agent_name):
+        from Jotty.core.observability.metrics import get_metrics
+        am = get_metrics().get_agent_metrics(agent_name)
+        assert am is not None, f"No metrics for agent '{agent_name}'"
+        assert am.total_executions >= 1, f"Expected >=1 executions, got {am.total_executions}"
+
+    def assert_trace_exists():
+        from Jotty.core.observability.tracing import get_tracer
+        traces = get_tracer().get_trace_history()
+        assert len(traces) > 0, "No traces recorded"
+        assert len(traces[-1].root_spans) > 0, "Trace has no root spans"
+
+    def assert_cost_tracked(tracker, min_calls=1):
+        metrics = tracker.get_metrics()
+        assert metrics.total_calls >= min_calls, (
+            f"Expected >= {min_calls} calls, got {metrics.total_calls}"
+        )
+
+    return {
+        'assert_metrics_recorded': assert_metrics_recorded,
+        'assert_trace_exists': assert_trace_exists,
+        'assert_cost_tracked': assert_cost_tracked,
+    }
+
+
+# =============================================================================
+# Agent & Swarm Fixtures
+# =============================================================================
+
+@pytest.fixture
+def make_concrete_agent():
+    """Factory to create a concrete BaseAgent subclass with controllable _execute_impl."""
+    from Jotty.core.agents.base.base_agent import BaseAgent, AgentConfig
+
+    def _factory(name="TestAgent", output="agent output", raises=None, **config_kw):
+        class ConcreteAgent(BaseAgent):
+            async def _execute_impl(self, **kwargs):
+                if raises:
+                    raise raises
+                return output
+
+        config = AgentConfig(name=name, **config_kw)
+        agent = ConcreteAgent(config=config)
+        # Skip DSPy LM initialization in tests
+        agent._initialized = True
+        return agent
+
+    return _factory
+
+
+@pytest.fixture
+def make_domain_agent():
+    """Factory to create a DomainAgent with a mocked DSPy module."""
+    from Jotty.core.agents.base.domain_agent import DomainAgent, DomainAgentConfig
+
+    def _factory(name="TestDomainAgent", module_output=None, signature=None, **config_kw):
+        config = DomainAgentConfig(name=name, **config_kw)
+        agent = DomainAgent(signature=signature, config=config)
+        agent._initialized = True
+
+        if module_output is not None:
+            mock_module = Mock(return_value=module_output)
+            agent._module = mock_module
+        return agent
+
+    return _factory
+
+
+@pytest.fixture
+def make_swarm_result():
+    """Factory to create SwarmResult instances."""
+    from Jotty.core.swarms.swarm_types import SwarmResult
+
+    def _factory(success=True, output=None, name="TestSwarm", domain="test", **kw):
+        return SwarmResult(
+            success=success,
+            swarm_name=name,
+            domain=domain,
+            output=output or {'result': 'done'},
+            execution_time=1.0,
+            **kw,
+        )
+
+    return _factory
+
+
+@pytest.fixture
+def make_agent_result():
+    """Factory to create AgentResult instances."""
+    from Jotty.core.agents.base.base_agent import AgentResult
+
+    def _factory(success=True, output="result", name="TestAgent", **kw):
+        return AgentResult(
+            success=success,
+            output=output,
+            agent_name=name,
+            execution_time=0.5,
+            **kw,
+        )
+
+    return _factory

@@ -235,7 +235,7 @@ class TestGetScopedTools:
 class TestAgentRunnerHooks:
 
     def test_hook_types_defined(self):
-        from core.orchestration.v2.agent_runner import HOOK_TYPES
+        from core.orchestration.agent_runner import HOOK_TYPES
 
         assert 'pre_run' in HOOK_TYPES
         assert 'post_run' in HOOK_TYPES
@@ -245,7 +245,7 @@ class TestAgentRunnerHooks:
         assert 'post_architect' in HOOK_TYPES
 
     def test_add_and_run_hooks(self):
-        from core.orchestration.v2.agent_runner import AgentRunner, HOOK_TYPES
+        from core.orchestration.agent_runner import AgentRunner, HOOK_TYPES
 
         # Create a minimal AgentRunner to test hooks
         # (Don't need full init — just test the hook infrastructure)
@@ -267,7 +267,7 @@ class TestAgentRunnerHooks:
         assert calls[0] == 'test task'
 
     def test_hook_modifies_context(self):
-        from core.orchestration.v2.agent_runner import AgentRunner, HOOK_TYPES
+        from core.orchestration.agent_runner import AgentRunner, HOOK_TYPES
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -280,7 +280,7 @@ class TestAgentRunnerHooks:
         assert ctx['goal'] == 'original (enriched)'
 
     def test_remove_hook(self):
-        from core.orchestration.v2.agent_runner import AgentRunner, HOOK_TYPES
+        from core.orchestration.agent_runner import AgentRunner, HOOK_TYPES
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -293,7 +293,7 @@ class TestAgentRunnerHooks:
         assert len(runner._hooks['post_run']) == 0
 
     def test_invalid_hook_type_raises(self):
-        from core.orchestration.v2.agent_runner import AgentRunner, HOOK_TYPES
+        from core.orchestration.agent_runner import AgentRunner, HOOK_TYPES
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -302,7 +302,7 @@ class TestAgentRunnerHooks:
             runner.add_hook('not_a_real_hook', lambda **ctx: None)
 
     def test_hook_failure_doesnt_crash(self):
-        from core.orchestration.v2.agent_runner import AgentRunner, HOOK_TYPES
+        from core.orchestration.agent_runner import AgentRunner, HOOK_TYPES
 
         runner = object.__new__(AgentRunner)
         runner._hooks = {ht: [] for ht in HOOK_TYPES}
@@ -386,14 +386,14 @@ class TestStructuredCompression:
 class TestPipelineUtils:
 
     def test_imports(self):
-        from core.orchestration.v2 import sequential_pipeline, fanout_pipeline
+        from core.orchestration import sequential_pipeline, fanout_pipeline
         assert callable(sequential_pipeline)
         assert callable(fanout_pipeline)
 
     @pytest.mark.asyncio
     async def test_sequential_pipeline_chains(self):
         """Test that sequential_pipeline chains results."""
-        from core.orchestration.v2 import sequential_pipeline
+        from core.orchestration import sequential_pipeline
         from core.foundation.data_structures import EpisodeResult
 
         def _make_result(**overrides):
@@ -427,7 +427,7 @@ class TestPipelineUtils:
     @pytest.mark.asyncio
     async def test_fanout_pipeline_parallel(self):
         """Test that fanout_pipeline runs all agents."""
-        from core.orchestration.v2 import fanout_pipeline
+        from core.orchestration import fanout_pipeline
         from core.foundation.data_structures import EpisodeResult
 
         def _make_result(**overrides):
@@ -459,7 +459,7 @@ class TestPipelineUtils:
     @pytest.mark.asyncio
     async def test_sequential_pipeline_stops_on_failure(self):
         """Test that sequential pipeline stops when an agent fails."""
-        from core.orchestration.v2 import sequential_pipeline
+        from core.orchestration import sequential_pipeline
         from core.foundation.data_structures import EpisodeResult
 
         call_count = 0
@@ -490,7 +490,7 @@ class TestPipelineUtils:
 
 
 # =========================================================================
-# AIOS-inspired: SwarmManager concurrency semaphore
+# AIOS-inspired: Orchestrator concurrency semaphore
 # =========================================================================
 
 class TestConcurrencySemaphore:
@@ -498,10 +498,10 @@ class TestConcurrencySemaphore:
     def test_semaphore_initialized(self):
         """Verify semaphore exists with correct value."""
         import asyncio as _aio
-        from core.orchestration.v2.swarm_manager import SwarmManager
+        from core.orchestration.swarm_manager import Orchestrator
 
         # Use string agents (zero-config) to avoid complex setup
-        sm = SwarmManager.__new__(SwarmManager)
+        sm = Orchestrator.__new__(Orchestrator)
         sm.max_concurrent_agents = 5
         sm._agent_semaphore = _aio.Semaphore(5)
         sm._scheduling_stats = {

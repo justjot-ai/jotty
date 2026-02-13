@@ -9,7 +9,7 @@ changes the system's decisions in a provably better direction.
 """
 
 import pytest
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 
 
 # ---------------------------------------------------------------------------
@@ -17,11 +17,11 @@ from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 # ---------------------------------------------------------------------------
 
 def _cfg():
-    return JottyConfig()
+    return SwarmConfig()
 
 
 def _pipeline():
-    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(_cfg())
 
 
@@ -357,7 +357,7 @@ class TestCurriculumValue:
 
     def test_weak_agent_gets_targeted_tasks(self):
         """Tasks for a weak agent should target their weakness."""
-        from Jotty.core.orchestration.v2.swarm_data_structures import AgentProfile
+        from Jotty.core.orchestration.swarm_data_structures import AgentProfile
         lp = _pipeline()
 
         # Agent that fails at 'analysis' tasks
@@ -383,7 +383,7 @@ class TestSandboxValue:
 
     @pytest.mark.asyncio
     async def test_safe_code_succeeds(self):
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         t = SwarmTerminal()
         result = await t.execute_sandboxed("print(2 + 2)")
         assert result.success
@@ -392,7 +392,7 @@ class TestSandboxValue:
     @pytest.mark.asyncio
     async def test_error_code_fails_gracefully(self):
         """Bad code should fail without crashing the host process."""
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         t = SwarmTerminal()
         result = await t.execute_sandboxed("import sys; sys.exit(1)")
         # Should return failure, not crash pytest
@@ -401,7 +401,7 @@ class TestSandboxValue:
     @pytest.mark.asyncio
     async def test_infinite_loop_times_out(self):
         """Infinite loops should not hang — subprocess has a timeout."""
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         t = SwarmTerminal()
         # Explicitly short timeout — should kill the subprocess
         result = await t.execute_sandboxed(

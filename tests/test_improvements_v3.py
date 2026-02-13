@@ -1,5 +1,5 @@
 """
-Tests for SwarmManager improvements v3:
+Tests for Orchestrator improvements v3:
 
 1. Per-task-type intelligence metrics
 2. Agent warm-start (stigmergy + profile context injection)
@@ -14,7 +14,7 @@ import tempfile
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 
 
@@ -23,7 +23,7 @@ from Jotty.core.foundation.agent_config import AgentConfig
 # ---------------------------------------------------------------------------
 
 def _cfg(base_path=None):
-    cfg = JottyConfig()
+    cfg = SwarmConfig()
     if base_path:
         cfg.base_path = base_path
     else:
@@ -54,7 +54,7 @@ def _make_dummy_agent(name="tester"):
 
 
 def _make_swarm(agents=None, enable_zero_config=False, base_path=None):
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     if agents is None:
         agents = [
@@ -62,7 +62,7 @@ def _make_swarm(agents=None, enable_zero_config=False, base_path=None):
             AgentConfig(name="beta", agent=_make_dummy_agent("beta"), capabilities=["Summarize findings"]),
         ]
 
-    sm = SwarmManager(
+    sm = Orchestrator(
         agents=agents,
         config=_cfg(base_path),
         enable_zero_config=enable_zero_config,
@@ -154,9 +154,9 @@ class TestAgentWarmStart:
 
     def test_warm_start_injects_profile_context(self):
         """Runner should include agent trust score and specialization in context."""
-        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
-        from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
-        from Jotty.core.orchestration.v2.swarm_data_structures import AgentProfile, AgentSpecialization
+        from Jotty.core.orchestration.agent_runner import AgentRunner, AgentRunnerConfig
+        from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.orchestration.swarm_data_structures import AgentProfile, AgentSpecialization
 
         cfg = AgentRunnerConfig(
             architect_prompts=["configs/prompts/architect/base_architect.md"],
@@ -190,9 +190,9 @@ class TestAgentWarmStart:
 
     def test_warm_start_with_stigmergy_hint(self):
         """Runner should have access to stigmergy route hints."""
-        from Jotty.core.orchestration.v2.agent_runner import AgentRunner, AgentRunnerConfig
-        from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
-        from Jotty.core.orchestration.v2.swarm_data_structures import AgentProfile, AgentSpecialization
+        from Jotty.core.orchestration.agent_runner import AgentRunner, AgentRunnerConfig
+        from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.orchestration.swarm_data_structures import AgentProfile, AgentSpecialization
 
         cfg = AgentRunnerConfig(
             architect_prompts=["configs/prompts/architect/base_architect.md"],
@@ -235,11 +235,11 @@ class TestAgentWarmStart:
 # ===========================================================================
 
 class TestCrossSwarmTransfer:
-    """Paradigm stats should transfer between SwarmManager instances via shared persistence."""
+    """Paradigm stats should transfer between Orchestrator instances via shared persistence."""
 
     def test_paradigm_stats_transfer_between_pipelines(self):
         """Two learning pipelines sharing base_path should share paradigm learnings."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cfg = _cfg(tmpdir)
@@ -335,7 +335,7 @@ class TestRealWorldBenchmark:
     @pytest.mark.timeout(120)
     async def test_guided_vs_unguided_simple_task(self):
         """Compare success rate: intelligence-guided vs unguided execution."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
         from Jotty.core.agents.auto_agent import AutoAgent
 
         agents = [
@@ -351,7 +351,7 @@ class TestRealWorldBenchmark:
             ),
         ]
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=agents,
             config=_cfg(),
             enable_zero_config=False,
@@ -380,7 +380,7 @@ class TestRealWorldBenchmark:
     @pytest.mark.timeout(120)
     async def test_auto_paradigm_with_real_llm(self):
         """Auto paradigm selection should work end-to-end with real LLM."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
         from Jotty.core.agents.auto_agent import AutoAgent
 
         agents = [
@@ -396,7 +396,7 @@ class TestRealWorldBenchmark:
             ),
         ]
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=agents,
             config=_cfg(),
             enable_zero_config=False,

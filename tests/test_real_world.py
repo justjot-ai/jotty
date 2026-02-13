@@ -50,7 +50,7 @@ def extract_output(result) -> str:
 # USE CASE 1: Comparison Report
 # ══════════════════════════════════════════════════════════════
 async def test_comparison_report():
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f'{B}  USE CASE 1: AI Coding Assistant Comparison Report{E}')
@@ -58,7 +58,7 @@ async def test_comparison_report():
     print(f'{D}  features, pros/cons, and recommendation. Save as .md{E}')
     print(f'{B}{"═"*60}{E}')
 
-    sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+    sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
     trail = []
     t0 = time.time()
 
@@ -101,7 +101,7 @@ async def test_comparison_report():
 # USE CASE 2: Python CLI Tool
 # ══════════════════════════════════════════════════════════════
 async def test_cli_tool():
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f'{B}  USE CASE 2: Python CSV Analyzer CLI Tool{E}')
@@ -109,7 +109,7 @@ async def test_cli_tool():
     print(f'{D}  statistics, error handling. Save as csv_analyzer.py{E}')
     print(f'{B}{"═"*60}{E}')
 
-    sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+    sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
     trail = []
     t0 = time.time()
 
@@ -153,7 +153,7 @@ async def test_cli_tool():
 # USE CASE 3: Technical Explanation (Knowledge Q&A)
 # ══════════════════════════════════════════════════════════════
 async def test_cap_theorem():
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f'{B}  USE CASE 3: CAP Theorem Technical Explanation{E}')
@@ -161,7 +161,7 @@ async def test_cap_theorem():
     print(f'{D}  CP vs AP decision matrix, formatted with headers{E}')
     print(f'{B}{"═"*60}{E}')
 
-    sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+    sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
     trail = []
     t0 = time.time()
 

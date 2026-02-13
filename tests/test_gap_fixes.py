@@ -9,8 +9,8 @@ Gap 3: Curriculum tasks auto-queue on plateau → consumable via run_training_ta
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
-from Jotty.core.foundation.agent_config import AgentSpec
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
+from Jotty.core.foundation.agent_config import AgentConfig
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@ from Jotty.core.foundation.agent_config import AgentSpec
 # ---------------------------------------------------------------------------
 
 def _cfg():
-    return JottyConfig()
+    return SwarmConfig()
 
 
 def _episode(success=True, output="ok"):
@@ -41,19 +41,19 @@ def _agent_obj(name):
 
 
 def _agent_spec(name, capabilities=None):
-    """Create an AgentSpec with a dummy agent."""
+    """Create an AgentConfig with a dummy agent."""
     dummy = type('DummyAgent', (), {
         'forward': lambda self, **kw: None,
         'config': type('C', (), {'system_prompt': None})(),
     })()
-    spec = AgentSpec(name=name, agent=dummy)
+    spec = AgentConfig(name=name, agent=dummy)
     if capabilities:
         spec.capabilities = capabilities
     return spec
 
 
 def _pipeline():
-    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(_cfg())
 
 
@@ -69,9 +69,9 @@ class TestGap1AgentSelection:
 
     def test_stigmergy_reorders_agents(self):
         """After depositing strong signals, agents should be reordered."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[
                 _agent_spec("weak", capabilities=["do analysis"]),
                 _agent_spec("strong", capabilities=["do analysis"]),
@@ -119,9 +119,9 @@ class TestGap1AgentSelection:
 
     def test_byzantine_filters_untrusted_agents(self):
         """Agents with trust < 0.2 should be excluded from execution."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[
                 _agent_spec("good", capabilities=["do task"]),
                 _agent_spec("bad", capabilities=["do task"]),
@@ -178,9 +178,9 @@ class TestGap2AdaptiveRefinement:
 
     def test_refinement_stops_early_on_adaptive_signal(self):
         """If adaptive learning says stop, refinement should exit early."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[
                 _agent_spec("drafter", capabilities=["write initial draft"]),
                 _agent_spec("editor", capabilities=["improve the draft"]),
@@ -230,9 +230,9 @@ class TestGap2AdaptiveRefinement:
 
     def test_refinement_runs_full_without_convergence(self):
         """Without convergence signal, refinement should run all iterations."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[
                 _agent_spec("drafter", capabilities=["write"]),
                 _agent_spec("editor", capabilities=["edit"]),
@@ -281,7 +281,7 @@ class TestGap3CurriculumQueue:
     Prove that:
     1. When adaptive learning detects plateau, curriculum tasks are queued
     2. Queued tasks are consumable via pop_training_task()
-    3. SwarmManager.pending_training_tasks reflects the queue
+    3. Orchestrator.pending_training_tasks reflects the queue
     """
 
     def test_plateau_queues_training_tasks(self):
@@ -342,10 +342,10 @@ class TestGap3CurriculumQueue:
             "Should NOT queue training tasks when succeeding"
 
     def test_swarm_manager_exposes_pending_count(self):
-        """SwarmManager.pending_training_tasks should reflect queue state."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        """Orchestrator.pending_training_tasks should reflect queue state."""
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("tester", capabilities=["test"])],
             config=_cfg(),
         )

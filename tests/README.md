@@ -185,7 +185,7 @@ See `conftest.py` for all available fixtures:
 - `multi_agent_configs` - Multiple AgentConfig instances
 
 ### Component Fixtures
-- `mock_memory` - Mock HierarchicalMemory
+- `mock_memory` - Mock SwarmMemory
 - `mock_roadmap` - Mock MarkovianTODO
 - `conductor_instance` - Conductor instance
 

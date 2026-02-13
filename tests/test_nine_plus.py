@@ -14,7 +14,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
 # ---------------------------------------------------------------------------
 
 def _cfg(base_path=None):
-    cfg = JottyConfig()
+    cfg = SwarmConfig()
     if base_path:
         cfg.base_path = base_path
     return cfg
@@ -47,19 +47,19 @@ def _agent(name):
 
 
 def _agent_spec(name, capabilities=None):
-    from Jotty.core.foundation.agent_config import AgentSpec
+    from Jotty.core.foundation.agent_config import AgentConfig
     dummy = type('DummyAgent', (), {
         'forward': lambda self, **kw: None,
         'config': type('C', (), {'system_prompt': None})(),
     })()
-    spec = AgentSpec(name=name, agent=dummy)
+    spec = AgentConfig(name=name, agent=dummy)
     if capabilities:
         spec.capabilities = capabilities
     return spec
 
 
 def _pipeline(base_path=None):
-    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(_cfg(base_path))
 
 
@@ -72,9 +72,9 @@ class TestTrainingScheduler:
 
     def test_training_loop_drains_queue(self):
         """Loop should execute queued tasks and return results."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
             config=_cfg(),
         )
@@ -108,9 +108,9 @@ class TestTrainingScheduler:
 
     def test_training_loop_stops_on_convergence(self):
         """Loop should stop early when adaptive learning says converged."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
             config=_cfg(),
         )
@@ -151,9 +151,9 @@ class TestTrainingScheduler:
 
     def test_training_loop_stops_on_empty_queue(self):
         """Loop should stop when queue is drained."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
             config=_cfg(),
         )
@@ -354,9 +354,9 @@ class TestRealWorldIntegration:
         3. Check byzantine has verifications
         4. Check adaptive learning updated
         """
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("analyst", capabilities=["Explain what 2+2 is"])],
             config=_cfg(),
         )
@@ -425,7 +425,7 @@ class TestFullLifecycle:
             # Load just stigmergy (the feature we're testing)
             stig_path = Path(tmpdir) / 'stigmergy.json'
             if stig_path.exists():
-                from Jotty.core.orchestration.v2.stigmergy import StigmergyLayer
+                from Jotty.core.orchestration.stigmergy import StigmergyLayer
                 with open(stig_path) as f:
                     lp2.stigmergy = StigmergyLayer.from_dict(json.load(f))
 
@@ -440,9 +440,9 @@ class TestFullLifecycle:
 
     def test_training_loop_with_mocked_execution(self):
         """Full training loop: plateau → queue → train → learn."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[_agent_spec("learner", capabilities=["learn new skills"])],
             config=_cfg(),
         )

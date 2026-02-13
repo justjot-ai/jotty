@@ -12,8 +12,8 @@ import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.experts import MermaidExpertAgent, ExpertAgentConfig
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig
 
 
 def configure_llm():
@@ -128,8 +128,8 @@ async def test_complex_scenarios():
     # Create memory system
     print("1. Setting up Memory System")
     print("-" * 80)
-    memory_config = JottyConfig()
-    memory = HierarchicalMemory(
+    memory_config = SwarmConfig()
+    memory = SwarmMemory(
         agent_name="mermaid_expert_quick_test",
         config=memory_config
     )

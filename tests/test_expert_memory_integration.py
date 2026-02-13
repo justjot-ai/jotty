@@ -2,7 +2,7 @@
 Test Expert Agent Memory Integration
 
 Tests that expert agent improvements are stored in and retrieved from
-Jotty's HierarchicalMemory system instead of files.
+Jotty's SwarmMemory system instead of files.
 """
 
 import asyncio
@@ -12,8 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.experts import MermaidExpertAgent, ExpertAgentConfig
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig, MemoryLevel
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig, MemoryLevel
 from core.experts.memory_integration import (
     store_improvement_to_memory,
     retrieve_improvements_from_memory,
@@ -22,17 +22,17 @@ from core.experts.memory_integration import (
 
 
 async def test_memory_integration():
-    """Test expert agent integration with HierarchicalMemory."""
+    """Test expert agent integration with SwarmMemory."""
     print("=" * 80)
     print("TESTING EXPERT AGENT MEMORY INTEGRATION")
     print("=" * 80)
     print()
     
     # Create memory system
-    print("1. Creating HierarchicalMemory System")
+    print("1. Creating SwarmMemory System")
     print("-" * 80)
-    memory_config = JottyConfig()
-    memory = HierarchicalMemory(
+    memory_config = SwarmConfig()
+    memory = SwarmMemory(
         agent_name="mermaid_expert_test",
         config=memory_config
     )
@@ -152,7 +152,7 @@ async def test_memory_integration():
     print("=" * 80)
     print()
     print("✅ Memory system integration working!")
-    print("   - Improvements stored to HierarchicalMemory")
+    print("   - Improvements stored to SwarmMemory")
     print("   - Improvements retrieved from memory")
     print("   - Expert agent loads from memory")
     print("   - Memory levels: PROCEDURAL and META")

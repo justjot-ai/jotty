@@ -3,7 +3,7 @@
 JOTTY V2 — REAL-WORLD SWARM MANAGER TEST (STREAMING LOG)
 =========================================================
 
-Tests SwarmManager with a genuinely complex multi-step task:
+Tests Orchestrator with a genuinely complex multi-step task:
 
   "Find the top 5 trending AI papers this week, summarize each,
    compare their approaches, and create a PDF report with citations."
@@ -11,7 +11,7 @@ Tests SwarmManager with a genuinely complex multi-step task:
 This SHOULD exercise:
   - Intent parsing & autonomous setup
   - Skill discovery (arxiv-downloader, web-search, research-to-pdf, etc.)
-  - Multi-step planning via AgenticPlanner
+  - Multi-step planning via TaskPlanner
   - Tool/skill execution (not just a single LLM call)
   - PDF artifact generation
 """
@@ -55,7 +55,7 @@ E = '\033[0m'
 
 
 async def main():
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     from Jotty.core.foundation.config_defaults import DEFAULTS
 
     print(f'\n{B}{"═" * 70}{E}')
@@ -68,7 +68,7 @@ async def main():
     print(f'{D}  Time: {time.strftime("%Y-%m-%d %H:%M:%S")}{E}')
     print(f'{B}{"═" * 70}{E}')
 
-    sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+    sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
     t0 = time.time()
     events = []
 

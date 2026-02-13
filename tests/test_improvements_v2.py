@@ -1,5 +1,5 @@
 """
-Tests for SwarmManager improvements:
+Tests for Orchestrator improvements:
 
 1. Background training daemon (start/stop/status)
 2. Intelligence effectiveness A/B metrics
@@ -10,7 +10,7 @@ import asyncio
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 
 
@@ -19,7 +19,7 @@ from Jotty.core.foundation.agent_config import AgentConfig
 # ---------------------------------------------------------------------------
 
 def _cfg():
-    cfg = JottyConfig()
+    cfg = SwarmConfig()
     cfg.base_path = "/tmp/jotty_test_improvements"
     return cfg
 
@@ -48,8 +48,8 @@ def _make_dummy_agent(name="tester"):
 
 
 def _make_swarm(agents=None, enable_zero_config=False):
-    """Create a SwarmManager with dummy agents."""
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    """Create a Orchestrator with dummy agents."""
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     if agents is None:
         agents = [
@@ -57,7 +57,7 @@ def _make_swarm(agents=None, enable_zero_config=False):
             AgentConfig(name="beta", agent=_make_dummy_agent("beta"), capabilities=["Summarize"]),
         ]
 
-    sm = SwarmManager(
+    sm = Orchestrator(
         agents=agents,
         config=_cfg(),
         enable_zero_config=enable_zero_config,
@@ -274,14 +274,14 @@ class TestAutoParadigmSelection:
 
     def test_recommend_paradigm_no_data(self):
         """With no history, should return a valid paradigm."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
         paradigm = lp.recommend_paradigm()
         assert paradigm in ('fanout', 'relay', 'debate', 'refinement')
 
     def test_recommend_favors_successful_paradigm(self):
         """After recording successes, the winning paradigm should be favored."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         # Simulate: 'relay' always succeeds, others always fail
@@ -298,7 +298,7 @@ class TestAutoParadigmSelection:
 
     def test_record_paradigm_result(self):
         """record_paradigm_result should update stats correctly."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         lp.record_paradigm_result('debate', True)
@@ -313,7 +313,7 @@ class TestAutoParadigmSelection:
 
     def test_record_with_task_type(self):
         """Recording with task_type should update both task-specific and _global."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         lp.record_paradigm_result('relay', True, task_type='analysis')
@@ -335,7 +335,7 @@ class TestAutoParadigmSelection:
 
     def test_recommend_uses_task_type(self):
         """recommend_paradigm should prefer task-specific data when available."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         # 'relay' dominates for 'analysis' tasks
@@ -364,7 +364,7 @@ class TestAutoParadigmSelection:
 
     def test_record_unknown_paradigm(self):
         """Recording a new paradigm should auto-create its entry."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         lp.record_paradigm_result('custom_paradigm', True)
@@ -374,7 +374,7 @@ class TestAutoParadigmSelection:
         """Paradigm stats should survive save/load cycle."""
         import tempfile
         import json
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
 
         cfg = _cfg()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -409,7 +409,7 @@ class TestAutoParadigmSelection:
         """Loading old flat-format paradigm_stats should auto-migrate to nested."""
         import tempfile
         import json
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
 
         cfg = _cfg()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -475,7 +475,7 @@ class TestAutoParadigmSelection:
 
     def test_get_paradigm_stats_initial(self):
         """Fresh pipeline should have empty stats."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
         stats = lp.get_paradigm_stats()
         # No data recorded yet — empty dict
@@ -483,7 +483,7 @@ class TestAutoParadigmSelection:
 
     def test_recommend_falls_back_to_global(self):
         """With <5 task-specific runs, should fall back to _global stats."""
-        from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
         lp = SwarmLearningPipeline(_cfg())
 
         # Only 2 task-specific runs (below threshold of 5)

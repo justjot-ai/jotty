@@ -1,5 +1,5 @@
 """
-Comprehensive JottyConfig/SwarmConfig Tests
+Comprehensive SwarmConfig Tests
 ===========================================
 
 Tests all 22 categories of configuration settings to ensure:
@@ -13,7 +13,7 @@ Tests all 22 categories of configuration settings to ensure:
 import pytest
 import json
 from pathlib import Path
-from core.foundation import JottyConfig, SwarmConfig
+from core.foundation import SwarmConfig
 
 
 # =============================================================================
@@ -22,11 +22,11 @@ from core.foundation import JottyConfig, SwarmConfig
 
 def test_config_creation_with_defaults():
     """Test creating config with all default values."""
-    config = JottyConfig()
+    config = SwarmConfig()
 
     # Should create successfully with no errors
     assert config is not None
-    assert isinstance(config, SwarmConfig)  # JottyConfig is alias
+    assert isinstance(config, SwarmConfig)
 
     # Check a few key defaults
     assert config.output_base_dir == "./outputs"
@@ -37,7 +37,7 @@ def test_config_creation_with_defaults():
 
 def test_config_creation_with_overrides():
     """Test creating config with custom values."""
-    config = JottyConfig(
+    config = SwarmConfig(
         base_path="/custom/path",
         enable_rl=False,
         max_actor_iters=100,
@@ -56,7 +56,7 @@ def test_config_creation_with_overrides():
 
 def test_persistence_config():
     """Test all persistence-related settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         output_base_dir="/test/outputs",
         create_run_folder=False,
         auto_save_interval=5,
@@ -79,7 +79,7 @@ def test_persistence_config():
 
 def test_persistence_logging_config():
     """Test logging-related persistence settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_beautified_logs=False,
         enable_debug_logs=False,
         log_level="WARNING",
@@ -99,7 +99,7 @@ def test_persistence_logging_config():
 
 def test_execution_config():
     """Test execution limits and timeouts."""
-    config = JottyConfig(
+    config = SwarmConfig(
         max_actor_iters=100,
         max_eval_iters=5,
         max_episode_iterations=20,
@@ -124,7 +124,7 @@ def test_execution_config():
 
 def test_circuit_breaker_config():
     """Test circuit breaker settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_circuit_breakers=True,
         llm_circuit_failure_threshold=10,
         llm_circuit_timeout=120.0,
@@ -143,7 +143,7 @@ def test_circuit_breaker_config():
 
 def test_dead_letter_queue_config():
     """Test dead letter queue settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_dead_letter_queue=True,
         dlq_max_size=500,
         dlq_max_retries=5
@@ -160,7 +160,7 @@ def test_dead_letter_queue_config():
 
 def test_memory_config():
     """Test hierarchical memory capacity settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         episodic_capacity=2000,
         semantic_capacity=1000,
         procedural_capacity=500,
@@ -186,7 +186,7 @@ def test_memory_config():
 
 def test_context_budget_config():
     """Test token budget allocation."""
-    config = JottyConfig(
+    config = SwarmConfig(
         max_context_tokens=200000,
         system_prompt_budget=10000,
         current_input_budget=30000,
@@ -209,7 +209,7 @@ def test_context_budget_config():
 
 def test_agentic_discovery_budget():
     """Test agentic discovery budget settings."""
-    config = JottyConfig(
+    config = SwarmConfig(
         preview_token_budget=30000,
         max_description_tokens=10000,
         compression_trigger_ratio=0.9,
@@ -230,7 +230,7 @@ def test_agentic_discovery_budget():
 
 def test_rl_parameters_config():
     """Test reinforcement learning parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_rl=True,
         gamma=0.95,
         lambda_trace=0.90,
@@ -251,7 +251,7 @@ def test_rl_parameters_config():
 
 def test_rl_reward_config():
     """Test RL reward parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_intermediate_rewards=True,
         architect_proceed_reward=0.2,
         tool_success_reward=0.1,
@@ -271,7 +271,7 @@ def test_rl_reward_config():
 
 def test_exploration_config():
     """Test exploration strategy parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         epsilon_start=0.5,
         epsilon_end=0.01,
         epsilon_decay_episodes=1000,
@@ -293,7 +293,7 @@ def test_exploration_config():
 
 def test_credit_assignment_config():
     """Test credit assignment parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         credit_decay=0.85,
         min_contribution=0.05,
         enable_reasoning_credit=True,
@@ -313,7 +313,7 @@ def test_credit_assignment_config():
 
 def test_consolidation_config():
     """Test memory consolidation parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         consolidation_threshold=200,
         consolidation_interval=5,
         min_cluster_size=10,
@@ -329,7 +329,7 @@ def test_consolidation_config():
 
 def test_brain_consolidation_config():
     """Test brain-inspired consolidation parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         brain_reward_salience_weight=0.4,
         brain_novelty_weight=0.3,
         brain_goal_relevance_weight=0.3,
@@ -349,7 +349,7 @@ def test_brain_consolidation_config():
 
 def test_offline_learning_config():
     """Test offline learning parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         episode_buffer_size=2000,
         offline_update_interval=100,
         replay_batch_size=50,
@@ -370,7 +370,7 @@ def test_offline_learning_config():
 
 def test_protection_config():
     """Test protection mechanism parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         protected_memory_threshold=0.9,
         task_memory_ratio=0.4,
         suspicion_threshold=0.97,
@@ -389,7 +389,7 @@ def test_protection_config():
 
 def test_validation_config():
     """Test validation strategy parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_validation=True,
         validation_mode='architect_only',
         max_validation_rounds=5,
@@ -406,7 +406,7 @@ def test_validation_config():
 
 def test_confidence_override_config():
     """Test confidence-based override mechanism."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_confidence_override=True,
         confidence_override_threshold=0.25,
         min_confidence_for_override=0.75,
@@ -424,7 +424,7 @@ def test_confidence_override_config():
 
 def test_async_config():
     """Test async execution parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         parallel_architect=False,
         parallel_auditor=False
     )
@@ -439,7 +439,7 @@ def test_async_config():
 
 def test_logging_config():
     """Test logging parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         verbose=2,
         log_file="/tmp/jotty.log",
         enable_debug_logging=True,
@@ -458,7 +458,7 @@ def test_logging_config():
 
 def test_llm_rag_config():
     """Test LLM-based RAG parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_llm_rag=True,
         rag_window_size=10,
         rag_max_candidates=100,
@@ -476,7 +476,7 @@ def test_llm_rag_config():
 
 def test_llm_rag_chunking_config():
     """Test RAG chunking parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         chunk_size=1000,
         chunk_overlap=100
     )
@@ -491,7 +491,7 @@ def test_llm_rag_chunking_config():
 
 def test_goal_hierarchy_config():
     """Test goal hierarchy parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_goal_hierarchy=True,
         goal_transfer_weight=0.4,
         max_transfer_distance=3
@@ -508,7 +508,7 @@ def test_goal_hierarchy_config():
 
 def test_causal_learning_config():
     """Test causal learning parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_causal_learning=True,
         causal_confidence_threshold=0.8,
         causal_min_support=5,
@@ -527,7 +527,7 @@ def test_causal_learning_config():
 
 def test_inter_agent_communication_config():
     """Test inter-agent communication parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_agent_communication=True,
         share_tool_results=True,
         share_insights=True,
@@ -541,7 +541,7 @@ def test_inter_agent_communication_config():
 
 def test_marl_config():
     """Test predictive MARL parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         marl_default_cooperation=0.6,
         marl_default_predictability=0.6,
         marl_action_divergence_weight=0.5,
@@ -559,7 +559,7 @@ def test_marl_config():
 
 def test_multi_round_validation_config():
     """Test multi-round validation parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_multi_round=True,
         refinement_on_low_confidence=0.7,
         refinement_on_disagreement=True,
@@ -577,7 +577,7 @@ def test_multi_round_validation_config():
 
 def test_adaptive_learning_config():
     """Test adaptive learning parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_adaptive_learning=True,
         stall_detection_window=200,
         stall_threshold=0.0005,
@@ -596,7 +596,7 @@ def test_adaptive_learning_config():
 
 def test_deduplication_config():
     """Test deduplication parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_deduplication=True,
         similarity_threshold=0.9,
         merge_similar_memories=True
@@ -613,7 +613,7 @@ def test_deduplication_config():
 
 def test_distributed_support_config():
     """Test distributed support parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_distributed=True,
         instance_id="worker-1",
         lock_timeout=10.0,
@@ -635,7 +635,7 @@ def test_distributed_support_config():
 
 def test_dynamic_orchestration_config():
     """Test dynamic orchestration parameters."""
-    config = JottyConfig(
+    config = SwarmConfig(
         enable_dynamic_planning=True,
         planning_complexity_threshold=0.8,
         enable_agent_registry=True,
@@ -658,7 +658,7 @@ def test_dynamic_orchestration_config():
 
 def test_computed_properties():
     """Test all computed properties work correctly."""
-    config = JottyConfig(
+    config = SwarmConfig(
         preview_token_budget=25000,
         max_description_tokens=8000,
         max_context_tokens=150000,
@@ -691,7 +691,7 @@ def test_computed_properties():
 
 def test_config_with_zero_values():
     """Test config handles zero values correctly."""
-    config = JottyConfig(
+    config = SwarmConfig(
         max_actor_iters=0,
         episodic_capacity=0,
         epsilon_end=0.0,
@@ -705,7 +705,7 @@ def test_config_with_zero_values():
 
 def test_config_with_extreme_values():
     """Test config handles extreme values."""
-    config = JottyConfig(
+    config = SwarmConfig(
         max_context_tokens=1000000,
         episode_buffer_size=100000,
         epsilon_start=1.0,
@@ -716,16 +716,13 @@ def test_config_with_extreme_values():
     assert config.epsilon_start == 1.0
 
 
-def test_config_backward_compatibility():
-    """Test that JottyConfig and SwarmConfig are equivalent."""
-    config1 = JottyConfig(base_path="/test")
+def test_config_jotty_config_instantiation():
+    """Test that SwarmConfig can be instantiated with custom paths."""
+    config1 = SwarmConfig(base_path="/test")
     config2 = SwarmConfig(base_path="/test")
 
-    # Both should be SwarmConfig instances
     assert isinstance(config1, SwarmConfig)
     assert isinstance(config2, SwarmConfig)
-
-    # Both should have same values
     assert config1.base_path == config2.base_path
 
 
@@ -733,7 +730,7 @@ def test_config_backward_compatibility():
 # TEST 27: Integration Tests
 # =============================================================================
 
-@pytest.mark.skip(reason="V1 orchestrators removed in V2 - SwarmManager is the unified entry point")
+@pytest.mark.skip(reason="V1 orchestrators removed in V2 - Orchestrator is the unified entry point")
 def test_config_can_be_used_by_both_orchestrators():
     """Test that config works with both SAS and MAS."""
     from core.orchestration import SingleAgentOrchestrator, MultiAgentsOrchestrator
@@ -741,7 +738,7 @@ def test_config_can_be_used_by_both_orchestrators():
     import dspy
 
     # Create unified config
-    config = JottyConfig(
+    config = SwarmConfig(
         base_path="/tmp/test",
         enable_validation=False,
         enable_rl=False
@@ -783,7 +780,7 @@ def test_config_can_be_used_by_both_orchestrators():
 
 def test_config_all_categories_accessible():
     """Test that all 22 categories are accessible and work."""
-    config = JottyConfig()
+    config = SwarmConfig()
 
     # Category 1: Persistence
     assert hasattr(config, 'output_base_dir')

@@ -6,8 +6,8 @@ JOTTY V2 — REAL-WORLD PDF REPORT TEST
 Tests a genuinely complex multi-step task:
   Research a topic → synthesize findings → generate PDF report
 
-This exercises the FULL SwarmManager pipeline:
-  IntentParser → SkillDiscovery → AgenticPlanner → SkillExecution → PDF output
+This exercises the FULL Orchestrator pipeline:
+  IntentParser → SkillDiscovery → TaskPlanner → SkillExecution → PDF output
 
 Unlike simple Q&A (which hits the fast path), this requires:
   - Multi-skill orchestration (research + document-converter)
@@ -78,7 +78,7 @@ def snapshot_pdfs() -> set:
 # USE CASE: Research Topic → PDF Report
 # ══════════════════════════════════════════════════════════════
 async def test_research_to_pdf():
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f'{B}  USE CASE: Research → PDF Report{E}')
@@ -91,7 +91,7 @@ async def test_research_to_pdf():
     # Snapshot PDFs before test
     pdfs_before = snapshot_pdfs()
 
-    sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+    sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
     trail = []
     t0 = time.time()
 
@@ -203,7 +203,7 @@ async def main():
         print(f'  PDF:     {R}not generated{E}')
 
     if quality >= 50:
-        print(f'\n  {G}PASSED — SwarmManager end-to-end real-world test{E}')
+        print(f'\n  {G}PASSED — Orchestrator end-to-end real-world test{E}')
     else:
         print(f'\n  {R}FAILED — quality {quality:.0f}% below 50% threshold{E}')
         sys.exit(1)

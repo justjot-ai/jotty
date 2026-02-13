@@ -13,19 +13,19 @@ Modules:
 import asyncio
 import pytest
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_config() -> JottyConfig:
-    return JottyConfig()
+def _make_config() -> SwarmConfig:
+    return SwarmConfig()
 
 
 def _make_pipeline():
-    from Jotty.core.orchestration.v2.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(_make_config())
 
 
@@ -264,7 +264,7 @@ class TestCurriculumWiring:
             assert 0.0 <= t.difficulty <= 1.0
 
     def test_generate_with_profiles(self):
-        from Jotty.core.orchestration.v2.swarm_data_structures import AgentProfile
+        from Jotty.core.orchestration.swarm_data_structures import AgentProfile
         lp = _make_pipeline()
         profiles = {
             'coder': AgentProfile(agent_name='coder'),
@@ -281,7 +281,7 @@ class TestSandboxWiring:
     """Test sandbox manager is wired into SwarmTerminal."""
 
     def test_sandbox_attached(self):
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         terminal = SwarmTerminal()
         assert hasattr(terminal, '_sandbox')
         # SandboxManager should be available (subprocess fallback always works)
@@ -289,7 +289,7 @@ class TestSandboxWiring:
 
     @pytest.mark.asyncio
     async def test_execute_sandboxed_basic(self):
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         terminal = SwarmTerminal()
         result = await terminal.execute_sandboxed(
             code="print('hello from sandbox')",
@@ -300,7 +300,7 @@ class TestSandboxWiring:
 
     @pytest.mark.asyncio
     async def test_execute_sandboxed_error(self):
-        from Jotty.core.orchestration.v2.swarm_terminal import SwarmTerminal
+        from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
         terminal = SwarmTerminal()
         result = await terminal.execute_sandboxed(
             code="raise ValueError('test error')",
@@ -348,15 +348,15 @@ class TestFullIntegration:
         assert len(tasks) >= 1
 
     def test_swarm_manager_status_includes_dormant_stats(self):
-        """SwarmManager.status() should include stats from wired modules."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
-        from Jotty.core.foundation.agent_config import AgentSpec
+        """Orchestrator.status() should include stats from wired modules."""
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.foundation.agent_config import AgentConfig
 
-        # Create a minimal AgentSpec with a dummy agent
+        # Create a minimal AgentConfig with a dummy agent
         dummy_agent = type('DummyAgent', (), {'forward': lambda self, **kw: None})()
-        spec = AgentSpec(name="tester", agent=dummy_agent)
+        spec = AgentConfig(name="tester", agent=dummy_agent)
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             agents=[spec],
             config=_make_config(),
         )

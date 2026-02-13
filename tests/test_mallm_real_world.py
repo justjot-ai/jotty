@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 def _make_lightweight_swarm(agent_specs):
     """
-    Create a SwarmManager with pre-defined agents (no zero-config LLM call).
+    Create a Orchestrator with pre-defined agents (no zero-config LLM call).
 
     agent_specs: list of (name, sub_goal) tuples
     """
-    from core.orchestration.v2.swarm_manager import SwarmManager
+    from core.orchestration.swarm_manager import Orchestrator
     from core.foundation.agent_config import AgentConfig
     from core.agents.auto_agent import AutoAgent
-    from core.foundation.data_structures import JottyConfig
+    from core.foundation.data_structures import SwarmConfig
 
     agents = []
     for name, sub_goal in agent_specs:
@@ -37,8 +37,8 @@ def _make_lightweight_swarm(agent_specs):
             capabilities=[sub_goal],
         ))
 
-    config = JottyConfig()
-    sm = SwarmManager(
+    config = SwarmConfig()
+    sm = Orchestrator(
         agents=agents,
         config=config,
         enable_zero_config=False,  # No LLM call for agent creation
@@ -148,7 +148,7 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_majority_real(self):
         """Majority vote with realistic agent opinions."""
-        from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+        from core.orchestration.swarm_intelligence import SwarmIntelligence
 
         si = SwarmIntelligence()
 
@@ -181,7 +181,7 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_supermajority_blocks_weak_consensus(self):
         """Supermajority blocks when only simple majority exists."""
-        from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+        from core.orchestration.swarm_intelligence import SwarmIntelligence
 
         si = SwarmIntelligence()
 
@@ -212,7 +212,7 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_unanimity_with_full_agreement(self):
         """Unanimity passes when everyone agrees."""
-        from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+        from core.orchestration.swarm_intelligence import SwarmIntelligence
 
         si = SwarmIntelligence()
 
@@ -237,7 +237,7 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_ranked_eliminates_weakest(self):
         """Ranked-choice eliminates least popular option."""
-        from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+        from core.orchestration.swarm_intelligence import SwarmIntelligence
 
         si = SwarmIntelligence()
 
@@ -267,7 +267,7 @@ class TestRealDecisionProtocols:
     @pytest.mark.asyncio
     async def test_approval_filters_low_confidence(self):
         """Approval voting ignores low-confidence votes."""
-        from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+        from core.orchestration.swarm_intelligence import SwarmIntelligence
 
         si = SwarmIntelligence()
 

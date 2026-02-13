@@ -20,7 +20,7 @@ import dspy
 def test_gold_standard_parameters():
     """SingleAgentOrchestrator accepts gold standard learning parameters."""
     from core.orchestration import SingleAgentOrchestrator
-    from core.foundation import JottyConfig
+    from core.foundation import SwarmConfig
 
     gold_standards = [
         {"input": "task 1", "expected_output": "result 1"},
@@ -36,7 +36,7 @@ def test_gold_standard_parameters():
         auditor_prompts=[],
         architect_tools=[],
         auditor_tools=[],
-        config=JottyConfig(),
+        config=SwarmConfig(),
 
         # Phase 8 parameters
         enable_gold_standard_learning=True,
@@ -61,7 +61,7 @@ def test_gold_standard_parameters():
 def test_gold_standard_disabled_by_default():
     """Gold standard learning is disabled by default."""
     from core.orchestration import SingleAgentOrchestrator
-    from core.foundation import JottyConfig
+    from core.foundation import SwarmConfig
 
     agent = SingleAgentOrchestrator(
         agent=dspy.ChainOfThought("input -> output"),
@@ -69,7 +69,7 @@ def test_gold_standard_disabled_by_default():
         auditor_prompts=[],
         architect_tools=[],
         auditor_tools=[],
-        config=JottyConfig()
+        config=SwarmConfig()
     )
 
     assert agent.enable_gold_standard_learning == False
@@ -177,7 +177,7 @@ def test_expert_is_single_agent_orchestrator():
     """Expert templates return SingleAgentOrchestrator instances."""
     from core.experts.expert_templates import create_custom_expert
     from core.orchestration import SingleAgentOrchestrator
-    from core.foundation import JottyConfig
+    from core.foundation import SwarmConfig
     import dspy
 
     def mock_validator(output):
@@ -190,7 +190,7 @@ def test_expert_is_single_agent_orchestrator():
         auditor_prompts=[],
         gold_standards=[{"input": "test", "expected_output": "result"}],
         domain_validator=mock_validator,
-        config=JottyConfig()
+        config=SwarmConfig()
     )
 
     assert isinstance(expert, SingleAgentOrchestrator)
@@ -233,7 +233,7 @@ def test_backward_compatibility_expert_agent():
 def test_single_agent_gold_standard_integration():
     """Gold standard learning integrates with SingleAgentOrchestrator."""
     from core.orchestration import SingleAgentOrchestrator
-    from core.foundation import JottyConfig
+    from core.foundation import SwarmConfig
 
     def mock_validator(output):
         return True
@@ -249,7 +249,7 @@ def test_single_agent_gold_standard_integration():
         auditor_prompts=[],
         architect_tools=[],
         auditor_tools=[],
-        config=JottyConfig(),
+        config=SwarmConfig(),
         enable_gold_standard_learning=True,
         gold_standards=gold_standards,
         domain="test",

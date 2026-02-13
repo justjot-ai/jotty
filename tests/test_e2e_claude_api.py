@@ -22,7 +22,7 @@ class TestClaudeAPIIntegration:
     def test_simple_agent_with_claude(self):
         """Test a simple agent using Claude API."""
         import dspy
-        from core import SwarmConfig, AgentSpec, JottyCore
+        from core import SwarmConfig, AgentConfig, Orchestrator
 
         # Configure DSPy to use Claude
         api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -41,7 +41,7 @@ class TestClaudeAPIIntegration:
             response = dspy.OutputField(desc="The response")
 
         # Create agent
-        agent = AgentSpec(
+        agent = AgentConfig(
             name="GreetingAgent",
             agent=dspy.ChainOfThought(SimpleTask),
             architect_prompts=[],
@@ -56,7 +56,7 @@ class TestClaudeAPIIntegration:
         )
 
         # Run the swarm
-        swarm = JottyCore(config)
+        swarm = Orchestrator(config)
         result = swarm.run(
             goal="Say hello to the refactored Jotty framework",
             task="Generate a creative greeting"
@@ -70,7 +70,7 @@ class TestClaudeAPIIntegration:
     def test_multi_agent_parameter_resolution(self):
         """Test parameter resolution between multiple agents."""
         import dspy
-        from core import SwarmConfig, AgentSpec, JottyCore
+        from core import SwarmConfig, AgentConfig, Orchestrator
 
         # Configure DSPy
         api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -95,7 +95,7 @@ class TestClaudeAPIIntegration:
             insight = dspy.OutputField(desc="A brief insight")
 
         # Create agents
-        topic_agent = AgentSpec(
+        topic_agent = AgentConfig(
             name="TopicExtractor",
             agent=dspy.ChainOfThought(ExtractTopic),
             architect_prompts=[],
@@ -103,7 +103,7 @@ class TestClaudeAPIIntegration:
             outputs=["topic"]
         )
 
-        insight_agent = AgentSpec(
+        insight_agent = AgentConfig(
             name="InsightGenerator",
             agent=dspy.ChainOfThought(GenerateInsight),
             architect_prompts=[],
@@ -119,7 +119,7 @@ class TestClaudeAPIIntegration:
         )
 
         # Run the swarm
-        swarm = JottyCore(config)
+        swarm = Orchestrator(config)
         result = swarm.run(
             goal="Learn about code refactoring",
             query="What is code refactoring?"
@@ -132,7 +132,7 @@ class TestClaudeAPIIntegration:
     def test_refactored_components_work_together(self):
         """Test that ParameterResolver, ToolManager, and StateManager work together."""
         import dspy
-        from core import SwarmConfig, AgentSpec, JottyCore
+        from core import SwarmConfig, AgentConfig, Orchestrator
 
         # Configure DSPy
         api_key = os.getenv('ANTHROPIC_API_KEY')
@@ -150,7 +150,7 @@ class TestClaudeAPIIntegration:
             task = dspy.InputField()
             result = dspy.OutputField()
 
-        agent = AgentSpec(
+        agent = AgentConfig(
             name="TestAgent",
             agent=dspy.ChainOfThought(SimpleResponse),
             architect_prompts=[],
@@ -164,8 +164,8 @@ class TestClaudeAPIIntegration:
             enable_learning=False
         )
 
-        # Run through JottyCore which uses Conductor internally
-        swarm = JottyCore(config)
+        # Run through Orchestrator which uses Conductor internally
+        swarm = Orchestrator(config)
         result = swarm.run(
             goal="Test the refactored components",
             task="Say 'Components working!'"

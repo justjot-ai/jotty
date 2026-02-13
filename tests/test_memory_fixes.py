@@ -20,8 +20,8 @@ from core.experts.memory_integration import (
     consolidate_improvements,
     retrieve_improvements_from_memory
 )
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig, MemoryLevel
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig, MemoryLevel
 
 
 def configure_llm():
@@ -60,8 +60,8 @@ async def test_all_fixes():
     # Create memory system
     print("1. Creating Memory System with Persistence")
     print("-" * 80)
-    memory_config = JottyConfig()
-    memory = HierarchicalMemory(
+    memory_config = SwarmConfig()
+    memory = SwarmMemory(
         agent_name="plantuml_fix_test",
         config=memory_config
     )

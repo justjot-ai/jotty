@@ -24,15 +24,15 @@ from pathlib import Path
 
 import pytest
 
-from core.orchestration.v2.swarm_intelligence import SwarmIntelligence
-from core.orchestration.v2.benchmarking import SwarmBenchmarks
-from core.orchestration.v2.stigmergy import StigmergyLayer
+from core.orchestration.swarm_intelligence import SwarmIntelligence
+from core.orchestration.benchmarking import SwarmBenchmarks
+from core.orchestration.stigmergy import StigmergyLayer
 from core.foundation.data_structures import (
-    JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
+    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
 )
 from core.learning.td_lambda import TDLambdaLearner
 from core.learning.adaptive_components import AdaptiveLearningRate
-from core.memory.cortex import HierarchicalMemory
+from core.memory.cortex import SwarmMemory
 
 logger = logging.getLogger(__name__)
 
@@ -87,13 +87,13 @@ class RealWorldSwarm:
 
     def __init__(self, save_dir: str):
         self.save_dir = save_dir
-        self.config = JottyConfig()
+        self.config = SwarmConfig()
 
         # SwarmIntelligence (coordination hub)
         self.si = SwarmIntelligence()
 
         # Memory system
-        self.memory = HierarchicalMemory("real_world_swarm", self.config)
+        self.memory = SwarmMemory("real_world_swarm", self.config)
 
         # TD-Lambda learner
         self.adaptive_lr = AdaptiveLearningRate(self.config)

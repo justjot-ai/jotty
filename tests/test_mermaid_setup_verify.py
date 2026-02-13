@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.experts.memory_integration import sync_improvements_to_memory
 from core.experts.mermaid_renderer import validate_mermaid_syntax
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig
 
 
 def test_improvements_loading():
@@ -19,7 +19,7 @@ def test_improvements_loading():
     print("1. Testing Improvements Loading")
     print("-" * 80)
     
-    memory = HierarchicalMemory('test', JottyConfig())
+    memory = SwarmMemory('test', SwarmConfig())
     improvements_file = Path('test_outputs/mermaid_complex_memory/improvements.json')
     
     if not improvements_file.exists():

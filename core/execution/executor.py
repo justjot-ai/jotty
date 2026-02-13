@@ -915,11 +915,11 @@ class TierExecutor:
             output=sm_result.output,
             tier=ExecutionTier.RESEARCH,
             success=sm_result.success,
-            llm_calls=sm_result.metadata.get('llm_calls', 20),
-            latency_ms=sm_result.metadata.get('latency_ms', 0),
-            cost_usd=sm_result.metadata.get('cost_usd', 0.15),
+            llm_calls=len(sm_result.trajectory) if sm_result.trajectory else 1,
+            latency_ms=int(sm_result.execution_time * 1000),
+            cost_usd=0.0,
             episode=sm_result,
-            learning_data=sm_result.metadata.get('learning_data', {}),
+            learning_data={'agent_contributions': sm_result.agent_contributions},
         )
 
     # =========================================================================

@@ -2,7 +2,7 @@
 Phase 7 Refactoring Tests - Terminology Standardization
 ========================================================
 
-Tests for JottyCore → SingleAgentOrchestrator rename and
+Tests for Orchestrator → SingleAgentOrchestrator rename and
 actor → agent terminology standardization.
 """
 
@@ -24,21 +24,21 @@ def test_single_agent_orchestrator_import():
 
 
 def test_jotty_core_backward_compat():
-    """Old JottyCore name still works (deprecated alias)."""
-    from core.orchestration import JottyCore
+    """Old Orchestrator name still works (deprecated alias)."""
+    from core.orchestration import Orchestrator
     from core.orchestration import SingleAgentOrchestrator
 
-    # JottyCore is an alias for SingleAgentOrchestrator
-    assert JottyCore is SingleAgentOrchestrator
-    print("✓ JottyCore is alias for SingleAgentOrchestrator")
+    # Orchestrator is an alias for SingleAgentOrchestrator
+    assert Orchestrator is SingleAgentOrchestrator
+    print("✓ Orchestrator is alias for SingleAgentOrchestrator")
 
 
 def test_jotty_core_module_import():
     """Old jotty_core module import still works."""
-    from core.orchestration.jotty_core import JottyCore
+    from core.orchestration.jotty_core import Orchestrator
     from core.orchestration import SingleAgentOrchestrator
 
-    assert JottyCore is SingleAgentOrchestrator
+    assert Orchestrator is SingleAgentOrchestrator
     print("✓ jotty_core module import works (deprecated)")
 
 
@@ -125,14 +125,14 @@ def test_instance_variable_name():
 
 def test_package_exports():
     """Package __init__.py exports new names correctly."""
-    from core.orchestration import SingleAgentOrchestrator, JottyCore
+    from core.orchestration import SingleAgentOrchestrator, Orchestrator
 
     # Both should be available
     assert SingleAgentOrchestrator is not None
-    assert JottyCore is not None
+    assert Orchestrator is not None
 
     # Should be the same class
-    assert JottyCore is SingleAgentOrchestrator
+    assert Orchestrator is SingleAgentOrchestrator
 
     print("✓ Package exports both new and old names")
 
@@ -143,10 +143,10 @@ def test_orchestration_layer_imports():
     from core.orchestration.single_agent_orchestrator import SingleAgentOrchestrator
 
     # Old import path
-    from core.orchestration.jotty_core import JottyCore
+    from core.orchestration.jotty_core import Orchestrator
 
     # Should be the same
-    assert JottyCore is SingleAgentOrchestrator
+    assert Orchestrator is SingleAgentOrchestrator
 
     print("✓ Both import paths work")
 

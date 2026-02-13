@@ -15,8 +15,8 @@ from core.experts.memory_integration import (
     retrieve_improvements_from_memory,
     retrieve_synthesized_improvements
 )
-from core.memory.cortex import HierarchicalMemory
-from core.foundation.data_structures import JottyConfig, MemoryLevel
+from core.memory.cortex import SwarmMemory
+from core.foundation.data_structures import SwarmConfig, MemoryLevel
 
 
 def show_file_improvements(expert_name: str, domain: str):
@@ -80,8 +80,8 @@ def sync_and_show_memory(expert_name: str, domain: str, improvements: list):
     print(f"{'='*80}\n")
     
     # Create memory system
-    memory_config = JottyConfig()
-    memory = HierarchicalMemory(
+    memory_config = SwarmConfig()
+    memory = SwarmMemory(
         agent_name=f"{expert_name}_memory",
         config=memory_config
     )

@@ -94,11 +94,11 @@ def result(s):
 # 1. INIT SPEED — Is lazy init actually fast?
 # ══════════════════════════════════════════════════════════════════════
 async def test_1_init_speed() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Init Speed & Lazy Loading")
     t0 = time.time()
     try:
-        sm = SwarmManager()
+        sm = Orchestrator()
         init_time = time.time() - t0
         status = sm.status()
 
@@ -121,12 +121,12 @@ async def test_1_init_speed() -> Score:
 # 2. LIFECYCLE — startup → run → shutdown via context manager
 # ══════════════════════════════════════════════════════════════════════
 async def test_2_lifecycle() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Lifecycle Management")
     t0 = time.time()
     try:
         # Phase 1: context manager startup
-        async with SwarmManager(enable_lotus=False, enable_zero_config=False) as sm:
+        async with Orchestrator(enable_lotus=False, enable_zero_config=False) as sm:
             built_during = sm._runners_built
             runners_during = len(sm.runners)
             components_during = sm.status()['components']['created']
@@ -154,11 +154,11 @@ async def test_2_lifecycle() -> Score:
 # 3. INTENT PARSING — NL → structured task graph
 # ══════════════════════════════════════════════════════════════════════
 async def test_3_intent_parsing() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Intent Parsing (NL → Task Graph)")
     t0 = time.time()
     try:
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         prompts = [
@@ -247,7 +247,7 @@ async def test_4_real_llm() -> Score:
 # 5. SWARM INTELLIGENCE — Stigmergy + Byzantine + Benchmarks
 # ══════════════════════════════════════════════════════════════════════
 async def test_5_swarm_intelligence() -> Score:
-    from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
     sc = Score(name="Swarm Intelligence (Advanced)")
     t0 = time.time()
     try:
@@ -317,11 +317,11 @@ async def test_5_swarm_intelligence() -> Score:
 # 6. LEARNING PIPELINE — Does it track episodes and adapt?
 # ══════════════════════════════════════════════════════════════════════
 async def test_6_learning() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Learning Pipeline")
     t0 = time.time()
     try:
-        sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+        sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
         await sm.startup()
 
         # Check pre-state
@@ -374,7 +374,7 @@ async def test_6_learning() -> Score:
 # 7. MULTI-AGENT AGGREGATION — Result combining
 # ══════════════════════════════════════════════════════════════════════
 async def test_7_multi_agent() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     from Jotty.core.foundation.data_structures import EpisodeResult
     from Jotty.core.foundation.agent_config import AgentConfig
     from Jotty.core.agents.auto_agent import AutoAgent
@@ -387,7 +387,7 @@ async def test_7_multi_agent() -> Score:
             AgentConfig(name="writer", agent=AutoAgent(), capabilities=["Write"]),
             AgentConfig(name="reviewer", agent=AutoAgent(), capabilities=["Review"]),
         ]
-        sm = SwarmManager(agents=agents, enable_lotus=False, enable_zero_config=False)
+        sm = Orchestrator(agents=agents, enable_lotus=False, enable_zero_config=False)
 
         # Test task board setup
         await sm.startup()
@@ -453,11 +453,11 @@ async def test_7_multi_agent() -> Score:
 # 8. FULL PIPELINE — Real run() with LLM (single agent, fast path)
 # ══════════════════════════════════════════════════════════════════════
 async def test_8_full_pipeline() -> Score:
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Full Pipeline (Real LLM E2E)")
     t0 = time.time()
     try:
-        sm = SwarmManager(enable_lotus=False, enable_zero_config=False)
+        sm = Orchestrator(enable_lotus=False, enable_zero_config=False)
 
         status_trail = []
         result = await sm.run(
@@ -505,7 +505,7 @@ async def main():
         (5, "Swarm Intelligence",           "Stigmergy, Byzantine, Benchmarks, Persistence",     test_5_swarm_intelligence),
         (6, "Learning Pipeline",            "Episode tracking, credit weights, intelligence",     test_6_learning),
         (7, "Multi-Agent Coordination",     "Task board, parallel dispatch, result aggregation",  test_7_multi_agent),
-        (8, "Full Pipeline (Real E2E)",     "SwarmManager.run() with real LLM end-to-end",       test_8_full_pipeline),
+        (8, "Full Pipeline (Real E2E)",     "Orchestrator.run() with real LLM end-to-end",       test_8_full_pipeline),
     ]
 
     scores: List[Score] = []
@@ -558,7 +558,7 @@ async def main():
     if scores[6].success:
         strengths.append("Multi-agent: parallel task dispatch, result aggregation, trajectory merging")
     if scores[7].success:
-        strengths.append(f"Full pipeline: SwarmManager.run() delivers real output in {scores[7].latency:.0f}s")
+        strengths.append(f"Full pipeline: Orchestrator.run() delivers real output in {scores[7].latency:.0f}s")
     for s in strengths:
         print(f"  {C.G}  + {s}{C.E}")
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-SwarmManager V2 — Comprehensive Test Suite
+Orchestrator V2 — Comprehensive Test Suite
 ============================================
 
-Tests the most complex use cases of the V2 SwarmManager:
+Tests the most complex use cases of the V2 Orchestrator:
 
 1. Lazy initialization & fast startup
 2. Lifecycle management (startup/shutdown/context manager)
@@ -38,16 +38,16 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def swarm_manager():
-    """Create a fresh SwarmManager with defaults."""
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
-    return SwarmManager()
+    """Create a fresh Orchestrator with defaults."""
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
+    return Orchestrator()
 
 
 @pytest.fixture
 def config():
-    """Create a JottyConfig."""
-    from Jotty.core.foundation.data_structures import JottyConfig
-    return JottyConfig()
+    """Create a SwarmConfig."""
+    from Jotty.core.foundation.data_structures import SwarmConfig
+    return SwarmConfig()
 
 
 @pytest.fixture
@@ -87,18 +87,18 @@ def multi_agent_configs():
 # =============================================================================
 
 class TestLazyInitialization:
-    """Test that SwarmManager init is fast and components are lazy."""
+    """Test that Orchestrator init is fast and components are lazy."""
 
     def test_init_is_fast(self):
-        """SwarmManager.__init__ should complete in < 500ms."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        """Orchestrator.__init__ should complete in < 500ms."""
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
         start = time.time()
-        sm = SwarmManager()
+        sm = Orchestrator()
         elapsed = time.time() - start
 
         assert elapsed < 0.5, f"Init took {elapsed:.3f}s, expected < 0.5s"
-        logger.info(f"SwarmManager init: {elapsed*1000:.1f}ms")
+        logger.info(f"Orchestrator init: {elapsed*1000:.1f}ms")
 
     def test_no_components_created_on_init(self, swarm_manager):
         """No lazy components should be created during init."""
@@ -119,9 +119,9 @@ class TestLazyInitialization:
 
     def test_multi_agent_mode(self, multi_agent_configs):
         """Providing multiple agents should set multi mode."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(agents=multi_agent_configs)
+        sm = Orchestrator(agents=multi_agent_configs)
         assert sm.mode == "multi"
         assert len(sm.agents) == 3
 
@@ -141,9 +141,9 @@ class TestLifecycleManagement:
     @pytest.mark.asyncio
     async def test_startup_builds_runners(self):
         """startup() should build runners and lazy components."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         assert not sm._runners_built
 
         result = await sm.startup()
@@ -155,9 +155,9 @@ class TestLifecycleManagement:
     @pytest.mark.asyncio
     async def test_shutdown_clears_runners(self):
         """shutdown() should clear runners and persist learnings."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
         assert sm._runners_built
 
@@ -168,19 +168,19 @@ class TestLifecycleManagement:
     @pytest.mark.asyncio
     async def test_shutdown_safe_to_call_multiple_times(self):
         """shutdown() should be safe to call multiple times."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
         await sm.shutdown()
         await sm.shutdown()  # Should not raise
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
-        """async with SwarmManager() should work."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        """async with Orchestrator() should work."""
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        async with SwarmManager() as sm:
+        async with Orchestrator() as sm:
             assert sm._runners_built
             assert len(sm.runners) >= 1
 
@@ -238,9 +238,9 @@ class TestIntrospection:
     @pytest.mark.asyncio
     async def test_status_after_startup(self):
         """Status should reflect runner build after startup."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         status = sm.status()
@@ -265,9 +265,9 @@ class TestZeroConfig:
 
     def test_zero_config_disabled(self):
         """Can disable zero-config."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(enable_zero_config=False)
+        sm = Orchestrator(enable_zero_config=False)
         assert sm.enable_zero_config is False
 
 
@@ -280,9 +280,9 @@ class TestMultiAgentCoordination:
 
     def test_multi_agent_init(self, multi_agent_configs):
         """Multi-agent mode should set up correctly."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(agents=multi_agent_configs)
+        sm = Orchestrator(agents=multi_agent_configs)
         assert sm.mode == "multi"
         assert len(sm.agents) == 3
         assert [a.name for a in sm.agents] == ["researcher", "writer", "reviewer"]
@@ -290,9 +290,9 @@ class TestMultiAgentCoordination:
     @pytest.mark.asyncio
     async def test_multi_agent_task_board(self, multi_agent_configs):
         """Task board should get tasks added for each agent."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(agents=multi_agent_configs)
+        sm = Orchestrator(agents=multi_agent_configs)
         await sm.startup()
 
         # Task board should be accessible
@@ -312,9 +312,9 @@ class TestLearningPipeline:
     @pytest.mark.asyncio
     async def test_learning_pipeline_accessible(self):
         """Learning pipeline should be accessible after startup."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         # Learning pipeline should be created
@@ -328,9 +328,9 @@ class TestLearningPipeline:
     @pytest.mark.asyncio
     async def test_credit_weights_adaptive(self):
         """Credit weights should be adaptive (not hardcoded)."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         weights = sm.credit_weights
@@ -365,9 +365,9 @@ class TestLOTUSOptimization:
 
     def test_lotus_disabled(self):
         """Can disable LOTUS."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(enable_lotus=False)
+        sm = Orchestrator(enable_lotus=False)
         assert sm.enable_lotus is False
 
     def test_lotus_stats_empty_before_use(self, swarm_manager):
@@ -589,9 +589,9 @@ class TestMLLearningBridge:
     @pytest.mark.asyncio
     async def test_get_ml_learning(self):
         """get_ml_learning should return MASLearning instance."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         ml = sm.get_ml_learning()
@@ -602,9 +602,9 @@ class TestMLLearningBridge:
     @pytest.mark.asyncio
     async def test_record_report_section_outcome(self):
         """record_report_section_outcome should not crash."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         # Should not raise
@@ -616,9 +616,9 @@ class TestMLLearningBridge:
     @pytest.mark.asyncio
     async def test_should_skip_report_section(self):
         """should_skip_report_section should return bool."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager()
+        sm = Orchestrator()
         await sm.startup()
 
         result = sm.should_skip_report_section("introduction")
@@ -632,36 +632,36 @@ class TestMLLearningBridge:
 # =============================================================================
 
 class TestConfigurationVariants:
-    """Test different SwarmManager configurations."""
+    """Test different Orchestrator configurations."""
 
     def test_custom_config(self, config):
-        """Custom JottyConfig should be accepted."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        """Custom SwarmConfig should be accepted."""
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(config=config)
+        sm = Orchestrator(config=config)
         assert sm.config is config
 
     def test_single_agent_config(self, agent_config):
         """Single AgentConfig should result in single mode."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(agents=agent_config)
+        sm = Orchestrator(agents=agent_config)
         assert sm.mode == "single"
         assert len(sm.agents) == 1
 
     def test_agent_list_config(self, multi_agent_configs):
         """List of AgentConfigs should result in multi mode."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(agents=multi_agent_configs)
+        sm = Orchestrator(agents=multi_agent_configs)
         assert sm.mode == "multi"
         assert len(sm.agents) == 3
 
     def test_custom_prompts(self):
         """Custom architect/auditor prompts should be stored."""
-        from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+        from Jotty.core.orchestration.swarm_manager import Orchestrator
 
-        sm = SwarmManager(
+        sm = Orchestrator(
             architect_prompts=["custom/architect.md"],
             auditor_prompts=["custom/auditor.md"],
         )
