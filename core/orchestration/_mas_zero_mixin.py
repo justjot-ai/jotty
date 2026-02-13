@@ -1,8 +1,8 @@
 """
-MAS-ZERO Mixin for SwarmManager
+MAS-ZERO Mixin for Orchestrator
 ================================
 
-Integrates MAS-ZERO inspired improvements into SwarmManager:
+Integrates MAS-ZERO inspired improvements into Orchestrator:
 1. Building blocks phase (MAS-Init)
 2. Meta-feedback evaluation (solvability + completeness)
 3. Candidate verification (MAS-Verify)
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class MASZeroMixin:
     """
-    MAS-ZERO capabilities for SwarmManager.
+    MAS-ZERO capabilities for Orchestrator.
 
     Integration points:
     - _mas_zero_verify(): called from _aggregate_results for smart selection

@@ -9,7 +9,7 @@ Layers (top to bottom):
 2. MODES - Execution modes (Chat, API, Workflow)
 3. BRAIN - Coordination (Swarms, Agents, Intelligence)
 4. REGISTRY - Capabilities (Skills/Hands, UI/Eyes)
-5. MEMORY - Learning (HierarchicalMemory, TD-Lambda)
+5. MEMORY - Learning (SwarmMemory, TD-Lambda)
 6. FOUNDATION - Cross-cutting (Exceptions, Config)
 
 Usage:

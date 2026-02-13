@@ -25,7 +25,7 @@ import inspect
 import yaml
 import dspy
 
-from ..foundation.data_structures import JottyConfig, ValidationResult
+from ..foundation.data_structures import SwarmConfig, ValidationResult
 from .framework_decorators import ContextGuard, EmptyPromptHandler
 
 
@@ -35,7 +35,7 @@ from .framework_decorators import ContextGuard, EmptyPromptHandler
 
 Actor = Union[Callable, dspy.Module, Any]
 ValidatorSpec = Union[str, Callable, List[str], List[Callable], None]
-ConfigSpec = Union[JottyConfig, Dict, str, None]
+ConfigSpec = Union[SwarmConfig, Dict, str, None]
 
 
 # =============================================================================
@@ -52,7 +52,7 @@ class SmartConfig:
     3. Advanced: Full 90+ parameters
     """
     
-    # Quality presets (only parameters that exist in JottyConfig)
+    # Quality presets (only parameters that exist in SwarmConfig)
     PRESETS = {
         "fast": {
             "max_actor_iters": 30,
@@ -164,7 +164,7 @@ class SmartConfig:
     def from_simple(cls, 
                     quality: str = "balanced",
                     model: str = "gpt-4.1",
-                    base_path: str = "agent_generated/memory/jotty") -> JottyConfig:
+                    base_path: str = "agent_generated/memory/jotty") -> SwarmConfig:
         """
         Create full config from simple settings.
         
@@ -174,7 +174,7 @@ class SmartConfig:
             base_path: Where to store JOTTY state
             
         Returns:
-            Fully configured JottyConfig
+            Fully configured SwarmConfig
         """
         # Get preset
         preset = cls.PRESETS.get(quality, cls.PRESETS["balanced"])
@@ -183,7 +183,7 @@ class SmartConfig:
         model_key = model.lower().replace("openai/azure/", "").replace("openai/", "")
         model_cfg = cls.MODEL_CONFIGS.get(model_key, cls.MODEL_CONFIGS["default"])
         
-        # Merge - only include valid JottyConfig parameters
+        # Merge - only include valid SwarmConfig parameters
         full_config = {
             "base_path": base_path,
             **preset,
@@ -229,10 +229,10 @@ class SmartConfig:
             "enable_agent_communication": True
         }
         
-        return JottyConfig(**full_config)
+        return SwarmConfig(**full_config)
     
     @classmethod
-    def from_yaml(cls, yaml_path: str) -> JottyConfig:
+    def from_yaml(cls, yaml_path: str) -> SwarmConfig:
         """Load config from YAML file."""
         with open(yaml_path, 'r') as f:
             data = yaml.safe_load(f)
@@ -251,16 +251,16 @@ class SmartConfig:
         
         # Full advanced mode
         if data.get('advanced_mode', False) and 'advanced' in data:
-            return JottyConfig(**data['advanced'])
+            return SwarmConfig(**data['advanced'])
         
         # Direct config
         if 'jotty_config' in data:
-            return JottyConfig(**data['jotty_config'])
+            return SwarmConfig(**data['jotty_config'])
         
-        return JottyConfig(**data)
+        return SwarmConfig(**data)
     
     @classmethod
-    def _from_intermediate(cls, intermediate: Dict) -> JottyConfig:
+    def _from_intermediate(cls, intermediate: Dict) -> SwarmConfig:
         """Build config from intermediate settings."""
         # Start with balanced preset
         base = cls.from_simple("balanced")
@@ -392,7 +392,7 @@ class JottyUniversal:
             tools: Optional tools for validation agents
             config: Configuration - can be:
                     - None: Use balanced defaults
-                    - JottyConfig: Full config object
+                    - SwarmConfig: Full config object
                     - Dict: {"quality": "...", "model": "..."}
                     - str: Path to YAML file
             name: Optional name for this wrapped actor
@@ -433,12 +433,12 @@ class JottyUniversal:
             return self.actor.__class__.__name__
         return "UnknownActor"
     
-    def _load_config(self, config: ConfigSpec) -> JottyConfig:
+    def _load_config(self, config: ConfigSpec) -> SwarmConfig:
         """Load config from various formats."""
         if config is None:
             return SmartConfig.from_simple("balanced")
         
-        if isinstance(config, JottyConfig):
+        if isinstance(config, SwarmConfig):
             return config
         
         if isinstance(config, str):
@@ -454,7 +454,7 @@ class JottyUniversal:
                     base_path=config.get("base_path", "agent_generated/memory/jotty")
                 )
             # Full config dict
-            return JottyConfig(**config)
+            return SwarmConfig(**config)
         
         return SmartConfig.from_simple("balanced")
     

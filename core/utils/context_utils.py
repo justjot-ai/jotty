@@ -380,7 +380,7 @@ class ExecutionTrajectory:
 # separate the original user task from injected learning/ensemble context.
 #
 # WRITE SIDE (inject context):
-#   - SwarmManager: enriches goal with ensemble synthesis
+#   - Orchestrator: enriches goal with ensemble synthesis
 #   - AgentRunner: appends Q-learning / transfer-learning / swarm-intelligence
 #   - AutoAgent: appends ensemble synthesis
 #

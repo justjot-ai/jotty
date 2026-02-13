@@ -3,7 +3,7 @@
 Async Claude CLI DSPy LM Provider
 =================================
 
-Optimized for async contexts (like SwarmManager).
+Optimized for async contexts (like Orchestrator).
 Based on patterns from claude-code-api.
 
 Key features:

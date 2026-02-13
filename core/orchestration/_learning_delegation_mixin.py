@@ -1,5 +1,5 @@
 """
-SwarmManager Learning Delegation Mixin
+Orchestrator Learning Delegation Mixin
 =======================================
 
 Extracted from swarm_manager.py — delegates learning operations
@@ -36,7 +36,7 @@ class LearningDelegationMixin:
             swarm_terminal=getattr(self, 'swarm_terminal', None),
             provider_registry=getattr(self, 'provider_registry', None),
         )
-        # Save HierarchicalMemory persistence
+        # Save SwarmMemory persistence
         if hasattr(self, 'memory_persistence') and self.memory_persistence:
             try:
                 self.memory_persistence.save()

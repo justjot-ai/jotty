@@ -7,8 +7,8 @@ Routes to appropriate tier based on config or auto-detection.
 
 Tier 1 (DIRECT):    Single LLM call - implemented here
 Tier 2 (AGENTIC):   Planning + orchestration - implemented here
-Tier 3 (LEARNING):  Memory + validation via InspectorAgent
-Tier 4 (RESEARCH):  Delegates to SwarmManager
+Tier 3 (LEARNING):  Memory + validation via ValidatorAgent
+Tier 4 (RESEARCH):  Delegates to Orchestrator
 Tier 5 (AUTONOMOUS): Sandbox + coalition + full features
 """
 
@@ -120,17 +120,17 @@ class LLMProvider:
             yield {'content': result['content'], 'usage': result.get('usage', {})}
 
 
-class UnifiedExecutor:
+class TierExecutor:
     """
     Unified Executor — single entry point for all execution tiers.
 
     Wires real components:
-    - InspectorAgent + MultiRoundValidator for validation (Tier 3+)
-    - AgenticPlanner for planning (Tier 2+)
-    - SwarmManager for domain swarm execution (Tier 4/5)
+    - ValidatorAgent + MultiRoundValidator for validation (Tier 3+)
+    - TaskPlanner for planning (Tier 2+)
+    - Orchestrator for domain swarm execution (Tier 4/5)
     """
 
-    # Prompt file paths for InspectorAgent
+    # Prompt file paths for ValidatorAgent
     _AUDITOR_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'auditor' / 'base_auditor.md'
     _ARCHITECT_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'architect' / 'base_architect.md'
 
@@ -155,7 +155,7 @@ class UnifiedExecutor:
         self._tracer = None
         self._cost_tracker = None
 
-        logger.info("UnifiedExecutor initialized")
+        logger.info("TierExecutor initialized")
 
     @property
     def registry(self):
@@ -177,7 +177,7 @@ class UnifiedExecutor:
 
     @property
     def planner(self):
-        """Lazy-load AgenticPlanner directly (no adapter)."""
+        """Lazy-load TaskPlanner directly (no adapter)."""
         if self._planner is None:
             self._planner = self._create_planner()
         return self._planner
@@ -191,7 +191,7 @@ class UnifiedExecutor:
 
     @property
     def validator(self):
-        """Lazy-load MultiRoundValidator wrapping InspectorAgent."""
+        """Lazy-load MultiRoundValidator wrapping ValidatorAgent."""
         if self._validator is None:
             self._validator = self._create_validator()
         return self._validator
@@ -225,29 +225,29 @@ class UnifiedExecutor:
     # =========================================================================
 
     def _create_planner(self):
-        """Create AgenticPlanner directly — no adapter wrapper."""
+        """Create TaskPlanner directly — no adapter wrapper."""
         try:
-            from Jotty.core.agents.agentic_planner import AgenticPlanner
-            return AgenticPlanner()
+            from Jotty.core.agents.agentic_planner import TaskPlanner
+            return TaskPlanner()
         except Exception as e:
-            logger.warning(f"AgenticPlanner creation failed: {e}")
+            logger.warning(f"TaskPlanner creation failed: {e}")
             return None
 
     def _create_validator(self):
-        """Create MultiRoundValidator wrapping InspectorAgent.
+        """Create MultiRoundValidator wrapping ValidatorAgent.
 
-        Falls back to simple LLM-based validation if InspectorAgent
+        Falls back to simple LLM-based validation if ValidatorAgent
         cannot be instantiated (e.g. DSPy not configured).
         """
         try:
-            from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
-            from Jotty.core.foundation.data_structures import JottyConfig, SharedScratchpad
+            from Jotty.core.agents.inspector import ValidatorAgent, MultiRoundValidator
+            from Jotty.core.foundation.data_structures import SwarmConfig, SharedScratchpad
 
             swarm_config_dict = self.config.to_swarm_config()
-            swarm_config = JottyConfig(**swarm_config_dict)
+            swarm_config = SwarmConfig(**swarm_config_dict)
             scratchpad = SharedScratchpad()
 
-            auditor = InspectorAgent(
+            auditor = ValidatorAgent(
                 md_path=self._AUDITOR_PROMPT,
                 is_architect=False,
                 tools=[],
@@ -257,7 +257,7 @@ class UnifiedExecutor:
 
             return MultiRoundValidator([auditor], swarm_config)
         except Exception as e:
-            logger.warning(f"InspectorAgent creation failed, using LLM fallback validator: {e}")
+            logger.warning(f"ValidatorAgent creation failed, using LLM fallback validator: {e}")
             return _FallbackValidator(self.provider)
 
     # =========================================================================
@@ -642,7 +642,7 @@ class UnifiedExecutor:
         if status_callback:
             status_callback("planning", "Creating execution plan...")
 
-        # Step 1: Plan — use AgenticPlanner directly
+        # Step 1: Plan — use TaskPlanner directly
         with self.tracer.span("tier2_plan") as plan_span:
             plan_start = time.time()
             plan_result = await self._run_planner(goal)
@@ -892,18 +892,18 @@ class UnifiedExecutor:
         status_callback: Optional[Callable],
         **kwargs
     ) -> ExecutionResult:
-        """Delegate to SwarmManager when no specific swarm matches."""
-        logger.info("[Tier 4: RESEARCH] Delegating to SwarmManager...")
+        """Delegate to Orchestrator when no specific swarm matches."""
+        logger.info("[Tier 4: RESEARCH] Delegating to Orchestrator...")
 
-        from Jotty.core.orchestration import SwarmManager
-        from Jotty.core.foundation.data_structures import JottyConfig
+        from Jotty.core.orchestration import Orchestrator
+        from Jotty.core.foundation.data_structures import SwarmConfig
 
         swarm_config_dict = config.to_swarm_config()
-        swarm_config = JottyConfig(**swarm_config_dict)
-        swarm_manager = SwarmManager(config=swarm_config)
+        swarm_config = SwarmConfig(**swarm_config_dict)
+        swarm_manager = Orchestrator(config=swarm_config)
 
         if status_callback:
-            status_callback("research", "Executing with SwarmManager...")
+            status_callback("research", "Executing with Orchestrator...")
 
         sm_result = await swarm_manager.run(
             goal=goal,
@@ -998,7 +998,7 @@ class UnifiedExecutor:
 
     def _ensure_swarms_registered(self):
         """Trigger lazy import of all swarm modules so they register with SwarmRegistry."""
-        if UnifiedExecutor._swarms_registered:
+        if TierExecutor._swarms_registered:
             return
         swarm_modules = [
             'Jotty.core.swarms.coding_swarm',
@@ -1017,7 +1017,7 @@ class UnifiedExecutor:
                 importlib.import_module(mod)
             except Exception as e:
                 logger.debug(f"Could not import swarm module {mod}: {e}")
-        UnifiedExecutor._swarms_registered = True
+        TierExecutor._swarms_registered = True
 
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
         """Select and instantiate the right domain swarm."""
@@ -1058,10 +1058,10 @@ class UnifiedExecutor:
     # =========================================================================
 
     async def _run_planner(self, goal: str) -> Dict[str, Any]:
-        """Run AgenticPlanner and return normalized plan dict.
+        """Run TaskPlanner and return normalized plan dict.
 
         Calls planner.aplan_execution() directly. Handles both
-        AgenticPlanner (returns tuple) and mock planners (return dict).
+        TaskPlanner (returns tuple) and mock planners (return dict).
         """
         planner = self.planner
 
@@ -1069,7 +1069,7 @@ class UnifiedExecutor:
         if hasattr(planner, 'plan') and callable(getattr(planner, 'plan')):
             return await planner.plan(goal)
 
-        # Real AgenticPlanner: use aplan_execution
+        # Real TaskPlanner: use aplan_execution
         skills = []
         try:
             discovery = self.registry.discover_for_task(goal)
@@ -1108,7 +1108,7 @@ class UnifiedExecutor:
         """Convert planner output to ExecutionPlan.
 
         Handles both dict results (from _run_planner) and
-        raw ExecutionStep objects (from AgenticPlanner).
+        raw ExecutionStep objects (from TaskPlanner).
         """
         steps_data = plan_result.get('steps', [])
 
@@ -1124,7 +1124,7 @@ class UnifiedExecutor:
                     can_parallelize=step_data.get('can_parallelize', False),
                 )
             else:
-                # Handle ExecutionStep objects from AgenticPlanner
+                # Handle ExecutionStep objects from TaskPlanner
                 step = ExecutionStep(
                     step_num=i + 1,
                     description=getattr(step_data, 'description', str(step_data)),
@@ -1230,7 +1230,7 @@ class UnifiedExecutor:
         result: ExecutionResult,
         config: ExecutionConfig
     ) -> ValidationResult:
-        """Validate execution result using InspectorAgent or fallback."""
+        """Validate execution result using ValidatorAgent or fallback."""
         validator = self.validator
 
         # Check if validator is a real MultiRoundValidator (not a mock or fallback)
@@ -1317,7 +1317,7 @@ Is this result correct and complete? Provide:
 
 
 class _FallbackValidator:
-    """Simple LLM-based validator used when InspectorAgent can't be created."""
+    """Simple LLM-based validator used when ValidatorAgent can't be created."""
 
     def __init__(self, provider):
         self._provider = provider

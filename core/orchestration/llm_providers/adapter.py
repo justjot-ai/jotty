@@ -1,5 +1,5 @@
 """
-JottyClaudeProvider adapter for UnifiedExecutor's provider interface.
+JottyClaudeProvider adapter for ChatExecutor's provider interface.
 """
 
 import logging
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class JottyClaudeProviderAdapter:
-    """Adapter to use JottyClaudeProvider with UnifiedExecutor's provider interface."""
+    """Adapter to use JottyClaudeProvider with ChatExecutor's provider interface."""
 
     def __init__(self, jotty_provider):
         self.jotty_provider = jotty_provider

@@ -229,7 +229,7 @@ class BaseDatePreprocessor(ABC):
         return modified_query, date_context
 
 
-class MongoDBDatePreprocessor(BaseDatePreprocessor):
+class DatePreprocessor(BaseDatePreprocessor):
     """Date preprocessor for MongoDB - outputs ISO format strings."""
 
     def format_date(self, dt: datetime) -> str:
@@ -335,7 +335,7 @@ class DatePreprocessorFactory:
         db_type = db_type.lower() if db_type else 'postgresql'
 
         if db_type == 'mongodb':
-            return MongoDBDatePreprocessor()
+            return DatePreprocessor()
         else:
             return SQLDatePreprocessor(dialect=db_type)
 
@@ -354,15 +354,12 @@ class DatePreprocessorFactory:
         ]
 
 
-# Backwards compatibility - keep old class name
-DatePreprocessor = MongoDBDatePreprocessor
 
 
 __all__ = [
     'BaseDatePreprocessor',
-    'MongoDBDatePreprocessor',
+    'DatePreprocessor',
     'SQLDatePreprocessor',
     'DatePreprocessorFactory',
-    'DatePreprocessor',  # Backwards compatibility
     'DateFormat',
 ]

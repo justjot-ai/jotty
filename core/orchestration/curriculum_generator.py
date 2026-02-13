@@ -60,7 +60,7 @@ class CurriculumGenerator:
 
         # Agent0: Connect to existing infrastructure (DRY - don't duplicate)
         self._state_manager = state_manager  # SwarmStateManager for tool stats
-        self._memory_system = memory_system  # HierarchicalMemory for context
+        self._memory_system = memory_system  # SwarmMemory for context
 
         # Task type templates — CONCRETE, EXECUTABLE tasks.
         # Every template must be a real instruction an LLM agent can
@@ -365,7 +365,7 @@ class CurriculumGenerator:
         """
         Connect to memory system for weakness detection.
 
-        DRY: Uses existing HierarchicalMemory/SimpleBrain.
+        DRY: Uses existing SwarmMemory/SimpleBrain.
         """
         self._memory_system = memory_system
         logger.debug("CurriculumGenerator connected to memory system")

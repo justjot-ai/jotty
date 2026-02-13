@@ -28,7 +28,7 @@ class PipelineExpertAgent(BaseExpert):
         Args:
             config: Optional custom configuration
             output_format: Output format ("mermaid", "plantuml", etc.)
-            memory: Optional HierarchicalMemory instance
+            memory: Optional SwarmMemory instance
             improvements: Optional list of learned improvements
         """
         # Set output_format BEFORE calling super().__init__() because domain property needs it

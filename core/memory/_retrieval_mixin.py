@@ -1,4 +1,4 @@
-"""HierarchicalMemory mixin — retrieval methods."""
+"""SwarmMemory mixin — retrieval methods."""
 
 import json
 import hashlib
@@ -11,7 +11,7 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    MemoryEntry, MemoryLevel, GoalValue, JottyConfig,
+    MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 
@@ -19,7 +19,7 @@ from .llm_rag import LLMRAGRetriever
 
 
 class RetrievalMixin:
-    """Mixin providing retrieval methods for HierarchicalMemory."""
+    """Mixin providing retrieval methods for SwarmMemory."""
 
     # =========================================================================
     # FAST RETRIEVAL (no LLM call — keyword + recency + value only)

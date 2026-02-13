@@ -342,7 +342,7 @@ class Vault:
     # MEMORY PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_memory(self, memory: 'HierarchicalMemory', name: str = "shared", 
+    def save_memory(self, memory: 'SwarmMemory', name: str = "shared", 
                    max_per_level: int = 100):
         """
         Save hierarchical memory.
@@ -467,7 +467,7 @@ class Vault:
     
     def save_all(self, conductor):
         """
-        Save complete JOTTY SwarmManager state.
+        Save complete JOTTY Orchestrator state.
         
         NO HARDCODING: Saves all components that exist on the object.
         """

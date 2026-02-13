@@ -15,7 +15,7 @@ A1: NO! Current implementation has GAPS:
 
 Q2: "Can I wrap JOTTY as dspy.cot type wrapper?"
 A2: NO! Current API requires instantiation, not decoration
-    - Current: jotty = JottyCore(actor=my_actor, ...)
+    - Current: jotty = Orchestrator(actor=my_actor, ...)
     - Desired: @jotty_wrap(architect_prompts=[...])
     FIX: JottyDecorator class for DSPy-style wrapping
 
@@ -36,7 +36,7 @@ from pathlib import Path
 import dspy
 import asyncio
 
-from ..foundation.data_structures import JottyConfig, EpisodeResult
+from ..foundation.data_structures import SwarmConfig, EpisodeResult
 from ..utils.tokenizer import SmartTokenizer
 
 
@@ -246,7 +246,7 @@ class JottyDecorator:
                  auditor_prompts: List[str] = None,
                  architect_tools: List[Any] = None,
                  auditor_tools: List[Any] = None,
-                 config: JottyConfig = None,
+                 config: SwarmConfig = None,
                  async_mode: bool = True,
                  context_guard: bool = True):
         """
@@ -263,7 +263,7 @@ class JottyDecorator:
         self.auditor_prompts = auditor_prompts or []
         self.architect_tools = architect_tools or []
         self.auditor_tools = auditor_tools or []
-        self.config = config or JottyConfig()
+        self.config = config or SwarmConfig()
         self.async_mode = async_mode
         self.context_guard_enabled = context_guard
         
@@ -365,7 +365,7 @@ def jotty_wrap(architect_prompts: List[str] = None,
                  auditor_prompts: List[str] = None,
                  architect_tools: List[Any] = None,
                  auditor_tools: List[Any] = None,
-                 config: JottyConfig = None,
+                 config: SwarmConfig = None,
                  **kwargs) -> 'JottyDecorator':
     """
     Convenience function for JOTTY decorator.
@@ -502,13 +502,13 @@ class JottyEnhanced:
                  auditor_prompts: List[str] = None,
                  architect_tools: List[Any] = None,
                  auditor_tools: List[Any] = None,
-                 config: JottyConfig = None):
+                 config: SwarmConfig = None):
         """
         Initialize enhanced JOTTY.
         
         All parameters are optional - sensible defaults provided.
         """
-        self.config = config or JottyConfig()
+        self.config = config or SwarmConfig()
         
         # Context guard
         self.context_guard = ContextGuard(
@@ -524,11 +524,11 @@ class JottyEnhanced:
         final_architect = self.prompt_handler.get_architect_prompts(architect_prompts or [])
         final_auditor = self.prompt_handler.get_auditor_prompts(auditor_prompts or [])
         
-        # Import JottyCore (V2: SwarmManager alias)
-        from ..orchestration import JottyCore
+        # Import Orchestrator (V2: Orchestrator alias)
+        from ..orchestration import Orchestrator
         
-        # Create wrapped JottyCore
-        self._jotty = JottyCore(
+        # Create wrapped Orchestrator
+        self._jotty = Orchestrator(
             actor=actor,
             architect_prompts=final_architect,
             auditor_prompts=final_auditor,

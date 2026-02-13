@@ -1,4 +1,4 @@
-"""HierarchicalMemory mixin — consolidation, serialization, and statistics."""
+"""SwarmMemory mixin — consolidation, serialization, and statistics."""
 from __future__ import annotations
 
 import json
@@ -12,7 +12,7 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    MemoryEntry, MemoryLevel, GoalValue, JottyConfig,
+    MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 
@@ -434,7 +434,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
         return data
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], config: JottyConfig) -> 'HierarchicalMemory':
+    def from_dict(cls, data: Dict[str, Any], config: SwarmConfig) -> 'SwarmMemory':
         """
         Deserialize from dictionary with automatic key migration.
         

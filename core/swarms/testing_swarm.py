@@ -305,10 +305,9 @@ class TestQualitySignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseTestAgent = BaseSwarmAgent
 
 
-class CodeAnalyzerAgent(BaseTestAgent):
+class CodeAnalyzerAgent(BaseSwarmAgent):
     """Analyzes code for testability."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -362,7 +361,7 @@ class CodeAnalyzerAgent(BaseTestAgent):
             return {'error': str(e)}
 
 
-class UnitTestAgent(BaseTestAgent):
+class UnitTestAgent(BaseSwarmAgent):
     """Generates unit tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -406,7 +405,7 @@ class UnitTestAgent(BaseTestAgent):
             return {'error': str(e)}
 
 
-class IntegrationTestAgent(BaseTestAgent):
+class IntegrationTestAgent(BaseSwarmAgent):
     """Generates integration tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -450,7 +449,7 @@ class IntegrationTestAgent(BaseTestAgent):
             return {'error': str(e)}
 
 
-class E2ETestAgent(BaseTestAgent):
+class E2ETestAgent(BaseSwarmAgent):
     """Generates end-to-end tests."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -494,7 +493,7 @@ class E2ETestAgent(BaseTestAgent):
             return {'error': str(e)}
 
 
-class CoverageAgent(BaseTestAgent):
+class CoverageAgent(BaseSwarmAgent):
     """Analyzes test coverage."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -538,7 +537,7 @@ class CoverageAgent(BaseTestAgent):
             return {'error': str(e)}
 
 
-class QualityAgent(BaseTestAgent):
+class QualityAgent(BaseSwarmAgent):
     """Assesses test quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

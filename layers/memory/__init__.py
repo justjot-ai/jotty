@@ -1,7 +1,7 @@
 """
-MEMORY Layer - Learning (HierarchicalMemory, TD-Lambda, Context)
+MEMORY Layer - Learning (SwarmMemory, TD-Lambda, Context)
 """
-from Jotty.core.memory import HierarchicalMemory
+from Jotty.core.memory import SwarmMemory
 from Jotty.core.learning import TDLambdaLearner
 
 try:
@@ -16,14 +16,14 @@ except ImportError:
 
 try:
     from Jotty.core.context import ContextManager, ContextGuard, GlobalContextGuard
-    from Jotty.core.context.chunker import AgenticChunker
+    from Jotty.core.context.chunker import ContextChunker
     from Jotty.core.context.compressor import ContextCompressor
 except ImportError:
     ContextManager = ContextGuard = GlobalContextGuard = None
-    AgenticChunker = ContextCompressor = None
+    ContextChunker = ContextCompressor = None
 
 __all__ = [
-    "HierarchicalMemory", "MemoryLevel", "MemoryEntry", "GoalValue",
+    "SwarmMemory", "MemoryLevel", "MemoryEntry", "GoalValue",
     "TDLambdaLearner", "QLearner",
-    "ContextManager", "ContextGuard", "GlobalContextGuard", "AgenticChunker", "ContextCompressor",
+    "ContextManager", "ContextGuard", "GlobalContextGuard", "ContextChunker", "ContextCompressor",
 ]

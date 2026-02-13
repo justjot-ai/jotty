@@ -9,8 +9,8 @@ import logging
 
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
-from Jotty.core.orchestration import SwarmManager
-from Jotty.core.foundation.data_structures import JottyConfig
+from Jotty.core.orchestration import Orchestrator
+from Jotty.core.foundation.data_structures import SwarmConfig
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class JottyAPI:
     
     Usage:
         # Create API
-        api = JottyAPI(agents=[...], config=JottyConfig(...))
+        api = JottyAPI(agents=[...], config=SwarmConfig(...))
         
         # Chat
         result = await api.chat(message="Hello", history=[...])
@@ -42,8 +42,8 @@ class JottyAPI:
     def __init__(
         self,
         agents: List[AgentConfig],
-        config: Optional[JottyConfig] = None,
-        conductor: Optional[SwarmManager] = None
+        config: Optional[SwarmConfig] = None,
+        conductor: Optional[Orchestrator] = None
     ):
         """
         Initialize Jotty API.
@@ -59,7 +59,7 @@ class JottyAPI:
         else:
             self.conductor = conductor
         
-        self.config = config or JottyConfig()
+        self.config = config or SwarmConfig()
         self.agents = agents
         
         # Initialize use cases

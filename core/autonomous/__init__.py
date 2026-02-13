@@ -5,20 +5,20 @@ Zero-configuration autonomous agent that handles complex workflows:
 - Intent understanding (natural language → task graph)
 - Agentic planning (fully LLM-based, no hardcoded logic)
 - Autonomous execution (enhances AutoAgent)
-- Workflow memory (enhances HierarchicalMemory)
+- Workflow memory (enhances SwarmMemory)
 
-Uses AgenticPlanner for all planning (single source of truth).
+Uses TaskPlanner for all planning (single source of truth).
 """
 
 from .intent_parser import IntentParser, TaskGraph
-from ..agents.agentic_planner import AgenticPlanner, AgentExecutionPlan
+from ..agents.agentic_planner import TaskPlanner, TaskPlan
 from .enhanced_executor import AutonomousExecutor, EnhancedExecutionResult
 
 __all__ = [
     'IntentParser',
     'TaskGraph',
-    'AgenticPlanner',  # Unified planner (replaces AutonomousPlanner)
-    'AgentExecutionPlan',
+    'TaskPlanner',  # Unified planner (replaces AutonomousPlanner)
+    'TaskPlan',
     'AutonomousExecutor',
     'EnhancedExecutionResult',
 ]

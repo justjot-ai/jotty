@@ -5,8 +5,8 @@ Orchestration Layer - Multi-Agent Coordination
 All imports are lazy to avoid loading DSPy at module level.
 
 Usage:
-    from core.orchestration import SwarmManager
-    swarm = SwarmManager(agents="Research AI startups")
+    from core.orchestration import Orchestrator
+    swarm = Orchestrator(agents="Research AI startups")
     result = await swarm.run(goal="Research AI startups")
 """
 
@@ -24,7 +24,7 @@ _LAZY_MAP: dict[str, tuple[str, str]] = {
     "AgentRunner": (".agent_runner", "AgentRunner"),
     "AgentRunnerConfig": (".agent_runner", "AgentRunnerConfig"),
     # Main orchestrator (heavy — loads DSPy)
-    "SwarmManager": (".swarm_manager", "SwarmManager"),
+    "Orchestrator": (".swarm_manager", "Orchestrator"),
     # Autonomous components
     "SwarmResearcher": (".swarm_researcher", "SwarmResearcher"),
     "SwarmInstaller": (".swarm_installer", "SwarmInstaller"),
@@ -45,9 +45,8 @@ _LAZY_MAP: dict[str, tuple[str, str]] = {
     # Auto provider discovery
     "AutoProviderDiscovery": (".auto_provider_discovery", "AutoProviderDiscovery"),
     "DiscoveryResult": (".auto_provider_discovery", "DiscoveryResult"),
-    # Tool-calling executor (renamed from UnifiedExecutor)
-    "ToolCallingExecutor": (".unified_executor", "ToolCallingExecutor"),
-    "UnifiedExecutor": (".unified_executor", "UnifiedExecutor"),  # backward compat alias
+    # Chat executor
+    "ChatExecutor": (".unified_executor", "ChatExecutor"),
     "ExecutionResult": (".unified_executor", "ExecutionResult"),
     "ToolResult": (".unified_executor", "ToolResult"),
     "StreamEvent": (".unified_executor", "StreamEvent"),

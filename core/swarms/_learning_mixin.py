@@ -148,7 +148,7 @@ class SwarmLearningMixin:
 
             learned_context['recommendations'] = recommendations
 
-            # 6. Retrieve expert domain knowledge from HierarchicalMemory
+            # 6. Retrieve expert domain knowledge from SwarmMemory
             expert_knowledge = self._retrieve_expert_knowledge()
             learned_context['expert_knowledge'] = expert_knowledge
 
@@ -697,7 +697,7 @@ class SwarmLearningMixin:
                     lines.append("## Improvement Directives")
                     lines.extend(imp_lines)
 
-        # Expert domain knowledge from HierarchicalMemory
+        # Expert domain knowledge from SwarmMemory
         expert_knowledge = ctx.get('expert_knowledge', [])
         if expert_knowledge:
             expert_lines = []
@@ -894,9 +894,9 @@ class SwarmLearningMixin:
 
     def _retrieve_expert_knowledge(self) -> List[Dict[str, Any]]:
         """
-        Retrieve expert-learned domain patterns from HierarchicalMemory.
+        Retrieve expert-learned domain patterns from SwarmMemory.
 
-        Queries HierarchicalMemory for improvements stored by BaseExpert agents
+        Queries SwarmMemory for improvements stored by BaseExpert agents
         (via memory_integration.py). Returns patterns relevant to this swarm's
         domain so they can be injected into DSPy agent prompts.
 
@@ -1025,7 +1025,7 @@ class SwarmLearningMixin:
         task_type: str
     ):
         """
-        Store execution outcome as an expert improvement in HierarchicalMemory.
+        Store execution outcome as an expert improvement in SwarmMemory.
 
         This bridges swarm execution results back into the expert memory system,
         so future expert training and swarm executions can learn from outcomes.
@@ -1276,7 +1276,7 @@ class SwarmLearningMixin:
             except Exception as save_err:
                 logger.warning(f"Failed to save post-execution state: {type(save_err).__name__}: {save_err}")
 
-            # 7. Store execution outcome as expert improvement in HierarchicalMemory
+            # 7. Store execution outcome as expert improvement in SwarmMemory
             self._store_execution_as_improvement(
                 success=success,
                 execution_time=execution_time,

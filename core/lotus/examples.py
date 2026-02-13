@@ -200,19 +200,19 @@ async def example_adaptive_validation():
 
 
 # =============================================================================
-# Example 6: Enhancing Existing SwarmManager
+# Example 6: Enhancing Existing Orchestrator
 # =============================================================================
 
 def example_enhance_swarm():
     """
-    Shows how to add LOTUS optimization to existing SwarmManager.
+    Shows how to add LOTUS optimization to existing Orchestrator.
     """
     # Option 1: Enable during initialization
     code1 = '''
-from Jotty.core.orchestration.swarm_manager import SwarmManager
+from Jotty.core.orchestration.swarm_manager import Orchestrator
 
 # LOTUS is enabled by default
-swarm = SwarmManager(
+swarm = Orchestrator(
     agents="analyze sales data",  # Zero-config
     enable_lotus=True,            # Enable LOTUS optimization (default)
 )
@@ -230,7 +230,7 @@ print(swarm.get_lotus_savings())
 from Jotty.core.lotus.integration import enhance_swarm_manager
 
 # Existing swarm without LOTUS
-swarm = SwarmManager(agents=[...], enable_lotus=False)
+swarm = Orchestrator(agents=[...], enable_lotus=False)
 
 # Add LOTUS optimization later
 enhanced_swarm = enhance_swarm_manager(swarm)
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     print("-" * 40)
     asyncio.run(example_adaptive_validation())
 
-    print("\n6. Enhancing SwarmManager")
+    print("\n6. Enhancing Orchestrator")
     print("-" * 40)
     example_enhance_swarm()
 

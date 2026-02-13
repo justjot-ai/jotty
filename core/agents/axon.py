@@ -200,7 +200,7 @@ class SmartAgentSlack:
         """Lazy-init Chunker agent."""
         if self._chunker is None:
             logger.info("🔧 [SMART AGENT SLACK] Lazy-initializing Chunker...")
-            from Jotty.core.context.chunker import AgenticChunker
+            from Jotty.core.context.chunker import ContextChunker
             # Get LM from config or use global DSPy LM
             lm = self._config.get('lm') if self._config else None
             if lm is None:
@@ -210,7 +210,7 @@ class SmartAgentSlack:
                 except (AttributeError, TypeError) as e:
                     logger.debug(f"Could not get LM from dspy.settings: {e}")
                     pass
-            self._chunker = AgenticChunker(lm=lm)
+            self._chunker = ContextChunker(lm=lm)
             logger.info("  ✅ [HELPER] Chunker initialized")
         return self._chunker
     

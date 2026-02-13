@@ -73,7 +73,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "RatingType": ".research_swarm",
     "research": ".research_swarm",
     "research_sync": ".research_swarm",
-    "BaseResearchAgent": ".research_swarm",
+    "BaseSwarmAgent": ".research_swarm",
     "DataFetcherAgent": ".research_swarm",
     "WebSearchAgent": ".research_swarm",
     "SentimentAgent": ".research_swarm",

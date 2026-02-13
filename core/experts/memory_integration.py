@@ -1,7 +1,7 @@
 """
 Memory Integration for Expert Agent Improvements
 
-Integrates expert agent improvements with Jotty's HierarchicalMemory system
+Integrates expert agent improvements with Jotty's SwarmMemory system
 instead of file-based storage.
 """
 
@@ -10,27 +10,27 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..memory.cortex import HierarchicalMemory
+from ..memory.cortex import SwarmMemory
 from ..foundation.data_structures import MemoryLevel
 
 logger = logging.getLogger(__name__)
 
 
 def store_improvement_to_memory(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     improvement: Dict[str, Any],
     expert_name: str,
     domain: str
 ) -> None:
     """
-    Store an improvement to Jotty's HierarchicalMemory system.
+    Store an improvement to Jotty's SwarmMemory system.
     
     Improvements are stored as PROCEDURAL or META level memories:
     - PROCEDURAL: How to generate correct outputs (action sequences)
     - META: Wisdom about when to use what patterns (learning wisdom)
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         improvement: Improvement dictionary
         expert_name: Name of the expert agent
         domain: Domain of the expert (e.g., "mermaid", "pipeline")
@@ -80,17 +80,17 @@ def store_improvement_to_memory(
 
 
 def retrieve_improvements_from_memory(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     expert_name: str,
     domain: str,
     task: Optional[str] = None,
     max_results: int = 20
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve improvements from Jotty's HierarchicalMemory system.
+    Retrieve improvements from Jotty's SwarmMemory system.
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         expert_name: Name of the expert agent
         domain: Domain of the expert
         task: Optional task filter
@@ -145,7 +145,7 @@ def retrieve_improvements_from_memory(
 
 
 def sync_improvements_to_memory(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     improvements: List[Dict[str, Any]],
     expert_name: str,
     domain: str
@@ -154,7 +154,7 @@ def sync_improvements_to_memory(
     Sync a list of improvements to memory system.
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         improvements: List of improvement dictionaries
         expert_name: Name of the expert agent
         domain: Domain of the expert
@@ -179,7 +179,7 @@ def sync_improvements_to_memory(
 
 
 def retrieve_synthesized_improvements(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     expert_name: str,
     domain: str,
     task: Optional[str] = None
@@ -191,7 +191,7 @@ def retrieve_synthesized_improvements(
     of all improvements, finding patterns and resolving contradictions.
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         expert_name: Name of the expert agent
         domain: Domain of the expert
         task: Optional task filter
@@ -227,7 +227,7 @@ def retrieve_synthesized_improvements(
 
 
 async def retrieve_synthesized_improvements_async(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     expert_name: str,
     domain: str,
     task: Optional[str] = None
@@ -261,7 +261,7 @@ async def retrieve_synthesized_improvements_async(
 
 
 def consolidate_improvements(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     expert_name: str,
     domain: str
 ) -> Dict[str, Any]:
@@ -275,7 +275,7 @@ def consolidate_improvements(
     - Promotes important patterns to META level
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         expert_name: Name of the expert agent
         domain: Domain of the expert
     
@@ -397,7 +397,7 @@ def consolidate_improvements(
 
 
 async def run_improvement_consolidation_cycle(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     expert_name: str,
     domain: str
 ) -> Dict[str, Any]:
@@ -410,7 +410,7 @@ async def run_improvement_consolidation_cycle(
     3. Promote important patterns to META level
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         expert_name: Name of the expert agent
         domain: Domain of the expert
     

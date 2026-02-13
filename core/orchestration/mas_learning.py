@@ -10,7 +10,7 @@ Provides UNIQUE learning functionality not covered by other components:
 
 DELEGATES TO (does not duplicate):
 - SwarmIntelligence: Agent performance, specialization, best agent selection
-- SwarmLearningManager: Q-learning, RL operations
+- LearningManager: Q-learning, RL operations
 - TransferableLearningStore: Cross-task pattern transfer
 
 Usage:
@@ -107,7 +107,7 @@ class MASLearning:
 
     DELEGATES to existing components (no duplication):
     - SwarmIntelligence for agent performance/specialization
-    - SwarmLearningManager for Q-learning
+    - LearningManager for Q-learning
     - TransferableLearningStore for pattern transfer
     """
 
@@ -117,18 +117,18 @@ class MASLearning:
         workspace_path: Optional[Path] = None,
         learning_dir: Optional[Path] = None,
         swarm_intelligence: Any = None,  # SwarmIntelligence instance
-        learning_manager: Any = None,    # SwarmLearningManager instance
+        learning_manager: Any = None,    # LearningManager instance
         transfer_learning: Any = None    # TransferableLearningStore instance
     ):
         """
         Initialize MAS Learning.
 
         Args:
-            config: JottyConfig (optional)
+            config: SwarmConfig (optional)
             workspace_path: Current workspace/project path
             learning_dir: Directory for learning files
             swarm_intelligence: SwarmIntelligence for agent tracking (DELEGATE)
-            learning_manager: SwarmLearningManager for Q-learning (DELEGATE)
+            learning_manager: LearningManager for Q-learning (DELEGATE)
             transfer_learning: TransferableLearningStore for patterns (DELEGATE)
         """
         self.config = config

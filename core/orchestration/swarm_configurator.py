@@ -36,7 +36,7 @@ class SwarmConfigurator:
         Initialize SwarmConfigurator.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
         """
         self.config = config
         self._config_store: Dict[str, Dict[str, Any]] = {}

@@ -313,10 +313,9 @@ class ReviewSynthesisSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseReviewAgent = BaseSwarmAgent
 
 
-class CodeReviewer(BaseReviewAgent):
+class CodeReviewer(BaseSwarmAgent):
     """Reviews code quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -365,7 +364,7 @@ class CodeReviewer(BaseReviewAgent):
             return {'error': str(e)}
 
 
-class SecurityScanner(BaseReviewAgent):
+class SecurityScanner(BaseSwarmAgent):
     """Scans for security vulnerabilities."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -409,7 +408,7 @@ class SecurityScanner(BaseReviewAgent):
             return {'error': str(e)}
 
 
-class PerformanceAnalyzer(BaseReviewAgent):
+class PerformanceAnalyzer(BaseSwarmAgent):
     """Analyzes performance issues."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -453,7 +452,7 @@ class PerformanceAnalyzer(BaseReviewAgent):
             return {'error': str(e)}
 
 
-class ArchitectureReviewer(BaseReviewAgent):
+class ArchitectureReviewer(BaseSwarmAgent):
     """Reviews architecture."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -499,7 +498,7 @@ class ArchitectureReviewer(BaseReviewAgent):
             return {'error': str(e)}
 
 
-class StyleChecker(BaseReviewAgent):
+class StyleChecker(BaseSwarmAgent):
     """Checks code style."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -545,7 +544,7 @@ class StyleChecker(BaseReviewAgent):
             return {'error': str(e)}
 
 
-class ReviewSynthesizer(BaseReviewAgent):
+class ReviewSynthesizer(BaseSwarmAgent):
     """Synthesizes all reviews."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

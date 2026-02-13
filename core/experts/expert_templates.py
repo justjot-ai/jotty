@@ -8,7 +8,7 @@ Expert agents are BaseExpert subclasses with:
 - Domain-specific DSPy signatures
 - Gold standard training data
 - Domain validators
-- Improvement persistence via HierarchicalMemory
+- Improvement persistence via SwarmMemory
 
 This module provides convenience factory functions for common expert types.
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from ..foundation import JottyConfig
+from ..foundation import SwarmConfig
 import dspy
 
 
@@ -28,7 +28,7 @@ import dspy
 # =============================================================================
 
 def create_mermaid_expert(
-    config: JottyConfig = None,
+    config: SwarmConfig = None,
     gold_standards: Optional[List[Dict[str, Any]]] = None,
     memory=None,
     improvements: Optional[List[Dict[str, Any]]] = None
@@ -39,7 +39,7 @@ def create_mermaid_expert(
     Args:
         config: Jotty configuration (optional, uses defaults)
         gold_standards: Custom gold standard examples (optional, uses defaults)
-        memory: Optional HierarchicalMemory instance
+        memory: Optional SwarmMemory instance
         improvements: Optional list of learned improvements
 
     Returns:
@@ -74,7 +74,7 @@ def create_mermaid_expert(
 # =============================================================================
 
 def create_plantuml_expert(
-    config: JottyConfig = None,
+    config: SwarmConfig = None,
     gold_standards: Optional[List[Dict[str, Any]]] = None,
     memory=None,
     improvements: Optional[List[Dict[str, Any]]] = None
@@ -85,7 +85,7 @@ def create_plantuml_expert(
     Args:
         config: Jotty configuration (optional, uses defaults)
         gold_standards: Custom gold standard examples (optional, uses defaults)
-        memory: Optional HierarchicalMemory instance
+        memory: Optional SwarmMemory instance
         improvements: Optional list of learned improvements
 
     Returns:
@@ -120,7 +120,7 @@ def create_plantuml_expert(
 # =============================================================================
 
 def create_sql_expert(
-    config: JottyConfig = None,
+    config: SwarmConfig = None,
     gold_standards: Optional[List[Dict[str, Any]]] = None,
     dialect: str = "postgresql",
     memory=None,
@@ -133,7 +133,7 @@ def create_sql_expert(
         config: Jotty configuration (optional, uses defaults)
         gold_standards: Custom gold standard examples (optional)
         dialect: SQL dialect (postgresql, mysql, sqlite, etc.)
-        memory: Optional HierarchicalMemory instance
+        memory: Optional SwarmMemory instance
         improvements: Optional list of learned improvements
 
     Returns:
@@ -190,7 +190,7 @@ def create_sql_expert(
 # =============================================================================
 
 def create_latex_math_expert(
-    config: JottyConfig = None,
+    config: SwarmConfig = None,
     gold_standards: Optional[List[Dict[str, Any]]] = None,
     memory=None,
     improvements: Optional[List[Dict[str, Any]]] = None
@@ -201,7 +201,7 @@ def create_latex_math_expert(
     Args:
         config: Jotty configuration (optional, uses defaults)
         gold_standards: Custom gold standard examples (optional, uses defaults)
-        memory: Optional HierarchicalMemory instance
+        memory: Optional SwarmMemory instance
         improvements: Optional list of learned improvements
 
     Returns:
@@ -255,7 +255,7 @@ def create_custom_expert(
         agent: Optional DSPy module/agent (callable that returns an agent)
         gold_standards: Gold standard examples
         description: Human-readable description
-        memory: Optional HierarchicalMemory instance
+        memory: Optional SwarmMemory instance
         improvements: Optional list of learned improvements
         **kwargs: Additional kwargs passed to ExpertAgentConfig
 

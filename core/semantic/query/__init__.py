@@ -14,7 +14,7 @@ from .mongodb_engine import MongoDBQueryEngine
 from .date_preprocessor import (
     BaseDatePreprocessor,
     SQLDatePreprocessor,
-    MongoDBDatePreprocessor,
+    DatePreprocessor,
     DatePreprocessorFactory,
 )
 from .data_loader import (
@@ -33,7 +33,7 @@ __all__ = [
     # Date Preprocessing
     'BaseDatePreprocessor',
     'SQLDatePreprocessor',
-    'MongoDBDatePreprocessor',
+    'DatePreprocessor',
     'DatePreprocessorFactory',
 
     # Data Loading (ConnectorX)

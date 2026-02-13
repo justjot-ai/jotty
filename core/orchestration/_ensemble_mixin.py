@@ -1,5 +1,5 @@
 """
-SwarmManager Ensemble Mixin
+Orchestrator Ensemble Mixin
 ============================
 
 Extracted from swarm_manager.py — handles prompt ensembling

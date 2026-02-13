@@ -3,7 +3,7 @@ BaseAgent - Abstract Base Class for All Jotty Agents
 
 Provides unified infrastructure with lazy initialization:
 - DSPy LM auto-configuration
-- Memory integration (HierarchicalMemory)
+- Memory integration (SwarmMemory)
 - Context management (SharedContext)
 - Cost tracking and monitoring
 - Skills registry access
@@ -114,7 +114,7 @@ class BaseAgent(ABC):
     Abstract base class for all Jotty agents.
 
     Provides lazy-initialized infrastructure:
-    - Memory: HierarchicalMemory for knowledge storage/retrieval
+    - Memory: SwarmMemory for knowledge storage/retrieval
     - Context: SharedContext for cross-agent coordination
     - Monitoring: Cost tracking and metrics
     - Skills: SkillsRegistry for tool access
@@ -181,11 +181,11 @@ class BaseAgent(ABC):
         self._initialized = False
 
     def set_jotty_config(self, config) -> 'BaseAgent':
-        """Inject a shared JottyConfig so lazy-loaded components (memory, etc.)
+        """Inject a shared SwarmConfig so lazy-loaded components (memory, etc.)
         use the same configuration as the rest of the system.
 
         Args:
-            config: JottyConfig instance from SwarmManager or CLI
+            config: SwarmConfig instance from Orchestrator or CLI
 
         Returns:
             self (for chaining)
@@ -281,20 +281,20 @@ class BaseAgent(ABC):
 
     @property
     def memory(self):
-        """Lazy-load HierarchicalMemory."""
+        """Lazy-load SwarmMemory."""
         if self._memory is None and self.config.enable_memory:
             try:
-                from Jotty.core.memory.cortex import HierarchicalMemory
-                from Jotty.core.foundation.data_structures import JottyConfig
+                from Jotty.core.memory.cortex import SwarmMemory
+                from Jotty.core.foundation.data_structures import SwarmConfig
                 # Use the shared _jotty_config if one was injected, otherwise
                 # fall back to a default. This prevents creating N independent
-                # JottyConfig instances with potentially different defaults.
-                jotty_config = getattr(self, '_jotty_config', None) or JottyConfig()
-                self._memory = HierarchicalMemory(
+                # SwarmConfig instances with potentially different defaults.
+                jotty_config = getattr(self, '_jotty_config', None) or SwarmConfig()
+                self._memory = SwarmMemory(
                     config=jotty_config,
                     agent_name=self.config.name
                 )
-                logger.debug(f"Initialized HierarchicalMemory for {self.config.name}")
+                logger.debug(f"Initialized SwarmMemory for {self.config.name}")
             except Exception as e:
                 logger.warning(f"Could not initialize memory: {e}")
         return self._memory

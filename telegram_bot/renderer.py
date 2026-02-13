@@ -31,7 +31,7 @@ class TelegramRenderer:
         Render content for Telegram.
 
         Args:
-            content: Raw content from UnifiedExecutor
+            content: Raw content from TierExecutor
             format_type: Output format hint
 
         Returns:

@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 class MASZeroController:
     """
-    MAS-ZERO capabilities for SwarmManager.
+    MAS-ZERO capabilities for Orchestrator.
 
-    Composed into SwarmManager instead of mixed in.
+    Composed into Orchestrator instead of mixed in.
     Takes explicit references to agents and runners.
     """
 

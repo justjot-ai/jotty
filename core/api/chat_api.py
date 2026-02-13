@@ -8,9 +8,9 @@ from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
 from Jotty.core.use_cases.chat import ChatUseCase, ChatMessage
-from Jotty.core.orchestration import SwarmManager
-from Jotty.core.foundation.data_structures import JottyConfig
-from Jotty.core.foundation.agent_config import AgentSpec
+from Jotty.core.orchestration import Orchestrator
+from Jotty.core.foundation.data_structures import SwarmConfig
+from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.agents.chat_assistant import create_chat_assistant
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class ChatAPI:
     
     def __init__(
         self,
-        conductor: SwarmManager,
+        conductor: Orchestrator,
         agent_id: Optional[str] = None,
         mode: str = "dynamic",
         auto_register_chat_assistant: bool = True,
@@ -41,7 +41,7 @@ class ChatAPI:
         Initialize Chat API.
 
         Args:
-            conductor: Jotty SwarmManager instance
+            conductor: Jotty Orchestrator instance
             agent_id: Specific agent ID for single-agent chat (optional)
             mode: Orchestration mode ("static" or "dynamic")
             auto_register_chat_assistant: Auto-register ChatAssistant if agent_id="ChatAssistant" (default: True)
@@ -78,8 +78,8 @@ class ChatAPI:
             logger.info("🤖 Auto-registering ChatAssistant agent (world-class Jotty defaults)")
             chat_agent = create_chat_assistant(state_manager=self.state_manager)
 
-            # Wrap in AgentSpec (Jotty's standard agent configuration)
-            agent_spec = AgentSpec(
+            # Wrap in AgentConfig (Jotty's standard agent configuration)
+            agent_spec = AgentConfig(
                 name="ChatAssistant",
                 agent=chat_agent,
                 # Disable architect/auditor for chat agent (just execute, don't plan/validate)
@@ -95,18 +95,18 @@ class ChatAPI:
             if hasattr(self.conductor, 'actors') and isinstance(self.conductor.actors, dict):
                 self.conductor.actors["ChatAssistant"] = agent_spec
 
-                # Initialize local_memories for ChatAssistant (required by SwarmManager)
+                # Initialize local_memories for ChatAssistant (required by Orchestrator)
                 if hasattr(self.conductor, 'local_memories') and isinstance(self.conductor.local_memories, dict):
                     try:
-                        from Jotty.core.memory.hierarchical_memory import HierarchicalMemory
-                        self.conductor.local_memories["ChatAssistant"] = HierarchicalMemory(
+                        from Jotty.core.memory.hierarchical_memory import SwarmMemory
+                        self.conductor.local_memories["ChatAssistant"] = SwarmMemory(
                             config=self.conductor.config,
                             agent_name="ChatAssistant"
                         )
-                        logger.debug("✅ ChatAssistant local_memories initialized with HierarchicalMemory")
+                        logger.debug("✅ ChatAssistant local_memories initialized with SwarmMemory")
                     except ImportError as e:
                         # Fallback to empty object with memories attribute
-                        logger.debug(f"⚠️  HierarchicalMemory import failed ({e}), using empty fallback")
+                        logger.debug(f"⚠️  SwarmMemory import failed ({e}), using empty fallback")
                         class EmptyMemory:
                             def __init__(self):
                                 self.memories = {}
@@ -115,7 +115,7 @@ class ChatAPI:
 
                 logger.info("✅ ChatAssistant registered successfully")
             else:
-                logger.warning("⚠️  SwarmManager doesn't have 'actors' dict - ChatAssistant not registered")
+                logger.warning("⚠️  Orchestrator doesn't have 'actors' dict - ChatAssistant not registered")
 
         except Exception as e:
             logger.error(f"❌ Failed to auto-register ChatAssistant: {e}")

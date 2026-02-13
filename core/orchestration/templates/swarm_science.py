@@ -353,7 +353,7 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
         student_name: str = "",
     ) -> str:
         """
-        Build a single, detailed goal string that can be passed to SwarmManager.run().
+        Build a single, detailed goal string that can be passed to Orchestrator.run().
         The planner will break this into steps (research, write, save).
         """
         if not topic:

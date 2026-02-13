@@ -1,4 +1,4 @@
-"""AgenticPlanner Plan Utils Mixin - Tool schema, param building, fallbacks, metadata."""
+"""TaskPlanner Plan Utils Mixin - Tool schema, param building, fallbacks, metadata."""
 
 import json
 import logging
@@ -587,9 +587,9 @@ Filename: {filename}
         available_skills: Optional[List[Dict[str, Any]]] = None,
         max_steps: int = 15,
         convert_to_agents: bool = False
-    ) -> 'AgentExecutionPlan':
+    ) -> 'TaskPlan':
         """
-        Plan execution with enhanced metadata (AgentExecutionPlan).
+        Plan execution with enhanced metadata (TaskPlan).
         
         Works with both raw strings and TaskGraph.
         
@@ -600,7 +600,7 @@ Filename: {filename}
             convert_to_agents: If True, also convert skills to AgentConfig for Conductor
             
         Returns:
-            AgentExecutionPlan with steps and metadata
+            TaskPlan with steps and metadata
         """
         # Handle TaskGraph or raw string
         if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
@@ -652,7 +652,7 @@ Filename: {filename}
         required_credentials = self._extract_required_credentials(integrations)
         estimated_time = self._estimate_time(steps)
         
-        # Create AgentExecutionPlan
+        # Create TaskPlan
         if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
             task_graph = task
         else:
@@ -668,7 +668,7 @@ Filename: {filename}
         if agents:
             metadata['agents_created'] = [a.name for a in agents]
         
-        return AgentExecutionPlan(
+        return TaskPlan(
             task_graph=task_graph,
             steps=steps,
             estimated_time=estimated_time,
@@ -745,6 +745,6 @@ Filename: {filename}
 
 
 # =============================================================================
-# AgentExecutionPlan (moved here for unified planning)
+# TaskPlan (moved here for unified planning)
 # =============================================================================
 

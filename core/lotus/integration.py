@@ -5,15 +5,15 @@ DRY Principle: Integrate without duplicating existing logic.
 Uses composition and delegation to enhance existing components.
 
 Integration Points:
-1. SwarmManager - Add LOTUS optimizer as optional enhancement
+1. Orchestrator - Add LOTUS optimizer as optional enhancement
 2. AgentRunner - Wire adaptive validation
 3. DSPy LM - Wrap with cascade and caching
 
 Usage:
     from Jotty.core.lotus.integration import enhance_swarm_manager
 
-    # Enhance existing SwarmManager
-    swarm = SwarmManager(agents=[...])
+    # Enhance existing Orchestrator
+    swarm = Orchestrator(agents=[...])
     enhanced_swarm = enhance_swarm_manager(swarm)
 
     # Or use LotusSwarmManager directly
@@ -89,16 +89,16 @@ class LotusEnhancement:
 
 def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = None) -> Any:
     """
-    Enhance an existing SwarmManager with LOTUS optimization.
+    Enhance an existing Orchestrator with LOTUS optimization.
 
     DRY: Patches existing instance without modifying class.
 
     Args:
-        swarm_manager: Existing SwarmManager instance
+        swarm_manager: Existing Orchestrator instance
         config: LOTUS configuration
 
     Returns:
-        Enhanced SwarmManager with lotus_optimizer attached
+        Enhanced Orchestrator with lotus_optimizer attached
     """
     enhancement = LotusEnhancement(config)
 
@@ -110,7 +110,7 @@ def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = No
     for name, runner in getattr(swarm_manager, 'runners', {}).items():
         _enhance_agent_runner(runner, enhancement)
 
-    logger.info(f"SwarmManager enhanced with LOTUS optimization")
+    logger.info(f"Orchestrator enhanced with LOTUS optimization")
 
     return swarm_manager
 
@@ -320,10 +320,10 @@ def create_cascaded_lm(
 
 class LotusSwarmMixin:
     """
-    Mixin class to add LOTUS optimization to SwarmManager.
+    Mixin class to add LOTUS optimization to Orchestrator.
 
     Usage:
-        class MySwarm(LotusSwarmMixin, SwarmManager):
+        class MySwarm(LotusSwarmMixin, Orchestrator):
             pass
 
         swarm = MySwarm(agents=[...], enable_lotus=True)

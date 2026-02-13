@@ -330,10 +330,9 @@ class IaCGenerationSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseDevOpsAgent = BaseSwarmAgent
 
 
-class InfrastructureArchitect(BaseDevOpsAgent):
+class InfrastructureArchitect(BaseSwarmAgent):
     """Designs cloud infrastructure."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -385,7 +384,7 @@ class InfrastructureArchitect(BaseDevOpsAgent):
             return {'error': str(e)}
 
 
-class CICDDesigner(BaseDevOpsAgent):
+class CICDDesigner(BaseSwarmAgent):
     """Designs CI/CD pipelines."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -440,7 +439,7 @@ class CICDDesigner(BaseDevOpsAgent):
             )
 
 
-class ContainerSpecialist(BaseDevOpsAgent):
+class ContainerSpecialist(BaseSwarmAgent):
     """Handles containerization."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -491,7 +490,7 @@ class ContainerSpecialist(BaseDevOpsAgent):
             )
 
 
-class SecurityHardener(BaseDevOpsAgent):
+class SecurityHardener(BaseSwarmAgent):
     """Handles security hardening."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -547,7 +546,7 @@ class SecurityHardener(BaseDevOpsAgent):
             )
 
 
-class MonitoringSpecialist(BaseDevOpsAgent):
+class MonitoringSpecialist(BaseSwarmAgent):
     """Sets up monitoring and observability."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -600,7 +599,7 @@ class MonitoringSpecialist(BaseDevOpsAgent):
             )
 
 
-class IaCGenerator(BaseDevOpsAgent):
+class IaCGenerator(BaseSwarmAgent):
     """Generates Infrastructure as Code."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

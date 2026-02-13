@@ -7,8 +7,8 @@ Provides:
 - Standard __init__ wiring (memory, context, bus, learned_context)
 - _broadcast() for event bus communication
 
-All swarm-internal base agents (BaseTestAgent, BaseReviewAgent, etc.)
-are aliased to this class or extend it for domain-specific extras.
+All swarm-internal agents
+extend this class for domain-specific behavior.
 
 Author: A-Team
 Date: February 2026

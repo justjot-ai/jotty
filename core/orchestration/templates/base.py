@@ -352,7 +352,7 @@ class SwarmTemplate:
             return
         try:
             reward = 0.5 if results.get('success', True) else -0.5
-            # MASLearning delegates to SwarmLearningManager which IS the SwarmLearningManager
+            # MASLearning delegates to LearningManager which IS the LearningManager
             lm = getattr(self._learning, 'learning_manager', None)
             if lm and hasattr(lm, 'record_experience'):
                 lm.record_experience(
@@ -415,7 +415,7 @@ class TemplateExecutor:
     async def _spawn_agents(self):
         """Spawn all agents defined in template."""
         for name, config in self.template.agents.items():
-            # Create agent instance (integration with SwarmManager)
+            # Create agent instance (integration with Orchestrator)
             self._agents[name] = {
                 'config': config,
                 'status': 'ready',

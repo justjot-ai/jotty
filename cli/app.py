@@ -128,14 +128,14 @@ class JottyCLI:
 
     async def get_swarm_manager(self):
         """
-        Get or create SwarmManager (lazy initialization).
+        Get or create Orchestrator (lazy initialization).
 
         Returns:
-            SwarmManager instance
+            Orchestrator instance
         """
         if self._swarm_manager is None:
             try:
-                # Suppress HuggingFace/BERT warnings before loading SwarmManager
+                # Suppress HuggingFace/BERT warnings before loading Orchestrator
                 import os
                 import warnings
                 import logging as _logging
@@ -154,16 +154,16 @@ class JottyCLI:
 
                 # Try relative import first (for installed package)
                 try:
-                    from ..core.orchestration import SwarmManager
-                    from ..core.foundation.data_structures import JottyConfig
+                    from ..core.orchestration import Orchestrator
+                    from ..core.foundation.data_structures import SwarmConfig
                     from ..core.foundation.unified_lm_provider import configure_dspy_lm
                 except ImportError:
                     # Fallback for direct execution
-                    from Jotty.core.orchestration import SwarmManager
-                    from Jotty.core.foundation.data_structures import JottyConfig
+                    from Jotty.core.orchestration import Orchestrator
+                    from Jotty.core.foundation.data_structures import SwarmConfig
                     from Jotty.core.foundation.unified_lm_provider import configure_dspy_lm
 
-                # Configure DSPy LM before creating SwarmManager
+                # Configure DSPy LM before creating Orchestrator
                 # This ensures all DSPy modules have access to an LM
                 # Use auto-detection which tries claude-cli first (free), then API providers
                 lm_configured = False
@@ -205,20 +205,20 @@ class JottyCLI:
                         "     - GROQ_API_KEY for Groq (free tier available)"
                     )
 
-                # Create JottyConfig from CLI config
-                jotty_config = JottyConfig(
+                # Create SwarmConfig from CLI config
+                jotty_config = SwarmConfig(
                     enable_adaptive_alpha=self.config.swarm.enable_learning,
                 )
 
-                self._swarm_manager = SwarmManager(
+                self._swarm_manager = Orchestrator(
                     config=jotty_config,
                     enable_zero_config=self.config.swarm.enable_zero_config,
                 )
 
-                logger.info("SwarmManager initialized")
+                logger.info("Orchestrator initialized")
 
             except Exception as e:
-                logger.error(f"Failed to initialize SwarmManager: {e}")
+                logger.error(f"Failed to initialize Orchestrator: {e}")
                 raise
 
         return self._swarm_manager
@@ -391,7 +391,7 @@ class JottyCLI:
 
     async def _handle_natural_language(self, text: str) -> bool:
         """
-        Handle natural language input (route to SwarmManager).
+        Handle natural language input (route to Orchestrator).
 
         Args:
             text: Natural language input
@@ -416,7 +416,7 @@ class JottyCLI:
             # Status callback from extracted module
             status_callback = create_status_callback(self.renderer)
 
-            # LEAN MODE: All queries go through UnifiedExecutor
+            # LEAN MODE: All queries go through TierExecutor
             # LLM intelligently decides: needs_external_data, output_format, etc.
             # Single agent, no ensemble, no multi-agent decomposition
             # This is what actually works well!

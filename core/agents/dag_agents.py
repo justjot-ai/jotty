@@ -24,12 +24,12 @@ from .dag_types import (                         # noqa: F401
 from .task_breakdown_agent import TaskBreakdownAgent   # noqa: F401
 from .todo_creator_agent import TodoCreatorAgent       # noqa: F401
 
-from ..foundation.data_structures import JottyConfig
+from ..foundation.data_structures import SwarmConfig
 
 
 def get_swarm_resources(config=None) -> SwarmResources:
     """Get or create shared SwarmResources."""
-    return SwarmResources(config or JottyConfig())
+    return SwarmResources(config or SwarmConfig())
 
 
 def create_task_breakdown_agent(config=None) -> TaskBreakdownAgent:

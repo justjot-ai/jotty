@@ -36,7 +36,7 @@ class SwarmInstaller:
         Initialize SwarmInstaller.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
         """
         self.config = config
         self._skills_registry = None

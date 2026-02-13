@@ -697,10 +697,9 @@ class ResearchFindingsWriter(SectionWriter):
 # AGENTS
 # =============================================================================
 
-BaseWriterAgent = BaseSwarmAgent
 
 
-class OutlineAgent(BaseWriterAgent):
+class OutlineAgent(BaseSwarmAgent):
     """Generates content outlines."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -756,7 +755,7 @@ class OutlineAgent(BaseWriterAgent):
             )
 
 
-class ResearchAgent(BaseWriterAgent):
+class ResearchAgent(BaseSwarmAgent):
     """Researches topics."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -805,7 +804,7 @@ class ResearchAgent(BaseWriterAgent):
             return {'facts': [], 'expert_views': [], 'trends': [], 'sources': []}
 
 
-class PolishAgent(BaseWriterAgent):
+class PolishAgent(BaseSwarmAgent):
     """Polishes and refines content."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

@@ -12,7 +12,7 @@ Implements 8 key improvements for Jotty v2:
 5. TaskDifficulty        — TOO_HARD escalation signal
 6. SubTaskStrategy       — Per-subtask MAS strategy assignment
 
-DRY: Uses existing DSPy infrastructure, reuses AgenticPlanner patterns.
+DRY: Uses existing DSPy infrastructure, reuses TaskPlanner patterns.
 KISS: Minimal classes, no unnecessary abstractions.
 """
 

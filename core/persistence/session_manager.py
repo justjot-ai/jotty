@@ -62,12 +62,12 @@ class SessionManager:
         │   └── config_snapshot.json
     """
     
-    def __init__(self, config: 'JottyConfig'):
+    def __init__(self, config: 'SwarmConfig'):
         """
         Initialize session manager.
         
         Args:
-            config: JottyConfig with persistence settings
+            config: SwarmConfig with persistence settings
         """
         self.config = config
         self.base_dir = Path(config.output_base_dir).expanduser().resolve()

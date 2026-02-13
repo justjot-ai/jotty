@@ -18,7 +18,7 @@ class EnsembleManager:
     """
     Manages prompt ensemble execution.
 
-    Composed into SwarmManager instead of mixed in.
+    Composed into Orchestrator instead of mixed in.
     Stateless — depends only on DSPy global LM config and skills registry.
     """
 

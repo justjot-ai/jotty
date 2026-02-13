@@ -1,6 +1,6 @@
 """
 Task Queue Manager
-High-level manager for processing tasks from queue using SwarmManager
+High-level manager for processing tasks from queue using Orchestrator
 """
 
 import asyncio
@@ -10,7 +10,7 @@ from datetime import datetime
 
 from .task_queue import TaskQueue
 from .task import Task
-from ..orchestration import SwarmManager
+from ..orchestration import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 class TaskQueueManager:
     """
     High-level task queue manager with agent orchestration
-    Processes tasks from queue using SwarmManager
+    Processes tasks from queue using Orchestrator
     """
     
     def __init__(
         self,
-        conductor: SwarmManager,
+        conductor: Orchestrator,
         task_queue: TaskQueue,
         max_concurrent: int = 3,
         poll_interval: float = 1.0,
@@ -32,7 +32,7 @@ class TaskQueueManager:
         Initialize task queue manager
         
         Args:
-            conductor: SwarmManager instance for agent orchestration
+            conductor: Orchestrator instance for agent orchestration
             task_queue: Task queue instance
             max_concurrent: Maximum concurrent task executions
             poll_interval: Polling interval in seconds
@@ -117,7 +117,7 @@ class TaskQueueManager:
                 **task.metadata,
             }
             
-            # Execute via SwarmManager (using LangGraph if enabled)
+            # Execute via Orchestrator (using LangGraph if enabled)
             result = await self.conductor.run(
                 goal=goal,
                 max_iterations=100,

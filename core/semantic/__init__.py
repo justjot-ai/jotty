@@ -48,7 +48,7 @@ from .query import (
     DataLoaderFactory,
     OutputFormat,
     SQLDatePreprocessor,
-    MongoDBDatePreprocessor,
+    DatePreprocessor,
 )
 
 

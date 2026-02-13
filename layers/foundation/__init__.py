@@ -17,7 +17,7 @@ from Jotty.core.foundation.exceptions import (
 )
 
 # Config
-from Jotty.core.foundation.data_structures import JottyConfig
+from Jotty.core.foundation.data_structures import SwarmConfig
 
 try:
     from Jotty.core.foundation.agent_config import AgentConfig
@@ -53,7 +53,7 @@ __all__ = [
     "IntegrationError", "LLMError", "DSPyError", "ExternalToolError",
     "wrap_exception",
     # Config
-    "JottyConfig", "AgentConfig", "CLIConfig",
+    "SwarmConfig", "AgentConfig", "CLIConfig",
     # Types
     "MemoryLevel", "OutputTag", "MemoryEntry", "GoalValue",
     "ValidationResult", "EpisodeResult", "LearningMetrics", "AgentContribution", "AgentMessage",

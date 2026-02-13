@@ -325,10 +325,9 @@ class VisualizationSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseDataAgent = BaseSwarmAgent
 
 
-class DataProfilerAgent(BaseDataAgent):
+class DataProfilerAgent(BaseSwarmAgent):
     """Profiles datasets."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -376,7 +375,7 @@ class DataProfilerAgent(BaseDataAgent):
             return {'error': str(e)}
 
 
-class EDAAgent(BaseDataAgent):
+class EDAAgent(BaseSwarmAgent):
     """Performs exploratory data analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -420,7 +419,7 @@ class EDAAgent(BaseDataAgent):
             return {'error': str(e)}
 
 
-class StatisticalAgent(BaseDataAgent):
+class StatisticalAgent(BaseSwarmAgent):
     """Performs statistical analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -468,7 +467,7 @@ class StatisticalAgent(BaseDataAgent):
             return {'error': str(e), 'descriptive': {}, 'distributions': '', 'correlations': '', 'hypothesis_tests': []}
 
 
-class InsightAgent(BaseDataAgent):
+class InsightAgent(BaseSwarmAgent):
     """Generates insights."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -518,7 +517,7 @@ class InsightAgent(BaseDataAgent):
             return []
 
 
-class MLRecommenderAgent(BaseDataAgent):
+class MLRecommenderAgent(BaseSwarmAgent):
     """Recommends ML approaches."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -568,7 +567,7 @@ class MLRecommenderAgent(BaseDataAgent):
             )
 
 
-class VisualizationAgent(BaseDataAgent):
+class VisualizationAgent(BaseSwarmAgent):
     """Recommends visualizations."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

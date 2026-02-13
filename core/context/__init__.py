@@ -17,7 +17,7 @@ Modules:
 
 # Import all context management components
 from .chunker import (
-    AgenticChunker,
+    ContextChunker,
     ChunkingSignature,
     CombiningSignature,
 )
@@ -41,7 +41,7 @@ from .context_gradient import (
     MemoryGradientSignature,
 )
 from .context_guard import (
-    SmartContextGuard,
+    LLMContextManager,
 )
 from .global_context_guard import (
     GlobalContextGuard,
@@ -57,7 +57,7 @@ from .context_manager import (
 
 __all__ = [
     # chunker
-    'AgenticChunker',
+    'ContextChunker',
     'ChunkingSignature',
     'CombiningSignature',
     # compressor
@@ -77,7 +77,7 @@ __all__ = [
     'CooperationGradientSignature',
     'MemoryGradientSignature',
     # context_guard
-    'SmartContextGuard',
+    'LLMContextManager',
     # global_context_guard
     'GlobalContextGuard',
     'patch_dspy_with_guard',

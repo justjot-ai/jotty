@@ -23,7 +23,7 @@ class LearningDelegate:
     """
     Delegates learning operations to the learning subsystems.
 
-    Composed into SwarmManager instead of mixed in.
+    Composed into Orchestrator instead of mixed in.
     Takes explicit references to the learning pipeline and MAS learning.
     """
 

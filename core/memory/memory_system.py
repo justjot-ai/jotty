@@ -5,7 +5,7 @@ MemorySystem - Unified Memory Facade
 Single authoritative entry point for ALL memory operations.
 
 Consolidates the overlapping memory modules:
-- cortex.py (HierarchicalMemory) - 5-level storage + retrieval
+- cortex.py (SwarmMemory) - 5-level storage + retrieval
 - memory_orchestrator.py (SimpleBrain) - user-friendly API + consolidation triggers
 - consolidation_engine.py (BrainStateMachine) - hippocampal extraction + SWR
 - consolidation.py - DSPy signatures for pattern extraction
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 class MemoryBackend(Enum):
     """Available memory backends."""
-    FULL = "full"          # HierarchicalMemory + BrainStateMachine
+    FULL = "full"          # SwarmMemory + BrainStateMachine
     SIMPLE = "simple"      # SimpleBrain (balanced preset)
     FALLBACK = "fallback"  # FallbackMemory (dict-based, no deps)
 
@@ -90,7 +90,7 @@ class MemorySystem:
 
     Architecture:
         MemorySystem (facade)
-        ├── HierarchicalMemory (cortex.py) - 5-level storage
+        ├── SwarmMemory (cortex.py) - 5-level storage
         ├── BrainStateMachine (consolidation_engine.py) - consolidation
         ├── SimpleBrain (memory_orchestrator.py) - user-friendly presets
         ├── LLMRAGRetriever (llm_rag.py) - semantic retrieval
@@ -105,7 +105,7 @@ class MemorySystem:
 
         Args:
             config: MemoryConfig (defaults to auto-detect best backend)
-            jotty_config: JottyConfig from Jotty framework (optional)
+            jotty_config: SwarmConfig from Jotty framework (optional)
         """
         self.config = config or MemoryConfig()
         self._jotty_config = jotty_config
@@ -138,20 +138,20 @@ class MemorySystem:
         self._init_fallback()
 
     def _init_full(self):
-        """Initialize full HierarchicalMemory backend."""
-        from Jotty.core.foundation.data_structures import JottyConfig, MemoryLevel
+        """Initialize full SwarmMemory backend."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
 
-        jc = self._jotty_config or JottyConfig()
+        jc = self._jotty_config or SwarmConfig()
 
-        from .cortex import HierarchicalMemory
-        backend = HierarchicalMemory(
+        from .cortex import SwarmMemory
+        backend = SwarmMemory(
             agent_name=self.config.agent_name,
             config=jc,
         )
 
         # Verify the backend is functional (memories dict was initialized)
         if not hasattr(backend, 'memories') or MemoryLevel.EPISODIC not in backend.memories:
-            raise RuntimeError("HierarchicalMemory failed to initialize memories dict")
+            raise RuntimeError("SwarmMemory failed to initialize memories dict")
 
         self._backend = backend
         self._backend_type = MemoryBackend.FULL
@@ -226,7 +226,7 @@ class MemorySystem:
             return self._store_fallback(content, level, metadata or {})
 
     def _store_full(self, content, level, goal, metadata, reward):
-        """Store using HierarchicalMemory."""
+        """Store using SwarmMemory."""
         from Jotty.core.foundation.data_structures import MemoryLevel
 
         level_map = {
@@ -242,7 +242,7 @@ class MemorySystem:
             content=content,
             level=mem_level,
             goal=goal,
-            context=metadata,  # HierarchicalMemory uses 'context' not 'metadata'
+            context=metadata,  # SwarmMemory uses 'context' not 'metadata'
         )
 
         # Auto-consolidate check (store_count already incremented in store())
@@ -299,7 +299,7 @@ class MemorySystem:
             return self._retrieve_fallback(query, top_k)
 
     def _retrieve_full(self, query, goal, top_k, level):
-        """Retrieve using HierarchicalMemory."""
+        """Retrieve using SwarmMemory."""
         try:
             results = self._backend.retrieve(
                 query=query,
@@ -353,7 +353,7 @@ class MemorySystem:
 
         if self._backend_type == MemoryBackend.FULL:
             try:
-                # HierarchicalMemory.consolidate() is async
+                # SwarmMemory.consolidate() is async
                 import asyncio
                 if asyncio.iscoroutinefunction(self._backend.consolidate):
                     result = await self._backend.consolidate()

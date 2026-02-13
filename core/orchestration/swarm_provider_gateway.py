@@ -36,7 +36,7 @@ class SwarmProviderGateway:
         Initialize SwarmProviderGateway.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
             provider: Optional preferred provider (auto-detect if None)
         """
         self.config = config

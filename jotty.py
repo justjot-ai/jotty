@@ -16,7 +16,7 @@ from typing import AsyncGenerator, Optional, Callable, Any, Dict, List
 from pathlib import Path
 
 from .core.execution import (
-    UnifiedExecutor,
+    TierExecutor,
     ExecutionConfig,
     ExecutionTier,
     ExecutionResult,
@@ -78,7 +78,7 @@ class Jotty:
 
         # Create executor
         self.config = config or ExecutionConfig()
-        self.executor = UnifiedExecutor(config=self.config)
+        self.executor = TierExecutor(config=self.config)
         self.detector = TierDetector()
 
         logger.info("Jotty V3 initialized")

@@ -1,5 +1,5 @@
 """
-ZeroConfigAgentFactory - Extracted from SwarmManager
+ZeroConfigAgentFactory - Extracted from Orchestrator
 =====================================================
 
 LLM-driven agent creation: analyzes task to decide single vs multi-agent.

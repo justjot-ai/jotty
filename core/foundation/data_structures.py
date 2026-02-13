@@ -113,7 +113,6 @@ __all__ = [
     'SDKRequest',
     # Configuration
     'SwarmConfig',
-    'JottyConfig',  # Backward compatibility alias
     # Parameter aliases
     'DEFAULT_PARAM_ALIASES',
 ]
@@ -674,11 +673,3 @@ class SwarmConfig:
             self.meta_capacity +
             self.causal_capacity
         )
-
-
-# =============================================================================
-# BACKWARD COMPATIBILITY ALIASES
-# =============================================================================
-
-# Backward compatibility: JottyConfig → SwarmConfig
-JottyConfig = SwarmConfig

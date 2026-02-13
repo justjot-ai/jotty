@@ -2,10 +2,10 @@
 JOTTY Core Module - Multi-Agent AI Framework
 =============================================
 
-V2 Architecture (SwarmManager-based):
-- SwarmManager: Main orchestrator
-- JottyCore: Alias for SwarmManager (backward compat)
-- Cortex: Hierarchical memory (HierarchicalMemory)
+V2 Architecture (Orchestrator-based):
+- Orchestrator: Main orchestrator
+- Orchestrator: Alias for Orchestrator (backward compat)
+- Cortex: Hierarchical memory (SwarmMemory)
 - Axon: Agent communication channel
 - Roadmap: Task planning (SwarmTaskBoard)
 
@@ -43,13 +43,10 @@ create_reval = None  # Deprecated
 
 _LAZY_IMPORTS: dict[str, str] = {
     # --- jotty.py facade (was eager, now lazy for 2.9s startup saving) ---
-    "SwarmManager": ".jotty",
-    "JottyCore": ".jotty",
+    "Orchestrator": ".jotty",
     "SwarmConfig": ".jotty",
-    "JottyConfig": ".jotty",
-    "AgentSpec": ".jotty",
     "AgentConfig": ".jotty",
-    "InspectorAgent": ".jotty",
+    "ValidatorAgent": ".jotty",
     "IterativeAuditor": ".jotty",
     "Cortex": ".jotty",
     "Axon": ".jotty",
@@ -76,7 +73,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ContextApplier": ".jotty",
     "ContextUpdate": ".jotty",
     "create_swarm_manager": ".jotty",
-    "create_conductor": ".jotty",
     "create_cortex": ".jotty",
     "create_axon": ".jotty",
     "create_roadmap": ".jotty",
@@ -166,7 +162,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "LearningHealthMonitor": ".learning.learning",
     "DynamicBudgetManager": ".learning.learning",
     # --- memory.cortex ---
-    "HierarchicalMemory": ".memory.cortex",
+    "SwarmMemory": ".memory.cortex",
     "MemoryCluster": ".memory.cortex",
     "MemoryLevelClassifier": ".memory.cortex",
     # --- agents.inspector ---
@@ -183,7 +179,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     # --- learning.q_learning ---
     "LLMQPredictor": ".learning.q_learning",
     # --- context.context_guard ---
-    "SmartContextGuard": ".context.context_guard",
+    "LLMContextManager": ".context.context_guard",
     # --- learning.predictive_marl ---
     "LLMTrajectoryPredictor": ".learning.predictive_marl",
     "DivergenceMemory": ".learning.predictive_marl",
@@ -224,8 +220,8 @@ _LAZY_IMPORTS: dict[str, str] = {
     "DifferenceRewardEstimator": ".utils.algorithmic_foundations",
     "SurpriseEstimator": ".utils.algorithmic_foundations",
     "MutualInformationRetriever": ".utils.algorithmic_foundations",
-    "UniversalContextGuard": ".utils.algorithmic_foundations",
-    "ContextAwareDocumentProcessor": ".utils.algorithmic_foundations",
+    "GlobalContextGuard": ".utils.algorithmic_foundations",
+    "ContentGate": ".utils.algorithmic_foundations",
     # --- context.global_context_guard ---
     "GlobalContextGuard": ".context.global_context_guard",
     "OverflowDetector": ".context.global_context_guard",

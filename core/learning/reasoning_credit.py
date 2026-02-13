@@ -19,12 +19,12 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
+    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
 if TYPE_CHECKING:
-    from ..memory.cortex import HierarchicalMemory
+    from ..memory.cortex import SwarmMemory
 
 
 
@@ -44,7 +44,7 @@ class ReasoningCreditAssigner:
     4. Temporal position (early vs late decisions)
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.reasoning_weight = config.reasoning_weight
         self.evidence_weight = config.evidence_weight

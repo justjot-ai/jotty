@@ -15,12 +15,12 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
+    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
 if TYPE_CHECKING:
-    from ..memory.cortex import HierarchicalMemory
+    from ..memory.cortex import SwarmMemory
 
 from .adaptive_components import AdaptiveLearningRate, IntermediateRewardCalculator
 
@@ -54,7 +54,7 @@ class GroupedValueBaseline:
         Initialize grouped baseline tracker.
 
         Args:
-            config: JottyConfig (optional)
+            config: SwarmConfig (optional)
             ema_alpha: Exponential moving average alpha for baseline updates
         """
         self.config = config
@@ -282,7 +282,7 @@ class TDLambdaLearner:
     4. Terminal state has V(s') = 0
     """
     
-    def __init__(self, config: JottyConfig, adaptive_lr: AdaptiveLearningRate = None):
+    def __init__(self, config: SwarmConfig, adaptive_lr: AdaptiveLearningRate = None):
         self.config = config
         self.gamma = config.gamma
         self.lambda_trace = config.lambda_trace
@@ -434,7 +434,7 @@ class TDLambdaLearner:
     
     def record_access_from_hierarchical_memory(
         self,
-        memory: 'HierarchicalMemory',
+        memory: 'SwarmMemory',
         domain: str,
         task_type: str,
         content: str,
@@ -442,15 +442,15 @@ class TDLambdaLearner:
         step_reward: float = 0.0
     ) -> float:
         """
-        Record memory access from HierarchicalMemory using domain/task_type.
+        Record memory access from SwarmMemory using domain/task_type.
         
-        This method integrates RL layer with HierarchicalMemory by:
+        This method integrates RL layer with SwarmMemory by:
         1. Generating hierarchical key
         2. Finding or creating memory entry
         3. Recording access for TD(λ) learning
         
         Args:
-            memory: HierarchicalMemory instance
+            memory: SwarmMemory instance
             domain: Domain identifier
             task_type: Task type
             content: Memory content
@@ -607,7 +607,7 @@ class TDLambdaLearner:
     
     def end_episode_with_hierarchical_memory(
         self,
-        memory: 'HierarchicalMemory',
+        memory: 'SwarmMemory',
         domain: str,
         goal: str,
         final_reward: float,
@@ -615,16 +615,16 @@ class TDLambdaLearner:
         task_type: str = None
     ) -> List[Tuple[str, float, float]]:
         """
-        Perform TD updates on HierarchicalMemory at episode end with HRPO baselines.
+        Perform TD updates on SwarmMemory at episode end with HRPO baselines.
 
-        This method integrates RL layer with HierarchicalMemory by:
+        This method integrates RL layer with SwarmMemory by:
         1. Finding memories accessed during episode (by trace keys)
-        2. Updating values directly in HierarchicalMemory
+        2. Updating values directly in SwarmMemory
         3. Using HRPO group-relative baselines for variance reduction
         4. Preserving all existing functionality
 
         Args:
-            memory: HierarchicalMemory instance
+            memory: SwarmMemory instance
             domain: Domain identifier (for filtering and HRPO)
             goal: Goal for value updates
             final_reward: Terminal reward
@@ -677,7 +677,7 @@ class TDLambdaLearner:
             # Clip to [0, 1]
             new_value = max(0.0, min(1.0, new_value))
 
-            # Update memory's goal-conditioned value directly in HierarchicalMemory
+            # Update memory's goal-conditioned value directly in SwarmMemory
             if goal not in memory_entry.goal_values:
                 memory_entry.goal_values[goal] = GoalValue()
 
@@ -698,7 +698,7 @@ class TDLambdaLearner:
 
         # Optional: Value transfer to related goals
         if goal_hierarchy and self.config.enable_goal_hierarchy:
-            # Convert HierarchicalMemory to dict format for _transfer_values
+            # Convert SwarmMemory to dict format for _transfer_values
             memories_dict = {}
             for level in MemoryLevel:
                 if level in memory.memories:

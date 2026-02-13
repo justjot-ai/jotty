@@ -279,10 +279,9 @@ class MetaLearningSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseLearningAgent = BaseSwarmAgent
 
 
-class PerformanceEvaluator(BaseLearningAgent):
+class PerformanceEvaluator(BaseSwarmAgent):
     """Evaluates swarm performance."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -347,7 +346,7 @@ class PerformanceEvaluator(BaseLearningAgent):
             )
 
 
-class GoldCurator(BaseLearningAgent):
+class GoldCurator(BaseSwarmAgent):
     """Curates gold standards."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -401,7 +400,7 @@ class GoldCurator(BaseLearningAgent):
             return []
 
 
-class PromptOptimizer(BaseLearningAgent):
+class PromptOptimizer(BaseSwarmAgent):
     """Optimizes agent prompts."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -451,7 +450,7 @@ class PromptOptimizer(BaseLearningAgent):
             )
 
 
-class WorkflowOptimizer(BaseLearningAgent):
+class WorkflowOptimizer(BaseSwarmAgent):
     """Optimizes swarm workflows."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -498,7 +497,7 @@ class WorkflowOptimizer(BaseLearningAgent):
             )
 
 
-class ParameterTuner(BaseLearningAgent):
+class ParameterTuner(BaseSwarmAgent):
     """Tunes agent parameters."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -550,7 +549,7 @@ class ParameterTuner(BaseLearningAgent):
             )
 
 
-class MetaLearner(BaseLearningAgent):
+class MetaLearner(BaseSwarmAgent):
     """Extracts cross-domain meta-learnings."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

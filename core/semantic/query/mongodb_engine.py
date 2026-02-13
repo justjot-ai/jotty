@@ -11,13 +11,11 @@ import re
 
 from ..models import Schema
 from ..lookml import LookMLGenerator, LookMLModel
-from .date_preprocessor import MongoDBDatePreprocessor, DatePreprocessorFactory
+from .date_preprocessor import DatePreprocessor, DatePreprocessorFactory
 
 logger = logging.getLogger(__name__)
 
 
-# Backwards compatibility alias
-DatePreprocessor = MongoDBDatePreprocessor
 
 
 class PipelineValidator:
@@ -225,7 +223,7 @@ class MongoDBQueryEngine:
         self._client = None
         self._db = None
         self._context_cache: Optional[str] = None
-        self._date_preprocessor = MongoDBDatePreprocessor()
+        self._date_preprocessor = DatePreprocessor()
 
     @property
     def client(self):

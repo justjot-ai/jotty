@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from Jotty.core.foundation.agent_config import AgentConfig
     from Jotty.core.data.data_registry import DataRegistry
     from Jotty.core.data.io_manager import IOManager
-    from Jotty.core.context.context_guard import SmartContextGuard
+    from Jotty.core.context.context_guard import LLMContextManager
 else:
     SwarmTaskBoard = Any
     SubtaskState = Any
@@ -42,7 +42,7 @@ else:
     AgentConfig = Any
     DataRegistry = Any
     IOManager = Any
-    SmartContextGuard = Any
+    LLMContextManager = Any
 
 logger = logging.getLogger(__name__)
 
@@ -212,12 +212,12 @@ class SwarmStateManager:
     def __init__(
         self,
         swarm_task_board: SwarmTaskBoard,
-        swarm_memory: Any,  # HierarchicalMemory
+        swarm_memory: Any,  # SwarmMemory
         io_manager: Optional[IOManager] = None,
         data_registry: Optional[DataRegistry] = None,
         shared_context: Optional[Dict[str, Any]] = None,
-        context_guard: Optional[SmartContextGuard] = None,
-        config: Optional[Any] = None,  # JottyConfig
+        context_guard: Optional[LLMContextManager] = None,
+        config: Optional[Any] = None,  # SwarmConfig
         agents: Optional[Dict[str, AgentConfig]] = None,
         agent_signatures: Optional[Dict[str, Dict]] = None
     ):
@@ -226,12 +226,12 @@ class SwarmStateManager:
         
         Args:
             swarm_task_board: SwarmTaskBoard (SwarmTaskBoard) for task tracking
-            swarm_memory: SwarmMemory (HierarchicalMemory) for memory
+            swarm_memory: SwarmMemory (SwarmMemory) for memory
             io_manager: IOManager for accessing actor outputs
             data_registry: DataRegistry for output registration
             shared_context: Shared context dictionary
-            context_guard: SmartContextGuard for context management
-            config: JottyConfig instance
+            context_guard: LLMContextManager for context management
+            config: SwarmConfig instance
             agents: Dictionary of agent configurations
             agent_signatures: Dictionary of agent signatures
         """

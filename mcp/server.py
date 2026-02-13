@@ -42,12 +42,12 @@ async def _post(path: str, body: dict) -> dict:
     import httpx
     url = f"{JOTTY_GATEWAY_URL}{path}"
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             r = await client.post(url, json=body)
             r.raise_for_status()
             return r.json()
     except Exception as e:
-        logger.exception("Gateway request failed: %s %s", path, e)
+        logger.warning("Gateway request failed: %s %s", path, e)
         return {"success": False, "error": str(e)}
 
 
@@ -61,7 +61,7 @@ async def _get(path: str) -> dict:
             r.raise_for_status()
             return r.json()
     except Exception as e:
-        logger.exception("Gateway request failed: %s %s", path, e)
+        logger.warning("Gateway request failed: %s %s", path, e)
         return {"success": False, "error": str(e), "skills": []}
 
 

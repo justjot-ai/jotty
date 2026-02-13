@@ -21,7 +21,7 @@ from .types import (
     format_steps_on_newlines,
 )
 from .agents import (
-    BaseLearningAgent, PaperFetcherAgent, ConceptExtractorAgent,
+    BaseSwarmAgent, PaperFetcherAgent, ConceptExtractorAgent,
     IntuitionBuilderAgent, MathSimplifierAgent, ExampleGeneratorAgent,
     ProgressiveBuilderAgent, ContentPolisherAgent, UnifiedLearningAgent,
 )

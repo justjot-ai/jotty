@@ -14,7 +14,7 @@ Usage:
 ------
     from core.foundation.config_defaults import JottyDefaults
 
-    config = JottyConfig(
+    config = SwarmConfig(
         max_context_tokens=JottyDefaults.MAX_CONTEXT_TOKENS,
         episodic_capacity=JottyDefaults.EPISODIC_CAPACITY
     )
@@ -95,7 +95,7 @@ class JottyDefaults:
     LLM_PLANNING_MAX_TOKENS: int = 4096
     """Max tokens for planning / classification LLM calls.
 
-    Used by AgenticPlanner for execution plan generation, task-type
+    Used by TaskPlanner for execution plan generation, task-type
     classification, skill selection, and by ValidationGate.
 
     Must be large enough for multi-step execution plans (JSON arrays

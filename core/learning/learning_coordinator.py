@@ -1,5 +1,5 @@
 """
-SwarmLearningManager - Unified Learning Management for Jotty
+LearningManager - Unified Learning Management for Jotty
 ============================================================
 
 Consolidates all learning functionality:
@@ -10,13 +10,13 @@ Consolidates all learning functionality:
 - Integration with TransferableLearningStore
 
 This replaces:
-- core.learning.learning_manager.SwarmLearningManager (DEPRECATED)
-- core.orchestration.rl_learning_manager.SwarmLearningManager
+- core.learning.learning_manager.LearningManager (DEPRECATED)
+- core.orchestration.rl_learning_manager.LearningManager
 
 Usage:
-    from core.learning.learning_coordinator import SwarmLearningManager
+    from core.learning.learning_coordinator import LearningManager
 
-    coordinator = SwarmLearningManager(config)
+    coordinator = LearningManager(config)
     coordinator.initialize()  # Auto-loads latest learning
 
     # Per-agent learning
@@ -66,7 +66,7 @@ class LearningUpdate:
     td_error: Optional[float] = None
 
 
-class SwarmLearningManager:
+class LearningManager:
     """
     Unified learning coordinator for Jotty MAS.
 
@@ -90,7 +90,7 @@ class SwarmLearningManager:
         Initialize Learning Coordinator.
 
         Args:
-            config: JottyConfig or SwarmConfig with learning settings
+            config: SwarmConfig with learning settings
             base_dir: Base directory for learning storage
         """
         self.config = config
@@ -124,7 +124,7 @@ class SwarmLearningManager:
         # Load registry
         self._load_registry()
 
-        logger.info(f"SwarmLearningManager initialized: {self.learning_dir}")
+        logger.info(f"LearningManager initialized: {self.learning_dir}")
 
     def _init_core_learners(self):
         """Initialize Q-learner and TD(λ) learner."""
@@ -132,7 +132,7 @@ class SwarmLearningManager:
         try:
             from .q_learning import LLMQPredictor
             self._shared_q_learner = LLMQPredictor(self.config)
-            logger.info("Q-Learning initialized (SwarmLearningManager)")
+            logger.info("Q-Learning initialized (LearningManager)")
         except ImportError as e:
             logger.warning(f"Q-Learning not available: {e}")
 
@@ -141,7 +141,7 @@ class SwarmLearningManager:
             try:
                 from .learning import TDLambdaLearner
                 self._td_lambda_learner = TDLambdaLearner(self.config)
-                logger.info("TD(λ) Learner initialized (SwarmLearningManager)")
+                logger.info("TD(λ) Learner initialized (LearningManager)")
             except ImportError as e:
                 logger.warning(f"TD(λ) Learning not available: {e}")
 
@@ -779,10 +779,10 @@ class _NoOpMemory:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-_global_coordinator: Optional[SwarmLearningManager] = None
+_global_coordinator: Optional[LearningManager] = None
 
 
-def get_learning_coordinator(config=None, base_dir: str = None) -> SwarmLearningManager:
+def get_learning_coordinator(config=None, base_dir: str = None) -> LearningManager:
     """Get or create global learning coordinator."""
     global _global_coordinator
 
@@ -803,7 +803,7 @@ def get_learning_coordinator(config=None, base_dir: str = None) -> SwarmLearning
 
             config = MinimalConfig()
 
-        _global_coordinator = SwarmLearningManager(config, base_dir)
+        _global_coordinator = LearningManager(config, base_dir)
 
     return _global_coordinator
 
@@ -813,10 +813,5 @@ def reset_learning_coordinator():
     global _global_coordinator
     _global_coordinator = None
 
-
-# =============================================================================
-# BACKWARD COMPATIBILITY ALIASES
 # =============================================================================
 
-get_learning_manager = get_learning_coordinator
-reset_learning_manager = reset_learning_coordinator

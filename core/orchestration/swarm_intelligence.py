@@ -181,12 +181,12 @@ class SwarmIntelligence:
         # =================================================================
 
         # Handoff management (SwarmAgentic pattern)
-        # WIRED: Used by _paradigm_relay in SwarmManager._execute_multi_agent
+        # WIRED: Used by _paradigm_relay in Orchestrator._execute_multi_agent
         self.pending_handoffs: Dict[str, HandoffContext] = {}
         self.handoff_history: deque = deque(maxlen=200)
 
         # Coalition management (SwarmAgentic pattern)
-        # WIRED: Used by fanout paradigm in SwarmManager._execute_multi_agent
+        # WIRED: Used by fanout paradigm in Orchestrator._execute_multi_agent
         self.coalitions: Dict[str, Coalition] = {}
         self.agent_coalitions: Dict[str, str] = {}  # agent -> coalition_id
 
@@ -210,7 +210,7 @@ class SwarmIntelligence:
         #   SessionMixin:      get_or_create_session
         #   MorphMixin:        compute_morph_scores, get_morph_report
         #
-        # Infrastructure only (not called from SwarmManager.run):
+        # Infrastructure only (not called from Orchestrator.run):
         #   ResilienceMixin:   handle_agent_failure, apply_backpressure
         #   LifecycleMixin:    agent_lifecycle management
         # ================================================================
@@ -269,7 +269,7 @@ class SwarmIntelligence:
 
         Args:
             enabled: Whether training mode is active
-            memory_system: Optional HierarchicalMemory for context-aware tasks
+            memory_system: Optional SwarmMemory for context-aware tasks
         """
         self._training_mode = enabled
 

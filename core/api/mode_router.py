@@ -88,7 +88,7 @@ class ModeRouter:
     Unified router for all execution modes.
 
     Routes requests to:
-    - UnifiedExecutor (native LLM tool calling) for CHAT mode
+    - TierExecutor (native LLM tool calling) for CHAT mode
     - AutoAgent for WORKFLOW mode
     - Direct skill/agent for SKILL/AGENT modes
 
@@ -137,11 +137,11 @@ class ModeRouter:
         self._initialized = True
 
     def _get_executor(self, context: Optional[ExecutionContext] = None):
-        """Get ToolCallingExecutor with callbacks from context."""
-        from Jotty.core.orchestration.unified_executor import ToolCallingExecutor
+        """Get ChatExecutor with callbacks from context."""
+        from Jotty.core.orchestration.unified_executor import ChatExecutor
         status_cb = context.status_callback if context else None
         stream_cb = context.stream_callback if context else None
-        return ToolCallingExecutor(
+        return ChatExecutor(
             status_callback=status_cb,
             stream_callback=stream_cb,
         )
@@ -240,9 +240,9 @@ class ModeRouter:
         context: ExecutionContext
     ) -> RouteResult:
         """
-        Handle chat mode via UnifiedExecutor.
+        Handle chat mode via TierExecutor.
 
-        UnifiedExecutor provides native LLM tool-calling:
+        TierExecutor provides native LLM tool-calling:
         - Direct, low-latency single-agent execution
         - LLM decides which tools to call (web search, file ops, etc.)
         - Streaming support via context.stream_callback

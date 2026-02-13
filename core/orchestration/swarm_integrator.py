@@ -34,7 +34,7 @@ class SwarmIntegrator:
         Initialize SwarmIntegrator.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
         """
         self.config = config
     

@@ -3,7 +3,7 @@ ValidationAgent - Base Class for Validation/Inspection Agents
 ==============================================================
 
 Specialized MetaAgent for pre/post validation tasks:
-- InspectorAgent (Architect/Auditor)
+- ValidatorAgent (Architect/Auditor)
 - VerificationAgents
 - QA/Review Agents
 
@@ -142,10 +142,10 @@ class ValidationAgent(MetaAgent):
     - Tool caching
     - Validation-specific metrics
 
-    Subclasses (InspectorAgent, etc.) implement specific validation logic.
+    Subclasses (ValidatorAgent, etc.) implement specific validation logic.
 
     Usage:
-        class InspectorAgent(ValidationAgent):
+        class ValidatorAgent(ValidationAgent):
             async def validate(self, goal, inputs, trajectory):
                 # Custom validation logic
                 result = await self._run_validation(goal, inputs)

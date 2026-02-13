@@ -23,7 +23,7 @@ REFACTORING PHASE 5: Learning System Interface
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple
-from ..foundation.data_structures import JottyConfig
+from ..foundation.data_structures import SwarmConfig
 
 
 class BaseLearningManager(ABC):
@@ -33,7 +33,7 @@ class BaseLearningManager(ABC):
     Defines the contract that all learning systems must implement.
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         """
         Initialize learning manager with configuration.
         

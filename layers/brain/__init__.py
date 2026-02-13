@@ -7,7 +7,7 @@ All 11 specialized swarms + base infrastructure.
 from Jotty.core.agents.base import BaseAgent, DomainAgent, MetaAgent, AutonomousAgent, AgentConfig, AgentResult
 from Jotty.core.agents.auto_agent import AutoAgent
 from Jotty.core.agents.chat_assistant import ChatAssistant
-from Jotty.core.agents.agentic_planner import AgenticPlanner
+from Jotty.core.agents.agentic_planner import TaskPlanner
 from Jotty.core.agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
 
 # Swarms - Base
@@ -40,16 +40,16 @@ except ImportError as e:
 from Jotty.core.learning import TDLambdaLearner
 
 try:
-    from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
-    from Jotty.core.orchestration.v2.swarm_manager import SwarmManager
+    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.orchestration.swarm_manager import Orchestrator
 except ImportError:
     SwarmIntelligence = None
-    SwarmManager = None
+    Orchestrator = None
 
 __all__ = [
     # Agents
     "BaseAgent", "DomainAgent", "MetaAgent", "AutonomousAgent", "AgentConfig", "AgentResult",
-    "AutoAgent", "ChatAssistant", "AgenticPlanner", "TaskBreakdownAgent", "TodoCreatorAgent",
+    "AutoAgent", "ChatAssistant", "TaskPlanner", "TaskBreakdownAgent", "TodoCreatorAgent",
     # Base Swarms
     "BaseSwarm", "DomainSwarm", "SwarmConfig", "SwarmResult",
     # Research & Analysis Swarms
@@ -68,5 +68,5 @@ __all__ = [
     # Meta Swarms
     "LearningSwarm", "LearningConfig", "LearningResult", "improve_swarm",
     # Intelligence
-    "TDLambdaLearner", "SwarmIntelligence", "SwarmManager",
+    "TDLambdaLearner", "SwarmIntelligence", "Orchestrator",
 ]

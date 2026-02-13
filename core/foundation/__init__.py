@@ -17,7 +17,6 @@ Modules:
 
 from .data_structures import (
     SwarmConfig,
-    JottyConfig,  # Backward compatibility
     MemoryLevel,
     ValidationResult,
     MemoryEntry,
@@ -99,7 +98,6 @@ from .exceptions import (
 __all__ = [
     # From data_structures
     'SwarmConfig',
-    'JottyConfig',  # Backward compatibility
     'MemoryLevel',
     'ValidationResult',
     'MemoryEntry',

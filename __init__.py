@@ -3,7 +3,7 @@ JOTTY - Multi-Agent AI Framework
 ==================================
 
 V3 Architecture: Tiered Execution (NEW - Recommended)
-V2 Architecture: SwarmManager + Skills + Learning (Preserved)
+V2 Architecture: Orchestrator + Skills + Learning (Preserved)
 
 V3 - Simple, Progressive Complexity:
     from Jotty import Jotty, ExecutionTier
@@ -25,7 +25,7 @@ V3 - Simple, Progressive Complexity:
     result = await jotty.autonomous("Execute in sandbox")
 
 V2 - Full Control (Still Available):
-    from Jotty import SwarmManager, AgentConfig
+    from Jotty import Orchestrator, AgentConfig
 
     # Or use the high-level entry points:
     from Jotty.core.agents import AutoAgent      # Workflow execution
@@ -77,7 +77,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ExecutionTier": ".core.execution.types",
     "ExecutionConfig": ".core.execution.types",
     "ExecutionResult": ".core.execution.types",
-    "UnifiedExecutor": ".core.execution.executor",
+    "TierExecutor": ".core.execution.executor",
     "TierDetector": ".core.execution.tier_detector",
 
     # --- COMPOSITE AGENT (Agent/Swarm Unification) ---
@@ -86,10 +86,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     "UnifiedResult": ".core.agents.base.composite_agent",
 
     # --- V2 PRIMARY EXPORTS (Preserved - No Breakage) ---
-    "SwarmManager": ".core.orchestration",
+    "Orchestrator": ".core.orchestration",
     "TodoItem": ".core.orchestration.swarm_roadmap",
     "AgentConfig": ".core.foundation.agent_config",
-    "JottyConfig": ".core.foundation.data_structures",
+    "SwarmConfig": ".core.foundation.data_structures",
     "MemoryLevel": ".core.foundation.data_structures",
     "ValidationResult": ".core.foundation.data_structures",
     "MemoryEntry": ".core.foundation.data_structures",
@@ -115,7 +115,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "RewardCondition": ".core.learning.shaped_rewards",
 
     # --- MEMORY ---
-    "HierarchicalMemory": ".core.memory.cortex",
+    "SwarmMemory": ".core.memory.cortex",
     "MemoryCluster": ".core.memory.cortex",
 
     # --- LEARNING ---

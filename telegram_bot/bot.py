@@ -3,7 +3,7 @@ Telegram Bot Handler
 ====================
 
 Main Telegram bot logic for Jotty.
-Processes messages through UnifiedExecutor and maintains sessions.
+Processes messages through ChatExecutor and maintains sessions.
 Supports CLI slash commands via shared CommandRegistry.
 """
 
@@ -25,7 +25,7 @@ class TelegramBotHandler:
     Telegram bot handler for Jotty.
 
     Uses python-telegram-bot library for Telegram integration.
-    Processes messages through the shared UnifiedExecutor backend.
+    Processes messages through the shared ChatExecutor backend.
     """
 
     def __init__(
@@ -146,10 +146,10 @@ class TelegramBotHandler:
         return self._skills_registry
 
     def _get_executor(self):
-        """Get or create UnifiedExecutor instance (auto-detects provider)."""
+        """Get or create ChatExecutor instance (auto-detects provider)."""
         if self._executor is None:
-            from core.orchestration.unified_executor import UnifiedExecutor
-            self._executor = UnifiedExecutor(
+            from core.orchestration.unified_executor import ChatExecutor
+            self._executor = ChatExecutor(
                 status_callback=self._handle_status
             )
         return self._executor
@@ -402,7 +402,7 @@ class TelegramBotHandler:
         )
 
     async def _handle_message(self, update, context):
-        """Handle incoming text messages - routes to CLI commands or UnifiedExecutor."""
+        """Handle incoming text messages - routes to CLI commands or ChatExecutor."""
         from .renderer import TelegramRenderer
         InterfaceType = self._get_interface_type()
 
@@ -446,8 +446,8 @@ class TelegramBotHandler:
                 result = await self._handle_cli_command(text, update, session, InterfaceType)
                 return
 
-            # Natural language - process through UnifiedExecutor with streaming
-            from core.orchestration.unified_executor import UnifiedExecutor
+            # Natural language - process through ChatExecutor with streaming
+            from core.orchestration.unified_executor import ChatExecutor
 
             # Send initial message for streaming updates
             stream_msg = await update.message.reply_text("⏳ Thinking...")
@@ -479,7 +479,7 @@ class TelegramBotHandler:
                 logger.info(f"Status: {stage} - {detail}")
 
             # Create executor with streaming (auto-detects provider)
-            executor = UnifiedExecutor(
+            executor = ChatExecutor(
                 status_callback=status_callback,
                 stream_callback=lambda chunk: asyncio.create_task(stream_callback(chunk))
             )
@@ -606,9 +606,9 @@ class TelegramBotHandler:
             async def get_swarm_manager(self):
                 """Get swarm manager (lazy)."""
                 if self._swarm_manager is None:
-                    from core.orchestration import SwarmManager
-                    from core.foundation.data_structures import JottyConfig
-                    self._swarm_manager = SwarmManager(config=JottyConfig())
+                    from core.orchestration import Orchestrator
+                    from core.foundation.data_structures import SwarmConfig
+                    self._swarm_manager = Orchestrator(config=SwarmConfig())
                 return self._swarm_manager
 
             def get_skills_registry(self):

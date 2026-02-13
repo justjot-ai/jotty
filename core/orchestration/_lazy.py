@@ -2,15 +2,15 @@
 Lazy Component Descriptor
 =========================
 
-Enables zero-cost component declaration on SwarmManager.
+Enables zero-cost component declaration on Orchestrator.
 Components are only initialized when first accessed.
 
 Usage:
-    class SwarmManager:
+    class Orchestrator:
         planner = LazyComponent(lambda self: SwarmPlanner())
         memory  = LazyComponent(lambda self: SwarmMemory(config=self.config))
 
-    sm = SwarmManager()
+    sm = Orchestrator()
     # planner/memory not yet created
     sm.planner.plan(...)  # NOW it creates SwarmPlanner
 """

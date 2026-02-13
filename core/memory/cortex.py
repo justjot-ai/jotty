@@ -29,7 +29,7 @@ def _get_dspy():
     return dspy
 
 from ..foundation.data_structures import (
-    MemoryEntry, MemoryLevel, GoalValue, JottyConfig,
+    MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
 from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
@@ -62,7 +62,7 @@ def _get_consolidation():
 from ._retrieval_mixin import RetrievalMixin
 from ._consolidation_mixin import ConsolidationMixin
 
-class HierarchicalMemory(RetrievalMixin, ConsolidationMixin):
+class SwarmMemory(RetrievalMixin, ConsolidationMixin):
     """
     Enhanced hierarchical memory with all A-Team features.
     
@@ -82,7 +82,7 @@ class HierarchicalMemory(RetrievalMixin, ConsolidationMixin):
     - Protection against forgetting
     """
     
-    def __init__(self, agent_name: str, config: JottyConfig):
+    def __init__(self, agent_name: str, config: SwarmConfig):
         self.agent_name = agent_name
         self.config = config
         

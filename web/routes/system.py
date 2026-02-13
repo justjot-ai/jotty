@@ -323,8 +323,8 @@ def register_system_routes(app, api):
     async def execute_swarm(request: SwarmRequest):
         """Execute multi-agent swarm."""
         try:
-            from ..core.agents import SwarmManager
-            manager = SwarmManager()
+            from ..core.agents import Orchestrator
+            manager = Orchestrator()
             result = await manager.execute(
                 task=request.task,
                 mode=request.mode,

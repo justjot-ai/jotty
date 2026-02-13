@@ -26,7 +26,7 @@ except ImportError:
     DSPY_AVAILABLE = False
     dspy = None
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 
 # Import credit assignment and adaptive learning (core RL features)
@@ -53,7 +53,7 @@ class OptimizationConfig:
     save_improvements: bool = True  # Save improvements to file
     improvements_file: Optional[Path] = None  # Path to save improvements (default: output_path/improvements.json)
     update_dspy_instructions: bool = False  # Update DSPy module instructions (if agent is DSPy module)
-    update_jotty_instructions: bool = False  # Update Jotty learned_instructions (if using JottyCore)
+    update_jotty_instructions: bool = False  # Update Jotty learned_instructions (if using Orchestrator)
     # Credit assignment and adaptive learning
     enable_credit_assignment: bool = True  # Enable credit assignment for improvements
     enable_adaptive_learning: bool = True  # Enable adaptive learning rate
@@ -117,7 +117,7 @@ class OptimizationPipeline:
         self,
         agents: List[AgentConfig],
         config: OptimizationConfig,
-        jotty_config: Optional[JottyConfig] = None,
+        jotty_config: Optional[SwarmConfig] = None,
         conductor: Optional[Any] = None  # Jotty Conductor instance
     ):
         """
@@ -126,12 +126,12 @@ class OptimizationPipeline:
         Args:
             agents: List of AgentConfig defining the agent pipeline
             config: OptimizationConfig with pipeline settings
-            jotty_config: Optional JottyConfig for Jotty components
-            conductor: Optional SwarmManager instance for agent orchestration
+            jotty_config: Optional SwarmConfig for Jotty components
+            conductor: Optional Orchestrator instance for agent orchestration
         """
         self.agents = agents
         self.config = config
-        self.jotty_config = jotty_config or JottyConfig()
+        self.jotty_config = jotty_config or SwarmConfig()
         self.conductor = conductor
         
         # Setup output paths
@@ -232,7 +232,7 @@ class OptimizationPipeline:
         
         # If conductor is available, use it for orchestration
         if self.conductor:
-            self._write_thinking_log("Using SwarmManager for agent orchestration")
+            self._write_thinking_log("Using Orchestrator for agent orchestration")
             try:
                 result = await self.conductor.arun(
                     goal=task,
@@ -255,8 +255,8 @@ class OptimizationPipeline:
                 else:
                     return {"output": result, "success": True}
             except Exception as e:
-                logger.error(f"SwarmManager execution failed: {e}")
-                self._write_thinking_log(f"SwarmManager execution failed: {e}")
+                logger.error(f"Orchestrator execution failed: {e}")
+                self._write_thinking_log(f"Orchestrator execution failed: {e}")
                 raise
         
         # Otherwise, run agents sequentially

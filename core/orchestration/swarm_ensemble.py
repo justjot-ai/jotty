@@ -1,5 +1,5 @@
 """
-SwarmEnsemble - Extracted from SwarmManager
+SwarmEnsemble - Extracted from Orchestrator
 =============================================
 
 Multi-perspective ensemble execution and auto-ensemble detection.

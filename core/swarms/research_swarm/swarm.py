@@ -25,7 +25,7 @@ from .signatures import (
     TechnicalSignalsSignature,
 )
 from .agents import (
-    BaseResearchAgent, DataFetcherAgent, WebSearchAgent,
+    BaseSwarmAgent, DataFetcherAgent, WebSearchAgent,
     SentimentAgent, LLMAnalysisAgent, PeerComparisonAgent,
     ChartGeneratorAgent, TechnicalAnalysisAgent,
     EnhancedChartGeneratorAgent, ScreenerAgent,
@@ -95,9 +95,9 @@ class ResearchSwarm(DomainSwarm):
         # Initialize shared resources
         try:
             from Jotty.core.agents.dag_agents import SwarmResources
-            from Jotty.core.foundation.data_structures import JottyConfig
+            from Jotty.core.foundation.data_structures import SwarmConfig
 
-            jotty_config = JottyConfig()
+            jotty_config = SwarmConfig()
             resources = SwarmResources.get_instance(jotty_config)
 
             self._memory = resources.memory

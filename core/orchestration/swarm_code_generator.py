@@ -40,7 +40,7 @@ class SwarmCodeGenerator:
         Initialize SwarmCodeGenerator.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
         """
         self.config = config
         self._planner = None
@@ -48,8 +48,8 @@ class SwarmCodeGenerator:
     def _init_dependencies(self):
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._planner is None:
-            from Jotty.core.agents.agentic_planner import AgenticPlanner
-            self._planner = AgenticPlanner()
+            from Jotty.core.agents.agentic_planner import TaskPlanner
+            self._planner = TaskPlanner()
     
     def generate_glue_code(
         self,
@@ -72,7 +72,7 @@ class SwarmCodeGenerator:
         
         logger.info(f"🔧 SwarmCodeGenerator: Generating glue code {source_tool} → {destination_tool}")
         
-        # Use LLM to generate code (DRY: reuse AgenticPlanner's LLM)
+        # Use LLM to generate code (DRY: reuse TaskPlanner's LLM)
         prompt = f"""
 Generate Python code to connect:
 - Source: {source_tool}
@@ -193,7 +193,7 @@ Generate complete, runnable code.
         
         logger.info(f"🔧 SwarmCodeGenerator: Generating {operation} code for {service}")
         
-        # Use LLM to generate integration code (DRY: reuse AgenticPlanner)
+        # Use LLM to generate integration code (DRY: reuse TaskPlanner)
         prompt = f"""
 Generate Python code for {service} integration:
 - Operation: {operation}

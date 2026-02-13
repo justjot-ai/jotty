@@ -56,8 +56,8 @@ from .memory_system import (
 
 # ── Lazy imports (DSPy-dependent, loaded on first access) ───────────
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
-    # cortex (HierarchicalMemory itself is lightweight once consolidation is deferred)
-    "HierarchicalMemory": (".cortex", "HierarchicalMemory"),
+    # cortex (SwarmMemory itself is lightweight once consolidation is deferred)
+    "SwarmMemory": (".cortex", "SwarmMemory"),
     # Consolidation signatures/classes (heavy DSPy)
     "MemoryCluster": (".consolidation", "MemoryCluster"),
     "MemoryLevelClassificationSignature": (".consolidation", "MemoryLevelClassificationSignature"),
@@ -106,7 +106,7 @@ __all__ = [
     'MemoryCandidate',
     'SharpWaveRippleConsolidator',
     # cortex
-    'HierarchicalMemory',
+    'SwarmMemory',
     'MemoryCluster',
     'MemoryLevelClassificationSignature',
     'MemoryLevelClassifier',

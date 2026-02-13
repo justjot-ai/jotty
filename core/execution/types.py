@@ -89,7 +89,7 @@ class ExecutionConfig:
     def to_swarm_config(self) -> Dict[str, Any]:
         """Convert execution config to SwarmConfig-compatible dict.
 
-        Only includes fields that exist on SwarmConfig/JottyConfig.
+        Only includes fields that exist on SwarmConfig.
         Provider/model/temperature are NOT SwarmConfig fields — they're
         set via DSPy LM configuration or passed directly to LLMProvider.
         """

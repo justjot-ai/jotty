@@ -42,7 +42,7 @@ import logging
 
 from .templates import TemplateRegistry, SwarmTemplate, SwarmML
 from .templates.base import TemplateExecutor
-from .swarm_manager import SwarmManager
+from .swarm_manager import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -118,22 +118,22 @@ class Swarm:
     """
 
     _instance: Optional['Swarm'] = None
-    _swarm_manager: Optional[SwarmManager] = None
+    _swarm_manager: Optional[Orchestrator] = None
     _mas_learning = None
 
     @classmethod
     def _get_swarm_manager(cls):
-        """Get or create SwarmManager for learning integration."""
+        """Get or create Orchestrator for learning integration."""
         if cls._swarm_manager is None:
             try:
-                cls._swarm_manager = SwarmManager(config=None)
+                cls._swarm_manager = Orchestrator(config=None)
             except Exception as e:
-                logger.debug(f"SwarmManager init failed, learning disabled: {e}")
+                logger.debug(f"Orchestrator init failed, learning disabled: {e}")
         return cls._swarm_manager
 
     @classmethod
     def _get_learning(cls):
-        """Get learning system, with or without full SwarmManager."""
+        """Get learning system, with or without full Orchestrator."""
         manager = cls._get_swarm_manager()
         if manager:
             return manager.get_ml_learning()
@@ -285,7 +285,7 @@ class Swarm:
 
         orchestrator = get_skill_orchestrator()
 
-        # --- Initialize learning from SwarmManager ---
+        # --- Initialize learning from Orchestrator ---
         template_instance = kwargs.get('_template_instance', None)
         if template_instance is None:
             template_instance = TemplateRegistry.get("ml")

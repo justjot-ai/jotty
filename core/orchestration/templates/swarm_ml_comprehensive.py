@@ -5,7 +5,7 @@ SwarmML Comprehensive - Learning-Enhanced Machine Learning Template
 The ultimate AutoML swarm template combining:
 - World-class ML pipeline (from SwarmML)
 - Cross-session learning (TransferableLearningStore)
-- Online learning during execution (SwarmLearningManager)
+- Online learning during execution (LearningManager)
 - Adaptive exploration/exploitation (AdaptiveController)
 - Pattern discovery and reuse (PatternLearner)
 - Self-improving feedback loops
@@ -186,7 +186,7 @@ class SwarmMLComprehensive(MLflowMixin, ReportMixin, WorldClassReportMixin, Tele
 
     Extends SwarmML with:
     - TransferableLearningStore for cross-session learning
-    - SwarmLearningManager for online learning
+    - LearningManager for online learning
     - Adaptive exploration strategies
     - Pattern discovery and reuse
 
@@ -483,7 +483,7 @@ JSON only:""",
 
         try:
             from Jotty.core.learning.transfer_learning import TransferableLearningStore
-            from Jotty.core.learning.learning_coordinator import SwarmLearningManager
+            from Jotty.core.learning.learning_coordinator import LearningManager
 
             self._transfer_store = TransferableLearningStore()
             store_path = os.path.join('Jotty', 'outputs', 'transfer_store.json')
@@ -494,7 +494,7 @@ JSON only:""",
                 output_base_dir = os.path.join('Jotty', 'outputs')
                 enable_rl = False
 
-            self._learning_coordinator = SwarmLearningManager(
+            self._learning_coordinator = LearningManager(
                 config=_LCConfig(),
                 base_dir=os.path.join('Jotty', 'outputs'),
             )

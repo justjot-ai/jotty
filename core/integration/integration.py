@@ -7,7 +7,7 @@ A-Team Approved: Ties all components together.
 This module ensures:
 1. GlobalContextGuard patches ALL DSPy calls
 2. AlgorithmicCreditAssigner is used for credit
-3. ContextAwareDocumentProcessor handles all file reads
+3. ContentGate handles all file reads
 4. All components are properly initialized
 
 Usage:
@@ -29,7 +29,7 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from ..foundation.data_structures import JottyConfig
+from ..foundation.data_structures import SwarmConfig
 from ..context.global_context_guard import (
     GlobalContextGuard,
     patch_dspy_with_guard,
@@ -40,8 +40,8 @@ from ..utils.algorithmic_foundations import (
     DifferenceRewardEstimator,
     SurpriseEstimator,
     MutualInformationRetriever,
-    UniversalContextGuard,
-    ContextAwareDocumentProcessor
+    GlobalContextGuard,
+    ContentGate
 )
 
 logger = logging.getLogger(__name__)
@@ -61,8 +61,8 @@ class JottyIntegration:
     _instance: Optional['JottyIntegration'] = None
     _initialized: bool = False
     
-    def __init__(self, config: JottyConfig = None):
-        self.config = config or JottyConfig()
+    def __init__(self, config: SwarmConfig = None):
+        self.config = config or SwarmConfig()
         
         # Context management
         self.context_guard = GlobalContextGuard(
@@ -70,7 +70,7 @@ class JottyIntegration:
         )
         
         # Document processing
-        self.doc_processor = ContextAwareDocumentProcessor(
+        self.doc_processor = ContentGate(
             max_tokens=self.config.max_context_tokens
         )
         
@@ -91,7 +91,7 @@ class JottyIntegration:
         logger.info("🧠 JottyIntegration initialized (v8.0 Algorithmic Edition)")
     
     @classmethod
-    def get_instance(cls, config: JottyConfig = None) -> 'JottyIntegration':
+    def get_instance(cls, config: SwarmConfig = None) -> 'JottyIntegration':
         """Get or create singleton instance."""
         if cls._instance is None:
             cls._instance = cls(config)
@@ -234,7 +234,7 @@ class JottyIntegration:
         }
 
 
-def initialize_jotty(config: JottyConfig = None) -> JottyIntegration:
+def initialize_jotty(config: SwarmConfig = None) -> JottyIntegration:
     """
     Initialize JOTTY with all v8.0 protections.
     

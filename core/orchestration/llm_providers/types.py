@@ -1,5 +1,5 @@
 """
-Executor data types shared across LLM providers and UnifiedExecutor.
+Executor data types shared across LLM providers and ChatExecutor.
 """
 
 from dataclasses import dataclass, field

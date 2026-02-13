@@ -3,7 +3,7 @@ Research Command
 ================
 
 /research - Intelligent research with LLM synthesis.
-Uses UnifiedExecutor for smart analysis and output formatting.
+Uses TierExecutor for smart analysis and output formatting.
 """
 
 import logging
@@ -22,7 +22,7 @@ class ResearchCommand(BaseCommand):
     """
     /research - Intelligent research with LLM synthesis.
 
-    Uses UnifiedExecutor to:
+    Uses TierExecutor to:
     1. Search for recent information
     2. Synthesize findings with LLM
     3. Output in requested format (text, pdf, docx, slides, telegram)
@@ -35,7 +35,7 @@ class ResearchCommand(BaseCommand):
     category = "research"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
-        """Execute research command using UnifiedExecutor."""
+        """Execute research command using TierExecutor."""
 
         if not args.positional:
             cli.renderer.error("Topic required")

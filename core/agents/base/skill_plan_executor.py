@@ -3,7 +3,7 @@ SkillPlanExecutor - Reusable Planning/Execution Service
 
 Extracted from AutonomousAgent to enable any agent to use skill-based
 planning and execution. Provides:
-- LLM-based skill selection via AgenticPlanner
+- LLM-based skill selection via TaskPlanner
 - Execution plan creation
 - Multi-step execution with dependency handling
 - Template variable resolution
@@ -657,14 +657,14 @@ class SkillPlanExecutor:
 
     @property
     def planner(self):
-        """Lazy-load AgenticPlanner."""
+        """Lazy-load TaskPlanner."""
         if self._planner is None:
             try:
-                from ..agentic_planner import AgenticPlanner
-                self._planner = AgenticPlanner()
-                logger.debug("SkillPlanExecutor: Initialized AgenticPlanner")
+                from ..agentic_planner import TaskPlanner
+                self._planner = TaskPlanner()
+                logger.debug("SkillPlanExecutor: Initialized TaskPlanner")
             except Exception as e:
-                logger.warning(f"SkillPlanExecutor: Could not initialize AgenticPlanner: {e}")
+                logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner: {e}")
         return self._planner
 
     # =========================================================================
@@ -814,7 +814,7 @@ class SkillPlanExecutor:
         """
         Create a reflective replan after step failure.
 
-        Uses AgenticPlanner.replan_with_reflection() if available,
+        Uses TaskPlanner.replan_with_reflection() if available,
         otherwise falls back to regular plan_execution().
 
         Args:

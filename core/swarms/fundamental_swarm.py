@@ -387,10 +387,9 @@ class InvestmentThesisSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-BaseFundamentalAgent = BaseSwarmAgent
 
 
-class FinancialStatementAgent(BaseFundamentalAgent):
+class FinancialStatementAgent(BaseSwarmAgent):
     """Analyzes financial statements."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -434,7 +433,7 @@ class FinancialStatementAgent(BaseFundamentalAgent):
             return {'error': str(e)}
 
 
-class RatioAnalysisAgent(BaseFundamentalAgent):
+class RatioAnalysisAgent(BaseSwarmAgent):
     """Performs ratio analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -487,7 +486,7 @@ class RatioAnalysisAgent(BaseFundamentalAgent):
             return {'error': str(e)}
 
 
-class ValuationAgent(BaseFundamentalAgent):
+class ValuationAgent(BaseSwarmAgent):
     """Performs company valuation."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -547,7 +546,7 @@ class ValuationAgent(BaseFundamentalAgent):
             )
 
 
-class QualityEarningsAgent(BaseFundamentalAgent):
+class QualityEarningsAgent(BaseSwarmAgent):
     """Assesses earnings quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -590,7 +589,7 @@ class QualityEarningsAgent(BaseFundamentalAgent):
             return {'error': str(e)}
 
 
-class ManagementAgent(BaseFundamentalAgent):
+class ManagementAgent(BaseSwarmAgent):
     """Analyzes management quality."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -637,7 +636,7 @@ class ManagementAgent(BaseFundamentalAgent):
             return {'error': str(e)}
 
 
-class MoatAgent(BaseFundamentalAgent):
+class MoatAgent(BaseSwarmAgent):
     """Analyzes competitive moat."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):
@@ -683,7 +682,7 @@ class MoatAgent(BaseFundamentalAgent):
             return {'error': str(e)}
 
 
-class ThesisAgent(BaseFundamentalAgent):
+class ThesisAgent(BaseSwarmAgent):
     """Generates investment thesis."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = ""):

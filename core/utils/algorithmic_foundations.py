@@ -354,9 +354,6 @@ class MutualInformationRetriever:
         return len(words1 & words2) / union
 
 
-# Aliases for backward compatibility
-UniversalContextGuard = GlobalContextGuard
-ContextAwareDocumentProcessor = ContentGate
 
 
 # =============================================================================
@@ -381,7 +378,6 @@ __all__ = [
     'OverflowDetector',
     'ContextOverflowInfo',
     'GlobalContextGuard',
-    'UniversalContextGuard',
     'patch_dspy_with_guard',
     'unpatch_dspy',
 
@@ -390,7 +386,6 @@ __all__ = [
     'ProcessedContent',
     'RelevanceEstimator',
     'ContentGate',
-    'ContextAwareDocumentProcessor',
     'with_content_gate',
 
     # Sorting Algorithms

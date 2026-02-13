@@ -9,9 +9,9 @@ USER INTERFACE     Telegram | Slack | Discord | WhatsApp | Web | CLI | SDK
        ↓
 COMMAND LAYER      CommandRegistry → run | export | resume | justjot
        ↓
-ORCHESTRATION V2   SwarmManager → AgentRunner → LeanExecutor
+ORCHESTRATION V2   Orchestrator → AgentRunner → LeanExecutor
        ↓
-AGENT LAYER        AgenticPlanner → AutoAgent → InspectorAgent
+AGENT LAYER        TaskPlanner → AutoAgent → ValidatorAgent
        ↓
 MEMORY SYSTEM      5-Level MemoryCortex (Episodic → Semantic → Procedural → Meta → Causal)
        ↓
@@ -57,7 +57,7 @@ python Jotty/web.py
 
 | Component | Purpose |
 |-----------|---------|
-| `SwarmManager` | Central orchestrator for multi-agent coordination |
+| `Orchestrator` | Central orchestrator for multi-agent coordination |
 | `AgentRunner` | Per-agent execution with validation |
 | `LeanExecutor` | LLM-first lean execution path |
 | `SwarmInstaller` | Template-based swarm creation |
@@ -66,9 +66,9 @@ python Jotty/web.py
 
 | Agent | Role |
 |-------|------|
-| `AgenticPlanner` | LLM-based task inference and workflow planning |
+| `TaskPlanner` | LLM-based task inference and workflow planning |
 | `AutoAgent` | Autonomous task execution with skill discovery |
-| `InspectorAgent` | Pre/post validation (Architect + Auditor) |
+| `ValidatorAgent` | Pre/post validation (Architect + Auditor) |
 
 ### Memory System (Brain-Inspired)
 
@@ -144,8 +144,8 @@ Jotty/
 │   ├── commands/           # Slash commands
 │   └── config/             # CLI configuration
 ├── core/
-│   ├── orchestration/v2/   # SwarmManager, AgentRunner, LeanExecutor
-│   ├── agents/             # AgenticPlanner, AutoAgent, InspectorAgent
+│   ├── orchestration/v2/   # Orchestrator, AgentRunner, LeanExecutor
+│   ├── agents/             # TaskPlanner, AutoAgent, ValidatorAgent
 │   ├── memory/             # MemoryCortex (5-level)
 │   ├── learning/           # TD-Lambda, credit assignment
 │   ├── registry/           # UnifiedRegistry, Skills, UI
@@ -163,12 +163,12 @@ Jotty/
 ```
 1. User Input → JottyCLI
 2. Command Routing → CommandRegistry
-3. Planning → AgenticPlanner (task type inference)
+3. Planning → TaskPlanner (task type inference)
 4. Skill Discovery → SkillsRegistry
-5. Orchestration → SwarmManager → AgentRunner
-6. Pre-Validation → InspectorAgent (Architect)
+5. Orchestration → Orchestrator → AgentRunner
+6. Pre-Validation → ValidatorAgent (Architect)
 7. Execution → AutoAgent + Skills
-8. Post-Validation → InspectorAgent (Auditor)
+8. Post-Validation → ValidatorAgent (Auditor)
 9. Learning → TD(λ) update + Memory storage
 10. Output → UIRenderer → User
 ```
@@ -210,7 +210,7 @@ python docs/scripts/verify_architecture.py
 | Strategy | Validators, Classifiers | Interchangeable algorithms |
 | Adapter | UnifiedLMProvider | Abstract LLM APIs |
 | State | BrainStateMachine | AWAKE/SLEEP transitions |
-| Lazy Init | Skills, SwarmManager | Fast startup |
+| Lazy Init | Skills, Orchestrator | Fast startup |
 
 ## Documentation
 

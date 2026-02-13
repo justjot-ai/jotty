@@ -21,7 +21,7 @@ except ImportError:
 
 
 @dataclass
-class AgentSpec:
+class AgentConfig:
     """
     Specification for a single agent in the JOTTY swarm.
     
@@ -86,5 +86,3 @@ class AgentSpec:
             self.max_retries = MAX_RETRIES
 
 
-# Backward compatibility alias
-AgentConfig = AgentSpec

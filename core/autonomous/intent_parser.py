@@ -1,7 +1,7 @@
 """
 Intent Parser - Thin layer for natural language → TaskGraph
 
-Uses AgenticPlanner for task type inference (no hardcoded keyword matching).
+Uses TaskPlanner for task type inference (no hardcoded keyword matching).
 """
 
 from typing import List, Dict, Any, Optional
@@ -10,7 +10,7 @@ from enum import Enum
 
 # Shared types (no circular dependency)
 from ..agents._execution_types import TaskType
-from ..agents.agentic_planner import AgenticPlanner
+from ..agents.agentic_planner import TaskPlanner
 
 
 @dataclass
@@ -39,23 +39,23 @@ class IntentParser:
     Actual task execution reuses AutoAgent.
     """
     
-    def __init__(self, planner: Optional[AgenticPlanner] = None, auto_agent=None):
+    def __init__(self, planner: Optional[TaskPlanner] = None, auto_agent=None):
         """
         Initialize intent parser.
         
         Args:
-            planner: Optional AgenticPlanner instance (creates new if None)
+            planner: Optional TaskPlanner instance (creates new if None)
             auto_agent: DEPRECATED - ignored, kept for backward compatibility
         """
-        # Use AgenticPlanner for task type inference (no hardcoded logic)
-        self.planner = planner or AgenticPlanner()
+        # Use TaskPlanner for task type inference (no hardcoded logic)
+        self.planner = planner or TaskPlanner()
         
         if auto_agent is not None:
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(
                 "auto_agent parameter is deprecated. "
-                "IntentParser now uses AgenticPlanner for task type inference."
+                "IntentParser now uses TaskPlanner for task type inference."
             )
         
         # Pattern matching for extraction (still needed for other fields)
@@ -82,7 +82,7 @@ class IntentParser:
         """
         Parse natural language request into task graph.
         
-        Uses AgenticPlanner for task type inference (semantic understanding).
+        Uses TaskPlanner for task type inference (semantic understanding).
         
         Args:
             user_request: Natural language request from user
@@ -90,7 +90,7 @@ class IntentParser:
         Returns:
             TaskGraph with structured intent
         """
-        # Use AgenticPlanner for semantic task type inference (no keyword matching)
+        # Use TaskPlanner for semantic task type inference (no keyword matching)
         task_type, reasoning, confidence = self.planner.infer_task_type(user_request)
         
         # Extract components
@@ -112,7 +112,7 @@ class IntentParser:
             metadata={'original_request': user_request}
         )
     
-    # Removed _infer_task_type_fallback() - now using AgenticPlanner for semantic inference
+    # Removed _infer_task_type_fallback() - now using TaskPlanner for semantic inference
     # No hardcoded keyword matching - fully agentic
     
     def _extract_schedule(self, request: str) -> Optional[str]:

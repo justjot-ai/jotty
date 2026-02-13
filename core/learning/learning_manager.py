@@ -2,9 +2,9 @@
 Learning Manager - DEPRECATED
 =============================
 
-This module is deprecated. Use SwarmLearningManager instead:
+This module is deprecated. Use LearningManager instead:
 
-    from core.learning.learning_coordinator import SwarmLearningManager
+    from core.learning.learning_coordinator import LearningManager
 
 All classes and functions are re-exported from learning_coordinator for
 backward compatibility.
@@ -21,17 +21,15 @@ warnings.warn(
 
 # Re-export everything from learning_coordinator for backward compatibility
 from .learning_coordinator import (
-    SwarmLearningManager,
+    LearningManager,
     LearningSession,
     LearningUpdate,
-    get_learning_coordinator as get_learning_manager,
-    reset_learning_coordinator as reset_learning_manager,
+    get_learning_coordinator,
 )
 
 __all__ = [
-    'SwarmLearningManager',
+    'LearningManager',
     'LearningSession',
     'LearningUpdate',
-    'get_learning_manager',
-    'reset_learning_manager',
+    'get_learning_coordinator',
 ]

@@ -1,5 +1,5 @@
 """
-SwarmWarmup - Extracted from SwarmManager
+SwarmWarmup - Extracted from Orchestrator
 ==========================================
 
 DrZero-inspired zero-data bootstrapping for cold-start mitigation.
@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 from collections import defaultdict
 
 if TYPE_CHECKING:
-    from .swarm_manager import SwarmManager
+    from .swarm_manager import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class SwarmWarmup:
     to bootstrap agent learning before real user tasks.
     """
 
-    def __init__(self, swarm: 'SwarmManager'):
+    def __init__(self, swarm: 'Orchestrator'):
         self.swarm = swarm
 
     async def warmup(

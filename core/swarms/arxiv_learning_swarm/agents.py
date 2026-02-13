@@ -35,7 +35,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-class BaseLearningAgent(BaseSwarmAgent):
+class BaseSwarmAgent(BaseSwarmAgent):
     """Base class for arxiv learning agents. Extends BaseSwarmAgent with LLM model selection."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -67,7 +67,7 @@ class BaseLearningAgent(BaseSwarmAgent):
             return dspy.ChainOfThought(signature)
 
 
-class PaperFetcherAgent(BaseLearningAgent):
+class PaperFetcherAgent(BaseSwarmAgent):
     """Fetches papers from ArXiv via the ``arxiv-downloader`` skill.
 
     All networking, caching, retry, and XML parsing is delegated to the
@@ -216,7 +216,7 @@ class PaperFetcherAgent(BaseLearningAgent):
         return papers
 
 
-class ConceptExtractorAgent(BaseLearningAgent):
+class ConceptExtractorAgent(BaseSwarmAgent):
     """Extracts concepts from papers."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -275,7 +275,7 @@ class ConceptExtractorAgent(BaseLearningAgent):
             return []
 
 
-class IntuitionBuilderAgent(BaseLearningAgent):
+class IntuitionBuilderAgent(BaseSwarmAgent):
     """Builds intuition for concepts."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -313,7 +313,7 @@ class IntuitionBuilderAgent(BaseLearningAgent):
             return {}
 
 
-class MathSimplifierAgent(BaseLearningAgent):
+class MathSimplifierAgent(BaseSwarmAgent):
     """Simplifies math to be accessible."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -352,7 +352,7 @@ class MathSimplifierAgent(BaseLearningAgent):
             return {}
 
 
-class ExampleGeneratorAgent(BaseLearningAgent):
+class ExampleGeneratorAgent(BaseSwarmAgent):
     """Generates examples to reinforce learning."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -392,7 +392,7 @@ class ExampleGeneratorAgent(BaseLearningAgent):
             return {}
 
 
-class ProgressiveBuilderAgent(BaseLearningAgent):
+class ProgressiveBuilderAgent(BaseSwarmAgent):
     """Builds progressive learning content."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -442,7 +442,7 @@ class ProgressiveBuilderAgent(BaseLearningAgent):
             return {}
 
 
-class ContentPolisherAgent(BaseLearningAgent):
+class ContentPolisherAgent(BaseSwarmAgent):
     """Polishes content to be engaging."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
@@ -484,7 +484,7 @@ class ContentPolisherAgent(BaseLearningAgent):
             }
 
 
-class UnifiedLearningAgent(BaseLearningAgent):
+class UnifiedLearningAgent(BaseSwarmAgent):
     """
     Optimized learning content generator with two modes:
 

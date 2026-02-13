@@ -1,17 +1,17 @@
 """
-ExecutionOrchestrator - Extracted from SwarmManager
+ExecutionOrchestrator - Extracted from Orchestrator
 ====================================================
 
 Handles the actual execution dispatch logic for single-agent and multi-agent modes.
-This separates "how to run agents" from "how to configure/manage agents" (SwarmManager).
+This separates "how to run agents" from "how to configure/manage agents" (Orchestrator).
 
 Architecture:
-    SwarmManager owns ExecutionOrchestrator
-    SwarmManager.run() delegates to ExecutionOrchestrator.execute()
+    Orchestrator owns ExecutionOrchestrator
+    Orchestrator.run() delegates to ExecutionOrchestrator.execute()
     ExecutionOrchestrator delegates paradigm dispatch to paradigm methods
 
 This file is intentionally thin - it holds the dispatch logic that was previously
-inlined in SwarmManager.run() and _execute_multi_agent(). The actual agent execution
+inlined in Orchestrator.run() and _execute_multi_agent(). The actual agent execution
 still goes through AgentRunner.run().
 """
 
@@ -21,15 +21,15 @@ import time
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .swarm_manager import SwarmManager
+    from .swarm_manager import Orchestrator
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionOrchestrator:
-    """Handles agent execution dispatch for SwarmManager.
+    """Handles agent execution dispatch for Orchestrator.
 
-    Extracted to reduce SwarmManager's cognitive load from ~2700 lines.
+    Extracted to reduce Orchestrator's cognitive load from ~2700 lines.
     Owns the logic for:
     - Single vs multi-agent routing
     - Discussion paradigm selection (fanout, relay, debate, refinement)
@@ -38,17 +38,17 @@ class ExecutionOrchestrator:
     - Efficiency metrics collection
 
     Does NOT own:
-    - Agent/runner creation (SwarmManager)
+    - Agent/runner creation (Orchestrator)
     - Learning pipelines (SwarmLearningPipeline)
     - Ensemble management (EnsembleManager)
     - Provider management (ProviderManager)
     """
 
-    def __init__(self, manager: 'SwarmManager'):
-        """Initialize with reference to owning SwarmManager.
+    def __init__(self, manager: 'Orchestrator'):
+        """Initialize with reference to owning Orchestrator.
 
         Args:
-            manager: The SwarmManager instance that owns this orchestrator
+            manager: The Orchestrator instance that owns this orchestrator
         """
         self._mgr = manager
         self._efficiency_stats: Dict[str, Any] = {}
@@ -56,7 +56,7 @@ class ExecutionOrchestrator:
     async def execute_single(self, goal: str, **kwargs) -> Any:
         """Execute in single-agent mode.
 
-        Delegates to SwarmManager._execute_single_agent for now,
+        Delegates to Orchestrator._execute_single_agent for now,
         but provides a clean seam for future extraction.
         """
         return await self._mgr._execute_single_agent(goal, **kwargs)
@@ -64,7 +64,7 @@ class ExecutionOrchestrator:
     async def execute_multi(self, goal: str, **kwargs) -> Any:
         """Execute in multi-agent mode with paradigm dispatch.
 
-        Delegates to SwarmManager._execute_multi_agent for now,
+        Delegates to Orchestrator._execute_multi_agent for now,
         but provides a clean seam for future extraction.
         """
         return await self._mgr._execute_multi_agent(goal, **kwargs)

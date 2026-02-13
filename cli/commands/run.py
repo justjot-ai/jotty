@@ -2,7 +2,7 @@
 Run Command
 ===========
 
-Execute tasks with SwarmManager.
+Execute tasks with Orchestrator.
 """
 
 import time
@@ -14,16 +14,16 @@ if TYPE_CHECKING:
 
 
 class RunCommand(BaseCommand):
-    """Execute tasks with SwarmManager."""
+    """Execute tasks with Orchestrator."""
 
     name = "run"
     aliases = ["r", "do"]
-    description = "Execute a task using SwarmManager with zero-config intelligence"
+    description = "Execute a task using Orchestrator with zero-config intelligence"
     usage = "/run <goal> [--agent <name>] [--verbose]"
     category = "execution"
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
-        """Execute task with SwarmManager."""
+        """Execute task with Orchestrator."""
         if not args.positional and not args.raw.strip():
             return CommandResult.fail("Usage: /run <goal>")
 
@@ -99,7 +99,7 @@ class RunCommand(BaseCommand):
                 file_paths = []
                 summary = {}
 
-                # Handle ExecutionResult (from AutoAgent/SwarmManager)
+                # Handle ExecutionResult (from AutoAgent/Orchestrator)
                 if hasattr(output, 'outputs') and hasattr(output, 'skills_used'):
                     outputs_dict = output.outputs or {}
                     seen_paths = set()

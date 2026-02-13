@@ -1,7 +1,7 @@
 """
 V2 AgentRunner - Executes a single agent with validation and learning
 
-Extracted from SingleAgentOrchestrator for reuse in SwarmManager.
+Extracted from SingleAgentOrchestrator for reuse in Orchestrator.
 
 AgentScope-inspired lifecycle hooks (Gao et al., 2025):
     Pluggable hooks at 6 lifecycle points let you add tracing, profiling,
@@ -17,7 +17,7 @@ import time as _time
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.utils.async_utils import StatusReporter
 from Jotty.core.foundation.exceptions import (
     AgentExecutionError,
@@ -29,8 +29,8 @@ from Jotty.core.foundation.exceptions import (
     ConsolidationError,
     LearningError,
 )
-from Jotty.core.agents.inspector import InspectorAgent, MultiRoundValidator
-from Jotty.core.memory.cortex import HierarchicalMemory
+from Jotty.core.agents.inspector import ValidatorAgent, MultiRoundValidator
+from Jotty.core.memory.cortex import SwarmMemory
 from Jotty.core.utils.prompt_selector import get_prompt_selector, PromptSelector
 from Jotty.core.learning.learning import (
     TDLambdaLearner, AdaptiveLearningRate,
@@ -62,7 +62,7 @@ class AgentRunnerConfig:
     """Configuration for AgentRunner"""
     architect_prompts: List[str]
     auditor_prompts: List[str]
-    config: JottyConfig
+    config: SwarmConfig
     agent_name: str = "agent"
     enable_learning: bool = True
     enable_memory: bool = True
@@ -196,7 +196,7 @@ class AgentRunner:
         task_board=None,  # Shared TaskBoard (V2)
         swarm_memory=None,  # Shared SwarmMemory (V2)
         swarm_state_manager=None,  # SwarmStateManager for state tracking (V2)
-        learning_manager=None,  # Swarm-level SwarmLearningManager (V1 pipeline)
+        learning_manager=None,  # Swarm-level LearningManager (V1 pipeline)
         transfer_learning=None,  # TransferableLearningStore for cross-swarm learning
         swarm_terminal=None,  # SwarmTerminal for intelligent command execution
         swarm_intelligence=None,  # SwarmIntelligence for curriculum feedback (Agent0)
@@ -254,7 +254,7 @@ class AgentRunner:
         
         # Architect (pre-execution planning)
         architect_agents = [
-            InspectorAgent(
+            ValidatorAgent(
                 md_path=Path(prompt),
                 is_architect=True,
                 tools=[],
@@ -266,7 +266,7 @@ class AgentRunner:
         
         # Auditor (post-execution validation)
         auditor_agents = [
-            InspectorAgent(
+            ValidatorAgent(
                 md_path=Path(prompt),
                 is_architect=False,
                 tools=[],
@@ -284,7 +284,7 @@ class AgentRunner:
         # otherwise fall back to creating a standalone instance.
         # This ensures all agents share the same memory store (with
         # agent_name used for namespacing in store/retrieve calls).
-        self.agent_memory: Optional[HierarchicalMemory] = None
+        self.agent_memory: Optional[SwarmMemory] = None
         if config.enable_memory:
             if swarm_memory is not None:
                 # Shared memory — all agents see each other's experiences
@@ -292,7 +292,7 @@ class AgentRunner:
                 logger.debug(f"Agent '{self.agent_name}' using shared swarm memory")
             else:
                 # Fallback: standalone memory (no sharing)
-                self.agent_memory = HierarchicalMemory(
+                self.agent_memory = SwarmMemory(
                     config=config.config,
                     agent_name=self.agent_name
                 )
@@ -506,7 +506,7 @@ class AgentRunner:
         # Recreate validators with new prompts
         try:
             architect_agents = [
-                InspectorAgent(
+                ValidatorAgent(
                     md_path=Path(architect_path),
                     is_architect=True,
                     tools=[],
@@ -516,7 +516,7 @@ class AgentRunner:
             ]
 
             auditor_agents = [
-                InspectorAgent(
+                ValidatorAgent(
                     md_path=Path(auditor_path),
                     is_architect=False,
                     tools=[],

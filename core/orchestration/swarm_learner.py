@@ -59,7 +59,7 @@ class SwarmLearner:
         Initialize SwarmLearner.
 
         Args:
-            config: JottyConfig or SwarmConfig with policy_update_threshold
+            config: SwarmConfig with policy_update_threshold
         """
         self.config = config
         self.learner = dspy.ChainOfThought(SwarmLearnerSignature) if DSPY_AVAILABLE and SwarmLearnerSignature else None

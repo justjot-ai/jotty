@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 from pathlib import Path
 
 if TYPE_CHECKING:
-    from Jotty.core.foundation.data_structures import JottyConfig
+    from Jotty.core.foundation.data_structures import SwarmConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,14 @@ class ProviderManager:
     """
     Manages the skill provider registry.
 
-    Composed into SwarmManager instead of mixed in.
+    Composed into Orchestrator instead of mixed in.
     Takes explicit dependencies instead of accessing self.xxx on host.
     """
 
-    def __init__(self, config: 'JottyConfig', get_swarm_intelligence):
+    def __init__(self, config: 'SwarmConfig', get_swarm_intelligence):
         """
         Args:
-            config: JottyConfig instance
+            config: SwarmConfig instance
             get_swarm_intelligence: Callable that returns SwarmIntelligence (lazy)
         """
         self.config = config

@@ -19,9 +19,9 @@ import dspy
 from ..orchestration.swarm_roadmap import (
     SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
-from ..foundation.data_structures import JottyConfig, MemoryLevel
+from ..foundation.data_structures import SwarmConfig, MemoryLevel
 from ..foundation.exceptions import AgentExecutionError
-from ..memory.cortex import HierarchicalMemory
+from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
 from .axon import SmartAgentSlack, MessageBus
@@ -50,8 +50,8 @@ class TodoCreatorAgent(DAGAgentMixin):
     - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
-    def __init__(self, config: Optional[JottyConfig] = None, lm: Optional[dspy.LM] = None):
-        self.jotty_config = config or JottyConfig()
+    def __init__(self, config: Optional[SwarmConfig] = None, lm: Optional[dspy.LM] = None):
+        self.jotty_config = config or SwarmConfig()
         self.lm = lm or getattr(dspy.settings, 'lm', None)
 
         # Initialize BaseAgent infrastructure via mixin

@@ -1,5 +1,5 @@
 """
-SwarmManager - Composable Swarm Orchestrator
+Orchestrator - Composable Swarm Orchestrator
 =============================================
 
 Lazy-initialized, composable swarm orchestration.
@@ -7,10 +7,10 @@ Uses composition (has-a) instead of mixin inheritance (is-a) for all
 cross-cutting concerns: providers, ensemble, learning, MAS-ZERO.
 
 All components are lazy-loaded via descriptors — only created when first
-accessed. SwarmManager.__init__ completes in < 50ms.
+accessed. Orchestrator.__init__ completes in < 50ms.
 
 Architecture:
-    SwarmManager (flat class, no mixins)
+    Orchestrator (flat class, no mixins)
     ├── Core: config, agents, mode, runners
     ├── Composed: _providers, _ensemble, _learning_ops, _mas_zero
     ├── Planning: swarm_planner, swarm_task_board, swarm_intent_parser
@@ -25,7 +25,7 @@ Architecture:
         agent_slack, feedback_channel, credit_weights
 
 Usage:
-    sm = SwarmManager()  # Fast: ~10ms
+    sm = Orchestrator()  # Fast: ~10ms
     result = await sm.run("Research AI trends")  # Components init on demand
 """
 
@@ -34,7 +34,7 @@ import logging
 import time
 from typing import List, Dict, Any, Optional, Union
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.foundation.exceptions import AgentExecutionError
 
@@ -117,16 +117,16 @@ def _create_task_board():
     return SwarmTaskBoard()
 
 def _create_planner():
-    from Jotty.core.agents.agentic_planner import AgenticPlanner
-    return AgenticPlanner()
+    from Jotty.core.agents.agentic_planner import TaskPlanner
+    return TaskPlanner()
 
 def _create_intent_parser(planner):
     from Jotty.core.autonomous.intent_parser import IntentParser
     return IntentParser(planner=planner)
 
 def _create_memory(config):
-    from Jotty.core.memory.cortex import HierarchicalMemory
-    return HierarchicalMemory(config=config, agent_name="SwarmShared")
+    from Jotty.core.memory.cortex import SwarmMemory
+    return SwarmMemory(config=config, agent_name="SwarmShared")
 
 def _create_provider_gateway(config):
     from Jotty.core.orchestration.swarm_provider_gateway import SwarmProviderGateway
@@ -208,8 +208,8 @@ def _create_data_registry():
     return DataRegistry()
 
 def _create_context_guard():
-    from Jotty.core.context.context_guard import SmartContextGuard
-    return SmartContextGuard()
+    from Jotty.core.context.context_guard import LLMContextManager
+    return LLMContextManager()
 
 def _create_learning_pipeline(config):
     from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
@@ -230,7 +230,7 @@ def _create_mas_learning(sm):
 class AgentFactory:
     """Creates and manages AgentRunners and LOTUS optimization."""
 
-    def __init__(self, manager: 'SwarmManager'):
+    def __init__(self, manager: 'Orchestrator'):
         self._manager = manager
 
     def ensure_runners(self):
@@ -254,8 +254,8 @@ class AgentFactory:
                 enable_memory=True,
             )
 
-            # Propagate JottyConfig to agent so lazy-loaded components
-            # (memory, context, etc.) use the same config as SwarmManager.
+            # Propagate SwarmConfig to agent so lazy-loaded components
+            # (memory, context, etc.) use the same config as Orchestrator.
             agent = agent_config.agent
             if hasattr(agent, 'set_jotty_config'):
                 agent.set_jotty_config(sm.config)
@@ -421,7 +421,7 @@ class AgentFactory:
 class ExecutionEngine:
     """Executes tasks via single/multi-agent paradigms."""
 
-    def __init__(self, manager: 'SwarmManager'):
+    def __init__(self, manager: 'Orchestrator'):
         self._manager = manager
 
     async def run(self, goal: str, **kwargs) -> EpisodeResult:
@@ -429,7 +429,7 @@ class ExecutionEngine:
         Run task execution with full autonomy.
 
         Supports zero-config: natural language goal -> autonomous execution.
-        For simple tool-calling tasks, use UnifiedExecutor directly instead.
+        For simple tool-calling tasks, use ChatExecutor directly instead.
 
         Args:
             goal: Task goal/description (natural language supported)
@@ -691,7 +691,7 @@ class ExecutionEngine:
 
         # Profile execution if enabled
         if sm.swarm_profiler:
-            profile_context = sm.swarm_profiler.profile("SwarmManager.run", metadata={"goal": goal, "mode": sm.mode})
+            profile_context = sm.swarm_profiler.profile("Orchestrator.run", metadata={"goal": goal, "mode": sm.mode})
             profile_context.__enter__()
         else:
             profile_context = None
@@ -2007,7 +2007,7 @@ class ExecutionEngine:
         _status("Setup complete", "")
 
 
-class SwarmManager:
+class Orchestrator:
     """
     Composable swarm orchestrator with lazy initialization.
 
@@ -2099,7 +2099,7 @@ class SwarmManager:
     def __init__(
         self,
         agents: Optional[Union[AgentConfig, List[AgentConfig], str]] = None,
-        config: Optional[JottyConfig] = None,
+        config: Optional[SwarmConfig] = None,
         architect_prompts: Optional[List[str]] = None,
         auditor_prompts: Optional[List[str]] = None,
         enable_zero_config: bool = True,
@@ -2107,13 +2107,13 @@ class SwarmManager:
         max_concurrent_agents: int = 3,
     ):
         """
-        Initialize SwarmManager.
+        Initialize Orchestrator.
 
         Fast init (~10ms). All heavyweight components are lazy-loaded.
 
         Args:
             agents: AgentConfig, list of AgentConfigs, or natural language (zero-config)
-            config: JottyConfig (defaults if None)
+            config: SwarmConfig (defaults if None)
             architect_prompts: Architect prompt paths
             auditor_prompts: Auditor prompt paths
             enable_zero_config: Enable natural language -> agent conversion
@@ -2122,14 +2122,14 @@ class SwarmManager:
         """
         import warnings
         warnings.warn(
-            "SwarmManager is deprecated. Use Jotty() instead:\n"
+            "Orchestrator is deprecated. Use Jotty() instead:\n"
             "  jotty = Jotty()\n"
             "  result = await jotty.run('task')  # auto-detects tier\n"
             "  result = await jotty.swarm('task', swarm_name='coding')  # specific swarm\n"
             "  result = await jotty.autonomous('task')  # full features\n",
             DeprecationWarning, stacklevel=2
         )
-        self.config = config or JottyConfig()
+        self.config = config or SwarmConfig()
         self.enable_zero_config = enable_zero_config
         self.enable_lotus = enable_lotus
         self.episode_count = 0
@@ -2210,7 +2210,7 @@ class SwarmManager:
         # Composed ExecutionEngine — separates task execution from management
         self._engine = ExecutionEngine(self)
 
-        logger.info(f"SwarmManager: {self.mode} mode, {len(self.agents)} agents (lazy init)")
+        logger.info(f"Orchestrator: {self.mode} mode, {len(self.agents)} agents (lazy init)")
 
     # =========================================================================
     # LAZY RUNNER CREATION — delegated to AgentFactory
@@ -2464,23 +2464,23 @@ class SwarmManager:
 
     async def startup(self):
         """
-        Async startup - prepare SwarmManager for execution.
+        Async startup - prepare Orchestrator for execution.
 
         Call this before run() for controlled initialization.
         If not called, run() will auto-initialize (lazy).
 
         Returns:
-            Self for chaining: `sm = await SwarmManager().startup()`
+            Self for chaining: `sm = await Orchestrator().startup()`
         """
         self._ensure_runners()
-        logger.info("SwarmManager startup complete")
+        logger.info("Orchestrator startup complete")
         return self
 
     async def shutdown(self):
         """
         Graceful shutdown - persist learnings and release resources.
 
-        Should be called when SwarmManager is no longer needed.
+        Should be called when Orchestrator is no longer needed.
         Safe to call multiple times.
         """
         try:
@@ -2496,12 +2496,12 @@ class SwarmManager:
             self.runners.clear()
             self._runners_built = False
 
-            logger.info("SwarmManager shutdown complete")
+            logger.info("Orchestrator shutdown complete")
         except Exception as e:
             logger.error(f"Shutdown error: {e}")
 
     async def __aenter__(self):
-        """Async context manager: `async with SwarmManager() as sm:`"""
+        """Async context manager: `async with Orchestrator() as sm:`"""
         await self.startup()
         return self
 
@@ -2516,7 +2516,7 @@ class SwarmManager:
 
     def status(self) -> Dict[str, Any]:
         """
-        Get full introspection of SwarmManager state.
+        Get full introspection of Orchestrator state.
 
         Shows which lazy components have been created, runner status,
         learning stats, and execution metrics.

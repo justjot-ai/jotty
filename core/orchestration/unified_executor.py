@@ -1,5 +1,5 @@
 """
-ToolCallingExecutor - Native LLM Tool-Calling Executor
+ChatExecutor - Native LLM Tool-Calling Executor
 =================================================================================
 
 Uses native LLM tool calling for ALL decisions:
@@ -239,7 +239,7 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 # Tool-Calling Executor
 # =============================================================================
 
-class ToolCallingExecutor:
+class ChatExecutor:
     """
     Tool-calling executor using native LLM tool calling for all decisions.
 
@@ -252,10 +252,10 @@ class ToolCallingExecutor:
 
     Example:
         # Auto-detect provider
-        executor = ToolCallingExecutor()
+        executor = ChatExecutor()
 
         # Specific provider
-        executor = ToolCallingExecutor(provider='openai', model='gpt-4o')
+        executor = ChatExecutor(provider='openai', model='gpt-4o')
 
         result = await executor.execute("Research AI trends and create a presentation")
     """
@@ -302,7 +302,7 @@ class ToolCallingExecutor:
         else:
             self.provider_name, self.llm_provider = auto_detect_provider()
 
-        logger.debug(f"ToolCallingExecutor initialized with provider: {self.provider_name}")
+        logger.debug(f"ChatExecutor initialized with provider: {self.provider_name}")
 
         # Initialize tool generator
         self.tool_generator = UnifiedToolGenerator()
@@ -1013,9 +1013,9 @@ def create_unified_executor(
     status_callback: Optional[Callable[[str, str], None]] = None,
     enabled_tools: Optional[List[str]] = None,
     output_format: str = "auto"
-) -> ToolCallingExecutor:
+) -> ChatExecutor:
     """
-    Factory function to create ToolCallingExecutor.
+    Factory function to create ChatExecutor.
 
     Args:
         provider: LLM provider ('anthropic', 'openai', 'openrouter', 'groq', 'google')
@@ -1027,7 +1027,7 @@ def create_unified_executor(
         output_format: Force output format ('auto', 'pdf', 'docx', 'slides', etc.)
 
     Returns:
-        Configured ToolCallingExecutor instance
+        Configured ChatExecutor instance
 
     Example:
         # Auto-detect provider
@@ -1043,7 +1043,7 @@ def create_unified_executor(
 
         result = await executor.execute("Research AI trends")
     """
-    return ToolCallingExecutor(
+    return ChatExecutor(
         provider=provider,
         model=model,
         stream_callback=stream_callback,
@@ -1053,5 +1053,3 @@ def create_unified_executor(
     )
 
 
-# Backward compatibility alias
-UnifiedExecutor = ToolCallingExecutor

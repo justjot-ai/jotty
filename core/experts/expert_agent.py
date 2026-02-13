@@ -14,7 +14,7 @@ Migration Guide:
 
     New (recommended):
         from Jotty.core.experts.expert_templates import create_mermaid_expert
-        expert = create_mermaid_expert(config=JottyConfig())
+        expert = create_mermaid_expert(config=SwarmConfig())
 
     Or custom:
         from Jotty.core.orchestration import SingleAgentOrchestrator
@@ -42,7 +42,7 @@ from ..orchestration import (
     OptimizationConfig
 )
 from ..foundation.agent_config import AgentConfig
-from ..memory.cortex import HierarchicalMemory
+from ..memory.cortex import SwarmMemory
 from ..foundation.data_structures import MemoryLevel
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class ExpertAgent:
     correct outputs. They can be pre-trained and validated.
     """
 
-    def __init__(self, config: ExpertAgentConfig, memory: Optional[HierarchicalMemory] = None):
+    def __init__(self, config: ExpertAgentConfig, memory: Optional[SwarmMemory] = None):
         import warnings
         warnings.warn(
             "ExpertAgent is deprecated. Use SingleAgentOrchestrator with "
@@ -119,12 +119,12 @@ class ExpertAgent:
         # Create memory system if not provided but enabled
         if config.use_memory_storage and not memory:
             try:
-                from ..memory.cortex import HierarchicalMemory
-                from ..foundation.data_structures import JottyConfig
+                from ..memory.cortex import SwarmMemory
+                from ..foundation.data_structures import SwarmConfig
                 from ..memory.memory_persistence import enable_memory_persistence
                 
-                memory_config = JottyConfig()
-                self.memory = HierarchicalMemory(
+                memory_config = SwarmConfig()
+                self.memory = SwarmMemory(
                     agent_name=f"expert_{config.domain}",
                     config=memory_config
                 )
@@ -137,7 +137,7 @@ class ExpertAgent:
                 )
                 
                 self.use_memory_storage = True
-                logger.info(f"Created HierarchicalMemory for expert {config.name} with persistence at {persistence_dir}")
+                logger.info(f"Created SwarmMemory for expert {config.name} with persistence at {persistence_dir}")
             except Exception as e:
                 logger.warning(f"Could not create memory system: {e}")
                 self.use_memory_storage = False

@@ -19,8 +19,8 @@ import dspy
 from ..orchestration.swarm_roadmap import (
     SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
-from ..foundation.data_structures import JottyConfig, MemoryLevel
-from ..memory.cortex import HierarchicalMemory
+from ..foundation.data_structures import SwarmConfig, MemoryLevel
+from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
 from .axon import SmartAgentSlack, MessageBus
@@ -49,9 +49,9 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
     - DAGAgentMixin: For BaseAgent infrastructure (metrics, hooks)
     """
 
-    def __init__(self, config: Optional[JottyConfig] = None):
+    def __init__(self, config: Optional[SwarmConfig] = None):
         super().__init__()
-        self.jotty_config = config or JottyConfig()
+        self.jotty_config = config or SwarmConfig()
 
         # Initialize BaseAgent infrastructure via mixin
         self._init_agent_infrastructure("TaskBreakdownAgent")

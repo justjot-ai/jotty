@@ -10,7 +10,7 @@ Components:
 - OpenAPI: Auto-generated spec from sdk_types.py dataclasses
 
 Legacy (kept for backward compatibility, prefer ModeRouter):
-- JottyAPI: Old unified API (uses SwarmManager/UseCases)
+- JottyAPI: Old unified API (uses Orchestrator/UseCases)
 - ChatAPI: Old chat-specific API
 - WorkflowAPI: Old workflow-specific API
 """

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 from .swarm_roadmap import SwarmTaskBoard, TodoItem
 
-from Jotty.core.foundation.data_structures import JottyConfig
+from Jotty.core.foundation.data_structures import SwarmConfig
 
 try:
     import dspy
@@ -47,7 +47,7 @@ class PolicyExplorer:
     4. Tracks exploration history to avoid loops
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.explorer = dspy.ChainOfThought(PolicyExplorerSignature) if DSPY_AVAILABLE else None
         

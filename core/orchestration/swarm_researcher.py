@@ -55,7 +55,7 @@ class SwarmResearcher:
         Initialize SwarmResearcher.
         
         Args:
-            config: Optional JottyConfig
+            config: Optional SwarmConfig
         """
         self.config = config
         self._skills_registry = None
@@ -74,8 +74,8 @@ class SwarmResearcher:
             self._tools_registry = get_tools_registry()
         
         if self._planner is None:
-            from Jotty.core.agents.agentic_planner import AgenticPlanner
-            self._planner = AgenticPlanner()
+            from Jotty.core.agents.agentic_planner import TaskPlanner
+            self._planner = TaskPlanner()
     
     async def research(
         self,
@@ -231,7 +231,7 @@ class SwarmResearcher:
         """Fallback LLM-based research."""
         self._init_dependencies()
         
-        # Use planner for LLM-based research (DRY: reuse AgenticPlanner)
+        # Use planner for LLM-based research (DRY: reuse TaskPlanner)
         research_prompt = f"""
 Research the following: {query}
 Research type: {research_type}

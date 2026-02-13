@@ -1,5 +1,5 @@
 """
-SwarmDAGExecutor - Extracted from SwarmManager
+SwarmDAGExecutor - Extracted from Orchestrator
 ===============================================
 
 DAG-based orchestration: TaskBreakdownAgent + TodoCreatorAgent + parallel stages.
@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from Jotty.core.foundation.data_structures import EpisodeResult
 
 if TYPE_CHECKING:
-    from .swarm_manager import SwarmManager
+    from .swarm_manager import Orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class SwarmDAGExecutor:
     executes in parallel stages, and records learnings.
     """
 
-    def __init__(self, swarm: 'SwarmManager'):
+    def __init__(self, swarm: 'Orchestrator'):
         self.swarm = swarm
 
     async def run(

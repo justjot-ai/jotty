@@ -1,7 +1,7 @@
 """
 Memory Persistence Layer
 
-Provides persistence for HierarchicalMemory to disk.
+Provides persistence for SwarmMemory to disk.
 Memory system stores data in-memory by default, this adds file-based persistence.
 """
 
@@ -11,21 +11,21 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from .cortex import HierarchicalMemory
-from ..foundation.data_structures import MemoryLevel, MemoryEntry, JottyConfig
+from .cortex import SwarmMemory
+from ..foundation.data_structures import MemoryLevel, MemoryEntry, SwarmConfig
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryPersistence:
-    """Handles persistence of HierarchicalMemory to disk."""
+    """Handles persistence of SwarmMemory to disk."""
     
-    def __init__(self, memory: HierarchicalMemory, persistence_dir: Path):
+    def __init__(self, memory: SwarmMemory, persistence_dir: Path):
         """
         Initialize memory persistence.
         
         Args:
-            memory: HierarchicalMemory instance to persist
+            memory: SwarmMemory instance to persist
             persistence_dir: Directory to store memory files
         """
         self.memory = memory
@@ -163,14 +163,14 @@ class MemoryPersistence:
 
 
 def enable_memory_persistence(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     persistence_dir: Optional[Path] = None
 ) -> MemoryPersistence:
     """
-    Enable persistence for a HierarchicalMemory instance.
+    Enable persistence for a SwarmMemory instance.
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         persistence_dir: Directory for persistence files (default: ./memory_data/{agent_name})
     
     Returns:

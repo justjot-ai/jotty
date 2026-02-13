@@ -1,9 +1,9 @@
 """
-SwarmRouter: Centralized task routing for SwarmManager.
+SwarmRouter: Centralized task routing for Orchestrator.
 ========================================================
 
-Extracted routing concerns from SwarmManager to reduce its scope.
-SwarmManager delegates routing decisions to this class.
+Extracted routing concerns from Orchestrator to reduce its scope.
+Orchestrator delegates routing decisions to this class.
 
 Responsibilities:
 - Agent selection for tasks (zero-config, complexity-based)
@@ -11,7 +11,7 @@ Responsibilities:
 - Model tier routing (cheap/balanced/quality)
 - Integration with SwarmIntelligence for RL-informed routing
 
-This is one of the focused sub-managers that reduces SwarmManager's
+This is one of the focused sub-managers that reduces Orchestrator's
 2700-line god-object into composable delegates.
 """
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class SwarmRouter:
     """
-    Centralized routing logic extracted from SwarmManager.
+    Centralized routing logic extracted from Orchestrator.
 
     Combines:
     - SwarmIntelligence smart_route (coordination protocols + RL)

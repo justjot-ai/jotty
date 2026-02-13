@@ -2,7 +2,7 @@
 JustJot Memory Sync Adapter
 ============================
 
-Bidirectional sync between Jotty's Cortex (HierarchicalMemory) and JustJot's MemoryGraph.
+Bidirectional sync between Jotty's Cortex (SwarmMemory) and JustJot's MemoryGraph.
 
 Architecture:
     ┌─────────────────────┐          ┌─────────────────────┐
@@ -157,11 +157,11 @@ class JustJotMemorySyncAdapter:
     Bidirectional sync adapter between Jotty's Cortex and JustJot's MemoryGraph.
 
     Usage:
-        from Jotty.core.memory.cortex import HierarchicalMemory
+        from Jotty.core.memory.cortex import SwarmMemory
         from Jotty.core.memory.justjot_sync_adapter import JustJotMemorySyncAdapter
 
         # Set via environment: export JUSTJOT_API_URL=http://your-server:3000
-        cortex = HierarchicalMemory(agent_name="my_agent", config=config)
+        cortex = SwarmMemory(agent_name="my_agent", config=config)
         adapter = JustJotMemorySyncAdapter(cortex=cortex)
         # Or explicitly: adapter = JustJotMemorySyncAdapter(cortex=cortex, justjot_api_url="http://...")
 
@@ -202,7 +202,7 @@ class JustJotMemorySyncAdapter:
         Initialize sync adapter.
 
         Args:
-            cortex: Jotty HierarchicalMemory instance
+            cortex: Jotty SwarmMemory instance
             justjot_api_url: JustJot API base URL (defaults to JUSTJOT_API_URL env var)
             entity_type: Entity type for JustJot ('agent', 'user', 'process', etc.)
         """

@@ -3,7 +3,7 @@ AutonomousAgent - Open-Ended Problem Solver Base Class
 
 Base class for agents that autonomously solve complex, multi-step tasks:
 - Skill discovery via SkillsRegistry
-- AgenticPlanner integration for execution planning
+- TaskPlanner integration for execution planning
 - Multi-step execution with dependency handling
 - Adaptive replanning on failure
 
@@ -136,7 +136,7 @@ class AutonomousAgent(BaseAgent):
 
     Provides infrastructure for:
     - Skill discovery and selection (via BaseAgent.discover_skills + SkillPlanExecutor)
-    - Execution planning via AgenticPlanner
+    - Execution planning via TaskPlanner
     - Multi-step execution with dependency resolution
     - Adaptive replanning on failures
 
@@ -172,15 +172,15 @@ class AutonomousAgent(BaseAgent):
 
         if self._planner is None:
             try:
-                from ..agentic_planner import AgenticPlanner
-                self._planner = AgenticPlanner()
-                logger.debug("Initialized AgenticPlanner")
+                from ..agentic_planner import TaskPlanner
+                self._planner = TaskPlanner()
+                logger.debug("Initialized TaskPlanner")
             except Exception as e:
-                logger.warning(f"Could not initialize AgenticPlanner: {e}")
+                logger.warning(f"Could not initialize TaskPlanner: {e}")
 
     @property
     def planner(self):
-        """Get the AgenticPlanner instance."""
+        """Get the TaskPlanner instance."""
         self._ensure_initialized()
         return self._planner
 

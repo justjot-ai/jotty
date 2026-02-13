@@ -15,12 +15,12 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
+    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
 if TYPE_CHECKING:
-    from ..memory.cortex import HierarchicalMemory
+    from ..memory.cortex import SwarmMemory
 
 
 
@@ -41,7 +41,7 @@ class AdaptiveLearningRate:
     - TD error variance analysis
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.alpha = config.alpha
         self.min_alpha = config.alpha_min
@@ -135,7 +135,7 @@ class IntermediateRewardCalculator:
     - Good reasoning steps
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.step_rewards: List[float] = []
     
@@ -204,7 +204,7 @@ class AdaptiveExploration:
     - Goal-specific exploration rates
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.epsilon = config.epsilon_start
         self.ucb_c = config.ucb_coefficient

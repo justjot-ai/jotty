@@ -19,8 +19,8 @@ import dspy
 from ..orchestration.swarm_roadmap import (
     SubtaskState, SwarmTaskBoard, TaskStatus, AgenticState, TrajectoryStep
 )
-from ..foundation.data_structures import JottyConfig, MemoryLevel
-from ..memory.cortex import HierarchicalMemory
+from ..foundation.data_structures import SwarmConfig, MemoryLevel
+from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
 from .axon import SmartAgentSlack, MessageBus
@@ -153,20 +153,20 @@ class SwarmResources:
     """
     _instance = None
 
-    def __new__(cls, config: JottyConfig = None):
+    def __new__(cls, config: SwarmConfig = None):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, config: JottyConfig = None):
+    def __init__(self, config: SwarmConfig = None):
         if self._initialized:
             return
 
-        self.config = config or JottyConfig()
+        self.config = config or SwarmConfig()
 
         # Shared memory - ALL agents use this
-        self.memory = HierarchicalMemory(
+        self.memory = SwarmMemory(
             config=self.config,
             agent_name="SwarmShared"  # Single shared instance
         )
@@ -188,7 +188,7 @@ class SwarmResources:
         logger.info("🔗 SwarmResources initialized (shared memory, context, bus, learner)")
 
     @classmethod
-    def get_instance(cls, config: JottyConfig = None) -> 'SwarmResources':
+    def get_instance(cls, config: SwarmConfig = None) -> 'SwarmResources':
         """Get or create the singleton instance."""
         return cls(config)
 

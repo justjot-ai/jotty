@@ -172,7 +172,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
         "",
         'export type { SDKResponse, SDKEvent, SDKSession, SDKRequest, ExecutionContext };',
         "",
-        "export interface JottyConfig {",
+        "export interface SwarmConfig {",
         "  baseUrl?: string;",
         "  apiKey?: string;",
         "  timeout?: number;",
@@ -186,7 +186,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
         "  private maxRetries: number;",
         "  private listeners: Map<string, EventCallback[]> = new Map();",
         "",
-        "  constructor(config: JottyConfig = {}) {",
+        "  constructor(config: SwarmConfig = {}) {",
         '    this.baseUrl = (config.baseUrl || "http://localhost:8766").replace(/\\/$/, "");',
         "    this.apiKey = config.apiKey;",
         "    this.timeout = config.timeout || 300000;",
@@ -368,7 +368,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
     # Generate index.ts
     (output_dir / "index.ts").write_text(
         '// Jotty SDK for TypeScript\n'
-        'export { Jotty, type JottyConfig } from "./client";\n'
+        'export { Jotty, type SwarmConfig } from "./client";\n'
         'export type * from "./types";\n'
     )
 

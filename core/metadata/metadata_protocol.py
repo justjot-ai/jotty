@@ -606,13 +606,6 @@ class MetadataValidator:
 
 
 # =============================================================================
-# BACKWARD COMPATIBILITY ALIASES
-# =============================================================================
-
-# Keep old name for backward compatibility
-ReValMetadataBase = JottyMetadataBase
-
-# =============================================================================
 # EXPORTS
 # =============================================================================
 
@@ -623,7 +616,6 @@ __all__ = [
     'MetadataToolWrapper',
     'MetadataProtocol',
     'JottyMetadataBase',
-    'ReValMetadataBase',  # Deprecated alias
     'MetadataValidator'
 ]
 

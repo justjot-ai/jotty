@@ -69,10 +69,10 @@ from Jotty.layers.brain import BaseSwarm, CodingSwarm, BaseAgent, TDLambdaLearne
 from Jotty.layers.registry import get_unified_registry, Hands, Eyes
 
 # MEMORY - Learning
-from Jotty.layers.memory import HierarchicalMemory, TDLambdaLearner
+from Jotty.layers.memory import SwarmMemory, TDLambdaLearner
 
 # FOUNDATION - Cross-cutting
-from Jotty.layers.foundation import JottyError, AgentExecutionError, JottyConfig
+from Jotty.layers.foundation import JottyError, AgentExecutionError, SwarmConfig
 ```
 
 ### Old: Core Imports (Still Work)
@@ -121,11 +121,11 @@ Jotty/
 │   │   └── openapi.py      # OpenAPI 3.0 spec generator
 │   ├── foundation/         # Cross-cutting concerns
 │   │   ├── exceptions.py   # 30+ exception types
-│   │   ├── data_structures.py  # JottyConfig, etc.
+│   │   ├── data_structures.py  # SwarmConfig, etc.
 │   │   └── agent_config.py # AgentConfig
 │   ├── learning/           # TD-Lambda, memory systems
-│   ├── memory/             # HierarchicalMemory (5 levels)
-│   ├── orchestration/      # SwarmManager, SwarmIntelligence
+│   ├── memory/             # SwarmMemory (5 levels)
+│   ├── orchestration/      # Orchestrator, SwarmIntelligence
 │   └── integration/        # MCP, Claude CLI LM
 ├── skills/                 # Skill definitions (loaded lazily)
 ├── sdk/                    # Generated client libraries

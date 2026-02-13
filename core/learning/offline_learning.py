@@ -23,10 +23,10 @@ from collections import defaultdict
 import dspy
 
 from ..foundation.data_structures import (
-    JottyConfig, StoredEpisode, MemoryLevel,
+    SwarmConfig, StoredEpisode, MemoryLevel,
     ValidationResult, AgentContribution, CausalLink
 )
-from ..memory.cortex import HierarchicalMemory
+from ..memory.cortex import SwarmMemory
 from .learning import TDLambdaLearner, AdaptiveLearningRate
 
 
@@ -180,7 +180,7 @@ class CounterfactualLearner:
     to improve credit assignment and learn from mistakes.
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.analyzer = dspy.ChainOfThought(CounterfactualSignature)
         
@@ -189,7 +189,7 @@ class CounterfactualLearner:
     
     async def analyze_episode(self,
                                episode: StoredEpisode,
-                               agent_memories: Dict[str, HierarchicalMemory]) -> Dict[str, Any]:
+                               agent_memories: Dict[str, SwarmMemory]) -> Dict[str, Any]:
         """
         Analyze counterfactuals for an episode.
         
@@ -308,7 +308,7 @@ class PatternDiscovery:
     - Discriminative features
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.discoverer = dspy.ChainOfThought(PatternDiscoverySignature)
     
@@ -422,7 +422,7 @@ class OfflineLearner:
     - Causal knowledge extraction
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         
         # Episode buffer
@@ -447,7 +447,7 @@ class OfflineLearner:
         self.buffer.add(episode, td_error)
     
     async def batch_update(self,
-                           agent_memories: Dict[str, HierarchicalMemory],
+                           agent_memories: Dict[str, SwarmMemory],
                            current_episode: int) -> Dict[str, Any]:
         """
         Run batch offline learning update.
@@ -484,7 +484,7 @@ class OfflineLearner:
         return results
     
     async def _experience_replay(self,
-                                  agent_memories: Dict[str, HierarchicalMemory]) -> Dict[str, Any]:
+                                  agent_memories: Dict[str, SwarmMemory]) -> Dict[str, Any]:
         """Run experience replay with TD updates."""
         if self.td_learner is None:
             return {"updates": 0, "error": "No TD learner configured"}
@@ -539,7 +539,7 @@ class OfflineLearner:
         return await self.pattern_discovery.discover_patterns(successes, failures, domain)
     
     async def _counterfactual_analysis(self,
-                                        agent_memories: Dict[str, HierarchicalMemory]) -> Dict[str, Any]:
+                                        agent_memories: Dict[str, SwarmMemory]) -> Dict[str, Any]:
         """Run counterfactual analysis on sample of episodes."""
         # Sample recent failures (most valuable for learning)
         failures = self.buffer.get_by_outcome(success=False, n=10)
@@ -567,7 +567,7 @@ class OfflineLearner:
         return {"analyzed": analyzed, "lessons": len(lessons)}
     
     async def _store_discovered_patterns(self,
-                                          agent_memories: Dict[str, HierarchicalMemory],
+                                          agent_memories: Dict[str, SwarmMemory],
                                           pattern_results: Dict[str, Any]):
         """Store discovered patterns in agent memories."""
         if "error" in pattern_results or "insufficient_data" in pattern_results:
@@ -635,7 +635,7 @@ RECOMMENDATIONS:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], config: JottyConfig) -> 'OfflineLearner':
+    def from_dict(cls, data: Dict[str, Any], config: SwarmConfig) -> 'OfflineLearner':
         """Deserialize from persistence."""
         learner = cls(config)
         learner.update_count = data.get("update_count", 0)

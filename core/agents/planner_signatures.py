@@ -3,7 +3,7 @@ DSPy Signatures for Agentic Planning
 =====================================
 
 Extracted from agentic_planner.py for modularity.
-Contains all DSPy signature definitions used by AgenticPlanner.
+Contains all DSPy signature definitions used by TaskPlanner.
 """
 
 from typing import List

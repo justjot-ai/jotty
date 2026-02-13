@@ -3,9 +3,9 @@ JOTTY Core - Alias Facade for Framework Components
 ====================================================
 
 Maps brain-inspired terminology to actual implementations:
-- SwarmManager: Main orchestrator
-- JottyCore: Alias for SwarmManager
-- Cortex: HierarchicalMemory
+- Orchestrator: Main orchestrator
+- Orchestrator: Alias for Orchestrator
+- Cortex: SwarmMemory
 - Axon: SmartAgentSlack (agent communication)
 - Roadmap: SwarmTaskBoard (task planning)
 """
@@ -19,23 +19,21 @@ logger = logging.getLogger(__name__)
 # JOTTY CORE IMPORTS (mapping new names to existing implementations)
 # =============================================================================
 
-# SwarmManager = Main Orchestrator (V2)
-from .orchestration import SwarmManager
+# Orchestrator = Main Orchestrator (V2)
+from .orchestration import Orchestrator
 
-# JottyCore = alias for backward compatibility
-JottyCore = SwarmManager
 
 # Configuration
-from .foundation.data_structures import SwarmConfig, JottyConfig  # JottyConfig = backward compat
-from .foundation.agent_config import AgentSpec, AgentConfig  # AgentConfig = backward compat
+from .foundation.data_structures import SwarmConfig
+from .foundation.agent_config import AgentConfig
 
 # Architect = Pre-execution Planner 
 # Auditor = Post-execution Validator 
-from .agents.inspector import InspectorAgent as InspectorAgent
+from .agents.inspector import ValidatorAgent as ValidatorAgent
 from .agents.inspector import MultiRoundValidator as IterativeAuditor
 
 # Cortex = Hierarchical Memory
-from .memory.cortex import HierarchicalMemory as Cortex
+from .memory.cortex import SwarmMemory as Cortex
 
 # Axon = Agent Communication
 from .agents.axon import SmartAgentSlack as Axon
@@ -63,7 +61,7 @@ from .learning.algorithmic_credit import DifferenceRewardEstimator as ImpactEsti
 # Context Management
 from .context.global_context_guard import GlobalContextGuard as ContextSentinel
 from .context.context_manager import SmartContextManager as Focus
-from .context.chunker import AgenticChunker as Segmenter
+from .context.chunker import ContextChunker as Segmenter
 from .context.compressor import AgenticCompressor as Distiller
 
 # Data Flow
@@ -96,21 +94,21 @@ from .context.context_gradient import (
 
 def create_swarm_manager(
     agents: List[AgentConfig],
-    config: Optional[JottyConfig] = None,
+    config: Optional[SwarmConfig] = None,
     metadata_provider: Any = None,
     **kwargs
-) -> SwarmManager:
+) -> Orchestrator:
     """
-    Create a new SwarmManager (orchestrator) for agent swarms.
+    Create a new Orchestrator (orchestrator) for agent swarms.
     
     Args:
         agents: List of AgentConfig defining the agents in the swarm
-        config: JottyConfig with framework settings
+        config: SwarmConfig with framework settings
         metadata_provider: Optional metadata provider instance
-        **kwargs: Additional arguments passed to SwarmManager
+        **kwargs: Additional arguments passed to Orchestrator
     
     Returns:
-        SwarmManager instance ready to orchestrate the swarm
+        Orchestrator instance ready to orchestrate the swarm
     
     Example:
         ```python
@@ -130,20 +128,18 @@ def create_swarm_manager(
         ```
     """
     if config is None:
-        config = JottyConfig()
+        config = SwarmConfig()
 
-    return SwarmManager(
+    return Orchestrator(
         agents=agents,
         config=config,
         **kwargs
     )
 
 
-# Backward compatibility alias
-create_conductor = create_swarm_manager
 
 
-def create_cortex(config: Optional[JottyConfig] = None) -> Cortex:
+def create_cortex(config: Optional[SwarmConfig] = None) -> Cortex:
     """
     Create a new Cortex (hierarchical memory) instance.
     
@@ -154,7 +150,7 @@ def create_cortex(config: Optional[JottyConfig] = None) -> Cortex:
     - Causal: Why things work
     """
     if config is None:
-        config = JottyConfig()
+        config = SwarmConfig()
     return Cortex(config)
 
 
@@ -244,13 +240,11 @@ except ImportError:
 
 __all__ = [
     # JOTTY Core
-    "SwarmManager",
-    "JottyCore",
+    "Orchestrator",
+    "Orchestrator",
     "SwarmConfig",
-    "JottyConfig",  # Backward compatibility
-    "AgentSpec",
-    "AgentConfig",  # Backward compatibility
-    "InspectorAgent",
+    "AgentConfig",
+    "ValidatorAgent",
     "IterativeAuditor",
     
     # Memory & State
@@ -320,7 +314,6 @@ __all__ = [
     
     # Convenience functions
     "create_swarm_manager",
-    "create_conductor",  # Backward compat alias
     "create_cortex",
     "create_axon",
     "create_roadmap",

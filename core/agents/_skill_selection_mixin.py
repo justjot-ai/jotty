@@ -1,4 +1,4 @@
-"""AgenticPlanner Skill Selection Mixin - Single LLM call skill selection."""
+"""TaskPlanner Skill Selection Mixin - Single LLM call skill selection."""
 
 import json
 import logging

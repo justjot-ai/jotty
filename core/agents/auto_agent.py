@@ -1,7 +1,7 @@
 """
 AutoAgent - Autonomous task execution with fully agentic planning.
 
-Uses AgenticPlanner for all planning decisions (no hardcoded logic).
+Uses TaskPlanner for all planning decisions (no hardcoded logic).
 Takes any open-ended task, discovers relevant skills, plans execution,
 and runs the workflow automatically.
 
@@ -12,7 +12,7 @@ import inspect
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 
-from .agentic_planner import AgenticPlanner
+from .agentic_planner import TaskPlanner
 from .base import AutonomousAgent, AutonomousAgentConfig
 from Jotty.core.foundation.exceptions import (
     AgentExecutionError,
@@ -51,7 +51,7 @@ class AutoAgent(AutonomousAgent):
 
     Inherits from AutonomousAgent for:
     - Skill discovery and selection
-    - Execution planning via AgenticPlanner
+    - Execution planning via TaskPlanner
     - Multi-step execution with dependency resolution
     - Adaptive replanning on failures
     - Memory and context integration
@@ -73,7 +73,7 @@ class AutoAgent(AutonomousAgent):
         enable_output: bool = False,
         max_steps: int = 10,
         timeout: int = 300,
-        planner: Optional[AgenticPlanner] = None,
+        planner: Optional[TaskPlanner] = None,
         skill_filter: Optional[str] = None,
         system_prompt: Optional[str] = None,
         name: Optional[str] = None,
@@ -87,7 +87,7 @@ class AutoAgent(AutonomousAgent):
             skill_filter: Optional category filter for skill discovery
             max_steps: Maximum execution steps
             timeout: Default timeout for operations
-            planner: Optional AgenticPlanner instance (creates new if None)
+            planner: Optional TaskPlanner instance (creates new if None)
             system_prompt: Optional system prompt to customize agent behavior
                 (essential for multi-agent scenarios where agents need different roles)
             name: Optional agent name (default: "AutoAgent")
@@ -413,7 +413,7 @@ Provide:
             logger.warning(f"Pre-hook failed: {e}")
 
         # Optima-inspired deduplication (Chen et al., 2024):
-        # If caller already enriched the task with ensemble context (e.g. SwarmManager),
+        # If caller already enriched the task with ensemble context (e.g. Orchestrator),
         # skip re-ensembling to avoid 2x LLM calls for the same thing.
         # Also skip for direct_llm sub-agents — they're specialized, no need for ensemble.
         _is_direct_llm = kwargs.get('direct_llm', False)

@@ -8,7 +8,7 @@ All A-Team agent enhancements:
 - Dr. Agarwal: Dynamic context allocation
 
 Agent types:
-- InspectorAgent: Architect and Auditor validation agents
+- ValidatorAgent: Architect and Auditor validation agents
 - Shared scratchpad for tool result caching
 - Multi-round refinement loop
 """
@@ -24,10 +24,10 @@ import asyncio
 import time  # 🔥 CRITICAL FIX: Missing import causing "name 'time' is not defined"
 
 from ..foundation.data_structures import (
-    JottyConfig, ValidationResult, OutputTag, ValidationRound,
+    SwarmConfig, ValidationResult, OutputTag, ValidationRound,
     MemoryLevel, AgentMessage, SharedScratchpad, CommunicationType
 )
-from ..memory.cortex import HierarchicalMemory
+from ..memory.cortex import SwarmMemory
 from ..learning.learning import DynamicBudgetManager
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ class InternalReasoningTool:
     - Reason about causal relationships
     """
     
-    def __init__(self, memory: HierarchicalMemory, config: JottyConfig):
+    def __init__(self, memory: SwarmMemory, config: SwarmConfig):
         self.memory = memory
         self.config = config
         self.name = "reason_about"
@@ -225,7 +225,7 @@ class CachingToolWrapper:
 # EVAL AGENT
 # =============================================================================
 
-class InspectorAgent:
+class ValidatorAgent:
     """
     Enhanced evaluation agent with all A-Team features.
     
@@ -240,10 +240,10 @@ class InspectorAgent:
                  md_path: Path,
                  is_architect: bool,
                  tools: List[Any],
-                 config: JottyConfig,
+                 config: SwarmConfig,
                  scratchpad: SharedScratchpad = None):
         """
-        Initialize InspectorAgent.
+        Initialize ValidatorAgent.
         
         Parameters:
             md_path: Path to markdown system prompt
@@ -264,7 +264,7 @@ class InspectorAgent:
         self.agent_name = self.md_path.stem
         
         # Initialize memory
-        self.memory = HierarchicalMemory(self.agent_name, config)
+        self.memory = SwarmMemory(self.agent_name, config)
         
         # Budget manager
         self.budget_manager = DynamicBudgetManager(config)
@@ -448,7 +448,7 @@ class InspectorAgent:
         )
         
         # 🎯 BUILD CONTEXT PARTS WITH BUDGET ALLOCATION
-        # SmartContextGuard will handle intelligent truncation if needed
+        # LLMContextManager will handle intelligent truncation if needed
         context_parts = []
         
         # Add memory context (use allocated budget)
@@ -1179,7 +1179,7 @@ class MultiRoundValidator:
     4. Final decision based on all rounds
     """
     
-    def __init__(self, agents: List[InspectorAgent], config: JottyConfig):
+    def __init__(self, agents: List[ValidatorAgent], config: SwarmConfig):
         self.agents = agents
         self.config = config
     

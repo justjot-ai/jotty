@@ -1,9 +1,9 @@
 """
-SwarmLearningPipeline - Extracted from SwarmManager
+SwarmLearningPipeline - Extracted from Orchestrator
 ====================================================
 
 All learning-related initialization, persistence, and post-episode hooks.
-SwarmManager delegates to this class for learning concerns.
+Orchestrator delegates to this class for learning concerns.
 
 Includes EffectivenessTracker: measures whether the system actually
 improves over time. Without measurable improvement, "self-improving"
@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from collections import defaultdict, deque
 
-from Jotty.core.foundation.data_structures import JottyConfig, EpisodeResult
+from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
 from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
 
@@ -163,17 +163,17 @@ class SwarmLearningPipeline:
     Manages all learning components: RL, credit assignment, memory consolidation,
     transferable learning, swarm intelligence, and MAS learning.
 
-    Extracted from SwarmManager to reduce god-object coupling.
+    Extracted from Orchestrator to reduce god-object coupling.
     """
 
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.episode_count = 0
         self._init_components()
 
     def _init_components(self):
         """Initialize all learning components."""
-        from Jotty.core.learning.learning_coordinator import SwarmLearningManager as SwarmLearningManager
+        from Jotty.core.learning.learning_coordinator import LearningManager as LearningManager
         from Jotty.core.learning.predictive_marl import (
             LLMTrajectoryPredictor, DivergenceMemory,
         )
@@ -187,7 +187,7 @@ class SwarmLearningPipeline:
         from .swarm_intelligence import SwarmIntelligence
 
         # Core learning manager (wraps Q-learner)
-        self.learning_manager = SwarmLearningManager(self.config)
+        self.learning_manager = LearningManager(self.config)
 
         # Trajectory prediction (MARL)
         self.trajectory_predictor = None
@@ -253,7 +253,7 @@ class SwarmLearningPipeline:
         # Curriculum: self-generated training tasks (DrZero-inspired)
         self.curriculum_generator = CurriculumGenerator(
             config=self.config,
-            memory_system=None,  # Wired later if HierarchicalMemory available
+            memory_system=None,  # Wired later if SwarmMemory available
         )
 
         # Training task queue (filled by post_episode when exploration needed)
@@ -1309,7 +1309,7 @@ class SwarmLearningPipeline:
         """
         Order agents for a multi-agent run using learning: Byzantine trust,
         stigmergy route strength, and MorphAgent TRAS. Single place for this
-        logic so SwarmManager and SwarmRouter stay DRY.
+        logic so Orchestrator and SwarmRouter stay DRY.
 
         Returns a new list (does not mutate input). Caller should assign back
         if they want to persist the order (e.g. self.agents = lp.order_agents_for_goal(...)).

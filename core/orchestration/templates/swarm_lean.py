@@ -360,5 +360,3 @@ Use clear headings, bullet points, and professional formatting.""",
         return skill_map.get(task_type, ["claude-cli-llm"])
 
 
-# Alias for convenience
-Lean = SwarmLean

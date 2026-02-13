@@ -3,7 +3,7 @@ Jotty Telegram Bot Package
 ==========================
 
 Telegram bot interface for Jotty, sharing the same
-UnifiedExecutor backend as CLI and Web UI.
+TierExecutor backend as CLI and Web UI.
 """
 
 from .bot import TelegramBotHandler

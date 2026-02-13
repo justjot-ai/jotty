@@ -199,7 +199,7 @@ class ExperienceRecorder(ABC):
     Interface for recording learning experiences.
 
     Implementations include:
-    - SwarmLearningManager
+    - LearningManager
     - TransferableLearningStore
     - PrioritizedEpisodeBuffer
 

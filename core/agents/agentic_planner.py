@@ -106,7 +106,7 @@ from ._inference_mixin import InferenceMixin
 from ._skill_selection_mixin import SkillSelectionMixin
 from ._plan_utils_mixin import PlanUtilsMixin
 
-class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
+class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     """
     Fully agentic planner - no hardcoded logic.
 
@@ -151,7 +151,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         dspy = _get_dspy()
         if not dspy:
-            raise AgentExecutionError("DSPy required for AgenticPlanner")
+            raise AgentExecutionError("DSPy required for TaskPlanner")
         _load_signatures()
 
         # Use ChainOfThought for execution planning (research: Plan-and-Solve benefits from explicit reasoning)
@@ -184,7 +184,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         self._fast_model = fast_model
         self._init_fast_lm()
 
-        logger.info(f"🧠 AgenticPlanner initialized (fast_model={fast_model} for classification)")
+        logger.info(f"🧠 TaskPlanner initialized (fast_model={fast_model} for classification)")
 
     def _init_fast_lm(self):
         """Initialize fast LM for routing/classification tasks.
@@ -1517,7 +1517,7 @@ class AgenticPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
 
 @dataclass
-class AgentExecutionPlan:
+class TaskPlan:
     """Execution plan with enhanced metadata."""
     task_graph: Optional[Any] = None  # TaskGraph if available
     steps: List[Any] = field(default_factory=list)  # List[ExecutionStep] - imported lazily
@@ -1531,6 +1531,6 @@ class AgentExecutionPlan:
 # Convenience Functions
 # =============================================================================
 
-def create_agentic_planner() -> AgenticPlanner:
+def create_agentic_planner() -> TaskPlanner:
     """Create a new agentic planner instance."""
-    return AgenticPlanner()
+    return TaskPlanner()

@@ -1,5 +1,5 @@
 """
-MongoDB Backend for Jotty HierarchicalMemory
+MongoDB Backend for Jotty SwarmMemory
 ============================================
 
 Extends Jotty's memory persistence layer with MongoDB backend.
@@ -7,11 +7,11 @@ Follows DRY principle by extending existing MemoryPersistence interface.
 
 **Usage**:
 ```python
-from Jotty.core.memory import HierarchicalMemory
+from Jotty.core.memory import SwarmMemory
 from Jotty.core.memory.mongodb_backend import MongoDBMemoryBackend
 
 # Create memory with MongoDB backend
-memory = HierarchicalMemory(agent_name="supervisor")
+memory = SwarmMemory(agent_name="supervisor")
 backend = MongoDBMemoryBackend(memory, mongo_uri="mongodb://...")
 
 # Use Jotty's standard API
@@ -26,7 +26,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from pymongo import MongoClient, ASCENDING, DESCENDING, TEXT
 
-from .cortex import HierarchicalMemory
+from .cortex import SwarmMemory
 from ..foundation.data_structures import MemoryLevel, MemoryEntry, GoalValue
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class MongoDBMemoryBackend:
     """
-    MongoDB persistence backend for Jotty's HierarchicalMemory.
+    MongoDB persistence backend for Jotty's SwarmMemory.
     
     Extends MemoryPersistence pattern but uses MongoDB instead of files.
     Follows DRY: Uses Jotty's existing MemoryEntry and MemoryLevel structures.
@@ -42,15 +42,15 @@ class MongoDBMemoryBackend:
     
     def __init__(
         self,
-        memory: HierarchicalMemory,
+        memory: SwarmMemory,
         mongo_uri: Optional[str] = None,
         agent_name: Optional[str] = None
     ):
         """
-        Initialize MongoDB backend for HierarchicalMemory.
+        Initialize MongoDB backend for SwarmMemory.
         
         Args:
-            memory: HierarchicalMemory instance to persist
+            memory: SwarmMemory instance to persist
             mongo_uri: MongoDB connection URI (default: from env MONGODB_URI)
             agent_name: Agent name (default: from memory.agent_name)
         """
@@ -113,7 +113,7 @@ class MongoDBMemoryBackend:
     
     def save(self) -> bool:
         """
-        Save HierarchicalMemory to MongoDB.
+        Save SwarmMemory to MongoDB.
         
         Converts Jotty's MemoryEntry objects to MongoDB documents.
         Follows DRY: Uses existing MemoryEntry structure.
@@ -150,7 +150,7 @@ class MongoDBMemoryBackend:
     
     def load(self) -> bool:
         """
-        Load HierarchicalMemory from MongoDB.
+        Load SwarmMemory from MongoDB.
         
         Converts MongoDB documents back to Jotty's MemoryEntry objects.
         Follows DRY: Uses existing MemoryEntry structure.
@@ -307,7 +307,7 @@ class MongoDBMemoryBackend:
         """
         Store task outcome using Jotty's memory API.
         
-        Uses Jotty's HierarchicalMemory.store() - no duplication.
+        Uses Jotty's SwarmMemory.store() - no duplication.
         
         Args:
             task_id: Task ID
@@ -515,17 +515,17 @@ class MongoDBMemoryBackend:
 
 
 def enable_mongodb_memory(
-    memory: HierarchicalMemory,
+    memory: SwarmMemory,
     mongo_uri: Optional[str] = None
 ) -> MongoDBMemoryBackend:
     """
-    Enable MongoDB persistence for HierarchicalMemory.
+    Enable MongoDB persistence for SwarmMemory.
     
     Similar to enable_memory_persistence() but uses MongoDB.
     Follows DRY: Same pattern as file-based persistence.
     
     Args:
-        memory: HierarchicalMemory instance
+        memory: SwarmMemory instance
         mongo_uri: MongoDB URI (default: from env)
     
     Returns:

@@ -15,12 +15,12 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 from ..foundation.data_structures import (
-    JottyConfig, MemoryEntry, MemoryLevel, GoalValue,
+    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
 if TYPE_CHECKING:
-    from ..memory.cortex import HierarchicalMemory
+    from ..memory.cortex import SwarmMemory
 
 
 
@@ -42,7 +42,7 @@ class LearningHealthMonitor:
     - Goal drift
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.metrics = LearningMetrics()
         
@@ -173,7 +173,7 @@ class DynamicBudgetManager:
     - Available relevant memories
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.total_budget = config.max_context_tokens
         

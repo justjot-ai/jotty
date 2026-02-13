@@ -11,7 +11,7 @@ Usage:
     jotty                             # Shell entry point (if installed)
 
 Key Features:
-- /run <goal> - Execute tasks with SwarmManager
+- /run <goal> - Execute tasks with Orchestrator
 - /agents - List and manage agents
 - /skills - Discover 120+ skills
 - /swarm - Swarm intelligence status

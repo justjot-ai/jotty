@@ -43,7 +43,7 @@ def _get_dspy():
     return _dspy_module
 
 from ..foundation.data_structures import (
-    MemoryEntry, MemoryLevel, JottyConfig,
+    MemoryEntry, MemoryLevel, SwarmConfig,
     GoalHierarchy, GoalNode
 )
 
@@ -174,7 +174,7 @@ class RecencyValueRanker:
     - Let LLM do ALL semantic matching
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
     
     def prerank(self, 
@@ -420,7 +420,7 @@ class LLMRelevanceScorer:
        LLM: 0.80 (understands missing filters cause slowness)
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.window_size = config.rag_window_size
         self.use_cot = config.rag_use_cot
@@ -546,7 +546,7 @@ class MemorySynthesizer:
     The synthesis creates NEW knowledge that doesn't exist in any single memory!
     """
 
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.synthesizer = _get_dspy().ChainOfThought(_get_memory_synthesis_signature())
 
@@ -662,7 +662,7 @@ class DeduplicationEngine:
     # Set to True to skip expensive LLM deduplication calls (use hash-only)
     SKIP_LLM_DEDUP = True
 
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.threshold = config.similarity_threshold
         self.checker = _get_dspy().ChainOfThought(_get_dedup_signature()) if not self.SKIP_LLM_DEDUP else None
@@ -803,7 +803,7 @@ class CausalExtractor:
     - "Trino parser requires type annotation for date columns" (causation)
     """
     
-    def __init__(self, config: JottyConfig):
+    def __init__(self, config: SwarmConfig):
         self.config = config
         self.extractor = _get_dspy().ChainOfThought(_get_causal_signature())
         self.min_evidence = config.causal_min_support
@@ -888,7 +888,7 @@ class LLMRAGRetriever:
     - Domain-specific jargon
     """
     
-    def __init__(self, config: JottyConfig, use_embedding_prefilter: bool = True):
+    def __init__(self, config: SwarmConfig, use_embedding_prefilter: bool = True):
         self.config = config
         
         self.chunker = SlidingWindowChunker(

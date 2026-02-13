@@ -24,10 +24,9 @@ from .signatures import (
 
 logger = logging.getLogger(__name__)
 
-BaseResearchAgent = BaseSwarmAgent
 
 
-class DataFetcherAgent(BaseResearchAgent):
+class DataFetcherAgent(BaseSwarmAgent):
     """Fetches financial data from Yahoo Finance and other APIs."""
 
     def __init__(self, memory=None, context=None, bus=None):
@@ -53,7 +52,7 @@ class DataFetcherAgent(BaseResearchAgent):
             return {'error': str(e), 'sources': []}
 
 
-class WebSearchAgent(BaseResearchAgent):
+class WebSearchAgent(BaseSwarmAgent):
     """Searches web for news and updates."""
 
     def __init__(self, memory=None, context=None, bus=None):
@@ -195,7 +194,7 @@ class WebSearchAgent(BaseResearchAgent):
             return {'news_text': '', 'news_count': 0, 'news_items': []}
 
 
-class SentimentAgent(BaseResearchAgent):
+class SentimentAgent(BaseSwarmAgent):
     """Analyzes sentiment from news."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -251,7 +250,7 @@ class SentimentAgent(BaseResearchAgent):
         return {'sentiment_score': score, 'sentiment_label': label, 'key_themes': []}
 
 
-class LLMAnalysisAgent(BaseResearchAgent):
+class LLMAnalysisAgent(BaseSwarmAgent):
     """LLM-powered stock analysis."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -342,7 +341,7 @@ class LLMAnalysisAgent(BaseResearchAgent):
         }
 
 
-class PeerComparisonAgent(BaseResearchAgent):
+class PeerComparisonAgent(BaseSwarmAgent):
     """Compares stock with sector peers."""
 
     def __init__(self, memory=None, context=None, bus=None, llm_module=None):
@@ -440,7 +439,7 @@ class PeerComparisonAgent(BaseResearchAgent):
         return [p for p in sector_peers if p != ticker][:5]
 
 
-class ChartGeneratorAgent(BaseResearchAgent):
+class ChartGeneratorAgent(BaseSwarmAgent):
     """Generates technical analysis charts."""
 
     async def generate(self, ticker: str, data: Dict[str, Any], output_dir: str) -> Dict[str, Any]:
@@ -528,7 +527,7 @@ class ChartGeneratorAgent(BaseResearchAgent):
         return [sum(data[i:i+window])/window for i in range(len(data)-window+1)]
 
 
-class TechnicalAnalysisAgent(BaseResearchAgent):
+class TechnicalAnalysisAgent(BaseSwarmAgent):
     """
     Technical Analysis Agent with multi-timeframe support.
 
@@ -623,7 +622,7 @@ class TechnicalAnalysisAgent(BaseResearchAgent):
         }
 
 
-class EnhancedChartGeneratorAgent(BaseResearchAgent):
+class EnhancedChartGeneratorAgent(BaseSwarmAgent):
     """
     Enhanced Chart Generator following HourlyReport.py patterns.
 
@@ -1067,7 +1066,7 @@ class EnhancedChartGeneratorAgent(BaseResearchAgent):
             return None
 
 
-class ScreenerAgent(BaseResearchAgent):
+class ScreenerAgent(BaseSwarmAgent):
     """
     Screener.in Agent for Indian company fundamentals.
 
@@ -1149,7 +1148,7 @@ class ScreenerAgent(BaseResearchAgent):
         return result
 
 
-class SocialSentimentAgent(BaseResearchAgent):
+class SocialSentimentAgent(BaseSwarmAgent):
     """
     Social Sentiment Agent for multi-source sentiment analysis.
 
@@ -1295,7 +1294,7 @@ class SocialSentimentAgent(BaseResearchAgent):
         }
 
 
-class ReportGeneratorAgent(BaseResearchAgent):
+class ReportGeneratorAgent(BaseSwarmAgent):
     """Generates final report and handles output."""
 
     async def generate(

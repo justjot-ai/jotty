@@ -15,12 +15,12 @@ All tiers share:
 - Basic error handling
 """
 
-from .executor import UnifiedExecutor, ExecutionConfig, ExecutionTier, ExecutionResult
+from .executor import TierExecutor, ExecutionConfig, ExecutionTier, ExecutionResult
 from .types import StreamEvent, StreamEventType
 from .tier_detector import TierDetector
 
 __all__ = [
-    'UnifiedExecutor',
+    'TierExecutor',
     'ExecutionConfig',
     'ExecutionTier',
     'ExecutionResult',

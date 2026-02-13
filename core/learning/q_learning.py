@@ -1169,9 +1169,9 @@ class LLMQPredictor:
         """Lazy-init chunker to avoid circular imports."""
         if self._chunker is None:
             try:
-                from Jotty.core.context.chunker import AgenticChunker
+                from Jotty.core.context.chunker import ContextChunker
                 lm = getattr(self.config, 'lm', None) or dspy.settings.lm
-                self._chunker = AgenticChunker(lm=lm)
+                self._chunker = ContextChunker(lm=lm)
             except Exception as e:
                 # Fallback: no chunking
                 self._chunker = None
@@ -1279,7 +1279,7 @@ class LLMQPredictor:
     
     def _cluster_tier2(self, keys: List[Tuple[str, str]]):
         """
-        Cluster Tier 2 memories by semantic similarity using AgenticChunker.
+        Cluster Tier 2 memories by semantic similarity using ContextChunker.
         
         This enables efficient retrieval: when state matches cluster centroid,
         retrieve all members of that cluster.
@@ -1294,7 +1294,7 @@ class LLMQPredictor:
             memory_texts.append(f"State: {state_desc}\nAction: {action_desc}")
         
         try:
-            # Use AgenticChunker to find semantic clusters
+            # Use ContextChunker to find semantic clusters
             # (Simplified: In reality, we'd use chunker's semantic grouping)
             # For now, simple keyword-based clustering
             

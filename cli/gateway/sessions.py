@@ -7,7 +7,7 @@ Cross-channel session persistence integrated with memory layer.
 Features:
 - Sessions persist across restarts (saved to ~/jotty/sessions/)
 - Links same user across channels (Telegram + Web = same user)
-- Integrates with HierarchicalMemory for context
+- Integrates with SwarmMemory for context
 - Automatic session cleanup for inactive sessions
 
 Usage:

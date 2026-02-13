@@ -1,4 +1,4 @@
-"""AgenticPlanner Inference Mixin - Task type and capability inference."""
+"""TaskPlanner Inference Mixin - Task type and capability inference."""
 
 import json
 import logging
