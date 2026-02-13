@@ -56,7 +56,7 @@ class ChatAssistant:
         """
         # Debug logging
         logger.debug(f"ChatAssistant.run() received kwargs keys: {list(kwargs.keys())}")
-        print(f"🔥🔥🔥 ChatAssistant.run() CALLED with kwargs: {list(kwargs.keys())}", flush=True)
+        logger.debug(f"ChatAssistant.run() CALLED with kwargs: {list(kwargs.keys())}")
 
         # Extract goal/message from kwargs (try multiple keys)
         goal = (kwargs.get('goal') or
@@ -73,7 +73,7 @@ class ChatAssistant:
 
         goal_lower = goal.lower() if goal else ""
         logger.debug(f"Final goal: {goal}")
-        print(f"🔥🔥🔥 Goal: '{goal}', is_task_query: {self._is_task_query(goal_lower)}", flush=True)
+        logger.debug(f"Goal: '{goal}', is_task_query: {self._is_task_query(goal_lower)}")
 
         # If no goal provided, default to task summary
         if not goal:

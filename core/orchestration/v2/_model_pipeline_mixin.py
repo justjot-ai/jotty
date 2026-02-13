@@ -311,7 +311,7 @@ class ModelPipelineMixin:
             except Exception as e:
                 logger.debug(f"Hyperopt failed for {model_name}: {e}")
 
-        print()  # New line after progress
+        logger.info("Hyperparameter optimization complete")
 
         # ================================================================
         # SELECT BEST MODEL AND BUILD

@@ -355,20 +355,82 @@ class Jotty:
 
     def get_stats(self) -> dict:
         """
-        Get execution statistics.
+        Get execution statistics with real metrics from observability.
 
         Returns:
-            Dict with stats
+            Dict with config, session, global, per_agent, and task_types data
 
         Example:
             stats = jotty.get_stats()
-            print(stats)
+            print(stats['global']['total_executions'])
         """
+        from Jotty.core.observability import get_metrics
+        summary = get_metrics().get_summary()
         return {
-            'default_tier': self.config.tier.name if self.config.tier else 'AUTO',
-            'memory_backend': self.config.memory_backend,
-            'validation_enabled': self.config.enable_validation,
+            'config': {
+                'default_tier': self.config.tier.name if self.config.tier else 'AUTO',
+                'memory_backend': self.config.memory_backend,
+                'validation_enabled': self.config.enable_validation,
+            },
+            **summary,
         }
+
+    def get_cost_breakdown(self) -> dict:
+        """
+        Get cost breakdown by agent and model.
+
+        Returns:
+            Dict with total_cost_usd, by_agent, by_model
+
+        Example:
+            costs = jotty.get_cost_breakdown()
+            print(f"Total: ${costs['total_cost_usd']:.4f}")
+        """
+        from Jotty.core.observability import get_metrics
+        return get_metrics().get_cost_breakdown()
+
+    def get_recent_errors(self, limit: int = 10) -> list:
+        """
+        Get recent execution errors.
+
+        Args:
+            limit: Maximum number of errors to return
+
+        Returns:
+            List of error dicts with agent, task_type, error, timestamp
+
+        Example:
+            errors = jotty.get_recent_errors()
+            for e in errors:
+                print(f"{e['agent']}: {e['error']}")
+        """
+        from Jotty.core.observability import get_metrics
+        return get_metrics().recent_errors(limit)
+
+    def save_metrics(self, path: str = None) -> str:
+        """
+        Save metrics to a JSON file.
+
+        Args:
+            path: File path (defaults to ~/jotty/v3_metrics/session.json)
+
+        Returns:
+            Path where metrics were saved
+
+        Example:
+            saved = jotty.save_metrics()
+            print(f"Saved to {saved}")
+        """
+        import json
+        from Jotty.core.observability import get_metrics
+
+        path = path or str(Path.home() / "jotty" / "v3_metrics" / "session.json")
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+        data = get_metrics().get_summary()
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2, default=str)
+        return path
 
 
 # Convenience functions for quick usage

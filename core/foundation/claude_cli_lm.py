@@ -67,7 +67,7 @@ class ClaudeCLILM(BaseLM):
                 timeout=5
             )
             if result.returncode == 0:
-                print(f"✓ Claude CLI available: {result.stdout.strip()}")
+                logger.info(f"Claude CLI available: {result.stdout.strip()}")
             else:
                 raise LLMError("Claude CLI not working")
         except FileNotFoundError:

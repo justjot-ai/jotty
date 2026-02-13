@@ -421,8 +421,7 @@ class Swarm:
             swarm_result.metadata['metrics'] = metrics
 
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Report generation failed: {e}")
+            logger.warning(f"Report generation failed: {e}")
 
         return swarm_result
 

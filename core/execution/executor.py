@@ -27,6 +27,7 @@ from .types import (
     MemoryContext,
 )
 from .tier_detector import TierDetector
+from Jotty.core.observability.tracing import SpanStatus
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,11 @@ class UnifiedExecutor:
         self._planner = None
         self._memory = None
         self._validator = None
+
+        # Observability (lazy-loaded)
+        self._metrics = None
+        self._tracer = None
+        self._cost_tracker = None
 
         logger.info("UnifiedExecutor initialized (V3)")
 
@@ -107,6 +113,30 @@ class UnifiedExecutor:
             self._validator = InspectorAgent(role="auditor")
         return self._validator
 
+    @property
+    def metrics(self):
+        """Lazy-load MetricsCollector singleton."""
+        if self._metrics is None:
+            from Jotty.core.observability import get_metrics
+            self._metrics = get_metrics()
+        return self._metrics
+
+    @property
+    def tracer(self):
+        """Lazy-load TracingContext singleton."""
+        if self._tracer is None:
+            from Jotty.core.observability import get_tracer
+            self._tracer = get_tracer()
+        return self._tracer
+
+    @property
+    def cost_tracker(self):
+        """Lazy-load CostTracker instance."""
+        if self._cost_tracker is None:
+            from Jotty.core.monitoring.cost_tracker import CostTracker
+            self._cost_tracker = CostTracker()
+        return self._cost_tracker
+
     async def execute(
         self,
         goal: str,
@@ -134,34 +164,74 @@ class UnifiedExecutor:
             config.tier = self._detector.detect(goal)
             logger.info(f"Auto-detected tier: {config.tier.name}")
 
+        # Start trace
+        trace = self.tracer.new_trace(metadata={
+            'goal': goal[:200],
+            'tier': config.tier.name,
+        })
+
         # Route to appropriate tier
         try:
-            if config.tier == ExecutionTier.DIRECT:
-                result = await self._execute_tier1(goal, config, status_callback, **kwargs)
-            elif config.tier == ExecutionTier.AGENTIC:
-                result = await self._execute_tier2(goal, config, status_callback, **kwargs)
-            elif config.tier == ExecutionTier.LEARNING:
-                result = await self._execute_tier3(goal, config, status_callback, **kwargs)
-            elif config.tier == ExecutionTier.AUTONOMOUS:
-                result = await self._execute_tier5(goal, config, status_callback, **kwargs)
-            else:  # RESEARCH
-                result = await self._execute_tier4(goal, config, status_callback, **kwargs)
+            with self.tracer.span("execute", tier=config.tier.name, goal=goal[:100]) as root_span:
+                if config.tier == ExecutionTier.DIRECT:
+                    result = await self._execute_tier1(goal, config, status_callback, **kwargs)
+                elif config.tier == ExecutionTier.AGENTIC:
+                    result = await self._execute_tier2(goal, config, status_callback, **kwargs)
+                elif config.tier == ExecutionTier.LEARNING:
+                    result = await self._execute_tier3(goal, config, status_callback, **kwargs)
+                elif config.tier == ExecutionTier.AUTONOMOUS:
+                    result = await self._execute_tier5(goal, config, status_callback, **kwargs)
+                else:  # RESEARCH
+                    result = await self._execute_tier4(goal, config, status_callback, **kwargs)
+
+                root_span.set_status(SpanStatus.OK)
 
             # Set timing
             result.latency_ms = (time.time() - start_time) * 1000
             result.completed_at = datetime.now()
+
+            # End trace and attach to result
+            self.tracer.end_trace()
+            traces = self.tracer.get_trace_history()
+            result.trace = traces[-1] if traces else trace
+
+            # Record to MetricsCollector
+            self.metrics.record_execution(
+                agent_name=f"tier_{config.tier.value}",
+                task_type=config.tier.name.lower(),
+                duration_s=result.latency_ms / 1000,
+                success=result.success,
+                input_tokens=result.metadata.get('tokens', 0),
+                output_tokens=0,
+                cost_usd=result.cost_usd,
+                llm_calls=result.llm_calls,
+                error=result.error,
+                metadata={'goal': goal[:200]},
+            )
 
             logger.info(f"Execution complete: {result}")
             return result
 
         except Exception as e:
             logger.error(f"Execution failed: {e}", exc_info=True)
+            self.tracer.end_trace()
+            duration_s = (time.time() - start_time)
+
+            # Record failure to metrics
+            self.metrics.record_execution(
+                agent_name=f"tier_{config.tier.value}",
+                task_type=config.tier.name.lower(),
+                duration_s=duration_s,
+                success=False,
+                error=str(e),
+            )
+
             return ExecutionResult(
                 output=None,
                 tier=config.tier,
                 success=False,
                 error=str(e),
-                latency_ms=(time.time() - start_time) * 1000,
+                latency_ms=duration_s * 1000,
             )
 
     # =========================================================================
@@ -207,18 +277,35 @@ class UnifiedExecutor:
             status_callback("direct", "Calling LLM...")
 
         # Single LLM call
-        llm_start = time.time()
-        response = await self.provider.generate(
-            prompt=goal,
-            tools=tools,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-        )
-        llm_time = (time.time() - llm_start) * 1000
+        with self.tracer.span("tier1_llm_call", tools=len(tools)) as llm_span:
+            llm_start = time.time()
+            response = await self.provider.generate(
+                prompt=goal,
+                tools=tools,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+            )
+            llm_time = (time.time() - llm_start) * 1000
 
-        # Estimate cost (rough: $0.015/1K tokens for Claude Sonnet)
-        tokens = response.get('usage', {}).get('total_tokens', 500)
-        cost = (tokens / 1000) * 0.015
+            # Estimate cost (rough: $0.015/1K tokens for Claude Sonnet)
+            usage = response.get('usage', {})
+            input_tokens = usage.get('input_tokens', 250)
+            output_tokens = usage.get('output_tokens', 250)
+            tokens = input_tokens + output_tokens
+
+            # Use CostTracker for precise cost
+            model = self.config.model or 'claude-sonnet-4'
+            record = self.cost_tracker.record_llm_call(
+                provider=self.config.provider or 'anthropic',
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True,
+                duration=llm_time / 1000,
+            )
+            cost = record.cost
+
+            llm_span.add_cost(input_tokens, output_tokens, cost)
 
         return ExecutionResult(
             output=response.get('content', response),
@@ -264,9 +351,11 @@ class UnifiedExecutor:
             status_callback("planning", "Creating execution plan...")
 
         # Step 1: Plan
-        plan_result = await self.planner.plan(goal)
-        total_llm_calls += 1
-        total_cost += 0.01  # Rough estimate
+        with self.tracer.span("tier2_plan") as plan_span:
+            plan_result = await self.planner.plan(goal)
+            total_llm_calls += 1
+            total_cost += 0.01  # Rough estimate
+            plan_span.add_cost(0, 0, 0.01)
 
         # Convert planner output to ExecutionPlan
         plan = self._parse_plan(goal, plan_result)
@@ -282,21 +371,26 @@ class UnifiedExecutor:
 
             step.started_at = datetime.now()
 
-            try:
-                # Execute step
-                step_result = await self._execute_step(step, config)
-                step.result = step_result.get('output')
-                step.completed_at = datetime.now()
+            with self.tracer.span(f"tier2_step_{step.step_num}", description=step.description[:80]) as step_span:
+                try:
+                    # Execute step
+                    step_result = await self._execute_step(step, config)
+                    step.result = step_result.get('output')
+                    step.completed_at = datetime.now()
 
-                total_llm_calls += step_result.get('llm_calls', 1)
-                total_cost += step_result.get('cost', 0.01)
+                    step_calls = step_result.get('llm_calls', 1)
+                    step_cost = step_result.get('cost', 0.01)
+                    total_llm_calls += step_calls
+                    total_cost += step_cost
+                    step_span.add_cost(0, 0, step_cost)
 
-                results.append(step_result)
+                    results.append(step_result)
 
-            except Exception as e:
-                logger.error(f"Step {step.step_num} failed: {e}")
-                step.error = str(e)
-                step.completed_at = datetime.now()
+                except Exception as e:
+                    logger.error(f"Step {step.step_num} failed: {e}")
+                    step.error = str(e)
+                    step.completed_at = datetime.now()
+                    step_span.set_status(SpanStatus.ERROR, str(e))
 
         # Step 3: Aggregate
         final_output = self._aggregate_results(results, goal)
@@ -345,12 +439,15 @@ class UnifiedExecutor:
             if status_callback:
                 status_callback("memory", "Retrieving context...")
 
-            memory_start = time.time()
-            memory_context = await self._retrieve_memory(goal, config)
-            memory_time = (time.time() - memory_start) * 1000
+            with self.tracer.span("tier3_memory", backend=config.memory_backend) as mem_span:
+                memory_start = time.time()
+                memory_context = await self._retrieve_memory(goal, config)
+                memory_time = (time.time() - memory_start) * 1000
+                mem_span.set_attribute("retrieval_time_ms", memory_time)
 
-            if memory_context and memory_context.total_retrieved > 0:
-                logger.info(f"Retrieved {memory_context.total_retrieved} memory entries")
+                if memory_context and memory_context.total_retrieved > 0:
+                    mem_span.set_attribute("entries_retrieved", memory_context.total_retrieved)
+                    logger.info(f"Retrieved {memory_context.total_retrieved} memory entries")
 
         # Step 2: Enrich goal
         enriched_goal = self._enrich_with_memory(goal, memory_context)
@@ -367,9 +464,11 @@ class UnifiedExecutor:
             max_tokens=config.max_tokens,
         )
 
-        result = await self._execute_tier2(enriched_goal, tier2_config, status_callback, **kwargs)
-        total_llm_calls += result.llm_calls
-        total_cost += result.cost_usd
+        with self.tracer.span("tier3_execute") as exec_span:
+            result = await self._execute_tier2(enriched_goal, tier2_config, status_callback, **kwargs)
+            total_llm_calls += result.llm_calls
+            total_cost += result.cost_usd
+            exec_span.add_cost(0, 0, result.cost_usd)
 
         # Step 4: Validate
         validation = None
@@ -377,34 +476,37 @@ class UnifiedExecutor:
             if status_callback:
                 status_callback("validating", "Validating result...")
 
-            validation = await self._validate_result(goal, result, config)
-            total_llm_calls += 1
-            total_cost += 0.01
+            with self.tracer.span("tier3_validate") as val_span:
+                validation = await self._validate_result(goal, result, config)
+                total_llm_calls += 1
+                total_cost += 0.01
+                val_span.add_cost(0, 0, 0.01)
+                val_span.set_attribute("validation_success", validation.success)
 
-            # Retry if validation fails and retries enabled
-            if not validation.success and config.validation_retries > 0:
-                logger.info(f"Validation failed, retrying... ({config.validation_retries} attempts)")
+                # Retry if validation fails and retries enabled
+                if not validation.success and config.validation_retries > 0:
+                    logger.info(f"Validation failed, retrying... ({config.validation_retries} attempts)")
 
-                for attempt in range(config.validation_retries):
-                    if status_callback:
-                        status_callback("retrying", f"Retry {attempt + 1}/{config.validation_retries}")
+                    for attempt in range(config.validation_retries):
+                        if status_callback:
+                            status_callback("retrying", f"Retry {attempt + 1}/{config.validation_retries}")
 
-                    feedback_goal = f"{goal}\n\nPrevious attempt feedback: {validation.feedback}"
-                    retry_result = await self._execute_tier2(
-                        feedback_goal, tier2_config, status_callback, **kwargs
-                    )
+                        feedback_goal = f"{goal}\n\nPrevious attempt feedback: {validation.feedback}"
+                        retry_result = await self._execute_tier2(
+                            feedback_goal, tier2_config, status_callback, **kwargs
+                        )
 
-                    total_llm_calls += retry_result.llm_calls
-                    total_cost += retry_result.cost_usd
+                        total_llm_calls += retry_result.llm_calls
+                        total_cost += retry_result.cost_usd
 
-                    retry_validation = await self._validate_result(goal, retry_result, config)
-                    total_llm_calls += 1
-                    total_cost += 0.01
+                        retry_validation = await self._validate_result(goal, retry_result, config)
+                        total_llm_calls += 1
+                        total_cost += 0.01
 
-                    if retry_validation.success:
-                        result = retry_result
-                        validation = retry_validation
-                        break
+                        if retry_validation.success:
+                            result = retry_result
+                            validation = retry_validation
+                            break
 
         # Step 5: Store memory
         if config.memory_backend != "none":
@@ -459,8 +561,10 @@ class UnifiedExecutor:
         if status_callback:
             status_callback("research", f"Executing with {swarm.__class__.__name__}...")
 
-        # Execute directly
-        result = await swarm.execute(task=goal, **kwargs)
+        # Execute directly with tracing
+        with self.tracer.span("tier4_swarm", swarm=swarm.__class__.__name__) as swarm_span:
+            result = await swarm.execute(task=goal, **kwargs)
+            swarm_span.set_attribute("success", result.success if hasattr(result, 'success') else True)
 
         # Wrap in ExecutionResult
         return ExecutionResult(
@@ -535,28 +639,32 @@ class UnifiedExecutor:
         sandbox_log = None
 
         # Optionally wrap in sandbox
-        if config.enable_sandbox and swarm is not None:
-            try:
-                from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager
-                sandbox = SandboxManager(trust_level=config.trust_level)
+        with self.tracer.span("tier5_autonomous", sandbox=config.enable_sandbox) as auto_span:
+            if config.enable_sandbox and swarm is not None:
+                try:
+                    from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager
+                    sandbox = SandboxManager(trust_level=config.trust_level)
 
+                    if status_callback:
+                        status_callback("autonomous", "Executing in sandbox...")
+
+                    result = await sandbox.execute(swarm, goal, **kwargs)
+                    sandbox_log = getattr(result, 'sandbox_log', None)
+                    auto_span.set_attribute("sandboxed", True)
+                except ImportError:
+                    logger.warning("SandboxManager not available, executing without sandbox")
+                    auto_span.set_attribute("sandboxed", False)
+                    if swarm is not None:
+                        result = await swarm.execute(task=goal, **kwargs)
+                    else:
+                        return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+            elif swarm is not None:
                 if status_callback:
-                    status_callback("autonomous", "Executing in sandbox...")
-
-                result = await sandbox.execute(swarm, goal, **kwargs)
-                sandbox_log = getattr(result, 'sandbox_log', None)
-            except ImportError:
-                logger.warning("SandboxManager not available, executing without sandbox")
-                if swarm is not None:
-                    result = await swarm.execute(task=goal, **kwargs)
-                else:
-                    return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
-        elif swarm is not None:
-            if status_callback:
-                status_callback("autonomous", f"Executing with {swarm.__class__.__name__}...")
-            result = await swarm.execute(task=goal, **kwargs)
-        else:
-            return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+                    status_callback("autonomous", f"Executing with {swarm.__class__.__name__}...")
+                result = await swarm.execute(task=goal, **kwargs)
+                auto_span.set_attribute("swarm", swarm.__class__.__name__)
+            else:
+                return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
 
         # Optionally apply paradigm (debate/relay/refinement)
         paradigm_used = None

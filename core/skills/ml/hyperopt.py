@@ -136,7 +136,7 @@ class HyperoptSkill(MLSkill):
             except Exception as e:
                 logger.debug(f"Hyperopt failed for {model_name}: {e}")
 
-        print()  # New line after progress
+        logger.info("Hyperparameter optimization complete")
 
         # Select best model
         best_model_name = None

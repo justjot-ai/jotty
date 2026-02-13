@@ -419,11 +419,11 @@ def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4)
             {"name": "domain_expert", "system": f"You are a senior domain expert. Provide deep, practical analysis."},
             {"name": "critical_reviewer", "system": f"You are a critical reviewer. Identify risks, gaps, and overlooked considerations."},
         ]
-        print(f"  → Ensemble: fast mode ({max_perspectives} perspectives, no LLM selection)")
+        logger.info("Ensemble: fast mode (%d perspectives, no LLM selection)", max_perspectives)
         return fast_perspectives[:max_perspectives]
 
     try:
-        print("  → Ensemble: LLM generating domain-specific perspectives...", end=" ", flush=True)
+        logger.info("Ensemble: LLM generating domain-specific perspectives...")
         # Ask LLM to generate appropriate perspectives (with retry for rate limits)
         perspective_prompt = f"""Generate {max_perspectives} DOMAIN-EXPERT perspectives for this specific task.
 
@@ -478,19 +478,19 @@ JSON array for the given task:"""
                 if valid:
                     perspectives = perspectives[:max_perspectives]
                     names = [p['name'] for p in perspectives]
-                    print(f"done")
-                    print(f"  → Perspectives: {', '.join(names)}")
+                    logger.info("Perspective generation done")
+                    logger.info("Perspectives: %s", ', '.join(names))
                     logger.info(f"LLM generated {len(perspectives)} perspectives: {names}")
                     return perspectives
 
-        print("failed (invalid JSON)")
+        logger.warning("Perspective generation failed (invalid JSON)")
 
     except Exception as e:
-        print(f"failed ({e})")
+        logger.warning("Perspective generation failed (%s)", e)
         logger.warning(f"LLM perspective generation failed, using defaults: {e}")
 
     # Fallback to defaults
-    print("  → Ensemble: using default perspectives (fallback)")
+    logger.info("Ensemble: using default perspectives (fallback)")
     return DEFAULT_PERSPECTIVES
 
 

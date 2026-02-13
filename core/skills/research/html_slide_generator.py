@@ -1069,4 +1069,4 @@ if __name__ == "__main__":
     # Save test output
     output_path = "/var/www/sites/personal/stock_market/Jotty/learning-slides/public/generated-test.html"
     builder.save(html, output_path)
-    print(f"Generated presentation saved to: {output_path}")
+    logger.info(f"Generated presentation saved to: {output_path}")

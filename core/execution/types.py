@@ -182,6 +182,7 @@ class ExecutionResult:
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    trace: Optional[Any] = None  # Trace from observability.tracing
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -195,6 +196,7 @@ class ExecutionResult:
             'cost_usd': self.cost_usd,
             'used_memory': self.used_memory,
             'steps': len(self.steps),
+            'trace_id': self.trace.trace_id if self.trace else None,
             'timestamp': self.started_at.isoformat(),
         }
 

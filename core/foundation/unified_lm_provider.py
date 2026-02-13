@@ -559,7 +559,7 @@ class UnifiedLMProvider:
             logger.debug("DSPy configured with OpenCode GLM")
             return lm
         except Exception as e:
-            print(f"⚠️  OpenCode failed: {e}", file=__import__('sys').stderr)
+            logger.warning(f"OpenCode failed: {e}")
 
         raise RuntimeError("No available LM providers found")
 
