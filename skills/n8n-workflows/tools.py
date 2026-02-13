@@ -707,16 +707,25 @@ class N8nWorkflowFactory:
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
     PMI_BASE_URL = os.getenv("PMI_API_URL", "http://localhost:5000")
 
+    # Fields the n8n API rejects on POST (read-only).
+    _READ_ONLY_FIELDS = {"active", "tags"}
+
     @classmethod
     def _base_workflow(cls, name: str, tags: list) -> Dict[str, Any]:
-        """Create base workflow structure."""
+        """Create base workflow structure.
+
+        ``tags`` are stored under a private ``_tags`` key so they survive
+        round-tripping through ``get_all_workflow_definitions`` but are
+        stripped before the POST to the n8n API (which treats ``tags``
+        as read-only).  ``create_all_workflows`` handles tagging after
+        creation via a separate PATCH call.
+        """
         return {
             "name": name,
             "nodes": [],
             "connections": {},
-            "active": False,
             "settings": {"executionOrder": "v1"},
-            "tags": [{"name": t} for t in tags],
+            "_tags": tags,  # private — stripped before POST
         }
 
     @classmethod
@@ -983,18 +992,41 @@ class N8nWorkflowFactory:
         if result.get("success"):
             existing = {w.get("name", "") for w in result.get("data", [])}
 
+        # Build tag name→id lookup for tagging after creation
+        tag_map: Dict[str, str] = {}
+        tags_result = client._make_request("/api/v1/tags", method="GET")
+        if tags_result.get("success"):
+            for t in tags_result.get("data", tags_result.get("tags", [])):
+                if isinstance(t, dict) and t.get("id") and t.get("name"):
+                    tag_map[t["name"]] = t["id"]
+
         count = 0
         for wf_def in workflows:
             if wf_def["name"] in existing:
                 logger.debug("Workflow '%s' already exists, skipping", wf_def["name"])
                 continue
 
+            # Strip read-only / private fields before POST
+            tag_names = wf_def.pop("_tags", [])
+            payload = {k: v for k, v in wf_def.items()
+                       if k not in cls._READ_ONLY_FIELDS}
+
             create_result = client._make_request(
-                "/api/v1/workflows", method="POST", json_data=wf_def,
+                "/api/v1/workflows", method="POST", json_data=payload,
             )
             if create_result.get("success"):
                 count += 1
                 logger.info("Created workflow: %s", wf_def["name"])
+                # Tag via PUT with tag IDs (tags are read-only on POST)
+                wf_id = create_result.get("id")
+                if wf_id and tag_names:
+                    tag_ids = [{"id": tag_map[t]} for t in tag_names if t in tag_map]
+                    if tag_ids:
+                        client._make_request(
+                            f"/api/v1/workflows/{wf_id}/tags",
+                            method="PUT",
+                            json_data=tag_ids,
+                        )
             else:
                 logger.warning(
                     "Failed to create workflow '%s': %s",

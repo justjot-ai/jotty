@@ -593,3 +593,545 @@ class TestSingletonResets:
         assert len(SmartTokenizer._instances) >= 1
         SmartTokenizer.reset_instances()
         assert len(SmartTokenizer._instances) == 0
+
+
+# =============================================================================
+# ConfigView Tests
+# =============================================================================
+
+class TestConfigViews:
+    """Tests for _ConfigView proxy system."""
+
+    @pytest.mark.unit
+    def test_config_view_getattr_reads_parent(self):
+        """ConfigView proxies attribute reads to parent SwarmConfig."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, ExecutionView
+        config = SwarmConfig(max_actor_iters=42)
+        view = ExecutionView(config)
+        assert view.max_actor_iters == 42
+
+    @pytest.mark.unit
+    def test_config_view_setattr_writes_parent(self):
+        """ConfigView proxies attribute writes to parent SwarmConfig."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, ExecutionView
+        config = SwarmConfig(max_actor_iters=10)
+        view = ExecutionView(config)
+        view.max_actor_iters = 99
+        assert config.max_actor_iters == 99
+
+    @pytest.mark.unit
+    def test_config_view_getattr_invalid_raises(self):
+        """ConfigView raises AttributeError for fields not in its _FIELDS."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, ExecutionView
+        config = SwarmConfig()
+        view = ExecutionView(config)
+        with pytest.raises(AttributeError, match="has no attribute"):
+            _ = view.nonexistent_field
+
+    @pytest.mark.unit
+    def test_config_view_to_dict(self):
+        """ConfigView.to_dict() returns only its fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, PersistenceView
+        config = SwarmConfig()
+        view = PersistenceView(config)
+        d = view.to_dict()
+        assert isinstance(d, dict)
+        assert 'persist_memories' in d
+        # Should NOT have execution fields
+        assert 'max_actor_iters' not in d
+
+    @pytest.mark.unit
+    def test_config_view_repr(self):
+        """ConfigView.__repr__() contains class name and field values."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, MonitoringView
+        config = SwarmConfig()
+        view = MonitoringView(config)
+        rep = repr(view)
+        assert "MonitoringView(" in rep
+
+    @pytest.mark.unit
+    def test_persistence_view_fields(self):
+        """PersistenceView has expected fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, PersistenceView
+        view = PersistenceView(SwarmConfig())
+        d = view.to_dict()
+        assert 'auto_save_interval' in d
+        assert 'persist_memories' in d
+
+    @pytest.mark.unit
+    def test_memory_view_fields(self):
+        """MemoryView has expected fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, MemoryView
+        view = MemoryView(SwarmConfig())
+        d = view.to_dict()
+        assert 'episodic_capacity' in d
+        assert 'enable_llm_rag' in d
+
+    @pytest.mark.unit
+    def test_learning_view_fields(self):
+        """LearningView has expected fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig, LearningView
+        view = LearningView(SwarmConfig())
+        d = view.to_dict()
+        assert 'gamma' in d
+        assert 'alpha' in d
+
+    @pytest.mark.unit
+    def test_swarm_config_view_property(self):
+        """SwarmConfig exposes views via properties."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig()
+        # Check that view properties exist and return the right type
+        assert hasattr(config, 'execution')
+        assert hasattr(config, 'persistence')
+        assert hasattr(config, 'memory_settings')
+        assert hasattr(config, 'learning')
+
+
+# =============================================================================
+# SharedScratchpad Tests
+# =============================================================================
+
+class TestSharedScratchpad:
+    """Tests for SharedScratchpad inter-agent communication."""
+
+    @pytest.mark.unit
+    def test_add_message(self):
+        """add_message appends to messages list."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad, AgentMessage, CommunicationType
+        pad = SharedScratchpad()
+        msg = AgentMessage(
+            sender="agent1", receiver="agent2",
+            message_type=CommunicationType.INSIGHT,
+            content={"data": "test"},
+        )
+        pad.add_message(msg)
+        assert len(pad.messages) == 1
+        assert pad.messages[0].sender == "agent1"
+
+    @pytest.mark.unit
+    def test_add_message_caches_tool_result(self):
+        """Tool result messages are cached for reuse."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad, AgentMessage, CommunicationType
+        pad = SharedScratchpad()
+        msg = AgentMessage(
+            sender="agent1", receiver="*",
+            message_type=CommunicationType.TOOL_RESULT,
+            content={},
+            tool_name="web_search",
+            tool_args={"query": "test"},
+            tool_result={"results": ["r1", "r2"]},
+        )
+        pad.add_message(msg)
+        cached = pad.get_cached_result("web_search", {"query": "test"})
+        assert cached == {"results": ["r1", "r2"]}
+
+    @pytest.mark.unit
+    def test_get_cached_result_miss(self):
+        """get_cached_result returns None on cache miss."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad
+        pad = SharedScratchpad()
+        assert pad.get_cached_result("nonexistent", {}) is None
+
+    @pytest.mark.unit
+    def test_get_messages_for_specific_receiver(self):
+        """get_messages_for returns messages for specific receiver."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad, AgentMessage, CommunicationType
+        pad = SharedScratchpad()
+        pad.add_message(AgentMessage(
+            sender="a", receiver="b", message_type=CommunicationType.INSIGHT, content={}
+        ))
+        pad.add_message(AgentMessage(
+            sender="a", receiver="c", message_type=CommunicationType.INSIGHT, content={}
+        ))
+        msgs_b = pad.get_messages_for("b")
+        assert len(msgs_b) == 1
+
+    @pytest.mark.unit
+    def test_get_messages_for_broadcast(self):
+        """get_messages_for includes broadcast messages."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad, AgentMessage, CommunicationType
+        pad = SharedScratchpad()
+        pad.add_message(AgentMessage(
+            sender="a", receiver="*", message_type=CommunicationType.INSIGHT, content={}
+        ))
+        pad.add_message(AgentMessage(
+            sender="a", receiver="b", message_type=CommunicationType.INSIGHT, content={}
+        ))
+        # "c" should get broadcast only
+        msgs_c = pad.get_messages_for("c")
+        assert len(msgs_c) == 1
+        # "b" gets both broadcast and direct
+        msgs_b = pad.get_messages_for("b")
+        assert len(msgs_b) == 2
+
+    @pytest.mark.unit
+    def test_clear(self):
+        """clear() empties all data structures."""
+        from Jotty.core.foundation.data_structures import SharedScratchpad, AgentMessage, CommunicationType
+        pad = SharedScratchpad()
+        pad.add_message(AgentMessage(
+            sender="a", receiver="*", message_type=CommunicationType.TOOL_RESULT,
+            content={}, tool_name="t", tool_args={}, tool_result="r",
+        ))
+        pad.shared_insights.append("insight1")
+        pad.clear()
+        assert len(pad.messages) == 0
+        assert len(pad.tool_cache) == 0
+        assert len(pad.shared_insights) == 0
+
+
+# =============================================================================
+# AgentContribution Tests
+# =============================================================================
+
+class TestAgentContribution:
+    """Tests for AgentContribution credit assignment."""
+
+    @pytest.mark.unit
+    def test_compute_final_contribution_all_max(self):
+        """Maximum values produce contribution > base score."""
+        from Jotty.core.foundation.data_structures import AgentContribution
+        contrib = AgentContribution(
+            agent_name="planner",
+            contribution_score=1.0,
+            decision="approve",
+            decision_correct=True,
+            counterfactual_impact=1.0,
+            reasoning_quality=1.0,
+            evidence_used=["e1"],
+            tools_used=["t1"],
+            decision_timing=1.0,
+            temporal_weight=1.0,
+        )
+        final = contrib.compute_final_contribution()
+        assert final == 1.0  # 1.0 * 1.0 * 1.0 * 1.0
+
+    @pytest.mark.unit
+    def test_compute_final_contribution_all_min(self):
+        """Zero values produce reduced contribution."""
+        from Jotty.core.foundation.data_structures import AgentContribution
+        contrib = AgentContribution(
+            agent_name="planner",
+            contribution_score=1.0,
+            decision="abstain",
+            decision_correct=False,
+            counterfactual_impact=0.0,
+            reasoning_quality=0.0,
+            evidence_used=[],
+            tools_used=[],
+            decision_timing=0.0,
+            temporal_weight=0.0,
+        )
+        final = contrib.compute_final_contribution()
+        # 1.0 * 0.5 * 0.5 * 0.7 = 0.175
+        assert abs(final - 0.175) < 0.01
+
+    @pytest.mark.unit
+    def test_compute_final_contribution_mid_values(self):
+        """Mid-range values produce expected contribution."""
+        from Jotty.core.foundation.data_structures import AgentContribution
+        contrib = AgentContribution(
+            agent_name="auditor",
+            contribution_score=0.8,
+            decision="approve",
+            decision_correct=True,
+            counterfactual_impact=0.5,
+            reasoning_quality=0.6,
+            evidence_used=["memory"],
+            tools_used=["reason_about"],
+            decision_timing=0.5,
+            temporal_weight=0.5,
+        )
+        final = contrib.compute_final_contribution()
+        # 0.8 * (0.5 + 0.3) * (0.5 + 0.25) * (0.7 + 0.15) = 0.8 * 0.8 * 0.75 * 0.85
+        expected = 0.8 * 0.8 * 0.75 * 0.85
+        assert abs(final - expected) < 0.01
+
+    @pytest.mark.unit
+    def test_negative_contribution_score(self):
+        """Negative base score produces negative contribution."""
+        from Jotty.core.foundation.data_structures import AgentContribution
+        contrib = AgentContribution(
+            agent_name="bad_agent",
+            contribution_score=-0.5,
+            decision="reject",
+            decision_correct=False,
+            counterfactual_impact=0.8,
+            reasoning_quality=0.3,
+            evidence_used=[],
+            tools_used=[],
+            decision_timing=0.5,
+            temporal_weight=0.5,
+        )
+        final = contrib.compute_final_contribution()
+        assert final < 0
+
+
+# =============================================================================
+# LearningMetrics Tests
+# =============================================================================
+
+class TestLearningMetrics:
+    """Tests for LearningMetrics health monitoring."""
+
+    @pytest.mark.unit
+    def test_get_success_rate_empty(self):
+        """Success rate defaults to 0.5 when no data."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        assert metrics.get_success_rate() == 0.5
+
+    @pytest.mark.unit
+    def test_get_success_rate_all_success(self):
+        """Success rate is 1.0 when all recent are successful."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.recent_successes = [True] * 10
+        assert metrics.get_success_rate() == 1.0
+
+    @pytest.mark.unit
+    def test_get_success_rate_mixed(self):
+        """Success rate reflects actual mix."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.recent_successes = [True, False, True, True, False]
+        assert metrics.get_success_rate() == 0.6
+
+    @pytest.mark.unit
+    def test_get_success_rate_windowed(self):
+        """Success rate respects window parameter."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.recent_successes = [False] * 100 + [True] * 10
+        rate = metrics.get_success_rate(window=10)
+        assert rate == 1.0
+
+    @pytest.mark.unit
+    def test_get_learning_velocity_empty(self):
+        """Learning velocity is 0 with insufficient data."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        assert metrics.get_learning_velocity() == 0.0
+
+    @pytest.mark.unit
+    def test_get_learning_velocity_with_changes(self):
+        """Learning velocity reflects magnitude of value changes."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.value_changes = [0.1, -0.2, 0.15, -0.05, 0.3]
+        velocity = metrics.get_learning_velocity()
+        expected = sum(abs(v) for v in metrics.value_changes) / len(metrics.value_changes)
+        assert abs(velocity - expected) < 0.001
+
+    @pytest.mark.unit
+    def test_is_learning_stalled_no_data(self):
+        """Stalled check with no data returns True (velocity = 0)."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        assert metrics.is_learning_stalled() is True
+
+    @pytest.mark.unit
+    def test_is_learning_stalled_active(self):
+        """Active learning is not stalled."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.value_changes = [0.1, 0.2, 0.15, 0.1, 0.2]
+        assert metrics.is_learning_stalled() is False
+
+    @pytest.mark.unit
+    def test_is_learning_stalled_flat(self):
+        """Flat learning (tiny changes) is stalled."""
+        from Jotty.core.foundation.data_structures import LearningMetrics
+        metrics = LearningMetrics()
+        metrics.value_changes = [0.0001, 0.0002, 0.00005, 0.0001]
+        assert metrics.is_learning_stalled(threshold=0.001) is True
+
+
+# =============================================================================
+# AgentResult Tests
+# =============================================================================
+
+class TestAgentResult:
+    """Tests for AgentResult serialization."""
+
+    @pytest.mark.unit
+    def test_to_dict(self):
+        """AgentResult.to_dict() includes all fields."""
+        from Jotty.core.agents.base.base_agent import AgentResult
+        result = AgentResult(
+            success=True,
+            output="Hello",
+            agent_name="test_agent",
+            execution_time=1.5,
+            retries=2,
+            error=None,
+            metadata={"key": "val"},
+        )
+        d = result.to_dict()
+        assert d["success"] is True
+        assert d["output"] == "Hello"
+        assert d["agent_name"] == "test_agent"
+        assert d["execution_time"] == 1.5
+        assert d["retries"] == 2
+        assert d["error"] is None
+        assert d["metadata"] == {"key": "val"}
+        assert "timestamp" in d
+
+    @pytest.mark.unit
+    def test_to_dict_with_error(self):
+        """AgentResult.to_dict() serializes errors correctly."""
+        from Jotty.core.agents.base.base_agent import AgentResult
+        result = AgentResult(
+            success=False,
+            output=None,
+            error="Something went wrong",
+        )
+        d = result.to_dict()
+        assert d["success"] is False
+        assert d["error"] == "Something went wrong"
+
+
+# =============================================================================
+# BaseAgent Memory and Context Tests
+# =============================================================================
+
+class TestBaseAgentMemoryContext:
+    """Tests for BaseAgent store_memory, retrieve_memory, context methods."""
+
+    def _make_agent(self):
+        from Jotty.core.agents.base.base_agent import BaseAgent, AgentRuntimeConfig
+        class _Dummy(BaseAgent):
+            async def _execute_impl(self, **kw):
+                return {}
+        a = _Dummy(AgentRuntimeConfig(name="test"))
+        a._initialized = True
+        return a
+
+    @pytest.mark.unit
+    def test_store_memory_no_memory(self):
+        """store_memory is no-op when memory is None."""
+        agent = self._make_agent()
+        agent.memory = None
+        agent.store_memory("test content")  # Should not raise
+
+    @pytest.mark.unit
+    def test_store_memory_calls_memory_store(self):
+        """store_memory delegates to self.memory.store()."""
+        agent = self._make_agent()
+        mock_memory = MagicMock()
+        agent.memory = mock_memory
+        agent.store_memory("test content", level="semantic", goal="test goal")
+        mock_memory.store.assert_called_once()
+        call_kwargs = mock_memory.store.call_args[1]
+        assert call_kwargs['content'] == "test content"
+        assert call_kwargs['goal'] == "test goal"
+
+    @pytest.mark.unit
+    def test_store_memory_exception_suppressed(self):
+        """store_memory suppresses exceptions."""
+        agent = self._make_agent()
+        mock_memory = MagicMock()
+        mock_memory.store.side_effect = RuntimeError("store failed")
+        agent.memory = mock_memory
+        agent.store_memory("test")  # Should not raise
+
+    @pytest.mark.unit
+    def test_retrieve_memory_no_memory(self):
+        """retrieve_memory returns empty list when memory is None."""
+        agent = self._make_agent()
+        agent.memory = None
+        result = agent.retrieve_memory("test query")
+        assert result == []
+
+    @pytest.mark.unit
+    def test_retrieve_memory_calls_memory_retrieve(self):
+        """retrieve_memory delegates to self.memory.retrieve()."""
+        agent = self._make_agent()
+        mock_memory = MagicMock()
+        mock_memory.retrieve.return_value = ["mem1", "mem2"]
+        agent.memory = mock_memory
+        result = agent.retrieve_memory("test query", goal="goal", budget_tokens=500)
+        assert result == ["mem1", "mem2"]
+        mock_memory.retrieve.assert_called_once_with(
+            query="test query", goal="goal", budget_tokens=500
+        )
+
+    @pytest.mark.unit
+    def test_retrieve_memory_exception_returns_empty(self):
+        """retrieve_memory returns [] on exception."""
+        agent = self._make_agent()
+        mock_memory = MagicMock()
+        mock_memory.retrieve.side_effect = RuntimeError("retrieve failed")
+        agent.memory = mock_memory
+        result = agent.retrieve_memory("test")
+        assert result == []
+
+    @pytest.mark.unit
+    def test_register_context(self):
+        """register_context delegates to context.set()."""
+        agent = self._make_agent()
+        mock_context = MagicMock()
+        agent.context = mock_context
+        agent.register_context("key1", "value1")
+        mock_context.set.assert_called_once_with("key1", "value1")
+
+    @pytest.mark.unit
+    def test_register_context_no_context(self):
+        """register_context is no-op when context is None."""
+        agent = self._make_agent()
+        agent.context = None
+        agent.register_context("key", "val")  # Should not raise
+
+    @pytest.mark.unit
+    def test_get_context(self):
+        """get_context delegates to context.get()."""
+        agent = self._make_agent()
+        mock_context = MagicMock()
+        mock_context.get.return_value = "found_value"
+        agent.context = mock_context
+        result = agent.get_context("key1")
+        assert result == "found_value"
+
+    @pytest.mark.unit
+    def test_get_context_no_context_returns_default(self):
+        """get_context returns default when context is None."""
+        agent = self._make_agent()
+        agent.context = None
+        result = agent.get_context("key1", default="fallback")
+        assert result == "fallback"
+
+    @pytest.mark.unit
+    def test_get_compressed_context_no_context(self):
+        """get_compressed_context returns '' when context is None."""
+        agent = self._make_agent()
+        agent.context = None
+        assert agent.get_compressed_context() == ""
+
+    @pytest.mark.unit
+    def test_get_compressed_context_with_data(self):
+        """get_compressed_context returns JSON string of known keys."""
+        agent = self._make_agent()
+        mock_context = MagicMock()
+        mock_context.get.side_effect = lambda key, *a: {
+            'current_task': 'do X',
+            'current_goal': 'achieve Y',
+        }.get(key)
+        agent.context = mock_context
+        result = agent.get_compressed_context()
+        assert 'do X' in result
+        assert 'achieve Y' in result
+
+    @pytest.mark.unit
+    def test_get_compressed_context_truncation(self):
+        """get_compressed_context truncates when exceeding max_tokens."""
+        agent = self._make_agent()
+        mock_context = MagicMock()
+        long_value = "x" * 50000
+        mock_context.get.side_effect = lambda key, *a: {
+            'current_task': long_value,
+        }.get(key)
+        agent.context = mock_context
+        result = agent.get_compressed_context(max_tokens=100)
+        assert len(result) <= 100 * 4 + 10  # 4 chars/token + margin for "..."
+        assert result.endswith("...")

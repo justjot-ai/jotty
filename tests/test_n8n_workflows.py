@@ -830,7 +830,6 @@ class TestN8nWorkflowFactory:
         )
         assert wf["name"] == "test.morning_brief"
         assert len(wf["nodes"]) == 3
-        assert wf["active"] is False
 
         # Verify node types
         node_types = [n["type"] for n in wf["nodes"]]
@@ -842,9 +841,9 @@ class TestN8nWorkflowFactory:
         assert "Schedule Trigger" in wf["connections"]
         assert "HTTP Request" in wf["connections"]
 
-        # Verify tags
-        tag_names = [t["name"] for t in wf["tags"]]
-        assert "pmi" in tag_names
+        # Tags stored as private _tags (stripped before POST to n8n)
+        assert "pmi" in wf["_tags"]
+        assert "active" not in wf  # read-only, not included
 
     def test_webhook_workflow_structure(self):
         """Factory creates valid webhook->http->telegram workflow."""
@@ -893,16 +892,20 @@ class TestN8nWorkflowFactory:
     @patch.dict("os.environ", {"N8N_API_KEY": "k", "N8N_BASE_URL": "https://n8n.test"})
     def test_create_all_idempotent(self, mock_req, tmp_cache_dir):
         """create_all_workflows skips existing workflows by name."""
-        # list_workflows returns 2 already existing
         mock_req.side_effect = [
-            # First call: list_workflows
+            # 1: list_workflows
             {"success": True, "data": [
                 {"name": "pmi.prod.morning_brief", "id": "existing1"},
                 {"name": "pmi.prod.closing_brief", "id": "existing2"},
             ]},
-            # Remaining 13 POST calls succeed
-            *[{"success": True, "id": f"new{i}"} for i in range(13)],
-            # Final list_workflows for cache refresh
+            # 2: list tags
+            {"success": True, "data": [{"id": "t1", "name": "pmi"}]},
+            # 13 create calls + 13 tag PUT calls (alternating)
+            *[resp for i in range(13) for resp in (
+                {"success": True, "id": f"new{i}"},
+                {"success": True},
+            )],
+            # final list_workflows for cache refresh
             {"success": True, "data": []},
         ]
         client = N8nAPIClient(api_key="k", base_url="https://n8n.test")
