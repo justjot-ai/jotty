@@ -12,7 +12,7 @@ Usage:
 """
 
 import logging
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, Dict, List
 from pathlib import Path
 
 from .core.execution import (
@@ -34,7 +34,8 @@ class Jotty:
     - Tier 1 (DIRECT): Fast single LLM call
     - Tier 2 (AGENTIC): Planning + orchestration (default)
     - Tier 3 (LEARNING): Memory + validation
-    - Tier 4 (RESEARCH): Full V2 features
+    - Tier 4 (RESEARCH): Domain swarm execution
+    - Tier 5 (AUTONOMOUS): Sandbox + coalition + full features
 
     Examples:
         # Simple usage (auto-detects tier)
@@ -43,21 +44,17 @@ class Jotty:
 
         result = await jotty.run("Research AI and create report")  # Tier 2
 
+        # Specific swarm
+        result = await jotty.swarm("Build REST API", swarm_name="coding")
+
+        # Full autonomous
+        result = await jotty.autonomous("Analyze untrusted code in sandbox")
+
         # Explicit tier
         result = await jotty.run(
             "Analyze sales data",
             tier=ExecutionTier.LEARNING
         )
-
-        # Full config
-        from Jotty.core.execution import ExecutionConfig
-
-        config = ExecutionConfig(
-            tier=ExecutionTier.LEARNING,
-            memory_backend="json",
-            enable_validation=True,
-        )
-        result = await jotty.run("Task...", config=config)
     """
 
     def __init__(
@@ -268,6 +265,78 @@ class Jotty:
             **kwargs
         )
         return await self.run(goal, config=config)
+
+    async def swarm(self, goal: str, swarm_name: str, **kwargs) -> ExecutionResult:
+        """
+        Run a specific domain swarm directly (Tier 4).
+
+        Args:
+            goal: Task description
+            swarm_name: Swarm to use (e.g. "coding", "research", "testing")
+            **kwargs: Additional arguments
+
+        Returns:
+            ExecutionResult from the domain swarm
+
+        Example:
+            result = await jotty.swarm("Build REST API", swarm_name="coding")
+        """
+        config = ExecutionConfig(tier=ExecutionTier.RESEARCH, swarm_name=swarm_name)
+        return await self.run(goal, config=config, **kwargs)
+
+    async def autonomous(self, goal: str, sandbox: bool = True, **kwargs) -> ExecutionResult:
+        """
+        Run with full autonomous features — sandbox, coalition (Tier 5).
+
+        Args:
+            goal: Task description
+            sandbox: Enable sandbox execution (default True)
+            **kwargs: Additional arguments
+
+        Returns:
+            ExecutionResult with autonomous metadata
+
+        Example:
+            result = await jotty.autonomous("Execute untrusted code safely")
+        """
+        config = ExecutionConfig(
+            tier=ExecutionTier.AUTONOMOUS,
+            enable_sandbox=sandbox,
+        )
+        return await self.run(goal, config=config, **kwargs)
+
+    @staticmethod
+    def list_swarms() -> List[str]:
+        """List all available domain swarms.
+
+        Returns:
+            List of registered swarm names
+
+        Example:
+            swarms = Jotty.list_swarms()
+            print(swarms)  # ['coding', 'research', 'testing', ...]
+        """
+        from Jotty.core.swarms.registry import SwarmRegistry
+        return SwarmRegistry.list_all()
+
+    @staticmethod
+    def list_tiers() -> Dict[int, str]:
+        """List all execution tiers with descriptions.
+
+        Returns:
+            Dict mapping tier number to description
+
+        Example:
+            for num, desc in Jotty.list_tiers().items():
+                print(f"  {num}. {desc}")
+        """
+        return {
+            1: "DIRECT — Single LLM call (1-2s, ~$0.01)",
+            2: "AGENTIC — Planning + orchestration (3-5s, ~$0.03)",
+            3: "LEARNING — Memory + validation (5-10s, ~$0.06)",
+            4: "RESEARCH — Domain swarm execution (10-30s, ~$0.15)",
+            5: "AUTONOMOUS — Sandbox + coalition + full features (30-120s, ~$0.50)",
+        }
 
     def set_default_tier(self, tier: ExecutionTier):
         """

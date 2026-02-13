@@ -2,8 +2,29 @@
 JOTTY - Multi-Agent AI Framework
 ==================================
 
-V2 Architecture: SwarmManager + Skills + Learning
+V3 Architecture: Tiered Execution (NEW - Recommended)
+V2 Architecture: SwarmManager + Skills + Learning (Preserved)
 
+V3 - Simple, Progressive Complexity:
+    from Jotty import Jotty, ExecutionTier
+
+    jotty = Jotty()
+
+    # Auto-detect tier (DIRECT, AGENTIC, LEARNING, RESEARCH, or AUTONOMOUS)
+    result = await jotty.run("Research AI trends")
+
+    # Explicit tier
+    result = await jotty.run("Task...", tier=ExecutionTier.LEARNING)
+
+    # Convenience methods
+    response = await jotty.chat("What is 2+2?")
+    result = await jotty.plan("Complex task...")
+    result = await jotty.learn("Task with memory")
+    result = await jotty.research("Full V2 features")
+    result = await jotty.swarm("Build API", swarm_name="coding")
+    result = await jotty.autonomous("Execute in sandbox")
+
+V2 - Full Control (Still Available):
     from Jotty import SwarmManager, AgentConfig
 
     # Or use the high-level entry points:
@@ -43,7 +64,7 @@ warnings.filterwarnings(
     message='.*Pydantic serializer warnings.*'
 )
 
-__version__ = "10.0.0"
+__version__ = "3.0.0"  # V3 Release
 __author__ = "Jotty AI"
 
 # =============================================================================
@@ -51,7 +72,20 @@ __author__ = "Jotty AI"
 # =============================================================================
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # --- PRIMARY EXPORTS ---
+    # --- V3 EXPORTS (NEW - Recommended) ---
+    "Jotty": ".jotty",
+    "ExecutionTier": ".core.execution.types",
+    "ExecutionConfig": ".core.execution.types",
+    "ExecutionResult": ".core.execution.types",
+    "UnifiedExecutor": ".core.execution.executor",
+    "TierDetector": ".core.execution.tier_detector",
+
+    # --- COMPOSITE AGENT (Agent/Swarm Unification) ---
+    "CompositeAgent": ".core.agents.base.composite_agent",
+    "CompositeAgentConfig": ".core.agents.base.composite_agent",
+    "UnifiedResult": ".core.agents.base.composite_agent",
+
+    # --- V2 PRIMARY EXPORTS (Preserved - No Breakage) ---
     "SwarmManager": ".core.orchestration",
     "TodoItem": ".core.orchestration.v2.swarm_roadmap",
     "AgentConfig": ".core.foundation.agent_config",
