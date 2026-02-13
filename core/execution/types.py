@@ -16,7 +16,8 @@ class ExecutionTier(IntEnum):
     DIRECT = 1      # Single LLM call with tools
     AGENTIC = 2     # Planning + multi-step orchestration
     LEARNING = 3    # Memory + validation
-    RESEARCH = 4    # Full V2: TD-Lambda, 5-level memory, etc.
+    RESEARCH = 4    # Domain swarm execution
+    AUTONOMOUS = 5  # Sandbox, coalition, curriculum, full V2 features
 
 
 @dataclass
@@ -44,12 +45,19 @@ class ExecutionConfig:
     validation_retries: int = 1
     track_success_rate: bool = True
 
-    # Tier 4 (RESEARCH) - delegates to V2 SwarmManager
+    # Tier 4 (RESEARCH) - domain swarm execution
     enable_td_lambda: bool = False
     enable_hierarchical_memory: bool = False
     enable_multi_round_validation: bool = False
     memory_levels: int = 2  # episodic + semantic only
     enable_swarm_intelligence: bool = False
+
+    # Tier 4/5 options
+    swarm_name: Optional[str] = None        # e.g. "coding", "research", "testing"
+    paradigm: Optional[str] = None          # "relay", "debate", "refinement"
+    enable_sandbox: bool = False            # Tier 5: sandbox execution
+    enable_coalition: bool = False          # Tier 5: coalition formation
+    trust_level: str = "standard"           # Tier 5: "standard", "elevated", "restricted"
 
     # Shared across all tiers
     timeout_seconds: int = 300
@@ -163,9 +171,12 @@ class ExecutionResult:
     memory_context: Optional[MemoryContext] = None
     success_rate: Optional[float] = None  # Historical success rate for similar tasks
 
-    # Tier 4 (RESEARCH) - includes full V2 data
+    # Tier 4/5 - swarm and autonomous data
     v2_episode: Optional[Any] = None  # EpisodeResult from V2
     learning_data: Dict[str, Any] = field(default_factory=dict)
+    swarm_name: Optional[str] = None
+    paradigm_used: Optional[str] = None
+    sandbox_log: Optional[str] = None
 
     # Metadata
     started_at: datetime = field(default_factory=datetime.now)

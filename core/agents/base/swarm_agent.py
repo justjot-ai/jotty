@@ -51,15 +51,14 @@ class BaseSwarmAgent(DomainAgent):
         self.learned_context = learned_context
 
     def _broadcast(self, event: str, data: Dict[str, Any]):
-        """Broadcast event to other agents via the event bus."""
-        if self.bus:
-            try:
-                from Jotty.core.agents.axon import Message
-                msg = Message(
-                    sender=self.__class__.__name__,
-                    receiver="broadcast",
-                    content={'event': event, **data}
-                )
-                self.bus.publish(msg)
-            except Exception:
-                pass
+        """Emit a status event via the singleton AgentEventBroadcaster."""
+        try:
+            from Jotty.core.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            broadcaster = AgentEventBroadcaster.get_instance()
+            broadcaster.emit(AgentEvent(
+                type="status",
+                data={'event': event, **data},
+                agent_id=self.__class__.__name__,
+            ))
+        except Exception:
+            pass

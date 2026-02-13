@@ -38,6 +38,12 @@ class TierDetector:
         'multi-round', 'self-improve',
     ]
 
+    AUTONOMOUS_INDICATORS = [
+        'sandbox', 'isolated', 'untrusted', 'coalition', 'consensus',
+        'curriculum', 'agent0', 'autonomous', 'multi-swarm',
+        'byzantine', 'trust', 'install', 'execute code',
+    ]
+
     MULTI_STEP_INDICATORS = [
         'and then', 'after that', 'followed by',
         'first', 'second', 'third', 'finally',
@@ -87,6 +93,10 @@ class TierDetector:
     def _detect_tier(self, goal: str, context: Optional[dict]) -> ExecutionTier:
         """Internal detection logic."""
         goal_lower = goal.lower()
+
+        # Tier 5 (AUTONOMOUS) - sandbox/coalition/trust keywords
+        if any(ind in goal_lower for ind in self.AUTONOMOUS_INDICATORS):
+            return ExecutionTier.AUTONOMOUS
 
         # Tier 4 (RESEARCH) - explicit research/experiment keywords
         if any(ind in goal_lower for ind in self.RESEARCH_INDICATORS):
@@ -156,6 +166,10 @@ class TierDetector:
         elif tier == ExecutionTier.RESEARCH:
             if any(ind in goal_lower for ind in self.RESEARCH_INDICATORS):
                 reasons.append("Contains research/experiment keywords")
+
+        elif tier == ExecutionTier.AUTONOMOUS:
+            if any(ind in goal_lower for ind in self.AUTONOMOUS_INDICATORS):
+                reasons.append("Contains autonomous/sandbox/coalition keywords")
 
         explanation = f"Tier {tier.value} ({tier.name}) selected:\n"
         for i, reason in enumerate(reasons, 1):

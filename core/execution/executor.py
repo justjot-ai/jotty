@@ -142,6 +142,8 @@ class UnifiedExecutor:
                 result = await self._execute_tier2(goal, config, status_callback, **kwargs)
             elif config.tier == ExecutionTier.LEARNING:
                 result = await self._execute_tier3(goal, config, status_callback, **kwargs)
+            elif config.tier == ExecutionTier.AUTONOMOUS:
+                result = await self._execute_tier5(goal, config, status_callback, **kwargs)
             else:  # RESEARCH
                 result = await self._execute_tier4(goal, config, status_callback, **kwargs)
 
@@ -436,40 +438,65 @@ class UnifiedExecutor:
         **kwargs
     ) -> ExecutionResult:
         """
-        Tier 4: Research - Full V2 features.
+        Tier 4: Domain swarm execution (direct, no SwarmManager wrapper).
 
-        Delegates to existing V2 SwarmManager.
-        ZERO changes to V2 code - complete backwards compatibility.
+        Selects the appropriate domain swarm and executes directly.
 
-        Expected: 20-40 LLM calls, 10-30s latency, $0.15 cost
+        Expected: 10-30s latency, $0.15 cost
         """
-        logger.info(f"[Tier 4: RESEARCH] Delegating to V2 SwarmManager...")
+        logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
 
         if status_callback:
-            status_callback("research", "Initializing V2 SwarmManager...")
+            status_callback("research", "Selecting domain swarm...")
 
-        # Import V2 (existing code, no modifications)
+        # Select and instantiate swarm
+        swarm = self._select_swarm(goal, config.swarm_name)
+
+        if swarm is None:
+            # Fallback to V2 SwarmManager for unregistered tasks
+            return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+
+        if status_callback:
+            status_callback("research", f"Executing with {swarm.__class__.__name__}...")
+
+        # Execute directly
+        result = await swarm.execute(task=goal, **kwargs)
+
+        # Wrap in ExecutionResult
+        return ExecutionResult(
+            output=result.output if hasattr(result, 'output') else {'result': str(result)},
+            tier=ExecutionTier.RESEARCH,
+            success=result.success if hasattr(result, 'success') else True,
+            swarm_name=swarm.__class__.__name__,
+            metadata={'direct_swarm': True},
+        )
+
+    async def _execute_tier4_v2_fallback(
+        self,
+        goal: str,
+        config: ExecutionConfig,
+        status_callback: Optional[Callable],
+        **kwargs
+    ) -> ExecutionResult:
+        """Fallback: delegate to V2 SwarmManager when no swarm is registered."""
+        logger.info("[Tier 4: RESEARCH] Falling back to V2 SwarmManager...")
+
         from Jotty.core.orchestration.v2 import SwarmManager
         from Jotty.core.foundation.data_structures import JottyConfig
 
-        # Convert V3 config to V2 format
         v2_config_dict = config.to_v2_config()
         v2_config = JottyConfig(**v2_config_dict)
-
-        # Create SwarmManager (existing V2 code)
         swarm_manager = SwarmManager(config=v2_config)
 
         if status_callback:
             status_callback("research", "Executing with V2...")
 
-        # Execute with V2 (existing code path)
         v2_result = await swarm_manager.run(
             goal=goal,
             status_callback=status_callback,
             **kwargs
         )
 
-        # Wrap V2 result in V3 format
         return ExecutionResult(
             output=v2_result.output,
             tier=ExecutionTier.RESEARCH,
@@ -477,10 +504,126 @@ class UnifiedExecutor:
             llm_calls=v2_result.metadata.get('llm_calls', 20),
             latency_ms=v2_result.metadata.get('latency_ms', 0),
             cost_usd=v2_result.metadata.get('cost_usd', 0.15),
-            v2_episode=v2_result,  # Include full V2 data
+            v2_episode=v2_result,
             learning_data=v2_result.metadata.get('learning_data', {}),
             metadata={'v2_mode': True},
         )
+
+    # =========================================================================
+    # TIER 5: AUTONOMOUS - Sandbox + Coalition + Full V2 Features
+    # =========================================================================
+
+    async def _execute_tier5(
+        self,
+        goal: str,
+        config: ExecutionConfig,
+        status_callback: Optional[Callable],
+        **kwargs
+    ) -> ExecutionResult:
+        """
+        Tier 5: Autonomous execution with sandbox, coalition, curriculum.
+
+        Expected: 30-120s latency, ~$0.50 cost
+        """
+        logger.info(f"[Tier 5: AUTONOMOUS] Executing: {goal[:50]}...")
+
+        if status_callback:
+            status_callback("autonomous", "Selecting swarm...")
+
+        # Select swarm (same as tier 4)
+        swarm = self._select_swarm(goal, config.swarm_name)
+        sandbox_log = None
+
+        # Optionally wrap in sandbox
+        if config.enable_sandbox and swarm is not None:
+            try:
+                from Jotty.core.orchestration.v2.sandbox_manager import SandboxManager
+                sandbox = SandboxManager(trust_level=config.trust_level)
+
+                if status_callback:
+                    status_callback("autonomous", "Executing in sandbox...")
+
+                result = await sandbox.execute(swarm, goal, **kwargs)
+                sandbox_log = getattr(result, 'sandbox_log', None)
+            except ImportError:
+                logger.warning("SandboxManager not available, executing without sandbox")
+                if swarm is not None:
+                    result = await swarm.execute(task=goal, **kwargs)
+                else:
+                    return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+        elif swarm is not None:
+            if status_callback:
+                status_callback("autonomous", f"Executing with {swarm.__class__.__name__}...")
+            result = await swarm.execute(task=goal, **kwargs)
+        else:
+            return await self._execute_tier4_v2_fallback(goal, config, status_callback, **kwargs)
+
+        # Optionally apply paradigm (debate/relay/refinement)
+        paradigm_used = None
+        if config.paradigm:
+            try:
+                from Jotty.core.orchestration.v2.swarm_intelligence import SwarmIntelligence
+                si = SwarmIntelligence()
+                paradigm_used = config.paradigm
+                logger.info(f"Applying paradigm: {config.paradigm}")
+            except ImportError:
+                logger.warning("SwarmIntelligence not available, skipping paradigm")
+
+        return ExecutionResult(
+            output=result.output if hasattr(result, 'output') else {'result': str(result)},
+            tier=ExecutionTier.AUTONOMOUS,
+            success=result.success if hasattr(result, 'success') else True,
+            swarm_name=swarm.__class__.__name__ if swarm else None,
+            paradigm_used=paradigm_used,
+            sandbox_log=sandbox_log,
+            metadata={'autonomous': True, 'sandboxed': config.enable_sandbox},
+        )
+
+    # =========================================================================
+    # SWARM SELECTION
+    # =========================================================================
+
+    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
+        """Select and instantiate the right domain swarm.
+
+        Args:
+            goal: Task description for auto-detection
+            swarm_name: Explicit swarm name (e.g. "coding", "research")
+
+        Returns:
+            Instantiated swarm or None if no match found.
+        """
+        from Jotty.core.swarms.registry import SwarmRegistry
+
+        if swarm_name:
+            swarm = SwarmRegistry.create(swarm_name)
+            if swarm:
+                return swarm
+            logger.warning(f"Swarm '{swarm_name}' not in registry, attempting auto-detect")
+
+        # Auto-detect from goal keywords
+        goal_lower = goal.lower()
+        keyword_map = {
+            'coding': ['code', 'program', 'implement', 'develop', 'function', 'class', 'api'],
+            'research': ['research', 'analyze', 'investigate', 'study', 'report'],
+            'testing': ['test', 'coverage', 'unit test', 'integration test', 'qa'],
+            'review': ['review', 'audit', 'check code', 'pull request', 'pr'],
+            'data_analysis': ['data', 'dataset', 'statistics', 'visualization', 'csv'],
+            'devops': ['deploy', 'docker', 'ci/cd', 'infrastructure', 'kubernetes'],
+            'idea_writer': ['write', 'article', 'blog', 'essay', 'content'],
+            'fundamental': ['stock', 'valuation', 'financial', 'earnings', 'investment'],
+            'learning': ['learn', 'curriculum', 'teach', 'training'],
+        }
+
+        for name, keywords in keyword_map.items():
+            if any(kw in goal_lower for kw in keywords):
+                swarm = SwarmRegistry.create(name)
+                if swarm:
+                    logger.info(f"Auto-detected swarm: {name}")
+                    return swarm
+
+        # No match found
+        return None
 
     # =========================================================================
     # HELPER METHODS

@@ -2120,6 +2120,15 @@ class SwarmManager:
             enable_lotus: Enable LOTUS optimization layer
             max_concurrent_agents: Max agents calling LLM concurrently (AIOS-inspired, default 3)
         """
+        import warnings
+        warnings.warn(
+            "SwarmManager is deprecated. Use Jotty() instead:\n"
+            "  jotty = Jotty()\n"
+            "  result = await jotty.run('task')  # auto-detects tier\n"
+            "  result = await jotty.swarm('task', swarm_name='coding')  # specific swarm\n"
+            "  result = await jotty.autonomous('task')  # full features\n",
+            DeprecationWarning, stacklevel=2
+        )
         self.config = config or JottyConfig()
         self.enable_zero_config = enable_zero_config
         self.enable_lotus = enable_lotus

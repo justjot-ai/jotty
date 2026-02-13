@@ -23,7 +23,7 @@ from dataclasses import asdict
 
 from .swarm_types import (
     AgentConfig as SwarmAgentConfig, AgentRole, Evaluation, EvaluationResult,
-    ImprovementSuggestion, ImprovementType
+    ImprovementSuggestion, ImprovementType, _split_field,
 )
 # Signatures loaded lazily to avoid DSPy import at module level
 def _lazy_sig(name):
@@ -44,15 +44,6 @@ from .evaluation import GoldStandardDB, ImprovementHistory
 
 # Import base class
 from ..agents.base import MetaAgent, MetaAgentConfig
-
-
-def _split_field(value, sep='|'):
-    """Local copy — avoids circular import with base.domain_swarm."""
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if item is not None]
-    return [s.strip() for s in str(value).split(sep) if s.strip()]
 
 logger = logging.getLogger(__name__)
 

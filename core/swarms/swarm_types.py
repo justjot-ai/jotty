@@ -164,6 +164,51 @@ class SwarmResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+# =============================================================================
+# DEFENSIVE UTILITIES — safe LLM output parsing
+# =============================================================================
+
+def _split_field(value, sep='|'):
+    """Safely split a DSPy output field into a list of strings.
+    Handles: str (pipe-split), list (coerce items to str), dict (flatten), None.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [
+            item.get('name', str(item)) if isinstance(item, dict) else str(item).strip()
+            for item in value if item is not None
+        ]
+    if isinstance(value, dict):
+        return [f"{k}: {v}" for k, v in value.items() if v]
+    return [s.strip() for s in str(value).split(sep) if s.strip()]
+
+
+def _safe_join(items, sep=', '):
+    """Safely join items into a string, coercing non-string elements."""
+    if not items:
+        return ''
+    if isinstance(items, str):
+        return items
+    return sep.join(str(item) for item in items)
+
+
+def _safe_num(value, default=0):
+    """Extract a number from LLM output. Returns default for non-numeric."""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    if isinstance(value, dict):
+        return default
+    return default
+
+
 __all__ = [
     'AgentRole',
     'EvaluationResult',
@@ -175,4 +220,7 @@ __all__ = [
     'ExecutionTrace',
     'SwarmConfig',
     'SwarmResult',
+    '_split_field',
+    '_safe_join',
+    '_safe_num',
 ]
