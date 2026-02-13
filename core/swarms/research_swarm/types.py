@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
+from ..swarm_types import SwarmConfig
+
 logger = logging.getLogger(__name__)
 
 class RatingType(Enum):
@@ -18,11 +20,13 @@ class RatingType(Enum):
 
 
 @dataclass
-class ResearchConfig:
-    """Configuration for research swarm."""
-    name: str = "ResearchSwarm"
-    domain: str = "research"
-    output_dir: str = field(default_factory=lambda: os.path.expanduser('~/jotty/reports'))
+class ResearchConfig(SwarmConfig):
+    """Configuration for research swarm.
+
+    Extends SwarmConfig to gain: version, enable_self_improvement,
+    enable_learning, parallel_execution, max_retries, timeout_seconds,
+    gold_standard_path, improvement_threshold, gold_standard_max_version.
+    """
     send_telegram: bool = True
     include_charts: bool = True
     include_peers: bool = True
@@ -34,13 +38,18 @@ class ResearchConfig:
     use_llm_analysis: bool = True
     parallel_fetch: bool = True
     learn_from_research: bool = True
-    # New enhanced options
+    # Enhanced options
     include_technical: bool = True
     technical_timeframes: List[str] = field(default_factory=lambda: ["60minute", "Day"])
     use_screener: bool = True
     include_social_sentiment: bool = True
     include_heiken_ashi: bool = False
     nse_data_path: str = "/var/www/sites/personal/stock_market/common/Data/NSE/"
+
+    def __post_init__(self):
+        self.name = "ResearchSwarm"
+        self.domain = "research"
+        self.output_dir = os.path.expanduser('~/jotty/reports')
 
 
 @dataclass

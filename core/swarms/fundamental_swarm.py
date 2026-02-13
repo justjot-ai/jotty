@@ -63,7 +63,7 @@ from .base_swarm import (
 )
 from .base import DomainSwarm, AgentTeam, _split_field, _safe_join, _safe_num
 from .swarm_signatures import FundamentalSwarmSignature
-from ..agents.base import DomainAgent, DomainAgentConfig
+from ..agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 
 logger = logging.getLogger(__name__)
 
@@ -387,39 +387,7 @@ class InvestmentThesisSignature(dspy.Signature):
 # AGENTS
 # =============================================================================
 
-class BaseFundamentalAgent(DomainAgent):
-    """Base class for fundamental analysis agents. Inherits from DomainAgent for unified infrastructure."""
-
-    def __init__(self, memory=None, context=None, bus=None, signature=None):
-        config = DomainAgentConfig(
-            name=self.__class__.__name__,
-            enable_memory=memory is not None,
-            enable_context=context is not None,
-        )
-        super().__init__(signature=signature, config=config)
-
-        # Ensure LM is configured before child classes create DSPy modules
-        self._ensure_initialized()
-
-        if memory is not None:
-            self._memory = memory
-        if context is not None:
-            self._context_manager = context
-        self.bus = bus
-
-    def _broadcast(self, event: str, data: Dict[str, Any]):
-        """Broadcast event to other agents."""
-        if self.bus:
-            try:
-                from ..agents.axon import Message
-                msg = Message(
-                    sender=self.__class__.__name__,
-                    receiver="broadcast",
-                    content={'event': event, **data}
-                )
-                self.bus.publish(msg)
-            except Exception:
-                pass
+BaseFundamentalAgent = BaseSwarmAgent
 
 
 class FinancialStatementAgent(BaseFundamentalAgent):

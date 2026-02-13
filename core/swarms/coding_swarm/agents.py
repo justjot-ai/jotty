@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional, List
 
 import dspy
 
-from Jotty.core.agents.base import DomainAgent, DomainAgentConfig
+from Jotty.core.agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 from .utils import _stream_call
 from .signatures import (
     ArchitectureDesignSignature,
@@ -44,42 +44,8 @@ logger = logging.getLogger(__name__)
 # BASE
 # =============================================================================
 
-class BaseCodeAgent(DomainAgent):
-    """Base class for coding agents. Inherits from DomainAgent for unified infrastructure."""
-
-    def __init__(self, memory=None, context=None, bus=None, learned_context: str = "", signature=None):
-        # Initialize DomainAgent infrastructure
-        config = DomainAgentConfig(
-            name=self.__class__.__name__,
-            enable_memory=memory is not None,
-            enable_context=context is not None,
-        )
-        super().__init__(signature=signature, config=config)
-
-        # Ensure LM is configured before child classes create DSPy modules
-        self._ensure_initialized()
-
-        # Domain-specific attributes (override lazy init if provided)
-        if memory is not None:
-            self._memory = memory
-        if context is not None:
-            self._context_manager = context
-        self.bus = bus
-        self.learned_context = learned_context
-
-    def _broadcast(self, event: str, data: Dict[str, Any]):
-        """Broadcast event to other agents."""
-        if self.bus:
-            try:
-                from Jotty.core.agents.axon import Message
-                msg = Message(
-                    sender=self.__class__.__name__,
-                    receiver="broadcast",
-                    content={'event': event, **data}
-                )
-                self.bus.publish(msg)
-            except Exception:
-                pass
+class BaseCodeAgent(BaseSwarmAgent):
+    """Base class for coding agents. Extends BaseSwarmAgent with streaming support."""
 
     async def _stream(self, module, phase: str, agent: str, listener_field: str = "reasoning", **kwargs):
         """Call DSPy module with streaming reasoning to progress callback."""

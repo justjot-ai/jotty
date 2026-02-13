@@ -23,7 +23,7 @@ from datetime import datetime
 
 import dspy
 
-from Jotty.core.agents.base import DomainAgent, DomainAgentConfig
+from Jotty.core.agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 from .types import (
     Subject, DifficultyTier, LessonDepth, TeachingMode,
     BuildingBlock, ConceptCore, PatternEntry, Problem,
@@ -46,25 +46,13 @@ logger = logging.getLogger(__name__)
 # BASE AGENT
 # =============================================================================
 
-class BaseOlympiadAgent(DomainAgent):
-    """Base class for all olympiad learning agents."""
+class BaseOlympiadAgent(BaseSwarmAgent):
+    """Base class for all olympiad learning agents. Extends BaseSwarmAgent with LLM model selection."""
 
     def __init__(self, memory=None, context=None, bus=None, learned_context: str = "",
                  model: str = "haiku", use_fast_predict: bool = True, llm_timeout: int = 90):
-        config = DomainAgentConfig(
-            name=self.__class__.__name__,
-            enable_memory=memory is not None,
-            enable_context=context is not None,
-        )
-        super().__init__(signature=None, config=config)
-        self._ensure_initialized()
-
-        if memory is not None:
-            self._memory = memory
-        if context is not None:
-            self._context_manager = context
-        self.bus = bus
-        self.learned_context = learned_context
+        super().__init__(memory=memory, context=context, bus=bus,
+                         learned_context=learned_context, signature=None)
         self.model = model
         self.use_fast_predict = use_fast_predict
         self.llm_timeout = llm_timeout
@@ -116,20 +104,6 @@ class BaseOlympiadAgent(DomainAgent):
             return module(**kwargs)
         with dspy.context(lm=self._lm):
             return module(**kwargs)
-
-    def _broadcast(self, event: str, data: Dict[str, Any]):
-        """Broadcast event to other agents."""
-        if self.bus:
-            try:
-                from ..agents.axon import Message
-                msg = Message(
-                    sender=self.__class__.__name__,
-                    receiver="broadcast",
-                    content={'event': event, **data}
-                )
-                self.bus.publish(msg)
-            except Exception:
-                pass
 
     def _parse_json_output(self, raw: str) -> Any:
         """Safely parse JSON from LLM output, handling markdown fences, newlines, and truncation."""

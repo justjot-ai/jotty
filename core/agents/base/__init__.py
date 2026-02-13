@@ -69,6 +69,11 @@ from .autonomous_agent import (
     create_autonomous_agent,
 )
 
+# Shared swarm-internal base agent
+from .swarm_agent import (
+    BaseSwarmAgent,
+)
+
 # Composite agent for agent/swarm unification
 from .composite_agent import (
     CompositeAgent,
@@ -106,6 +111,8 @@ __all__ = [
     'AutonomousAgentConfig',
     'ExecutionStep',
     'create_autonomous_agent',
+    # Swarm agent base
+    'BaseSwarmAgent',
     # Composite
     'CompositeAgent',
     'CompositeAgentConfig',
