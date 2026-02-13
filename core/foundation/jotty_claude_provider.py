@@ -63,6 +63,12 @@ class JottyClaudeProvider:
             cls._instance._initialized = False
         return cls._instance
 
+    @classmethod
+    def reset_instance(cls):
+        """Reset the singleton instance (for testing)."""
+        cls._instance = None
+        cls._server_process = None
+
     def __init__(
         self,
         host: str = DEFAULT_HOST,

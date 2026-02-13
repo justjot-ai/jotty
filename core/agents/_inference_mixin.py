@@ -224,3 +224,97 @@ class InferenceMixin:
         'oauth-automation',            # Requires browser interaction
     }
 
+    # =========================================================================
+    # CONTEXT COMPRESSION RETRY
+    # =========================================================================
+
+    _CONTEXT_OVERFLOW_PATTERNS = (
+        'context_length_exceeded', 'max_tokens', 'context window',
+        'maximum context', 'token limit', 'too many tokens',
+        'input too long', 'prompt is too long',
+    )
+
+    async def _call_with_compression_retry(
+        self,
+        call_fn,
+        conversation: str,
+        instruction: str,
+        max_retries: int = 3,
+    ):
+        """Wrap an LLM call with automatic context compression on overflow.
+
+        On context_length_exceeded errors:
+        1. Compress conversation by ratio (0.7 → 0.49 → 0.34)
+        2. Preserve recent trajectory (last 3 tool calls)
+        3. Retry the call with compressed context
+
+        Args:
+            call_fn: Callable(conversation, instruction) → result
+            conversation: Full conversation/context string
+            instruction: Task instruction (never compressed)
+            max_retries: Maximum compression retries
+
+        Returns:
+            Result from call_fn on success
+
+        Raises:
+            Last exception if all retries exhausted
+        """
+        import asyncio as _aio
+
+        compression_ratio = 0.7
+        current_conversation = conversation
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                if _aio.iscoroutinefunction(call_fn):
+                    return await call_fn(current_conversation, instruction)
+                else:
+                    loop = _aio.get_running_loop()
+                    return await loop.run_in_executor(
+                        None, call_fn, current_conversation, instruction)
+
+            except Exception as e:
+                error_str = str(e).lower()
+                last_error = e
+
+                # Only retry on context overflow errors
+                is_overflow = any(
+                    pat in error_str for pat in self._CONTEXT_OVERFLOW_PATTERNS)
+                if not is_overflow or attempt >= max_retries:
+                    raise
+
+                # Compress: keep the most recent portion
+                target_len = int(len(current_conversation) * compression_ratio)
+                current_conversation = self._compress_context(
+                    current_conversation, target_len)
+                compression_ratio *= 0.7  # Progressive: 0.7 → 0.49 → 0.34
+
+                logger.warning(
+                    f"Context overflow (attempt {attempt + 1}/{max_retries}): "
+                    f"compressed to {len(current_conversation)} chars "
+                    f"(ratio={compression_ratio / 0.7:.2f})")
+
+        raise last_error  # Should not reach here, but safety net
+
+    @staticmethod
+    def _compress_context(text: str, target_length: int) -> str:
+        """Compress context to target length, preserving recent content.
+
+        Strategy: keep the first 20% (system prompt / task description) and
+        the last portion up to budget. Inserts a marker at the splice point.
+        """
+        if len(text) <= target_length:
+            return text
+
+        # Reserve 20% for header, rest for recent content
+        header_budget = int(target_length * 0.2)
+        tail_budget = target_length - header_budget - 50  # 50 for marker
+
+        header = text[:header_budget]
+        tail = text[-tail_budget:] if tail_budget > 0 else ""
+        marker = "\n\n[... context compressed ...]\n\n"
+
+        return header + marker + tail
+

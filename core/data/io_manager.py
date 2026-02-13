@@ -121,7 +121,7 @@ class ActorOutput:
 
 
 @dataclass
-class SwarmResult:
+class ReValSwarmResult:
     """
     Complete result from SwarmReVal execution.
     

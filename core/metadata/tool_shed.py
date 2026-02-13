@@ -38,7 +38,7 @@ except ImportError:
 # =============================================================================
 
 @dataclass
-class ToolSchema:
+class ToolShedSchema:
     """
     Schema describing a tool's inputs and outputs.
     
@@ -141,7 +141,7 @@ class AgenticToolSelector:
         self,
         task: str,
         required_output: str,
-        available_tools: List[ToolSchema],
+        available_tools: List[ToolShedSchema],
         current_context: Dict[str, Any]
     ) -> List[str]:
         """
@@ -210,7 +210,7 @@ class CapabilityIndex:
         
         logger.info(" CapabilityIndex initialized")
     
-    def register_tool(self, schema: ToolSchema):
+    def register_tool(self, schema: ToolShedSchema):
         """Register a tool's capabilities."""
         # What it produces
         for output in schema.producer_of:
@@ -298,7 +298,7 @@ class ToolShed:
     
     def __init__(self):
         self.tools: Dict[str, Callable] = {}
-        self.schemas: Dict[str, ToolSchema] = {}
+        self.schemas: Dict[str, ToolShedSchema] = {}
         self.capability_index = CapabilityIndex()
         self.selector = AgenticToolSelector()
         
@@ -363,7 +363,7 @@ class ToolShed:
         description: Optional[str] = None,
         produces: Optional[List[str]] = None,
         consumes: Optional[List[str]] = None,
-    ) -> ToolSchema:
+    ) -> ToolShedSchema:
         """Extract schema from callable."""
         # Get signature
         sig = inspect.signature(tool)
@@ -397,7 +397,7 @@ class ToolShed:
         if consumes is None:
             consumes = required_params.copy()
         
-        return ToolSchema(
+        return ToolShedSchema(
             name=name,
             description=desc,
             input_params=input_params,
@@ -554,7 +554,7 @@ class ToolShed:
         self.cache.clear()
         logger.info(" ToolShed cache cleared")
     
-    def get_all_schemas(self) -> List[ToolSchema]:
+    def get_all_schemas(self) -> List[ToolShedSchema]:
         """Get all tool schemas."""
         return list(self.schemas.values())
     
@@ -572,7 +572,7 @@ class ToolShed:
 
 __all__ = [
     'ToolShed',
-    'ToolSchema',
+    'ToolShedSchema',
     'ToolResult',
     'CapabilityIndex',
     'AgenticToolSelector',

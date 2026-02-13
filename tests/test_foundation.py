@@ -126,6 +126,132 @@ class TestSwarmConfig:
         assert config.max_llm_calls_per_episode >= 0
         assert config.max_total_tokens_per_episode >= 0
 
+    @pytest.mark.unit
+    def test_to_flat_dict(self):
+        """to_flat_dict() returns all fields as a flat dictionary."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_actor_iters=42, enable_rl=False)
+        d = config.to_flat_dict()
+        assert isinstance(d, dict)
+        assert d['max_actor_iters'] == 42
+        assert d['enable_rl'] is False
+        assert 'schema_version' in d
+
+    @pytest.mark.unit
+    def test_to_flat_dict_roundtrip(self):
+        """to_flat_dict() output can recreate SwarmConfig."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        original = SwarmConfig(gamma=0.5, episodic_capacity=42)
+        d = original.to_flat_dict()
+        restored = SwarmConfig(**d)
+        assert restored.gamma == 0.5
+        assert restored.episodic_capacity == 42
+
+
+class TestConfigViews:
+    """Tests for the SwarmConfig sub-config view system."""
+
+    @pytest.mark.unit
+    def test_execution_view_read(self):
+        """ExecutionView reads parent config fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_actor_iters=99, actor_timeout=300.0)
+        assert config.execution.max_actor_iters == 99
+        assert config.execution.actor_timeout == 300.0
+
+    @pytest.mark.unit
+    def test_execution_view_write_through(self):
+        """ExecutionView writes propagate to parent."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_actor_iters=10)
+        config.execution.max_actor_iters = 50
+        assert config.max_actor_iters == 50
+
+    @pytest.mark.unit
+    def test_memory_view_fields(self):
+        """MemoryView exposes memory-related fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(episodic_capacity=200, enable_llm_rag=False)
+        assert config.memory_settings.episodic_capacity == 200
+        assert config.memory_settings.enable_llm_rag is False
+
+    @pytest.mark.unit
+    def test_learning_view_fields(self):
+        """LearningView exposes RL and exploration fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(gamma=0.8, epsilon_start=0.5, enable_rl=False)
+        assert config.learning.gamma == 0.8
+        assert config.learning.epsilon_start == 0.5
+        assert config.learning.enable_rl is False
+
+    @pytest.mark.unit
+    def test_validation_view_fields(self):
+        """ValidationView exposes validation settings."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(enable_validation=False, max_validation_rounds=5)
+        assert config.validation_settings.enable_validation is False
+        assert config.validation_settings.max_validation_rounds == 5
+
+    @pytest.mark.unit
+    def test_monitoring_view_fields(self):
+        """MonitoringView exposes logging and budget fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(log_level="DEBUG", enable_metrics=False)
+        assert config.monitoring.log_level == "DEBUG"
+        assert config.monitoring.enable_metrics is False
+
+    @pytest.mark.unit
+    def test_intelligence_view_fields(self):
+        """SwarmIntelligenceView exposes trust and agent comm fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(trust_min=0.2, enable_agent_communication=False)
+        assert config.intelligence.trust_min == 0.2
+        assert config.intelligence.enable_agent_communication is False
+
+    @pytest.mark.unit
+    def test_persistence_view_fields(self):
+        """PersistenceView exposes storage fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(output_base_dir="/tmp/test", storage_format="sqlite")
+        assert config.persistence.output_base_dir == "/tmp/test"
+        assert config.persistence.storage_format == "sqlite"
+
+    @pytest.mark.unit
+    def test_context_budget_view_fields(self):
+        """ContextBudgetView exposes token budget fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_context_tokens=50000, min_memory_budget=2000)
+        assert config.context_budget.max_context_tokens == 50000
+        assert config.context_budget.min_memory_budget == 2000
+
+    @pytest.mark.unit
+    def test_view_to_dict(self):
+        """View.to_dict() returns only that view's fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_actor_iters=42, gamma=0.5)
+        exec_dict = config.execution.to_dict()
+        assert 'max_actor_iters' in exec_dict
+        assert exec_dict['max_actor_iters'] == 42
+        # gamma is a LearningView field, not ExecutionView
+        assert 'gamma' not in exec_dict
+
+    @pytest.mark.unit
+    def test_view_attribute_error(self):
+        """View raises AttributeError for unknown fields."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig()
+        with pytest.raises(AttributeError):
+            _ = config.execution.nonexistent_field
+
+    @pytest.mark.unit
+    def test_view_repr(self):
+        """View __repr__ includes field values."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        config = SwarmConfig(max_actor_iters=42)
+        r = repr(config.execution)
+        assert 'ExecutionView' in r
+        assert 'max_actor_iters=42' in r
+
 
 # =============================================================================
 # Foundation AgentConfig Tests
@@ -392,3 +518,78 @@ class TestExceptionHierarchy:
         from Jotty.core.foundation.exceptions import ValidationError as V1
         from Jotty.core.validation import ValidationError as V2
         assert V1 is V2
+
+
+# =============================================================================
+# Singleton Reset Tests
+# =============================================================================
+
+class TestSingletonResets:
+    """Tests that singleton reset functions work correctly."""
+
+    @pytest.mark.unit
+    def test_cost_tracker_reset(self):
+        """reset_cost_tracker() clears the singleton."""
+        from Jotty.core.foundation.direct_anthropic_lm import get_cost_tracker, reset_cost_tracker
+        tracker = get_cost_tracker()
+        assert tracker is not None
+        reset_cost_tracker()
+        # After reset, get_cost_tracker returns a NEW instance
+        tracker2 = get_cost_tracker()
+        assert tracker2 is not tracker
+
+    @pytest.mark.unit
+    def test_jotty_integration_reset(self):
+        """JottyIntegration.reset_instance() clears the singleton."""
+        from Jotty.core.integration.integration import JottyIntegration
+        inst = JottyIntegration.get_instance()
+        assert inst is not None
+        JottyIntegration.reset_instance()
+        assert JottyIntegration._instance is None
+
+    @pytest.mark.unit
+    def test_event_broadcaster_reset(self):
+        """AgentEventBroadcaster.reset_instance() clears the singleton."""
+        from Jotty.core.utils.async_utils import AgentEventBroadcaster
+        broadcaster = AgentEventBroadcaster.get_instance()
+        assert broadcaster is not None
+        AgentEventBroadcaster.reset_instance()
+        assert AgentEventBroadcaster._instance is None
+
+    @pytest.mark.unit
+    def test_budget_tracker_reset(self):
+        """BudgetTracker.reset_instances() clears all named instances."""
+        from Jotty.core.utils.budget_tracker import BudgetTracker
+        BudgetTracker.get_instance("test_a")
+        BudgetTracker.get_instance("test_b")
+        assert len(BudgetTracker._instances) >= 2
+        BudgetTracker.reset_instances()
+        assert len(BudgetTracker._instances) == 0
+
+    @pytest.mark.unit
+    def test_llm_cache_reset(self):
+        """LLMCallCache.reset_instances() clears all named instances."""
+        from Jotty.core.utils.llm_cache import LLMCallCache
+        LLMCallCache.get_instance("test_cache")
+        assert "test_cache" in LLMCallCache._instances
+        LLMCallCache.reset_instances()
+        assert len(LLMCallCache._instances) == 0
+
+    @pytest.mark.unit
+    def test_prompt_selector_reset(self):
+        """reset_prompt_selector() clears the singleton."""
+        from Jotty.core.utils.prompt_selector import get_prompt_selector, reset_prompt_selector
+        sel = get_prompt_selector()
+        assert sel is not None
+        reset_prompt_selector()
+        sel2 = get_prompt_selector()
+        assert sel2 is not sel
+
+    @pytest.mark.unit
+    def test_tokenizer_reset(self):
+        """SmartTokenizer.reset_instances() clears all cached encodings."""
+        from Jotty.core.utils.tokenizer import SmartTokenizer
+        SmartTokenizer.get_instance()
+        assert len(SmartTokenizer._instances) >= 1
+        SmartTokenizer.reset_instances()
+        assert len(SmartTokenizer._instances) == 0

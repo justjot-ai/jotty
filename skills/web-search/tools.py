@@ -9,8 +9,9 @@ import os
 import re
 import time
 import logging
+import threading
 import requests
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.env_loader import load_jotty_env, get_env
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
@@ -40,6 +41,64 @@ try:
         DDG_AVAILABLE = True
 except ImportError:
     logger.info("duckduckgo-search/ddgs library not available, using HTML parsing fallback")
+
+
+class SearchCache:
+    """Thread-safe TTL cache for web search results.
+
+    Prevents redundant API calls when the same query is executed
+    multiple times within the TTL window (default 5 minutes).
+
+    Usage::
+
+        cache = SearchCache(ttl_seconds=300)
+        cached = cache.get("serper:AI trends:10")
+        if cached is None:
+            results = _serper_search("AI trends", 10)
+            cache.set("serper:AI trends:10", results)
+    """
+
+    def __init__(self, ttl_seconds: int = 300):
+        self._cache: Dict[str, tuple] = {}  # key → (result, timestamp)
+        self._lock = threading.Lock()
+        self._ttl = ttl_seconds
+
+    def get(self, key: str) -> Optional[Any]:
+        """Return cached result if present and not expired, else None."""
+        with self._lock:
+            self._evict_expired()
+            entry = self._cache.get(key)
+            if entry is not None:
+                return entry[0]
+            return None
+
+    def set(self, key: str, value: Any) -> None:
+        """Store a result with current timestamp."""
+        with self._lock:
+            self._cache[key] = (value, time.time())
+            # Cap cache size to prevent unbounded growth
+            if len(self._cache) > 200:
+                self._evict_expired()
+                if len(self._cache) > 200:
+                    # Remove oldest entries
+                    oldest = sorted(self._cache, key=lambda k: self._cache[k][1])
+                    for k in oldest[:50]:
+                        del self._cache[k]
+
+    def _evict_expired(self) -> None:
+        """Remove entries older than TTL. Must be called under lock."""
+        now = time.time()
+        expired = [k for k, (_, ts) in self._cache.items() if now - ts > self._ttl]
+        for k in expired:
+            del self._cache[k]
+
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        with self._lock:
+            self._cache.clear()
+
+
+_search_cache = SearchCache()
 
 
 def _serper_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
@@ -187,14 +246,23 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     query_display = query[:50] + "..." if len(query) > 50 else query
     status.emit("Searching", f"🔍 {query_display}")
 
+    # Check cache first
+    cache_key = f"{provider_pref}:{query}:{max_results}"
+    cached = _search_cache.get(cache_key)
+    if cached is not None:
+        logger.info(f"Search cache HIT: {query_display}")
+        return cached
+
     # Priority 1: Serper API
     if SERPER_API_KEY and provider_pref in ('auto', 'serper'):
         try:
             results = _serper_search(query, max_results)
             if results:
-                return tool_response(
+                response = tool_response(
                     results=results, count=len(results), query=query, provider='serper'
                 )
+                _search_cache.set(cache_key, response)
+                return response
         except Exception as e:
             logger.warning(f"Serper API failed: {e}, falling back to DuckDuckGo")
 
@@ -203,18 +271,22 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             results = _ddg_search(query, max_results)
             if results:
-                return tool_response(
+                response = tool_response(
                     results=results, count=len(results), query=query, provider='duckduckgo'
                 )
+                _search_cache.set(cache_key, response)
+                return response
         except Exception as e:
             logger.warning(f"duckduckgo-search library failed: {e}, falling back to HTML")
 
     # Fallback: DuckDuckGo HTML
     try:
         results = _ddg_html_search(query, max_results)
-        return tool_response(
+        response = tool_response(
             results=results, count=len(results), query=query, provider='duckduckgo_html'
         )
+        _search_cache.set(cache_key, response)
+        return response
     except requests.RequestException as e:
         return tool_error(f'Network error: {str(e)}')
 
@@ -401,4 +473,4 @@ def serper_scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f'Error scraping website: {str(e)}')
 
 
-__all__ = ['search_web_tool', 'fetch_webpage_tool', 'search_and_scrape_tool', 'serper_scrape_website_tool']
+__all__ = ['search_web_tool', 'fetch_webpage_tool', 'search_and_scrape_tool', 'serper_scrape_website_tool', 'SearchCache']

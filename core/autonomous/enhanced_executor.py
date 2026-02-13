@@ -10,11 +10,11 @@ from dataclasses import dataclass, field
 
 from ..agents.agentic_planner import TaskPlan
 from ..agents.auto_agent import AutoAgent
-from ..agents._execution_types import ExecutionStep, ExecutionResult
+from ..agents._execution_types import ExecutionStep, AgenticExecutionResult
 
 
 @dataclass
-class EnhancedExecutionResult(ExecutionResult):
+class EnhancedExecutionResult(AgenticExecutionResult):
     """Enhanced execution result with additional metadata."""
     plan_executed: bool = False
     dependencies_installed: List[str] = field(default_factory=list)

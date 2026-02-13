@@ -10,7 +10,7 @@ from pathlib import Path
 jotty_path = Path(__file__).parent.parent
 sys.path.insert(0, str(jotty_path))
 
-from core.registry.tool_validation import ToolValidator, validate_tool_attributes, ValidationResult
+from core.registry.tool_validation import ToolValidator, validate_tool_attributes, RegistryValidationResult
 
 
 def test_valid_tool():

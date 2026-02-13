@@ -109,7 +109,7 @@ class ExtractionResult:
 
 
 @dataclass
-class ValidationResult:
+class DiscoveryValidationResult:
     """Result of artifact validation."""
     is_valid: bool = True
     issues: List[str] = field(default_factory=list)
@@ -125,7 +125,7 @@ class RegistrationResult:
     analysis: Optional[AnalysisResult] = None
     tagging: Optional[TaggingResult] = None
     extraction: Optional[ExtractionResult] = None
-    validation: Optional[ValidationResult] = None
+    validation: Optional[DiscoveryValidationResult] = None
     registration_time: float = 0.0
     error: Optional[str] = None
 
@@ -482,7 +482,7 @@ class ArtifactValidator:
         artifact: Any,
         artifact_type: ArtifactType,
         required_fields: Optional[List[str]] = None
-    ) -> ValidationResult:
+    ) -> DiscoveryValidationResult:
         """Validate an artifact."""
         issues = []
         warnings = []
@@ -490,7 +490,7 @@ class ArtifactValidator:
         # Check non-empty
         if artifact is None:
             issues.append("Artifact is None")
-            return ValidationResult(is_valid=False, issues=issues, confidence=1.0)
+            return DiscoveryValidationResult(is_valid=False, issues=issues, confidence=1.0)
         
         # Check empty content
         if self._is_empty(artifact, artifact_type):
@@ -513,7 +513,7 @@ class ArtifactValidator:
         is_valid = len(issues) == 0
         confidence = 1.0 if is_valid else 0.5
         
-        return ValidationResult(
+        return DiscoveryValidationResult(
             is_valid=is_valid,
             issues=issues,
             warnings=warnings,

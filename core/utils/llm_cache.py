@@ -177,6 +177,11 @@ class LLMCallCache:
             cls._instances[name] = cls(**kwargs)
         return cls._instances[name]
 
+    @classmethod
+    def reset_instances(cls):
+        """Reset all cached instances (for testing)."""
+        cls._instances.clear()
+
     def _compute_hash(
         self,
         prompt: str,

@@ -672,18 +672,22 @@ class SkillsRegistry:
         via SkillDefinition.tools property. This makes init() fast (no imports,
         no subprocess calls, no dependency checks).
 
-        After metadata scan, starts background pre-warming of top 5 skills
-        so they're ready when first task runs.
+        After metadata scan, loads cached dynamic skills (e.g. n8n workflows)
+        from disk so they're available immediately without API calls. Then
+        starts background pre-warming of top skills and a refresh of dynamic
+        skill caches.
         """
         if self.initialized:
             return
 
         self._scan_skills_metadata()
+        self._load_cached_dynamic_skills()
         self.initialized = True
         logger.info(f"SkillsRegistry initialized with {len(self.loaded_skills)} skills (lazy)")
 
         # Pre-warm top skills in background thread (non-blocking)
         self._prewarm_top_skills()
+        self._refresh_dynamic_skills_background()
 
     def _prewarm_top_skills(self) -> None:
         """Load tools for top skills in a background thread.
@@ -703,6 +707,149 @@ class SkillsRegistry:
                         logger.debug(f"Pre-warm {name} failed: {e}")
 
         threading.Thread(target=_warm, daemon=True, name="skill-prewarm").start()
+
+    # =============================================================================
+    # Dynamic Skill Cache (n8n workflows, future: Activepieces, etc.)
+    # =============================================================================
+
+    _INTELLIGENCE_DIR = Path.home() / "jotty" / "intelligence"
+
+    def _load_cached_dynamic_skills(self) -> None:
+        """Load derived skills from disk cache files written by provider registrars.
+
+        Reads ``~/jotty/intelligence/workflow_skills_cache.json`` (and future
+        provider caches). For each cached entry, creates a lazy SkillDefinition
+        with domain-specific capabilities, use_when, and a tool loader that
+        binds workflow_id onto the base skill's trigger function.
+
+        Idempotent: skips skills already present in loaded_skills.
+        """
+        import json as _json
+
+        cache_path = self._INTELLIGENCE_DIR / "workflow_skills_cache.json"
+        if not cache_path.exists():
+            return
+
+        try:
+            data = _json.loads(cache_path.read_text())
+        except (OSError, ValueError):
+            logger.debug("Could not read dynamic skill cache — skipping")
+            return
+
+        schema_version = data.get("schema_version")
+        if schema_version != "1.0":
+            logger.debug("Cache schema version mismatch: %s", schema_version)
+            return
+
+        provider = data.get("provider", "n8n")
+        base_skill_name = f"{provider}-workflows"
+        skills = data.get("skills", [])
+        count = 0
+
+        for entry in skills:
+            skill_name = entry.get("skill_name", "")
+            if not skill_name or skill_name in self.loaded_skills:
+                continue
+
+            wf_id = entry.get("workflow_id", "")
+            wf_name = entry.get("workflow_name", skill_name)
+            capabilities = entry.get("capabilities", ["automation"])
+            use_when = entry.get("use_when", "")
+            description = entry.get("description", f"{provider} workflow: {wf_name}")
+            trigger_type = entry.get("trigger_type", "unknown")
+
+            # Build lazy tool loader that binds workflow_id at load time
+            def _make_loader(wid=wf_id, sname=skill_name, wname=wf_name, bskill=base_skill_name):
+                def _loader():
+                    # Import the trigger function from the base skill's tools.py
+                    base_skill = self.loaded_skills.get(bskill)
+                    if base_skill:
+                        trigger_fn = base_skill.tools.get("trigger_n8n_workflow_tool")
+                    else:
+                        trigger_fn = None
+
+                    async def _trigger(params, _wid=wid, _fn=trigger_fn):
+                        params["workflow_id"] = _wid
+                        if _fn:
+                            return await _fn(params)
+                        # Fallback: direct import
+                        tools_path = self.skills_dir / "n8n-workflows" / "tools.py"
+                        spec = importlib.util.spec_from_file_location("n8n_tools", tools_path)
+                        mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(mod)
+                        return await mod.trigger_n8n_workflow_tool(params)
+
+                    _trigger.__name__ = f"trigger_{sname.replace('-', '_')}"
+                    _trigger.__doc__ = f"Trigger n8n workflow: {wname}"
+                    _trigger._required_params = []
+                    return {_trigger.__name__: _trigger}
+                return _loader
+
+            skill = SkillDefinition(
+                name=skill_name,
+                description=description,
+                _tool_loader=_make_loader(),
+                skill_type=SkillType.DERIVED,
+                base_skills=[base_skill_name],
+                capabilities=capabilities,
+                use_when=use_when,
+                metadata={
+                    "n8n_workflow_id": wf_id,
+                    "n8n_trigger_type": trigger_type,
+                    "n8n_active": entry.get("active", False),
+                    "from_cache": True,
+                },
+            )
+            self.loaded_skills[skill_name] = skill
+            count += 1
+
+        if count:
+            logger.info("Loaded %d cached %s workflow skills", count, provider)
+
+    def _refresh_dynamic_skills_background(self) -> None:
+        """Spawn a daemon thread that refreshes the n8n workflow cache.
+
+        After fetching, re-calls _load_cached_dynamic_skills() to hot-inject
+        any new workflows discovered since the cache was last written.
+        """
+        import threading
+
+        def _refresh():
+            self._refresh_n8n_cache()
+
+        threading.Thread(target=_refresh, daemon=True, name="dynamic-skill-refresh").start()
+
+    def _refresh_n8n_cache(self) -> None:
+        """Fetch latest workflows from n8n API and update disk cache.
+
+        Uses importlib to load the n8n-workflows tools.py (hyphenated dir
+        name prevents normal imports). Silently ignores failures — this is
+        a best-effort background refresh.
+        """
+        try:
+            tools_path = self.skills_dir / "n8n-workflows" / "tools.py"
+            if not tools_path.exists():
+                return
+
+            spec = importlib.util.spec_from_file_location("n8n_tools_refresh", tools_path)
+            if not spec or not spec.loader:
+                return
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+            client = mod.N8nAPIClient()
+            if not client.token or not client.BASE_URL:
+                return
+
+            result = client.list_workflows()
+            if not result.get("success"):
+                return
+
+            mod.N8nDynamicSkillRegistrar.save_cache(result["data"], client.BASE_URL)
+            # Hot-inject any new skills from the refreshed cache
+            self._load_cached_dynamic_skills()
+        except Exception as e:
+            logger.debug("Background n8n cache refresh failed: %s", e)
 
     def _scan_skills_metadata(self) -> None:
         """Scan skill directories and register lazy SkillDefinitions (metadata only)."""

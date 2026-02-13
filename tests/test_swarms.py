@@ -25,13 +25,13 @@ from Jotty.core.swarms.swarm_types import (
     AgentRole,
     EvaluationResult,
     ImprovementType,
-    SwarmConfig,
     SwarmResult,
     ExecutionTrace,
     _split_field,
     _safe_join,
     _safe_num,
 )
+from Jotty.core.foundation.data_structures import SwarmConfig
 from Jotty.core.swarms.registry import SwarmRegistry, register_swarm
 from Jotty.core.swarms.base.agent_team import (
     AgentTeam,

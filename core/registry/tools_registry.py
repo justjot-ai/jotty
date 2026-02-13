@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ToolSchema:
+class RegistryToolSchema:
     """Schema describing an AI tool."""
     name: str  # Unique tool name
     description: str  # What this tool does
@@ -46,7 +46,7 @@ class ToolsRegistry:
     """
     
     def __init__(self):
-        self._tools: Dict[str, ToolSchema] = {}
+        self._tools: Dict[str, RegistryToolSchema] = {}
         self._by_category: Dict[str, List[str]] = {}
         self._implementations: Dict[str, Callable] = {}  # Optional: store actual implementations
         logger.info(" ToolsRegistry initialized")
@@ -62,7 +62,7 @@ class ToolsRegistry:
         implementation: Optional[Callable] = None,
     ):
         """Register a tool."""
-        tool = ToolSchema(
+        tool = RegistryToolSchema(
             name=name,
             description=description,
             category=category,
@@ -90,15 +90,15 @@ class ToolsRegistry:
         for tool_data in tools:
             self.register(**tool_data)
     
-    def get(self, name: str) -> Optional[ToolSchema]:
+    def get(self, name: str) -> Optional[RegistryToolSchema]:
         """Get tool by name."""
         return self._tools.get(name)
     
-    def get_all(self) -> List[ToolSchema]:
+    def get_all(self) -> List[RegistryToolSchema]:
         """Get all tools."""
         return list(self._tools.values())
     
-    def get_by_category(self, category: str) -> List[ToolSchema]:
+    def get_by_category(self, category: str) -> List[RegistryToolSchema]:
         """Get tools in a category."""
         names = self._by_category.get(category, [])
         return [self._tools[n] for n in names if n in self._tools]

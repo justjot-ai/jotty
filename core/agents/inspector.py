@@ -1338,6 +1338,161 @@ class MultiRoundValidator:
         return "\n---\n".join(parts)
 
 # =============================================================================
+# COMPLETION REVIEW
+# =============================================================================
+
+_CompletionReviewSignature = None
+
+def _get_completion_review_signature():
+    global _CompletionReviewSignature
+    if _CompletionReviewSignature is None:
+        dspy = _get_dspy()
+        class CompletionReviewSignature(dspy.Signature):
+            """Assess task completion state after execution.
+
+            You are a COMPLETION REVIEWER. Analyze whether the task was fully completed,
+            partially done, or blocked. Be precise about what remains unfinished.
+            """
+            instruction: str = dspy.InputField(desc="Original task instruction")
+            output_summary: str = dspy.InputField(desc="Summary of execution output and results")
+            tool_calls_summary: str = dspy.InputField(desc="Summary of tool calls made during execution")
+            completion_state: str = dspy.OutputField(desc="complete, partial, or blocked")
+            confidence: float = dspy.OutputField(desc="0.0-1.0 confidence in assessment")
+            unresolved_items: str = dspy.OutputField(desc="JSON list of unfinished items (empty list if complete)")
+            next_step: str = dspy.OutputField(desc="What to do next if not complete, empty if complete")
+        _CompletionReviewSignature = CompletionReviewSignature
+    return _CompletionReviewSignature
+
+
+class CompletionReviewer:
+    """Post-execution completion assessment.
+
+    Determines whether a task is fully complete, partially done, or blocked,
+    using an LLM-based review of outputs and tool calls. Integrates with
+    the error classification system for structured recovery hints.
+
+    Usage::
+
+        reviewer = CompletionReviewer()
+        result = await reviewer.review_completion(
+            instruction="Research AI trends",
+            result={"success": True, "output": "..."},
+            tool_calls=[{"tool": "web_search", "result": "..."}]
+        )
+        # result = {"completion_state": "complete", "confidence": 0.95, ...}
+    """
+
+    def __init__(self):
+        self._predictor = None
+
+    def _ensure_predictor(self):
+        if self._predictor is None:
+            dspy = _get_dspy()
+            self._predictor = dspy.ChainOfThought(_get_completion_review_signature())
+
+    async def review_completion(
+        self,
+        instruction: str,
+        result: Any,
+        tool_calls: List[dict],
+        dspy_lm=None,
+    ) -> dict:
+        """Assess task completion after execution.
+
+        Args:
+            instruction: Original task instruction
+            result: Execution result (dict or any serializable)
+            tool_calls: List of tool call dicts with 'tool' and 'result' keys
+            dspy_lm: Optional DSPy LM to use (avoids global config dependency)
+
+        Returns:
+            Dict with completion_state, confidence, unresolved_items, next_step
+        """
+        self._ensure_predictor()
+
+        # Build summaries
+        output_summary = str(result)[:3000] if result else "No output"
+        calls_summary = json.dumps(
+            [{"tool": tc.get("tool", ""), "success": tc.get("success", True)}
+             for tc in (tool_calls or [])[:10]],
+            default=str,
+        )
+
+        inputs = {
+            "instruction": instruction[:2000],
+            "output_summary": output_summary,
+            "tool_calls_summary": calls_summary,
+        }
+
+        try:
+            dspy = _get_dspy()
+
+            async def _run():
+                if dspy_lm is not None:
+                    with dspy.context(lm=dspy_lm):
+                        return self._predictor(**inputs)
+                return self._predictor(**inputs)
+
+            prediction = await asyncio.wait_for(
+                asyncio.to_thread(lambda: asyncio.get_event_loop().run_until_complete(_run())
+                                  if asyncio.get_event_loop().is_running()
+                                  else _run()),
+                timeout=60,
+            )
+
+            # Parse completion_state
+            state = str(getattr(prediction, 'completion_state', 'partial')).lower().strip()
+            if state not in ('complete', 'partial', 'blocked'):
+                state = 'partial'
+
+            # Parse confidence
+            try:
+                import re as _re
+                conf_match = _re.search(r'(\d+\.?\d*)', str(getattr(prediction, 'confidence', '0.5')))
+                conf = float(conf_match.group(1)) if conf_match else 0.5
+                conf = max(0.0, min(1.0, conf))
+            except (ValueError, TypeError, AttributeError):
+                conf = 0.5
+
+            # Parse unresolved_items
+            unresolved_raw = str(getattr(prediction, 'unresolved_items', '[]'))
+            try:
+                unresolved = json.loads(unresolved_raw, strict=False)
+                if not isinstance(unresolved, list):
+                    unresolved = [unresolved_raw] if unresolved_raw.strip() else []
+            except (json.JSONDecodeError, ValueError):
+                unresolved = [unresolved_raw] if unresolved_raw.strip() and unresolved_raw != '[]' else []
+
+            next_step = str(getattr(prediction, 'next_step', '')).strip()
+
+            return {
+                "completion_state": state,
+                "confidence": conf,
+                "unresolved_items": unresolved,
+                "next_step": next_step if state != 'complete' else "",
+            }
+
+        except asyncio.TimeoutError:
+            logger.warning("Completion review timed out after 60s")
+            return {
+                "completion_state": "partial",
+                "confidence": 0.3,
+                "unresolved_items": ["Review timed out"],
+                "next_step": "Retry completion review",
+            }
+        except Exception as e:
+            logger.warning(f"Completion review failed: {e}")
+            # Fallback: heuristic based on result
+            success = result.get('success', False) if isinstance(result, dict) else bool(result)
+            return {
+                "completion_state": "complete" if success else "partial",
+                "confidence": 0.4,
+                "unresolved_items": [] if success else [str(e)],
+                "next_step": "" if success else "Investigate failure",
+            }
+
+
+# =============================================================================
 # BACKWARD COMPATIBILITY - DEPRECATED ALIASES
 # =============================================================================
 # REFACTORING PHASE 1.3: Deprecation aliases for renamed signature classes

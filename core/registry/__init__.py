@@ -40,7 +40,7 @@ from .ui_registry import (
 )
 
 from .tool_collection import ToolCollection
-from .tool_validation import ToolValidator, validate_tool_attributes, ValidationResult
+from .tool_validation import ToolValidator, validate_tool_attributes, RegistryValidationResult
 
 from .skill_dependency_manager import (
     SkillDependencyManager,

@@ -51,7 +51,7 @@ except ImportError:
     ErrorType = None
 
 # Shared types — no circular dependency (lives in _execution_types.py)
-from ._execution_types import ExecutionStep, ExecutionStepSchema, TaskType, ExecutionResult
+from ._execution_types import ExecutionStep, ExecutionStepSchema, TaskType, AgenticExecutionResult
 
 logger = logging.getLogger(__name__)
 

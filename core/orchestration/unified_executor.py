@@ -53,7 +53,7 @@ from .tool_generator import UnifiedToolGenerator
 # Import types and providers from extracted llm_providers package
 from .llm_providers import (
     ToolResult,
-    ExecutionResult,
+    LLMExecutionResult,
     StreamEvent,
     LLMResponse,
     ToolUseBlock,
@@ -229,7 +229,7 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 #   google.py    - GoogleProvider
 #   adapter.py   - JottyClaudeProviderAdapter
 #   factory.py   - create_provider(), auto_detect_provider()
-#   types.py     - ToolResult, ExecutionResult, StreamEvent, LLMResponse, etc.
+#   types.py     - ToolResult, LLMExecutionResult, StreamEvent, LLMResponse, etc.
 # All are re-imported at the top of this file for backward compatibility.
 
 
@@ -466,7 +466,7 @@ The user has requested {section_name} visualization format. You MUST:
         self,
         task: str,
         history: Optional[List[Dict[str, Any]]] = None
-    ) -> ExecutionResult:
+    ) -> LLMExecutionResult:
         """
         Execute task using DSPy signatures (for JottyClaudeProvider).
 
@@ -565,7 +565,7 @@ The user has requested {section_name} visualization format. You MUST:
                         continue
 
             if content:
-                return ExecutionResult(
+                return LLMExecutionResult(
                     success=True,
                     content=content,
                     tool_results=tool_results,
@@ -575,7 +575,7 @@ The user has requested {section_name} visualization format. You MUST:
             else:
                 # Friendly error message, no tracebacks
                 logger.error(f"DSPy execution failed after retries: {last_error}")
-                return ExecutionResult(
+                return LLMExecutionResult(
                     success=False,
                     content="I encountered an issue generating the response. Please try again.",
                     error="Generation failed after retries",
@@ -586,7 +586,7 @@ The user has requested {section_name} visualization format. You MUST:
         except Exception as e:
             # Log full error for debugging, but return friendly message
             logger.error(f"DSPy execution failed: {e}", exc_info=True)
-            return ExecutionResult(
+            return LLMExecutionResult(
                 success=False,
                 content="I encountered an unexpected issue. Please try again.",
                 error="Execution error",
@@ -680,7 +680,7 @@ The user has requested {section_name} visualization format. You MUST:
         self,
         task: str,
         history: Optional[List[Dict[str, Any]]] = None
-    ) -> ExecutionResult:
+    ) -> LLMExecutionResult:
         """
         Execute task using unified tool-calling approach.
 
@@ -689,7 +689,7 @@ The user has requested {section_name} visualization format. You MUST:
             history: Optional conversation history (list of {role, content} dicts)
 
         Returns:
-            ExecutionResult with content, tool results, and sections
+            LLMExecutionResult with content, tool results, and sections
         """
         # If using JottyClaudeProvider (DSPy-based), use DSPy execution path
         if self.provider_name == 'jotty-claude':
@@ -821,7 +821,7 @@ The user has requested {section_name} visualization format. You MUST:
                 elif result.tool_name.startswith("return_"):
                     output_format = result.tool_name.replace("return_", "")
 
-            return ExecutionResult(
+            return LLMExecutionResult(
                 success=True,
                 content=full_content,
                 tool_results=tool_results,
@@ -834,7 +834,7 @@ The user has requested {section_name} visualization format. You MUST:
 
         except Exception as e:
             logger.error(f"Execution failed: {e}", exc_info=True)
-            return ExecutionResult(
+            return LLMExecutionResult(
                 success=False,
                 content="",
                 error=str(e),

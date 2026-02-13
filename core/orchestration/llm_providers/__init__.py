@@ -7,7 +7,7 @@ Supports: Anthropic, OpenAI, OpenRouter, Groq, Google, JottyClaude CLI.
 
 from .types import (
     ToolResult,
-    ExecutionResult,
+    LLMExecutionResult,
     StreamEvent,
     LLMResponse,
     ToolUseBlock,
@@ -22,7 +22,7 @@ from .factory import create_provider, auto_detect_provider
 
 __all__ = [
     # Types
-    'ToolResult', 'ExecutionResult', 'StreamEvent',
+    'ToolResult', 'LLMExecutionResult', 'StreamEvent',
     'LLMResponse', 'ToolUseBlock', 'TextBlock',
     # Base
     'LLMProvider',

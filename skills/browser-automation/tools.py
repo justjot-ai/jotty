@@ -293,6 +293,102 @@ class SeleniumBrowserSession:
         driver = self.get_driver()
         return driver.execute_script(script, *args)
 
+    def get_accessibility_tree(self, max_depth: int = 5) -> Dict[str, Any]:
+        """Extract accessibility tree via CDP for element discovery.
+
+        Returns a structured tree of accessible elements with roles,
+        names, and states — more reliable than CSS selectors for
+        finding interactive elements.
+        """
+        driver = self.get_driver()
+        try:
+            raw = driver.execute_cdp_cmd('Accessibility.getFullAXTree', {
+                'max_depth': max_depth,
+            })
+            nodes = raw.get('nodes', [])
+            # Simplify: extract role, name, value, and children count
+            simplified = []
+            for node in nodes[:200]:  # Cap to prevent huge outputs
+                props = node.get('properties', [])
+                prop_dict = {p['name']: p.get('value', {}).get('value', '')
+                             for p in props if 'name' in p}
+                simplified.append({
+                    'nodeId': node.get('nodeId'),
+                    'role': node.get('role', {}).get('value', ''),
+                    'name': node.get('name', {}).get('value', ''),
+                    'description': node.get('description', {}).get('value', ''),
+                    'focusable': prop_dict.get('focusable', False),
+                    'children_count': len(node.get('childIds', [])),
+                })
+            return {'success': True, 'nodes': simplified, 'total': len(nodes)}
+        except Exception as e:
+            logger.warning(f"CDP Accessibility.getFullAXTree failed: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def get_dom_structure(self, selector: str = "body", max_depth: int = 3) -> Dict[str, Any]:
+        """Get DOM structure with visibility, bounds, and interactive state.
+
+        Uses lightweight JS evaluation instead of full CDP tree —
+        faster and works across all Selenium configurations.
+        """
+        driver = self.get_driver()
+        js = """
+        function getDomTree(el, depth, maxDepth) {
+            if (!el || depth > maxDepth) return null;
+            var rect = el.getBoundingClientRect();
+            var style = window.getComputedStyle(el);
+            var node = {
+                tag: el.tagName ? el.tagName.toLowerCase() : '',
+                id: el.id || '',
+                classes: Array.from(el.classList || []).slice(0, 5),
+                visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0,
+                bounds: {x: Math.round(rect.x), y: Math.round(rect.y),
+                         w: Math.round(rect.width), h: Math.round(rect.height)},
+                interactive: ['a', 'button', 'input', 'select', 'textarea'].indexOf(
+                    (el.tagName || '').toLowerCase()) >= 0,
+                text: (el.textContent || '').trim().substring(0, 100),
+                children: []
+            };
+            if (depth < maxDepth) {
+                var kids = el.children || [];
+                for (var i = 0; i < Math.min(kids.length, 20); i++) {
+                    var child = getDomTree(kids[i], depth + 1, maxDepth);
+                    if (child) node.children.push(child);
+                }
+            }
+            return node;
+        }
+        var root = arguments[0] ? document.querySelector(arguments[0]) : document.body;
+        return root ? getDomTree(root, 0, arguments[1] || 3) : null;
+        """
+        try:
+            tree = driver.execute_script(js, selector, max_depth)
+            if tree is None:
+                return {'success': False, 'error': f'Selector not found: {selector}'}
+            return {'success': True, 'tree': tree}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def cdp_click(self, x: int, y: int) -> Dict[str, Any]:
+        """Coordinate-based click via CDP Input.dispatchMouseEvent.
+
+        Fallback when CSS selectors fail — clicks at exact page
+        coordinates using Chrome DevTools Protocol.
+        """
+        driver = self.get_driver()
+        try:
+            driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
+                'type': 'mousePressed', 'x': x, 'y': y,
+                'button': 'left', 'clickCount': 1,
+            })
+            driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
+                'type': 'mouseReleased', 'x': x, 'y': y,
+                'button': 'left', 'clickCount': 1,
+            })
+            return {'success': True, 'x': x, 'y': y, 'method': 'cdp_click'}
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'x': x, 'y': y}
+
 
 def _selenium_navigate(params: Dict[str, Any]) -> Dict[str, Any]:
     """Navigate using Selenium backend."""
@@ -1194,6 +1290,105 @@ async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
 
+def browser_accessibility_tree_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract accessibility tree via CDP for reliable element discovery.
+
+    More reliable than CSS selectors — provides roles, names, and states
+    of all accessible elements on the page.
+
+    Args:
+        params: Dictionary containing:
+            - max_depth (int, optional): Tree depth limit (default: 5)
+            - cdp_url (str, optional): CDP URL for remote browser
+
+    Returns:
+        Dictionary with success, nodes (list of accessible elements), total count
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not SELENIUM_AVAILABLE:
+        return {'success': False, 'error': 'Selenium not installed'}
+
+    try:
+        max_depth = params.get('max_depth', 5)
+        cdp_url = params.get('cdp_url')
+
+        session = SeleniumBrowserSession.get_instance()
+        session.get_driver(cdp_url=cdp_url)
+        return session.get_accessibility_tree(max_depth)
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def browser_dom_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Get DOM structure with visibility, bounds, and interactive state.
+
+    Lightweight alternative to full accessibility tree — uses JS
+    evaluation for fast structural inspection.
+
+    Args:
+        params: Dictionary containing:
+            - selector (str, optional): Root CSS selector (default: "body")
+            - max_depth (int, optional): Tree depth limit (default: 3)
+            - cdp_url (str, optional): CDP URL for remote browser
+
+    Returns:
+        Dictionary with success, tree (nested DOM structure)
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not SELENIUM_AVAILABLE:
+        return {'success': False, 'error': 'Selenium not installed'}
+
+    try:
+        selector = params.get('selector', 'body')
+        max_depth = params.get('max_depth', 3)
+        cdp_url = params.get('cdp_url')
+
+        session = SeleniumBrowserSession.get_instance()
+        session.get_driver(cdp_url=cdp_url)
+        return session.get_dom_structure(selector, max_depth)
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def browser_cdp_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Click at exact page coordinates via CDP.
+
+    Fallback for when CSS selectors fail — uses Chrome DevTools Protocol
+    to dispatch mouse events at precise coordinates.
+
+    Args:
+        params: Dictionary containing:
+            - x (int, required): X coordinate
+            - y (int, required): Y coordinate
+            - cdp_url (str, optional): CDP URL for remote browser
+
+    Returns:
+        Dictionary with success, x, y coordinates clicked
+    """
+    status.set_callback(params.pop('_status_callback', None))
+
+    if not SELENIUM_AVAILABLE:
+        return {'success': False, 'error': 'Selenium not installed'}
+
+    x = params.get('x')
+    y = params.get('y')
+    if x is None or y is None:
+        return {'success': False, 'error': 'x and y coordinates are required'}
+
+    try:
+        cdp_url = params.get('cdp_url')
+        session = SeleniumBrowserSession.get_instance()
+        session.get_driver(cdp_url=cdp_url)
+        return session.cdp_click(int(x), int(y))
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
 __all__ = [
     'browser_navigate_tool',
     'browser_screenshot_tool',
@@ -1210,4 +1405,8 @@ __all__ = [
     'browser_save_cookies_tool',
     'browser_load_cookies_tool',
     'browser_reset_tool',
+    # CDP/Accessibility
+    'browser_accessibility_tree_tool',
+    'browser_dom_structure_tool',
+    'browser_cdp_click_tool',
 ]

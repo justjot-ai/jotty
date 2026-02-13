@@ -96,6 +96,11 @@ class JottyIntegration:
         if cls._instance is None:
             cls._instance = cls(config)
         return cls._instance
+
+    @classmethod
+    def reset_instance(cls):
+        """Reset the singleton instance (for testing)."""
+        cls._instance = None
     
     def patch_dspy(self):
         """

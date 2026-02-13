@@ -205,6 +205,11 @@ class BudgetTracker:
             cls._instances[name] = cls(**kwargs)
         return cls._instances[name]
 
+    @classmethod
+    def reset_instances(cls):
+        """Reset all cached instances (for testing)."""
+        cls._instances.clear()
+
     def start_episode(self, episode_id: str) -> None:
         """
         Start a new episode, resetting episode-level tracking.

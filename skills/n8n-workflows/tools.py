@@ -7,8 +7,11 @@ Each workflow is also registered as a derived Jotty skill for planner discovery.
 
 import os
 import re
+import json
 import time
 import logging
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from Jotty.core.utils.env_loader import load_jotty_env
@@ -145,6 +148,136 @@ class N8nWorkflowAnalyzer:
 
 
 # =============================================================================
+# CAPABILITY INFERRER
+# =============================================================================
+
+class WorkflowCapabilityInferrer:
+    """Infers domain-specific capabilities from workflow metadata.
+
+    Examines three signals — tags, node types, and name segments — to build
+    a rich capability set so the planner can match workflows to user tasks
+    like "refresh my watchlists" or "download MCX quotes".
+    """
+
+    # Tag → capabilities
+    TAG_MAP: Dict[str, set] = {
+        "pmi": {"finance", "data-fetch"},
+        "data": {"data-fetch"},
+        "report": {"document", "analyze"},
+        "cmd": {"devops"},
+        "dev": {"devops"},
+        "finance": {"finance"},
+        "trading": {"finance"},
+    }
+
+    # Node type substring → capabilities
+    NODE_MAP: Dict[str, set] = {
+        "telegram": {"communicate"},
+        "discord": {"communicate"},
+        "slack": {"communicate"},
+        "ssh": {"devops"},
+        "httpRequest": {"data-fetch"},
+        "googleGemini": {"analyze"},
+        "openAi": {"analyze"},
+        "code": {"devops"},
+    }
+
+    # Name segment → capabilities
+    NAME_MAP: Dict[str, set] = {
+        "download": {"data-fetch"},
+        "refresh": {"data-fetch"},
+        "sync": {"data-fetch"},
+        "fetch": {"data-fetch"},
+        "eodreport": {"document", "finance"},
+        "watchlist": {"finance"},
+        "quotes": {"finance"},
+        "mcx": {"finance"},
+        "nse": {"finance"},
+        "bse": {"finance"},
+        "report": {"document"},
+    }
+
+    # Project name mapping for use_when descriptions
+    PROJECT_MAP: Dict[str, str] = {
+        "pmi": "PlanMyInvesting",
+        "cmd": "cmd.dev server",
+    }
+
+    @classmethod
+    def infer_capabilities(cls, workflow: Dict[str, Any]) -> List[str]:
+        """Union of tag, node, and name-based capabilities plus 'automation'."""
+        caps: set = {"automation"}
+
+        # Signal 1: tags
+        tags = [t.get("name", "") if isinstance(t, dict) else str(t) for t in workflow.get("tags", [])]
+        for tag in tags:
+            tag_lower = tag.lower()
+            for key, tag_caps in cls.TAG_MAP.items():
+                if key in tag_lower:
+                    caps |= tag_caps
+
+        # Signal 2: node types
+        for node in workflow.get("nodes", []):
+            node_type = node.get("type", "")
+            for key, node_caps in cls.NODE_MAP.items():
+                if key in node_type:
+                    caps |= node_caps
+
+        # Signal 3: name segments
+        name = workflow.get("name", "").lower()
+        segments = re.split(r"[._\-\s]+", name)
+        for segment in segments:
+            for key, name_caps in cls.NAME_MAP.items():
+                if key in segment:
+                    caps |= name_caps
+
+        return sorted(caps)
+
+    @classmethod
+    def infer_use_when(cls, workflow: Dict[str, Any]) -> str:
+        """Natural-language use_when hint for LLM skill selection."""
+        name = workflow.get("name", "")
+        segments = re.split(r"[._\-\s]+", name.lower())
+
+        # Detect project
+        project = None
+        for seg in segments:
+            if seg in cls.PROJECT_MAP:
+                project = cls.PROJECT_MAP[seg]
+                break
+
+        # Build action phrase from name
+        # Filter out environment segments (prod, dev, staging) and project prefixes
+        skip = {"prod", "dev", "staging", "test"} | set(cls.PROJECT_MAP.keys())
+        action_parts = [s for s in segments if s not in skip and len(s) > 1]
+        action = " ".join(action_parts) if action_parts else name
+
+        if project:
+            return f"User wants to {action} for {project}"
+        return f"User wants to run {action}"
+
+    @classmethod
+    def infer_description(cls, workflow: Dict[str, Any], trigger_type: str) -> str:
+        """Rich description including project context and trigger type."""
+        name = workflow.get("name", "")
+        segments = re.split(r"[._\-\s]+", name.lower())
+
+        project = None
+        for seg in segments:
+            if seg in cls.PROJECT_MAP:
+                project = cls.PROJECT_MAP[seg]
+                break
+
+        parts = [f"n8n workflow: {name}"]
+        if project:
+            parts.append(f"({project}, {trigger_type} trigger)")
+        else:
+            parts.append(f"({trigger_type} trigger)")
+
+        return " ".join(parts)
+
+
+# =============================================================================
 # DYNAMIC SKILL REGISTRAR
 # =============================================================================
 
@@ -152,14 +285,24 @@ class N8nDynamicSkillRegistrar:
     """
     Fetches all workflows and registers each as a derived SkillDefinition
     into the unified registry so the planner can discover them by name.
+
+    Maintains a disk cache at ~/jotty/intelligence/workflow_skills_cache.json
+    so derived skills are available at startup without an API call.
     """
 
     _registered = False
+
+    CACHE_DIR = Path.home() / "jotty" / "intelligence"
+    CACHE_FILE = "workflow_skills_cache.json"
+    SCHEMA_VERSION = "1.0"
 
     @classmethod
     def register_all(cls, registry=None) -> int:
         """
         Register each n8n workflow as a derived skill.
+
+        Uses WorkflowCapabilityInferrer for domain-specific capabilities,
+        then persists enriched data to disk cache for offline startup.
 
         Returns:
             Number of workflows registered.
@@ -188,7 +331,8 @@ class N8nDynamicSkillRegistrar:
         from Jotty.core.registry.skills_registry import SkillDefinition, SkillType
 
         count = 0
-        for wf in result.get("data", []):
+        workflows = result.get("data", [])
+        for wf in workflows:
             skill_name = cls._workflow_to_skill_name(wf)
             if skill_name in getattr(registry, "loaded_skills", {}):
                 continue
@@ -197,24 +341,29 @@ class N8nDynamicSkillRegistrar:
             wf_id = wf.get("id", "")
             trigger_type = summary["trigger_type"]
 
+            # Domain-specific inference
+            capabilities = WorkflowCapabilityInferrer.infer_capabilities(wf)
+            use_when = WorkflowCapabilityInferrer.infer_use_when(wf)
+            description = WorkflowCapabilityInferrer.infer_description(wf, trigger_type)
+
             # Build a pre-bound trigger tool for this specific workflow
-            def _make_trigger(wid=wf_id):
+            def _make_trigger(wid=wf_id, sname=skill_name, wname=wf.get("name", wf_id)):
                 async def _trigger(params: Dict[str, Any]) -> Dict[str, Any]:
                     params["workflow_id"] = wid
                     return await trigger_n8n_workflow_tool(params)
-                _trigger.__name__ = f"trigger_{skill_name.replace('-', '_')}"
-                _trigger.__doc__ = f"Trigger n8n workflow: {wf.get('name', wid)}"
+                _trigger.__name__ = f"trigger_{sname.replace('-', '_')}"
+                _trigger.__doc__ = f"Trigger n8n workflow: {wname}"
                 _trigger._required_params = []
                 return _trigger
 
             skill = SkillDefinition(
                 name=skill_name,
-                description=f"n8n workflow: {wf.get('name', '')} ({trigger_type} trigger)",
+                description=description,
                 tools={f"trigger_{skill_name.replace('-', '_')}": _make_trigger()},
                 skill_type=SkillType.DERIVED,
                 base_skills=["n8n-workflows"],
-                capabilities=["automation"],
-                use_when=f"User wants to run the '{wf.get('name', '')}' workflow",
+                capabilities=capabilities,
+                use_when=use_when,
                 metadata={
                     "n8n_workflow_id": wf_id,
                     "n8n_trigger_type": trigger_type,
@@ -226,9 +375,77 @@ class N8nDynamicSkillRegistrar:
                 registry.loaded_skills[skill_name] = skill
                 count += 1
 
+        # Persist cache for offline startup
+        try:
+            cls.save_cache(workflows, client.BASE_URL)
+        except Exception as e:
+            logger.warning("Failed to save workflow cache: %s", e)
+
         cls._registered = True
         logger.info("Registered %d n8n workflows as derived skills", count)
         return count
+
+    @classmethod
+    def save_cache(cls, workflows: List[Dict[str, Any]], base_url: str) -> None:
+        """Write enriched workflow data to disk for offline startup.
+
+        Args:
+            workflows: Raw workflow dicts from the n8n API.
+            base_url: n8n instance base URL (for provenance).
+        """
+        skills = []
+        for wf in workflows:
+            summary = N8nWorkflowAnalyzer.summarize_workflow(wf)
+            trigger_type = summary["trigger_type"]
+            tags = [t.get("name", "") if isinstance(t, dict) else str(t) for t in wf.get("tags", [])]
+
+            skills.append({
+                "skill_name": cls._workflow_to_skill_name(wf),
+                "workflow_id": wf.get("id", ""),
+                "workflow_name": wf.get("name", ""),
+                "trigger_type": trigger_type,
+                "active": wf.get("active", False),
+                "description": WorkflowCapabilityInferrer.infer_description(wf, trigger_type),
+                "capabilities": WorkflowCapabilityInferrer.infer_capabilities(wf),
+                "use_when": WorkflowCapabilityInferrer.infer_use_when(wf),
+                "tags": tags,
+            })
+
+        envelope = {
+            "schema_version": cls.SCHEMA_VERSION,
+            "provider": "n8n",
+            "base_url": base_url,
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "skills": skills,
+        }
+
+        cls.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path = cls.CACHE_DIR / cls.CACHE_FILE
+        cache_path.write_text(json.dumps(envelope, indent=2))
+        logger.info("Saved %d workflow skills to cache: %s", len(skills), cache_path)
+
+    @classmethod
+    def load_cache(cls) -> Optional[Dict[str, Any]]:
+        """Load cached workflow skills from disk.
+
+        Returns:
+            Parsed cache envelope dict, or None if missing/invalid.
+        """
+        cache_path = cls.CACHE_DIR / cls.CACHE_FILE
+        if not cache_path.exists():
+            return None
+
+        try:
+            data = json.loads(cache_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            logger.debug("Corrupt workflow cache — ignoring")
+            return None
+
+        if data.get("schema_version") != cls.SCHEMA_VERSION:
+            logger.debug("Cache schema mismatch (got %s, want %s)", data.get("schema_version"), cls.SCHEMA_VERSION)
+            return None
+
+        return data
 
     @classmethod
     def reset(cls):
@@ -475,6 +692,7 @@ async def activate_n8n_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 __all__ = [
     "N8nAPIClient",
     "N8nWorkflowAnalyzer",
+    "WorkflowCapabilityInferrer",
     "N8nDynamicSkillRegistrar",
     "list_n8n_workflows_tool",
     "trigger_n8n_workflow_tool",

@@ -47,7 +47,7 @@ from .swarm_manager import Orchestrator
 logger = logging.getLogger(__name__)
 
 
-class SwarmResult:
+class TemplateSwarmResult:
     """
     Result from a Swarm execution.
 
@@ -75,7 +75,7 @@ class SwarmResult:
         self.metadata = metadata or {}
 
     def __repr__(self):
-        return f"SwarmResult(success={self.success}, score={self.score:.4f}, template={self.template_name})"
+        return f"TemplateSwarmResult(success={self.success}, score={self.score:.4f}, template={self.template_name})"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -157,7 +157,7 @@ class Swarm:
                     context: str = "",
                     feedback_iterations: int = 2,
                     show_progress: bool = True,
-                    **kwargs) -> SwarmResult:
+                    **kwargs) -> TemplateSwarmResult:
         """
         Solve a problem using a swarm template.
 
@@ -176,7 +176,7 @@ class Swarm:
             **kwargs: Additional template-specific parameters
 
         Returns:
-            SwarmResult with model, score, and metadata
+            TemplateSwarmResult with model, score, and metadata
         """
         start_time = time.time()
 
@@ -245,7 +245,7 @@ class Swarm:
             logger.info(f"COMPLETE | Score: {score:.4f} | Time: {execution_time:.1f}s")
             logger.info(f"{'='*60}")
 
-            return SwarmResult(
+            return TemplateSwarmResult(
                 success=True,
                 score=score,
                 model=model,
@@ -258,7 +258,7 @@ class Swarm:
 
         except Exception as e:
             logger.error(f"Swarm execution failed: {e}")
-            return SwarmResult(
+            return TemplateSwarmResult(
                 success=False,
                 template_name=template_instance.name,
                 metadata={'error': str(e)},
@@ -272,7 +272,7 @@ class Swarm:
                         context: str,
                         feedback_iterations: int,
                         show_progress: bool,
-                        **kwargs) -> SwarmResult:
+                        **kwargs) -> TemplateSwarmResult:
         """
         Solve ML problem using the existing SkillOrchestrator.
 
@@ -324,7 +324,7 @@ class Swarm:
         except Exception as e:
             logger.debug(f"Learning post-execution failed: {e}")
 
-        swarm_result = SwarmResult(
+        swarm_result = TemplateSwarmResult(
             success=True,
             score=result.best_score,
             model=result.best_model,
@@ -347,7 +347,7 @@ class Swarm:
         return swarm_result
 
     @classmethod
-    def _generate_report(cls, swarm_result: 'SwarmResult', context: str, _manager=None, **kwargs) -> 'SwarmResult':
+    def _generate_report(cls, swarm_result: 'TemplateSwarmResult', context: str, _manager=None, **kwargs) -> 'TemplateSwarmResult':
         """Generate world-class PDF report and optionally send to Telegram."""
         try:
             from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
@@ -426,7 +426,7 @@ class Swarm:
         return swarm_result
 
     @classmethod
-    async def auto_solve(cls, X, y=None, **kwargs) -> SwarmResult:
+    async def auto_solve(cls, X, y=None, **kwargs) -> TemplateSwarmResult:
         """
         Auto-detect problem type and solve using best template.
 
@@ -438,7 +438,7 @@ class Swarm:
             **kwargs: Additional parameters
 
         Returns:
-            SwarmResult
+            TemplateSwarmResult
         """
         # Auto-detect template
         template = TemplateRegistry.auto_detect(X, y)
@@ -469,15 +469,15 @@ class Swarm:
 
 
 # Convenience functions for module-level access
-async def solve(template: str = "ml", **kwargs) -> SwarmResult:
+async def solve(template: str = "ml", **kwargs) -> TemplateSwarmResult:
     """Solve using specified template."""
     return await Swarm.solve(template=template, **kwargs)
 
 
-async def auto_solve(X, y=None, **kwargs) -> SwarmResult:
+async def auto_solve(X, y=None, **kwargs) -> TemplateSwarmResult:
     """Auto-detect and solve."""
     return await Swarm.auto_solve(X=X, y=y, **kwargs)
 
 
 # Make Swarm available at package level
-__all__ = ['Swarm', 'SwarmResult', 'solve', 'auto_solve']
+__all__ = ['Swarm', 'TemplateSwarmResult', 'solve', 'auto_solve']

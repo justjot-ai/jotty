@@ -37,7 +37,7 @@ TYPE_CONVERSION = {
 
 
 @dataclass
-class ValidationResult:
+class RegistryValidationResult:
     """Result of tool validation."""
     valid: bool
     errors: List[str] = None
@@ -146,7 +146,7 @@ class ToolValidator:
         self,
         tool_func: Callable,
         tool_metadata: Dict[str, Any]
-    ) -> ValidationResult:
+    ) -> RegistryValidationResult:
         """
         Validate a tool function.
         
@@ -159,7 +159,7 @@ class ToolValidator:
                 - output_type: Output type
                 
         Returns:
-            ValidationResult
+            RegistryValidationResult
         """
         errors: List[str] = []
         warnings: List[str] = []
@@ -171,7 +171,7 @@ class ToolValidator:
                 errors.append(f"Missing required field: {field}")
         
         if errors:
-            return ValidationResult(valid=False, errors=errors, warnings=warnings)
+            return RegistryValidationResult(valid=False, errors=errors, warnings=warnings)
         
         # Validate signature
         sig_result = self._validate_signature(tool_func, tool_metadata)
@@ -189,7 +189,7 @@ class ToolValidator:
             errors.extend(safety_result.errors)
             warnings.extend(safety_result.warnings)
         
-        return ValidationResult(
+        return RegistryValidationResult(
             valid=len(errors) == 0,
             errors=errors,
             warnings=warnings
@@ -199,7 +199,7 @@ class ToolValidator:
         self,
         tool_func: Callable,
         tool_metadata: Dict[str, Any]
-    ) -> ValidationResult:
+    ) -> RegistryValidationResult:
         """Validate function signature matches metadata."""
         errors: List[str] = []
         warnings: List[str] = []
@@ -232,13 +232,13 @@ class ToolValidator:
         except Exception as e:
             errors.append(f"Failed to inspect signature: {e}")
         
-        return ValidationResult(
+        return RegistryValidationResult(
             valid=len(errors) == 0,
             errors=errors,
             warnings=warnings
         )
     
-    def _validate_types(self, tool_metadata: Dict[str, Any]) -> ValidationResult:
+    def _validate_types(self, tool_metadata: Dict[str, Any]) -> RegistryValidationResult:
         """Validate input/output types."""
         errors: List[str] = []
         warnings: List[str] = []
@@ -262,13 +262,13 @@ class ToolValidator:
                 f"Allowed: {AUTHORIZED_TYPES}"
             )
         
-        return ValidationResult(
+        return RegistryValidationResult(
             valid=len(errors) == 0,
             errors=errors,
             warnings=warnings
         )
     
-    def _validate_code_safety(self, tool_func: Callable) -> ValidationResult:
+    def _validate_code_safety(self, tool_func: Callable) -> RegistryValidationResult:
         """Validate code safety (no dangerous calls)."""
         errors: List[str] = []
         warnings: List[str] = []
@@ -293,7 +293,7 @@ class ToolValidator:
         except Exception as e:
             warnings.append(f"Could not validate code safety: {e}")
         
-        return ValidationResult(
+        return RegistryValidationResult(
             valid=len(errors) == 0,
             errors=errors,
             warnings=warnings
@@ -318,7 +318,7 @@ class ToolValidator:
         return allowed
 
 
-def validate_tool_attributes(tool_class: type) -> ValidationResult:
+def validate_tool_attributes(tool_class: type) -> RegistryValidationResult:
     """
     Validate tool class attributes (OAgents style).
     
@@ -331,7 +331,7 @@ def validate_tool_attributes(tool_class: type) -> ValidationResult:
         tool_class: Tool class to validate
         
     Returns:
-        ValidationResult
+        RegistryValidationResult
     """
     errors: List[str] = []
     warnings: List[str] = []
@@ -387,7 +387,7 @@ def validate_tool_attributes(tool_class: type) -> ValidationResult:
                 f"Allowed: {AUTHORIZED_TYPES}"
             )
     
-    return ValidationResult(
+    return RegistryValidationResult(
         valid=len(errors) == 0,
         errors=errors,
         warnings=warnings

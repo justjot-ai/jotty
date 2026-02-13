@@ -42,6 +42,12 @@ def get_cost_tracker():
         _cost_tracker = CostTracker(enable_tracking=True)
     return _cost_tracker
 
+
+def reset_cost_tracker():
+    """Reset the singleton CostTracker (for testing)."""
+    global _cost_tracker
+    _cost_tracker = None
+
 # Model name mapping — centralized in config_defaults
 from Jotty.core.foundation.config_defaults import (
     MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU,

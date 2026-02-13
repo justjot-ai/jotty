@@ -228,7 +228,7 @@ class TypeCoercer:
 
 
 @dataclass
-class ValidationResult:
+class ToolValidationResult:
     """Structured result from ToolSchema.validate().
 
     Carries coerced parameter values alongside validation errors,
@@ -371,7 +371,7 @@ class ToolSchema:
 
     # -- validation -----------------------------------------------------------
 
-    def validate(self, params: Dict[str, Any], coerce: bool = False) -> ValidationResult:
+    def validate(self, params: Dict[str, Any], coerce: bool = False) -> ToolValidationResult:
         """Validate params against schema with optional type coercion.
 
         Args:
@@ -381,11 +381,11 @@ class ToolSchema:
                     are placed in ``result.coerced_params``.
 
         Returns:
-            ValidationResult with errors, coerced values, and warnings.
+            ToolValidationResult with errors, coerced values, and warnings.
             Backward-compatible: ``bool(result.errors)`` works like the
             old ``List[str]`` return.
         """
-        result = ValidationResult()
+        result = ToolValidationResult()
 
         for tp in self.params:
             if tp.reserved:
@@ -1044,7 +1044,7 @@ def _clean_for_display(text: str) -> str:
 
 
 @dataclass
-class ExecutionResult:
+class AgenticExecutionResult:
     """Result of task execution."""
     success: bool
     task: str
@@ -1124,12 +1124,12 @@ __all__ = [
     'ExecutionStep',
     'ToolParam',
     'TypeCoercer',
-    'ValidationResult',
+    'ToolValidationResult',
     'ToolSchema',
     'AgentIOSchema',
     'FileReference',
     'SwarmArtifactStore',
     'ExecutionStepSchema',
-    'ExecutionResult',
+    'AgenticExecutionResult',
     '_clean_for_display',
 ]

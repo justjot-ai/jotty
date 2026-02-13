@@ -21,7 +21,7 @@ from Jotty.core.foundation.exceptions import (
     DSPyError,
 )
 from Jotty.core.utils.async_utils import safe_status, StatusReporter, AgentEventBroadcaster, AgentEvent
-from ._execution_types import TaskType, ExecutionResult, _clean_for_display
+from ._execution_types import TaskType, AgenticAgenticExecutionResult, _clean_for_display
 
 # Mode-specific system prompts for tools with different backends
 _MODE_PROMPTS = {
@@ -60,7 +60,7 @@ class AutoAgent(AutonomousAgent):
     Adds AutoAgent-specific features:
     - Ensemble prompting for multi-perspective analysis
     - Output skill integration (messaging)
-    - Backwards-compatible execute() returning ExecutionResult
+    - Backwards-compatible execute() returning AgenticExecutionResult
 
     Usage:
         agent = AutoAgent()
@@ -339,7 +339,7 @@ Provide:
         """
         Infer task type and return as TaskType enum.
 
-        Used for ExecutionResult compatibility.
+        Used for AgenticExecutionResult compatibility.
         """
         type_str = self._infer_task_type(task)
         try:
@@ -351,7 +351,7 @@ Provide:
     # MAIN EXECUTE (Backwards-compatible signature)
     # =========================================================================
 
-    async def execute(self, task: str, **kwargs) -> ExecutionResult:
+    async def execute(self, task: str, **kwargs) -> AgenticExecutionResult:
         """
         Execute a task automatically.
 
@@ -367,7 +367,7 @@ Provide:
             ensemble_strategy: Strategy for ensembling
 
         Returns:
-            ExecutionResult with outputs and status
+            AgenticExecutionResult with outputs and status
         """
         import time as _time
         start_time = datetime.now()
@@ -503,7 +503,7 @@ Provide:
                 'final_output': None,
             }
 
-        # Convert to ExecutionResult
+        # Convert to AgenticExecutionResult
         execution_time = (datetime.now() - start_time).total_seconds()
 
         # Clean task for display
@@ -511,7 +511,7 @@ Provide:
 
         is_success = result.get('success', False)
 
-        exec_result = ExecutionResult(
+        exec_result = AgenticExecutionResult(
             success=is_success,
             task=display_task,
             task_type=task_type_enum,
@@ -566,7 +566,7 @@ Provide:
         task: str,
         output_skill: Optional[str] = None,
         chat_id: Optional[str] = None
-    ) -> ExecutionResult:
+    ) -> AgenticExecutionResult:
         """
         Execute task and send result to messaging platform.
 
@@ -620,7 +620,7 @@ Provide:
 
 
 # Convenience function
-async def run_task(task: str, send_output: bool = False) -> ExecutionResult:
+async def run_task(task: str, send_output: bool = False) -> AgenticExecutionResult:
     """
     Run a task with AutoAgent.
 
@@ -629,7 +629,7 @@ async def run_task(task: str, send_output: bool = False) -> ExecutionResult:
         send_output: Whether to send to messaging
 
     Returns:
-        ExecutionResult
+        AgenticExecutionResult
     """
     agent = AutoAgent(enable_output=send_output)
     return await agent.execute(task)

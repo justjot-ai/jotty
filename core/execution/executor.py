@@ -25,7 +25,7 @@ from .types import (
     ExecutionResult,
     ExecutionPlan,
     ExecutionStep,
-    ValidationResult,
+    TierValidationResult,
     MemoryContext,
     StreamEvent,
     StreamEventType,
@@ -1410,7 +1410,7 @@ class TierExecutor:
         goal: str,
         result: ExecutionResult,
         config: ExecutionConfig
-    ) -> ValidationResult:
+    ) -> TierValidationResult:
         """Validate execution result using ValidatorAgent or fallback."""
         validator = self.validator
 
@@ -1445,7 +1445,7 @@ class TierExecutor:
                         )
                         combined_decision = True
 
-                    return ValidationResult(
+                    return TierValidationResult(
                         success=combined_decision,
                         confidence=confidence,
                         feedback=getattr(first, 'reasoning', ''),
@@ -1470,7 +1470,7 @@ Is this result correct and complete? Provide:
 """
         response = await fallback.validate(validation_prompt)
 
-        return ValidationResult(
+        return TierValidationResult(
             success=response.get('success', True),
             confidence=response.get('confidence', 0.8),
             feedback=response.get('feedback', ''),
@@ -1481,7 +1481,7 @@ Is this result correct and complete? Provide:
         self,
         goal: str,
         result: ExecutionResult,
-        validation: Optional[ValidationResult],
+        validation: Optional[TierValidationResult],
         config: ExecutionConfig
     ):
         """Store result in memory."""

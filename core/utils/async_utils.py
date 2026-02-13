@@ -276,6 +276,12 @@ class AgentEventBroadcaster:
                     cls._instance = AgentEventBroadcaster()
         return cls._instance
 
+    @classmethod
+    def reset_instance(cls):
+        """Reset the singleton instance (for testing)."""
+        with cls._lock:
+            cls._instance = None
+
     def subscribe(self, event_type: str, callback: Callable) -> None:
         """Register a listener for an event type."""
         self._listeners.setdefault(event_type, []).append(callback)

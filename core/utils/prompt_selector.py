@@ -157,6 +157,12 @@ def get_prompt_selector() -> PromptSelector:
     return _selector_instance
 
 
+def reset_prompt_selector():
+    """Reset the singleton prompt selector (for testing)."""
+    global _selector_instance
+    _selector_instance = None
+
+
 def select_prompts_for_task(task: str) -> Tuple[str, str]:
     """
     Convenience function to select prompts for a task.

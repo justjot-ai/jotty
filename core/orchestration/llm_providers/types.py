@@ -16,7 +16,7 @@ class ToolResult:
 
 
 @dataclass
-class ExecutionResult:
+class LLMExecutionResult:
     """Result from unified execution."""
     success: bool
     content: str

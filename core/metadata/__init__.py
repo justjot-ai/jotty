@@ -64,7 +64,7 @@ from .tool_shed import (
     AgenticToolSelector,
     CapabilityIndex,
     ToolResult,
-    ToolSchema,
+    ToolShedSchema,
     ToolShed,
 )
 
@@ -109,6 +109,6 @@ __all__ = [
     'AgenticToolSelector',
     'CapabilityIndex',
     'ToolResult',
-    'ToolSchema',
+    'ToolShedSchema',
     'ToolShed',
 ]

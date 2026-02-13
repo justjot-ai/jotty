@@ -516,6 +516,52 @@ class AutoTerminalSession:
             cls._instance = AutoTerminalSession()
         return cls._instance
 
+    # Known corporate SSL proxy indicators
+    _PROXY_INDICATORS = (
+        '/Library/Application Support/Zscaler',
+        '/opt/zscaler',
+        '/usr/local/zscaler',
+    )
+
+    _PROXY_ENV_KEYWORDS = ('zscaler', 'bluecoat', 'forcepoint', 'mcafee')
+
+    def _detect_corporate_proxy(self) -> bool:
+        """Detect Zscaler/BlueCoat/corporate SSL proxy presence.
+
+        Checks filesystem paths and environment variables for known
+        corporate proxy indicators.
+        """
+        # Check known install paths
+        for path in self._PROXY_INDICATORS:
+            if os.path.exists(path):
+                return True
+
+        # Check proxy-related env vars
+        for var in ('HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'):
+            val = os.environ.get(var, '').lower()
+            if any(kw in val for kw in self._PROXY_ENV_KEYWORDS):
+                return True
+
+        return False
+
+    def _get_env_overrides(self) -> Dict[str, str]:
+        """Return env vars for SSL bypass when corporate proxy is detected.
+
+        These overrides disable SSL certificate verification for tools
+        running inside the terminal session, preventing Zscaler/BlueCoat
+        MITM certificate errors.
+        """
+        if not self._detect_corporate_proxy():
+            return {}
+
+        logger.info("Corporate proxy detected — applying SSL overrides for terminal session")
+        return {
+            'CURL_CA_BUNDLE': '',
+            'PYTHONHTTPSVERIFY': '0',
+            'REQUESTS_CA_BUNDLE': '',
+            'NODE_TLS_REJECT_UNAUTHORIZED': '0',
+        }
+
     def _ensure_session(self) -> Dict[str, Any]:
         """Auto-initialize a pexpect session if not already running."""
         if self._session is not None and self._session.isalive():
@@ -526,8 +572,13 @@ class AutoTerminalSession:
 
         try:
             import time
+            # Merge current env with any proxy/SSL overrides
+            spawn_env = dict(os.environ)
+            spawn_env.update(self._get_env_overrides())
+
             self._session = pexpect.spawn(
-                "/bin/bash", cwd=os.getcwd(), echo=False, encoding='utf-8', timeout=30)
+                "/bin/bash", cwd=os.getcwd(), echo=False, encoding='utf-8',
+                timeout=30, env=spawn_env)
             time.sleep(0.5)
             if not self._session.isalive():
                 return {"status": "error", "error": "Terminal session created but not alive"}

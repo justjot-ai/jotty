@@ -638,6 +638,37 @@ def inspect_browser_state_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     return inspect_result
 
 
+# =============================================================================
+# VISUAL VERIFICATION PROTOCOL
+# =============================================================================
+
+VISUAL_VERIFICATION_PROTOCOL = """
+WHEN TO VISUALLY VERIFY:
+- After state-changing actions (UI changes, file generation, form submissions)
+- Before irreversible or high-stakes actions (deleting data, sending messages)
+- When stuck or encountering unexpected behavior
+- After producing visual output (files, presentations, PDFs, charts)
+- When CSS selectors or element locators fail repeatedly
+
+PRINCIPLE: Observe before acting when uncertain. Verify after acting when the action has visual consequences.
+
+HOW TO VERIFY:
+1. Take a screenshot of the current state
+2. Use visual_inspect_tool or inspect_browser_state_tool to analyze
+3. Compare observed state against expected state
+4. If mismatch: investigate before retrying
+"""
+
+
+def get_visual_verification_guidance() -> str:
+    """Return Visual Verification Protocol guidance for agent system prompts.
+
+    Append this to agent instructions when the agent has access to
+    visual inspection tools (browser-automation, visual-inspector).
+    """
+    return VISUAL_VERIFICATION_PROTOCOL
+
+
 __all__ = [
     'visual_inspect_tool',
     'inspect_file_visually_tool',
@@ -645,4 +676,6 @@ __all__ = [
     'inspect_pdf_pages_tool',
     'inspect_code_for_errors_tool',
     'inspect_browser_state_tool',
+    'get_visual_verification_guidance',
+    'VISUAL_VERIFICATION_PROTOCOL',
 ]

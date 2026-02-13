@@ -307,12 +307,38 @@ def assert_async():
 
 @pytest.fixture(autouse=True)
 def reset_singletons():
-    """Reset singleton instances between tests so state doesn't leak."""
+    """Reset ALL singleton instances between tests so state doesn't leak."""
     yield
+    # Observability
     from Jotty.core.observability.metrics import reset_metrics
     from Jotty.core.observability.tracing import reset_tracer
     reset_metrics()
     reset_tracer()
+    # Cost tracker
+    from Jotty.core.foundation.direct_anthropic_lm import reset_cost_tracker
+    reset_cost_tracker()
+    # Integration
+    from Jotty.core.integration.integration import JottyIntegration
+    JottyIntegration.reset_instance()
+    # Event broadcaster
+    from Jotty.core.utils.async_utils import AgentEventBroadcaster
+    AgentEventBroadcaster.reset_instance()
+    # Prompt selector
+    from Jotty.core.utils.prompt_selector import reset_prompt_selector
+    reset_prompt_selector()
+    # Skill orchestrator
+    from Jotty.core.orchestration.skill_orchestrator import reset_skill_orchestrator
+    reset_skill_orchestrator()
+    # Dict-based caches
+    from Jotty.core.utils.budget_tracker import BudgetTracker
+    from Jotty.core.utils.llm_cache import LLMCallCache
+    from Jotty.core.utils.tokenizer import SmartTokenizer
+    BudgetTracker.reset_instances()
+    LLMCallCache.reset_instances()
+    SmartTokenizer.reset_instances()
+    # Claude provider
+    from Jotty.core.foundation.jotty_claude_provider import JottyClaudeProvider
+    JottyClaudeProvider.reset_instance()
 
 
 @pytest.fixture(autouse=True)

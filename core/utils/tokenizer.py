@@ -97,6 +97,11 @@ class SmartTokenizer:
             cls._instances[encoding] = cls(encoding)
         return cls._instances[encoding]
 
+    @classmethod
+    def reset_instances(cls):
+        """Reset all cached instances (for testing)."""
+        cls._instances.clear()
+
     def count_tokens(self, text: str) -> int:
         """
         Count tokens in text accurately.

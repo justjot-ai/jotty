@@ -46,7 +46,7 @@ _LAZY_IMPORTS: dict[str, str] = {
     "create_autonomous_agent": ".base",
     # Shared types (no circular dependency)
     "TaskType": "._execution_types",
-    "ExecutionResult": "._execution_types",
+    "AgenticExecutionResult": "._execution_types",
     "ExecutionStepSchema": "._execution_types",
     # Chat
     "ChatAssistant": ".chat_assistant",

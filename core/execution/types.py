@@ -149,13 +149,16 @@ class ExecutionPlan:
 
 
 @dataclass
-class ValidationResult:
+class TierValidationResult:
     """Result of output validation."""
     success: bool
     confidence: float  # 0-1
     feedback: str
     reasoning: str
     timestamp: datetime = field(default_factory=datetime.now)
+
+# Backward-compat alias
+ValidationResult = TierValidationResult
 
 
 @dataclass
@@ -190,7 +193,7 @@ class ExecutionResult:
     steps: List[ExecutionStep] = field(default_factory=list)
 
     # Tier 3+ (LEARNING)
-    validation: Optional[ValidationResult] = None
+    validation: Optional[TierValidationResult] = None
     used_memory: bool = False
     memory_context: Optional[MemoryContext] = None
     success_rate: Optional[float] = None  # Historical success rate for similar tasks
@@ -227,3 +230,106 @@ class ExecutionResult:
     def __str__(self) -> str:
         status = "OK" if self.success else "FAIL"
         return f"[{status}] Tier {self.tier.value} | {self.llm_calls} calls | {self.latency_ms:.0f}ms | ${self.cost_usd:.4f}"
+
+
+# =============================================================================
+# ERROR CLASSIFICATION
+# =============================================================================
+
+class ErrorType(Enum):
+    """Classifies the source/nature of an error for recovery decisions.
+
+    Enables proper recovery strategy:
+    - INFRASTRUCTURE → retry with backoff
+    - LOGIC → fix the approach (wrong selector, bad syntax)
+    - DATA → investigate data source (empty results, malformed)
+    - ENVIRONMENT → detect and adapt (proxy, SSL, firewall)
+    """
+    NONE = "none"
+    INFRASTRUCTURE = "infrastructure"
+    LOGIC = "logic"
+    DATA = "data"
+    ENVIRONMENT = "environment"
+
+    @classmethod
+    def classify(cls, error_msg: str) -> "ErrorType":
+        """Auto-classify an error message into an ErrorType.
+
+        Order matters: more specific patterns checked first to avoid
+        ambiguous matches (e.g. 'element not found' is LOGIC, not DATA).
+        """
+        lower = error_msg.lower()
+
+        # ENVIRONMENT: very specific indicators — check first
+        env_keywords = ['ssl', 'certificate', 'proxy', 'firewall', 'zscaler',
+                        'bluecoat', 'tls', 'handshake']
+        if any(kw in lower for kw in env_keywords):
+            return cls.ENVIRONMENT
+
+        # LOGIC: check before DATA since 'element not found' is logic
+        logic_keywords = ['selector', 'element not found', 'syntax', 'type error',
+                          'attribute error', 'missing required', 'invalid argument',
+                          'missing parameter']
+        if any(kw in lower for kw in logic_keywords):
+            return cls.LOGIC
+
+        # INFRASTRUCTURE: network/service issues
+        infra_keywords = ['timeout', 'connection', 'rate limit', 'server error',
+                          '503', '502', '504', '429', 'unavailable', 'network']
+        if any(kw in lower for kw in infra_keywords):
+            return cls.INFRASTRUCTURE
+
+        # DATA: content/result issues
+        data_keywords = ['empty result', 'no results', 'malformed',
+                         'parse error', 'invalid json', 'decode']
+        if any(kw in lower for kw in data_keywords):
+            return cls.DATA
+
+        return cls.INFRASTRUCTURE  # Default: treat as infra (retryable)
+
+
+class ValidationStatus(Enum):
+    """Outcome of a validation or completion check."""
+    PASS = "pass"
+    FAIL = "fail"
+    EXTERNAL_ERROR = "external_error"
+    ENQUIRY = "enquiry"
+
+
+@dataclass
+class ValidationVerdict:
+    """Structured validation result with error classification and recovery hints.
+
+    Used by Inspector completion review and step-level validation to provide
+    actionable information for retry/recovery decisions.
+    """
+    status: ValidationStatus
+    error_type: ErrorType = ErrorType.NONE
+    reason: str = ""
+    issues: List[str] = field(default_factory=list)
+    fixes: List[str] = field(default_factory=list)
+    confidence: float = 0.0
+    retryable: bool = False
+
+    @property
+    def is_pass(self) -> bool:
+        return self.status == ValidationStatus.PASS
+
+    @classmethod
+    def ok(cls, reason: str = "", confidence: float = 1.0) -> "ValidationVerdict":
+        """Convenience constructor for a passing verdict."""
+        return cls(status=ValidationStatus.PASS, reason=reason,
+                   confidence=confidence, error_type=ErrorType.NONE)
+
+    @classmethod
+    def from_error(cls, error_msg: str) -> "ValidationVerdict":
+        """Construct a failing verdict from an error message with auto-classification."""
+        error_type = ErrorType.classify(error_msg)
+        retryable = error_type in (ErrorType.INFRASTRUCTURE, ErrorType.ENVIRONMENT)
+        return cls(
+            status=ValidationStatus.FAIL,
+            error_type=error_type,
+            reason=error_msg,
+            issues=[error_msg],
+            retryable=retryable,
+        )
