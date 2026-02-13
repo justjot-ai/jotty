@@ -1,9 +1,0 @@
-{
-  "expert_name": "Math LaTeX Expert",
-  "domain": "math_latex",
-  "training_cases": [],
-  "overall_success": true,
-  "total_cases": 5,
-  "passed_cases": 0,
-  "pattern_extraction_only": true
-}
