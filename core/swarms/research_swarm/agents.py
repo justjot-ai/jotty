@@ -159,6 +159,73 @@ class WebSearchAgent(BaseResearchAgent):
             logger.error(f"WebSearchAgent error: {e}")
             return {'news_text': '', 'news_count': 0}
 
+    async def search_topic(
+        self,
+        topic: str,
+        sub_queries: Optional[List[str]] = None,
+        max_results: int = 25
+    ) -> Dict[str, Any]:
+        """Search web for a general topic (non-stock). Used by research_topic()."""
+        try:
+            if not self._search_tool:
+                try:
+                    from Jotty.core.registry.skills_registry import get_skills_registry
+                except ImportError:
+                    from ..registry.skills_registry import get_skills_registry
+
+                registry = get_skills_registry()
+                registry.init()
+                web_skill = registry.get_skill('web-search')
+                if web_skill:
+                    self._search_tool = web_skill.tools.get('search_web_tool')
+
+            if not self._search_tool:
+                return {'news_text': '', 'news_count': 0, 'news_items': []}
+
+            queries = [topic]
+            if sub_queries:
+                queries.extend(sub_queries[:8])
+            per_query = max(3, max_results // len(queries))
+
+            all_results = []
+            import inspect
+
+            for query in queries:
+                try:
+                    if inspect.iscoroutinefunction(self._search_tool):
+                        result = await self._search_tool({'query': query, 'max_results': per_query})
+                    else:
+                        result = self._search_tool({'query': query, 'max_results': per_query})
+
+                    if result.get('success') and result.get('results'):
+                        all_results.extend(result['results'])
+                except Exception:
+                    pass
+
+            seen = set()
+            unique = []
+            for r in all_results:
+                url = r.get('url', '')
+                if url and url not in seen:
+                    seen.add(url)
+                    unique.append(r)
+
+            news_text = "\n".join([
+                f"• {r.get('title', '')}: {r.get('snippet', '')[:200]}"
+                for r in unique[:20]
+            ])
+
+            self._broadcast("web_search_complete", {'topic': topic, 'count': len(unique)})
+
+            return {
+                'news_text': news_text,
+                'news_items': unique[:20],
+                'news_count': len(unique)
+            }
+        except Exception as e:
+            logger.error(f"WebSearchAgent.search_topic error: {e}")
+            return {'news_text': '', 'news_count': 0, 'news_items': []}
+
 
 class SentimentAgent(BaseResearchAgent):
     """Analyzes sentiment from news."""

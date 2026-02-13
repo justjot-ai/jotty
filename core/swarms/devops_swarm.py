@@ -60,6 +60,7 @@ from .base_swarm import (
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import DevOpsSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -696,6 +697,7 @@ class DevOpsSwarm(DomainSwarm):
         (MonitoringSpecialist, "MonitoringSpecialist", "_monitoring_specialist"),
         (IaCGenerator, "IaCGenerator", "_iac_generator"),
     )
+    SWARM_SIGNATURE = DevOpsSwarmSignature
 
     def __init__(self, config: DevOpsConfig = None):
         super().__init__(config or DevOpsConfig())
@@ -927,7 +929,13 @@ class DevOpsSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'app_name': app_name, 'cloud': config.cloud_provider.value},
+            output={
+                'iac_code': iac_code,
+                'deployment_steps': deployment_steps,
+                'app_name': app_name,
+                'cloud': config.cloud_provider.value,
+                'estimated_cost': "Varies based on scale and usage",
+            },
             execution_time=executor.elapsed(),
             infrastructure=infrastructure,
             pipeline=pipeline,

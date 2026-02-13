@@ -22,6 +22,7 @@ from ..base_swarm import (
     register_swarm, ExecutionTrace
 )
 from ..base import DomainSwarm, AgentTeam
+from ..swarm_signatures import CodingSwarmSignature
 
 from .types import (
     CodeLanguage, CodeStyle, EditMode, CodingConfig,
@@ -71,6 +72,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         (VerifierAgent, "Verifier", "_verifier"),
         (SimplicityJudgeAgent, "SimplicityJudge", "_simplicity_judge"),
     )
+    SWARM_SIGNATURE = CodingSwarmSignature
 
     def __init__(self, config: CodingConfig = None):
         super().__init__(config or CodingConfig())
@@ -1243,7 +1245,12 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'files': list(files.keys())},
+            output={
+                'code': "\n\n".join(f"# === {fname} ===\n{content}" for fname, content in files.items()),
+                'language': lang.value,
+                'files': files,
+                'architecture': arch_result.get('architecture', '') if isinstance(arch_result, dict) else str(arch_result) if arch_result else '',
+            },
             execution_time=exec_time,
             code=code_output,
             language=lang.value,

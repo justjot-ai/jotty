@@ -60,6 +60,7 @@ from .base_swarm import (
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import DataAnalysisSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -681,6 +682,7 @@ class DataAnalysisSwarm(DomainSwarm):
         (MLRecommenderAgent, "MLRecommender", "_ml_recommender"),
         (VisualizationAgent, "Visualization", "_visualization_agent"),
     )
+    SWARM_SIGNATURE = DataAnalysisSwarmSignature
 
     def __init__(self, config: DataAnalysisConfig = None):
         super().__init__(config or DataAnalysisConfig())
@@ -963,7 +965,13 @@ class DataAnalysisSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'rows': profile.row_count, 'columns': profile.column_count},
+            output={
+                'summary': summary.strip(),
+                'insights': [getattr(i, 'title', str(i)) for i in insights] if isinstance(insights, list) else [],
+                'data_quality_score': quality_score,
+                'row_count': profile.row_count,
+                'column_count': profile.column_count,
+            },
             execution_time=exec_time,
             profile=profile,
             statistics=statistics,

@@ -1,5 +1,6 @@
 """Research Swarm - Types, config, and data classes."""
 
+import os
 import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
@@ -73,6 +74,22 @@ class ResearchResult:
     screener_data: Dict[str, Any] = field(default_factory=dict)
     social_sentiment_score: float = 0.0
     sentiment_drivers: Dict[str, List[str]] = field(default_factory=dict)
+
+
+@dataclass
+class TopicResearchResult:
+    """Result from ResearchSwarm.research_topic() for general-topic research."""
+    success: bool
+    topic: str
+    summary: str = ""
+    md_path: str = ""
+    pdf_path: str = ""
+    pptx_path: str = ""
+    telegram_sent: bool = False
+    news_count: int = 0
+    data_sources: List[str] = field(default_factory=list)
+    error: str = ""
+    execution_time: float = 0.0
 
 
 # =============================================================================

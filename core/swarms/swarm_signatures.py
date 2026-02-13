@@ -144,11 +144,117 @@ class LearnerExtractionSignature(dspy.Signature):
     reusability_score: float = dspy.OutputField(desc="How reusable these learnings are 0.0-1.0")
 
 
+# =============================================================================
+# SWARM I/O CONTRACTS
+# =============================================================================
+# Typed contracts for introspection and pipeline wiring.
+# NOT used for LLM calls — these define what a swarm accepts/produces.
+
+
+class CodingSwarmSignature(dspy.Signature):
+    """Generate production-quality code from requirements."""
+    requirements: str = dspy.InputField(desc="Software requirements")
+    code: str = dspy.OutputField(desc="Combined source code from all files")
+    language: str = dspy.OutputField(desc="Programming language used")
+    files: str = dspy.OutputField(desc="Dict of filename->content")
+    architecture: str = dspy.OutputField(desc="Architecture description")
+
+
+class TestingSwarmSignature(dspy.Signature):
+    """Generate comprehensive test suite for source code."""
+    code: str = dspy.InputField(desc="Source code to test")
+    language: str = dspy.InputField(desc="Programming language")
+    tests: str = dspy.OutputField(desc="Combined test code")
+    test_count: str = dspy.OutputField(desc="Number of test cases")
+    estimated_coverage: str = dspy.OutputField(desc="Coverage percentage")
+    quality_score: str = dspy.OutputField(desc="Test quality score 0-1")
+    gaps: str = dspy.OutputField(desc="Coverage gaps found")
+
+
+class ReviewSwarmSignature(dspy.Signature):
+    """Review code for quality, security, and performance."""
+    code: str = dspy.InputField(desc="Code to review")
+    language: str = dspy.InputField(desc="Programming language")
+    summary: str = dspy.OutputField(desc="Review summary")
+    score: str = dspy.OutputField(desc="Overall score 0-100")
+    approved: str = dspy.OutputField(desc="Whether code is approved")
+    status: str = dspy.OutputField(desc="Review status")
+    findings_count: str = dspy.OutputField(desc="Total findings count")
+
+
+class DataAnalysisSwarmSignature(dspy.Signature):
+    """Analyze data with profiling, statistics, and insights."""
+    data: str = dspy.InputField(desc="Data to analyze")
+    summary: str = dspy.OutputField(desc="Analysis summary")
+    insights: str = dspy.OutputField(desc="Key insights discovered")
+    data_quality_score: str = dspy.OutputField(desc="Data quality score 0-1")
+    row_count: str = dspy.OutputField(desc="Number of rows")
+    column_count: str = dspy.OutputField(desc="Number of columns")
+
+
+class DevOpsSwarmSignature(dspy.Signature):
+    """Generate infrastructure and deployment configuration."""
+    app_name: str = dspy.InputField(desc="Application name")
+    iac_code: str = dspy.OutputField(desc="Infrastructure as code files")
+    deployment_steps: str = dspy.OutputField(desc="Deployment steps")
+    cloud: str = dspy.OutputField(desc="Cloud provider used")
+    estimated_cost: str = dspy.OutputField(desc="Estimated cost")
+
+
+class FundamentalSwarmSignature(dspy.Signature):
+    """Perform fundamental analysis on a stock ticker."""
+    ticker: str = dspy.InputField(desc="Stock ticker symbol")
+    rating: str = dspy.OutputField(desc="Investment rating")
+    target_price: str = dspy.OutputField(desc="Target price")
+    thesis: str = dspy.OutputField(desc="Investment thesis summary")
+    moat_score: str = dspy.OutputField(desc="Economic moat score 0-1")
+    earnings_quality: str = dspy.OutputField(desc="Earnings quality score")
+
+
+class IdeaWriterSwarmSignature(dspy.Signature):
+    """Write long-form content on a topic."""
+    topic: str = dspy.InputField(desc="Topic to write about")
+    content: str = dspy.OutputField(desc="Written content")
+    title: str = dspy.OutputField(desc="Content title")
+    word_count: str = dspy.OutputField(desc="Word count")
+    quality_score: str = dspy.OutputField(desc="Content quality score")
+
+
+class LearningSwarmSignature(dspy.Signature):
+    """Evaluate and optimize a swarm's performance."""
+    swarm_name: str = dspy.InputField(desc="Swarm to evaluate")
+    swarm_evaluated: str = dspy.OutputField(desc="Swarm that was evaluated")
+    optimizations_count: str = dspy.OutputField(desc="Number of optimizations")
+    insights: str = dspy.OutputField(desc="Cross-domain insights")
+    gold_standards_created: str = dspy.OutputField(desc="Gold standards created")
+
+
+class ResearchSwarmSignature(dspy.Signature):
+    """Research a stock with data, sentiment, and LLM analysis."""
+    query: str = dspy.InputField(desc="Stock ticker or research query")
+    rating: str = dspy.OutputField(desc="Investment rating")
+    investment_thesis: str = dspy.OutputField(desc="Investment thesis points")
+    sentiment_label: str = dspy.OutputField(desc="Sentiment: BULLISH/NEUTRAL/BEARISH")
+    current_price: str = dspy.OutputField(desc="Current stock price")
+    target_price: str = dspy.OutputField(desc="Target price")
+
+
 __all__ = [
+    # Learning loop signatures
     'ExpertEvaluationSignature',
     'ReviewerAnalysisSignature',
     'PlannerOptimizationSignature',
     'ActorExecutionSignature',
     'AuditorVerificationSignature',
     'LearnerExtractionSignature',
+    # Swarm I/O contracts
+    'CodingSwarmSignature',
+    'TestingSwarmSignature',
+    'ReviewSwarmSignature',
+    'DataAnalysisSwarmSignature',
+    'DevOpsSwarmSignature',
+    'FundamentalSwarmSignature',
+    'IdeaWriterSwarmSignature',
+    'LearningSwarmSignature',
+    'ResearchSwarmSignature',
 ]

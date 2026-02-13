@@ -17,6 +17,7 @@ from datetime import datetime
 
 from .swarm_types import (
     AgentRole,
+    ExecutionTrace,
     ImprovementSuggestion,
     ImprovementType,
 )
@@ -206,7 +207,7 @@ class SwarmLearningMixin:
             self._learned_context = learned_context
         except Exception as e:
             # Unexpected: log at warning so degradation is visible
-            logger.warning(f"Pre-execution learning failed unexpectedly: {type(e).__name__}: {e}")
+            logger.warning(f"Pre-execution learning failed unexpectedly: {type(e).__name__}: {e}", exc_info=True)
             self._learned_context = learned_context
 
         return learned_context
@@ -596,7 +597,7 @@ class SwarmLearningMixin:
 
         # Execution patterns from collective memory (what works, typical timings)
         if si and si.collective_memory:
-            recent = si.collective_memory[-20:]
+            recent = list(si.collective_memory)[-20:]
             successes = [m for m in recent if m.get('success')]
             if successes:
                 # Build timing expectations per task type
@@ -979,7 +980,7 @@ class SwarmLearningMixin:
         si = self._swarm_intelligence
         if si and si.collective_memory:
             failed_tasks = [
-                m for m in si.collective_memory[-50:]
+                m for m in list(si.collective_memory)[-50:]
                 if not m.get('success', True)
             ]
             for m in failed_tasks[-5:]:

@@ -2,8 +2,11 @@
 
 import asyncio
 import logging
+import os
 import re
 import traceback
+import time
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 import dspy
@@ -11,8 +14,16 @@ import dspy
 from ..base import DomainSwarm, AgentTeam
 from ..base.domain_swarm import PhaseExecutor
 from ..base_swarm import AgentRole
+from ..swarm_signatures import ResearchSwarmSignature
 
-from .types import RatingType, ResearchConfig, ResearchResult
+from .types import RatingType, ResearchConfig, ResearchResult, TopicResearchResult
+from .signatures import (
+    StockAnalysisSignature,
+    SentimentAnalysisSignature,
+    PeerSelectionSignature,
+    SocialSentimentSignature,
+    TechnicalSignalsSignature,
+)
 from .agents import (
     BaseResearchAgent, DataFetcherAgent, WebSearchAgent,
     SentimentAgent, LLMAnalysisAgent, PeerComparisonAgent,
@@ -74,7 +85,7 @@ class ResearchSwarm(DomainSwarm):
         # Auto-configure DSPy LM if needed
         if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
             try:
-                from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+                from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
                 lm = DirectClaudeCLI()  # model resolved from config_defaults
                 dspy.configure(lm=lm)
                 logger.info("🔧 Auto-configured DSPy with DirectClaudeCLI")
@@ -83,8 +94,8 @@ class ResearchSwarm(DomainSwarm):
 
         # Initialize shared resources
         try:
-            from ..agents.dag_agents import SwarmResources
-            from ..foundation.data_structures import JottyConfig
+            from Jotty.core.agents.dag_agents import SwarmResources
+            from Jotty.core.foundation.data_structures import JottyConfig
 
             jotty_config = JottyConfig()
             resources = SwarmResources.get_instance(jotty_config)
@@ -511,6 +522,170 @@ class ResearchSwarm(DomainSwarm):
 
         return result
 
+    async def research_topic(
+        self,
+        topic: str,
+        instruction: str,
+        sub_queries: Optional[List[str]] = None,
+        output_dir: Optional[str] = None,
+        max_web_results: int = 25,
+        send_telegram: Optional[bool] = None,
+    ) -> TopicResearchResult:
+        """
+        Research a general topic (non-stock) using ResearchSwarm's WebSearch + LLM synthesis.
+
+        Uses WebSearchAgent.search_topic(), topic synthesis, then document-converter and
+        telegram-sender skills (same as stock research reports).
+
+        Args:
+            topic: Main topic (e.g. "dog welfare and safety").
+            instruction: What to produce (e.g. "5th grade summary, 3 sections: rabies, diseases, bite first aid").
+            sub_queries: Optional list of search queries (defaults to topic + instruction-derived phrases).
+            output_dir: Where to write the markdown report (default: config.output_dir).
+            max_web_results: Max web results to fetch.
+            send_telegram: If True, send PDF to Telegram via telegram-sender skill (default: from config.send_telegram).
+
+        Returns:
+            TopicResearchResult with summary, md_path, pdf_path, telegram_sent, etc.
+        """
+        start = time.time()
+        out_dir = output_dir or getattr(self.config, 'output_dir', os.path.expanduser('~/jotty/reports'))
+        Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+        # Ensure agents (e.g. _web_searcher) are created
+        if not getattr(self, '_agents_initialized', False):
+            self._init_agents()
+
+        try:
+            # Phase 1: Web search (topic mode)
+            logger.info(f"Topic research: WebSearch for '{topic}'")
+            if sub_queries is None:
+                sub_queries = [
+                    topic,
+                    f"{topic} do's and don'ts",
+                    f"{topic} articles links",
+                ]
+            web_data = await self._web_searcher.search_topic(
+                topic, sub_queries=sub_queries, max_results=max_web_results
+            )
+            web_text = web_data.get('news_text', '') or ''
+            news_count = web_data.get('news_count', 0)
+            news_items = web_data.get('news_items', [])
+            data_sources = [n.get('url', '') for n in news_items if n.get('url')]
+
+            if not web_text.strip():
+                logger.warning("Topic research: no web results")
+                return TopicResearchResult(
+                    success=False,
+                    topic=topic,
+                    error="No web search results",
+                    execution_time=time.time() - start,
+                )
+
+            # Phase 2: LLM synthesis (topic summary)
+            logger.info("Topic research: synthesizing summary")
+            from .signatures import TopicSynthesisSignature
+
+            synthesizer = dspy.Predict(TopicSynthesisSignature)
+            # Truncate for context window
+            web_text_trimmed = web_text[:12000] if len(web_text) > 12000 else web_text
+            result = synthesizer(
+                topic=topic,
+                instruction=instruction,
+                web_text=web_text_trimmed,
+            )
+            summary = (result.summary or "").strip()
+
+            if not summary:
+                return TopicResearchResult(
+                    success=False,
+                    topic=topic,
+                    error="LLM synthesis produced empty summary",
+                    news_count=news_count,
+                    execution_time=time.time() - start,
+                )
+
+            # Phase 3: Write markdown report
+            safe_topic = re.sub(r'[^\w\s-]', '', topic)[:50].strip() or "topic"
+            safe_topic = re.sub(r'[-\s]+', '_', safe_topic)
+            md_path = os.path.join(out_dir, f"research_{safe_topic}.md")
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write(f"# {topic}\n\n")
+                f.write(summary)
+            logger.info(f"Topic research: wrote {md_path}")
+
+            # Phase 4: PDF via document-converter skill (same as stock research)
+            pdf_path = ""
+            registry = None
+            try:
+                from Jotty.core.registry.skills_registry import get_skills_registry
+                registry = get_skills_registry()
+                registry.init()
+                doc_skill = registry.get_skill('document-converter')
+                if doc_skill and doc_skill.tools:
+                    convert_tool = doc_skill.tools.get('convert_to_pdf_tool')
+                    if convert_tool:
+                        pdf_path = os.path.join(out_dir, f"research_{safe_topic}.pdf")
+                        pdf_result = convert_tool({
+                            'input_file': md_path,
+                            'output_file': pdf_path,
+                            'title': topic,
+                            'page_size': 'a4',
+                        })
+                        if pdf_result.get('success') and os.path.exists(pdf_result.get('output_path', '')):
+                            pdf_path = pdf_result.get('output_path', pdf_path)
+                            logger.info(f"Topic research: PDF generated {pdf_path}")
+                        else:
+                            pdf_path = ""
+                            logger.warning(f"Topic research: PDF conversion failed: {pdf_result.get('error', 'unknown')}")
+            except Exception as pdf_err:
+                logger.warning(f"Topic research: PDF generation skipped: {pdf_err}")
+
+            # Phase 5: Send to Telegram via telegram-sender skill (same as stock research)
+            telegram_sent = False
+            send_tg = send_telegram if send_telegram is not None else getattr(self.config, 'send_telegram', True)
+            if send_tg and pdf_path and registry:
+                try:
+                    telegram_skill = registry.get_skill('telegram-sender')
+                    if telegram_skill and telegram_skill.tools:
+                        send_tool = telegram_skill.tools.get('send_telegram_file_tool')
+                        if send_tool:
+                            import inspect
+                            caption = f"📊 {topic} – Research Swarm (5th grade summary)"
+                            params = {'file_path': pdf_path, 'caption': caption}
+                            if inspect.iscoroutinefunction(send_tool):
+                                tg_result = await send_tool(params)
+                            else:
+                                tg_result = send_tool(params)
+                            telegram_sent = tg_result.get('success', False)
+                            if telegram_sent:
+                                logger.info("Topic research: sent to Telegram")
+                            else:
+                                logger.warning(f"Topic research: Telegram send failed: {tg_result.get('error')}")
+                except Exception as tg_err:
+                    logger.warning(f"Topic research: Telegram send skipped: {tg_err}")
+
+            return TopicResearchResult(
+                success=True,
+                topic=topic,
+                summary=summary,
+                md_path=md_path,
+                pdf_path=pdf_path,
+                telegram_sent=telegram_sent,
+                news_count=news_count,
+                data_sources=data_sources[:20],
+                execution_time=time.time() - start,
+            )
+
+        except Exception as e:
+            logger.exception("Topic research failed")
+            return TopicResearchResult(
+                success=False,
+                topic=topic,
+                error=str(e),
+                execution_time=time.time() - start,
+            )
+
     def _extract_ticker(self, query: str) -> str:
         """Extract ticker from query."""
         query_upper = query.upper().strip()
@@ -625,7 +800,8 @@ def research_sync(query: str, **kwargs) -> ResearchResult:
 # AGENT_TEAM ASSIGNMENT (after all agent classes defined)
 # =============================================================================
 
-# Set AGENT_TEAM now that all agent classes are defined
+# Set AGENT_TEAM and SWARM_SIGNATURE now that all agent classes are defined
+ResearchSwarm.SWARM_SIGNATURE = ResearchSwarmSignature
 ResearchSwarm.AGENT_TEAM = AgentTeam.define(
     (DataFetcherAgent, "DataFetcher", "_data_fetcher"),
     (WebSearchAgent, "WebSearch", "_web_searcher"),

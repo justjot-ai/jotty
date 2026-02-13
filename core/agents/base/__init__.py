@@ -69,6 +69,13 @@ from .autonomous_agent import (
     create_autonomous_agent,
 )
 
+# Composite agent for agent/swarm unification
+from .composite_agent import (
+    CompositeAgent,
+    CompositeAgentConfig,
+    UnifiedResult,
+)
+
 
 __all__ = [
     # Base
@@ -99,4 +106,8 @@ __all__ = [
     'AutonomousAgentConfig',
     'ExecutionStep',
     'create_autonomous_agent',
+    # Composite
+    'CompositeAgent',
+    'CompositeAgentConfig',
+    'UnifiedResult',
 ]

@@ -62,6 +62,7 @@ from .base_swarm import (
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import FundamentalSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -819,6 +820,7 @@ class FundamentalSwarm(DomainSwarm):
         (MoatAgent, "Moat", "_moat_agent"),
         (ThesisAgent, "Thesis", "_thesis_agent"),
     )
+    SWARM_SIGNATURE = FundamentalSwarmSignature
 
     def __init__(self, config: FundamentalConfig = None):
         super().__init__(config or FundamentalConfig())
@@ -1031,7 +1033,14 @@ class FundamentalSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'ticker': ticker},
+            output={
+                'ticker': ticker,
+                'rating': thesis.rating.value,
+                'target_price': thesis.target_price,
+                'thesis': thesis.recommendation,
+                'moat_score': moat_result.get('moat_score', 0),
+                'earnings_quality': quality_result.get('quality_score', 0),
+            },
             execution_time=executor.elapsed(),
             ticker=ticker,
             company_name=ticker,

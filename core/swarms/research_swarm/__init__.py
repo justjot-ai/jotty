@@ -1,6 +1,6 @@
 """Research Swarm Package."""
 
-from .types import RatingType, ResearchConfig, ResearchResult
+from .types import RatingType, ResearchConfig, ResearchResult, TopicResearchResult
 from .agents import (
     BaseResearchAgent, DataFetcherAgent, WebSearchAgent,
     SentimentAgent, LLMAnalysisAgent, PeerComparisonAgent,
@@ -11,7 +11,7 @@ from .agents import (
 from .swarm import ResearchSwarm, research, research_sync
 
 __all__ = [
-    'ResearchSwarm', 'ResearchConfig', 'ResearchResult',
+    'ResearchSwarm', 'ResearchConfig', 'ResearchResult', 'TopicResearchResult',
     'RatingType', 'research', 'research_sync',
     'DataFetcherAgent', 'WebSearchAgent', 'SentimentAgent',
     'LLMAnalysisAgent', 'PeerComparisonAgent', 'ChartGeneratorAgent',

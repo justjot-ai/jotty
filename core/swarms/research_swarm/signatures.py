@@ -83,6 +83,20 @@ class TechnicalSignalsSignature(dspy.Signature):
     key_observations: str = dspy.OutputField(desc="Top 3 technical observations, separated by |")
 
 
+class TopicSynthesisSignature(dspy.Signature):
+    """Synthesize web search results into a clear, structured summary.
+
+    You are an expert educator. Turn the provided web research into a single
+    well-structured summary that follows the user's outline. Use simple language
+    suitable for the target grade level. Include key facts, do's and don'ts,
+    and links or sources where relevant. Output only the summary text (no meta)."""
+    topic: str = dspy.InputField(desc="Main topic or title")
+    instruction: str = dspy.InputField(desc="What to cover: outline, sections, grade level, tone")
+    web_text: str = dspy.InputField(desc="Raw text from web search results")
+
+    summary: str = dspy.OutputField(desc="Full synthesized summary in markdown, following the instruction")
+
+
 # =============================================================================
 # RESEARCH SWARM
 # =============================================================================

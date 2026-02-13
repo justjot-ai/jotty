@@ -63,6 +63,7 @@ from .base_swarm import (
     Evaluation, EvaluationResult, SwarmRegistry
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import LearningSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -668,6 +669,7 @@ class LearningSwarm(DomainSwarm):
         (ParameterTuner, "ParameterTuner", "_parameter_tuner"),
         (MetaLearner, "MetaLearner", "_meta_learner"),
     )
+    SWARM_SIGNATURE = LearningSwarmSignature
 
     def __init__(self, config: LearningConfig = None):
         super().__init__(config or LearningConfig())
@@ -893,7 +895,12 @@ class LearningSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'swarm_evaluated': swarm_name},
+            output={
+                'swarm_evaluated': swarm_name,
+                'optimizations_count': len(optimizations),
+                'insights': cross_domain_insights,
+                'gold_standards_created': gold_standards_created,
+            },
             execution_time=executor.elapsed(),
             swarm_evaluated=swarm_name,
             performance=performance,

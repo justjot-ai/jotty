@@ -61,6 +61,7 @@ from .base_swarm import (
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import ReviewSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -654,6 +655,7 @@ class ReviewSwarm(DomainSwarm):
         (StyleChecker, "StyleChecker", "_style_checker"),
         (ReviewSynthesizer, "ReviewSynthesizer", "_synthesizer"),
     )
+    SWARM_SIGNATURE = ReviewSwarmSignature
 
     def __init__(self, config: ReviewConfig = None):
         super().__init__(config or ReviewConfig())
@@ -864,7 +866,14 @@ class ReviewSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'language': lang},
+            output={
+                'summary': synthesis['summary'],
+                'score': synthesis['overall_score'],
+                'approved': synthesis['status'] == ReviewStatus.APPROVED,
+                'status': status_str,
+                'findings_count': len(all_findings),
+                'language': lang,
+            },
             execution_time=executor.elapsed(),
             status=synthesis['status'],
             comments=comments,

@@ -61,6 +61,7 @@ from .base_swarm import (
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import TestingSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -636,6 +637,7 @@ class TestingSwarm(DomainSwarm):
         (CoverageAgent, "Coverage", "_coverage_agent"),
         (QualityAgent, "Quality", "_quality_agent"),
     )
+    SWARM_SIGNATURE = TestingSwarmSignature
 
     def __init__(self, config: TestingConfig = None):
         super().__init__(config or TestingConfig())
@@ -884,7 +886,13 @@ class TestingSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'test_count': len(all_tests)},
+            output={
+                'tests': combined_tests,
+                'test_count': len(all_tests),
+                'estimated_coverage': estimated_coverage,
+                'quality_score': quality_score,
+                'gaps': gaps,
+            },
             execution_time=executor.elapsed(),
             test_suite=test_suite,
             coverage=coverage_report,

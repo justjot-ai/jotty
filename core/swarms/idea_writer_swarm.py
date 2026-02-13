@@ -65,6 +65,7 @@ from .base_swarm import (
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam
+from .swarm_signatures import IdeaWriterSwarmSignature
 from ..agents.base import DomainAgent, DomainAgentConfig
 
 logger = logging.getLogger(__name__)
@@ -900,6 +901,7 @@ class IdeaWriterSwarm(DomainSwarm):
         (ResearchAgent, "Research", "_research_agent"),
         (PolishAgent, "Polish", "_polish_agent"),
     )
+    SWARM_SIGNATURE = IdeaWriterSwarmSignature
 
     def __init__(self, config: WriterConfig = None):
         super().__init__(config or WriterConfig())
@@ -1113,7 +1115,12 @@ class IdeaWriterSwarm(DomainSwarm):
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
-            output={'title': title},
+            output={
+                'content': final_content,
+                'title': title,
+                'word_count': len(final_content.split()),
+                'quality_score': quality_score / 100.0,
+            },
             execution_time=executor.elapsed(),
             content=content_result,
             title=title,

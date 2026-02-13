@@ -224,6 +224,8 @@ class DomainSwarm(BaseSwarm):
 
     # Subclasses override this with their agent team
     AGENT_TEAM: ClassVar[Optional[AgentTeam]] = None
+    # Subclasses set this to a DSPy Signature for typed I/O contracts
+    SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
 
     def __init__(self, config: SwarmConfig):
         """
@@ -325,6 +327,47 @@ class DomainSwarm(BaseSwarm):
             for attr_name, _ in self.AGENT_TEAM
             if hasattr(self, attr_name)
         }
+
+    # =========================================================================
+    # SIGNATURE / I/O SCHEMA
+    # =========================================================================
+
+    def get_io_schema(self):
+        """Get typed I/O schema from SWARM_SIGNATURE.
+
+        Returns AgentIOSchema if SWARM_SIGNATURE is set, else None.
+        Result is cached on first call.
+        """
+        if hasattr(self, '_io_schema') and self._io_schema is not None:
+            return self._io_schema
+        from Jotty.core.agents._execution_types import AgentIOSchema
+        if self.SWARM_SIGNATURE is not None:
+            name = getattr(self.config, 'name', self.__class__.__name__)
+            self._io_schema = AgentIOSchema.from_dspy_signature(
+                name, self.SWARM_SIGNATURE
+            )
+        else:
+            self._io_schema = None
+        return self._io_schema
+
+    def _validate_output_fields(self, result: SwarmResult):
+        """Warn if result.output is missing signature-declared fields."""
+        schema = self.get_io_schema()
+        if schema is None:
+            return
+        expected = {p.name for p in schema.outputs}
+        actual = (
+            set(result.output.keys())
+            if hasattr(result, 'output') and isinstance(result.output, dict)
+            else set()
+        )
+        missing = expected - actual
+        if missing:
+            name = getattr(self.config, 'name', self.__class__.__name__)
+            logger.warning(
+                "%s output missing signature fields: %s (have: %s)",
+                name, missing, actual,
+            )
 
     # =========================================================================
     # TEAM COORDINATION
@@ -554,6 +597,16 @@ class DomainSwarm(BaseSwarm):
             except Exception as e:
                 logger.debug(f"Post-execute learning skipped: {e}")
 
+        # Validate output fields against signature contract
+        if result is not None:
+            self._validate_output_fields(result)
+
+        # Attach collected traces to result (swarms record traces via
+        # _trace_phase but subclasses rarely copy them into SwarmResult)
+        if result is not None and hasattr(result, 'agent_traces') and hasattr(self, '_traces'):
+            if not result.agent_traces and self._traces:
+                result.agent_traces = list(self._traces)
+
         return result
 
     @abstractmethod
@@ -575,6 +628,26 @@ class DomainSwarm(BaseSwarm):
             SwarmResult with domain-specific output
         """
         pass
+
+    # =========================================================================
+    # COMPOSITE AGENT BRIDGE
+    # =========================================================================
+
+    def to_composite(self, signature=None):
+        """Convert this swarm to a CompositeAgent for composition.
+
+        Returns a CompositeAgent that delegates execute() to this swarm,
+        preserving all learning hooks and agent lifecycle.
+        Auto-uses SWARM_SIGNATURE if no explicit signature provided.
+
+        Args:
+            signature: Optional DSPy signature for typed I/O
+
+        Returns:
+            CompositeAgent wrapping this swarm
+        """
+        from Jotty.core.agents.base.composite_agent import CompositeAgent
+        return CompositeAgent.from_swarm(self, signature=signature or self.SWARM_SIGNATURE)
 
     def __repr__(self) -> str:
         agent_count = len(self.AGENT_TEAM) if self.AGENT_TEAM else 0
