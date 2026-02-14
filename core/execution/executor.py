@@ -805,7 +805,7 @@ class TierExecutor:
                 'calculator',          # Mathematical calculations
                 'file-operations',     # File I/O
                 'openai-whisper-api',  # Audio transcription for tasks with .mp3
-                'downloading-youtube', # YouTube transcript download for video tasks
+                'youtube-downloader',  # YouTube transcript download for video tasks (CORRECT NAME!)
             ]
             logger.info(f"Using curated tools for fact-retrieval: {skill_names}")
         else:

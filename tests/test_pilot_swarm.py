@@ -718,3 +718,526 @@ class TestBrowseHandler:
         from Jotty.core.swarms.pilot_swarm.signatures import PlannerSignature
         # Check the docstring includes browse
         assert 'browse' in PlannerSignature.__doc__.lower()
+
+
+# =============================================================================
+# RETRY LOOP TESTS (Phase 4)
+# =============================================================================
+
+class TestRetryLoop:
+    """Test Phase 4 retry loop."""
+
+    @pytest.mark.unit
+    def test_build_replan_context(self):
+        """Replan context includes completed work and remaining gaps."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="Research frameworks",
+                    status=SubtaskStatus.COMPLETED),
+            Subtask(id="s2", type=SubtaskType.CODE, description="Write app code",
+                    status=SubtaskStatus.COMPLETED),
+        ]
+        all_results = {
+            's1': {'synthesis': 'Found FastAPI and Django'},
+            's2': {'explanation': 'Created app.py'},
+        }
+        gaps = ["Add unit tests", "Add documentation"]
+
+        ctx = PilotSwarm._build_replan_context("Build web app with tests", subtasks, all_results, gaps)
+
+        assert "ORIGINAL GOAL: Build web app with tests" in ctx
+        assert "COMPLETED WORK:" in ctx
+        assert "[s1] search (completed)" in ctx
+        assert "[s2] code (completed)" in ctx
+        assert "REMAINING GAPS" in ctx
+        assert "Add unit tests" in ctx
+        assert "Add documentation" in ctx
+        assert "Do NOT repeat completed work" in ctx
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_retry_loop_triggers_on_validation_failure(self):
+        """When validator returns failure, planner is called again."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig(max_retries=1)
+
+        # Track planner calls
+        planner_calls = []
+
+        async def mock_plan(**kwargs):
+            planner_calls.append(kwargs)
+            return {
+                'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
+                'reasoning': 'plan',
+            }
+
+        swarm._planner = MagicMock()
+        swarm._planner.plan = mock_plan
+
+        # Validator: fail first time, succeed second
+        validate_count = [0]
+        async def mock_validate(**kwargs):
+            validate_count[0] += 1
+            if validate_count[0] == 1:
+                return {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['Missing tests']}
+            return {'success': True, 'assessment': 'Done', 'remaining_gaps': []}
+
+        swarm._validator = MagicMock()
+        swarm._validator.validate = mock_validate
+
+        # Mock searcher for analyze subtask
+        async def mock_search(**kwargs):
+            return {'synthesis': 'analyzed', 'key_findings': []}
+        swarm._searcher = MagicMock()
+        swarm._searcher.search = mock_search
+
+        # Mock executor
+        executor = MagicMock()
+        async def mock_run_phase(phase_num, *args, **kwargs):
+            # For phase 1, return initial plan
+            if phase_num == 1:
+                return await mock_plan()
+            # For phase 3 (validation), call validator
+            if phase_num == 3:
+                return await mock_validate()
+            # For phase 4 (replan), call planner
+            if phase_num == 4:
+                return await mock_plan()
+            return {}
+        executor.run_phase = mock_run_phase
+        executor.elapsed = MagicMock(return_value=1.0)
+
+        result = await swarm._execute_phases(executor, "Build app with tests", "", swarm.config)
+
+        assert result.retry_count == 1
+        # Planner called at least twice (initial + replan)
+        assert len(planner_calls) >= 2
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_retry_loop_respects_max_retries(self):
+        """Retry loop exits after max_retries even if validation keeps failing."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig(max_retries=2)
+
+        async def mock_plan(**kwargs):
+            return {
+                'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
+                'reasoning': 'plan',
+            }
+        swarm._planner = MagicMock()
+        swarm._planner.plan = mock_plan
+
+        # Validator always fails
+        async def mock_validate(**kwargs):
+            return {'success': False, 'assessment': 'Still not done', 'remaining_gaps': ['gap']}
+        swarm._validator = MagicMock()
+        swarm._validator.validate = mock_validate
+
+        async def mock_search(**kwargs):
+            return {'synthesis': 'analyzed', 'key_findings': []}
+        swarm._searcher = MagicMock()
+        swarm._searcher.search = mock_search
+
+        executor = MagicMock()
+        async def mock_run_phase(phase_num, *args, **kwargs):
+            if phase_num == 1:
+                return await mock_plan()
+            if phase_num == 3:
+                return await mock_validate()
+            if phase_num == 4:
+                return await mock_plan()
+            return {}
+        executor.run_phase = mock_run_phase
+        executor.elapsed = MagicMock(return_value=2.0)
+
+        result = await swarm._execute_phases(executor, "Impossible goal", "", swarm.config)
+
+        assert result.retry_count == 2
+        assert result.success is False
+
+    @pytest.mark.unit
+    def test_pilot_result_has_retry_count(self):
+        """PilotResult has retry_count field."""
+        result = PilotResult(
+            success=True, swarm_name="PilotSwarm", domain="pilot",
+            output={}, execution_time=1.0, goal="test",
+            retry_count=3,
+        )
+        assert result.retry_count == 3
+
+        # Default is 0
+        result2 = PilotResult(
+            success=True, swarm_name="PilotSwarm", domain="pilot",
+            output={}, execution_time=1.0, goal="test",
+        )
+        assert result2.retry_count == 0
+
+
+# =============================================================================
+# FILE READ/EDIT TESTS
+# =============================================================================
+
+class TestFileReadEdit:
+    """Test file read and edit static methods."""
+
+    @pytest.mark.unit
+    def test_read_file_returns_content(self, tmp_path):
+        """Read existing file returns its content."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        f = tmp_path / "test.txt"
+        f.write_text("hello world")
+        result = PilotSwarm._read_file(str(f))
+        assert result == "hello world"
+
+    @pytest.mark.unit
+    def test_read_file_not_found(self):
+        """Read non-existent file returns error message."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        result = PilotSwarm._read_file("/nonexistent/path/abc.txt")
+        assert "[ERROR]" in result
+        assert "not found" in result.lower()
+
+    @pytest.mark.unit
+    def test_read_file_truncates(self, tmp_path):
+        """Read large file truncates at max_chars."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        f = tmp_path / "big.txt"
+        f.write_text("x" * 10000)
+        result = PilotSwarm._read_file(str(f), max_chars=100)
+        assert len(result) < 200  # truncated content + suffix
+        assert "truncated" in result.lower()
+
+    @pytest.mark.unit
+    def test_edit_file_replaces_content(self, tmp_path):
+        """Edit file replaces old_content with new_content."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        f = tmp_path / "code.py"
+        f.write_text("def foo():\n    return 1\n")
+        success = PilotSwarm._edit_file(str(f), "return 1", "return 42")
+        assert success is True
+        assert "return 42" in f.read_text()
+        assert "return 1" not in f.read_text()
+
+    @pytest.mark.unit
+    def test_edit_file_old_content_not_found(self, tmp_path):
+        """Edit file returns False when old_content doesn't match."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        f = tmp_path / "code.py"
+        f.write_text("def foo():\n    return 1\n")
+        success = PilotSwarm._edit_file(str(f), "NONEXISTENT STRING", "replacement")
+        assert success is False
+        assert f.read_text() == "def foo():\n    return 1\n"  # unchanged
+
+    @pytest.mark.unit
+    def test_edit_file_missing_file(self):
+        """Edit file returns False for non-existent file."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        success = PilotSwarm._edit_file("/nonexistent/file.py", "old", "new")
+        assert success is False
+
+
+# =============================================================================
+# PARALLEL EXECUTION TESTS
+# =============================================================================
+
+class TestParallelExecution:
+    """Test wave computation for parallel execution."""
+
+    @pytest.mark.unit
+    def test_compute_waves_no_deps(self):
+        """Subtasks with no deps all go in wave 0."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
+            Subtask(id="s2", type=SubtaskType.CODE, description="B"),
+            Subtask(id="s3", type=SubtaskType.TERMINAL, description="C"),
+        ]
+        waves = PilotSwarm._compute_waves(subtasks)
+        assert len(waves) == 1
+        assert len(waves[0]) == 3
+
+    @pytest.mark.unit
+    def test_compute_waves_linear_deps(self):
+        """Linear chain: s1 → s2 → s3, one per wave."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
+            Subtask(id="s2", type=SubtaskType.CODE, description="B", depends_on=["s1"]),
+            Subtask(id="s3", type=SubtaskType.TERMINAL, description="C", depends_on=["s2"]),
+        ]
+        waves = PilotSwarm._compute_waves(subtasks)
+        assert len(waves) == 3
+        assert waves[0][0].id == "s1"
+        assert waves[1][0].id == "s2"
+        assert waves[2][0].id == "s3"
+
+    @pytest.mark.unit
+    def test_compute_waves_diamond_deps(self):
+        """Diamond: s1 → s2,s3 → s4."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
+            Subtask(id="s2", type=SubtaskType.CODE, description="B", depends_on=["s1"]),
+            Subtask(id="s3", type=SubtaskType.CODE, description="C", depends_on=["s1"]),
+            Subtask(id="s4", type=SubtaskType.ANALYZE, description="D", depends_on=["s2", "s3"]),
+        ]
+        waves = PilotSwarm._compute_waves(subtasks)
+        assert len(waves) == 3
+        assert waves[0][0].id == "s1"
+        # Wave 1 has s2 and s3 (in some order)
+        wave1_ids = {st.id for st in waves[1]}
+        assert wave1_ids == {"s2", "s3"}
+        assert waves[2][0].id == "s4"
+
+    @pytest.mark.unit
+    def test_compute_waves_circular_deps_handled(self):
+        """Circular deps get dumped into final wave."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="A", depends_on=["s2"]),
+            Subtask(id="s2", type=SubtaskType.CODE, description="B", depends_on=["s1"]),
+        ]
+        waves = PilotSwarm._compute_waves(subtasks)
+        # Should not crash — circular deps dumped into a wave
+        assert len(waves) >= 1
+        all_ids = {st.id for wave in waves for st in wave}
+        assert all_ids == {"s1", "s2"}
+
+    @pytest.mark.unit
+    def test_compute_waves_empty(self):
+        """Empty input returns empty waves."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        waves = PilotSwarm._compute_waves([])
+        assert waves == []
+
+
+# =============================================================================
+# IMPROVED CONTEXT TESTS
+# =============================================================================
+
+class TestImprovedContext:
+    """Test improved context accumulation."""
+
+    @pytest.mark.unit
+    def test_context_includes_read_content(self):
+        """Context includes read_content from file operations."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        swarm = PilotSwarm.__new__(PilotSwarm)
+
+        results = {
+            's1': {
+                'file_operations': [
+                    {'file_path': '/tmp/test.py', 'action': 'read',
+                     'read_content': 'def hello(): return 42'},
+                ],
+                'explanation': 'Read file',
+            },
+        }
+        ctx = swarm._build_context(results)
+        assert 'read_content' in ctx
+        assert 'def hello(): return 42' in ctx
+
+    @pytest.mark.unit
+    def test_context_uses_8_results(self):
+        """Context keeps last 8 results (increased from 5)."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+        swarm = PilotSwarm.__new__(PilotSwarm)
+
+        results = {}
+        for i in range(10):
+            results[f's{i}'] = {'synthesis': f'Result {i}'}
+
+        ctx = swarm._build_context(results)
+        # Should have results s2..s9 (last 8)
+        assert '[s2]' in ctx
+        assert '[s9]' in ctx
+        # s0 and s1 should be dropped
+        assert '[s0]' not in ctx
+        assert '[s1]' not in ctx
+
+
+# =============================================================================
+# SUBTASK RETRY TESTS
+# =============================================================================
+
+class TestSubtaskRetry:
+    """Test subtask-level retry on transient errors."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_retry_on_timeout(self):
+        """Retries on TimeoutError and succeeds on second attempt."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig()
+
+        call_count = [0]
+
+        async def mock_execute_subtask(subtask, context, config):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise TimeoutError("LLM timed out")
+            return {'synthesis': 'success'}
+
+        swarm._execute_subtask = mock_execute_subtask
+
+        subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
+        result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+
+        assert result == {'synthesis': 'success'}
+        assert call_count[0] == 2
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_no_retry_on_value_error(self):
+        """Does NOT retry on ValueError — raises immediately."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig()
+
+        async def mock_execute_subtask(subtask, context, config):
+            raise ValueError("Bad input")
+
+        swarm._execute_subtask = mock_execute_subtask
+
+        subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
+
+        with pytest.raises(ValueError, match="Bad input"):
+            await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_retry_exhausted_raises(self):
+        """After max retries, the transient error is raised."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig()
+
+        call_count = [0]
+
+        async def mock_execute_subtask(subtask, context, config):
+            call_count[0] += 1
+            raise ConnectionError("Connection refused")
+
+        swarm._execute_subtask = mock_execute_subtask
+
+        subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
+
+        with pytest.raises(ConnectionError, match="Connection refused"):
+            await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=1)
+
+        assert call_count[0] == 2  # initial + 1 retry
+
+
+# =============================================================================
+# CODE HANDLER READ/EDIT INTEGRATION
+# =============================================================================
+
+class TestCodeHandlerReadEdit:
+    """Test _execute_code with read/edit actions."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_code_read_action(self, tmp_path):
+        """Read action populates read_content in file operation."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig()
+
+        test_file = tmp_path / "existing.py"
+        test_file.write_text("print('hello')")
+
+        async def mock_code(**kwargs):
+            return {
+                'file_operations': [
+                    {'file_path': str(test_file), 'action': 'read'},
+                ],
+                'explanation': 'Read the file',
+            }
+
+        swarm._coder = MagicMock()
+        swarm._coder.code = mock_code
+
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Read a file")
+        result = await swarm._execute_code(subtask, "", config)
+
+        assert result['file_operations'][0]['read_content'] == "print('hello')"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_code_edit_action(self, tmp_path):
+        """Edit action surgically replaces content."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=True)
+
+        test_file = tmp_path / "code.py"
+        test_file.write_text("def foo():\n    return 1\n")
+
+        async def mock_code(**kwargs):
+            return {
+                'file_operations': [
+                    {'file_path': str(test_file), 'action': 'edit',
+                     'old_content': 'return 1', 'content': 'return 42',
+                     'description': 'Change return value'},
+                ],
+                'explanation': 'Edited code',
+            }
+
+        swarm._coder = MagicMock()
+        swarm._coder.code = mock_code
+
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Edit a file")
+        result = await swarm._execute_code(subtask, "", config)
+
+        assert result['file_operations'][0]['edit_success'] is True
+        assert "return 42" in test_file.read_text()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_code_edit_skipped_when_writes_disabled(self, tmp_path):
+        """Edit action skipped when allow_file_write is False."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+
+        test_file = tmp_path / "code.py"
+        test_file.write_text("original content")
+
+        async def mock_code(**kwargs):
+            return {
+                'file_operations': [
+                    {'file_path': str(test_file), 'action': 'edit',
+                     'old_content': 'original', 'content': 'modified'},
+                ],
+                'explanation': 'Edit',
+            }
+
+        swarm._coder = MagicMock()
+        swarm._coder.code = mock_code
+
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Edit")
+        result = await swarm._execute_code(subtask, "", config)
+
+        # File should be unchanged
+        assert test_file.read_text() == "original content"

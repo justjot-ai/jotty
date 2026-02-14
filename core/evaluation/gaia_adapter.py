@@ -198,7 +198,7 @@ def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
     # YouTube transcript for video questions (CRITICAL for narrated content!)
     if any(kw in q_lower for kw in ['youtube', 'video', 'vr video', '360 video',
                                      'narrated', 'narrator', 'mentioned in the video']):
-        skills.append("downloading-youtube")
+        skills.append("youtube-downloader")
         logger.info("[Skills] Added youtube-downloader for video/narration question")
 
     # Browser automation for interactive content (already in fact_retrieval curated list)

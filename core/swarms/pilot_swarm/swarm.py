@@ -176,66 +176,119 @@ class PilotSwarm(DomainSwarm):
             logger.info(f"  [{st.id}] {st.type.value}: {st.description[:80]}")
 
         # ==============================================================
-        # PHASE 2: Execute subtasks
+        # PHASE 2 + 3 + 4: Execute → Validate → Retry loop
         # ==============================================================
-        completed_ids = set()
+        retry_count = 0
+        success = False
+        assessment = ''
 
-        for st in subtasks:
-            # Check dependencies
-            unmet = [d for d in st.depends_on if d not in completed_ids]
-            if unmet:
-                logger.warning(f"  [{st.id}] Skipping — unmet deps: {unmet}")
-                st.status = SubtaskStatus.SKIPPED
-                continue
+        while True:
+            # ---- Phase 2: Execute subtasks (parallel waves) ----
+            completed_ids = {st.id for st in subtasks if st.status == SubtaskStatus.COMPLETED}
+            pending_subtasks = [st for st in subtasks if st.status == SubtaskStatus.PENDING]
 
-            st.status = SubtaskStatus.RUNNING
-            logger.info(f"  [{st.id}] Executing: {st.type.value} — {st.description[:60]}")
+            waves = self._compute_waves(pending_subtasks)
+            semaphore = asyncio.Semaphore(config.max_concurrent)
 
-            # Build context from previous results
-            prev_context = self._build_context(all_results)
+            for wave in waves:
+                async def _run_in_wave(st: Subtask) -> None:
+                    # Check dependencies
+                    unmet = [d for d in st.depends_on if d not in completed_ids]
+                    if unmet:
+                        logger.warning(f"  [{st.id}] Skipping — unmet deps: {unmet}")
+                        st.status = SubtaskStatus.SKIPPED
+                        return
 
-            try:
-                result = await self._execute_subtask(st, prev_context, config)
-                all_results[st.id] = result
-                st.result = json.dumps(result, default=str)[:2000]
-                st.status = SubtaskStatus.COMPLETED
-                completed_ids.add(st.id)
+                    st.status = SubtaskStatus.RUNNING
+                    logger.info(f"  [{st.id}] Executing: {st.type.value} — {st.description[:60]}")
 
-                # Track artifacts and metadata
-                if st.type == SubtaskType.CODE:
-                    for op in result.get('file_operations', []):
-                        if isinstance(op, dict) and op.get('file_path'):
-                            artifacts.append(op['file_path'])
-                elif st.type == SubtaskType.CREATE_SKILL:
-                    if result.get('skill_name'):
-                        skills_created.append(result['skill_name'])
-                        artifacts.append(f"skills/{result['skill_name']}/")
-                elif st.type == SubtaskType.DELEGATE:
-                    if result.get('swarm_used'):
-                        delegated_to.append(result['swarm_used'])
+                    prev_context = self._build_context(all_results)
 
-                logger.info(f"  [{st.id}] Completed")
+                    async with semaphore:
+                        try:
+                            result = await self._execute_subtask_with_retry(st, prev_context, config)
+                            all_results[st.id] = result
+                            st.result = json.dumps(result, default=str)[:2000]
+                            st.status = SubtaskStatus.COMPLETED
+                            completed_ids.add(st.id)
 
-            except Exception as e:
-                st.status = SubtaskStatus.FAILED
-                st.error = str(e)
-                logger.error(f"  [{st.id}] Failed: {e}")
-                all_results[st.id] = {'error': str(e)}
-                completed_ids.add(st.id)
+                            # Track artifacts and metadata
+                            if st.type == SubtaskType.CODE:
+                                for op in result.get('file_operations', []):
+                                    if isinstance(op, dict) and op.get('file_path'):
+                                        artifacts.append(op['file_path'])
+                            elif st.type == SubtaskType.CREATE_SKILL:
+                                if result.get('skill_name'):
+                                    skills_created.append(result['skill_name'])
+                                    artifacts.append(f"skills/{result['skill_name']}/")
+                            elif st.type == SubtaskType.DELEGATE:
+                                if result.get('swarm_used'):
+                                    delegated_to.append(result['swarm_used'])
 
-        # ==============================================================
-        # PHASE 3: Validation
-        # ==============================================================
-        results_summary = self._build_results_summary(subtasks, all_results)
+                            logger.info(f"  [{st.id}] Completed")
 
-        validation = await executor.run_phase(
-            3, "Goal Validation", "Validator", AgentRole.REVIEWER,
-            self._validator.validate(goal=goal, results_summary=results_summary),
-            tools_used=['validation'],
-        )
+                        except Exception as e:
+                            st.status = SubtaskStatus.FAILED
+                            st.error = str(e)
+                            logger.error(f"  [{st.id}] Failed: {e}")
+                            all_results[st.id] = {'error': str(e)}
+                            completed_ids.add(st.id)
 
-        success = validation.get('success', False) if isinstance(validation, dict) else False
-        assessment = validation.get('assessment', '') if isinstance(validation, dict) else ''
+                tasks = [_run_in_wave(st) for st in wave]
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            # ---- Phase 3: Validation ----
+            results_summary = self._build_results_summary(subtasks, all_results)
+
+            validation = await executor.run_phase(
+                3, "Goal Validation", "Validator", AgentRole.REVIEWER,
+                self._validator.validate(goal=goal, results_summary=results_summary),
+                tools_used=['validation'],
+            )
+
+            success = validation.get('success', False) if isinstance(validation, dict) else False
+            assessment = validation.get('assessment', '') if isinstance(validation, dict) else ''
+            remaining_gaps = validation.get('remaining_gaps', []) if isinstance(validation, dict) else []
+
+            if success or retry_count >= config.max_retries:
+                break
+
+            # ---- Phase 4: Re-plan from gaps ----
+            logger.info(f"  Retry {retry_count + 1}/{config.max_retries}: re-planning for gaps: {remaining_gaps}")
+
+            replan_context = self._build_replan_context(goal, subtasks, all_results, remaining_gaps)
+
+            replan = await executor.run_phase(
+                4, "Re-planning", "Planner", AgentRole.PLANNER,
+                self._planner.plan(
+                    goal=goal,
+                    available_swarms='\n'.join(AVAILABLE_SWARMS),
+                    context=replan_context,
+                ),
+                input_data={'retry': retry_count + 1, 'gaps': remaining_gaps},
+                tools_used=['planning'],
+            )
+
+            new_subtasks_raw = replan.get('subtasks', []) if isinstance(replan, dict) else []
+            for st_raw in new_subtasks_raw:
+                if isinstance(st_raw, dict):
+                    try:
+                        st_type = SubtaskType(st_raw.get('type', 'analyze'))
+                    except ValueError:
+                        st_type = SubtaskType.ANALYZE
+                    new_id = f"r{retry_count + 1}_{st_raw.get('id', f's{len(subtasks) + 1}')}"
+                    # Remap depends_on to prefixed IDs
+                    raw_deps = st_raw.get('depends_on', [])
+                    deps = [f"r{retry_count + 1}_{d}" if d not in completed_ids else d for d in raw_deps]
+                    subtasks.append(Subtask(
+                        id=new_id,
+                        type=st_type,
+                        description=st_raw.get('description', ''),
+                        tool_hint=st_raw.get('tool_hint', ''),
+                        depends_on=deps,
+                    ))
+
+            retry_count += 1
 
         completed_count = sum(1 for st in subtasks if st.status == SubtaskStatus.COMPLETED)
 
@@ -273,6 +326,7 @@ class PilotSwarm(DomainSwarm):
             artifacts=artifacts,
             skills_created=skills_created,
             delegated_to=delegated_to,
+            retry_count=retry_count,
         )
 
     # =========================================================================
@@ -786,12 +840,19 @@ class PilotSwarm(DomainSwarm):
 
                 # Direct keys
                 for key in ['synthesis', 'explanation', 'assessment', 'key_findings',
-                            'content', 'visual_analysis', 'skill_name', 'output', 'title']:
+                            'content', 'visual_analysis', 'skill_name', 'output',
+                            'title', 'read_content']:
                     if key in result and result[key]:
                         val = result[key]
                         if isinstance(val, list):
                             val = '; '.join(str(v) for v in val[:5])
-                        summary_parts.append(f"{key}: {str(val)[:500]}")
+                        summary_parts.append(f"{key}: {str(val)[:800]}")
+
+                # Extract read_content from file_operations
+                for op in result.get('file_operations', []):
+                    if isinstance(op, dict) and op.get('read_content'):
+                        summary_parts.append(f"read_content ({op.get('file_path', '?')}): "
+                                             f"{str(op['read_content'])[:800]}")
 
                 # Terminal command outputs
                 for cmd_out in result.get('command_outputs', []):
@@ -799,14 +860,14 @@ class PilotSwarm(DomainSwarm):
                         cmd = cmd_out.get('command', '')
                         stdout = cmd_out.get('stdout', '')
                         if stdout:
-                            summary_parts.append(f"$ {cmd}\n{stdout[:500]}")
+                            summary_parts.append(f"$ {cmd}\n{stdout[:1000]}")
                         elif cmd_out.get('error'):
                             summary_parts.append(f"$ {cmd} — ERROR: {cmd_out['error'][:200]}")
 
                 if summary_parts:
                     parts.append(f"[{sid}] {'; '.join(summary_parts)}")
 
-        return '\n'.join(parts[-5:]) if parts else "No usable results yet."
+        return '\n'.join(parts[-8:]) if parts else "No usable results yet."
 
     def _build_results_summary(self, subtasks: List[Subtask], all_results: Dict) -> str:
         """Build a summary of all results for validation."""
