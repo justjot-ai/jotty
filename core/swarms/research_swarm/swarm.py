@@ -13,7 +13,7 @@ import dspy
 
 from ..base import DomainSwarm, AgentTeam
 from ..base.domain_swarm import PhaseExecutor
-from ..base_swarm import AgentRole
+from ..base_swarm import AgentRole, register_swarm
 from ..swarm_signatures import ResearchSwarmSignature
 
 from .types import RatingType, ResearchConfig, ResearchResult, TopicResearchResult
@@ -34,6 +34,7 @@ from .agents import (
 
 logger = logging.getLogger(__name__)
 
+@register_swarm("research")
 class ResearchSwarm(DomainSwarm):
     """
     World-Class Research Swarm with parallel agents and LLM analysis.

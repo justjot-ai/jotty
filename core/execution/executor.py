@@ -1216,6 +1216,8 @@ class TierExecutor:
             'Jotty.core.swarms.idea_writer_swarm',
             'Jotty.core.swarms.fundamental_swarm',
             'Jotty.core.swarms.learning_swarm',
+            'Jotty.core.swarms.arxiv_learning_swarm',
+            'Jotty.core.swarms.olympiad_learning_swarm',
         ]
         import importlib
         for mod in swarm_modules:
@@ -1225,40 +1227,34 @@ class TierExecutor:
                 logger.debug(f"Could not import swarm module {mod}: {e}")
         TierExecutor._swarms_registered = True
 
-    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> None:
+    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
         from Jotty.core.swarms.registry import SwarmRegistry
 
+        # Explicit swarm name takes priority
         if swarm_name:
             swarm = SwarmRegistry.create(swarm_name)
             if swarm:
                 return swarm
             logger.warning(f"Swarm '{swarm_name}' not in registry, attempting auto-detect")
 
-        # Auto-detect from goal keywords (word-boundary matching to avoid
-        # false positives like 'pr' matching inside 'appropriate')
-        goal_lower = goal.lower()
-        keyword_map = {
-            'coding': ['code', 'program', 'implement', 'develop', 'function', 'class', 'api'],
-            'research': ['research', 'analyze', 'investigate', 'study', 'report'],
-            'testing': ['test', 'coverage', 'unit test', 'integration test', 'qa'],
-            'review': ['review', 'audit', 'check code', 'pull request'],
-            'data_analysis': ['data', 'dataset', 'statistics', 'visualization', 'csv'],
-            'devops': ['deploy', 'docker', 'ci/cd', 'infrastructure', 'kubernetes'],
-            'idea_writer': ['write', 'article', 'blog', 'essay', 'content'],
-            'fundamental': ['stock', 'valuation', 'financial', 'earnings', 'investment'],
-            'learning': ['learn', 'curriculum', 'teach', 'training'],
-        }
+        # Use TaskClassifier for intelligent selection
+        from .intent_classifier import get_task_classifier
+        classifier = get_task_classifier()
+        classification = classifier.classify_swarm(goal)
 
-        for name, keywords in keyword_map.items():
-            if any(re.search(r'\b' + re.escape(kw) + r'\b', goal_lower) for kw in keywords):
-                swarm = SwarmRegistry.create(name)
-                if swarm:
-                    logger.info(f"Auto-detected swarm: {name}")
-                    return swarm
+        if classification.swarm_name:
+            swarm = SwarmRegistry.create(classification.swarm_name)
+            if swarm:
+                logger.info(
+                    f"TaskClassifier selected: {classification.swarm_name} "
+                    f"(confidence={classification.confidence:.2f}, "
+                    f"reason={classification.reasoning})"
+                )
+                return swarm
 
-        return None
+        return None  # Falls through to Orchestrator auto-swarm
 
     # =========================================================================
     # HELPER METHODS

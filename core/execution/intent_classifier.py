@@ -57,9 +57,15 @@ class IntentClassifier:
     def lm(self):
         """Lazy-load language model."""
         if self._lm is None:
-            # Import here to avoid circular dependency
-            from Jotty.core.foundation.unified_lm_provider import get_lm
-            self._lm = get_lm(model='gpt-4o-mini', temperature=0.0)
+            # Use the already-configured DSPy LM (from benchmark setup)
+            # This avoids interfering with existing DSPy configuration
+            import dspy
+            if dspy.settings.lm is not None:
+                self._lm = dspy.settings.lm
+            else:
+                # Fallback: create new LM if DSPy not configured
+                from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
+                self._lm = UnifiedLMProvider.create_lm('anthropic', model='claude-sonnet-4-5-20250929', temperature=0.0)
         return self._lm
 
     def classify(
@@ -90,7 +96,16 @@ class IntentClassifier:
         # Get LLM classification
         try:
             response = self.lm(prompt)
-            analysis = self._parse_classification(response, task, attachments)
+
+            # Extract text from DSPy response (can be list, dict, or string)
+            if isinstance(response, list):
+                response_text = response[0] if response else ""
+            elif isinstance(response, dict):
+                response_text = response.get('content', '') or response.get('text', '') or str(response)
+            else:
+                response_text = str(response)
+
+            analysis = self._parse_classification(response_text, task, attachments)
 
             # Cache result
             self._cache[cache_key] = analysis
@@ -352,3 +367,240 @@ def classify_task_intent(
     """
     classifier = get_intent_classifier()
     return classifier.classify(task, attachments, context)
+
+
+# =============================================================================
+# TaskClassifier — Smart Swarm Routing
+# =============================================================================
+
+CONFIDENCE_THRESHOLD = 0.4
+
+# Intent → swarm mapping (signal 1)
+_INTENT_SWARM_MAP: Dict[TaskIntent, Optional[str]] = {
+    TaskIntent.CODE_GENERATION: "coding",
+    TaskIntent.DATA_ANALYSIS: "data_analysis",
+    TaskIntent.RESEARCH: "research",
+    TaskIntent.CONTENT_CREATION: "idea_writer",
+    TaskIntent.TASK_EXECUTION: None,
+    TaskIntent.FACT_RETRIEVAL: None,
+    TaskIntent.CONVERSATION: None,
+}
+
+# Domain keyword map (signal 2) — covers all 11 swarms
+_DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+    "coding": [
+        "code", "program", "implement", "develop", "function", "class",
+        "api", "script", "debug", "refactor", "compile", "syntax",
+        "algorithm", "software", "repository", "git", "backend", "frontend",
+    ],
+    "research": [
+        "research", "investigate", "study", "report", "analyze company",
+        "stock analysis", "market research",
+    ],
+    "testing": [
+        "test", "coverage", "unit test", "integration test", "qa",
+        "pytest", "regression", "benchmark", "assert",
+    ],
+    "review": [
+        "review", "audit", "check code", "pull request", "code review",
+        "peer review", "pr review",
+    ],
+    "data_analysis": [
+        "data", "dataset", "statistics", "visualization", "csv",
+        "chart", "graph", "analytics", "dashboard", "pandas", "dataframe",
+        "spreadsheet", "excel", "plot",
+    ],
+    "devops": [
+        "deploy", "docker", "ci/cd", "infrastructure", "kubernetes",
+        "terraform", "ansible", "pipeline", "monitoring", "nginx",
+        "server", "cloud", "aws", "gcp", "azure",
+    ],
+    "idea_writer": [
+        "write article", "blog post", "essay", "content creation",
+        "creative writing", "copywriting", "newsletter", "editorial",
+    ],
+    "fundamental": [
+        "stock", "valuation", "financial", "earnings", "investment",
+        "portfolio", "market cap", "dividend", "pe ratio",
+    ],
+    "learning": [
+        "learn", "curriculum", "teach", "training material",
+        "study guide", "lesson plan", "education",
+    ],
+    "arxiv_learning": [
+        "arxiv", "paper", "academic paper", "research paper",
+        "preprint", "journal", "scientific paper", "literature review",
+    ],
+    "olympiad_learning": [
+        "olympiad", "competition", "competitive", "math olympiad",
+        "science olympiad", "imo", "ioi", "contest",
+    ],
+}
+
+# Skill category → swarm mapping (signal 3)
+_CATEGORY_SWARM_MAP: Dict[str, str] = {
+    "development": "coding",
+    "code": "coding",
+    "programming": "coding",
+    "data": "data_analysis",
+    "analysis": "data_analysis",
+    "research": "research",
+    "content": "idea_writer",
+    "writing": "idea_writer",
+    "infrastructure": "devops",
+    "devops": "devops",
+    "testing": "testing",
+    "qa": "testing",
+}
+
+
+@dataclass
+class TaskClassification:
+    """Result of swarm classification."""
+
+    swarm_name: Optional[str]
+    confidence: float
+    reasoning: str
+    intent: TaskIntent
+
+
+class TaskClassifier:
+    """
+    Smart swarm router combining intent classification, keyword domain
+    matching, and skill category voting to select the best domain swarm.
+    """
+
+    INTENT_WEIGHT = 0.40
+    KEYWORD_WEIGHT = 0.35
+    SKILL_WEIGHT = 0.25
+
+    def __init__(self):
+        self._intent_classifier = get_intent_classifier()
+
+    def classify_swarm(self, goal: str) -> TaskClassification:
+        """
+        Classify which swarm should handle a goal.
+
+        Combines three signals:
+        1. IntentClassifier → swarm mapping (weight=0.4)
+        2. Domain keyword matching (weight=0.35)
+        3. Skill category voting (weight=0.25)
+
+        Returns TaskClassification with swarm_name=None if confidence
+        is below CONFIDENCE_THRESHOLD (fallback to Orchestrator auto-swarm).
+        """
+        # Signal 1: Intent classification
+        intent_analysis = self._intent_classifier.classify(goal)
+        intent_swarm = _INTENT_SWARM_MAP.get(intent_analysis.intent)
+
+        # Signal 2: Domain keyword matching
+        keyword_swarm = self._keyword_match(goal)
+
+        # Signal 3: Skill category voting
+        skill_swarm = self._skill_category_vote(goal)
+
+        # Tally weighted votes
+        votes: Dict[str, float] = {}
+        signals_used = []
+
+        if intent_swarm:
+            votes[intent_swarm] = votes.get(intent_swarm, 0.0) + self.INTENT_WEIGHT
+            signals_used.append(f"intent={intent_analysis.intent.value}")
+
+        if keyword_swarm:
+            votes[keyword_swarm] = votes.get(keyword_swarm, 0.0) + self.KEYWORD_WEIGHT
+            signals_used.append(f"keyword={keyword_swarm}")
+
+        if skill_swarm:
+            votes[skill_swarm] = votes.get(skill_swarm, 0.0) + self.SKILL_WEIGHT
+            signals_used.append(f"skill={skill_swarm}")
+
+        if not votes:
+            return TaskClassification(
+                swarm_name=None,
+                confidence=0.0,
+                reasoning=f"No signal matched (intent={intent_analysis.intent.value})",
+                intent=intent_analysis.intent,
+            )
+
+        # Winner = highest total weight
+        winner = max(votes, key=votes.get)
+        total_weight_cast = sum(votes.values())
+        confidence = votes[winner] / total_weight_cast if total_weight_cast > 0 else 0.0
+
+        reasoning = f"signals=[{', '.join(signals_used)}]"
+
+        if confidence < CONFIDENCE_THRESHOLD:
+            return TaskClassification(
+                swarm_name=None,
+                confidence=confidence,
+                reasoning=f"Below threshold ({confidence:.2f}<{CONFIDENCE_THRESHOLD}): {reasoning}",
+                intent=intent_analysis.intent,
+            )
+
+        return TaskClassification(
+            swarm_name=winner,
+            confidence=confidence,
+            reasoning=reasoning,
+            intent=intent_analysis.intent,
+        )
+
+    def _keyword_match(self, goal: str) -> Optional[str]:
+        """Match goal against domain keywords using word-boundary regex."""
+        goal_lower = goal.lower()
+        best_swarm = None
+        best_count = 0
+
+        for swarm_name, keywords in _DOMAIN_KEYWORDS.items():
+            count = sum(
+                1 for kw in keywords
+                if re.search(r'\b' + re.escape(kw) + r'\b', goal_lower)
+            )
+            if count > best_count:
+                best_count = count
+                best_swarm = swarm_name
+
+        return best_swarm
+
+    def _skill_category_vote(self, goal: str) -> Optional[str]:
+        """Use skill discovery to vote for a swarm based on top-5 skill categories."""
+        try:
+            from Jotty.core.registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+            if not registry.loaded_skills:
+                registry.init()
+
+            discovered = registry.discover(goal, max_results=5)
+            if not discovered:
+                return None
+
+            # Tally category votes (only scored skills)
+            category_counts: Dict[str, int] = {}
+            for skill_dict in discovered:
+                if skill_dict.get('relevance_score', 0) <= 0:
+                    continue
+                cat = (skill_dict.get('category') or '').lower()
+                mapped = _CATEGORY_SWARM_MAP.get(cat)
+                if mapped:
+                    category_counts[mapped] = category_counts.get(mapped, 0) + 1
+
+            if not category_counts:
+                return None
+
+            return max(category_counts, key=category_counts.get)
+
+        except Exception as e:
+            logger.debug(f"Skill category voting failed: {e}")
+            return None
+
+
+# Singleton instance
+_task_classifier_instance: Optional[TaskClassifier] = None
+
+
+def get_task_classifier() -> TaskClassifier:
+    """Get or create singleton TaskClassifier instance."""
+    global _task_classifier_instance
+    if _task_classifier_instance is None:
+        _task_classifier_instance = TaskClassifier()
+    return _task_classifier_instance

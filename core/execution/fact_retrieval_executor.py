@@ -80,8 +80,15 @@ class FactRetrievalExecutor:
     def lm(self):
         """Lazy-load language model."""
         if self._lm is None:
-            from Jotty.core.foundation.unified_lm_provider import get_lm
-            self._lm = get_lm(model='gpt-4o', temperature=0.0)  # Deterministic
+            # Use the already-configured DSPy LM (from benchmark setup)
+            # This avoids interfering with existing DSPy configuration
+            import dspy
+            if dspy.settings.lm is not None:
+                self._lm = dspy.settings.lm
+            else:
+                # Fallback: create new LM if DSPy not configured
+                from Jotty.core.foundation.unified_lm_provider import UnifiedLMProvider
+                self._lm = UnifiedLMProvider.create_lm('anthropic', model='claude-sonnet-4-5-20250929', temperature=0.0)
         return self._lm
 
     async def execute(
@@ -172,7 +179,16 @@ COMPLEXITY: [simple/medium/complex] - Question complexity
 Analysis:"""
 
         response = self.lm(prompt)
-        return self._parse_question_analysis(response, question, attachments)
+
+        # Extract text from DSPy response
+        if isinstance(response, list):
+            response_text = response[0] if response else ""
+        elif isinstance(response, dict):
+            response_text = response.get('content', '') or response.get('text', '') or str(response)
+        else:
+            response_text = str(response)
+
+        return self._parse_question_analysis(response_text, question, attachments)
 
     def _parse_question_analysis(
         self,
@@ -209,13 +225,21 @@ Analysis:"""
 
         tools_str = data.get('TOOLS', '')
         if tools_str and tools_str.lower() != 'none':
-            tools_needed = [t.strip() for t in tools_str.split(',')]
+            # Extract tool names and clean up (remove explanations after '-')
+            tools_needed = []
+            for t in tools_str.split(','):
+                tool_name = t.strip().split('-')[0].strip().split()[0].strip()
+                if tool_name:
+                    tools_needed.append(tool_name)
         else:
             tools_needed = []
 
         # Auto-detect additional tools
         auto_tools = self._auto_detect_tools(question, attachments)
         tools_needed.extend([t for t in auto_tools if t not in tools_needed])
+
+        # Normalize tool names to registry format
+        tools_needed = self._normalize_tool_names(tools_needed)
 
         complexity = data.get('COMPLEXITY', 'medium')
 
@@ -242,18 +266,83 @@ Analysis:"""
         if any(word in q_lower for word in ['what is', 'who is', 'when', 'where', 'find', 'search']):
             tools.append('web-search')
 
-        # Attachments
+        # Attachments (use actual registry skill names)
         if attachments:
             for filename in attachments:
                 ext = filename.split('.')[-1].lower()
-                if ext in ['mp3', 'wav', 'm4a']:
-                    tools.append('whisper')
-                elif ext in ['pdf', 'docx', 'txt']:
-                    tools.append('document-reader')
-                elif ext in ['jpg', 'png', 'jpeg']:
-                    tools.append('vision')
+                if ext in ['mp3', 'wav', 'm4a', 'ogg', 'flac']:
+                    tools.append('openai-whisper-api')
+                elif ext in ['pdf', 'docx', 'txt', 'doc']:
+                    tools.append('document-converter')
+                elif ext in ['jpg', 'png', 'jpeg', 'gif', 'bmp']:
+                    tools.append('image-generator')  # Vision/OCR
+                elif ext in ['csv', 'xlsx', 'json']:
+                    tools.append('file-operations')
 
         return tools
+
+    def _normalize_tool_names(self, tool_names: List[str]) -> List[str]:
+        """Normalize tool names to match registry format."""
+
+        # Map common aliases to actual registry skill names
+        tool_map = {
+            # Web search variations
+            'web_search': 'web-search',
+            'websearch': 'web-search',
+            'search': 'web-search',
+            'google': 'web-search',
+
+            # Audio transcription
+            'voice_to_text': 'openai-whisper-api',
+            'voice_to_text_tool': 'openai-whisper-api',
+            'transcribe': 'openai-whisper-api',
+            'whisper': 'openai-whisper-api',
+            'audio': 'openai-whisper-api',
+
+            # File operations
+            'read_file': 'file-operations',
+            'readfile': 'file-operations',
+            'file': 'file-operations',
+
+            # Document reading
+            'document_reader': 'document-converter',
+            'doc_reader': 'document-converter',
+            'pdf': 'document-converter',
+
+            # Calculator
+            'calculator': 'calculator',
+            'calc': 'calculator',
+            'math': 'calculator',
+
+            # Vision/OCR
+            'vision': 'image-generator',  # Check if there's a vision skill
+            'image': 'image-generator',
+            'ocr': 'image-generator',
+        }
+
+        normalized = []
+        for tool_name in tool_names:
+            tool_lower = tool_name.lower().strip()
+
+            # Try exact match first
+            if tool_lower in tool_map:
+                mapped = tool_map[tool_lower]
+                if mapped not in normalized:  # Avoid duplicates
+                    normalized.append(mapped)
+            # Try with underscores/hyphens removed
+            elif tool_lower.replace('_', '').replace('-', '') in [k.replace('_', '').replace('-', '') for k in tool_map]:
+                # Find matching key
+                for key, value in tool_map.items():
+                    if tool_lower.replace('_', '').replace('-', '') == key.replace('_', '').replace('-', ''):
+                        if value not in normalized:
+                            normalized.append(value)
+                        break
+            else:
+                # Keep original if no mapping found (might already be correct)
+                if tool_name not in normalized:
+                    normalized.append(tool_name)
+
+        return normalized
 
     async def _decompose_question(
         self,
@@ -279,7 +368,16 @@ Tools: [tool1]
 Steps:"""
 
         response = self.lm(prompt)
-        return self._parse_decomposition(response)
+
+        # Extract text from DSPy response
+        if isinstance(response, list):
+            response_text = response[0] if response else ""
+        elif isinstance(response, dict):
+            response_text = response.get('content', '') or response.get('text', '') or str(response)
+        else:
+            response_text = str(response)
+
+        return self._parse_decomposition(response_text)
 
     def _parse_decomposition(self, response: str) -> List[ExecutionStep]:
         """Parse step decomposition from LLM response."""
@@ -393,24 +491,31 @@ Answer:"""
         # This is the CORRECT way - let the LLM decide which tools to use
 
         try:
-            # Get tool definitions from registry
+            # Get tool definitions from registry using get_claude_tools
             tool_defs = []
-            for tool_name in tools:
-                try:
-                    skill = self.registry.get_skill(tool_name)
-                    if skill and hasattr(skill, 'get_tool_definition'):
-                        tool_defs.append(skill.get_tool_definition())
-                except Exception as e:
-                    logger.warning(f"Could not load tool {tool_name}: {e}")
+            logger.info(f"Attempting to load {len(tools)} tools: {tools}")
+
+            try:
+                # Use registry's get_claude_tools method
+                tool_defs = self.registry.get_claude_tools(tools)
+                logger.info(f"Successfully loaded {len(tool_defs)} tool definitions from registry")
+
+                # Log tool names for debugging
+                if tool_defs:
+                    tool_names = [t.get('name', t.get('function', {}).get('name', 'unknown')) for t in tool_defs]
+                    logger.debug(f"Tool definitions: {tool_names}")
+
+            except Exception as e:
+                logger.warning(f"Could not load tools from registry: {e}", exc_info=True)
 
             # Execute with tool-calling enabled
             if tool_defs:
                 logger.info(f"Executing with {len(tool_defs)} tools available")
 
                 # Use tool-calling LLM (e.g., Claude with tools)
-                from Jotty.core.foundation.unified_lm_provider import get_lm
-
-                tool_lm = get_lm(model='claude-3-5-sonnet-20241022', temperature=0.0)
+                # Reuse the already-configured DSPy LM
+                import dspy
+                tool_lm = dspy.settings.lm if dspy.settings.lm else self.lm
 
                 # Let LLM use tools to answer the question
                 response = tool_lm(
@@ -430,13 +535,31 @@ Answer:"""
                 # No tools available, use regular LLM
                 logger.warning("No tools available, falling back to LLM-only")
                 response = self.lm(prompt)
-                return response.strip()
+
+                # Extract text from DSPy response
+                if isinstance(response, list):
+                    response_text = response[0] if response else ""
+                elif isinstance(response, dict):
+                    response_text = response.get('content', '') or response.get('text', '') or str(response)
+                else:
+                    response_text = str(response)
+
+                return response_text.strip()
 
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
             # Fallback to regular LLM
             response = self.lm(prompt)
-            return response.strip()
+
+            # Extract text from DSPy response
+            if isinstance(response, list):
+                response_text = response[0] if response else ""
+            elif isinstance(response, dict):
+                response_text = response.get('content', '') or response.get('text', '') or str(response)
+            else:
+                response_text = str(response)
+
+            return response_text.strip()
 
     async def _extract_answer(
         self,
@@ -468,7 +591,16 @@ Provide ONLY the final answer in the expected format. No explanation, no reasoni
 Final Answer:"""
 
         response = self.lm(prompt)
-        answer = response.strip()
+
+        # Extract text from DSPy response
+        if isinstance(response, list):
+            response_text = response[0] if response else ""
+        elif isinstance(response, dict):
+            response_text = response.get('content', '') or response.get('text', '') or str(response)
+        else:
+            response_text = str(response)
+
+        answer = response_text.strip()
 
         # Validate and fix format
         answer = self._validate_and_fix_format(answer, expected_format)

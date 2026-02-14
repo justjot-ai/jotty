@@ -1221,3 +1221,136 @@ class TestFacadeReturnAnnotations:
                     missing.append(f"{mod.__name__}.{name}")
 
         assert len(missing) == 0, f"Missing return annotations: {missing}"
+
+
+# =============================================================================
+# TaskClassifier — Smart Swarm Routing
+# =============================================================================
+
+@pytest.mark.unit
+class TestTaskClassifier:
+    """Verify TaskClassifier selects the right swarm for various goals."""
+
+    def _get_classifier(self):
+        from Jotty.core.execution.intent_classifier import TaskClassifier
+        return TaskClassifier()
+
+    def test_task_classifier_coding_task(self):
+        """'Write a Python REST API' → coding swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Write a Python REST API")
+        assert result.swarm_name == "coding", f"Expected coding, got {result.swarm_name}"
+
+    def test_task_classifier_research_task(self):
+        """'Research AI trends 2024' → research swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Research AI trends 2024")
+        assert result.swarm_name == "research", f"Expected research, got {result.swarm_name}"
+
+    def test_task_classifier_data_task(self):
+        """'Analyze this CSV dataset' → data_analysis swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Analyze this CSV dataset")
+        assert result.swarm_name == "data_analysis", f"Expected data_analysis, got {result.swarm_name}"
+
+    def test_task_classifier_ambiguous_fallback(self):
+        """'Hello, how are you?' → None (fallback to auto-swarm)."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Hello, how are you?")
+        assert result.swarm_name is None, f"Expected None, got {result.swarm_name}"
+
+    def test_task_classifier_content_task(self):
+        """'Write a blog post about AI' → idea_writer swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Write a blog post about AI trends")
+        assert result.swarm_name == "idea_writer", f"Expected idea_writer, got {result.swarm_name}"
+
+    def test_task_classifier_devops_task(self):
+        """'Deploy with Docker and Kubernetes' → devops swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Deploy with Docker and Kubernetes")
+        assert result.swarm_name == "devops", f"Expected devops, got {result.swarm_name}"
+
+    def test_task_classifier_arxiv_task(self):
+        """'Get the arXiv preprint 2401.12345' → arxiv_learning swarm."""
+        tc = self._get_classifier()
+        result = tc.classify_swarm("Get the arXiv preprint 2401.12345")
+        assert result.swarm_name == "arxiv_learning", f"Expected arxiv_learning, got {result.swarm_name}"
+
+    def test_task_classifier_confidence_range(self):
+        """Confidence is always in [0.0, 1.0]."""
+        tc = self._get_classifier()
+        for goal in ["Write code", "Research AI", "Hello"]:
+            result = tc.classify_swarm(goal)
+            assert 0.0 <= result.confidence <= 1.0, f"confidence={result.confidence} out of range"
+
+
+@pytest.mark.unit
+class TestResearchSwarmRegistration:
+    """Verify ResearchSwarm now registers properly."""
+
+    def test_research_swarm_registered(self):
+        """Importing research_swarm registers 'research' in SwarmRegistry."""
+        import importlib
+        importlib.import_module('Jotty.core.swarms.research_swarm')
+        from Jotty.core.swarms.registry import SwarmRegistry
+        assert 'research' in SwarmRegistry.list_all(), (
+            f"'research' not registered. Available: {SwarmRegistry.list_all()}"
+        )
+
+    def test_ensure_swarms_registered_all_11(self):
+        """After _ensure_swarms_registered(), all 11 swarms are present."""
+        from Jotty.core.execution.executor import TierExecutor
+        from Jotty.core.swarms.registry import SwarmRegistry
+
+        # Reset registration state
+        TierExecutor._swarms_registered = False
+        executor = TierExecutor.__new__(TierExecutor)
+        executor._ensure_swarms_registered()
+
+        registered = set(SwarmRegistry.list_all())
+        expected = {
+            'coding', 'research', 'testing', 'review', 'data_analysis',
+            'devops', 'idea_writer', 'fundamental', 'learning',
+            'arxiv_learning', 'olympiad_learning',
+        }
+        missing = expected - registered
+        assert not missing, f"Missing swarms after registration: {missing}"
+
+
+@pytest.mark.unit
+class TestSelectSwarmIntegration:
+    """Verify _select_swarm() uses TaskClassifier."""
+
+    def test_select_swarm_uses_classifier(self):
+        """_select_swarm() delegates to TaskClassifier and returns a swarm."""
+        from unittest.mock import patch, MagicMock
+        from Jotty.core.execution.intent_classifier import TaskClassification, TaskIntent
+        from Jotty.core.execution.executor import TierExecutor
+
+        mock_classification = TaskClassification(
+            swarm_name="coding",
+            confidence=0.75,
+            reasoning="test",
+            intent=TaskIntent.CODE_GENERATION,
+        )
+
+        executor = TierExecutor.__new__(TierExecutor)
+
+        with patch.object(TierExecutor, '_ensure_swarms_registered'):
+            with patch(
+                'Jotty.core.execution.intent_classifier.get_task_classifier'
+            ) as mock_get_tc:
+                mock_tc = MagicMock()
+                mock_tc.classify_swarm.return_value = mock_classification
+                mock_get_tc.return_value = mock_tc
+
+                with patch('Jotty.core.swarms.registry.SwarmRegistry.create') as mock_create:
+                    mock_swarm = MagicMock()
+                    mock_create.return_value = mock_swarm
+
+                    result = executor._select_swarm("Write Python code")
+
+                    mock_tc.classify_swarm.assert_called_once_with("Write Python code")
+                    mock_create.assert_called_with("coding")
+                    assert result == mock_swarm
