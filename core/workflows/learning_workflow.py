@@ -623,6 +623,130 @@ Perfect for review before test."""),
 
         return await self.pipeline.execute(auto_trace=True, verbose=verbose)
 
+    async def run_with_outputs(
+        self,
+        output_formats: Optional[List[str]] = None,
+        output_dir: Optional[str] = None,
+        verbose: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Execute pipeline and generate multiple output formats.
+
+        Args:
+            output_formats: List of formats (pdf, epub, html, docx, presentation)
+            output_dir: Output directory (default: ~/jotty/outputs)
+            verbose: Print progress
+
+        Returns:
+            Dict with 'pipeline_result' and 'outputs' (dict of OutputSinkResults)
+        """
+        # Execute pipeline
+        pipeline_result = await self.run(verbose=verbose)
+
+        # Use configured output formats if not specified
+        formats = output_formats or self.intent.output_formats or ["pdf", "html"]
+
+        # Generate outputs from content_assembly stage if it exists
+        content_stage = None
+        for stage in pipeline_result.stages:
+            if stage.stage_name == "content_assembly":
+                content_stage = stage
+                break
+
+        if not content_stage:
+            # No content assembly stage, just return pipeline result
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': {},
+                'note': 'No content_assembly stage found - outputs not generated'
+            }
+
+        # Save markdown content to file
+        from pathlib import Path
+        import os
+
+        output_path = Path(output_dir or os.path.expanduser("~/jotty/outputs"))
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Create markdown file
+        safe_topic = "".join(c for c in self.intent.topic if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_topic = safe_topic.replace(' ', '_')[:50]
+        markdown_path = str(output_path / f"learning_{self.intent.student_name}_{safe_topic}.md")
+
+        with open(markdown_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {self.intent.topic}\n\n")
+            f.write(f"**Student:** {self.intent.student_name}\n\n")
+            f.write(f"**Subject:** {self.intent.subject} | **Level:** {self.intent.level} | **Depth:** {self.intent.depth}\n\n")
+            f.write("---\n\n")
+            f.write(content_stage.output)
+
+        if verbose:
+            print(f"\n📄 Saved markdown: {markdown_path}")
+
+        # Check if we should build EPUB with chapters
+        build_epub_chapters = "epub" in formats and len(pipeline_result.stages) > 3
+
+        if build_epub_chapters:
+            # Build chapter list from pipeline stages
+            chapters = []
+            for stage in pipeline_result.stages:
+                if stage.stage_name not in ["pdf_generation", "content_assembly"]:
+                    chapters.append({
+                        'title': stage.stage_name.replace('_', ' ').title(),
+                        'content': stage.output
+                    })
+
+        # Generate outputs using OutputSinkManager
+        try:
+            from .output_sinks import OutputSinkManager
+
+            manager = OutputSinkManager(output_dir=str(output_path))
+
+            # Generate regular outputs
+            outputs = manager.generate_all(
+                markdown_path=markdown_path,
+                formats=[fmt for fmt in formats if fmt not in ["markdown", "epub"]],
+                title=f"{self.intent.topic} - {self.intent.student_name}",
+                author="Jotty Learning Workflow",
+                n_slides=15,  # For presentations
+                tone="educational"
+            )
+
+            # Generate rich EPUB with chapters if requested
+            if build_epub_chapters:
+                epub_result = manager.generate_epub_with_chapters(
+                    chapters=chapters,
+                    title=self.intent.topic,
+                    author=f"For {self.intent.student_name}",
+                    description=f"{self.intent.subject} - {self.intent.level} level",
+                    language="en"
+                )
+                outputs['epub'] = epub_result
+
+            if verbose:
+                summary = manager.get_summary(outputs)
+                print(f"\n📦 Generated {summary['successful']}/{summary['total']} output formats:")
+                for fmt in summary['successful_formats']:
+                    print(f"   ✅ {fmt}: {summary['file_paths'][fmt]}")
+                if summary['failed_formats']:
+                    print(f"\n❌ Failed formats: {', '.join(summary['failed_formats'])}")
+
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': outputs,
+                'markdown_path': markdown_path
+            }
+
+        except Exception as e:
+            if verbose:
+                print(f"\n⚠️  Output generation failed: {e}")
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': {},
+                'markdown_path': markdown_path,
+                'error': str(e)
+            }
+
 
 # Convenience functions
 async def learn(

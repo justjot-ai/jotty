@@ -38,6 +38,11 @@ from .smart_swarm_registry import (
     SwarmConfig,
     get_smart_registry,
 )
+from .output_sinks import (
+    OutputSinkManager,
+    OutputFormat,
+    OutputSinkResult,
+)
 
 __all__ = [
     # AutoWorkflow (software development)
@@ -66,4 +71,9 @@ __all__ = [
     "StageType",
     "SwarmConfig",
     "get_smart_registry",
+
+    # Output Sinks
+    "OutputSinkManager",
+    "OutputFormat",
+    "OutputSinkResult",
 ]

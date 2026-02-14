@@ -639,6 +639,102 @@ Maximum 500 words, extremely clear and actionable."""),
 
         return await self.pipeline.execute(auto_trace=True, verbose=verbose)
 
+    async def run_with_outputs(
+        self,
+        output_formats: Optional[List[str]] = None,
+        output_dir: Optional[str] = None,
+        verbose: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Execute pipeline and generate multiple output formats.
+
+        Args:
+            output_formats: List of formats (pdf, epub, html, docx, presentation)
+            output_dir: Output directory (default: ~/jotty/outputs)
+            verbose: Print progress
+
+        Returns:
+            Dict with 'pipeline_result' and 'outputs' (dict of OutputSinkResults)
+        """
+        # Execute pipeline
+        pipeline_result = await self.run(verbose=verbose)
+
+        # Use configured output formats if not specified
+        formats = output_formats or self.intent.output_formats or ["pdf", "markdown"]
+
+        # Generate outputs from documentation stage if it exists
+        documentation_stage = None
+        for stage in pipeline_result.stages:
+            if stage.stage_name == "documentation":
+                documentation_stage = stage
+                break
+
+        if not documentation_stage:
+            # No documentation stage, just return pipeline result
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': {},
+                'note': 'No documentation stage found - outputs not generated'
+            }
+
+        # Save markdown content to file
+        import tempfile
+        from pathlib import Path
+        import os
+
+        output_path = Path(output_dir or os.path.expanduser("~/jotty/outputs"))
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Create markdown file
+        safe_topic = "".join(c for c in self.intent.topic if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_topic = safe_topic.replace(' ', '_')[:50]
+        markdown_path = str(output_path / f"research_{safe_topic}.md")
+
+        with open(markdown_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {self.intent.topic}\n\n")
+            f.write(documentation_stage.output)
+
+        if verbose:
+            print(f"\n📄 Saved markdown: {markdown_path}")
+
+        # Generate outputs using OutputSinkManager
+        try:
+            from .output_sinks import OutputSinkManager
+
+            manager = OutputSinkManager(output_dir=str(output_path))
+            outputs = manager.generate_all(
+                markdown_path=markdown_path,
+                formats=[fmt for fmt in formats if fmt != "markdown"],
+                title=self.intent.topic,
+                author="Jotty Research Workflow",
+                n_slides=12,  # For presentations
+                tone="professional"
+            )
+
+            if verbose:
+                summary = manager.get_summary(outputs)
+                print(f"\n📦 Generated {summary['successful']}/{summary['total']} output formats:")
+                for fmt in summary['successful_formats']:
+                    print(f"   ✅ {fmt}: {summary['file_paths'][fmt]}")
+                if summary['failed_formats']:
+                    print(f"\n❌ Failed formats: {', '.join(summary['failed_formats'])}")
+
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': outputs,
+                'markdown_path': markdown_path
+            }
+
+        except Exception as e:
+            if verbose:
+                print(f"\n⚠️  Output generation failed: {e}")
+            return {
+                'pipeline_result': pipeline_result,
+                'outputs': {},
+                'markdown_path': markdown_path,
+                'error': str(e)
+            }
+
 
 # Convenience functions
 async def research(
