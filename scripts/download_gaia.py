@@ -68,7 +68,6 @@ def download_gaia(output_dir: str, hf_token: str = None, splits: list = None):
                 GAIA_SUBSET,
                 split=split_name,
                 token=token,
-                trust_remote_code=True,
             )
         except Exception as e:
             print(f"  Failed to load {split_name}: {e}")
