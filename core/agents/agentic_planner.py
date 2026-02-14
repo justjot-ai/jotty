@@ -763,7 +763,9 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         Format skills with tool schemas for the planner LLM.
 
         Extracted from plan_execution() so both sync and async versions
-        share the same formatting logic.
+        share the same formatting logic.  Includes ``executor_type``
+        (api / gui / hybrid / general) so the planner can prefer fast
+        API shortcuts over slow GUI interactions.
         """
         formatted_skills = []
         for s in skills:
@@ -773,6 +775,10 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 'description': s.get('description', ''),
                 'tools': []
             }
+
+            # Propagate executor_type from skill metadata for hybrid routing
+            if s.get('executor_type'):
+                skill_dict['executor_type'] = s['executor_type']
 
             tools_raw = s.get('tools', [])
             if isinstance(tools_raw, dict):
@@ -797,6 +803,11 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                                 skill_dict['tools'].append(tool_schema)
                             else:
                                 skill_dict['tools'].append({'name': tool_name})
+                        # Extract executor_type from loaded skill if not in metadata
+                        if 'executor_type' not in skill_dict:
+                            etype = getattr(skill_obj, 'executor_type', '')
+                            if etype:
+                                skill_dict['executor_type'] = etype
                     else:
                         skill_dict['tools'] = [{'name': name} for name in tool_names]
                 else:

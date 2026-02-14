@@ -151,6 +151,15 @@ class MemoryTaskQueue(TaskQueue):
             tasks.sort(key=lambda t: t.started_at or datetime.min)
             return tasks
     
+
+    async def get_by_filename(self, filename: str) -> Optional[Task]:
+        """Get task by filename (legacy support for supervisor)"""
+        async with self._lock:
+            for task in self.tasks.values():
+                if task.filename == filename:
+                    return task
+            return None
+
     async def update_task_priority(self, task_id: str, priority: int) -> bool:
         """Update task priority"""
         if priority < 1 or priority > 5:

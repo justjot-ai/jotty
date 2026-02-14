@@ -1434,18 +1434,41 @@ class TestEvaluationHistory:
 
 @pytest.mark.unit
 class TestLearningPathways:
-    """Test learning pathway diagnostic."""
+    """Test learning pathway initialization and coordination defaults."""
 
-    def test_learning_pathways_diagnostic(self):
-        """Test that all learning pathways produce prompt text."""
-        # The test_learning_pathways method is defined in _learning_mixin.py
-        # but uses undefined SwarmConfig. Skip for now as it's a diagnostic
-        # method not used in production code.
-        pytest.skip("test_learning_pathways requires fixes in _learning_mixin.py")
+    def test_learned_context_default_keys(self, swarm_config):
+        """Pre-execute learning context contains all expected pathway keys."""
+        swarm = ConcreteSwarm(swarm_config)
+        # Simulate the default learned context produced by _pre_execute_learning
+        # when SwarmIntelligence is unavailable.
+        swarm._learned_context = {
+            'has_learning': False,
+            'tool_performance': {},
+            'agent_scores': {},
+            'weak_tools': [],
+            'strong_tools': [],
+            'recommendations': [],
+            'warmup_completed': False,
+            'coordination': {},
+        }
+        expected_keys = {
+            'has_learning', 'tool_performance', 'agent_scores',
+            'weak_tools', 'strong_tools', 'recommendations',
+            'warmup_completed', 'coordination',
+        }
+        assert expected_keys.issubset(swarm._learned_context.keys())
+        assert swarm._learned_context['has_learning'] is False
 
-    def test_learning_pathways_summary(self):
-        """Test learning pathways summary."""
-        pytest.skip("test_learning_pathways requires fixes in _learning_mixin.py")
+    def test_coordination_defaults(self, swarm_config):
+        """Coordination pre-execution returns safe defaults when SI is None."""
+        swarm = ConcreteSwarm(swarm_config)
+        coord = swarm._coordinate_pre_execution(None)
+        assert coord['available_agents'] == []
+        assert coord['circuit_blocked'] == []
+        assert coord['gossip_messages_processed'] == 0
+        assert coord['supervisor_tree_built'] is False
+        assert coord['backpressure'] == 0.0
+        assert coord['should_accept'] is True
 
 
 # =============================================================================

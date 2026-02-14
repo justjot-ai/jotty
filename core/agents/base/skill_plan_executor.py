@@ -552,6 +552,18 @@ class SkillPlanExecutor:
         if self._skills_registry is None:
             return {'success': False, 'error': 'Skills registry not available'}
 
+        # Prefer claude-api-llm over claude-cli-llm when API key is available
+        if step.skill_name == 'claude-cli-llm':
+            try:
+                from Jotty.core.foundation.direct_anthropic_lm import is_api_key_available
+                if is_api_key_available():
+                    api_skill = self._skills_registry.get_skill('claude-api-llm')
+                    if api_skill:
+                        step.skill_name = 'claude-api-llm'
+                        logger.info("Upgraded claude-cli-llm -> claude-api-llm (API key available)")
+            except Exception:
+                pass  # Fallback to claude-cli-llm silently
+
         _status("Loading", f"skill: {step.skill_name}")
         skill = self._skills_registry.get_skill(step.skill_name)
         if not skill:

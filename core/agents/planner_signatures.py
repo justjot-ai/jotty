@@ -140,8 +140,10 @@ if DSPY_AVAILABLE:
 
         CODE GENERATION / CREATION TASK PATTERN (when task says "generate", "build", "create", "write" a script/tool/app):
         NEVER pass the task description or LLM output as the shell-exec command. Instead:
-        1. Generate: Use claude-cli-llm to generate the actual code/script content
-        2. Save: Use file-operations/write_file_tool with params {"path": "<descriptive_name>.py", "content": "${generated_code}"}
+        1. Generate: Use claude-cli-llm/generate_code_tool to generate the actual code/script content.
+           BEST PRACTICE: generate_code_tool returns clean code in its 'code' field — no fences, no preamble.
+           Wire ${output_key.code} directly to write_file_tool's 'content' param for zero extraction issues.
+        2. Save: Use file-operations/write_file_tool with params {"path": "<descriptive_name>.py", "content": "${generated_code.code}"}
            File name MUST be descriptive (e.g., "weather_fetcher.py", "github_scraper.py" — NOT "script.py")
         3. Execute: Use shell-exec/execute_command_tool with LITERAL command string:
            params: {"command": "python <descriptive_name>.py"} — NEVER use ${template} for the command!
@@ -197,10 +199,22 @@ if DSPY_AVAILABLE:
         Only use bare ${output_key} (no field) when the entire output dict is needed as content.
         NEVER use placeholder names like "CONTENT_FROM_STEP_1" — always use ${output_key} or ${output_key.field}.
 
+        HYBRID ACTION ROUTING (when both GUI and API skills are available):
+        Skills may have an "executor_type" field: "api", "gui", "hybrid", or "general".
+        - "api" skills (http-client, pmi-*, messaging) execute programmatically — fast, reliable
+        - "gui" skills (browser-automation, android-automation) interact via UI — slow, fragile
+        - ALWAYS prefer API/shortcut skills over GUI skills when both can achieve the subtask
+        - Example: "Add item to cart" — use cart API (1 step) NOT tap through UI (5+ steps)
+        - Example: "Search for product" — use deep-link/search API NOT type in search bar
+        - ONLY use GUI skills when no API alternative exists for that specific action
+        - When mixing GUI and API: do API steps first (data fetching), GUI only for steps
+          that genuinely require screen interaction (visual verification, manual navigation)
+
         PHASE 4 - VERIFY (Self-Refine):
         Before outputting, self-check: Are all dependencies satisfied? Any missing steps?
         Are params populated (not empty)? Does every skill_name exist in available_skills?
         Do all inter-step references use ${output_key} syntax?
+        If both GUI and API skills are used, verify that API is preferred where possible.
 
         PARAMETER EXTRACTION (CRITICAL - you will be penalized for empty params):
         - "Delhi weather" -> params: {"location": "Delhi"}

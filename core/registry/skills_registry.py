@@ -1522,6 +1522,8 @@ class SkillsRegistry:
                 "skill_type": skill.skill_type.value,
                 "base_skills": skill.base_skills,
             }
+            if skill.executor_type:
+                skill_dict["executor_type"] = skill.executor_type
             if skill.skill_type == SkillType.COMPOSITE:
                 skill_dict["execution_mode"] = skill.execution_mode
             if skill.use_when:
@@ -1723,6 +1725,8 @@ class SkillsRegistry:
                     "_match_score": score,
                     "_matched_capabilities": list(matching_caps),
                 }
+                if skill.executor_type:
+                    skill_dict["executor_type"] = skill.executor_type
                 if skill.skill_type == SkillType.COMPOSITE:
                     skill_dict["execution_mode"] = skill.execution_mode
                 if skill.use_when:
