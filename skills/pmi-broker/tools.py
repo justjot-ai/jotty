@@ -44,7 +44,9 @@ async def list_brokers_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         params: Dictionary (no required params)
 
     Returns:
-        Dictionary with brokers list and count
+        Dictionary with:
+            - brokers (list): Broker objects with name, connected, token_valid
+            - count (int): Number of connected brokers
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -72,7 +74,12 @@ async def get_broker_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - broker (str, required): Broker name (e.g. "zerodha", "angel")
 
     Returns:
-        Dictionary with broker status, token_valid, last_login
+        Dictionary with:
+            - broker (str): Broker name
+            - connected (bool): Whether broker is connected
+            - token_valid (bool): Whether auth token is valid
+            - last_login (str): Last login timestamp
+            - expires_at (str): Token expiry timestamp
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -107,7 +114,11 @@ async def refresh_tokens_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - broker (str, required): Broker name to refresh
 
     Returns:
-        Dictionary with broker, refreshed status, new expiry
+        Dictionary with:
+            - broker (str): Broker name
+            - refreshed (bool): Whether refresh succeeded
+            - expires_at (str): New token expiry timestamp
+            - token_valid (bool): Whether new token is valid
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

@@ -294,10 +294,12 @@ class ToolSchema:
         name: str,
         description: str = "",
         params: Optional[List[ToolParam]] = None,
+        outputs: Optional[List[ToolParam]] = None,
     ):
         self.name = name
         self.description = description
         self.params: List[ToolParam] = params or []
+        self.outputs: List[ToolParam] = outputs or []
 
     # -- construction ---------------------------------------------------------
 
@@ -347,6 +349,16 @@ class ToolSchema:
                     aliases=cls._ALIASES.get(pname, []),
                 ))
 
+        # Source 3: parse docstring Returns section for output fields
+        doc_outputs = cls._parse_docstring_returns(doc)
+        for oname, info in doc_outputs.items():
+            schema.outputs.append(ToolParam(
+                name=oname,
+                type_hint=info.get('type', 'str'),
+                required=False,
+                description=info.get('description', ''),
+            ))
+
         return schema
 
     @classmethod
@@ -367,6 +379,18 @@ class ToolSchema:
                 description=pdef.get('description', ''),
                 aliases=cls._ALIASES.get(pname, []),
             ))
+
+        # Parse returns if provided
+        returns_list = metadata_dict.get('returns', [])
+        for rdef in returns_list:
+            if isinstance(rdef, dict):
+                schema.outputs.append(ToolParam(
+                    name=rdef.get('name', ''),
+                    type_hint=rdef.get('type', 'str'),
+                    required=False,
+                    description=rdef.get('description', ''),
+                ))
+
         return schema
 
     # Reserved params injected by the executor, hidden from LLM prompts
@@ -547,7 +571,7 @@ class ToolSchema:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for LLM planner prompts (excludes reserved params)."""
-        return {
+        result = {
             'name': self.name,
             'description': self.description,
             'parameters': [
@@ -560,10 +584,26 @@ class ToolSchema:
                 for p in self.get_llm_visible_params()
             ],
         }
+        if self.outputs:
+            result['returns'] = [
+                {
+                    'name': o.name,
+                    'type': o.type_hint,
+                    'description': o.description,
+                }
+                for o in self.outputs
+            ]
+        return result
+
+    @property
+    def output_field_names(self) -> List[str]:
+        """Return names of all declared output fields."""
+        return [o.name for o in self.outputs]
 
     def __repr__(self) -> str:
         req = ", ".join(self.required_param_names)
-        return f"ToolSchema({self.name}, required=[{req}])"
+        outs = ", ".join(self.output_field_names)
+        return f"ToolSchema({self.name}, required=[{req}], outputs=[{outs}])"
 
     # -- internal helpers -----------------------------------------------------
 
@@ -630,6 +670,72 @@ class ToolSchema:
                         params[pname] = {'type': ptype, 'required': required, 'description': desc}
 
         return params
+
+    @staticmethod
+    def _parse_docstring_returns(docstring: str) -> Dict[str, Dict[str, Any]]:
+        """Parse output field info from a Google-style docstring Returns section.
+
+        Supports two formats:
+        1. ``Returns: Dictionary with field_a, field_b, field_c``
+        2. Structured list under ``Returns:``:
+           ``- field_name (type): Description``
+
+        Returns ``{field_name: {'type': ..., 'description': ...}}``.
+        """
+        outputs: Dict[str, Dict[str, Any]] = {}
+        if not docstring:
+            return outputs
+
+        lines = docstring.split('\n')
+        in_returns = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            if stripped.startswith('Returns:'):
+                in_returns = True
+                # Check inline: "Returns: Dictionary with field_a, field_b"
+                inline = stripped[len('Returns:'):].strip()
+                if inline:
+                    # Extract field names from "Dictionary with X, Y, Z" pattern
+                    m = re.match(r'(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)', inline, re.I)
+                    if m:
+                        fields_text = m.group(1)
+                        for field_name in re.findall(r'([a-z_][a-z0-9_]*)', fields_text):
+                            if field_name not in ('and', 'or', 'the', 'list', 'dict', 'with'):
+                                outputs[field_name] = {'type': 'str', 'description': ''}
+                continue
+
+            if in_returns and stripped and stripped.startswith(('Args:', 'Raises:', 'Example', 'Note')):
+                break
+
+            if not in_returns:
+                continue
+
+            # "Dictionary with X, Y, Z" on a continuation line
+            m_dict = re.match(r'(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)', stripped, re.I)
+            if m_dict:
+                fields_text = m_dict.group(1)
+                for field_name in re.findall(r'([a-z_][a-z0-9_]*)', fields_text):
+                    if field_name not in ('and', 'or', 'the', 'list', 'dict', 'with'):
+                        outputs[field_name] = {'type': 'str', 'description': ''}
+                continue
+
+            # Dash-prefixed structured: "- field_name (type): Description"
+            if stripped.startswith('-'):
+                parts = stripped[1:].strip().split(':', 1)
+                if len(parts) == 2:
+                    field_def = parts[0].strip()
+                    desc = parts[1].strip()
+                    fname = field_def.split('(')[0].strip()
+                    if fname and len(fname) < 30:
+                        ftype = 'str'
+                        if '(' in field_def:
+                            type_info = field_def.split('(')[1].split(')')[0]
+                            ftype = type_info.split(',')[0].strip()
+                        outputs[fname] = {'type': ftype, 'description': desc}
+
+        return outputs
 
 
 # =============================================================================

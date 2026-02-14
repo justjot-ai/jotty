@@ -171,22 +171,31 @@ if DSPY_AVAILABLE:
         - output_key: A DESCRIPTIVE key for this step's output (e.g., "hn_scraper", "search_results", "generated_code" — NOT "step_0")
         - depends_on: List of step INDICES (0-based integers) this step needs
 
+        TOOL OUTPUT SCHEMAS (READ the "returns" field):
+        Each tool in available_skills may have a "returns" array listing the output fields it produces.
+        Example: get_portfolio_tool returns: [{"name": "holdings", "type": "list"}, {"name": "total_pnl", "type": "float"}]
+        Use these field names when referencing step outputs in later steps.
+        Example: Step 0 uses get_portfolio_tool -> Step 1 references "${step_0.holdings}" or "${step_0.total_pnl}"
+        This ensures correct data wiring between steps.
+
         STEP I/O CONTRACTS (CRITICAL for correct wiring):
         Each step MUST declare:
         - inputs_needed: Dict mapping each param to its data source.
           Use "step_key.field" for dependency data, "literal:value" for constants.
-          Example: {"content": "step_0.generated_code", "path": "literal:/tmp/stats.py"}
-        - outputs_produced: List of keys this step's output will contain.
-          Example: ["generated_code", "file_path"]
+          Example: {"content": "step_0.holdings", "path": "literal:/tmp/portfolio.pdf"}
+        - outputs_produced: List of keys this step's output will contain (copy from the tool's "returns" names).
+          Example: ["holdings", "total_value", "total_pnl"]
         The execution engine uses these for SCOPED resolution — only declared sources are checked.
 
         REFERENCING PREVIOUS STEP OUTPUTS (CRITICAL):
-        When a step needs output from a previous step, use ${output_key} syntax in params.
-        Examples:
-        - Step 0 has output_key "step_0" -> Step 1 references it as "${step_0}"
-        - Step 0 has output_key "search_results" -> Step 1 references it as "${search_results}"
-        - To access a specific field: "${step_0.results}" or "${search_results.content}"
-        NEVER use placeholder names like "CONTENT_FROM_STEP_1" — always use ${output_key}.
+        When a step needs output from a previous step, use ${output_key.field} syntax in params.
+        ALWAYS use field-level references when the tool has a "returns" schema:
+        - Step 0 has output_key "portfolio" and returns ["holdings", "total_pnl"]
+          -> Step 1 references "${portfolio.holdings}" or "${portfolio.total_pnl}"
+        - Step 0 has output_key "search_results" and returns ["results", "count"]
+          -> Step 1 references "${search_results.results}"
+        Only use bare ${output_key} (no field) when the entire output dict is needed as content.
+        NEVER use placeholder names like "CONTENT_FROM_STEP_1" — always use ${output_key} or ${output_key.field}.
 
         PHASE 4 - VERIFY (Self-Refine):
         Before outputting, self-check: Are all dependencies satisfied? Any missing steps?

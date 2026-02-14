@@ -4,7 +4,7 @@ Portfolio management via PlanMyInvesting API.
 
 ## Description
 
-View portfolio holdings, P&L summary, available cash, and account limits across all connected brokers.
+View portfolio holdings and P&L summary across all connected brokers.
 
 ## Type
 derived
@@ -17,7 +17,7 @@ derived
 - data-fetch
 
 ## Use When
-User wants to check portfolio holdings, P&L, available cash, or account limits
+User wants to check portfolio holdings or P&L summary
 
 ## Tools
 
@@ -40,20 +40,3 @@ Get P&L summary across all portfolios.
 **Returns:**
 - `realized_pnl`, `unrealized_pnl`, `total_pnl`, `day_pnl`
 
-### get_available_cash_tool
-Get available cash balance across brokers.
-
-**Parameters:**
-- `broker` (str, optional): Filter by broker
-
-**Returns:**
-- `cash`, `total`
-
-### get_account_limits_tool
-Get account limits (margin, exposure, collateral).
-
-**Parameters:**
-- `broker` (str, optional): Filter by broker
-
-**Returns:**
-- `margin_available`, `margin_used`, `collateral`, `exposure`

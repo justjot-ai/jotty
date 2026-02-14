@@ -49,7 +49,13 @@ async def get_quote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - symbol (str, required): Stock symbol (e.g. "RELIANCE", "NIFTY 50")
 
     Returns:
-        Dictionary with symbol, ltp, change, change_percent, volume
+        Dictionary with:
+            - symbol (str): Stock symbol
+            - ltp (float): Last traded price
+            - change (float): Absolute price change
+            - change_percent (float): Percentage price change
+            - volume (int): Trading volume
+            - timestamp (str): Quote timestamp
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -81,10 +87,12 @@ async def get_quotes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     Args:
         params: Dictionary containing:
-            - symbols (list[str], required): List of stock symbols
+            - symbols (list, required): List of stock symbols
 
     Returns:
-        Dictionary with quotes list and count
+        Dictionary with:
+            - quotes (list): List of quote objects with ltp, change, volume per symbol
+            - count (int): Number of quotes returned
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -120,7 +128,9 @@ async def search_symbols_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - limit (int, optional): Max results (default 10)
 
     Returns:
-        Dictionary with matching symbols list
+        Dictionary with:
+            - symbols (list): Matching symbol objects with name, exchange, symbol
+            - query (str): Original search query
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -155,7 +165,8 @@ async def get_indices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - exchange (str, optional): Filter by exchange (NSE, BSE)
 
     Returns:
-        Dictionary with indices list
+        Dictionary with:
+            - indices (list): List of index objects with name, value, change, change_percent
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -188,7 +199,11 @@ async def get_chart_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - days (int, optional): Number of days of history (default 30)
 
     Returns:
-        Dictionary with candles (OHLCV) list
+        Dictionary with:
+            - symbol (str): Stock symbol
+            - interval (str): Candle interval used
+            - candles (list): OHLCV candle data with open, high, low, close, volume
+            - count (int): Number of candles returned
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -227,7 +242,12 @@ async def get_market_breadth_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - exchange (str, optional): Exchange filter (NSE, BSE)
 
     Returns:
-        Dictionary with advances, declines, unchanged counts
+        Dictionary with:
+            - indices (list): Index-wise breadth data
+            - category (str): Market category
+            - advances (int): Number of advancing stocks
+            - declines (int): Number of declining stocks
+            - unchanged (int): Number of unchanged stocks
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -263,7 +283,9 @@ async def get_sector_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - period (str, optional): Analysis period (1d, 1w, 1m) default "1d"
 
     Returns:
-        Dictionary with sectors performance data
+        Dictionary with:
+            - sectors (list): Sector objects with name, change_percent, top_gainers, top_losers
+            - period (str): Analysis period used
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

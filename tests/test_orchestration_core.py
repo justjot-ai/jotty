@@ -1,16 +1,48 @@
 """
 Tests for Orchestration Core Modules
 =====================================
-Tests for ExecutionContext, AgentRunnerConfig (agent_runner.py),
+Tests for ExecutionContext, AgentRunnerConfig, TaskProgress, AgentRunner
+(agent_runner.py), LLM provider types/base/factory, orchestration lazy loading,
 ProviderManager (provider_manager.py), and EnsembleManager (ensemble_manager.py).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+import time as _time
+from unittest.mock import Mock, AsyncMock, patch, MagicMock, PropertyMock
 from dataclasses import fields
 
-from Jotty.core.orchestration.agent_runner import ExecutionContext, AgentRunnerConfig
+from Jotty.core.orchestration.agent_runner import (
+    ExecutionContext, AgentRunnerConfig, TaskProgress, AgentRunner, HOOK_TYPES,
+)
 from Jotty.core.foundation.data_structures import SwarmConfig
+
+# Conditional imports for LLM provider types
+try:
+    from Jotty.core.orchestration.llm_providers.types import (
+        ToolResult as LLMToolResult,
+        LLMExecutionResult,
+        StreamEvent as LLMStreamEvent,
+        LLMResponse,
+        ToolUseBlock,
+        TextBlock,
+    )
+    HAS_LLM_TYPES = True
+except ImportError:
+    HAS_LLM_TYPES = False
+
+try:
+    from Jotty.core.orchestration.llm_providers.base import LLMProvider
+    HAS_LLM_BASE = True
+except ImportError:
+    HAS_LLM_BASE = False
+
+try:
+    from Jotty.core.orchestration.llm_providers.factory import (
+        create_provider, auto_detect_provider,
+    )
+    HAS_LLM_FACTORY = True
+except ImportError:
+    HAS_LLM_FACTORY = False
 
 # Conditional imports for modules with complex dependency chains
 try:
@@ -27,76 +59,7 @@ except ImportError:
 
 
 # =============================================================================
-# ExecutionContext Tests (1-6)
-# =============================================================================
-
-@pytest.mark.unit
-class TestExecutionContext:
-    """Tests for the ExecutionContext dataclass used throughout the agent pipeline."""
-
-    def test_defaults_populated(self):
-        """ExecutionContext initializes all default fields correctly."""
-        ctx = ExecutionContext(goal="test goal", kwargs={"key": "value"})
-        assert ctx.start_time == 0.0
-        assert ctx.status_callback is None
-        assert ctx.gate_decision is None
-        assert ctx.skip_architect is False
-        assert ctx.skip_auditor is False
-        assert ctx.enriched_goal == ""
-        assert ctx.proceed is True
-        assert ctx.architect_shaped_reward == 0.0
-        assert ctx.agent_output is None
-        assert ctx.inner_success is False
-        assert ctx.success is False
-        assert ctx.auditor_reasoning == ""
-        assert ctx.auditor_confidence == 0.0
-        assert ctx.duration == 0.0
-        assert ctx.task_progress is None
-        assert ctx.ws_checkpoint_id is None
-
-    def test_goal_stored(self):
-        """ExecutionContext stores the goal string."""
-        ctx = ExecutionContext(goal="Research quantum computing", kwargs={})
-        assert ctx.goal == "Research quantum computing"
-
-    def test_kwargs_stored(self):
-        """ExecutionContext stores the kwargs dictionary."""
-        kwargs = {"workspace_dir": "/tmp", "status_callback": None}
-        ctx = ExecutionContext(goal="test", kwargs=kwargs)
-        assert ctx.kwargs == kwargs
-        assert ctx.kwargs["workspace_dir"] == "/tmp"
-
-    def test_proceed_defaults_true(self):
-        """ExecutionContext.proceed defaults to True so agents run by default."""
-        ctx = ExecutionContext(goal="any goal", kwargs={})
-        assert ctx.proceed is True
-
-    def test_success_defaults_false(self):
-        """ExecutionContext.success defaults to False until auditor validates."""
-        ctx = ExecutionContext(goal="any goal", kwargs={})
-        assert ctx.success is False
-
-    def test_learning_context_parts_defaults_empty(self):
-        """ExecutionContext.learning_context_parts defaults to an empty list."""
-        ctx = ExecutionContext(goal="any goal", kwargs={})
-        assert ctx.learning_context_parts == []
-        assert isinstance(ctx.learning_context_parts, list)
-
-    def test_mutable_default_fields_are_independent(self):
-        """Each ExecutionContext instance gets its own mutable default lists/dicts."""
-        ctx_a = ExecutionContext(goal="a", kwargs={})
-        ctx_b = ExecutionContext(goal="b", kwargs={})
-        ctx_a.learning_context_parts.append("item")
-        ctx_a.trajectory.append({"step": 1})
-        ctx_a.learning_data["key"] = "val"
-        # ctx_b should not be affected
-        assert ctx_b.learning_context_parts == []
-        assert ctx_b.trajectory == []
-        assert ctx_b.learning_data == {}
-
-
-# =============================================================================
-# AgentRunnerConfig Tests (7-10)
+# AgentRunnerConfig Tests (~8 tests)
 # =============================================================================
 
 @pytest.mark.unit
@@ -161,6 +124,1064 @@ class TestAgentRunnerConfig:
             config=config,
         )
         assert runner_config.enable_memory is True
+
+    def test_custom_agent_name(self):
+        """AgentRunnerConfig accepts a custom agent_name."""
+        config = SwarmConfig()
+        runner_config = AgentRunnerConfig(
+            architect_prompts=["a.md"],
+            auditor_prompts=["b.md"],
+            config=config,
+            agent_name="custom_agent",
+        )
+        assert runner_config.agent_name == "custom_agent"
+
+    def test_custom_disable_all_flags(self):
+        """AgentRunnerConfig accepts all optional flags set to False."""
+        config = SwarmConfig()
+        runner_config = AgentRunnerConfig(
+            architect_prompts=["a.md"],
+            auditor_prompts=["b.md"],
+            config=config,
+            enable_learning=False,
+            enable_memory=False,
+            enable_terminal=False,
+        )
+        assert runner_config.enable_learning is False
+        assert runner_config.enable_memory is False
+        assert runner_config.enable_terminal is False
+
+
+# =============================================================================
+# ExecutionContext Tests (~18 tests)
+# =============================================================================
+
+@pytest.mark.unit
+class TestExecutionContext:
+    """Tests for the ExecutionContext dataclass used throughout the agent pipeline."""
+
+    def test_creation_with_required_fields(self):
+        """ExecutionContext requires goal and kwargs."""
+        ctx = ExecutionContext(goal="test goal", kwargs={"key": "value"})
+        assert ctx.goal == "test goal"
+        assert ctx.kwargs == {"key": "value"}
+
+    def test_default_start_time(self):
+        """ExecutionContext.start_time defaults to 0.0."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.start_time == 0.0
+
+    def test_default_skip_architect(self):
+        """ExecutionContext.skip_architect defaults to False."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.skip_architect is False
+
+    def test_default_skip_auditor(self):
+        """ExecutionContext.skip_auditor defaults to False."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.skip_auditor is False
+
+    def test_default_proceed(self):
+        """ExecutionContext.proceed defaults to True so agents run by default."""
+        ctx = ExecutionContext(goal="any goal", kwargs={})
+        assert ctx.proceed is True
+
+    def test_default_success(self):
+        """ExecutionContext.success defaults to False until auditor validates."""
+        ctx = ExecutionContext(goal="any goal", kwargs={})
+        assert ctx.success is False
+
+    def test_default_inner_success(self):
+        """ExecutionContext.inner_success defaults to False."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.inner_success is False
+
+    def test_default_learning_context_parts(self):
+        """ExecutionContext.learning_context_parts defaults to an empty list."""
+        ctx = ExecutionContext(goal="any goal", kwargs={})
+        assert ctx.learning_context_parts == []
+        assert isinstance(ctx.learning_context_parts, list)
+
+    def test_default_enriched_goal(self):
+        """ExecutionContext.enriched_goal defaults to empty string."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.enriched_goal == ""
+
+    def test_default_architect_results(self):
+        """ExecutionContext.architect_results defaults to empty list."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.architect_results == []
+
+    def test_default_agent_output(self):
+        """ExecutionContext.agent_output defaults to None."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.agent_output is None
+
+    def test_default_trajectory(self):
+        """ExecutionContext.trajectory defaults to empty list."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.trajectory == []
+
+    def test_default_auditor_results(self):
+        """ExecutionContext.auditor_results defaults to empty list."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.auditor_results == []
+
+    def test_default_auditor_reasoning_and_confidence(self):
+        """ExecutionContext.auditor_reasoning defaults to empty string, confidence to 0.0."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.auditor_reasoning == ""
+        assert ctx.auditor_confidence == 0.0
+
+    def test_default_learning_data(self):
+        """ExecutionContext.learning_data defaults to empty dict."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.learning_data == {}
+
+    def test_default_duration(self):
+        """ExecutionContext.duration defaults to 0.0."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.duration == 0.0
+
+    def test_default_gate_decision(self):
+        """ExecutionContext.gate_decision defaults to None."""
+        ctx = ExecutionContext(goal="test", kwargs={})
+        assert ctx.gate_decision is None
+
+    def test_mutability_setting_fields(self):
+        """ExecutionContext fields can be mutated after creation."""
+        ctx = ExecutionContext(goal="original", kwargs={})
+        ctx.goal = "modified"
+        ctx.success = True
+        ctx.auditor_confidence = 0.95
+        ctx.duration = 5.5
+        ctx.enriched_goal = "enriched"
+        ctx.agent_output = {"result": "test"}
+        assert ctx.goal == "modified"
+        assert ctx.success is True
+        assert ctx.auditor_confidence == 0.95
+        assert ctx.duration == 5.5
+        assert ctx.enriched_goal == "enriched"
+        assert ctx.agent_output == {"result": "test"}
+
+    def test_mutable_default_fields_are_independent(self):
+        """Each ExecutionContext instance gets its own mutable default lists/dicts."""
+        ctx_a = ExecutionContext(goal="a", kwargs={})
+        ctx_b = ExecutionContext(goal="b", kwargs={})
+        ctx_a.learning_context_parts.append("item")
+        ctx_a.trajectory.append({"step": 1})
+        ctx_a.learning_data["key"] = "val"
+        assert ctx_b.learning_context_parts == []
+        assert ctx_b.trajectory == []
+        assert ctx_b.learning_data == {}
+
+
+# =============================================================================
+# TaskProgress Tests (~20 tests)
+# =============================================================================
+
+@pytest.mark.unit
+class TestTaskProgress:
+    """Tests for TaskProgress visible task tracker."""
+
+    def test_init_with_goal(self):
+        """TaskProgress stores goal and initializes empty steps."""
+        progress = TaskProgress(goal="Research AI trends")
+        assert progress.goal == "Research AI trends"
+        assert progress.steps == []
+
+    def test_init_default_goal(self):
+        """TaskProgress defaults goal to empty string."""
+        progress = TaskProgress()
+        assert progress.goal == ""
+
+    def test_init_sets_created_at(self):
+        """TaskProgress sets created_at timestamp on init."""
+        before = _time.time()
+        progress = TaskProgress(goal="test")
+        after = _time.time()
+        assert before <= progress.created_at <= after
+
+    def test_add_step_returns_index(self):
+        """add_step returns the index of the added step."""
+        progress = TaskProgress(goal="test")
+        idx = progress.add_step("First step")
+        assert idx == 0
+
+    def test_add_step_multiple_increments(self):
+        """Multiple add_step calls return incrementing indices."""
+        progress = TaskProgress(goal="test")
+        idx0 = progress.add_step("Step A")
+        idx1 = progress.add_step("Step B")
+        idx2 = progress.add_step("Step C")
+        assert idx0 == 0
+        assert idx1 == 1
+        assert idx2 == 2
+        assert len(progress.steps) == 3
+
+    def test_add_step_default_status_pending(self):
+        """add_step creates step with status 'pending'."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("My step")
+        assert progress.steps[0]['status'] == 'pending'
+        assert progress.steps[0]['started_at'] is None
+        assert progress.steps[0]['finished_at'] is None
+
+    def test_start_step_sets_in_progress(self):
+        """start_step sets step status to 'in_progress'."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        progress.start_step(0)
+        assert progress.steps[0]['status'] == 'in_progress'
+
+    def test_start_step_sets_started_at(self):
+        """start_step sets the started_at timestamp."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        before = _time.time()
+        progress.start_step(0)
+        after = _time.time()
+        assert before <= progress.steps[0]['started_at'] <= after
+
+    def test_complete_step_sets_done(self):
+        """complete_step sets step status to 'done'."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        progress.start_step(0)
+        progress.complete_step(0)
+        assert progress.steps[0]['status'] == 'done'
+
+    def test_complete_step_sets_finished_at(self):
+        """complete_step sets the finished_at timestamp."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        progress.start_step(0)
+        progress.complete_step(0)
+        assert progress.steps[0]['finished_at'] is not None
+
+    def test_fail_step_sets_failed(self):
+        """fail_step sets step status to 'failed'."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        progress.start_step(0)
+        progress.fail_step(0)
+        assert progress.steps[0]['status'] == 'failed'
+
+    def test_fail_step_sets_finished_at(self):
+        """fail_step sets the finished_at timestamp."""
+        progress = TaskProgress(goal="test")
+        progress.add_step("Step A")
+        progress.start_step(0)
+        progress.fail_step(0)
+        assert progress.steps[0]['finished_at'] is not None
+
+    def test_render_returns_string(self):
+        """render returns a string representation."""
+        progress = TaskProgress(goal="Build something")
+        progress.add_step("Step 1")
+        result = progress.render()
+        assert isinstance(result, str)
+        assert "Build something" in result
+
+    def test_render_with_no_steps(self):
+        """render with no steps returns goal-only string."""
+        progress = TaskProgress(goal="Empty task")
+        result = progress.render()
+        assert "Empty task" in result
+        assert "Progress" not in result
+
+    def test_render_with_mixed_statuses(self):
+        """render shows correct icons for mixed statuses."""
+        progress = TaskProgress(goal="Mixed task")
+        progress.add_step("Pending step")
+        progress.add_step("Done step")
+        progress.add_step("Failed step")
+        progress.add_step("In progress step")
+        progress.complete_step(1)
+        progress.fail_step(2)
+        progress.start_step(3)
+        result = progress.render()
+        assert "[ ]" in result  # pending
+        assert "[x]" in result  # done
+        assert "[!]" in result  # failed
+        assert "[>]" in result  # in_progress
+
+    def test_render_shows_progress_fraction(self):
+        """render shows progress fraction like '1/3 (33%)'."""
+        progress = TaskProgress(goal="Test")
+        progress.add_step("A")
+        progress.add_step("B")
+        progress.add_step("C")
+        progress.complete_step(0)
+        result = progress.render()
+        assert "1/3" in result
+
+    def test_summary_returns_dict(self):
+        """summary returns a dict with expected keys."""
+        progress = TaskProgress(goal="Test")
+        progress.add_step("Step A")
+        summary = progress.summary()
+        assert isinstance(summary, dict)
+        assert 'total' in summary
+        assert 'done' in summary
+        assert 'failed' in summary
+        assert 'completion_pct' in summary
+        assert 'steps' in summary
+
+    def test_summary_counts(self):
+        """summary correctly counts total, done, and failed."""
+        progress = TaskProgress(goal="Test")
+        progress.add_step("A")
+        progress.add_step("B")
+        progress.add_step("C")
+        progress.complete_step(0)
+        progress.fail_step(2)
+        summary = progress.summary()
+        assert summary['total'] == 3
+        assert summary['done'] == 1
+        assert summary['failed'] == 1
+        assert summary['completion_pct'] == pytest.approx(1.0 / 3.0)
+
+    def test_summary_empty_steps(self):
+        """summary returns 0 completion_pct when no steps."""
+        progress = TaskProgress(goal="Empty")
+        summary = progress.summary()
+        assert summary['total'] == 0
+        assert summary['done'] == 0
+        assert summary['completion_pct'] == 0
+
+    def test_out_of_bounds_step_ignored(self):
+        """start/complete/fail with invalid index do nothing."""
+        progress = TaskProgress(goal="Test")
+        progress.add_step("Only step")
+        progress.start_step(99)
+        progress.complete_step(-1)
+        progress.fail_step(5)
+        assert progress.steps[0]['status'] == 'pending'
+
+
+# =============================================================================
+# AgentRunner Tests (~25 tests)
+# =============================================================================
+
+def _make_runner_config(enable_learning=False, enable_memory=False, enable_terminal=False):
+    """Helper to create an AgentRunnerConfig with learning/memory/terminal disabled."""
+    return AgentRunnerConfig(
+        architect_prompts=[],
+        auditor_prompts=[],
+        config=SwarmConfig(),
+        agent_name="test_agent",
+        enable_learning=enable_learning,
+        enable_memory=enable_memory,
+        enable_terminal=enable_terminal,
+    )
+
+
+def _make_mock_agent():
+    """Helper to create a mock agent."""
+    agent = Mock()
+    agent.execute = AsyncMock(return_value={"result": "ok", "success": True})
+    agent._pre_hooks = []
+    agent._post_hooks = []
+    return agent
+
+
+# Patch targets for AgentRunner __init__ inline imports
+_RUNNER_PATCHES = [
+    "Jotty.core.orchestration.agent_runner.ValidatorAgent",
+    "Jotty.core.orchestration.agent_runner.MultiRoundValidator",
+    "Jotty.core.registry.tool_validation.ToolGuard",
+    "Jotty.core.interfaces.host_provider.HostProvider.get",
+]
+
+
+def _patch_runner():
+    """Return a composite patch context for AgentRunner construction."""
+    return (
+        patch(_RUNNER_PATCHES[0]),
+        patch(_RUNNER_PATCHES[1]),
+        patch(_RUNNER_PATCHES[2]),
+        patch(_RUNNER_PATCHES[3]),
+    )
+
+
+@pytest.mark.unit
+class TestAgentRunner:
+    """Tests for AgentRunner lifecycle, hooks, and attributes."""
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_init_stores_agent_and_config(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """AgentRunner stores agent and config on initialization."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.agent is agent
+        assert runner.config is config
+        assert runner.agent_name == "test_agent"
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_hook_types_constant(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """HOOK_TYPES tuple contains all six lifecycle hook names."""
+        assert 'pre_run' in HOOK_TYPES
+        assert 'post_run' in HOOK_TYPES
+        assert 'pre_architect' in HOOK_TYPES
+        assert 'post_architect' in HOOK_TYPES
+        assert 'pre_execute' in HOOK_TYPES
+        assert 'post_execute' in HOOK_TYPES
+        assert len(HOOK_TYPES) == 6
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_add_hook_returns_name(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """add_hook returns the hook name (auto-generated or provided)."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        name = runner.add_hook('pre_run', lambda **ctx: None, name='my_hook')
+        assert name == 'my_hook'
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_add_hook_auto_name(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """add_hook auto-generates a name when not provided."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        name = runner.add_hook('pre_run', lambda **ctx: None)
+        assert name.startswith('pre_run_')
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_add_hook_invalid_type_raises(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """add_hook raises ValueError for unknown hook type."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        with pytest.raises(ValueError, match="Unknown hook type"):
+            runner.add_hook('invalid_type', lambda **ctx: None)
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_remove_hook_by_name(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """remove_hook removes a hook by name and returns True."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        runner.add_hook('pre_run', lambda **ctx: None, name='removable')
+        assert runner.remove_hook('pre_run', 'removable') is True
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_remove_hook_not_found(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """remove_hook returns False when hook name not found."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.remove_hook('pre_run', 'nonexistent') is False
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_run_hooks_calls_registered_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_run_hooks calls all registered hooks for a type."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        called = []
+        runner.add_hook('pre_run', lambda **ctx: called.append('hook1'))
+        runner.add_hook('pre_run', lambda **ctx: called.append('hook2'))
+        runner._run_hooks('pre_run', goal="test")
+        assert called == ['hook1', 'hook2']
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_run_hooks_context_update(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_run_hooks updates context when hook returns a dict."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        runner.add_hook('pre_run', lambda **ctx: {'goal': 'modified_goal'})
+        result = runner._run_hooks('pre_run', goal="original")
+        assert result['goal'] == 'modified_goal'
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_run_hooks_exception_continues(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_run_hooks swallows exceptions and continues to next hook."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+
+        def bad_hook(**ctx):
+            raise ValueError("boom")
+
+        runner.add_hook('pre_run', bad_hook)
+        called = []
+        runner.add_hook('pre_run', lambda **ctx: called.append('second'))
+        runner._run_hooks('pre_run', goal="test")
+        assert 'second' in called
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_gather_learning_context_returns_list(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_gather_learning_context returns a list of strings."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        result = runner._gather_learning_context("test goal")
+        assert isinstance(result, list)
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_gather_learning_context_empty_when_no_components(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_gather_learning_context returns empty list when no memory/learning components."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        result = runner._gather_learning_context("test goal")
+        assert result == []
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_gather_learning_context_consecutive_failure_hint(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_gather_learning_context includes failure hint after consecutive failures."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        runner._consecutive_failures = 5
+        result = runner._gather_learning_context("test goal")
+        assert any("consecutive failures" in part.lower() for part in result)
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_bridge_agent_hooks_no_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_bridge_agent_hooks handles agent with no hooks gracefully."""
+        agent = Mock(spec=[])
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        # Should not raise
+        assert runner.agent is agent
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_bridge_agent_hooks_with_pre_hooks(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_bridge_agent_hooks bridges BaseAgent pre hooks to pre_execute."""
+        agent = _make_mock_agent()
+        agent._pre_hooks = [Mock()]
+        agent._post_hooks = []
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        # pre_execute should have at least one hook from bridge
+        assert len(runner._hooks['pre_execute']) >= 1
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_agent_memory_none_when_disabled(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """agent_memory is None when enable_memory is False."""
+        agent = _make_mock_agent()
+        config = _make_runner_config(enable_memory=False)
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.agent_memory is None
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_agent_learner_none_when_disabled(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """agent_learner is None when enable_learning is False."""
+        agent = _make_mock_agent()
+        config = _make_runner_config(enable_learning=False)
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.agent_learner is None
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_tool_guard_initialized(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """AgentRunner initializes tool_guard."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.tool_guard is not None
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_consecutive_failures_starts_zero(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """_consecutive_failures starts at 0."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner._consecutive_failures == 0
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_hooks_dict_has_all_types(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """AgentRunner._hooks dict has keys for all HOOK_TYPES."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        for ht in HOOK_TYPES:
+            assert ht in runner._hooks
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_task_progress_initially_none(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """task_progress is None until run() is called."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        assert runner.task_progress is None
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_gate_stats_before_init(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """gate_stats returns 'not initialized' before run()."""
+        agent = _make_mock_agent()
+        config = _make_runner_config()
+        runner = AgentRunner(agent=agent, config=config)
+        stats = runner.gate_stats
+        assert stats == {"status": "not initialized"}
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_shared_swarm_memory_used(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """AgentRunner uses shared swarm_memory when provided."""
+        agent = _make_mock_agent()
+        config = _make_runner_config(enable_memory=True)
+        shared_mem = Mock()
+        runner = AgentRunner(agent=agent, config=config, swarm_memory=shared_mem)
+        assert runner.agent_memory is shared_mem
+
+    @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
+    @patch("Jotty.core.registry.tool_validation.ToolGuard")
+    @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
+    @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
+    def test_shared_learner_used(self, mock_va, mock_mrv, mock_tg, mock_host):
+        """AgentRunner uses shared learner from learning_manager when available."""
+        agent = _make_mock_agent()
+        config = _make_runner_config(enable_learning=True)
+        mock_lm = Mock()
+        mock_lm.td_learner = Mock()
+        runner = AgentRunner(agent=agent, config=config, learning_manager=mock_lm)
+        assert runner.agent_learner is mock_lm.td_learner
+        assert runner._using_shared_learner is True
+
+
+# =============================================================================
+# LLM Provider Types Tests (~15 tests)
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_LLM_TYPES, reason="LLM provider types not importable")
+class TestLLMProviderTypes:
+    """Tests for LLM provider data types (types.py)."""
+
+    def test_tool_result_creation(self):
+        """ToolResult stores tool_name, success, result, and error."""
+        tr = LLMToolResult(tool_name="search", success=True, result={"data": "found"})
+        assert tr.tool_name == "search"
+        assert tr.success is True
+        assert tr.result == {"data": "found"}
+        assert tr.error is None
+
+    def test_tool_result_with_error(self):
+        """ToolResult stores error when tool fails."""
+        tr = LLMToolResult(tool_name="search", success=False, error="Not found")
+        assert tr.success is False
+        assert tr.error == "Not found"
+        assert tr.result is None
+
+    def test_tool_result_defaults(self):
+        """ToolResult defaults result and error to None."""
+        tr = LLMToolResult(tool_name="calc", success=True)
+        assert tr.result is None
+        assert tr.error is None
+
+    def test_llm_execution_result_creation(self):
+        """LLMExecutionResult stores success and content."""
+        result = LLMExecutionResult(success=True, content="Hello, world!")
+        assert result.success is True
+        assert result.content == "Hello, world!"
+
+    def test_llm_execution_result_defaults(self):
+        """LLMExecutionResult has correct defaults for optional fields."""
+        result = LLMExecutionResult(success=True, content="test")
+        assert result.tool_results == []
+        assert result.sections == []
+        assert result.output_path is None
+        assert result.output_format == "text"
+        assert result.error is None
+        assert result.steps_taken == []
+        assert result.usage is None
+
+    def test_llm_execution_result_with_tool_results(self):
+        """LLMExecutionResult stores tool_results list."""
+        tr = LLMToolResult(tool_name="calc", success=True, result={"answer": 42})
+        result = LLMExecutionResult(
+            success=True, content="Result is 42",
+            tool_results=[tr], steps_taken=["called calc"]
+        )
+        assert len(result.tool_results) == 1
+        assert result.steps_taken == ["called calc"]
+
+    def test_stream_event_creation(self):
+        """StreamEvent stores type and data."""
+        event = LLMStreamEvent(type="text", data="Hello")
+        assert event.type == "text"
+        assert event.data == "Hello"
+
+    def test_stream_event_various_types(self):
+        """StreamEvent supports various event types."""
+        for etype in ['text', 'tool_start', 'tool_end', 'section', 'complete', 'error']:
+            event = LLMStreamEvent(type=etype, data={"info": etype})
+            assert event.type == etype
+
+    def test_llm_response_creation(self):
+        """LLMResponse stores content blocks and stop_reason."""
+        resp = LLMResponse(content=["hello"], stop_reason="end_turn")
+        assert resp.content == ["hello"]
+        assert resp.stop_reason == "end_turn"
+        assert resp.usage is None
+
+    def test_llm_response_with_usage(self):
+        """LLMResponse stores usage dict when provided."""
+        resp = LLMResponse(
+            content=[], stop_reason="stop",
+            usage={"input_tokens": 100, "output_tokens": 50}
+        )
+        assert resp.usage["input_tokens"] == 100
+
+    def test_tool_use_block_creation(self):
+        """ToolUseBlock stores id, name, input, and defaults type to 'tool_use'."""
+        block = ToolUseBlock(id="tu_123", name="calculator", input={"expr": "2+2"})
+        assert block.id == "tu_123"
+        assert block.name == "calculator"
+        assert block.input == {"expr": "2+2"}
+        assert block.type == "tool_use"
+
+    def test_tool_use_block_custom_type(self):
+        """ToolUseBlock allows overriding the default type."""
+        block = ToolUseBlock(id="tu_1", name="test", input={}, type="custom_tool")
+        assert block.type == "custom_tool"
+
+    def test_text_block_creation(self):
+        """TextBlock stores text and defaults type to 'text'."""
+        block = TextBlock(text="Hello, world!")
+        assert block.text == "Hello, world!"
+        assert block.type == "text"
+
+    def test_text_block_custom_type(self):
+        """TextBlock allows overriding the default type."""
+        block = TextBlock(text="test", type="custom_text")
+        assert block.type == "custom_text"
+
+    def test_llm_execution_result_with_error(self):
+        """LLMExecutionResult stores error message on failure."""
+        result = LLMExecutionResult(success=False, content="", error="API timeout")
+        assert result.success is False
+        assert result.error == "API timeout"
+
+
+# =============================================================================
+# LLM Provider Base Tests (~8 tests)
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_LLM_BASE, reason="LLM provider base not importable")
+class TestLLMProviderBase:
+    """Tests for LLMProvider abstract base class."""
+
+    def test_cannot_instantiate_directly(self):
+        """LLMProvider is abstract and cannot be instantiated directly."""
+        with pytest.raises(TypeError):
+            LLMProvider()
+
+    def test_has_convert_tools_method(self):
+        """LLMProvider declares abstract convert_tools method."""
+        assert hasattr(LLMProvider, 'convert_tools')
+
+    def test_has_call_method(self):
+        """LLMProvider declares abstract call method."""
+        assert hasattr(LLMProvider, 'call')
+
+    def test_has_call_streaming_method(self):
+        """LLMProvider declares abstract call_streaming method."""
+        assert hasattr(LLMProvider, 'call_streaming')
+
+    def test_has_format_tool_result_method(self):
+        """LLMProvider has a concrete format_tool_result method."""
+        assert hasattr(LLMProvider, 'format_tool_result')
+
+    def test_format_tool_result_returns_dict(self):
+        """format_tool_result returns a properly structured dict."""
+
+        class ConcreteProvider(LLMProvider):
+            def convert_tools(self, tools):
+                return tools
+
+            async def call(self, messages, tools, system, max_tokens=4096):
+                pass
+
+            async def call_streaming(self, messages, tools, system, stream_callback, max_tokens=4096):
+                pass
+
+        provider = ConcreteProvider()
+        result = provider.format_tool_result("tool_123", "success output")
+        assert result == {
+            "type": "tool_result",
+            "tool_use_id": "tool_123",
+            "content": "success output",
+        }
+
+    def test_concrete_subclass_instantiates(self):
+        """A concrete subclass implementing all methods can be instantiated."""
+
+        class ConcreteProvider(LLMProvider):
+            def convert_tools(self, tools):
+                return tools
+
+            async def call(self, messages, tools, system, max_tokens=4096):
+                pass
+
+            async def call_streaming(self, messages, tools, system, stream_callback, max_tokens=4096):
+                pass
+
+        provider = ConcreteProvider()
+        assert isinstance(provider, LLMProvider)
+
+    def test_partial_subclass_cannot_instantiate(self):
+        """A subclass missing abstract methods cannot be instantiated."""
+
+        class PartialProvider(LLMProvider):
+            def convert_tools(self, tools):
+                return tools
+            # Missing call and call_streaming
+
+        with pytest.raises(TypeError):
+            PartialProvider()
+
+
+# =============================================================================
+# LLM Provider Factory Tests (~10 tests)
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.skipif(not HAS_LLM_FACTORY, reason="LLM provider factory not importable")
+class TestLLMProviderFactory:
+    """Tests for create_provider and auto_detect_provider factory functions."""
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.AnthropicProvider")
+    def test_create_provider_anthropic(self, mock_cls):
+        """create_provider('anthropic') returns AnthropicProvider instance."""
+        mock_cls.return_value = Mock()
+        result = create_provider("anthropic", model="claude-3-sonnet")
+        mock_cls.assert_called_once_with(model="claude-3-sonnet", api_key=None)
+        assert result is mock_cls.return_value
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.OpenAIProvider")
+    def test_create_provider_openai(self, mock_cls):
+        """create_provider('openai') returns OpenAIProvider instance."""
+        mock_cls.return_value = Mock()
+        result = create_provider("openai", model="gpt-4o")
+        mock_cls.assert_called_once_with(model="gpt-4o", api_key=None)
+        assert result is mock_cls.return_value
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.OpenRouterProvider")
+    def test_create_provider_openrouter(self, mock_cls):
+        """create_provider('openrouter') returns OpenRouterProvider instance."""
+        mock_cls.return_value = Mock()
+        result = create_provider("openrouter")
+        assert result is mock_cls.return_value
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.GroqProvider")
+    def test_create_provider_groq(self, mock_cls):
+        """create_provider('groq') returns GroqProvider instance."""
+        mock_cls.return_value = Mock()
+        result = create_provider("groq")
+        assert result is mock_cls.return_value
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.GoogleProvider")
+    def test_create_provider_google(self, mock_cls):
+        """create_provider('google') returns GoogleProvider instance."""
+        mock_cls.return_value = Mock()
+        result = create_provider("google")
+        assert result is mock_cls.return_value
+
+    def test_create_provider_unknown_raises(self):
+        """create_provider with unknown provider raises InvalidConfigError."""
+        from Jotty.core.foundation.exceptions import InvalidConfigError
+        with pytest.raises(InvalidConfigError, match="Unknown provider"):
+            create_provider("nonexistent_provider")
+
+    def test_create_provider_case_insensitive(self):
+        """create_provider handles case-insensitive provider names."""
+        from Jotty.core.foundation.exceptions import InvalidConfigError
+        # "NONEXISTENT" should still raise but after lowering
+        with pytest.raises(InvalidConfigError, match="Unknown provider"):
+            create_provider("NONEXISTENT")
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    @patch("Jotty.core.orchestration.llm_providers.factory.AnthropicProvider")
+    def test_auto_detect_anthropic(self, mock_anthropic_cls):
+        """auto_detect_provider detects ANTHROPIC_API_KEY when Claude CLI unavailable."""
+        mock_anthropic_cls.return_value = Mock()
+        # Patch the source module that auto_detect_provider imports from
+        with patch(
+            "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
+            return_value=False,
+        ):
+            name, provider = auto_detect_provider()
+            assert name == 'anthropic'
+            assert provider is mock_anthropic_cls.return_value
+
+    @patch.dict("os.environ", {
+        "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "",
+        "OPENROUTER_API_KEY": "", "GROQ_API_KEY": "", "GOOGLE_API_KEY": "",
+    }, clear=True)
+    def test_auto_detect_no_keys_raises(self):
+        """auto_detect_provider raises when no API keys are set."""
+        from Jotty.core.foundation.exceptions import InvalidConfigError
+        with patch(
+            "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
+            return_value=False,
+        ):
+            with pytest.raises(InvalidConfigError, match="No LLM provider"):
+                auto_detect_provider()
+
+    @patch("Jotty.core.orchestration.llm_providers.factory.AnthropicProvider")
+    def test_create_provider_with_api_key(self, mock_cls):
+        """create_provider passes api_key to provider."""
+        mock_cls.return_value = Mock()
+        create_provider("anthropic", api_key="sk-test-key")
+        mock_cls.assert_called_once_with(model=mock_cls.call_args[1]['model'], api_key="sk-test-key")
+
+
+# =============================================================================
+# Orchestration Lazy Loading Tests (~12 tests)
+# =============================================================================
+
+@pytest.mark.unit
+class TestOrchestrationLazyLoading:
+    """Tests for orchestration __init__.py lazy loading system."""
+
+    def test_lazy_map_exists(self):
+        """_LAZY_MAP dict is defined in orchestration __init__."""
+        import Jotty.core.orchestration as orch
+        assert hasattr(orch, '_LAZY_MAP')
+        assert isinstance(orch._LAZY_MAP, dict)
+
+    def test_lazy_map_has_known_entries(self):
+        """_LAZY_MAP contains expected class names."""
+        import Jotty.core.orchestration as orch
+        expected_names = [
+            'SwarmTaskBoard', 'AgentRunner', 'AgentRunnerConfig',
+            'Orchestrator', 'ChatExecutor', 'SandboxManager',
+        ]
+        for name in expected_names:
+            assert name in orch._LAZY_MAP, f"{name} missing from _LAZY_MAP"
+
+    def test_getattr_resolves_agent_runner(self):
+        """__getattr__ resolves 'AgentRunner' from _LAZY_MAP."""
+        import Jotty.core.orchestration as orch
+        cls = getattr(orch, 'AgentRunner')
+        assert cls is AgentRunner
+
+    def test_getattr_resolves_agent_runner_config(self):
+        """__getattr__ resolves 'AgentRunnerConfig' from _LAZY_MAP."""
+        import Jotty.core.orchestration as orch
+        cls = getattr(orch, 'AgentRunnerConfig')
+        assert cls is AgentRunnerConfig
+
+    def test_getattr_resolves_execution_context_via_agent_runner(self):
+        """ExecutionContext is accessible via agent_runner module."""
+        from Jotty.core.orchestration.agent_runner import ExecutionContext as EC
+        assert EC is ExecutionContext
+
+    def test_unknown_name_raises_attribute_error(self):
+        """__getattr__ raises AttributeError for unknown names."""
+        import Jotty.core.orchestration as orch
+        with pytest.raises(AttributeError, match="has no attribute"):
+            getattr(orch, 'CompletelyNonexistentClass')
+
+    def test_all_list_includes_lazy_map_keys(self):
+        """__all__ includes all _LAZY_MAP keys."""
+        import Jotty.core.orchestration as orch
+        for name in orch._LAZY_MAP:
+            assert name in orch.__all__, f"{name} missing from __all__"
+
+    def test_all_list_includes_pipeline_utils(self):
+        """__all__ includes pipeline utility functions."""
+        import Jotty.core.orchestration as orch
+        assert 'sequential_pipeline' in orch.__all__
+        assert 'fanout_pipeline' in orch.__all__
+
+    def test_lazy_map_swarm_task_board_entry(self):
+        """_LAZY_MAP maps SwarmTaskBoard to swarm_roadmap module."""
+        import Jotty.core.orchestration as orch
+        assert orch._LAZY_MAP['SwarmTaskBoard'] == ('.swarm_roadmap', 'SwarmTaskBoard')
+
+    def test_lazy_map_chat_executor_entry(self):
+        """_LAZY_MAP maps ChatExecutor to unified_executor module."""
+        import Jotty.core.orchestration as orch
+        assert orch._LAZY_MAP['ChatExecutor'] == ('.unified_executor', 'ChatExecutor')
+
+    def test_lazy_map_orchestrator_entry(self):
+        """_LAZY_MAP maps Orchestrator to swarm_manager module."""
+        import Jotty.core.orchestration as orch
+        assert orch._LAZY_MAP['Orchestrator'] == ('.swarm_manager', 'Orchestrator')
+
+    def test_lazy_caching_on_second_access(self):
+        """Lazy-loaded attributes are cached in module globals after first access."""
+        import Jotty.core.orchestration as orch
+        # First access triggers import
+        cls1 = getattr(orch, 'AgentRunnerConfig')
+        # Second access should be from globals cache
+        cls2 = getattr(orch, 'AgentRunnerConfig')
+        assert cls1 is cls2
 
 
 # =============================================================================

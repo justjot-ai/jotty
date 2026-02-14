@@ -146,7 +146,7 @@ class TestSwarmMemoryStore:
 
         config = SwarmConfig(
             episodic_capacity=3,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )
@@ -765,7 +765,7 @@ class TestRetrievalMixinAdvanced:
         from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
         config = SwarmConfig(
             episodic_capacity=100,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )
@@ -860,7 +860,7 @@ class TestCapacityEnforcementAdvanced:
 
         config = SwarmConfig(
             semantic_capacity=3,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )
@@ -885,7 +885,7 @@ class TestCapacityEnforcementAdvanced:
 
         config = SwarmConfig(
             episodic_capacity=3,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )
@@ -912,7 +912,7 @@ class TestCapacityEnforcementAdvanced:
 
         config = SwarmConfig(
             episodic_capacity=2,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )
@@ -1250,7 +1250,7 @@ class TestStatisticsAdvanced:
         from Jotty.core.foundation.data_structures import MemoryLevel, SwarmConfig
         config = SwarmConfig(
             semantic_capacity=50,
-            enable_beautified_logs=False,
+
             output_base_dir="./test_outputs",
             create_run_folder=False,
         )

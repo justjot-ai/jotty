@@ -45,7 +45,9 @@ async def list_strategies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - active_only (bool, optional): Only show active strategies
 
     Returns:
-        Dictionary with strategies list and count
+        Dictionary with:
+            - strategies (list): Strategy objects with id, name, active, description
+            - count (int): Number of strategies
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -74,10 +76,15 @@ async def run_strategy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         params: Dictionary containing:
             - strategy_id (str, required): Strategy ID to run
             - dry_run (bool, optional): Simulate without placing orders (default True)
-            - symbols (list[str], optional): Override universe of symbols
+            - symbols (list, optional): Override universe of symbols
 
     Returns:
-        Dictionary with execution_id, signals generated, orders placed
+        Dictionary with:
+            - execution_id (str): Unique execution run identifier
+            - strategy_id (str): Strategy that was executed
+            - signals (list): Generated trading signals
+            - orders_placed (int): Number of orders placed
+            - dry_run (bool): Whether this was a simulation
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -115,7 +122,13 @@ async def get_strategy_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - strategy_id (str, required): Strategy ID
 
     Returns:
-        Dictionary with strategy status, performance metrics
+        Dictionary with:
+            - strategy_id (str): Strategy identifier
+            - name (str): Strategy name
+            - active (bool): Whether strategy is active
+            - total_trades (int): Total number of trades
+            - win_rate (float): Win rate percentage
+            - pnl (float): Profit/loss from this strategy
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -148,11 +161,13 @@ async def generate_signals_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     Args:
         params: Dictionary containing:
-            - symbols (list[str], optional): Filter signals for specific symbols
+            - symbols (list, optional): Filter signals for specific symbols
             - strategy_id (str, optional): Generate signals for a specific strategy only
 
     Returns:
-        Dictionary with signals list and count
+        Dictionary with:
+            - signals (list): Signal objects with symbol, action, price, strategy
+            - count (int): Number of signals generated
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

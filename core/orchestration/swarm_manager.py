@@ -1211,8 +1211,10 @@ class ExecutionEngine:
 
         all_results = {}  # agent_name -> EpisodeResult
         attempt_counts = {}  # task_id -> attempts
+        _max_iters = getattr(sm.config, 'max_episode_iterations', 12)
+        _iter_count = 0
 
-        while True:
+        while _iter_count < _max_iters:
             # Collect all ready tasks (no unresolved dependencies)
             batch = []
 
@@ -1226,6 +1228,7 @@ class ExecutionEngine:
 
             if not batch:
                 break
+            _iter_count += 1
 
             # Show batch info immediately with agent names for better UX
             if status_callback and len(batch) > 0:
@@ -1317,8 +1320,8 @@ class ExecutionEngine:
                         sm._scheduling_stats['current_concurrent'] -= 1
 
             # Per-agent timeout: prevent any single agent from blocking the entire swarm.
-            # Direct-LLM sub-agents should finish in ~30s. Full pipeline agents in ~120s.
-            PER_AGENT_TIMEOUT = 120.0
+            # Reads from SwarmConfig.actor_timeout (default 900s).
+            PER_AGENT_TIMEOUT = getattr(sm.config, 'actor_timeout', 900.0)
 
             async def _run_task_with_timeout(task):
                 try:

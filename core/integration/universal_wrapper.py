@@ -192,8 +192,6 @@ class SmartConfig:
             "gamma": 0.95,
             "lambda_trace": 0.9,
             "alpha": 0.03,
-            "baseline": 0.6,
-            "n_step": 3,
             "enable_adaptive_alpha": True,
             "alpha_min": 0.005,
             "alpha_max": 0.15,

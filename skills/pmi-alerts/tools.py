@@ -46,7 +46,9 @@ async def list_alerts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - alert_type (str, optional): Filter by type (price, volume, news)
 
     Returns:
-        Dictionary with alerts list and count
+        Dictionary with:
+            - alerts (list): Alert objects with id, symbol, condition, value, status
+            - count (int): Number of active alerts
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -82,7 +84,11 @@ async def create_alert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - notify_via (str, optional): Notification channel (telegram, email) default "telegram"
 
     Returns:
-        Dictionary with alert_id and configuration
+        Dictionary with:
+            - alert_id (str): Unique alert identifier
+            - symbol (str): Stock symbol
+            - condition (str): Alert condition set
+            - value (float): Trigger value
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -124,7 +130,9 @@ async def delete_alert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - alert_id (str, required): Alert ID to delete
 
     Returns:
-        Dictionary with alert_id and deletion status
+        Dictionary with:
+            - alert_id (str): Deleted alert ID
+            - deleted (bool): Whether deletion succeeded
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -151,7 +159,10 @@ async def get_alert_stats_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         params: Dictionary (no required params)
 
     Returns:
-        Dictionary with total, active, triggered counts
+        Dictionary with:
+            - total (int): Total number of alerts
+            - active (int): Number of active alerts
+            - triggered (int): Number of triggered alerts
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

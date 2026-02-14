@@ -47,7 +47,11 @@ async def get_portfolio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - include_closed (bool, optional): Include closed positions (default False)
 
     Returns:
-        Dictionary with holdings list, total_value, total_pnl
+        Dictionary with:
+            - holdings (list): Portfolio holdings with symbol, quantity, avg_price, ltp, pnl
+            - total_value (float): Total portfolio market value
+            - total_pnl (float): Total profit/loss across all holdings
+            - count (int): Number of holdings
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -82,7 +86,11 @@ async def get_pnl_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - period (str, optional): Period filter (today, week, month, year, all)
 
     Returns:
-        Dictionary with realized_pnl, unrealized_pnl, total_pnl, day_pnl
+        Dictionary with:
+            - realized_pnl (float): Realized profit/loss from closed positions
+            - unrealized_pnl (float): Unrealized profit/loss from open positions
+            - total_pnl (float): Total profit/loss (realized + unrealized)
+            - day_pnl (float): Today's profit/loss
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -107,76 +115,7 @@ async def get_pnl_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-@async_tool_wrapper()
-async def get_available_cash_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get available cash balance across brokers.
-
-    Args:
-        params: Dictionary containing:
-            - broker (str, optional): Filter by specific broker
-
-    Returns:
-        Dictionary with cash balance per broker
-    """
-    status.set_callback(params.pop("_status_callback", None))
-    client = _get_pmi_client()
-    err = _require_client(client)
-    if err:
-        return err
-
-    status.emit("Fetching", "Getting available cash...")
-
-    result = client.get("/v2/get_available_cash", params={
-        "broker": params.get("broker", ""),
-    })
-    if not result.get("success"):
-        return tool_error(result.get("error", "Failed to get available cash"))
-
-    return tool_response(
-        cash=result.get("cash", result.get("data")),
-        total=result.get("total"),
-    )
-
-
-@async_tool_wrapper()
-async def get_account_limits_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Get account limits (margin, exposure, collateral).
-
-    Args:
-        params: Dictionary containing:
-            - broker (str, optional): Filter by broker
-
-    Returns:
-        Dictionary with margin_available, margin_used, collateral, exposure
-    """
-    status.set_callback(params.pop("_status_callback", None))
-    client = _get_pmi_client()
-    err = _require_client(client)
-    if err:
-        return err
-
-    status.emit("Fetching", "Getting account limits...")
-
-    result = client.get("/v2/get_account_limits", params={
-        "broker": params.get("broker", ""),
-    })
-    if not result.get("success"):
-        return tool_error(result.get("error", "Failed to get account limits"))
-
-    return tool_response(
-        margin_available=result.get("margin_available"),
-        margin_used=result.get("margin_used"),
-        collateral=result.get("collateral"),
-        exposure=result.get("exposure"),
-        data=result.get("data"),
-    )
-
-
 __all__ = [
     "get_portfolio_tool",
     "get_pnl_summary_tool",
-    "get_available_cash_tool",
-    "get_account_limits_tool",
 ]

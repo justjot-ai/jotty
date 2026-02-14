@@ -71,7 +71,6 @@ def default_jotty_config():
     return SwarmConfig(
         output_base_dir="./test_outputs",
         create_run_folder=False,
-        enable_beautified_logs=False,
         log_level="WARNING",  # Reduce noise in tests
         max_actor_iters=10,
         max_episode_iterations=3,
@@ -94,7 +93,6 @@ def minimal_jotty_config():
     return SwarmConfig(
         output_base_dir="./test_outputs",
         create_run_folder=False,
-        enable_beautified_logs=False,
         log_level="ERROR",
         max_actor_iters=3,
         max_episode_iterations=1,

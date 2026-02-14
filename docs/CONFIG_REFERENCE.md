@@ -1,35 +1,11 @@
 # Jotty Configuration Reference
 
-Complete reference for all configuration classes, organized by importance with wiring status.
+Complete reference for all configuration classes, organized by importance.
 
 **Source files:**
-- `core/foundation/data_structures.py` — SwarmConfig (120+ fields), ConfigViews, DEFAULT_PARAM_ALIASES
+- `core/foundation/data_structures.py` — SwarmConfig (175 fields), ConfigViews, DEFAULT_PARAM_ALIASES
 - `core/execution/types.py` — ExecutionConfig (25 fields)
 - `core/foundation/agent_config.py` — AgentConfig (23 fields)
-
-**Wiring status legend:**
-- Fields without annotation are **wired** — read by production code
-- Fields marked **[NOT WIRED]** are defined but never read by any production code
-- Fields marked **[DUPLICATE]** exist in another config class that IS wired
-
----
-
-## Dead Config Summary
-
-32 SwarmConfig fields are defined but never consumed by production code. They are persisted via `to_flat_dict()` but never read back. Grouped by category:
-
-| Category | Dead Fields | Notes |
-|----------|-------------|-------|
-| Execution (6) | `actor_timeout`, `max_episode_iterations`, `allow_partial_execution`, `stream_message_timeout`, `parallel_architect`, `parallel_auditor` | |
-| Budget (2) | `enable_budget_enforcement`, `budget_warning_threshold` | Duplicated in `BudgetConfig` with different names |
-| Validation (8) | `advisory_confidence_threshold`, `max_validation_retries`, `enable_confidence_override`, `confidence_override_threshold`, `confidence_moving_average_alpha`, `min_confidence_for_override`, `max_validator_confidence_to_override`, `max_refinement_rounds` | Entire confidence override block is dead |
-| RL (2) | `baseline`, `n_step` | Set in `universal_wrapper.py` but never read |
-| Protection (4) | `ood_entropy_threshold`, `approval_reward_bonus`, `rejection_penalty`, `task_memory_ratio` | |
-| Discovery Budget (4) | `preview_token_budget`, `max_description_tokens`, `compression_trigger_ratio`, `chunking_threshold_tokens` | Derived fields `preview_char_limit`, `max_description_chars` also dead |
-| Agent Registry (2) | `enable_agent_registry`, `auto_infer_capabilities` | |
-| Other (4) | `enable_llm_planning`, `enable_beautified_logs`, `profiling_verbosity`, `learning_boost_factor` | |
-
-**Config Views** (`config.execution.`, `config.learning.`, etc.) are also never used in production — no view property access patterns found.
 
 ---
 
@@ -58,7 +34,7 @@ config = SwarmConfig(
 
 ## SwarmConfig
 
-Primary configuration dataclass. All fields are flat with `_ConfigView` proxies for organized access (views exist but are not yet used in production).
+Primary configuration dataclass. All fields are flat with `_ConfigView` proxies for organized access.
 
 ```python
 config = SwarmConfig(gamma=0.99, enable_rl=True)
@@ -78,38 +54,31 @@ Runtime limits and timeouts. Consumers: `inspector.py`, `swarm_manager.py`, `uni
 | `max_actor_iters` | int | `50` | Max iterations per actor agent |
 | `max_eval_iters` | int | `1` | Architect/Auditor ReAct iterations. 1=minimal, 2-3=balanced, 5-10=thorough |
 | `max_eval_retries` | int | `3` | Retry attempts for validation |
+| `max_episode_iterations` | int | `12` | Max task iterations per episode (caps main loop) |
 | `llm_timeout_seconds` | float | `180.0` | LLM API call timeout (3 minutes) |
 | `async_timeout` | float | `60.0` | General async operation timeout (seconds) |
+| `actor_timeout` | float | `900.0` | Actor execution timeout (replaces hardcoded 120s) |
 | `max_concurrent_agents` | int | `10` | Max agents running in parallel |
-
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_episode_iterations` | int | `12` | [NOT WIRED] Max task iterations per episode |
-| `actor_timeout` | float | `900.0` | [NOT WIRED] Actor execution timeout |
-| `allow_partial_execution` | bool | `False` | [NOT WIRED] Allow agents to run with missing params |
-| `stream_message_timeout` | float | `0.15` | [NOT WIRED] Streaming message timeout |
-| `parallel_architect` | bool | `True` | [NOT WIRED] Run architect validation in parallel |
-| `parallel_auditor` | bool | `True` | [NOT WIRED] Run auditor validation in parallel |
+| `parallel_architect` | bool | `True` | Run architect validation agents in parallel via asyncio.gather |
+| `parallel_auditor` | bool | `True` | Run auditor validation agents in parallel via asyncio.gather |
 
 ### Budget Controls
 
-LLM cost limits. **Note:** SwarmConfig budget fields are NOT wired. Production uses `BudgetConfig` in `budget_tracker.py`.
+LLM cost limits. SwarmConfig budget fields are bridged to `BudgetConfig` via `BudgetConfig.from_swarm_config(config)`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `max_llm_calls_per_episode` | int | `100` | [DUPLICATE] Mirrors `BudgetConfig` — SwarmConfig copy not read |
-| `max_llm_calls_per_agent` | int | `50` | [DUPLICATE] Mirrors `BudgetConfig` — SwarmConfig copy not read |
-| `max_total_tokens_per_episode` | int | `500000` | [DUPLICATE] Mirrors `BudgetConfig` — SwarmConfig copy not read |
-| `enable_budget_enforcement` | bool | `True` | [NOT WIRED] `BudgetConfig.enable_enforcement` is the active version |
-| `budget_warning_threshold` | float | `0.8` | [NOT WIRED] `BudgetConfig.warning_threshold` is the active version |
-| `enable_monitoring` | bool | `False` | [NOT WIRED] Comprehensive monitoring (opt-in) |
-| `baseline_cost_per_success` | Optional[float] | `None` | [NOT WIRED] Baseline cost for efficiency comparison |
+| `max_llm_calls_per_episode` | int | `100` | Max LLM calls per episode |
+| `max_llm_calls_per_agent` | int | `50` | Max LLM calls per agent |
+| `max_total_tokens_per_episode` | int | `500000` | Max tokens per episode |
+| `enable_budget_enforcement` | bool | `True` | Enable hard budget enforcement |
+| `budget_warning_threshold` | float | `0.8` | Warn at 80% of budget |
+| `enable_monitoring` | bool | `False` | Comprehensive monitoring (opt-in) |
+| `baseline_cost_per_success` | Optional[float] | `None` | Baseline cost for efficiency comparison |
 
 ### Validation
 
-Quality loop. Consumers: `agent_runner.py`, `jotty.py`, `executor.py`.
+Quality loop. Consumers: `agent_runner.py`, `jotty.py`, `executor.py`, `inspector.py`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -124,7 +93,7 @@ Quality loop. Consumers: `agent_runner.py`, `jotty.py`, `executor.py`.
 | `swarm_validation_confidence_threshold` | float | `0.6` | Only retry if confidence below this |
 | `min_confidence` | float | `0.5` | Minimum confidence to accept a result |
 
-**Default confidence values** (previously hardcoded, now configurable):
+**Default confidence values:**
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -132,20 +101,6 @@ Quality loop. Consumers: `agent_runner.py`, `jotty.py`, `executor.py`.
 | `default_confidence_no_validation` | float | `0.5` | Confidence when no validation is run |
 | `default_confidence_insight_share` | float | `0.7` | Confidence for shared insights |
 | `default_estimated_reward` | float | `0.6` | Estimated reward when no Auditor result yet |
-
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `advisory_confidence_threshold` | float | `0.85` | [NOT WIRED] Advisory feedback retry threshold |
-| `max_validation_retries` | int | `5` | [NOT WIRED] Max retries on validation failure |
-| `enable_confidence_override` | bool | `True` | [NOT WIRED] Confident-actor override mechanism |
-| `confidence_override_threshold` | float | `0.30` | [NOT WIRED] Min gap for override |
-| `confidence_moving_average_alpha` | float | `0.7` | [NOT WIRED] EMA weight for confidence |
-| `min_confidence_for_override` | float | `0.70` | [NOT WIRED] Actor min confidence to override |
-| `max_validator_confidence_to_override` | float | `0.95` | [NOT WIRED] Don't override above this |
-| `max_refinement_rounds` | int | `2` | [NOT WIRED] Max refinement iterations |
-| `enable_llm_planning` | bool | `False` | [NOT WIRED] Use LLM to create initial plan |
 
 ---
 
@@ -184,15 +139,6 @@ Token allocation. Consumer: `_inference_mixin.py`, context management code.
 
 **Computed:** `config.memory_budget` — `max(min_memory_budget, max_context_tokens - reserved)`.
 
-**Not wired (discovery budget):**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `preview_token_budget` | int | `20000` | [NOT WIRED] Token budget for artifact analysis |
-| `max_description_tokens` | int | `5000` | [NOT WIRED] Per-artifact description limit |
-| `compression_trigger_ratio` | float | `0.8` | [NOT WIRED] Compress above 80% of limit |
-| `chunking_threshold_tokens` | int | `15000` | [NOT WIRED] Chunk artifacts above this |
-
 ### RL Parameters (TD-Lambda)
 
 The learning engine. Consumer: `td_lambda.py`, `q_learning.py`, `adaptive_components.py`.
@@ -225,13 +171,6 @@ The learning engine. Consumer: `td_lambda.py`, `q_learning.py`, `adaptive_compon
 | `base_reward_weight` | float | `0.3` | Weight for agent's own success |
 | `cooperation_bonus` | float | `0.4` | Bonus for helping other agents |
 | `predictability_bonus` | float | `0.3` | Bonus for predictable behavior |
-
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `baseline` | float | `0.5` | [NOT WIRED] Reward baseline for advantage calc. Set in universal_wrapper but never read |
-| `n_step` | int | `3` | [NOT WIRED] N-step returns lookahead. Set in universal_wrapper but never read |
 
 ### Persistence
 
@@ -336,19 +275,14 @@ Consumer: `swarm_manager.py`, `agent_runner.py`.
 
 ### Multi-Round Validation
 
-Consumer: `swarm_manager.py`.
+Consumer: `swarm_manager.py`, `inspector.py`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enable_multi_round` | bool | `True` | Enable multi-round validation |
 | `refinement_on_low_confidence` | float | `0.6` | Trigger refinement when confidence below this |
 | `refinement_on_disagreement` | bool | `True` | Trigger refinement when agents disagree |
-
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_refinement_rounds` | int | `2` | [NOT WIRED] Max refinement iterations |
+| `max_refinement_rounds` | int | `2` | Max refinement iterations per validation cycle |
 
 ---
 
@@ -403,15 +337,6 @@ Forgetting prevention. Consumer: `cortex.py`, `swarm_intelligence.py`.
 | `suspicion_threshold` | float | `0.95` | Flags suspiciously certain agent |
 | `min_rejection_rate` | float | `0.05` | Min rejection rate for calibration |
 
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `task_memory_ratio` | float | `0.3` | [NOT WIRED] Memory budget fraction for current task |
-| `ood_entropy_threshold` | float | `0.8` | [NOT WIRED] Out-of-distribution detection |
-| `approval_reward_bonus` | float | `0.1` | [NOT WIRED] Human approval reward |
-| `rejection_penalty` | float | `0.05` | [NOT WIRED] Human rejection penalty |
-
 ### Adaptive Learning
 
 Stall detection. Consumer: `adaptive_components.py`.
@@ -424,13 +349,8 @@ Stall detection. Consumer: `adaptive_components.py`.
 | `adaptive_window_size` | int | `50` | Window for learning rate adaptation |
 | `instability_threshold_multiplier` | float | `1.5` | `std_dev > mean * this` = unstable |
 | `slow_learning_threshold` | float | `0.01` | `mean_error < this` = too slow |
+| `learning_boost_factor` | float | `2.0` | LR multiplier when slow learning detected |
 | `goal_transfer_discount` | float | `0.5` | Discount for value transfer to related goals |
-
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `learning_boost_factor` | float | `2.0` | [NOT WIRED] LR multiplier on stall |
 
 ### Goal Hierarchy & Causal Learning
 
@@ -498,33 +418,19 @@ Consumer: `swarm_manager.py`, various.
 | `enable_metrics` | bool | `True` | Enable metrics collection |
 | `enable_profiling` | bool | `False` | Track execution times |
 
-**Not wired:**
+### Parameter Mappings
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_beautified_logs` | bool | `True` | [NOT WIRED] Human-readable logs |
-| `profiling_verbosity` | str | `"summary"` | [NOT WIRED] `"summary"` or `"detailed"` |
-
-### Agent Registry & Parameter Mappings
-
-Consumer: `custom_param_mappings` used by `ParameterResolver`.
+Consumer: `ParameterResolver`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `custom_param_mappings` | Dict[str, List[str]] | `{}` | Custom parameter name mappings |
 
-**Not wired:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_agent_registry` | bool | `True` | [NOT WIRED] Track actor capabilities |
-| `auto_infer_capabilities` | bool | `True` | [NOT WIRED] LLM infers capabilities |
-
 ---
 
 ## Config Views
 
-Eight read/write proxy views exist but are **not yet used in production code**. They work and are tested, but no production module accesses config through views.
+Eight read/write proxy views for organized access.
 
 | View Property | Class | Description |
 |---------------|-------|-------------|
@@ -538,7 +444,6 @@ Eight read/write proxy views exist but are **not yet used in production code**. 
 | `config.intelligence` | `SwarmIntelligenceView` | Trust, routing, communication, local mode |
 
 ```python
-# Views work — just not used by production code yet
 config.learning.gamma  # reads config.gamma
 config.learning.gamma = 0.95  # writes config.gamma
 config.learning.to_dict()  # {'alpha': 0.01, 'gamma': 0.99, ...}
@@ -676,13 +581,17 @@ config = SwarmConfig(custom_param_mappings={'user_id': ['customer_id', 'uid', 'a
 ## Serialization
 
 ```python
-# SwarmConfig → flat dict (includes dead fields)
+# SwarmConfig -> flat dict
 flat = config.to_flat_dict()
 
-# View → dict (subset)
+# View -> dict (subset)
 learning_dict = config.learning.to_dict()
 
-# ExecutionConfig → SwarmConfig-compatible dict
+# ExecutionConfig -> SwarmConfig-compatible dict
 swarm_kwargs = exec_config.to_swarm_config()
 config = SwarmConfig(**swarm_kwargs)
+
+# BudgetConfig from SwarmConfig (bridge)
+from Jotty.core.utils.budget_tracker import BudgetConfig
+budget = BudgetConfig.from_swarm_config(config)
 ```

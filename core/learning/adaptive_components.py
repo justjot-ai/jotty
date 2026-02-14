@@ -95,9 +95,10 @@ class AdaptiveLearningRate:
         if std_dev > mean_error * self.config.instability_threshold_multiplier: # STANFORD FIX
             adjustment -= self.adaptation_rate
         
-        # Low mean error → slow learning → increase α
+        # Low mean error → slow learning → boost α by learning_boost_factor
         elif mean_error < self.config.slow_learning_threshold: # STANFORD FIX
-            adjustment += self.adaptation_rate
+            _boost = getattr(self.config, 'learning_boost_factor', 2.0)
+            adjustment += self.adaptation_rate * _boost
         
         # Check success rate trend
         if len(self.success_rates) >= 20:

@@ -212,8 +212,7 @@ class ExecutionView(_ConfigView):
     _FIELDS = frozenset({
         'max_actor_iters', 'max_eval_iters', 'max_episode_iterations',
         'async_timeout', 'actor_timeout', 'max_concurrent_agents',
-        'allow_partial_execution', 'max_eval_retries',
-        'stream_message_timeout', 'llm_timeout_seconds',
+        'max_eval_retries', 'llm_timeout_seconds',
         'parallel_architect', 'parallel_auditor',
         'random_seed', 'numpy_seed', 'torch_seed',
         'python_hash_seed', 'enable_deterministic',
@@ -238,9 +237,7 @@ class ContextBudgetView(_ConfigView):
         'max_context_tokens', 'system_prompt_budget', 'current_input_budget',
         'trajectory_budget', 'tool_output_budget',
         'enable_dynamic_budget', 'min_memory_budget', 'max_memory_budget',
-        'preview_token_budget', 'max_description_tokens',
-        'compression_trigger_ratio', 'chunking_threshold_tokens',
-        'preview_char_limit', 'max_description_chars', 'token_model_name',
+        'token_model_name',
     })
 
 
@@ -252,7 +249,7 @@ class LearningView(_ConfigView):
         'learning_alpha', 'learning_gamma', 'learning_epsilon',
         'max_q_table_size', 'q_prune_percentage', 'enable_domain_transfer',
         'enable_rl', 'rl_verbosity',
-        'gamma', 'lambda_trace', 'alpha', 'baseline', 'n_step',
+        'gamma', 'lambda_trace', 'alpha',
         'enable_adaptive_alpha', 'alpha_min', 'alpha_max', 'alpha_adaptation_rate',
         'q_value_mode',
         # Intermediate rewards
@@ -286,25 +283,18 @@ class LearningView(_ConfigView):
         # Causal learning
         'enable_causal_learning', 'causal_confidence_threshold', 'causal_min_support',
         # Protection
-        'protected_memory_threshold', 'task_memory_ratio',
-        'suspicion_threshold', 'ood_entropy_threshold',
-        'min_rejection_rate', 'approval_reward_bonus', 'rejection_penalty',
+        'protected_memory_threshold', 'suspicion_threshold', 'min_rejection_rate',
     })
 
 
 class ValidationView(_ConfigView):
-    """Validation, confidence override, and multi-round settings."""
+    """Validation and multi-round settings."""
     _FIELDS = frozenset({
         'max_validation_rounds', 'refinement_timeout',
         'enable_validation', 'validation_mode',
-        'advisory_confidence_threshold', 'max_validation_retries',
-        'enable_confidence_override', 'confidence_override_threshold',
-        'confidence_moving_average_alpha', 'min_confidence_for_override',
-        'max_validator_confidence_to_override',
         'require_all_architect', 'require_all_auditor',
         'enable_per_actor_swarm_auditor', 'enable_final_swarm_auditor',
-        'swarm_validation_confidence_threshold',
-        'enable_llm_planning', 'min_confidence',
+        'swarm_validation_confidence_threshold', 'min_confidence',
         'default_confidence_on_error', 'default_confidence_no_validation',
         'default_confidence_insight_share', 'default_estimated_reward',
         'enable_multi_round', 'refinement_on_low_confidence',
@@ -315,8 +305,8 @@ class ValidationView(_ConfigView):
 class MonitoringView(_ConfigView):
     """Logging, profiling, and budget enforcement."""
     _FIELDS = frozenset({
-        'enable_beautified_logs', 'enable_debug_logs', 'log_level',
-        'enable_profiling', 'profiling_verbosity',
+        'enable_debug_logs', 'log_level',
+        'enable_profiling',
         'verbose', 'log_file',
         'enable_debug_logging', 'enable_metrics',
         'enable_monitoring', 'baseline_cost_per_success',
@@ -335,7 +325,6 @@ class SwarmIntelligenceView(_ConfigView):
         'stigmergy_routing_threshold', 'morph_min_rcs',
         'judge_intervention_confidence',
         'memory_retrieval_budget', 'collective_memory_limit',
-        'enable_agent_registry', 'auto_infer_capabilities',
         'enable_agent_communication', 'share_tool_results',
         'share_insights', 'max_messages_per_episode',
         'local_mode', 'local_model',
@@ -422,13 +411,11 @@ class SwarmConfig:
     enable_domain_transfer: bool = True  # Load learning from similar domains
 
     # Logs
-    enable_beautified_logs: bool = True  # Generate human-readable logs
     enable_debug_logs: bool = True  # Keep raw debug logs
     log_level: str = "INFO"  # Logging verbosity
 
     # Profiling
     enable_profiling: bool = False  # Track execution times for performance analysis
-    profiling_verbosity: str = "summary"  # "summary" (end only), "detailed" (per operation)
 
     # Legacy paths (keep for backward compatibility)
     base_path: str = "~/.jotty"  # Old persistence location
@@ -445,15 +432,8 @@ class SwarmConfig:
     actor_timeout: float = 900.0  # Specific timeout for actor execution (15 minutes)
     max_concurrent_agents: int = 10
 
-    # CRITICAL: Natural Dependencies (RL Learning)
-    # Allow agents to execute even with missing required parameters
-    # Agents can fail naturally when dependencies aren't met (instead of blocking at parameter resolution)
-    allow_partial_execution: bool = False  # Default: False (strict parameter checking)
-    # Set to True for RL with natural dependencies (agents detect missing data themselves)
-
     # NEW: Agent-specific overrides (can be set in ActorConfig)
     max_eval_retries: int = 3 # Retry attempts for validation (was hardcoded in agent.py)
-    stream_message_timeout: float = 0.15 # Streaming timeout (was hardcoded in agents)
     llm_timeout_seconds: float = 180.0 # LLM call timeout to prevent API hangs (3 minutes)
 
     # =========================================================================
@@ -465,15 +445,6 @@ class SwarmConfig:
     # NEW: Validation control flags
     enable_validation: bool = True  # Master switch for all validation
     validation_mode: str = 'full'  # 'full' | 'architect_only' | 'auditor_only' | 'none'
-    advisory_confidence_threshold: float = 0.85  # Below this, advisory feedback triggers retry
-    max_validation_retries: int = 5  # Increased from 3 for better learning
-
-    # A-TEAM: Confidence-Based Override Mechanism (Dec 29, 2025)
-    enable_confidence_override: bool = True  # Allow confident actors to override uncertain validators
-    confidence_override_threshold: float = 0.30  # Min gap (actor - validator) to allow override
-    confidence_moving_average_alpha: float = 0.7  # Weight for exponential moving average
-    min_confidence_for_override: float = 0.70  # Actor must be at least this confident to override
-    max_validator_confidence_to_override: float = 0.95  # Don't override if validator >95% confident
 
     # =========================================================================
     # 3. MEMORY (Hierarchical)
@@ -504,18 +475,6 @@ class SwarmConfig:
     # =========================================================================
     # 4.5 AGENTIC DISCOVERY BUDGET (A-Team: Config-Driven Design)
     # =========================================================================
-    # User requirement: "Have at least 20k tokens" for preview
-    # Model has 30k context, should use generously
-    preview_token_budget: int = 20000  # For LLM artifact analysis (20k tokens ≈ 80k chars)
-    max_description_tokens: int = 5000  # Per artifact description (5k tokens ≈ 20k chars)
-    compression_trigger_ratio: float = 0.8  # Only compress when total context > 80% of limit
-    chunking_threshold_tokens: int = 15000  # Chunk artifacts larger than 15k tokens
-
-    # Derived values (calculated in __post_init__)
-    preview_char_limit: int = None  # preview_token_budget * 4
-    max_description_chars: int = None  # max_description_tokens * 4
-
-    # =========================================================================
     # 4.6 TOKEN COUNTING (A-Team: Accurate Token Counting)
     # =========================================================================
     # User requirement: "take token_model_name in config as convention might be different"
@@ -536,8 +495,6 @@ class SwarmConfig:
     gamma: float = 0.99
     lambda_trace: float = 0.95
     alpha: float = 0.01
-    baseline: float = 0.5
-    n_step: int = 3
 
     # NEW: Adaptive learning rate (Dr. Manning)
     enable_adaptive_alpha: bool = True
@@ -617,12 +574,8 @@ class SwarmConfig:
     # 10. PROTECTION MECHANISMS
     # =========================================================================
     protected_memory_threshold: float = 0.8
-    task_memory_ratio: float = 0.3
     suspicion_threshold: float = 0.95
-    ood_entropy_threshold: float = 0.8
     min_rejection_rate: float = 0.05
-    approval_reward_bonus: float = 0.1
-    rejection_penalty: float = 0.05
 
     # =========================================================================
     # 11. VALIDATION
@@ -635,9 +588,6 @@ class SwarmConfig:
     enable_final_swarm_auditor: bool = True       # If True, run swarm Auditor once at END (recommended)
     swarm_validation_confidence_threshold: float = 0.6  # Only retry if confidence below this
 
-    # USER FIX: Task planning strategy (NO HARDCODING!)
-    enable_llm_planning: bool = False  # If True, use LLM to create initial TODO (future)
-    # Users can provide task_plan in kwargs for full control
     min_confidence: float = 0.5
 
     # NEW: Default values for validation (was hardcoded 0.3, 0.5, 0.7 in agent.py)
@@ -759,13 +709,6 @@ class SwarmConfig:
     local_model: str = "ollama/llama3"    # Local model for agents (Ollama format)
 
     # =========================================================================
-    # 22. AGENT REGISTRY (A-Team v2.0)
-    # =========================================================================
-    enable_agent_registry: bool = True  # Track actor capabilities and performance
-    auto_infer_capabilities: bool = True  # LLM infers if not provided
-
-
-    # =========================================================================
     # 22.5 BUDGET CONTROLS (A-Team Critical Fix)
     # =========================================================================
     # LLM call budget limits
@@ -823,14 +766,6 @@ class SwarmConfig:
     # =========================================================================
     def __post_init__(self):
         """Calculate derived config values."""
-        # A-Team: Calculate char limits from token budgets
-        # Rule of thumb: 1 token ≈ 4 characters
-        if self.preview_char_limit is None:
-            self.preview_char_limit = self.preview_token_budget * 4  # 20k tokens → 80k chars
-
-        if self.max_description_chars is None:
-            self.max_description_chars = self.max_description_tokens * 4  # 5k tokens → 20k chars
-        
         # Set reproducibility seeds if configured
         if self.random_seed is not None:
             try:

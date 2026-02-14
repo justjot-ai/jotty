@@ -103,6 +103,21 @@ class BudgetConfig:
     enable_enforcement: bool = True
     soft_limit_mode: bool = False  # If True, warn but don't block
 
+    @classmethod
+    def from_swarm_config(cls, config) -> 'BudgetConfig':
+        """Create BudgetConfig from SwarmConfig budget fields.
+
+        Bridges SwarmConfig budget fields to BudgetConfig so users
+        can set budget limits in one place (SwarmConfig).
+        """
+        return cls(
+            max_llm_calls_per_episode=getattr(config, 'max_llm_calls_per_episode', 100),
+            max_llm_calls_per_agent=getattr(config, 'max_llm_calls_per_agent', 50),
+            max_total_tokens_per_episode=getattr(config, 'max_total_tokens_per_episode', 500000),
+            warning_threshold=getattr(config, 'budget_warning_threshold', 0.8),
+            enable_enforcement=getattr(config, 'enable_budget_enforcement', True),
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {

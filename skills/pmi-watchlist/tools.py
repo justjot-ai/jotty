@@ -44,7 +44,9 @@ async def list_watchlists_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         params: Dictionary (no required params)
 
     Returns:
-        Dictionary with watchlists list and count
+        Dictionary with:
+            - watchlists (list): Watchlist objects with id, name, symbols
+            - count (int): Number of watchlists
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -70,10 +72,13 @@ async def create_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         params: Dictionary containing:
             - name (str, required): Watchlist name
-            - symbols (list[str], optional): Initial symbols to add
+            - symbols (list, optional): Initial symbols to add
 
     Returns:
-        Dictionary with watchlist id and name
+        Dictionary with:
+            - watchlist_id (str): ID of created watchlist
+            - name (str): Watchlist name
+            - symbols (list): Symbols added to watchlist
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -110,7 +115,9 @@ async def add_to_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - symbol (str, required): Symbol to add
 
     Returns:
-        Dictionary with watchlist_id and added symbol
+        Dictionary with:
+            - watchlist_id (str): Watchlist ID
+            - symbol (str): Symbol that was added
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -142,7 +149,10 @@ async def remove_from_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - symbol (str, required): Symbol to remove
 
     Returns:
-        Dictionary with watchlist_id and removed symbol
+        Dictionary with:
+            - watchlist_id (str): Watchlist ID
+            - symbol (str): Symbol that was removed
+            - removed (bool): Whether removal succeeded
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -171,7 +181,10 @@ async def refresh_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - watchlist_id (str, required): Watchlist ID to refresh
 
     Returns:
-        Dictionary with watchlist data including refreshed prices
+        Dictionary with:
+            - watchlist_id (str): Watchlist ID
+            - symbols (list): Symbol objects with refreshed ltp, change, change_percent
+            - count (int): Number of symbols
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

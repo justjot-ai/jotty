@@ -1211,30 +1211,52 @@ class MultiRoundValidator:
         all_results = []
         
         # Round 1: Initial validation
-        initial_results = []
-        for agent in self.agents:
-            result = await agent.run(goal, inputs, trajectory, ValidationRound.INITIAL)
-            initial_results.append(result)
-            all_results.append(result)
+        # Check config for parallel execution
+        _run_parallel = (
+            (is_architect and getattr(self.config, 'parallel_architect', True))
+            or (not is_architect and getattr(self.config, 'parallel_auditor', True))
+        )
+        if _run_parallel and len(self.agents) > 1:
+            import asyncio
+            initial_results = list(await asyncio.gather(
+                *[agent.run(goal, inputs, trajectory, ValidationRound.INITIAL)
+                  for agent in self.agents]
+            ))
+        else:
+            initial_results = []
+            for agent in self.agents:
+                result = await agent.run(goal, inputs, trajectory, ValidationRound.INITIAL)
+                initial_results.append(result)
+        all_results.extend(initial_results)
         
         # Check if refinement needed
         needs_refinement = self._needs_refinement(initial_results, is_architect)
         
+        _max_rounds = getattr(self.config, 'max_refinement_rounds', 2)
         if needs_refinement and self.config.enable_multi_round:
-            # Build feedback from initial results
-            feedback = self._build_feedback(initial_results)
-            
-            # Run refinement round
-            for i, agent in enumerate(self.agents):
-                if initial_results[i].confidence < self.config.refinement_on_low_confidence:
-                    refined = await agent.refine(
-                        initial_results[i],
-                        feedback,
-                        additional_context="Other agents' reasoning and insights are available."
-                    )
-                    all_results.append(refined)
-                    # Use refined result
-                    initial_results[i] = refined
+            for _round in range(_max_rounds):
+                # Build feedback from current results
+                feedback = self._build_feedback(initial_results)
+
+                # Run refinement round
+                any_refined = False
+                for i, agent in enumerate(self.agents):
+                    if initial_results[i].confidence < self.config.refinement_on_low_confidence:
+                        refined = await agent.refine(
+                            initial_results[i],
+                            feedback,
+                            additional_context="Other agents' reasoning and insights are available."
+                        )
+                        all_results.append(refined)
+                        initial_results[i] = refined
+                        any_refined = True
+
+                # Stop early if nothing needed refinement or all now pass
+                if not any_refined:
+                    break
+                needs_refinement = self._needs_refinement(initial_results, is_architect)
+                if not needs_refinement:
+                    break
         
         # Combine decisions
         # A-TEAM FIX: Detect reasoning-vote contradictions and fix them

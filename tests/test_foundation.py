@@ -84,17 +84,6 @@ class TestSwarmConfig:
         assert config.total_memory_capacity == 0
 
     @pytest.mark.unit
-    def test_post_init_char_limits(self):
-        """__post_init__ calculates char limits from token budgets."""
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        config = SwarmConfig(
-            preview_token_budget=1000,
-            max_description_tokens=500,
-        )
-        assert config.preview_char_limit == 4000  # 1000 * 4
-        assert config.max_description_chars == 2000  # 500 * 4
-
-    @pytest.mark.unit
     def test_custom_field_values_preserved(self):
         """Explicit field values are not overridden."""
         from Jotty.core.foundation.data_structures import SwarmConfig

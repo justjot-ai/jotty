@@ -250,24 +250,6 @@ class TestPMIPortfolio:
         assert result["success"] is True
         assert result["total_pnl"] == 1500
 
-    @_mock_api
-    @_mock_env
-    async def test_get_available_cash(self, mock_req):
-        mock_req.return_value = {"success": True, "total": 50000}
-        result = await _portfolio.get_available_cash_tool({})
-        assert result["success"] is True
-        assert result["total"] == 50000
-
-    @_mock_api
-    @_mock_env
-    async def test_get_account_limits(self, mock_req):
-        mock_req.return_value = {
-            "success": True, "margin_available": 100000,
-            "margin_used": 50000, "collateral": 75000,
-        }
-        result = await _portfolio.get_account_limits_tool({})
-        assert result["success"] is True
-        assert result["margin_available"] == 100000
 
 
 # =============================================================================
@@ -607,3 +589,150 @@ class TestFinancialAnalysis:
             result = await _financial.stock_comparison_tool({"symbols": ["TCS"]})
         assert result["success"] is False
         assert "2 symbols" in result["error"]
+
+
+# =============================================================================
+# TestToolSchemaOutputs — verify output field parsing from docstrings
+# =============================================================================
+
+from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+
+@pytest.mark.unit
+class TestToolSchemaOutputs:
+    """Verify ToolSchema correctly extracts output fields from Returns: docstrings."""
+
+    def test_inline_returns_parsing(self):
+        """Parse 'Dictionary with field_a, field_b' inline format."""
+        doc = """Get data.\n\nReturns:\n    Dictionary with holdings, total_value, total_pnl"""
+        result = ToolSchema._parse_docstring_returns(doc)
+        assert "holdings" in result
+        assert "total_value" in result
+        assert "total_pnl" in result
+
+    def test_structured_returns_parsing(self):
+        """Parse structured '- field (type): description' format."""
+        doc = """Get data.\n\nReturns:\n    Dictionary with:\n        - holdings (list): Portfolio holdings\n        - total_value (float): Total value\n        - count (int): Number of items"""
+        result = ToolSchema._parse_docstring_returns(doc)
+        assert result["holdings"]["type"] == "list"
+        assert result["total_value"]["type"] == "float"
+        assert result["count"]["type"] == "int"
+        assert result["holdings"]["description"] == "Portfolio holdings"
+
+    def test_returns_stops_at_next_section(self):
+        """Returns parsing should stop at Raises: or other sections."""
+        doc = """Get data.\n\nReturns:\n    Dictionary with:\n        - value (float): A value\n\nRaises:\n    ValueError: If bad"""
+        result = ToolSchema._parse_docstring_returns(doc)
+        assert "value" in result
+        assert len(result) == 1
+
+    def test_empty_docstring_returns_empty(self):
+        """No Returns section should return empty dict."""
+        doc = """Get data.\n\nArgs:\n    params: Dictionary containing:\n        - x (str): Something"""
+        result = ToolSchema._parse_docstring_returns(doc)
+        assert result == {}
+
+    def test_from_tool_function_captures_outputs(self):
+        """ToolSchema.from_tool_function should populate outputs from Returns docstring."""
+        schema = ToolSchema.from_tool_function(_portfolio.get_portfolio_tool, "get_portfolio_tool")
+        output_names = [o.name for o in schema.outputs]
+        assert "holdings" in output_names
+        assert "total_value" in output_names
+        assert "total_pnl" in output_names
+        assert "count" in output_names
+
+    def test_to_dict_includes_returns(self):
+        """ToolSchema.to_dict() should include 'returns' field when outputs declared."""
+        schema = ToolSchema.from_tool_function(_portfolio.get_portfolio_tool, "get_portfolio_tool")
+        d = schema.to_dict()
+        assert "returns" in d
+        return_names = [r["name"] for r in d["returns"]]
+        assert "holdings" in return_names
+        assert "total_value" in return_names
+
+    def test_to_dict_no_returns_when_empty(self):
+        """ToolSchema.to_dict() should omit 'returns' when no outputs declared."""
+        schema = ToolSchema(name="test_tool", description="Test")
+        d = schema.to_dict()
+        assert "returns" not in d
+
+    def test_pnl_summary_outputs(self):
+        """PnL summary tool should declare realized_pnl, unrealized_pnl, total_pnl, day_pnl outputs."""
+        schema = ToolSchema.from_tool_function(_portfolio.get_pnl_summary_tool, "get_pnl_summary_tool")
+        output_names = [o.name for o in schema.outputs]
+        assert "realized_pnl" in output_names
+        assert "unrealized_pnl" in output_names
+        assert "total_pnl" in output_names
+        assert "day_pnl" in output_names
+
+    def test_market_data_quote_outputs(self):
+        """Quote tool should declare ltp, change, change_percent, volume outputs."""
+        schema = ToolSchema.from_tool_function(_market_data.get_quote_tool, "get_quote_tool")
+        output_names = [o.name for o in schema.outputs]
+        assert "ltp" in output_names
+        assert "change" in output_names
+        assert "volume" in output_names
+
+    def test_trading_place_order_outputs(self):
+        """Place order tool should declare order_id, status outputs."""
+        schema = ToolSchema.from_tool_function(_trading.place_order_tool, "place_order_tool")
+        output_names = [o.name for o in schema.outputs]
+        assert "order_id" in output_names
+        assert "status" in output_names
+
+    def test_output_types_preserved(self):
+        """Output field types from structured Returns should be preserved."""
+        schema = ToolSchema.from_tool_function(_portfolio.get_portfolio_tool, "get_portfolio_tool")
+        holdings_out = next(o for o in schema.outputs if o.name == "holdings")
+        total_value_out = next(o for o in schema.outputs if o.name == "total_value")
+        count_out = next(o for o in schema.outputs if o.name == "count")
+        assert holdings_out.type_hint == "list"
+        assert total_value_out.type_hint == "float"
+        assert count_out.type_hint == "int"
+
+    def test_output_field_names_property(self):
+        """output_field_names property should return list of output field names."""
+        schema = ToolSchema.from_tool_function(_market_data.get_indices_tool, "get_indices_tool")
+        assert "indices" in schema.output_field_names
+
+    def test_repr_includes_outputs(self):
+        """__repr__ should include output fields."""
+        schema = ToolSchema.from_tool_function(_broker.list_brokers_tool, "list_brokers_tool")
+        r = repr(schema)
+        assert "outputs=" in r
+        assert "brokers" in r
+
+    def test_all_pmi_tools_have_outputs(self):
+        """Every PMI tool should have at least one output field declared."""
+        modules = {
+            "pmi-market-data": _market_data,
+            "pmi-portfolio": _portfolio,
+            "pmi-watchlist": _watchlist,
+            "pmi-trading": _trading,
+            "pmi-strategies": _strategies,
+            "pmi-alerts": _alerts,
+            "pmi-broker": _broker,
+        }
+        missing = []
+        for skill_name, mod in modules.items():
+            for tool_name in getattr(mod, "__all__", []):
+                func = getattr(mod, tool_name)
+                schema = ToolSchema.from_tool_function(func, tool_name)
+                if not schema.outputs:
+                    missing.append(f"{skill_name}/{tool_name}")
+        assert not missing, f"Tools missing output declarations: {missing}"
+
+    def test_from_metadata_with_returns(self):
+        """ToolSchema.from_metadata should parse returns list."""
+        metadata = {
+            "description": "Test tool",
+            "parameters": {"properties": {}, "required": []},
+            "returns": [
+                {"name": "result", "type": "str", "description": "The result"},
+                {"name": "count", "type": "int", "description": "Count"},
+            ],
+        }
+        schema = ToolSchema.from_metadata("test_tool", metadata)
+        assert len(schema.outputs) == 2
+        assert schema.outputs[0].name == "result"
+        assert schema.outputs[1].type_hint == "int"

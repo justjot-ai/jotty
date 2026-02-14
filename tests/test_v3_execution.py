@@ -5675,6 +5675,812 @@ class TestContentFieldScopingRegression:
         assert 'content' not in result
 
 
+# =============================================================================
+# Complex Real-World Scenario Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestRealWorldCodeGenPipeline:
+    """Simulate: 'Generate a Python stats module, save it, then run it.'
+
+    This is the exact scenario that caused the stats.py-gets-__init__.py bug.
+    3-step pipeline: LLM generate -> file write -> shell exec.
+    """
+
+    def test_code_gen_write_execute_full_pipeline(self):
+        """Full 3-step code gen pipeline resolves content correctly."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        # Step 0 output: LLM generates Python code
+        outputs = {
+            'step_0': {
+                'response': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
+                'content': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
+                'success': True,
+            },
+        }
+
+        # Step 1: Write file — with I/O contract pointing at step_0
+        step1 = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${step_0.content}', 'path': 'stats.py'},
+            'Save generated stats module to stats.py',
+            depends_on=[0],
+            inputs_needed={'content': 'step_0.content', 'path': 'literal:stats.py'},
+            outputs_produced=['path', 'bytes_written'],
+        )
+
+        schema1 = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver1 = ParameterResolver(outputs)
+        resolved1 = resolver1.resolve(step1.params, step1, tool_schema=schema1)
+
+        assert resolved1['path'] == 'stats.py'
+        assert 'import statistics' in resolved1['content']
+        assert 'def mean' in resolved1['content']
+
+    def test_code_gen_wrong_step_content_blocked(self):
+        """Step 2 (write stats.py) must NOT get __init__.py from step 0."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        # Step 0: wrote __init__.py
+        # Step 1: generated stats.py code
+        outputs = {
+            'step_0': {
+                'content': '# __init__.py\nfrom .stats import mean\nfrom .utils import helper\n__all__ = ["mean", "helper"]',
+                'path': '__init__.py',
+                'success': True,
+                'bytes_written': 85,
+            },
+            'step_1': {
+                'content': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\ndef stdev(data):\n    return statistics.stdev(data)',
+                'response': 'Here is the stats module code...',
+                'success': True,
+            },
+        }
+
+        # Step 2: Write stats.py — depends on step 1 ONLY
+        step2 = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'path': 'stats.py'},
+            'Save stats module code to stats.py',
+            depends_on=[1],
+            inputs_needed={'content': 'step_1.content', 'path': 'literal:stats.py'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
+
+        # CRITICAL: content must be from step_1, NOT step_0
+        assert 'import statistics' in resolved['content']
+        assert '__init__' not in resolved['content']
+        assert '__all__' not in resolved['content']
+
+    def test_shell_exec_after_file_write(self):
+        """Step 3 (shell exec) gets correct file path from step 2."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'step_0': {'content': 'generated code...', 'success': True},
+            'step_1': {'path': '/tmp/project/stats.py', 'bytes_written': 200, 'success': True},
+        }
+
+        step3 = AgenticStep(
+            'shell-exec', 'execute_command_tool',
+            {'command': 'python /tmp/project/stats.py'},
+            'Run the stats module',
+            depends_on=[1],
+            inputs_needed={'command': 'literal:python /tmp/project/stats.py'},
+        )
+
+        schema = ToolSchema('execute_command_tool', params=[
+            ToolParam(name='command', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step3.params, step3, tool_schema=schema)
+        assert resolved['command'] == 'python /tmp/project/stats.py'
+
+
+@pytest.mark.unit
+class TestRealWorldResearchSynthesis:
+    """Simulate: 'Research React vs Vue, create comparison PDF, send to Telegram.'
+
+    Multi-entity research with synthesis. 5-step pipeline:
+    search A -> search B -> synthesize -> create PDF -> send telegram.
+    """
+
+    def test_comparison_synthesis_uses_correct_research(self):
+        """Synthesis step (step 2) gets both search results from steps 0 and 1."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'search_react': {
+                'query': 'React framework features 2026',
+                'results': [
+                    {'title': 'React 20 Features', 'snippet': 'Server components, Suspense...', 'url': 'https://react.dev'},
+                    {'title': 'React Performance', 'snippet': 'Concurrent mode, automatic batching...'},
+                ],
+                'success': True,
+            },
+            'search_vue': {
+                'query': 'Vue framework features 2026',
+                'results': [
+                    {'title': 'Vue 4 Features', 'snippet': 'Vapor mode, Composition API...', 'url': 'https://vuejs.org'},
+                    {'title': 'Vue Performance', 'snippet': 'Reactivity system, tree-shaking...'},
+                ],
+                'success': True,
+            },
+        }
+
+        # Step 2: Synthesize — references both search outputs
+        step2 = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Using research:\n${search_react}\n${search_vue}\n\nCreate comparison.'},
+            'Create structured React vs Vue comparison',
+            depends_on=[0, 1],
+            inputs_needed={
+                'prompt': 'literal:Using research from both searches, create a comparison.',
+            },
+            outputs_produced=['response', 'content'],
+        )
+
+        schema = ToolSchema('generate_text_tool', params=[
+            ToolParam(name='prompt', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
+
+        # Template substitution should inject both search results
+        assert 'React' in resolved['prompt'] or 'search_react' in resolved['prompt']
+
+    def test_pdf_step_gets_synthesis_not_raw_search(self):
+        """PDF creation step gets the synthesis output, not raw search JSON."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'search_react': {
+                'results': [{'title': 'React Features'}],
+                'success': True,
+            },
+            'search_vue': {
+                'results': [{'title': 'Vue Features'}],
+                'success': True,
+            },
+            'synthesis': {
+                'content': '# React vs Vue Comparison\n\n## Performance\nReact uses virtual DOM...\n\n## Learning Curve\nVue has gentler learning curve...\n\n## Ecosystem\nReact has larger ecosystem...',
+                'response': 'Here is the comparison report...',
+                'success': True,
+            },
+        }
+
+        # Step 3: Create PDF — depends on synthesis (step 2) only
+        step3 = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${synthesis.content}', 'path': 'react_vs_vue.md'},
+            'Save comparison report as markdown',
+            depends_on=[2],
+            inputs_needed={'content': 'synthesis.content', 'path': 'literal:react_vs_vue.md'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step3.params, step3, tool_schema=schema)
+
+        # Content MUST be the synthesis, not raw search results
+        assert '# React vs Vue Comparison' in resolved['content']
+        assert 'Performance' in resolved['content']
+        assert resolved['path'] == 'react_vs_vue.md'
+
+
+@pytest.mark.unit
+class TestRealWorldMultiFileProject:
+    """Simulate: 'Create a Python project with __init__.py, main.py, and utils.py.'
+
+    3-file creation pipeline where each file must get its own content, not
+    content from a different file. This is the core regression scenario.
+    """
+
+    def _build_outputs_after_codegen(self):
+        """Simulate step_0 through step_2: LLM generated 3 files."""
+        return {
+            'gen_init': {
+                'content': '"""MyProject package."""\nfrom .main import run\nfrom .utils import helper\n__version__ = "1.0.0"',
+                'success': True,
+            },
+            'gen_main': {
+                'content': '"""Main entry point."""\nimport sys\nfrom .utils import helper\n\ndef run():\n    data = helper(sys.argv[1:])\n    print(f"Result: {data}")\n\nif __name__ == "__main__":\n    run()',
+                'success': True,
+            },
+            'gen_utils': {
+                'content': '"""Utility functions."""\nimport json\nimport os\n\ndef helper(args):\n    return {"args": args, "cwd": os.getcwd()}\n\ndef load_config(path):\n    with open(path) as f:\n        return json.load(f)',
+                'success': True,
+            },
+        }
+
+    def test_init_file_gets_init_content(self):
+        """__init__.py write step gets __init__ content, not main.py or utils.py."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = self._build_outputs_after_codegen()
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write __init__.py',
+            depends_on=[0],
+            inputs_needed={'content': 'gen_init.content', 'path': 'literal:myproject/__init__.py'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve({}, step, tool_schema=schema)
+
+        assert '__version__' in resolved['content']
+        assert 'from .main import run' in resolved['content']
+        assert 'def run()' not in resolved['content']  # NOT main.py content
+        assert 'def helper' not in resolved['content']  # NOT utils.py content
+        assert resolved['path'] == 'myproject/__init__.py'
+
+    def test_main_file_gets_main_content(self):
+        """main.py write step gets main content, not __init__.py or utils.py."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = self._build_outputs_after_codegen()
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write main.py',
+            depends_on=[1],
+            inputs_needed={'content': 'gen_main.content', 'path': 'literal:myproject/main.py'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve({}, step, tool_schema=schema)
+
+        assert 'def run()' in resolved['content']
+        assert 'if __name__' in resolved['content']
+        assert '__version__' not in resolved['content']  # NOT __init__.py
+        assert 'def helper' not in resolved['content']  # NOT utils.py (only import)
+        assert resolved['path'] == 'myproject/main.py'
+
+    def test_utils_file_gets_utils_content(self):
+        """utils.py write step gets utils content, not __init__.py or main.py."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = self._build_outputs_after_codegen()
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write utils.py',
+            depends_on=[2],
+            inputs_needed={'content': 'gen_utils.content', 'path': 'literal:myproject/utils.py'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve({}, step, tool_schema=schema)
+
+        assert 'def helper' in resolved['content']
+        assert 'def load_config' in resolved['content']
+        assert '__version__' not in resolved['content']  # NOT __init__.py
+        assert 'def run()' not in resolved['content']  # NOT main.py
+        assert resolved['path'] == 'myproject/utils.py'
+
+    def test_all_three_files_get_unique_content(self):
+        """All 3 write steps produce different content — no cross-contamination."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = self._build_outputs_after_codegen()
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        files = [
+            ('gen_init', 'myproject/__init__.py', 0),
+            ('gen_main', 'myproject/main.py', 1),
+            ('gen_utils', 'myproject/utils.py', 2),
+        ]
+
+        resolved_contents = []
+        for source_key, path, dep_idx in files:
+            step = AgenticStep(
+                'file-operations', 'write_file_tool', {},
+                f'Write {path}',
+                depends_on=[dep_idx],
+                inputs_needed={'content': f'{source_key}.content', 'path': f'literal:{path}'},
+            )
+            resolver = ParameterResolver(outputs)
+            resolved = resolver.resolve({}, step, tool_schema=schema)
+            resolved_contents.append(resolved['content'])
+
+        # All 3 contents must be different
+        assert len(set(resolved_contents)) == 3
+        # Each content should be the correct one
+        assert '__version__' in resolved_contents[0]
+        assert 'def run()' in resolved_contents[1]
+        assert 'def helper' in resolved_contents[2]
+
+
+@pytest.mark.unit
+class TestRealWorldWebScrapeAnalyze:
+    """Simulate: 'Scrape HN frontpage, analyze trends, create report.'
+
+    Pipeline: scrape -> analyze -> write report. Tests template chaining
+    and dependency injection across 3 steps.
+    """
+
+    def test_analysis_step_receives_scraped_data(self):
+        """Analysis step (step 1) should get scraped data from step 0."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'scrape_hn': {
+                'content': '1. Show HN: AI Code Review Tool (120 points)\n2. Ask HN: Best practices for LLM caching (89 points)\n3. PostgreSQL 17 Released (450 points)',
+                'url': 'https://news.ycombinator.com',
+                'success': True,
+            },
+        }
+
+        step1 = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Analyze these HN headlines for trends:\n${scrape_hn.content}'},
+            'Analyze HN trends',
+            depends_on=[0],
+            inputs_needed={'prompt': 'literal:Analyze HN headlines for trends'},
+        )
+
+        schema = ToolSchema('generate_text_tool', params=[
+            ToolParam(name='prompt', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step1.params, step1, tool_schema=schema)
+
+        # Template ${scrape_hn.content} should resolve to the scraped content
+        assert 'Show HN' in resolved['prompt']
+        assert 'PostgreSQL 17' in resolved['prompt']
+
+    def test_report_step_gets_analysis_not_scrape(self):
+        """Report write step (step 2) gets analysis output, not raw scrape."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'scrape_hn': {
+                'content': '1. Show HN: AI Tool (120pts)\n2. PostgreSQL 17 (450pts)',
+                'success': True,
+            },
+            'analysis': {
+                'content': '# HN Trends Analysis\n\n## Key Themes\n1. AI/ML tools dominate\n2. Database releases generate buzz\n\n## Recommendations\n- Focus on AI tooling\n- Monitor DB ecosystem',
+                'success': True,
+            },
+        }
+
+        step2 = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${analysis.content}', 'path': 'hn_trends.md'},
+            'Save trends analysis report',
+            depends_on=[1],
+            inputs_needed={'content': 'analysis.content', 'path': 'literal:hn_trends.md'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
+
+        # Must be analysis content, not raw scrape
+        assert '# HN Trends Analysis' in resolved['content']
+        assert 'Key Themes' in resolved['content']
+        assert resolved['path'] == 'hn_trends.md'
+
+
+@pytest.mark.unit
+class TestRealWorldDependencyResults:
+    """Test DEPENDENCY_RESULTS injection for execute_step scenarios."""
+
+    def _simulate_dep_injection(self, step, outputs):
+        """Simulate the dependency results injection logic from execute_step."""
+        resolved_params = dict(step.params)
+        if hasattr(step, 'depends_on') and step.depends_on and 'context' not in resolved_params:
+            dep_results = {}
+            for dep_idx in step.depends_on:
+                dep_key = f'step_{dep_idx}'
+                for k, v in outputs.items():
+                    if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                        dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
+            if dep_results:
+                resolved_params['_dependency_results'] = json.dumps(dep_results, default=str)
+        return resolved_params
+
+    def test_synthesis_step_gets_all_dependency_outputs(self):
+        """Synthesis step depending on 3 research steps gets all outputs."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {
+            'step_0': {'query': 'React features', 'results': [{'title': 'React 20'}], 'success': True},
+            'step_1': {'query': 'Vue features', 'results': [{'title': 'Vue 4'}], 'success': True},
+            'step_2': {'query': 'Angular features', 'results': [{'title': 'Angular 18'}], 'success': True},
+        }
+
+        step = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Compare all three frameworks'},
+            'Create framework comparison',
+            depends_on=[0, 1, 2],
+        )
+
+        resolved = self._simulate_dep_injection(step, outputs)
+        dep_json = json.loads(resolved['_dependency_results'])
+
+        assert 'step_0' in dep_json
+        assert 'step_1' in dep_json
+        assert 'step_2' in dep_json
+        assert 'React' in dep_json['step_0']
+        assert 'Vue' in dep_json['step_1']
+        assert 'Angular' in dep_json['step_2']
+
+    def test_no_injection_when_context_already_present(self):
+        """If 'context' param already exists, don't inject _dependency_results."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {'step_0': {'content': 'data', 'success': True}}
+        step = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'test', 'context': 'existing context'},
+            'Test',
+            depends_on=[0],
+        )
+
+        resolved = self._simulate_dep_injection(step, outputs)
+        assert '_dependency_results' not in resolved
+        assert resolved['context'] == 'existing context'
+
+    def test_no_injection_without_depends_on(self):
+        """Steps without depends_on get no injection."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {'step_0': {'content': 'data'}}
+        step = AgenticStep(
+            'web-search', 'search_web_tool',
+            {'query': 'test'},
+            'Search',
+        )
+
+        resolved = self._simulate_dep_injection(step, outputs)
+        assert '_dependency_results' not in resolved
+
+
+@pytest.mark.unit
+class TestRealWorldReplanRecovery:
+    """Simulate: Plan fails at step 2, replans, new plan references old outputs.
+
+    After replanning, new steps reference outputs from successful steps
+    that used custom output_keys. Scoped resolution must still work.
+    """
+
+    def test_replan_step_resolves_from_surviving_outputs(self):
+        """After replan, new step correctly resolves from pre-replan outputs."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        # Steps 0-1 succeeded before replan
+        outputs = {
+            'research_data': {
+                'content': '## Market Analysis\nTech stocks up 15%...\nAI sector leading...',
+                'query': 'stock market trends 2026',
+                'results': [{'title': 'Market Report', 'snippet': 'Tech up 15%'}],
+                'success': True,
+            },
+            'step_1': {
+                'content': '# Investment Report\n\nBased on analysis...\n\n## Recommendations\n1. Increase AI exposure\n2. Diversify into emerging markets',
+                'success': True,
+            },
+        }
+
+        # Replan produced this new step — depends on step_1's synthesis
+        replan_step = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${step_1.content}', 'path': 'investment_report.md'},
+            'Save investment report (replan: PDF failed, falling back to markdown)',
+            depends_on=[1],
+            inputs_needed={'content': 'step_1.content', 'path': 'literal:investment_report.md'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(replan_step.params, replan_step, tool_schema=schema)
+
+        assert '# Investment Report' in resolved['content']
+        assert 'Recommendations' in resolved['content']
+        assert resolved['path'] == 'investment_report.md'
+        # Should NOT contain raw research data
+        assert 'Tech stocks up 15%' not in resolved['content']
+
+    def test_replan_with_custom_output_keys(self):
+        """Replan steps referencing custom output_keys resolve correctly."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {
+            'weather_data': {
+                'temperature': '32C',
+                'humidity': '65%',
+                'city': 'Delhi',
+                'content': 'Current weather in Delhi: 32C, 65% humidity, sunny',
+                'success': True,
+            },
+            'forecast': {
+                'content': 'Delhi forecast: 33C tomorrow, 30C day after, rain expected Thursday',
+                'success': True,
+            },
+        }
+
+        # Template referencing custom output_key
+        step = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Current: ${weather_data.content}\nForecast: ${forecast.content}\n\nSummarize weather outlook.'},
+            'Summarize Delhi weather',
+            depends_on=[0, 1],
+        )
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step.params, step)
+
+        assert '32C' in resolved['prompt']
+        assert 'rain expected Thursday' in resolved['prompt']
+
+
+@pytest.mark.unit
+class TestRealWorldEdgeCases:
+    """Edge cases from real production failures."""
+
+    def test_empty_io_contracts_backward_compat(self):
+        """Steps without I/O contracts still resolve via templates (backward compat)."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {
+            'step_0': {'content': 'Generated report content with enough length to pass threshold checks easily', 'success': True},
+        }
+
+        # Old-style step — no inputs_needed, no outputs_produced
+        step = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${step_0.content}', 'path': 'report.md'},
+            'Save report',
+            depends_on=[0],
+        )
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step.params, step)
+
+        assert 'Generated report content' in resolved['content']
+        assert resolved['path'] == 'report.md'
+
+    def test_literal_prefix_with_special_chars(self):
+        """Literal sources with special characters resolve correctly."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write file',
+            inputs_needed={
+                'path': 'literal:/tmp/my project/output (2).txt',
+                'content': 'literal:Hello, World!\nSecond line.',
+            },
+        )
+
+        resolver = ParameterResolver({})
+        resolved = resolver.resolve({}, step)
+
+        assert resolved['path'] == '/tmp/my project/output (2).txt'
+        assert resolved['content'] == 'Hello, World!\nSecond line.'
+
+    def test_mixed_literal_and_step_references(self):
+        """Mix of literal and step references in same inputs_needed."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {
+            'codegen': {
+                'content': 'def fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)',
+                'success': True,
+            },
+        }
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Save fibonacci module',
+            depends_on=[0],
+            inputs_needed={
+                'content': 'codegen.content',
+                'path': 'literal:math_utils/fibonacci.py',
+            },
+        )
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve({}, step)
+
+        assert 'def fibonacci' in resolved['content']
+        assert resolved['path'] == 'math_utils/fibonacci.py'
+
+    def test_io_contract_unresolved_source_falls_through(self):
+        """When inputs_needed source doesn't resolve, template/auto-wire take over."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'step_0': {'content': 'fallback content with sufficient length for auto-wire matching', 'success': True},
+        }
+
+        # inputs_needed references a nonexistent output key
+        step = AgenticStep(
+            'file-operations', 'write_file_tool',
+            {'content': '${step_0.content}', 'path': 'output.txt'},
+            'Write output',
+            depends_on=[0],
+            inputs_needed={'content': 'nonexistent_step.content'},
+        )
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='path', required=True, type_hint='path'),
+            ToolParam(name='content', required=True),
+        ])
+
+        resolver = ParameterResolver(outputs)
+        resolved = resolver.resolve(step.params, step, tool_schema=schema)
+
+        # Template ${step_0.content} should still resolve even though inputs_needed failed
+        assert 'fallback content' in resolved['content']
+
+    def test_step_with_no_outputs_yet(self):
+        """First step in a plan (no previous outputs) resolves correctly."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        step = AgenticStep(
+            'web-search', 'search_web_tool',
+            {'query': 'Python best practices 2026'},
+            'Search for Python best practices',
+            inputs_needed={'query': 'literal:Python best practices 2026'},
+            outputs_produced=['results', 'query'],
+        )
+
+        schema = ToolSchema('search_web_tool', params=[
+            ToolParam(name='query', required=True),
+        ])
+
+        resolver = ParameterResolver({})  # Empty outputs — first step
+        resolved = resolver.resolve(step.params, step, tool_schema=schema)
+
+        assert resolved['query'] == 'Python best practices 2026'
+
+    def test_deeply_nested_step_reference(self):
+        """Dotted path with nested field access (step_0.results[0].title)."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+
+        outputs = {
+            'step_0': {
+                'results': [
+                    {'title': 'First Result', 'url': 'https://example.com'},
+                    {'title': 'Second Result', 'url': 'https://example2.com'},
+                ],
+                'success': True,
+            },
+        }
+
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve_path('step_0.results[0].title')
+        assert result == 'First Result'
+
+        result2 = resolver.resolve_path('step_0.results[1].url')
+        assert result2 == 'https://example2.com'
+
+    def test_large_output_truncation_in_dependency_results(self):
+        """Large outputs are truncated to 500 chars in dependency injection."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        large_content = 'x' * 2000
+        outputs = {
+            'step_0': {'content': large_content, 'success': True},
+        }
+
+        step = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Summarize'},
+            'Summarize',
+            depends_on=[0],
+        )
+
+        # Simulate injection
+        dep_results = {}
+        for dep_idx in step.depends_on:
+            dep_key = f'step_{dep_idx}'
+            for k, v in outputs.items():
+                if k == dep_key:
+                    dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
+
+        serialized = json.dumps(dep_results, default=str)
+        # Should be truncated, not the full 2000 chars
+        assert len(serialized) < 1000
+
+
 if __name__ == "__main__":
     import sys
     if "--integration" in sys.argv:

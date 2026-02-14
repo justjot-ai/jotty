@@ -788,15 +788,17 @@ class TestDomainAgent:
         assert "error" in result or result.get("success") is False
 
     @pytest.mark.asyncio
-    async def test_execute_impl_no_module_with_task_no_skills(self):
+    async def test_execute_impl_no_module_with_task_falls_back_to_skills(self):
         agent = self._make_agent()
         agent._module = None
         agent._initialized = True
-        agent._skills_registry = None
-        agent.config.enable_skills = False
+        # Mock _execute_with_skills so we verify the fallback path is taken
+        agent._execute_with_skills = AsyncMock(
+            return_value={"success": True, "output": "from skills"}
+        )
         result = await agent._execute_impl(task="do something")
-        # Falls back to skills but no registry => error
-        assert result.get("success") is False or "error" in result
+        agent._execute_with_skills.assert_awaited_once()
+        assert result.get("success") is True
 
     @pytest.mark.asyncio
     async def test_execute_impl_with_mock_module(self):
@@ -902,11 +904,12 @@ class TestBaseSwarmAgent:
 
     def test_broadcast_no_error_on_failure(self):
         agent = self._make_agent()
-        # Should not raise even if broadcast fails
+        # Should not raise even if broadcast import fails
         with patch(
-            "Jotty.core.agents.base.swarm_agent.AgentEventBroadcaster",
-            side_effect=ImportError("mock"),
-        ):
+            "Jotty.core.utils.async_utils.AgentEventBroadcaster",
+        ) as mock_broadcaster:
+            mock_broadcaster.get_instance.side_effect = RuntimeError("no broadcaster")
+            # _broadcast catches all exceptions internally
             agent._broadcast("event", {})
 
     def test_inherits_from_domain_agent(self):

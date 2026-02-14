@@ -52,7 +52,12 @@ async def place_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - product (str, optional): CNC, MIS, NRML (default CNC)
 
     Returns:
-        Dictionary with order_id, status
+        Dictionary with:
+            - order_id (str): Unique order identifier
+            - status (str): Order status (placed, rejected, etc.)
+            - symbol (str): Stock symbol
+            - quantity (int): Number of shares ordered
+            - transaction_type (str): BUY or SELL
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -102,7 +107,12 @@ async def place_smart_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - broker (str, optional): Broker to use
 
     Returns:
-        Dictionary with order_id, entry_price, target, stoploss
+        Dictionary with:
+            - order_id (str): Unique order identifier
+            - symbol (str): Stock symbol
+            - entry_price (float): Entry price of the order
+            - target (float): Target price
+            - stoploss (float): Stop loss price
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -146,7 +156,11 @@ async def exit_position_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - broker (str, optional): Broker filter
 
     Returns:
-        Dictionary with order_id, symbol, quantity_exited
+        Dictionary with:
+            - order_id (str): Exit order identifier
+            - symbol (str): Symbol exited
+            - quantity_exited (int): Number of shares sold
+            - exit_price (float): Price at which position was exited
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -184,7 +198,9 @@ async def cancel_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - broker (str, optional): Broker filter
 
     Returns:
-        Dictionary with order_id and cancellation status
+        Dictionary with:
+            - order_id (str): Cancelled order ID
+            - cancelled (bool): Whether cancellation succeeded
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()
@@ -221,7 +237,9 @@ async def get_orders_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - limit (int, optional): Max results (default 50)
 
     Returns:
-        Dictionary with orders list and count
+        Dictionary with:
+            - orders (list): Order objects with order_id, symbol, quantity, status, price
+            - count (int): Number of orders returned
     """
     status.set_callback(params.pop("_status_callback", None))
     client = _get_pmi_client()

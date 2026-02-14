@@ -80,17 +80,13 @@ def test_persistence_config():
 def test_persistence_logging_config():
     """Test logging-related persistence settings."""
     config = SwarmConfig(
-        enable_beautified_logs=False,
         enable_debug_logs=False,
         log_level="WARNING",
         enable_profiling=True,
-        profiling_verbosity="detailed"
     )
 
-    assert config.enable_beautified_logs == False
     assert config.log_level == "WARNING"
     assert config.enable_profiling == True
-    assert config.profiling_verbosity == "detailed"
 
 
 # =============================================================================
@@ -122,36 +118,17 @@ def test_execution_config():
 # TEST 4: Category 2.5 - TIMEOUT & CIRCUIT BREAKER
 # =============================================================================
 
-def test_circuit_breaker_config():
-    """Test circuit breaker settings."""
+def test_timeout_config():
+    """Test timeout and async settings."""
     config = SwarmConfig(
-        enable_circuit_breakers=True,
-        llm_circuit_failure_threshold=10,
-        llm_circuit_timeout=120.0,
-        tool_circuit_failure_threshold=5,
-        enable_adaptive_timeouts=True,
-        initial_timeout=60.0,
-        timeout_percentile=90.0
+        async_timeout=120.0,
+        llm_timeout_seconds=300.0,
+        actor_timeout=1800.0,
     )
 
-    assert config.enable_circuit_breakers == True
-    assert config.llm_circuit_failure_threshold == 10
-    assert config.llm_circuit_timeout == 120.0
-    assert config.enable_adaptive_timeouts == True
-    assert config.timeout_percentile == 90.0
-
-
-def test_dead_letter_queue_config():
-    """Test dead letter queue settings."""
-    config = SwarmConfig(
-        enable_dead_letter_queue=True,
-        dlq_max_size=500,
-        dlq_max_retries=5
-    )
-
-    assert config.enable_dead_letter_queue == True
-    assert config.dlq_max_size == 500
-    assert config.dlq_max_retries == 5
+    assert config.async_timeout == 120.0
+    assert config.llm_timeout_seconds == 300.0
+    assert config.actor_timeout == 1800.0
 
 
 # =============================================================================
@@ -207,21 +184,20 @@ def test_context_budget_config():
     assert memory_budget >= config.min_memory_budget
 
 
-def test_agentic_discovery_budget():
-    """Test agentic discovery budget settings."""
+def test_context_budget_config():
+    """Test context budget settings."""
     config = SwarmConfig(
-        preview_token_budget=30000,
-        max_description_tokens=10000,
-        compression_trigger_ratio=0.9,
-        chunking_threshold_tokens=20000
+        max_context_tokens=150000,
+        system_prompt_budget=8000,
+        current_input_budget=20000,
+        trajectory_budget=30000,
+        tool_output_budget=20000,
+        min_memory_budget=15000
     )
 
-    assert config.preview_token_budget == 30000
-    assert config.max_description_tokens == 10000
-
-    # Test computed properties (set in __post_init__)
-    assert config.preview_char_limit == 30000 * 4  # 120k chars
-    assert config.max_description_chars == 10000 * 4  # 40k chars
+    assert config.max_context_tokens == 150000
+    assert config.system_prompt_budget == 8000
+    assert config.min_memory_budget == 15000
 
 
 # =============================================================================
@@ -235,8 +211,6 @@ def test_rl_parameters_config():
         gamma=0.95,
         lambda_trace=0.90,
         alpha=0.05,
-        baseline=0.6,
-        n_step=5,
         enable_adaptive_alpha=True,
         alpha_min=0.0005,
         alpha_max=0.2
@@ -318,29 +292,11 @@ def test_consolidation_config():
         consolidation_interval=5,
         min_cluster_size=10,
         pattern_confidence_threshold=0.8,
-        enable_causal_extraction=True,
-        min_causal_evidence=5
     )
 
     assert config.consolidation_threshold == 200
     assert config.consolidation_interval == 5
-    assert config.enable_causal_extraction == True
-
-
-def test_brain_consolidation_config():
-    """Test brain-inspired consolidation parameters."""
-    config = SwarmConfig(
-        brain_reward_salience_weight=0.4,
-        brain_novelty_weight=0.3,
-        brain_goal_relevance_weight=0.3,
-        brain_memory_threshold=0.5,
-        brain_prune_threshold=0.2,
-        brain_strengthen_threshold=0.9
-    )
-
-    assert config.brain_reward_salience_weight == 0.4
-    assert config.brain_novelty_weight == 0.3
-    assert config.brain_memory_threshold == 0.5
+    assert config.min_cluster_size == 10
 
 
 # =============================================================================
@@ -353,15 +309,13 @@ def test_offline_learning_config():
         episode_buffer_size=2000,
         offline_update_interval=100,
         replay_batch_size=50,
-        enable_counterfactual=True,
         counterfactual_samples=10,
-        priority_replay_alpha=0.8
     )
 
     assert config.episode_buffer_size == 2000
     assert config.offline_update_interval == 100
     assert config.replay_batch_size == 50
-    assert config.enable_counterfactual == True
+    assert config.counterfactual_samples == 10
 
 
 # =============================================================================
@@ -372,14 +326,11 @@ def test_protection_config():
     """Test protection mechanism parameters."""
     config = SwarmConfig(
         protected_memory_threshold=0.9,
-        task_memory_ratio=0.4,
         suspicion_threshold=0.97,
-        ood_entropy_threshold=0.85,
         min_rejection_rate=0.03
     )
 
     assert config.protected_memory_threshold == 0.9
-    assert config.task_memory_ratio == 0.4
     assert config.suspicion_threshold == 0.97
 
 
@@ -394,28 +345,11 @@ def test_validation_config():
         validation_mode='architect_only',
         max_validation_rounds=5,
         refinement_timeout=60.0,
-        advisory_confidence_threshold=0.9,
-        max_validation_retries=10
     )
 
     assert config.enable_validation == True
     assert config.validation_mode == 'architect_only'
     assert config.max_validation_rounds == 5
-    assert config.max_validation_retries == 10
-
-
-def test_confidence_override_config():
-    """Test confidence-based override mechanism."""
-    config = SwarmConfig(
-        enable_confidence_override=True,
-        confidence_override_threshold=0.25,
-        min_confidence_for_override=0.75,
-        max_validator_confidence_to_override=0.90
-    )
-
-    assert config.enable_confidence_override == True
-    assert config.confidence_override_threshold == 0.25
-    assert config.min_confidence_for_override == 0.75
 
 
 # =============================================================================
@@ -494,12 +428,12 @@ def test_goal_hierarchy_config():
     config = SwarmConfig(
         enable_goal_hierarchy=True,
         goal_transfer_weight=0.4,
-        max_transfer_distance=3
+        goal_transfer_discount=0.9,
     )
 
     assert config.enable_goal_hierarchy == True
     assert config.goal_transfer_weight == 0.4
-    assert config.max_transfer_distance == 3
+    assert config.goal_transfer_discount == 0.9
 
 
 # =============================================================================
@@ -512,13 +446,11 @@ def test_causal_learning_config():
         enable_causal_learning=True,
         causal_confidence_threshold=0.8,
         causal_min_support=5,
-        causal_transfer_enabled=True
     )
 
     assert config.enable_causal_learning == True
     assert config.causal_confidence_threshold == 0.8
     assert config.causal_min_support == 5
-    assert config.causal_transfer_enabled == True
 
 
 # =============================================================================
@@ -539,18 +471,17 @@ def test_inter_agent_communication_config():
     assert config.max_messages_per_episode == 50
 
 
-def test_marl_config():
-    """Test predictive MARL parameters."""
+def test_agent_communication_details_config():
+    """Test inter-agent communication detail parameters."""
     config = SwarmConfig(
-        marl_default_cooperation=0.6,
-        marl_default_predictability=0.6,
-        marl_action_divergence_weight=0.5,
-        marl_state_divergence_weight=0.3,
-        marl_reward_divergence_weight=0.2
+        enable_agent_communication=True,
+        share_insights=True,
+        max_messages_per_episode=100,
     )
 
-    assert config.marl_default_cooperation == 0.6
-    assert config.marl_action_divergence_weight == 0.5
+    assert config.enable_agent_communication == True
+    assert config.share_insights == True
+    assert config.max_messages_per_episode == 100
 
 
 # =============================================================================
@@ -599,57 +530,50 @@ def test_deduplication_config():
     config = SwarmConfig(
         enable_deduplication=True,
         similarity_threshold=0.9,
-        merge_similar_memories=True
     )
 
     assert config.enable_deduplication == True
     assert config.similarity_threshold == 0.9
-    assert config.merge_similar_memories == True
 
 
 # =============================================================================
 # TEST 23: Category 21 - DISTRIBUTED SUPPORT
 # =============================================================================
 
-def test_distributed_support_config():
-    """Test distributed support parameters."""
+def test_persistence_detail_config():
+    """Test persistence detail parameters."""
     config = SwarmConfig(
-        enable_distributed=True,
-        instance_id="worker-1",
-        lock_timeout=10.0,
-        redis_host="localhost",
-        redis_port=6380,
-        redis_db=1
+        persist_memories=True,
+        persist_brain_state=True,
+        persist_q_tables=True,
+        persist_agent_outputs=True,
+        auto_save=True,
+        save_interval=10,
     )
 
-    assert config.enable_distributed == True
-    assert config.instance_id == "worker-1"
-    assert config.lock_timeout == 10.0
-    assert config.redis_host == "localhost"
-    assert config.redis_port == 6380
+    assert config.persist_memories == True
+    assert config.persist_brain_state == True
+    assert config.save_interval == 10
 
 
 # =============================================================================
 # TEST 24: Category 22 - DYNAMIC ORCHESTRATION
 # =============================================================================
 
-def test_dynamic_orchestration_config():
-    """Test dynamic orchestration parameters."""
+def test_monitoring_config():
+    """Test monitoring and metrics parameters."""
     config = SwarmConfig(
-        enable_dynamic_planning=True,
-        planning_complexity_threshold=0.8,
-        enable_agent_registry=True,
-        auto_infer_capabilities=True,
-        enable_state_analysis=True,
-        enable_recovery_management=True,
-        recovery_max_retries=5
+        enable_monitoring=True,
+        enable_metrics=True,
+        enable_profiling=True,
+        verbose=True,
+        rl_verbosity=2,
     )
 
-    assert config.enable_dynamic_planning == True
-    assert config.planning_complexity_threshold == 0.8
-    assert config.enable_agent_registry == True
-    assert config.enable_recovery_management == True
-    assert config.recovery_max_retries == 5
+    assert config.enable_monitoring == True
+    assert config.enable_metrics == True
+    assert config.enable_profiling == True
+    assert config.rl_verbosity == 2
 
 
 # =============================================================================
@@ -659,8 +583,6 @@ def test_dynamic_orchestration_config():
 def test_computed_properties():
     """Test all computed properties work correctly."""
     config = SwarmConfig(
-        preview_token_budget=25000,
-        max_description_tokens=8000,
         max_context_tokens=150000,
         system_prompt_budget=8000,
         current_input_budget=20000,
@@ -668,10 +590,6 @@ def test_computed_properties():
         tool_output_budget=20000,
         min_memory_budget=15000
     )
-
-    # Test char limits (computed in __post_init__)
-    assert config.preview_char_limit == 25000 * 4
-    assert config.max_description_chars == 8000 * 4
 
     # Test memory_budget property
     reserved = 8000 + 20000 + 30000 + 20000  # 78000
@@ -788,76 +706,66 @@ def test_config_all_categories_accessible():
     # Category 2: Execution
     assert hasattr(config, 'max_actor_iters')
 
-    # Category 2.5: Timeout & Circuit Breaker
-    assert hasattr(config, 'enable_circuit_breakers')
+    # Execution
+    assert hasattr(config, 'max_actor_iters')
+    assert hasattr(config, 'actor_timeout')
 
-    # Category 3: Memory
+    # Memory
     assert hasattr(config, 'episodic_capacity')
 
-    # Category 4: Context Budget
+    # Context Budget
     assert hasattr(config, 'max_context_tokens')
 
-    # Category 4.5: Agentic Discovery Budget
-    assert hasattr(config, 'preview_token_budget')
-
-    # Category 4.6: Token Counting
+    # Token Counting
     assert hasattr(config, 'token_model_name')
 
-    # Category 5: RL Parameters
+    # RL Parameters
     assert hasattr(config, 'gamma')
 
-    # Category 6: Exploration
+    # Exploration
     assert hasattr(config, 'epsilon_start')
 
-    # Category 7: Credit Assignment
+    # Credit Assignment
     assert hasattr(config, 'credit_decay')
 
-    # Category 8: Consolidation
+    # Consolidation
     assert hasattr(config, 'consolidation_threshold')
 
-    # Category 9: Offline Learning
+    # Offline Learning
     assert hasattr(config, 'episode_buffer_size')
 
-    # Category 10: Protection
+    # Protection
     assert hasattr(config, 'protected_memory_threshold')
 
-    # Category 11: Validation
+    # Validation
     assert hasattr(config, 'enable_validation')
 
-    # Category 12: Async
+    # Async
     assert hasattr(config, 'parallel_architect')
 
-    # Category 13: Logging
+    # Logging
     assert hasattr(config, 'verbose')
 
-    # Category 14: LLM RAG
+    # LLM RAG
     assert hasattr(config, 'enable_llm_rag')
 
-    # Category 15: Goal Hierarchy
+    # Goal Hierarchy
     assert hasattr(config, 'enable_goal_hierarchy')
 
-    # Category 16: Causal Learning
+    # Causal Learning
     assert hasattr(config, 'enable_causal_learning')
 
-    # Category 17: Inter-Agent Communication
+    # Inter-Agent Communication
     assert hasattr(config, 'enable_agent_communication')
 
-    # Category 18: Multi-Round Validation
+    # Multi-Round Validation
     assert hasattr(config, 'enable_multi_round')
 
-    # Category 19: Adaptive Learning
+    # Adaptive Learning
     assert hasattr(config, 'enable_adaptive_learning')
 
-    # Category 20: Deduplication
+    # Deduplication
     assert hasattr(config, 'enable_deduplication')
-
-    # Category 21: Distributed Support
-    assert hasattr(config, 'enable_distributed')
-
-    # Category 22: Dynamic Orchestration
-    assert hasattr(config, 'enable_dynamic_planning')
-
-    print("✅ All 22 categories accessible!")
 
 
 # =============================================================================

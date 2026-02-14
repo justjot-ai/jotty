@@ -635,7 +635,11 @@ class AutonomousAgent(BaseAgent):
 
             if result.get('success'):
                 self._emit("step_end", step=i + 1, skill=step.skill_name, success=True)
-                outputs[step.output_key or f'step_{i}'] = result
+                key = step.output_key or f'step_{i}'
+                outputs[key] = result
+                # Also store under step_{i} alias so LLM step references resolve
+                if key != f'step_{i}':
+                    outputs[f'step_{i}'] = result
                 skills_used.append(step.skill_name)
                 # Track in context manager for trajectory-preserving compression
                 ctx.add_step({
@@ -648,6 +652,8 @@ class AutonomousAgent(BaseAgent):
                 i += 1
             else:
                 error_msg = result.get('error', 'Unknown error')
+                if not isinstance(error_msg, str):
+                    error_msg = str(error_msg)
                 self._emit("step_end", step=i + 1, skill=step.skill_name, success=False, error=error_msg[:200])
                 errors.append(f"Step {i+1}: {error_msg}")
                 status(f"Step {i+1}", f"failed: {error_msg}")
