@@ -151,3 +151,11 @@ from .multi_strategy_benchmark import (
     StrategyResult,
     benchmark_strategies,
 )
+from .multi_stage_pipeline import (
+    MultiStagePipeline,
+    PipelineResult,
+    StageResult,
+    StageConfig,
+    create_pipeline,
+    extract_code_from_markdown,
+)
