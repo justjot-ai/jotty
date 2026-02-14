@@ -1,7 +1,7 @@
 """
 Web Search Skill
 
-Search the web using Google (Serper API) or DuckDuckGo.
+Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
 Refactored to use Jotty core utilities.
 """
 
@@ -23,6 +23,7 @@ load_jotty_env()
 logger = logging.getLogger(__name__)
 
 SERPER_API_KEY = get_env("SERPER_API_KEY")
+SEARXNG_URL = get_env("SEARXNG_URL")  # e.g. "http://localhost:8080"
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
 # Try to load duckduckgo-search library
@@ -124,6 +125,43 @@ def _serper_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
     ]
 
 
+def _searxng_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
+    """Search using a self-hosted SearXNG instance.
+
+    SearXNG is an open-source meta-search engine that aggregates results
+    from 70+ sources (Google, Bing, DuckDuckGo, etc.) without API keys.
+
+    Requires SEARXNG_URL env var pointing to the instance
+    (e.g. http://localhost:8080).
+    """
+    if not SEARXNG_URL:
+        raise ValueError("SEARXNG_URL not set")
+
+    base_url = SEARXNG_URL.rstrip('/')
+    response = requests.get(
+        f'{base_url}/search',
+        params={
+            'q': query,
+            'format': 'json',
+            'pageno': 1,
+            'categories': 'general',
+        },
+        headers=HEADERS,
+        timeout=10,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    results = []
+    for item in data.get('results', [])[:num_results]:
+        results.append({
+            'title': item.get('title', 'Untitled'),
+            'url': item.get('url', ''),
+            'snippet': item.get('content', ''),
+        })
+    return results
+
+
 def _ddg_search(query: str, max_results: int) -> List[Dict[str, str]]:
     """Search using DuckDuckGo library."""
     with DDGS() as ddgs:
@@ -223,15 +261,15 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
 @tool_wrapper(required_params=['query'])
 def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Search the web using Google (Serper API) or DuckDuckGo.
+    Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
 
-    Priority: Serper API (Google) > DuckDuckGo library > HTML parsing fallback.
+    Priority: Serper API (Google) > SearXNG > DuckDuckGo library > HTML parsing fallback.
 
     Args:
         params: Dictionary containing:
             - query (str, required): Search query
             - max_results (int, optional): Max results (default: 10, max: 20)
-            - provider (str, optional): 'serper' or 'duckduckgo' (default: auto)
+            - provider (str, optional): 'serper', 'searxng', or 'duckduckgo' (default: auto)
 
     Returns:
         Dictionary with success, results, count, query, provider
@@ -264,9 +302,22 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 _search_cache.set(cache_key, response)
                 return response
         except Exception as e:
-            logger.warning(f"Serper API failed: {e}, falling back to DuckDuckGo")
+            logger.warning(f"Serper API failed: {e}, falling back")
 
-    # Priority 2: DuckDuckGo library
+    # Priority 2: SearXNG (self-hosted, open-source)
+    if SEARXNG_URL and provider_pref in ('auto', 'searxng'):
+        try:
+            results = _searxng_search(query, max_results)
+            if results:
+                response = tool_response(
+                    results=results, count=len(results), query=query, provider='searxng'
+                )
+                _search_cache.set(cache_key, response)
+                return response
+        except Exception as e:
+            logger.warning(f"SearXNG failed: {e}, falling back to DuckDuckGo")
+
+    # Priority 3: DuckDuckGo library
     if DDG_AVAILABLE and provider_pref in ('auto', 'duckduckgo'):
         try:
             results = _ddg_search(query, max_results)

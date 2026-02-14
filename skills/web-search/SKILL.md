@@ -1,15 +1,15 @@
 ---
 name: searching-web
-description: "Provides web search capabilities using Google (via Serper API) or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research. Use when the user wants to search, find, lookup."
+description: "Provides web search capabilities using Google (via Serper API), SearXNG, or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research. Use when the user wants to search, find, lookup."
 ---
 
 # Web Search Skill
 
-Web search with Google (Serper API) or DuckDuckGo, plus content scraping.
+Web search with Google (Serper API), SearXNG, or DuckDuckGo, plus content scraping.
 
 ## Description
 
-Provides web search capabilities using Google (via Serper API) or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research.
+Provides web search capabilities using Google (via Serper API), SearXNG (self-hosted), or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research.
 
 
 ## Type
@@ -67,6 +67,12 @@ workflow-automation
 - Requires `SERPER_API_KEY` environment variable
 - Get API key at: https://serper.dev
 
+### SearXNG (Self-Hosted, Open Source)
+- Aggregates 70+ search engines (Google, Bing, DuckDuckGo, etc.)
+- No API keys needed — fully self-hosted
+- Requires `SEARXNG_URL` environment variable (e.g. `http://localhost:8080`)
+- Setup: `docker run -d -p 8080:8080 searxng/searxng`
+
 ### DuckDuckGo (Free, No API Key)
 - Free alternative
 - Uses duckduckgo-search library or HTML fallback
@@ -80,7 +86,7 @@ Searches the web using Google (Serper) or DuckDuckGo.
 **Parameters:**
 - `query` (str, required): Search query
 - `max_results` (int, optional): Maximum results (default: 10, max: 20)
-- `provider` (str, optional): 'serper', 'duckduckgo', or 'auto' (default: auto)
+- `provider` (str, optional): 'serper', 'searxng', 'duckduckgo', or 'auto' (default: auto)
 
 **Returns:**
 - `success` (bool): Whether search succeeded
@@ -126,6 +132,7 @@ Search web and scrape content from top results.
 ## Environment Variables
 
 - `SERPER_API_KEY`: Serper API key for Google search
+- `SEARXNG_URL`: SearXNG instance URL (e.g. `http://localhost:8080`)
 
 ## Usage
 

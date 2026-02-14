@@ -1360,6 +1360,126 @@ class TestSearchCache:
 
 
 # =============================================================================
+# SearXNG Search Provider Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestSearXNGSearch:
+    """Test SearXNG integration in web-search skill."""
+
+    @staticmethod
+    def _load_module():
+        """Dynamically load the web-search tools module."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'web_search_tools',
+            os.path.join(os.path.dirname(__file__), '..', 'skills', 'web-search', 'tools.py'),
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_searxng_search_returns_results(self):
+        """SearXNG search parses JSON response correctly."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'results': [
+                {'title': 'Python Docs', 'url': 'https://python.org', 'content': 'Official docs'},
+                {'title': 'Real Python', 'url': 'https://realpython.com', 'content': 'Tutorials'},
+            ]
+        }
+        mock_response.raise_for_status = Mock()
+
+        mod = self._load_module()
+        mod.SEARXNG_URL = 'http://localhost:8080'
+        with patch.object(mod.requests, 'get', return_value=mock_response) as mock_get:
+            results = mod._searxng_search('python tutorials', num_results=5)
+
+        assert len(results) == 2
+        assert results[0]['title'] == 'Python Docs'
+        assert results[0]['url'] == 'https://python.org'
+        assert results[0]['snippet'] == 'Official docs'
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
+        assert call_args[1]['params']['q'] == 'python tutorials'
+        assert call_args[1]['params']['format'] == 'json'
+
+    def test_searxng_search_raises_without_url(self):
+        """SearXNG raises ValueError when SEARXNG_URL not set."""
+        mod = self._load_module()
+        mod.SEARXNG_URL = None
+        with pytest.raises(ValueError, match="SEARXNG_URL not set"):
+            mod._searxng_search('test query')
+
+    def test_searxng_search_respects_num_results(self):
+        """SearXNG truncates results to num_results."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            'results': [
+                {'title': f'Result {i}', 'url': f'https://example.com/{i}', 'content': f'Snippet {i}'}
+                for i in range(10)
+            ]
+        }
+        mock_response.raise_for_status = Mock()
+
+        mod = self._load_module()
+        mod.SEARXNG_URL = 'http://localhost:8080'
+        with patch.object(mod.requests, 'get', return_value=mock_response):
+            results = mod._searxng_search('test', num_results=3)
+
+        assert len(results) == 3
+
+    def test_searxng_search_handles_empty_results(self):
+        """SearXNG returns empty list when no results."""
+        mock_response = Mock()
+        mock_response.json.return_value = {'results': []}
+        mock_response.raise_for_status = Mock()
+
+        mod = self._load_module()
+        mod.SEARXNG_URL = 'http://localhost:8080'
+        with patch.object(mod.requests, 'get', return_value=mock_response):
+            results = mod._searxng_search('obscure query', num_results=5)
+
+        assert results == []
+
+    def test_searxng_search_handles_missing_fields(self):
+        """SearXNG uses defaults for missing title/url/content fields."""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            'results': [
+                {'url': 'https://example.com'},  # no title, no content
+                {'title': 'Has Title'},  # no url, no content
+            ]
+        }
+        mock_response.raise_for_status = Mock()
+
+        mod = self._load_module()
+        mod.SEARXNG_URL = 'http://localhost:8080'
+        with patch.object(mod.requests, 'get', return_value=mock_response):
+            results = mod._searxng_search('test', num_results=5)
+
+        assert results[0]['title'] == 'Untitled'
+        assert results[0]['snippet'] == ''
+        assert results[1]['url'] == ''
+
+    def test_searxng_strips_trailing_slash_from_url(self):
+        """SearXNG strips trailing slash from SEARXNG_URL."""
+        mock_response = Mock()
+        mock_response.json.return_value = {'results': []}
+        mock_response.raise_for_status = Mock()
+
+        mod = self._load_module()
+        mod.SEARXNG_URL = 'http://localhost:8080/'
+        with patch.object(mod.requests, 'get', return_value=mock_response) as mock_get:
+            mod._searxng_search('test')
+
+        called_url = mock_get.call_args[0][0]
+        assert called_url == 'http://localhost:8080/search'
+        assert '//' not in called_url.split(':', 1)[1].replace('//', '', 1)
+
+
+# =============================================================================
 # CompletionReviewer Tests
 # =============================================================================
 
