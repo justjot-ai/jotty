@@ -9,6 +9,7 @@ DRY PRINCIPLE: Reuses core/observability infrastructure.
 """
 
 import logging
+import time
 from typing import Optional, Dict, Any
 from contextlib import contextmanager
 
