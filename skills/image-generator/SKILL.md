@@ -1,23 +1,7 @@
----
-name: generating-images
-description: "Generate images using open-source models like Stable Diffusion, Flux, or SDXL. No API key required. Use when the user wants to generate image, create image, draw."
----
-
 # image-generator
 
 ## Description
 Generate images using open-source models like Stable Diffusion, Flux, or SDXL. No API key required.
-
-
-## Triggers
-- "generate image"
-- "create image"
-- "draw"
-- "make picture"
-- "ai image"
-
-## Category
-document-creation
 
 ## Tools
 - image_generator_tool: Generate images using open-source models like Stable Diffusion, Flux, or SDXL. No API key required.
