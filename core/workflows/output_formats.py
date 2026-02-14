@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Output Sinks - Multi-Format Output Generation
+Output Formats - Multi-Format Output Generation
 ==============================================
 
 Generates outputs in multiple formats (PDF, EPUB, HTML, PPTX, DOCX)
@@ -33,8 +33,8 @@ class OutputFormat(Enum):
 
 
 @dataclass
-class OutputSinkResult:
-    """Result from output sink generation."""
+class OutputFormatResult:
+    """Result from output format generation."""
     format: str
     success: bool
     file_path: Optional[str] = None
@@ -42,7 +42,7 @@ class OutputSinkResult:
     metadata: Optional[Dict[str, Any]] = None
 
 
-class OutputSinkManager:
+class OutputFormatManager:
     """
     Manages multi-format output generation.
 
@@ -52,7 +52,7 @@ class OutputSinkManager:
     - presenton: Presentations (PPTX/PDF)
 
     Usage:
-        manager = OutputSinkManager(output_dir="~/jotty/outputs")
+        manager = OutputFormatManager(output_dir="~/jotty/outputs")
 
         # Generate PDF
         result = manager.generate_pdf(
@@ -75,7 +75,7 @@ class OutputSinkManager:
         auto_load_skills: bool = True
     ):
         """
-        Initialize output sink manager.
+        Initialize output format manager.
 
         Args:
             output_dir: Directory for outputs (default: ~/jotty/outputs)
@@ -126,7 +126,7 @@ class OutputSinkManager:
         author: Optional[str] = None,
         page_size: str = "a4",
         output_path: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """
         Generate PDF from markdown.
 
@@ -138,10 +138,10 @@ class OutputSinkManager:
             output_path: Custom output path
 
         Returns:
-            OutputSinkResult with success status and file path
+            OutputFormatResult with success status and file path
         """
         if 'document-converter' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="pdf",
                 success=False,
                 error="document-converter skill not available"
@@ -150,7 +150,7 @@ class OutputSinkManager:
         try:
             convert_tool = self.skills['document-converter'].get('convert_to_pdf_tool')
             if not convert_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="pdf",
                     success=False,
                     error="convert_to_pdf_tool not found"
@@ -172,14 +172,14 @@ class OutputSinkManager:
 
             if result.get('success'):
                 logger.info(f"✅ Generated PDF: {result.get('output_path')}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="pdf",
                     success=True,
                     file_path=result.get('output_path'),
                     metadata={'page_size': page_size}
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="pdf",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -187,7 +187,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"PDF generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="pdf",
                 success=False,
                 error=str(e)
@@ -199,10 +199,10 @@ class OutputSinkManager:
         title: str,
         author: str,
         output_path: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """Generate EPUB from markdown."""
         if 'document-converter' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="epub",
                 success=False,
                 error="document-converter skill not available"
@@ -211,7 +211,7 @@ class OutputSinkManager:
         try:
             convert_tool = self.skills['document-converter'].get('convert_to_epub_tool')
             if not convert_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=False,
                     error="convert_to_epub_tool not found"
@@ -230,13 +230,13 @@ class OutputSinkManager:
 
             if result.get('success'):
                 logger.info(f"✅ Generated EPUB: {result.get('output_path')}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=True,
                     file_path=result.get('output_path')
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -244,7 +244,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"EPUB generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="epub",
                 success=False,
                 error=str(e)
@@ -258,7 +258,7 @@ class OutputSinkManager:
         description: Optional[str] = None,
         language: str = "en",
         output_path: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """
         Generate rich EPUB with chapters using epub-builder.
 
@@ -271,10 +271,10 @@ class OutputSinkManager:
             output_path: Custom output path
 
         Returns:
-            OutputSinkResult
+            OutputFormatResult
         """
         if 'epub-builder' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="epub",
                 success=False,
                 error="epub-builder skill not available"
@@ -283,7 +283,7 @@ class OutputSinkManager:
         try:
             build_tool = self.skills['epub-builder'].get('build_epub_tool')
             if not build_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=False,
                     error="build_epub_tool not found"
@@ -305,14 +305,14 @@ class OutputSinkManager:
 
             if result.get('success'):
                 logger.info(f"✅ Generated EPUB with {result.get('chapter_count')} chapters: {result.get('output_path')}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=True,
                     file_path=result.get('output_path'),
                     metadata={'chapter_count': result.get('chapter_count')}
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="epub",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -320,7 +320,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"EPUB generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="epub",
                 success=False,
                 error=str(e)
@@ -332,10 +332,10 @@ class OutputSinkManager:
         title: Optional[str] = None,
         standalone: bool = True,
         output_path: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """Generate HTML from markdown."""
         if 'document-converter' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="html",
                 success=False,
                 error="document-converter skill not available"
@@ -344,7 +344,7 @@ class OutputSinkManager:
         try:
             convert_tool = self.skills['document-converter'].get('convert_to_html_tool')
             if not convert_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="html",
                     success=False,
                     error="convert_to_html_tool not found"
@@ -363,13 +363,13 @@ class OutputSinkManager:
 
             if result.get('success'):
                 logger.info(f"✅ Generated HTML: {result.get('output_path')}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="html",
                     success=True,
                     file_path=result.get('output_path')
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="html",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -377,7 +377,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"HTML generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="html",
                 success=False,
                 error=str(e)
@@ -388,10 +388,10 @@ class OutputSinkManager:
         markdown_path: str,
         title: Optional[str] = None,
         output_path: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """Generate DOCX from markdown."""
         if 'document-converter' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="docx",
                 success=False,
                 error="document-converter skill not available"
@@ -400,7 +400,7 @@ class OutputSinkManager:
         try:
             convert_tool = self.skills['document-converter'].get('convert_to_docx_tool')
             if not convert_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="docx",
                     success=False,
                     error="convert_to_docx_tool not found"
@@ -418,13 +418,13 @@ class OutputSinkManager:
 
             if result.get('success'):
                 logger.info(f"✅ Generated DOCX: {result.get('output_path')}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="docx",
                     success=True,
                     file_path=result.get('output_path')
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="docx",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -432,7 +432,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"DOCX generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="docx",
                 success=False,
                 error=str(e)
@@ -447,7 +447,7 @@ class OutputSinkManager:
         tone: str = "professional",
         template: Optional[str] = None,
         output_dir: Optional[str] = None
-    ) -> OutputSinkResult:
+    ) -> OutputFormatResult:
         """
         Generate presentation (PPTX or PDF) using presenton.
 
@@ -461,10 +461,10 @@ class OutputSinkManager:
             output_dir: Custom output directory
 
         Returns:
-            OutputSinkResult
+            OutputFormatResult
         """
         if 'presenton' not in self.skills:
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="presentation",
                 success=False,
                 error="presenton skill not available"
@@ -473,7 +473,7 @@ class OutputSinkManager:
         try:
             gen_tool = self.skills['presenton'].get('generate_presentation_tool')
             if not gen_tool:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="presentation",
                     success=False,
                     error="generate_presentation_tool not found"
@@ -491,7 +491,7 @@ class OutputSinkManager:
             if result.get('success'):
                 file_path = result.get('file_path')
                 logger.info(f"✅ Generated presentation: {file_path}")
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="presentation",
                     success=True,
                     file_path=file_path,
@@ -503,7 +503,7 @@ class OutputSinkManager:
                     }
                 )
             else:
-                return OutputSinkResult(
+                return OutputFormatResult(
                     format="presentation",
                     success=False,
                     error=result.get('error', 'Unknown error')
@@ -511,7 +511,7 @@ class OutputSinkManager:
 
         except Exception as e:
             logger.error(f"Presentation generation failed: {e}")
-            return OutputSinkResult(
+            return OutputFormatResult(
                 format="presentation",
                 success=False,
                 error=str(e)
@@ -524,7 +524,7 @@ class OutputSinkManager:
         title: str,
         author: Optional[str] = None,
         **kwargs
-    ) -> Dict[str, OutputSinkResult]:
+    ) -> Dict[str, OutputFormatResult]:
         """
         Generate multiple output formats.
 
@@ -536,7 +536,7 @@ class OutputSinkManager:
             **kwargs: Additional format-specific parameters
 
         Returns:
-            Dict mapping format name to OutputSinkResult
+            Dict mapping format name to OutputFormatResult
         """
         results = {}
 
@@ -578,7 +578,7 @@ class OutputSinkManager:
                         tone=kwargs.get('tone', 'professional')
                     )
                 except Exception as e:
-                    results["presentation"] = OutputSinkResult(
+                    results["presentation"] = OutputFormatResult(
                         format="presentation",
                         success=False,
                         error=f"Could not read markdown: {e}"
@@ -589,7 +589,7 @@ class OutputSinkManager:
 
         return results
 
-    def get_summary(self, results: Dict[str, OutputSinkResult]) -> Dict[str, Any]:
+    def get_summary(self, results: Dict[str, OutputFormatResult]) -> Dict[str, Any]:
         """
         Get summary of generation results.
 

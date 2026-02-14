@@ -697,11 +697,11 @@ Maximum 500 words, extremely clear and actionable."""),
         if verbose:
             print(f"\n📄 Saved markdown: {markdown_path}")
 
-        # Generate outputs using OutputSinkManager
+        # Generate outputs using OutputFormatManager
         try:
-            from .output_sinks import OutputSinkManager
+            from .output_formats import OutputFormatManager
 
-            manager = OutputSinkManager(output_dir=str(output_path))
+            manager = OutputFormatManager(output_dir=str(output_path))
             outputs = manager.generate_all(
                 markdown_path=markdown_path,
                 formats=[fmt for fmt in formats if fmt != "markdown"],

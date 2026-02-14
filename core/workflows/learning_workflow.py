@@ -696,11 +696,11 @@ Perfect for review before test."""),
                         'content': stage.output
                     })
 
-        # Generate outputs using OutputSinkManager
+        # Generate outputs using OutputFormatManager
         try:
-            from .output_sinks import OutputSinkManager
+            from .output_formats import OutputFormatManager
 
-            manager = OutputSinkManager(output_dir=str(output_path))
+            manager = OutputFormatManager(output_dir=str(output_path))
 
             # Generate regular outputs
             outputs = manager.generate_all(

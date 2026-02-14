@@ -38,10 +38,15 @@ from .smart_swarm_registry import (
     SwarmConfig,
     get_smart_registry,
 )
-from .output_sinks import (
-    OutputSinkManager,
+from .output_formats import (
+    OutputFormatManager,
     OutputFormat,
-    OutputSinkResult,
+    OutputFormatResult,
+)
+from .output_channels import (
+    OutputChannelManager,
+    OutputChannel,
+    ChannelDeliveryResult,
 )
 
 __all__ = [
@@ -72,8 +77,13 @@ __all__ = [
     "SwarmConfig",
     "get_smart_registry",
 
-    # Output Sinks
-    "OutputSinkManager",
+    # Output Formats
+    "OutputFormatManager",
     "OutputFormat",
-    "OutputSinkResult",
+    "OutputFormatResult",
+
+    # Output Channels
+    "OutputChannelManager",
+    "OutputChannel",
+    "ChannelDeliveryResult",
 ]
