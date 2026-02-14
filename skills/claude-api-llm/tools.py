@@ -13,6 +13,7 @@ Tools:
 """
 
 import ast
+import difflib
 import json
 import logging
 import os
@@ -143,6 +144,53 @@ class ClaudeAPIClient:
             max_tokens=max_tokens,
             system=system,
         )
+
+    def stream_with_tools(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]],
+        tool_choice: Optional[Dict[str, Any]] = None,
+        max_tokens: int = 4096,
+        system: Optional[str] = None,
+        on_token: Optional[Callable[[str], None]] = None,
+    ) -> Any:
+        """Stream API response with tool_use support.
+
+        Uses Anthropic's messages.stream() to yield text tokens in real-time
+        while still supporting tool_use blocks in the final message.
+
+        Args:
+            messages: Conversation messages
+            tools: Tool definitions for the API
+            tool_choice: Tool choice constraint
+            max_tokens: Maximum response tokens
+            system: Optional system prompt
+            on_token: Optional callback(str) called for each text token
+
+        Returns:
+            Final Message object (same shape as call_with_tools)
+        """
+        self._ensure_client()
+
+        request = {
+            "model": self._model,
+            "messages": messages,
+            "tools": tools,
+            "max_tokens": max_tokens,
+        }
+        if tool_choice:
+            request["tool_choice"] = tool_choice
+        if system:
+            request["system"] = system
+
+        with self._client.messages.stream(**request) as stream:
+            for text in stream.text_stream:
+                if on_token:
+                    on_token(text)
+            response = stream.get_final_message()
+
+        self._track_cost(response)
+        return response
 
     def _call_with_retry(
         self,
@@ -422,8 +470,11 @@ class AgenticToolExecutor:
     (file-operations, terminal-session) with lint-gating for code writes.
     """
 
-    def __init__(self, working_directory: str = "/tmp"):
+    SANDBOX_ENV_STRIP_PATTERNS = ('SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'CREDENTIAL')
+
+    def __init__(self, working_directory: str = "/tmp", sandbox_level: str = "sandboxed"):
         self.working_directory = working_directory
+        self._sandbox_level = sandbox_level
         self.files_created: List[str] = []
         self.execution_output: List[str] = []
         self.tool_call_history: List[Dict[str, Any]] = []
@@ -440,6 +491,8 @@ class AgenticToolExecutor:
                 result = self._read_file(tool_input)
             elif tool_name == "edit_file":
                 result = self._edit_file(tool_input)
+            elif tool_name == "search_replace":
+                result = self._search_replace(tool_input)
             else:
                 result = {"success": False, "error": f"Unknown tool: {tool_name}"}
         except Exception as e:
@@ -479,12 +532,61 @@ class AgenticToolExecutor:
         return {"success": True, "path": str(file_path), "bytes_written": len(content)}
 
     def _execute_command(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a shell command in the working directory."""
+        """Execute a shell command, routing through SandboxManager when available."""
         command = tool_input.get("command", "")
         if not command:
             return {"success": False, "error": "command is required"}
 
+        try:
+            from Jotty.core.orchestration.sandbox_manager import (
+                SandboxManager, TrustLevel,
+            )
+            trust_map = {
+                "trusted": TrustLevel.TRUSTED,
+                "sandboxed": TrustLevel.SANDBOXED,
+                "dangerous": TrustLevel.DANGEROUS,
+            }
+            trust = trust_map.get(self._sandbox_level, TrustLevel.SANDBOXED)
+
+            # Wrap command as Python subprocess call for SandboxManager
+            code = (
+                "import subprocess, sys\n"
+                f"r = subprocess.run({command!r}, shell=True, capture_output=True, "
+                f"text=True, cwd={self.working_directory!r})\n"
+                "print(r.stdout)\n"
+                "print(r.stderr, file=sys.stderr)\n"
+                "sys.exit(r.returncode)"
+            )
+
+            import asyncio
+            try:
+                loop = asyncio.get_running_loop()
+                # Already inside an async context — fall back to sync with sanitization
+                return self._execute_command_sync(command, tool_input)
+            except RuntimeError:
+                # No running loop — we can use asyncio.run
+                sandbox = SandboxManager()
+                result = asyncio.run(
+                    sandbox.execute_sandboxed(code, trust)
+                )
+                self.execution_output.append(result.stdout or "")
+                return {
+                    "success": result.success,
+                    "output": (result.stdout or "")[:10000],
+                    "exit_code": result.exit_code,
+                    "sandbox": result.sandbox_type,
+                }
+        except ImportError:
+            return self._execute_command_sync(command, tool_input)
+
+    def _execute_command_sync(self, command: str, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Sync fallback with environment variable sanitization."""
         timeout = int(tool_input.get("timeout", 30))
+
+        env = os.environ.copy()
+        for key in list(env.keys()):
+            if any(s in key.upper() for s in self.SANDBOX_ENV_STRIP_PATTERNS):
+                del env[key]
 
         try:
             result = subprocess.run(
@@ -494,6 +596,7 @@ class AgenticToolExecutor:
                 text=True,
                 timeout=timeout,
                 cwd=self.working_directory,
+                env=env,
             )
             output = result.stdout
             if result.stderr:
@@ -503,7 +606,7 @@ class AgenticToolExecutor:
 
             return {
                 "success": result.returncode == 0,
-                "output": output[:10000],  # Truncate large outputs
+                "output": output[:10000],
                 "exit_code": result.returncode,
             }
         except subprocess.TimeoutExpired:
@@ -558,6 +661,97 @@ class AgenticToolExecutor:
         file_path.write_text(new_content, encoding="utf-8")
         return {"success": True, "path": str(file_path)}
 
+    def _search_replace(self, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply search/replace edits with fuzzy matching and diff preview."""
+        path = tool_input.get("path", "")
+        edits = tool_input.get("edits", [])
+
+        if not path:
+            return {"success": False, "error": "path is required"}
+        if not edits:
+            return {"success": False, "error": "edits array is required"}
+
+        file_path = Path(path)
+        if not file_path.is_absolute():
+            file_path = Path(self.working_directory) / file_path
+
+        if not file_path.exists():
+            return {"success": False, "error": f"File not found: {file_path}"}
+
+        original = file_path.read_text(encoding="utf-8")
+        content = original
+        applied = 0
+
+        for edit in edits:
+            search = edit.get("search", "")
+            replace = edit.get("replace", "")
+            if not search:
+                continue
+
+            # Try exact match first
+            if search in content:
+                content = content.replace(search, replace, 1)
+                applied += 1
+                continue
+
+            # Fuzzy match: find best matching line range
+            lines = content.splitlines(keepends=True)
+            search_lines = search.splitlines()
+            best_start, best_ratio = self._fuzzy_find(lines, search_lines)
+            if best_ratio >= 0.6:
+                replace_lines = replace.splitlines(keepends=True)
+                if replace and not replace.endswith("\n"):
+                    replace_lines = replace.splitlines(keepends=False)
+                    replace_lines = [l + "\n" for l in replace_lines]
+                lines[best_start:best_start + len(search_lines)] = replace_lines
+                content = "".join(lines)
+                applied += 1
+
+        if applied == 0:
+            return {"success": False, "error": "No edits could be applied", "applied": 0, "total": len(edits)}
+
+        # Lint gate for Python files
+        if file_path.suffix.lower() == ".py":
+            lint_error = LintGate.validate_python(content)
+            if lint_error:
+                return {"success": False, "error": f"Edit would produce invalid syntax: {lint_error}"}
+
+        # Generate diff preview
+        diff_lines = list(difflib.unified_diff(
+            original.splitlines(keepends=True),
+            content.splitlines(keepends=True),
+            fromfile=str(file_path),
+            tofile=str(file_path),
+        ))
+        diff_preview = "".join(diff_lines[:50])
+
+        file_path.write_text(content, encoding="utf-8")
+        return {"success": True, "applied": applied, "total": len(edits), "diff": diff_preview}
+
+    @staticmethod
+    def _fuzzy_find(lines: List[str], search_lines: List[str]) -> tuple:
+        """Find the best fuzzy match for search_lines within lines.
+
+        Returns:
+            (best_start_index, best_ratio) — ratio >= 0.6 is a usable match.
+        """
+        if not search_lines or not lines:
+            return (-1, 0.0)
+
+        search_block = "".join(search_lines)
+        best_start = -1
+        best_ratio = 0.0
+        window = len(search_lines)
+
+        for i in range(len(lines) - window + 1):
+            candidate = "".join(lines[i:i + window])
+            ratio = difflib.SequenceMatcher(None, search_block, candidate).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_start = i
+
+        return (best_start, best_ratio)
+
 
 # Agentic tool definitions for the Claude API
 AGENTIC_TOOL_DEFINITIONS = [
@@ -609,7 +803,123 @@ AGENTIC_TOOL_DEFINITIONS = [
             "required": ["path", "old_text", "new_text"],
         },
     },
+    {
+        "name": "search_replace",
+        "description": (
+            "Edit a file using search/replace blocks. Supports fuzzy matching — "
+            "the search text doesn't need to be exact. Shows a diff preview."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path to edit"},
+                "edits": {
+                    "type": "array",
+                    "description": "List of search/replace edits to apply",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "search": {"type": "string", "description": "Text to find (fuzzy match)"},
+                            "replace": {"type": "string", "description": "Replacement text"},
+                        },
+                        "required": ["search", "replace"],
+                    },
+                },
+            },
+            "required": ["path", "edits"],
+        },
+    },
 ]
+
+
+class ContextBuilder:
+    """Builds file context for the agentic loop's system prompt.
+
+    Discovers relevant project files and builds a summary containing
+    directory tree + key file contents within a token budget.
+    """
+
+    SKIP_DIRS = {
+        '.git', '__pycache__', 'node_modules', '.venv', 'venv',
+        'env', '.env', 'dist', 'build', '.pytest_cache', '.mypy_cache',
+        '.tox', '.eggs', '*.egg-info',
+    }
+    CODE_EXTENSIONS = {
+        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rs',
+        '.cpp', '.h', '.hpp', '.css', '.html', '.json', '.yaml', '.yml',
+        '.toml', '.md', '.sh',
+    }
+    MAX_CONTEXT_CHARS = 50000  # ~12K tokens
+    MAX_TREE_LINES = 200
+    MAX_FILES = 20
+    MAX_DEPTH = 3
+    MAX_FILE_CHARS = 5000
+    PRIORITY_PATTERNS = [
+        'README', 'setup.py', 'pyproject.toml', 'package.json',
+        'main.py', 'app.py', 'index.', '__init__.py',
+    ]
+
+    @classmethod
+    def build_context(cls, working_directory: str, extensions: Optional[set] = None) -> str:
+        """Build a context summary of the project directory.
+
+        Returns a string suitable for injection into the system prompt,
+        containing directory tree + key file contents (within token budget).
+        """
+        extensions = extensions or cls.CODE_EXTENSIONS
+        root = Path(working_directory)
+        if not root.exists():
+            return ""
+
+        tree_lines = []
+        file_list = []
+
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Prune skipped directories in-place
+            dirnames[:] = [d for d in dirnames if d not in cls.SKIP_DIRS]
+            rel = os.path.relpath(dirpath, root)
+            depth = rel.count(os.sep) if rel != '.' else 0
+            if depth > cls.MAX_DEPTH:
+                continue
+            indent = "  " * depth
+            tree_lines.append(f"{indent}{os.path.basename(dirpath)}/")
+            for f in sorted(filenames):
+                if Path(f).suffix in extensions:
+                    tree_lines.append(f"{indent}  {f}")
+                    file_list.append(os.path.join(dirpath, f))
+
+        tree = "\n".join(tree_lines[:cls.MAX_TREE_LINES])
+
+        # Include small key files (README, config, main entry points)
+        context_parts = [f"PROJECT STRUCTURE:\n{tree}\n"]
+        budget = cls.MAX_CONTEXT_CHARS - len(tree)
+
+        # Prioritize: README > config > small source files
+        prioritized = sorted(
+            file_list,
+            key=lambda f: next(
+                (i for i, p in enumerate(cls.PRIORITY_PATTERNS)
+                 if p in os.path.basename(f)),
+                999,
+            ),
+        )
+
+        for fpath in prioritized[:cls.MAX_FILES]:
+            if budget <= 0:
+                break
+            try:
+                content = Path(fpath).read_text(encoding='utf-8')
+                if len(content) > cls.MAX_FILE_CHARS:
+                    content = content[:cls.MAX_FILE_CHARS] + "\n... (truncated)"
+                rel = os.path.relpath(fpath, root)
+                entry = f"\n--- {rel} ---\n{content}\n"
+                if len(entry) <= budget:
+                    context_parts.append(entry)
+                    budget -= len(entry)
+            except (IOError, UnicodeDecodeError):
+                continue
+
+        return "\n".join(context_parts)
 
 
 def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -617,8 +927,8 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Multi-step agentic code generation with tool loop.
 
     Sends prompt to Claude with tool definitions (write_file, execute_command,
-    read_file, edit_file). Claude autonomously writes files, runs commands,
-    and iterates until done. Collapses generate-write-execute into one call.
+    read_file, edit_file, search_replace). Claude autonomously writes files,
+    runs commands, and iterates until done.
 
     Args:
         params: Dictionary containing:
@@ -626,6 +936,9 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - tools (list, optional): Tool names to enable
             - working_directory (str, optional): Working directory (default: "/tmp")
             - max_tool_rounds (int, optional): Max tool-use rounds (default: 5)
+            - stream (bool, optional): Enable token-level streaming (default: False)
+            - sandbox_level (str, optional): "trusted", "sandboxed", or "dangerous" (default: "sandboxed")
+            - include_context (bool, optional): Auto-discover project files for context (default: True)
 
     Returns:
         Dictionary with:
@@ -643,6 +956,9 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     working_dir = params.get("working_directory", "/tmp")
     max_rounds = int(params.get("max_tool_rounds", 5))
+    use_stream = bool(params.get("stream", False))
+    sandbox_level = params.get("sandbox_level", "sandboxed")
+    include_context = bool(params.get("include_context", True))
 
     # Filter tool definitions based on requested tools
     requested_tools = params.get("tools")
@@ -653,8 +969,20 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Starting", "Starting agentic generation loop...")
 
-    executor = AgenticToolExecutor(working_directory=working_dir)
+    executor = AgenticToolExecutor(working_directory=working_dir, sandbox_level=sandbox_level)
     messages = [{"role": "user", "content": prompt}]
+
+    # Build system prompt with optional project context
+    system_parts = [
+        "You are a code generation and execution assistant. "
+        "Use the provided tools to write files, execute commands, and complete the task. "
+        "For Python files, ensure the code is syntactically valid."
+    ]
+    if include_context:
+        project_context = ContextBuilder.build_context(working_dir)
+        if project_context:
+            system_parts.append(f"\n\nCURRENT PROJECT CONTEXT:\n{project_context}")
+    system_prompt = "".join(system_parts)
 
     try:
         api = ClaudeAPIClient.get_instance()
@@ -662,15 +990,19 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         for round_num in range(max_rounds):
             status.emit("Round", f"Tool loop round {round_num + 1}/{max_rounds}...")
 
-            response = api.call_with_tools(
-                messages=messages,
-                tools=tool_defs,
-                system=(
-                    "You are a code generation and execution assistant. "
-                    "Use the provided tools to write files, execute commands, and complete the task. "
-                    "For Python files, ensure the code is syntactically valid."
-                ),
-            )
+            if use_stream:
+                response = api.stream_with_tools(
+                    messages=messages,
+                    tools=tool_defs,
+                    system=system_prompt,
+                    on_token=lambda t: status.emit("Token", t),
+                )
+            else:
+                response = api.call_with_tools(
+                    messages=messages,
+                    tools=tool_defs,
+                    system=system_prompt,
+                )
 
             # Check stop reason
             stop_reason = getattr(response, "stop_reason", "end_turn")
@@ -839,4 +1171,5 @@ __all__ = [
     "ClaudeAPIClient",
     "LintGate",
     "AgenticToolExecutor",
+    "ContextBuilder",
 ]

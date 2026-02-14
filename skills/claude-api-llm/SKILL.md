@@ -36,9 +36,12 @@ base
 
 ### agentic_generate_tool
 - `prompt` (str, required): Task prompt for agentic execution
-- `tools` (list, optional): Tools to enable (default: ["write_file", "execute_command", "edit_file"])
+- `tools` (list, optional): Tools to enable (default: all — write_file, execute_command, read_file, edit_file, search_replace)
 - `working_directory` (str, optional): Working directory (default: "/tmp")
 - `max_tool_rounds` (int, optional): Max tool-use rounds (default: 5)
+- `stream` (bool, optional): Enable token-level streaming with status callbacks (default: false)
+- `sandbox_level` (str, optional): Execution trust level — "trusted", "sandboxed", or "dangerous" (default: "sandboxed")
+- `include_context` (bool, optional): Auto-discover project files for system prompt context (default: true)
 
 ### structured_output_tool
 - `prompt` (str, required): Prompt for structured output
@@ -72,7 +75,7 @@ base
 - `model` (str): Model used
 
 ## Version
-1.0.0
+1.1.0
 
 ## Author
 Jotty Framework
