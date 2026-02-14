@@ -41,6 +41,288 @@ def _extract_playlist_id(url: str) -> Optional[str]:
     return match.group(1) if match else None
 
 
+def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
+    """
+    Extract transcript from YouTube using Innertube API (page HTML scraping).
+
+    This method works even when youtube-transcript-api is blocked by cloud IPs.
+    It extracts the ytInitialPlayerResponse from the page HTML.
+
+    Args:
+        video_id: YouTube video ID
+
+    Returns:
+        List of transcript segments with 'text' and 'start' keys, or None if failed
+    """
+    import requests
+    import json
+
+    try:
+        logger.info(f"[YouTube Innertube] Fetching page HTML for {video_id}")
+
+        # Fetch video page
+        url = f'https://www.youtube.com/watch?v={video_id}'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+
+        html = response.text
+
+        # Extract ytInitialPlayerResponse
+        logger.info("[YouTube Innertube] Extracting player response...")
+
+        pattern = r'ytInitialPlayerResponse\s*=\s*({.+?});'
+        match = re.search(pattern, html, re.DOTALL)
+
+        if not match:
+            # Try alternative pattern
+            pattern = r'var ytInitialPlayerResponse = ({.+?});'
+            match = re.search(pattern, html, re.DOTALL)
+
+        if not match:
+            logger.error("[YouTube Innertube] Could not find ytInitialPlayerResponse in page HTML")
+            return None
+
+        player_data = json.loads(match.group(1))
+
+        # Extract caption tracks
+        captions_data = player_data.get('captions', {})
+        if not captions_data:
+            logger.warning("[YouTube Innertube] No captions data found")
+            return None
+
+        caption_tracks = captions_data.get('playerCaptionsTracklistRenderer', {}).get('captionTracks', [])
+
+        if not caption_tracks:
+            logger.warning("[YouTube Innertube] No caption tracks available")
+            return None
+
+        # Find English caption track (prefer manual over auto-generated)
+        caption_url = None
+        for track in caption_tracks:
+            lang_code = track.get('languageCode', '')
+            kind = track.get('kind', '')
+
+            if lang_code.startswith('en'):
+                caption_url = track.get('baseUrl')
+                if kind != 'asr':  # Prefer manual captions over auto-generated
+                    break
+
+        if not caption_url:
+            # Fallback: use first available track
+            caption_url = caption_tracks[0].get('baseUrl')
+
+        if not caption_url:
+            logger.error("[YouTube Innertube] No caption URL found")
+            return None
+
+        logger.info(f"[YouTube Innertube] Fetching captions from: {caption_url[:80]}...")
+
+        # Fetch caption XML
+        caption_response = requests.get(caption_url, headers=headers, timeout=15)
+        caption_response.raise_for_status()
+
+        # Parse XML captions
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(caption_response.text)
+
+        transcript_data = []
+        for text_elem in root.findall('.//text'):
+            text = text_elem.text
+            if not text:
+                continue
+
+            # Get timestamp
+            start = float(text_elem.get('start', 0))
+
+            # Clean up HTML entities
+            import html
+            text = html.unescape(text)
+
+            transcript_data.append({
+                'text': text.strip(),
+                'start': start
+            })
+
+        if not transcript_data:
+            logger.warning("[YouTube Innertube] No transcript segments extracted")
+            return None
+
+        logger.info(f"[YouTube Innertube] Successfully extracted {len(transcript_data)} segments")
+        return transcript_data
+
+    except requests.RequestException as e:
+        logger.error(f"[YouTube Innertube] HTTP request failed: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"[YouTube Innertube] JSON parsing failed: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"[YouTube Innertube] Extraction failed: {e}", exc_info=True)
+        return None
+
+
+async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
+    """
+    Extract transcript from YouTube page using browser automation.
+
+    Fallback method when youtube-transcript-api fails (e.g., cloud IP blocking).
+
+    Args:
+        video_url: Full YouTube video URL
+
+    Returns:
+        List of transcript segments with 'text' and 'start' keys, or None if failed
+    """
+    try:
+        # Import browser-automation skill tools
+        import sys
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "browser_tools",
+            "skills/browser-automation/tools.py"
+        )
+        browser_tools = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(browser_tools)
+
+        logger.info(f"[YouTube Browser] Navigating to {video_url}")
+
+        # Navigate to video page
+        nav_result = await browser_tools.browser_navigate_tool({
+            'url': video_url,
+            'wait_for': 'ytd-player',
+            'extract_text': False
+        })
+
+        if not nav_result.get('success'):
+            logger.error(f"[YouTube Browser] Navigation failed: {nav_result.get('error')}")
+            return None
+
+        logger.info("[YouTube Browser] Looking for transcript button...")
+
+        # Try multiple selectors for the "Show transcript" button (YouTube changes frequently)
+        transcript_button_selectors = [
+            'button[aria-label*="transcript" i]',  # Case-insensitive match
+            'button[aria-label*="Show transcript"]',
+            'ytd-video-description-transcript-section-renderer button',
+            '[class*="transcript"] button',
+            'button:has-text("Show transcript")',
+        ]
+
+        # Try to click the transcript button
+        transcript_opened = False
+        for selector in transcript_button_selectors:
+            try:
+                click_result = await browser_tools.browser_click_tool({
+                    'selector': selector,
+                    'wait_for': '#segments-container, ytd-transcript-segment-list-renderer'
+                })
+
+                if click_result.get('success'):
+                    logger.info(f"[YouTube Browser] Transcript button clicked: {selector}")
+                    transcript_opened = True
+                    break
+            except Exception as e:
+                logger.debug(f"[YouTube Browser] Selector failed: {selector} - {e}")
+                continue
+
+        if not transcript_opened:
+            # Try the three-dot menu approach
+            logger.info("[YouTube Browser] Trying three-dot menu...")
+            try:
+                # Click more button
+                await browser_tools.browser_click_tool({
+                    'selector': 'button[aria-label="More actions"]'
+                })
+
+                # Click "Show transcript" in menu
+                await browser_tools.browser_click_tool({
+                    'selector': 'tp-yt-paper-listbox yt-formatted-string:has-text("Show transcript")',
+                    'wait_for': '#segments-container'
+                })
+                transcript_opened = True
+            except Exception as e:
+                logger.warning(f"[YouTube Browser] Three-dot menu failed: {e}")
+
+        if not transcript_opened:
+            logger.error("[YouTube Browser] Could not open transcript panel")
+            return None
+
+        # Wait for transcript to load
+        import asyncio
+        await asyncio.sleep(2)  # Dynamic loading delay
+
+        logger.info("[YouTube Browser] Extracting transcript segments...")
+
+        # Extract transcript segments
+        extract_result = await browser_tools.browser_execute_js_tool({
+            'script': '''
+                () => {
+                    const segments = [];
+                    const segmentElements = document.querySelectorAll(
+                        '#segments-container ytd-transcript-segment-renderer, ' +
+                        'ytd-transcript-segment-list-renderer [role="button"]'
+                    );
+
+                    for (const seg of segmentElements) {
+                        const timeEl = seg.querySelector('.segment-timestamp, [class*="time"]');
+                        const textEl = seg.querySelector('.segment-text, yt-formatted-string');
+
+                        if (textEl) {
+                            const text = textEl.textContent.trim();
+                            let startSeconds = 0;
+
+                            if (timeEl) {
+                                const timeStr = timeEl.textContent.trim();
+                                // Parse "1:23" or "1:23:45" to seconds
+                                const parts = timeStr.split(':').map(Number);
+                                if (parts.length === 2) {
+                                    startSeconds = parts[0] * 60 + parts[1];
+                                } else if (parts.length === 3) {
+                                    startSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                                }
+                            }
+
+                            if (text) {
+                                segments.push({
+                                    text: text,
+                                    start: startSeconds
+                                });
+                            }
+                        }
+                    }
+
+                    return segments;
+                }
+            '''
+        })
+
+        if not extract_result.get('success'):
+            logger.error(f"[YouTube Browser] Extraction failed: {extract_result.get('error')}")
+            return None
+
+        transcript_data = extract_result.get('result', [])
+
+        if not transcript_data:
+            logger.warning("[YouTube Browser] No transcript segments found")
+            return None
+
+        logger.info(f"[YouTube Browser] Successfully extracted {len(transcript_data)} segments")
+
+        # Close browser to clean up
+        await browser_tools.browser_close_tool({})
+
+        return transcript_data
+
+    except Exception as e:
+        logger.error(f"[YouTube Browser] Extraction failed: {e}", exc_info=True)
+        return None
+
+
 @tool_wrapper(required_params=['video_url'])
 def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -91,7 +373,31 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         logger.warning(f"[YouTube] API failed: {e}")
-        return tool_error(f'Failed to fetch transcript: {str(e)}. YouTube may be blocking this IP address. Try using browser-automation skill to manually extract transcript from youtube.com/watch?v={video_id}')
+
+        # FALLBACK 1: Try Innertube API (page HTML scraping)
+        logger.info("[YouTube] Attempting Innertube API fallback...")
+        status.emit("extracting", "transcript via Innertube API")
+
+        transcript_data = _extract_transcript_via_innertube(video_id)
+
+        if not transcript_data:
+            # FALLBACK 2: Try browser automation (requires Playwright dependencies)
+            logger.info("[YouTube] Innertube failed, attempting browser-automation fallback...")
+            status.emit("extracting", "transcript via browser automation")
+
+            import asyncio
+            transcript_data = asyncio.run(_extract_transcript_via_browser(params['video_url']))
+
+            if not transcript_data:
+                return tool_error(
+                    f'Failed to fetch transcript via API, Innertube, and browser automation. '
+                    f'API error: {str(e)}. '
+                    f'YouTube may be blocking access or transcript may not be available.'
+                )
+
+            logger.info(f"[YouTube] Browser fallback successful: {len(transcript_data)} segments")
+        else:
+            logger.info(f"[YouTube] Innertube fallback successful: {len(transcript_data)} segments")
 
     # Format as markdown
     status.emit("processing", "transcript")

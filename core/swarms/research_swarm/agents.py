@@ -9,7 +9,11 @@ from pathlib import Path
 
 
 from Jotty.core.agents.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
+from ..swarm_signatures import (
+    ResearchSignature, AnalysisSignature, SynthesisSignature,
     StockAnalysisSignature, SentimentAnalysisSignature,
+    TechnicalAnalysisSignature, CausalAnalysisSignature,
+    EvaluationSignature, WebResearchSignature, FundamentalAnalysisSignature,
     PeerSelectionSignature, SocialSentimentSignature,
     TechnicalSignalsSignature,
 )
