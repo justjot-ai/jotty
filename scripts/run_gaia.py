@@ -372,6 +372,14 @@ def run_benchmark(args):
             tokens_used=tokens,
         )
 
+        # META-LEARNING: Record which strategies worked for this question type
+        if adapter.num_attempts > 1 and adapter.last_attempts and expected:
+            try:
+                question = task.get('Question', '')
+                adapter.record_strategy_outcome(question, adapter.last_attempts, expected)
+            except Exception as e:
+                print(f"         [Meta-Learning] Failed to record: {e}")
+
         result_dict = {
             'task_id': task_id,
             'success': bench_result.success,

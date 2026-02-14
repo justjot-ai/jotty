@@ -29,10 +29,35 @@ Usage:
     result = await sm.run("Research AI trends")  # Components init on demand
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import time
-from typing import List, Dict, Any, Optional, Union, Callable
+from typing import TYPE_CHECKING, List, Dict, Any, Optional, Union, Callable
+
+if TYPE_CHECKING:
+    from Jotty.core.orchestration.swarm_roadmap import SwarmTaskBoard
+    from Jotty.core.agents.agentic_planner import TaskPlanner
+    from Jotty.core.autonomous.intent_parser import IntentParser
+    from Jotty.core.memory.cortex import SwarmMemory
+    from Jotty.core.orchestration.swarm_provider_gateway import SwarmProviderGateway
+    from Jotty.core.orchestration.swarm_researcher import SwarmResearcher
+    from Jotty.core.orchestration.swarm_installer import SwarmInstaller
+    from Jotty.core.orchestration.swarm_configurator import SwarmConfigurator
+    from Jotty.core.orchestration.swarm_code_generator import SwarmCodeGenerator
+    from Jotty.core.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
+    from Jotty.core.orchestration.swarm_integrator import SwarmIntegrator
+    from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
+    from Jotty.core.registry.tool_validation import ToolValidator
+    from Jotty.core.orchestration.swarm_state_manager import SwarmStateManager
+    from Jotty.core.persistence.shared_context import SharedContext
+    from Jotty.core.data.io_manager import IOManager
+    from Jotty.core.data.data_registry import DataRegistry
+    from Jotty.core.context.context_guard import LLMContextManager
+    from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.orchestration.mas_learning import MASLearning
+    from Jotty.core.monitoring.profiler import PerformanceProfiler
 
 from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
@@ -116,75 +141,75 @@ def _load_providers() -> bool:
 # LAZY FACTORY FUNCTIONS - Called by LazyComponent descriptors
 # =========================================================================
 
-def _create_task_board():
+def _create_task_board() -> "SwarmTaskBoard":
     from Jotty.core.orchestration.swarm_roadmap import SwarmTaskBoard
     return SwarmTaskBoard()
 
-def _create_planner():
+def _create_planner() -> "TaskPlanner":
     from Jotty.core.agents.agentic_planner import TaskPlanner
     return TaskPlanner()
 
-def _create_intent_parser(planner):
+def _create_intent_parser(planner: "TaskPlanner") -> "IntentParser":
     from Jotty.core.autonomous.intent_parser import IntentParser
     return IntentParser(planner=planner)
 
-def _create_memory(config):
+def _create_memory(config: SwarmConfig) -> "SwarmMemory":
     from Jotty.core.memory.cortex import SwarmMemory
     return SwarmMemory(config=config, agent_name="SwarmShared")
 
-def _create_provider_gateway(config):
+def _create_provider_gateway(config: SwarmConfig) -> "SwarmProviderGateway":
     from Jotty.core.orchestration.swarm_provider_gateway import SwarmProviderGateway
     provider_preference = getattr(config, 'provider', None)
     return SwarmProviderGateway(config=config, provider=provider_preference)
 
-def _create_researcher(config):
+def _create_researcher(config: SwarmConfig) -> "SwarmResearcher":
     from Jotty.core.orchestration.swarm_researcher import SwarmResearcher
     return SwarmResearcher(config=config)
 
-def _create_installer(config):
+def _create_installer(config: SwarmConfig) -> "SwarmInstaller":
     from Jotty.core.orchestration.swarm_installer import SwarmInstaller
     return SwarmInstaller(config=config)
 
-def _create_configurator(config):
+def _create_configurator(config: SwarmConfig) -> "SwarmConfigurator":
     from Jotty.core.orchestration.swarm_configurator import SwarmConfigurator
     return SwarmConfigurator(config=config)
 
-def _create_code_generator(config):
+def _create_code_generator(config: SwarmConfig) -> "SwarmCodeGenerator":
     from Jotty.core.orchestration.swarm_code_generator import SwarmCodeGenerator
     return SwarmCodeGenerator(config=config)
 
-def _create_workflow_learner(memory):
+def _create_workflow_learner(memory: "SwarmMemory") -> "SwarmWorkflowLearner":
     from Jotty.core.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
     return SwarmWorkflowLearner(swarm_memory=memory)
 
-def _create_integrator(config):
+def _create_integrator(config: SwarmConfig) -> "SwarmIntegrator":
     from Jotty.core.orchestration.swarm_integrator import SwarmIntegrator
     return SwarmIntegrator(config=config)
 
-def _create_terminal(config):
+def _create_terminal(config: SwarmConfig) -> "SwarmTerminal":
     from Jotty.core.orchestration.swarm_terminal import SwarmTerminal
     return SwarmTerminal(config=config, auto_fix=True, max_fix_attempts=3)
 
-def _create_ui_registry():
+def _create_ui_registry() -> Any:
     from Jotty.core.registry.agui_component_registry import get_agui_registry
     return get_agui_registry()
 
-def _create_tool_validator():
+def _create_tool_validator() -> "ToolValidator":
     from Jotty.core.registry.tool_validation import ToolValidator
     return ToolValidator()
 
-def _create_tool_registry():
+def _create_tool_registry() -> Any:
     from Jotty.core.registry.tools_registry import get_tools_registry
     return get_tools_registry()
 
-def _create_profiler(config) -> None:
+def _create_profiler(config: SwarmConfig) -> Optional["PerformanceProfiler"]:
     enable = getattr(config, 'enable_profiling', False)
     if not enable:
         return None
     from Jotty.core.monitoring.profiler import PerformanceProfiler
     return PerformanceProfiler(enable_cprofile=True)
 
-def _create_state_manager(sm):
+def _create_state_manager(sm: "Orchestrator") -> "SwarmStateManager":
     from Jotty.core.orchestration.swarm_state_manager import SwarmStateManager
     agents_dict = {a.name: a for a in sm.agents}
     return SwarmStateManager(
@@ -199,27 +224,27 @@ def _create_state_manager(sm):
         agent_signatures={},
     )
 
-def _create_shared_context():
+def _create_shared_context() -> "SharedContext":
     from Jotty.core.persistence.shared_context import SharedContext
     return SharedContext()
 
-def _create_io_manager():
+def _create_io_manager() -> "IOManager":
     from Jotty.core.data.io_manager import IOManager
     return IOManager()
 
-def _create_data_registry():
+def _create_data_registry() -> "DataRegistry":
     from Jotty.core.data.data_registry import DataRegistry
     return DataRegistry()
 
-def _create_context_guard():
+def _create_context_guard() -> "LLMContextManager":
     from Jotty.core.context.context_guard import LLMContextManager
     return LLMContextManager()
 
-def _create_learning_pipeline(config):
+def _create_learning_pipeline(config: SwarmConfig) -> "SwarmLearningPipeline":
     from Jotty.core.orchestration.learning_pipeline import SwarmLearningPipeline
     return SwarmLearningPipeline(config)
 
-def _create_mas_learning(sm):
+def _create_mas_learning(sm: "Orchestrator") -> "MASLearning":
     from Jotty.core.orchestration.mas_learning import MASLearning
     workspace_path = getattr(sm.config, 'base_path', None)
     return MASLearning(

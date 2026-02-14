@@ -387,18 +387,18 @@ class TestNarrativeEditorAgent:
         with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
             from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
             agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
-            agent.model = "sonnet"
+            agent.model = "haiku"
             agent.use_fast_predict = True
-            agent.llm_timeout = 240
+            agent.llm_timeout = 90
             agent._lm = MagicMock()
             agent.learned_context = ""
             agent._bus = None
 
             content = "# Media\n## See It Clearly\nContent here..." * 20
             mock_result = _mock_dspy_result(
-                edited_content=content + "\n## Enhanced content here...",
                 socratic_questions="What do you think? | Why does this matter? | Who benefits?",
-                parent_guide="Discuss media with your child at dinner time.",
+                parent_guide="Discuss media with your child at dinner time. Ask what ads they saw today.",
+                key_takeaways="Media tries to influence your decisions | Critical thinking is a superpower | Always ask who benefits",
             )
             agent._editor = MagicMock(return_value=mock_result)
 
@@ -409,9 +409,73 @@ class TestNarrativeEditorAgent:
                 topic="Media Influence",
             )
 
-            assert 'edited_content' in result
+            assert 'socratic_questions' in result
             assert 'parent_guide' in result
+            assert 'key_takeaways' in result
+            assert 'edited_content' not in result  # No longer returns edited content
             assert len(result['socratic_questions']) == 3
+            assert len(result['key_takeaways']) == 3
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_edit_truncates_input(self):
+        """Verify NarrativeEditor truncates input to 2000 chars."""
+        with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
+            from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
+            agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._lm = MagicMock()
+            agent.learned_context = ""
+            agent._bus = None
+
+            # Create content longer than 2000 chars
+            long_content = "A" * 5000
+            mock_result = _mock_dspy_result(
+                socratic_questions="Q1 | Q2",
+                parent_guide="Guide text",
+                key_takeaways="T1 | T2",
+            )
+            agent._editor = MagicMock(return_value=mock_result)
+
+            await agent.edit(
+                assembled_content=long_content,
+                running_example="Example",
+                student_name="Aria",
+                topic="Test",
+            )
+
+            # Verify the editor was called with truncated content
+            call_kwargs = agent._editor.call_args
+            assert len(call_kwargs.kwargs.get('content_summary', '')) <= 2000
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_edit_handles_failure_gracefully(self):
+        """Verify NarrativeEditor returns empty results on failure."""
+        with patch('Jotty.core.swarms.perspective_learning_swarm.agents.BaseOlympiadAgent._get_lm'):
+            from Jotty.core.swarms.perspective_learning_swarm.agents import NarrativeEditorAgent
+            agent = NarrativeEditorAgent.__new__(NarrativeEditorAgent)
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._lm = MagicMock()
+            agent.learned_context = ""
+            agent._bus = None
+
+            agent._editor = MagicMock(side_effect=Exception("LLM timeout"))
+
+            result = await agent.edit(
+                assembled_content="Some content",
+                running_example="Example",
+                student_name="Aria",
+                topic="Test",
+            )
+
+            assert result['socratic_questions'] == []
+            assert result['parent_guide'] == ''
+            assert result['key_takeaways'] == []
 
 
 # =============================================================================
@@ -611,6 +675,94 @@ class TestContentAssembly:
         assert sections[0].perspective == PerspectiveType.INTUITIVE_VISUAL
         assert sections[1].perspective == PerspectiveType.STRUCTURED_FRAMEWORK
         assert sections[2].perspective == PerspectiveType.STORYTELLING
+
+    @pytest.mark.unit
+    def test_build_complete_content_debate_both_sides(self):
+        """Verify debate section renders both FOR and AGAINST with proper headers."""
+        from Jotty.core.swarms.perspective_learning_swarm.swarm import PerspectiveLearningSwarm
+        from Jotty.core.swarms.perspective_learning_swarm.types import PerspectiveLearningConfig
+
+        swarm = PerspectiveLearningSwarm.__new__(PerspectiveLearningSwarm)
+        swarm.config = PerspectiveLearningConfig()
+
+        content = swarm._build_complete_content(
+            student_name="Aria", topic="Test Topic",
+            central_idea="Test idea",
+            learning_objectives=["Objective 1"],
+            key_concepts=[], vocabulary=[],
+            running_example="Example scenario",
+            intuitive={}, framework={}, story={},
+            debate={
+                'central_question': 'Should this be allowed?',
+                'points_for': [{'position': 'Yes', 'argument': 'Freedom of choice', 'evidence': 'Studies show...'}],
+                'points_against': [{'position': 'No', 'argument': 'Safety concerns', 'evidence': 'Data shows...'}],
+                'form_your_opinion': 'What do you think?',
+            },
+            project={}, realworld={},
+            language_content={},
+            config=PerspectiveLearningConfig(),
+        )
+
+        assert "### Arguments FOR" in content
+        assert "### Arguments AGAINST" in content
+        assert "Freedom of choice" in content
+        assert "Safety concerns" in content
+
+    @pytest.mark.unit
+    def test_supplement_sections_appended(self):
+        """Verify supplement sections (parent guide, takeaways, questions) format correctly."""
+        # Test that supplement parts join correctly
+        parent_guide = "Talk to your child about media choices at home."
+        key_takeaways = ["Media is everywhere", "Think critically", "Ask who benefits"]
+        socratic_questions = ["Why do ads exist?", "Who benefits from this?"]
+
+        supplement_parts = []
+        if parent_guide:
+            supplement_parts.append(f"\n## Parent's Guide\n\n{parent_guide}\n")
+        if key_takeaways:
+            supplement_parts.append("\n## Key Takeaways\n")
+            for takeaway in key_takeaways:
+                supplement_parts.append(f"- {takeaway}")
+            supplement_parts.append("")
+        if socratic_questions:
+            supplement_parts.append("\n## Questions to Think About\n")
+            for i, q in enumerate(socratic_questions, 1):
+                supplement_parts.append(f"{i}. {q}")
+            supplement_parts.append("")
+
+        result = '\n'.join(supplement_parts)
+        assert "## Parent's Guide" in result
+        assert "## Key Takeaways" in result
+        assert "## Questions to Think About" in result
+        assert "- Media is everywhere" in result
+        assert "1. Why do ads exist?" in result
+        assert "2. Who benefits from this?" in result
+
+    @pytest.mark.unit
+    def test_lesson_content_with_key_takeaways(self):
+        """Verify LessonContent dataclass accepts key_takeaways field."""
+        content = LessonContent(
+            topic="Test", student_name="Test", central_idea="Test",
+            learning_objectives=[], key_concepts=[], running_example="",
+            vocabulary=[], perspectives=[], language_sections=[],
+            key_insights=[], parent_guide="", socratic_questions=[],
+            total_words=0,
+            key_takeaways=["Takeaway 1", "Takeaway 2"],
+        )
+        assert len(content.key_takeaways) == 2
+        assert content.key_takeaways[0] == "Takeaway 1"
+
+    @pytest.mark.unit
+    def test_lesson_content_key_takeaways_defaults_none(self):
+        """Verify key_takeaways defaults to None if not provided."""
+        content = LessonContent(
+            topic="Test", student_name="Test", central_idea="Test",
+            learning_objectives=[], key_concepts=[], running_example="",
+            vocabulary=[], perspectives=[], language_sections=[],
+            key_insights=[], parent_guide="", socratic_questions=[],
+            total_words=0,
+        )
+        assert content.key_takeaways is None
 
     @pytest.mark.unit
     def test_build_language_sections(self):

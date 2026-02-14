@@ -44,12 +44,12 @@ logger = logging.getLogger(__name__)
 class LLMProvider:
     """Lightweight adapter wrapping an LLM client with generate()/stream() for the executor."""
 
-    def __init__(self, provider: str = 'anthropic', model: str = None):
+    def __init__(self, provider: str = 'anthropic', model: Optional[str] = None) -> None:
         self._provider_name = provider or 'anthropic'
         self._model = model or 'claude-sonnet-4-20250514'
-        self._client = None
+        self._client: Any = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             if self._provider_name == 'anthropic':
                 import anthropic
@@ -105,8 +105,8 @@ class LLMProvider:
             logger.error(f"Tool execution failed for {tool_name}: {e}", exc_info=True)
             return f"Error executing {tool_name}: {str(e)}"
 
-    async def generate(self, prompt: str, tools=None, temperature: float = 0.7,
-                       max_tokens: int = 4000, **kwargs) -> Dict[str, Any]:
+    async def generate(self, prompt: str, tools: Optional[Any] = None, temperature: float = 0.7,
+                       max_tokens: int = 4000, **kwargs: Any) -> Dict[str, Any]:
         """Generate a response with tool-calling loop. Returns {'content': str, 'usage': {...}}."""
         client = self._get_client()
 
@@ -245,10 +245,10 @@ class ComplexityGate:
         "Task: {goal}\n\nAnswer:"
     )
 
-    def __init__(self):
-        self._client = None
+    def __init__(self) -> None:
+        self._client: Any = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             import anthropic
             self._client = anthropic.AsyncAnthropic()
@@ -294,12 +294,12 @@ class TierExecutor:
     def __init__(
         self,
         config: Optional[ExecutionConfig] = None,
-        registry=None,
-        provider=None,
-    ):
+        registry: Optional[Any] = None,
+        provider: Optional[Any] = None,
+    ) -> None:
         self.config = config or ExecutionConfig()
-        self._registry = registry
-        self._provider = provider
+        self._registry: Optional[Any] = registry
+        self._provider: Optional[Any] = provider
         self._detector = TierDetector(enable_llm_fallback=True)
 
         # Lazy-loaded components
@@ -316,7 +316,7 @@ class TierExecutor:
         logger.info("TierExecutor initialized")
 
     @property
-    def registry(self):
+    def registry(self) -> Any:
         """Lazy-load UnifiedRegistry."""
         if self._registry is None:
             from Jotty.core.registry import get_unified_registry
@@ -324,7 +324,7 @@ class TierExecutor:
         return self._registry
 
     @property
-    def provider(self):
+    def provider(self) -> LLMProvider:
         """Lazy-load LLM provider."""
         if self._provider is None:
             self._provider = LLMProvider(
@@ -334,28 +334,28 @@ class TierExecutor:
         return self._provider
 
     @property
-    def planner(self):
+    def planner(self) -> Optional[Any]:
         """Lazy-load TaskPlanner directly (no adapter)."""
         if self._planner is None:
             self._planner = self._create_planner()
         return self._planner
 
     @property
-    def memory(self):
+    def memory(self) -> Any:
         """Lazy-load memory backend."""
         if self._memory is None:
             self._memory = self._create_memory_backend()
         return self._memory
 
     @property
-    def validator(self):
+    def validator(self) -> Any:
         """Lazy-load MultiRoundValidator wrapping ValidatorAgent."""
         if self._validator is None:
             self._validator = self._create_validator()
         return self._validator
 
     @property
-    def metrics(self):
+    def metrics(self) -> Any:
         """Lazy-load MetricsCollector singleton."""
         if self._metrics is None:
             from Jotty.core.observability import get_metrics
@@ -363,7 +363,7 @@ class TierExecutor:
         return self._metrics
 
     @property
-    def tracer(self):
+    def tracer(self) -> Any:
         """Lazy-load TracingContext singleton."""
         if self._tracer is None:
             from Jotty.core.observability import get_tracer
@@ -371,7 +371,7 @@ class TierExecutor:
         return self._tracer
 
     @property
-    def cost_tracker(self):
+    def cost_tracker(self) -> Any:
         """Lazy-load CostTracker instance."""
         if self._cost_tracker is None:
             from Jotty.core.monitoring.cost_tracker import CostTracker
@@ -379,7 +379,7 @@ class TierExecutor:
         return self._cost_tracker
 
     @property
-    def complexity_gate(self):
+    def complexity_gate(self) -> Any:
         """Lazy-load ComplexityGate."""
         if self._complexity_gate is None:
             self._complexity_gate = ComplexityGate()
@@ -389,7 +389,7 @@ class TierExecutor:
     # COMPONENT FACTORIES
     # =========================================================================
 
-    def _create_planner(self) -> None:
+    def _create_planner(self) -> Optional[Any]:
         """Create TaskPlanner directly — no adapter wrapper."""
         try:
             from Jotty.core.agents.agentic_planner import TaskPlanner
@@ -401,7 +401,7 @@ class TierExecutor:
             logger.warning(f"TaskPlanner creation failed (unexpected): {e}")
             return None
 
-    def _create_validator(self):
+    def _create_validator(self) -> Any:
         """Create MultiRoundValidator wrapping ValidatorAgent.
 
         Falls back to simple LLM-based validation if ValidatorAgent
@@ -1462,7 +1462,7 @@ Correct answer:"""
                 logger.debug(f"Could not import swarm module {mod}: {e}")
         TierExecutor._swarms_registered = True
 
-    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
+    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> Optional[Any]:
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
         from Jotty.core.swarms.registry import SwarmRegistry
@@ -1839,7 +1839,7 @@ Is this result correct and complete? Provide:
         except Exception as e:
             logger.warning(f"Memory storage failed: {e}")
 
-    def _create_memory_backend(self):
+    def _create_memory_backend(self) -> Any:
         """Create memory backend based on config."""
         backend = self.config.memory_backend
 
@@ -1857,7 +1857,7 @@ Is this result correct and complete? Provide:
 class _FallbackValidator:
     """Simple LLM-based validator used when ValidatorAgent can't be created."""
 
-    def __init__(self, provider):
+    def __init__(self, provider: Any) -> None:
         self._provider = provider
 
     async def validate(self, prompt: str) -> Dict[str, Any]:
