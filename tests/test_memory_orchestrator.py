@@ -513,3 +513,320 @@ class TestUtilityFunctions:
         """load_brain_config with empty config uses defaults."""
         brain = load_brain_config({})
         assert brain.preset == BrainPreset.BALANCED
+
+
+# =============================================================================
+# SimpleBrain Extended Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestSimpleBrainExtended:
+    """Additional tests for SimpleBrain methods and edge cases."""
+
+    def test_should_consolidate_false_when_consolidating(self):
+        """_should_consolidate returns False when already consolidating."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain.is_consolidating = True
+        assert brain._should_consolidate() is False
+
+    def test_should_consolidate_false_no_auto(self):
+        """_should_consolidate returns False when auto_consolidate is off."""
+        brain = SimpleBrain(preset=BrainPreset.OFF)
+        assert brain._should_consolidate() is False
+
+    def test_should_consolidate_episode_count_trigger(self):
+        """_should_consolidate triggers on episode_count threshold."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain.consolidate_on = ConsolidationTrigger.EPISODE_COUNT
+        brain.episode_count = brain.config['consolidation_interval']
+        # Need auto_consolidate to be True
+        brain.config['auto_consolidate'] = True
+        result = brain._should_consolidate()
+        assert result is True
+
+    def test_should_consolidate_memory_pressure_trigger(self):
+        """_should_consolidate triggers on memory pressure."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain.consolidate_on = ConsolidationTrigger.MEMORY_PRESSURE
+        brain.config['auto_consolidate'] = True
+        # Fill buffer to 80%+
+        buf_size = brain.config['memory_buffer_size']
+        for i in range(int(buf_size * 0.9)):
+            brain.experience_buffer.append(Experience(content=f"exp_{i}", reward=0.5))
+        assert brain._should_consolidate() is True
+
+    def test_prune_buffer_removes_middle_experiences(self):
+        """_prune_buffer removes middle-reward experiences."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain.experience_buffer = [
+            Experience(content="high", reward=0.95),
+            Experience(content="mid1", reward=0.5),
+            Experience(content="mid2", reward=0.5),
+            Experience(content="mid3", reward=0.5),
+            Experience(content="mid4", reward=0.5),
+            Experience(content="low", reward=0.05),
+        ]
+        original_count = len(brain.experience_buffer)
+        brain._prune_buffer()
+        assert len(brain.experience_buffer) < original_count
+        assert brain.total_pruned > 0
+
+    def test_prune_buffer_empty_is_noop(self):
+        """_prune_buffer does nothing on empty buffer."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain._prune_buffer()
+        assert brain.total_pruned == 0
+
+    def test_extract_patterns_failure_threshold(self):
+        """_extract_patterns finds FAILURE_PATTERN when 3+ failures."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        for i in range(4):
+            brain.experience_buffer.append(
+                Experience(content=f"fail_{i}", reward=0.1)
+            )
+        patterns = brain._extract_patterns()
+        assert any("FAILURE_PATTERN" in p for p in patterns)
+
+    def test_extract_patterns_agent_specific(self):
+        """_extract_patterns finds AGENT_PATTERN for agent with 3+ experiences."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        for i in range(5):
+            brain.experience_buffer.append(
+                Experience(content=f"task_{i}", reward=0.8, agent="ResearchAgent")
+            )
+        patterns = brain._extract_patterns()
+        assert any("AGENT_PATTERN" in p and "ResearchAgent" in p for p in patterns)
+
+    def test_extract_patterns_no_patterns(self):
+        """_extract_patterns returns empty when not enough data."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        brain.experience_buffer = [Experience(content="solo", reward=0.5)]
+        patterns = brain._extract_patterns()
+        assert patterns == []
+
+    @pytest.mark.asyncio
+    async def test_consolidate_custom_trigger(self):
+        """consolidate with custom trigger works."""
+        brain = SimpleBrain(preset=BrainPreset.BALANCED)
+        for i in range(3):
+            brain.experience_buffer.append(
+                Experience(content=f"exp_{i}", reward=0.9)
+            )
+        await brain.consolidate(ConsolidationTrigger.PIPELINE_STAGE)
+        assert brain.consolidation_count == 1
+
+    def test_chunk_size_clamped_min(self):
+        """Chunk size is clamped to minimum 1000."""
+        brain = SimpleBrain(preset=BrainPreset.MINIMAL, model_name="unknown-tiny-model")
+        assert brain.chunk_size >= 1000
+
+    def test_chunk_size_clamped_max(self):
+        """Chunk size is clamped to maximum 100000."""
+        brain = SimpleBrain(preset=BrainPreset.THOROUGH, model_name="claude-3-opus")
+        assert brain.chunk_size <= 100000
+
+    def test_from_preset_minimal(self):
+        """from_preset('minimal') creates minimal brain."""
+        brain = SimpleBrain.from_preset("minimal")
+        assert brain.preset == BrainPreset.MINIMAL
+
+    def test_from_preset_off(self):
+        """from_preset('off') creates disabled brain."""
+        brain = SimpleBrain.from_preset("off")
+        assert brain.preset == BrainPreset.OFF
+        assert brain.config['auto_consolidate'] is False
+
+
+# =============================================================================
+# BrainInspiredMemoryManager Extended Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestBrainInspiredMemoryManagerExtended:
+    """Additional tests for BrainInspiredMemoryManager."""
+
+    def test_custom_init(self):
+        """BrainInspiredMemoryManager custom init params."""
+        mgr = BrainInspiredMemoryManager(
+            max_hippocampus_size=50,
+            sleep_interval=20,
+        )
+        assert mgr.max_hippocampus_size == 50
+        assert mgr.sleep_interval == 20
+
+    def test_store_experience_adds_to_hippocampus_count(self):
+        """store_experience increases hippocampus size."""
+        mgr = BrainInspiredMemoryManager()
+        mgr.store_experience({"action": "search"}, reward=0.7)
+        assert len(mgr.hippocampus) == 1
+        mgr.store_experience({"action": "analyze"}, reward=0.6)
+        assert len(mgr.hippocampus) == 2
+
+    def test_store_low_reward_experience(self):
+        """Low-reward experiences are still stored."""
+        mgr = BrainInspiredMemoryManager()
+        mgr.store_experience({"action": "fail"}, reward=0.1)
+        assert len(mgr.hippocampus) == 1
+        assert mgr.hippocampus[0].reward == 0.1
+
+    def test_novelty_computed_for_stored_experience(self):
+        """Stored experience has novelty_score computed."""
+        mgr = BrainInspiredMemoryManager()
+        mgr.store_experience({"action": "search", "query": "unique"}, reward=0.5)
+        mem = mgr.hippocampus[0]
+        assert isinstance(mem.novelty_score, float)
+
+    def test_consolidation_resets_episode_count(self):
+        """trigger_consolidation resets episodes_since_sleep to 0."""
+        mgr = BrainInspiredMemoryManager(sleep_interval=2)
+        for i in range(5):
+            mgr.store_experience({"action": f"act_{i}"}, reward=0.8)
+        mgr.episodes_since_sleep = 5
+        mgr.trigger_consolidation()
+        assert mgr.episodes_since_sleep == 0
+
+    def test_multiple_consolidations(self):
+        """Multiple consolidation cycles accumulate patterns."""
+        mgr = BrainInspiredMemoryManager(sleep_interval=3, replay_threshold=0.0)
+        # First cycle
+        for i in range(5):
+            mgr.store_experience({"action": "search", "status": "ok"}, reward=0.9)
+        mgr.episodes_since_sleep = 5
+        mgr.trigger_consolidation()
+        first_count = len(mgr.neocortex)
+
+        # Second cycle
+        for i in range(5):
+            mgr.store_experience({"action": "plan", "status": "ok"}, reward=0.85)
+        mgr.episodes_since_sleep = 5
+        mgr.trigger_consolidation()
+
+        assert mgr.total_consolidations == 2
+        # Should have at least as many patterns as first cycle
+        assert len(mgr.neocortex) >= first_count
+
+    def test_get_statistics_complete_keys(self):
+        """get_statistics returns all expected keys."""
+        mgr = BrainInspiredMemoryManager()
+        stats = mgr.get_statistics()
+        expected_keys = {
+            "hippocampus_size", "neocortex_size", "total_consolidations",
+            "episodes_since_sleep", "total_replay_count", "avg_hippo_strength",
+        }
+        assert expected_keys.issubset(set(stats.keys()))
+
+    def test_get_consolidated_knowledge_max_items(self):
+        """get_consolidated_knowledge respects max_items limit."""
+        mgr = BrainInspiredMemoryManager()
+        # Add many patterns
+        for i in range(15):
+            mgr.neocortex.append(SemanticPattern(
+                abstract_lesson=f"Lesson {i}",
+                strength=float(i),
+                source_count=1,
+                created_at=time.time(),
+                last_reinforced=time.time(),
+            ))
+        knowledge = mgr.get_consolidated_knowledge(max_items=5)
+        # Should not include all 15
+        lesson_count = knowledge.count("Lesson")
+        assert lesson_count <= 5
+
+    def test_pruning_during_consolidation(self):
+        """Synaptic pruning removes weak memories during consolidation."""
+        mgr = BrainInspiredMemoryManager(sleep_interval=2, replay_threshold=0.0)
+        # Add experiences with varying strengths
+        for i in range(10):
+            mgr.store_experience({"action": f"act_{i}"}, reward=0.9)
+        # Manually weaken some memories
+        for mem in mgr.hippocampus[:5]:
+            mem.strength = 0.01
+        mgr.episodes_since_sleep = 10
+        mgr.trigger_consolidation()
+        # After pruning, weakest should be removed
+        assert mgr.total_consolidations == 1
+
+
+# =============================================================================
+# Experience Edge Cases
+# =============================================================================
+
+@pytest.mark.unit
+class TestExperienceEdgeCases:
+    """Edge case tests for Experience dataclass."""
+
+    def test_zero_reward(self):
+        """Experience with 0 reward is valid."""
+        exp = Experience(content="nothing", reward=0.0)
+        assert exp.reward == 0.0
+
+    def test_negative_reward(self):
+        """Experience with negative reward is valid."""
+        exp = Experience(content="penalty", reward=-0.5)
+        assert exp.reward == -0.5
+
+    def test_large_content(self):
+        """Experience with large content string."""
+        content = "x" * 10000
+        exp = Experience(content=content, reward=0.5)
+        assert len(exp.content) == 10000
+
+    def test_dict_content(self):
+        """Experience content can be any type."""
+        exp = Experience(content={"key": "value"}, reward=0.5)
+        assert exp.content == {"key": "value"}
+
+
+# =============================================================================
+# load_brain_config Extended Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestLoadBrainConfigExtended:
+    """Additional tests for load_brain_config."""
+
+    def test_config_with_dict_brain_creates_brain(self):
+        """load_brain_config with dict config creates brain with correct preset."""
+        config = {
+            "reval": {
+                "brain": {
+                    "preset": "balanced",
+                    "consolidate_on": "memory_pressure",
+                }
+            }
+        }
+        brain = load_brain_config(config)
+        # Dict config creates brain from preset (consolidate_on is parsed but
+        # not passed through to SimpleBrain in current implementation)
+        assert brain.preset == BrainPreset.BALANCED
+
+    def test_config_with_thorough_dict(self):
+        """load_brain_config with thorough preset dict."""
+        config = {
+            "reval": {
+                "brain": {
+                    "preset": "thorough",
+                }
+            }
+        }
+        brain = load_brain_config(config)
+        assert brain.preset == BrainPreset.THOROUGH
+
+    def test_config_nested_reval_missing(self):
+        """load_brain_config handles missing reval key."""
+        brain = load_brain_config({"other_key": "value"})
+        assert brain.preset == BrainPreset.BALANCED
+
+    def test_config_with_custom_model(self):
+        """load_brain_config applies custom model from config."""
+        config = {
+            "reval": {
+                "brain": {
+                    "preset": "minimal",
+                    "model": "gpt-4o",
+                }
+            }
+        }
+        brain = load_brain_config(config)
+        assert brain.model_name == "gpt-4o"
+        assert brain.preset == BrainPreset.MINIMAL

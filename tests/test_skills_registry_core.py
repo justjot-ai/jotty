@@ -756,3 +756,260 @@ Perform mathematical calculations and unit conversions.
             meta = reg._parse_skill_metadata(md)
             assert meta["use_when"] != ""
             assert "mathematical" in meta["use_when"].lower() or "calculation" in meta["use_when"].lower()
+
+
+# =============================================================================
+# SkillsRegistry Load Collection Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestSkillsRegistryLoadCollection:
+    """Tests for load_collection and collection management."""
+
+    def test_load_collection_stores_collection(self):
+        """load_collection registers tools from a ToolCollection."""
+        from Jotty.core.registry.tool_collection import ToolCollection
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            reg.initialized = True
+
+            # Create a real ToolCollection with minimal data
+            collection = ToolCollection(
+                tools=[{"name": "col_tool", "description": "A tool", "forward": lambda x: x}],
+                source="test",
+            )
+
+            loaded = reg.load_collection(collection, collection_name="test_col")
+            assert "test_col" in reg.loaded_collections
+            assert isinstance(loaded, dict)
+
+    def test_list_collections_returns_all(self):
+        """list_collections returns info for loaded collections."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            reg.loaded_collections["c1"] = {"source": "local", "tools": {"a": lambda: None}, "metadata": {}}
+            reg.loaded_collections["c2"] = {"source": "hub", "tools": {"b": lambda: None}, "metadata": {}}
+            result = reg.list_collections()
+            assert len(result) == 2
+            assert result[0]["source"] in ("local", "hub")
+
+    def test_get_collection_found(self):
+        """get_collection returns info for existing collection."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            reg.loaded_collections["test"] = {"source": "local", "tools": {}, "metadata": {}}
+            result = reg.get_collection("test")
+            assert result is not None
+            assert result["source"] == "local"
+
+    def test_get_collection_not_found(self):
+        """get_collection returns None for missing collection."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            assert reg.get_collection("nonexistent") is None
+
+
+# =============================================================================
+# SkillsRegistry Additional Methods Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestSkillsRegistryAdditionalMethods:
+    """Tests for load_all_skills, get_registered_tools, and other methods."""
+
+    @patch("Jotty.core.registry.skills_registry.SkillsRegistry._scan_skills_metadata")
+    @patch("Jotty.core.registry.skills_registry.SkillsRegistry._load_cached_dynamic_skills")
+    @patch("Jotty.core.registry.skills_registry.SkillsRegistry._prewarm_top_skills")
+    @patch("Jotty.core.registry.skills_registry.SkillsRegistry._refresh_dynamic_skills_background")
+    def test_load_all_skills_forces_eager_load(self, mock_ref, mock_pre, mock_cache, mock_scan):
+        """load_all_skills triggers lazy loading of all skills."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            loader = MagicMock(return_value={"eager_tool": lambda p: p})
+            reg.loaded_skills["lazy-skill"] = SkillDefinition(
+                name="lazy-skill", description="lazy",
+                _tool_loader=loader,
+            )
+            result = reg.load_all_skills()
+            assert "eager_tool" in result
+            loader.assert_called_once()
+
+    def test_get_registered_tools_returns_all_tools(self):
+        """get_registered_tools aggregates tools from all skills."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            reg.loaded_skills["s1"] = SkillDefinition(
+                name="s1", description="s1",
+                tools={"tool_a": lambda: None, "tool_b": lambda: None},
+            )
+            reg.loaded_skills["s2"] = SkillDefinition(
+                name="s2", description="s2",
+                tools={"tool_c": lambda: None},
+            )
+            all_tools = reg.get_registered_tools()
+            # At least 3 tools from our skills (may have extra from dep manager)
+            assert len(all_tools) >= 3
+            assert "tool_a" in all_tools
+            assert "tool_b" in all_tools
+            assert "tool_c" in all_tools
+
+    def test_get_failed_skills_with_failures(self):
+        """get_failed_skills returns errors after load failure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reg = SkillsRegistry(skills_dir=tmpdir)
+            reg._failed_skills = {"broken-skill": "ModuleNotFoundError: No module named 'foo'"}
+            failures = reg.get_failed_skills()
+            assert "broken-skill" in failures
+            assert "ModuleNotFoundError" in failures["broken-skill"]
+
+
+# =============================================================================
+# SkillDefinition Additional Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestSkillDefinitionAdditional:
+    """Additional tests for SkillDefinition edge cases."""
+
+    def test_trust_level_auto_inferred(self):
+        """Trust level is auto-inferred from category."""
+        sd = SkillDefinition(
+            name="safe-search", description="Search",
+            tools={}, category="search",
+        )
+        assert sd.trust_level == TrustLevel.SAFE
+
+    def test_trust_level_explicit_overrides_infer(self):
+        """Explicit trust_level overrides auto-inference."""
+        sd = SkillDefinition(
+            name="safe-search", description="Search",
+            tools={}, category="search",
+            trust_level=TrustLevel.DESTRUCTIVE,
+        )
+        assert sd.trust_level == TrustLevel.DESTRUCTIVE
+
+    def test_executor_type_web_search(self):
+        """Executor type inferred as web_search."""
+        sd = SkillDefinition(name="google-search", description="Search Google")
+        assert sd.executor_type == "web_search"
+
+    def test_executor_type_terminal(self):
+        """Executor type inferred as terminal."""
+        sd = SkillDefinition(name="bash-executor", description="Execute shell commands")
+        assert sd.executor_type == "terminal"
+
+    def test_executor_type_data(self):
+        """Executor type inferred as data."""
+        sd = SkillDefinition(name="csv-analytics", description="Analyze CSV data files")
+        assert sd.executor_type == "data"
+
+    def test_executor_type_llm(self):
+        """Executor type inferred as llm."""
+        sd = SkillDefinition(name="claude-summarize", description="Summarize with Claude")
+        assert sd.executor_type == "llm"
+
+    def test_executor_type_doc_gen(self):
+        """Executor type inferred as doc_gen."""
+        sd = SkillDefinition(name="pdf-maker", description="Generate PDF reports")
+        assert sd.executor_type == "doc_gen"
+
+    def test_executor_type_code(self):
+        """Executor type inferred as code."""
+        sd = SkillDefinition(name="python-linter", description="Lint Python code")
+        assert sd.executor_type == "code"
+
+    def test_tools_setter(self):
+        """Tools can be set directly."""
+        sd = SkillDefinition(name="test", description="test")
+        new_tools = {"new_tool": lambda: None}
+        sd.tools = new_tools
+        assert sd.tools == new_tools
+
+    def test_to_dict_use_when(self):
+        """to_dict includes use_when when set."""
+        sd = SkillDefinition(
+            name="test", description="test",
+            tools={}, use_when="When user needs tests",
+        )
+        d = sd.to_dict()
+        assert d["use_when"] == "When user needs tests"
+
+    def test_to_claude_tools_with_metadata(self):
+        """to_claude_tools uses ToolMetadata when available."""
+        meta = ToolMetadata(
+            name="rich_tool", description="Rich tool",
+            parameters={"properties": {"q": {"type": "string"}}, "required": ["q"]},
+        )
+        sd = SkillDefinition(
+            name="test", description="test",
+            tools={"rich_tool": lambda p: p},
+            tool_metadata={"rich_tool": meta},
+        )
+        ct = sd.to_claude_tools()
+        assert len(ct) == 1
+        assert ct[0]["name"] == "rich_tool"
+        assert "q" in ct[0]["input_schema"]["properties"]
+
+    def test_to_claude_tools_no_metadata_uses_docstring(self):
+        """to_claude_tools falls back to docstring when no metadata."""
+        def my_tool(params):
+            """My tool does stuff."""
+            return {}
+
+        sd = SkillDefinition(
+            name="test", description="test",
+            tools={"my_tool": my_tool},
+        )
+        ct = sd.to_claude_tools()
+        assert len(ct) == 1
+        assert "My tool does stuff" in ct[0]["description"]
+
+
+# =============================================================================
+# _infer_trust_level Additional Tests
+# =============================================================================
+
+@pytest.mark.unit
+class TestInferTrustLevelAdditional:
+    """Additional tests for _infer_trust_level edge cases."""
+
+    def test_create_keyword_is_side_effect(self):
+        """Name with 'create' keyword infers SIDE_EFFECT when category is not safe."""
+        result = _infer_trust_level("automation", [], "create-note")
+        assert result == TrustLevel.SIDE_EFFECT
+
+    def test_write_keyword_is_side_effect(self):
+        """Name with 'write' keyword infers SIDE_EFFECT when category is not safe."""
+        result = _infer_trust_level("automation", [], "write-file")
+        assert result == TrustLevel.SIDE_EFFECT
+
+    def test_update_keyword_is_side_effect(self):
+        """Name with 'update' keyword infers SIDE_EFFECT when category is not safe."""
+        result = _infer_trust_level("automation", [], "update-config")
+        assert result == TrustLevel.SIDE_EFFECT
+
+    def test_destructive_tag_overrides_safe_category(self):
+        """Destructive tags take precedence over safe category."""
+        result = _infer_trust_level("search", ["delete"], "safe-name")
+        assert result == TrustLevel.DESTRUCTIVE
+
+    def test_purge_tag_is_destructive(self):
+        """Purge tag infers DESTRUCTIVE."""
+        result = _infer_trust_level("general", ["purge", "cache"], "purge-tool")
+        assert result == TrustLevel.DESTRUCTIVE
+
+    def test_analysis_category_is_safe(self):
+        """Analysis category infers SAFE."""
+        result = _infer_trust_level("analysis", [], "analyze-data")
+        assert result == TrustLevel.SAFE
+
+    def test_mixed_case_category(self):
+        """Category comparison is case-insensitive."""
+        result = _infer_trust_level("SEARCH", [], "any-tool")
+        assert result == TrustLevel.SAFE
+
+    def test_mixed_case_tags(self):
+        """Tag comparison is case-insensitive."""
+        result = _infer_trust_level("general", ["DELETE", "Important"], "some-tool")
+        assert result == TrustLevel.DESTRUCTIVE

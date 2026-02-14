@@ -3703,16 +3703,22 @@ class TestLLMProvider:
 
 
 class RealOrchestratorIntegrationTest:
-    """Complex real use case through the full orchestrator pipeline.
+    """Super-complex real orchestrator stress test.
 
-    NOT a pytest test — run directly as a script with --integration flag.
-    Uses real LLM calls and real tool execution. No mocks.
+    NOT a pytest test — run directly: python tests/test_v3_execution.py --integration
+
+    Throws 5 genuinely hard, multi-step tasks at the orchestrator.
+    No hand-holding, no pre-registered patterns — just raw goals.
+    The orchestrator must plan skills, chain data between steps,
+    handle errors, replan on failure, and produce real artifacts.
     """
 
+    OUTPUT_DIR = "/tmp/jotty_stress_test"
+
     def __init__(self):
-        self.results = {}
-        self.pattern_evidence = {}
+        self.task_results = {}
         self.start_time = 0.0
+        self.task_timings = {}
 
     def log(self, msg: str):
         import time
@@ -3720,320 +3726,1497 @@ class RealOrchestratorIntegrationTest:
         print(f"[{elapsed:6.1f}s] {msg}", flush=True)
 
     def section(self, title: str):
-        print(f"\n{'='*70}", flush=True)
-        print(f"  {title}", flush=True)
-        print(f"{'='*70}", flush=True)
+        border = "=" * 70
+        print(f"\n{border}\n  {title}\n{border}", flush=True)
+
+    def _build_discovered_skills(self, registry) -> list:
+        """Build skill discovery list from the real registry."""
+        discovered = []
+        for name, skill_def in list(registry.loaded_skills.items()):
+            desc = ""
+            if hasattr(skill_def, "metadata") and skill_def.metadata:
+                desc = getattr(skill_def.metadata, "description", "") or ""
+            tools_list = list(skill_def.tools.keys()) if hasattr(skill_def, "tools") else []
+            discovered.append({"name": name, "description": desc, "tools": tools_list})
+        return discovered
+
+    def _check_file(self, path: str, label: str) -> dict:
+        """Check if a file was created and report its content stats."""
+        import os
+        info = {"label": label, "path": path, "exists": False}
+        if os.path.exists(path):
+            if os.path.isdir(path):
+                # Path was created as directory by mistake
+                info["exists"] = False
+                info["is_dir"] = True
+                return info
+            info["exists"] = True
+            info["size"] = os.path.getsize(path)
+            with open(path, errors="replace") as f:
+                content = f.read()
+            info["lines"] = len(content.split("\n"))
+            info["chars"] = len(content)
+            info["preview"] = content[:600]
+            # Quality heuristic: not just a stub
+            info["is_stub"] = (
+                info["size"] < 200
+                or content.strip().startswith("# TODO")
+            )
+        return info
+
+    def _log_result(self, name: str, result: dict, elapsed: float):
+        """Log a task execution result with full details."""
+        self.log(f"  Success: {result.get('success')}")
+        self.log(f"  Task type: {result.get('task_type', '?')}")
+        self.log(f"  Skills used: {result.get('skills_used', [])}")
+        self.log(f"  Steps planned: {result.get('steps_planned', '?')}")
+        self.log(f"  Steps executed: {result.get('steps_executed', 0)}")
+        self.log(f"  Replans: {result.get('replans', 0)}")
+        self.log(f"  Time: {elapsed:.1f}s")
+        errors = result.get("errors", [])
+        if errors:
+            self.log(f"  Errors ({len(errors)}):")
+            for e in errors[:5]:
+                self.log(f"    - {str(e)[:120]}")
+
+        outputs = result.get("outputs", {})
+        for key, val in outputs.items():
+            if isinstance(val, dict):
+                keys = [k for k in val.keys() if k != "_tags"][:6]
+                self.log(f"  Output [{key}]: keys={keys}")
+            else:
+                self.log(f"  Output [{key}]: {str(val)[:150]}")
+
+    async def _run_task(self, executor, discovered, task: str, name: str, status_cb):
+        """Execute a single task and capture results + timing."""
+        import time
+        self.section(f"TASK: {name}")
+        self.log(f"Goal: {task[:200]}")
+
+        t0 = time.time()
+        try:
+            result = await executor.plan_and_execute(
+                task=task,
+                discovered_skills=discovered,
+                status_callback=status_cb,
+            )
+        except Exception as e:
+            result = {"success": False, "error": str(e), "skills_used": [], "steps_executed": 0}
+            self.log(f"  EXCEPTION: {e}")
+
+        elapsed = time.time() - t0
+        self.task_timings[name] = elapsed
+        self.task_results[name] = result
+        self._log_result(name, result, elapsed)
+        return result
 
     async def run(self):
         import time
         import os
+        import shutil
 
         self.start_time = time.time()
 
-        self.section("COMPLEX ORCHESTRATOR TEST — REAL EXECUTION, NO MOCKS")
+        self.section("JOTTY ORCHESTRATOR STRESS TEST — 5 COMPLEX GOALS")
+        self.log("No mocks. No hand-holding. Real LLM + real tools.")
+        self.log(f"All outputs go to {self.OUTPUT_DIR}/")
 
-        # ==================================================================
-        # Phase 1: Initialize real infrastructure
-        # ==================================================================
-        self.section("PHASE 1: INFRASTRUCTURE INIT")
+        # Clean slate
+        if os.path.exists(self.OUTPUT_DIR):
+            shutil.rmtree(self.OUTPUT_DIR)
+        os.makedirs(self.OUTPUT_DIR, exist_ok=True)
+
+        # ------------------------------------------------------------------
+        # INIT
+        # ------------------------------------------------------------------
+        self.section("INIT: Registry + Executor")
 
         from Jotty.core.registry.skills_registry import get_skills_registry
         from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
 
         sr = get_skills_registry()
         sr.init()
-        self.log(f"Skills registry: {len(sr.loaded_skills)} skills loaded")
+        self.log(f"Skills loaded: {len(sr.loaded_skills)}")
 
         executor = SkillPlanExecutor(
-            sr, max_steps=10, enable_replanning=True, max_replans=2
+            sr, max_steps=15, enable_replanning=True, max_replans=3
         )
-        self.log(f"SkillPlanExecutor created (cache size: {executor._tool_cache.size})")
-
-        # ==================================================================
-        # Phase 2: Demonstrate infrastructure patterns (pre-execution)
-        # ==================================================================
-        self.section("PHASE 2: INFRASTRUCTURE PATTERNS (PRE-EXECUTION)")
-
-        # --- Circuit Breaker ---
-        from Jotty.core.execution.types import (
-            CircuitBreaker, CircuitState, AdaptiveTimeout,
-            DeadLetterQueue, DeadLetter, TimeoutWarning,
-            ErrorType, ValidationVerdict, ValidationStatus,
-            LLM_CIRCUIT_BREAKER, TOOL_CIRCUIT_BREAKER,
-            ADAPTIVE_TIMEOUT, DEAD_LETTER_QUEUE,
-        )
-
-        LLM_CIRCUIT_BREAKER.reset()
-        TOOL_CIRCUIT_BREAKER.reset()
-        self.log(f"Circuit breakers reset — LLM: {LLM_CIRCUIT_BREAKER.state.value}, Tool: {TOOL_CIRCUIT_BREAKER.state.value}")
-
-        # --- Adaptive Timeout — seed with real-ish latency history ---
-        ADAPTIVE_TIMEOUT.record("llm_call", 2.1)
-        ADAPTIVE_TIMEOUT.record("llm_call", 3.4)
-        ADAPTIVE_TIMEOUT.record("llm_call", 1.8)
-        ADAPTIVE_TIMEOUT.record("llm_call", 2.5)
-        adaptive_t = ADAPTIVE_TIMEOUT.get("llm_call")
-        self.log(f"Adaptive timeout for LLM: {adaptive_t:.1f}s (P95-based, from seeded history)")
-        self.pattern_evidence["adaptive_timeout"] = adaptive_t
-
-        # --- Timeout Warning ---
-        tw = TimeoutWarning(timeout_seconds=10.0)
-        tw.start()
-        self.log(f"TimeoutWarning started: fraction_used={tw.fraction_used:.2f}, expired={tw.is_expired}")
-
-        # --- Error Classification ---
-        test_errors = {
-            "Connection timeout after 30s": "infrastructure",
-            "SSL certificate verify failed": "environment",
-            "Element not found: .result-item": "logic",
-            "Empty result set returned": "data",
-        }
-        self.log("Error classification (all 4 types):")
-        for err, expected in test_errors.items():
-            actual = ErrorType.classify(err).value
-            match = "OK" if actual == expected else "MISMATCH"
-            self.log(f"  [{match}] \"{err[:45]}\" -> {actual}")
-        self.pattern_evidence["error_classification"] = "4/4 types classified"
-
-        # --- ValidationVerdict ---
-        v_ok = ValidationVerdict.ok("Looks good", confidence=0.95)
-        v_fail = ValidationVerdict.from_error("SSL certificate verify failed")
-        self.log(f"ValidationVerdict.ok: status={v_ok.status.value}, confidence={v_ok.confidence}")
-        self.log(f"ValidationVerdict.from_error: status={v_fail.status.value}, type={v_fail.error_type.value}, retryable={v_fail.retryable}")
-
-        # --- Dead Letter Queue ---
-        DEAD_LETTER_QUEUE._queue.clear()
-        dl = DEAD_LETTER_QUEUE.enqueue("web_search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
-        self.log(f"DLQ enqueued: {dl.operation} ({dl.error_type.value}), retryable items: {len(DEAD_LETTER_QUEUE.get_retryable())}")
-
-        # --- FailureRouter ---
-        from Jotty.core.agents.inspector import FailureRouter
-
-        router = FailureRouter()
-        route_cases = {
-            ("timeout connecting to API", "web-search"): "retry_with_backoff",
-            ("SSL certificate error", "http-client"): "use_env_bypass",
-            ("rate_limit exceeded", "claude-cli-llm"): "wait_and_retry",
-            ("Element not found: #submit-btn", "browser-automation"): "try_alternative",
-        }
-        self.log("FailureRouter routing decisions:")
-        for (err, skill), expected_action in route_cases.items():
-            decision = router.route(err, skill)
-            match = "OK" if decision["action"] == expected_action else "DIFF"
-            self.log(f"  [{match}] \"{err[:40]}\" -> {decision['action']} (reason: {decision['reason'][:50]})")
-        self.pattern_evidence["failure_router"] = f"{len(route_cases)} routes classified"
-
-        # ==================================================================
-        # Phase 3: Learning patterns (pre-execution)
-        # ==================================================================
-        self.section("PHASE 3: LEARNING PATTERNS")
-
-        # --- ToolStats ---
-        from Jotty.core.agents._execution_types import TOOL_STATS, CapabilityIndex
-
-        TOOL_STATS._records.clear()
-        TOOL_STATS.record("web-search", "search_web_tool", success=True, latency_ms=1200)
-        TOOL_STATS.record("web-search", "search_web_tool", success=True, latency_ms=800)
-        TOOL_STATS.record("web-search", "search_web_tool", success=False, latency_ms=5000)
-        TOOL_STATS.record("file-operations", "write_file_tool", success=True, latency_ms=50)
-        TOOL_STATS.record("file-operations", "write_file_tool", success=True, latency_ms=30)
-        for s in TOOL_STATS.get_all_summaries():
-            self.log(f"ToolStats: {s}")
-
-        # --- CapabilityIndex — tool I/O chaining ---
-        cap_idx = CapabilityIndex()
-        cap_idx.register("web-search", inputs=["query"], outputs=["search_results", "urls"])
-        cap_idx.register("web-scraper", inputs=["urls"], outputs=["page_content"])
-        cap_idx.register("text-utils", inputs=["page_content"], outputs=["summary"])
-        cap_idx.register("file-operations", inputs=["summary"], outputs=["file_path"])
-        chain = cap_idx.find_chain("query", "file_path")
-        self.log(f"CapabilityIndex chain query->file_path: {chain}")
-        self.pattern_evidence["capability_chain"] = chain
-
-        # --- SkillQTable ---
-        from Jotty.core.learning.td_lambda import SkillQTable, COMACredit
-
-        q_table = SkillQTable(epsilon=0.0)
-        q_table.update("research", "web-search", reward=0.9)
-        q_table.update("research", "http-client", reward=0.4)
-        q_table.update("research", "web-scraper", reward=0.7)
-        q_table.update("creation", "file-operations", reward=0.95)
-        ranked = q_table.select("research", ["web-search", "http-client", "web-scraper"])
-        self.log(f"Q-table ranked skills for 'research': {ranked}")
-        self.log(f"Q-values: " + ", ".join(f"{s}={q_table.get_q('research', s):.2f}" for s in ranked))
-        self.pattern_evidence["q_table_ranking"] = ranked
-
-        # --- COMACredit ---
-        coma = COMACredit()
-        coma.record_episode(0.85, {"researcher": 0.4, "analyzer": 0.35, "writer": 0.1})
-        coma.record_episode(0.90, {"researcher": 0.5, "writer": 0.2})
-        coma.record_episode(0.60, {"analyzer": 0.4, "writer": 0.2})
-        credits = coma.get_all_credits()
-        self.log(f"COMA credits: " + ", ".join(f"{a}={c:+.3f}" for a, c in sorted(credits.items(), key=lambda x: -x[1])))
-        self.pattern_evidence["coma_credits"] = credits
-
-        # ==================================================================
-        # Phase 4: Build discovered skills & run REAL pipeline
-        # ==================================================================
-        self.section("PHASE 4: REAL PIPELINE EXECUTION")
-
-        task = (
-            "Search the web for 'best AI agent frameworks 2026', "
-            "then save the search results as a report to /tmp/ai_agents_report.txt"
-        )
-        self.log(f"Task: {task}")
-
-        discovered = []
-        snapshot = list(sr.loaded_skills.items())
-        for name, skill_def in snapshot:
-            desc = ""
-            if hasattr(skill_def, "metadata") and skill_def.metadata:
-                desc = getattr(skill_def.metadata, "description", "") or ""
-            tools_list = list(skill_def.tools.keys()) if hasattr(skill_def, "tools") else []
-            discovered.append({"name": name, "description": desc, "tools": tools_list})
-
+        discovered = self._build_discovered_skills(sr)
         self.log(f"Discovered {len(discovered)} skills for planning")
-
-        pipeline_start = time.time()
 
         def status_cb(stage, detail):
             self.log(f"  |{stage}| {detail}")
 
-        result = await executor.plan_and_execute(
-            task=task,
-            discovered_skills=discovered,
-            status_callback=status_cb,
+        # ==================================================================
+        # TASK 1: Algorithm Benchmark Pipeline
+        #
+        # generate 3 sorting algorithms → benchmark harness → execute →
+        # parse timing output → compute speedup ratios → write report
+        #
+        # Tests: claude-cli-llm, file-operations, shell-exec, calculator
+        # Hard because: generated code MUST compile + run, output is
+        # consumed by calculator, report must contain real numbers
+        # ==================================================================
+        task1 = (
+            f"Create a Python file at {self.OUTPUT_DIR}/sort_benchmark.py that: "
+            f"(a) implements bubble sort, merge sort, and quicksort, "
+            f"(b) benchmarks each on random lists of sizes 1000, 5000, and 10000 "
+            f"using time.perf_counter, "
+            f"(c) prints results as CSV lines: algorithm,size,seconds. "
+            f"Then execute that script with shell-exec and save stdout to "
+            f"{self.OUTPUT_DIR}/benchmark_results.csv. "
+            f"Then use the calculator to compute the speedup of quicksort over "
+            f"bubble sort on size 10000 (divide bubble_time by quick_time). "
+            f"Finally write a markdown report at {self.OUTPUT_DIR}/benchmark_report.md "
+            f"containing ALL benchmark CSV data and the speedup calculation."
         )
+        await self._run_task(executor, discovered, task1, "T1_AlgoBenchmark", status_cb)
 
-        pipeline_elapsed = time.time() - pipeline_start
-
-        # --- Run SECOND task with same executor to demonstrate tool cache ---
-        self.section("PHASE 4b: SECOND TASK (CACHE REUSE)")
-
+        # ==================================================================
+        # TASK 2: Data Pipeline — generate → process → analyze → report
+        #
+        # generate synthetic sales CSV → write analysis script →
+        # execute analysis → capture aggregated output → write report
+        #
+        # Tests: claude-cli-llm, file-operations, shell-exec
+        # Hard because: TWO scripts that must work, second reads first's
+        # output file, final report must contain computed aggregates
+        # ==================================================================
         task2 = (
-            "Search the web for 'best AI agent frameworks 2026' "
-            "and save the results to /tmp/ai_agents_report_v2.txt"
+            f"Step 1: Write a Python script at {self.OUTPUT_DIR}/generate_sales.py that "
+            f"generates a CSV file at {self.OUTPUT_DIR}/sales_data.csv with 200 rows "
+            f"and columns: date (random dates in 2025), region (North/South/East/West), "
+            f"product (Widget-A/Widget-B/Widget-C), units_sold (random 1-500), "
+            f"unit_price (random 10.0-99.0). Use random.seed(42) for reproducibility. "
+            f"Step 2: Execute generate_sales.py with shell-exec. "
+            f"Step 3: Write a second script at {self.OUTPUT_DIR}/analyze_sales.py that "
+            f"reads {self.OUTPUT_DIR}/sales_data.csv and prints: "
+            f"total revenue, revenue by region, top product by units, and "
+            f"the month with highest revenue. "
+            f"Step 4: Execute analyze_sales.py with shell-exec and save output to "
+            f"{self.OUTPUT_DIR}/sales_analysis.txt. "
+            f"Step 5: Write a final report at {self.OUTPUT_DIR}/sales_report.md "
+            f"combining the raw data stats and analysis output."
         )
-        self.log(f"Task 2: {task2}")
-        self.log(f"Tool cache before 2nd run: {executor._tool_cache.size} entries")
+        await self._run_task(executor, discovered, task2, "T2_DataPipeline", status_cb)
 
-        t2_start = time.time()
-        result2 = await executor.plan_and_execute(
-            task=task2,
-            discovered_skills=discovered,
-            status_callback=status_cb,
+        # ==================================================================
+        # TASK 3: Live Research → Financial Modeling → Investment Memo
+        #
+        # search 3 companies → extract metrics → calculate 5+ ratios →
+        # cross-compare → write investment memo with ranked recommendation
+        #
+        # Tests: web-search, calculator, claude-cli-llm, file-operations
+        # Hard because: 3 search calls, 5+ calculator calls, LLM synthesis
+        # must reference actual calculated numbers, not hallucinate
+        # ==================================================================
+        task3 = (
+            f"Research and compare three companies — Apple, Microsoft, and Google — "
+            f"for an investment memo: "
+            f"(1) Search the web for 'Apple AAPL stock price revenue 2025 2026', "
+            f"(2) Search the web for 'Microsoft MSFT stock price revenue 2025 2026', "
+            f"(3) Search the web for 'Google GOOGL stock price revenue 2025 2026'. "
+            f"Then use the calculator for these computations: "
+            f"(a) Apple market cap if price is $195 and shares outstanding are 15.4 billion: 195*15400000000, "
+            f"(b) Microsoft market cap if price is $420 and shares are 7.43 billion: 420*7430000000, "
+            f"(c) Google market cap if price is $175 and shares are 12.06 billion: 175*12060000000, "
+            f"(d) Apple P/E ratio if EPS is $6.75: 195/6.75, "
+            f"(e) percentage difference between Microsoft and Apple market caps: "
+            f"(420*7430000000 - 195*15400000000) / (195*15400000000) * 100. "
+            f"Write the complete investment memo at {self.OUTPUT_DIR}/investment_memo.md "
+            f"with sections: Executive Summary, Company Profiles (with search findings), "
+            f"Financial Metrics (with all calculated values), and Ranked Recommendation."
         )
-        t2_elapsed = time.time() - t2_start
-        self.log(f"Task 2 time: {t2_elapsed:.1f}s (vs task 1: {pipeline_elapsed:.1f}s)")
-        self.log(f"Tool cache after 2nd run: {executor._tool_cache.size} entries")
-        self.pattern_evidence["task2_time"] = t2_elapsed
-        self.pattern_evidence["task1_time"] = pipeline_elapsed
-        if t2_elapsed < pipeline_elapsed:
-            self.log(f"CACHE SPEEDUP: {pipeline_elapsed/max(t2_elapsed, 0.1):.1f}x faster")
+        await self._run_task(executor, discovered, task3, "T3_InvestmentMemo", status_cb)
 
         # ==================================================================
-        # Phase 5: Analyze results
+        # TASK 4: Multi-file Library + Test Suite + Execution
+        #
+        # create a Python package with 3 modules → write test suite →
+        # execute tests → capture results → generate docs
+        #
+        # Tests: file-operations (8+ writes), shell-exec (run pytest),
+        #        claude-cli-llm
+        # Hard because: inter-module imports must work, tests must pass,
+        # test output is captured and verified
         # ==================================================================
-        self.section("PHASE 5: EXECUTION RESULTS")
-
-        self.log(f"Success: {result['success']}")
-        self.log(f"Task type: {result.get('task_type', '?')}")
-        self.log(f"Skills used: {result.get('skills_used', [])}")
-        self.log(f"Steps executed: {result.get('steps_executed', 0)}")
-        self.log(f"Errors: {result.get('errors', [])}")
-        self.log(f"Pipeline time: {pipeline_elapsed:.1f}s")
-
-        outputs = result.get("outputs", {})
-        for key, val in outputs.items():
-            if isinstance(val, dict):
-                tags = val.get("_tags", [])
-                keys = [k for k in val.keys() if k != "_tags"]
-                self.log(f"  Output [{key}]: tags={tags}, keys={keys[:5]}")
-            else:
-                self.log(f"  Output [{key}]: {str(val)[:150]}")
-
-        final = result.get("final_output")
-        if final:
-            self.log(f"Final output preview: {str(final)[:300]}")
-
-        # ==================================================================
-        # Phase 6: Post-execution pattern evidence
-        # ==================================================================
-        self.section("PHASE 6: PATTERN VALUE EVIDENCE")
-
-        # Tool cache
-        cache_size = executor._tool_cache.size
-        self.log(f"Tool cache entries after execution: {cache_size}")
-        self.pattern_evidence["tool_cache_entries"] = cache_size
-
-        # Circuit breakers
-        self.log(f"Circuit breaker LLM: {LLM_CIRCUIT_BREAKER.state.value} (failures: {LLM_CIRCUIT_BREAKER._failure_count})")
-        self.log(f"Circuit breaker Tool: {TOOL_CIRCUIT_BREAKER.state.value} (failures: {TOOL_CIRCUIT_BREAKER._failure_count})")
-
-        # DLQ
-        retryable = DEAD_LETTER_QUEUE.get_retryable()
-        self.log(f"Dead letter queue retryable items: {len(retryable)}")
-
-        # Updated tool stats
-        self.log("Tool stats after execution:")
-        for s in TOOL_STATS.get_all_summaries():
-            self.log(f"  {s}")
-
-        # Check output file
-        report_path = "/tmp/ai_agents_report.txt"
-        if os.path.exists(report_path):
-            size = os.path.getsize(report_path)
-            with open(report_path) as f:
-                content = f.read()
-            lines = content.split("\n")
-            self.log(f"Report file: {report_path} ({size} bytes, {len(lines)} lines)")
-            self.log(f"Preview:\n{content[:500]}")
-            self.pattern_evidence["report_created"] = True
-            self.pattern_evidence["report_size"] = size
-        else:
-            self.log(f"Report file NOT found at {report_path}")
-            self.pattern_evidence["report_created"] = False
+        task4 = (
+            f"Build a Python library at {self.OUTPUT_DIR}/mathlib/ with: "
+            f"(1) {self.OUTPUT_DIR}/mathlib/__init__.py that exports the library, "
+            f"(2) {self.OUTPUT_DIR}/mathlib/stats.py with functions: mean(data), "
+            f"median(data), std_dev(data) — pure Python, no external deps, "
+            f"(3) {self.OUTPUT_DIR}/mathlib/geometry.py with functions: "
+            f"circle_area(r), triangle_area(base, height), distance(x1,y1,x2,y2), "
+            f"(4) {self.OUTPUT_DIR}/test_mathlib.py with at least 8 pytest test "
+            f"functions covering all stats and geometry functions with known values. "
+            f"Then execute 'python -m pytest {self.OUTPUT_DIR}/test_mathlib.py -v' "
+            f"with shell-exec and save the output to {self.OUTPUT_DIR}/test_results.txt. "
+            f"Finally write {self.OUTPUT_DIR}/mathlib/README.md documenting all functions "
+            f"with usage examples and the test pass results."
+        )
+        await self._run_task(executor, discovered, task4, "T4_LibraryAndTests", status_cb)
 
         # ==================================================================
-        # Phase 7: Summary
+        # TASK 5: Web Intelligence Dashboard
+        #
+        # search 4 trending tech topics → calculate composite scores →
+        # generate HTML dashboard → generate JSON data file
+        #
+        # Tests: web-search (4 calls), calculator (4 calls),
+        #        file-operations, claude-cli-llm
+        # Hard because: 4 parallel research streams, calculated scores
+        # must appear in both HTML and JSON, HTML must be valid
         # ==================================================================
-        self.section("FINAL SUMMARY — PATTERN VALUE")
+        task5 = (
+            f"Create a tech trends intelligence dashboard: "
+            f"(1) Search the web for 'artificial intelligence market size 2026', "
+            f"(2) Search the web for 'quantum computing breakthroughs 2026', "
+            f"(3) Search the web for 'autonomous vehicles progress 2026', "
+            f"(4) Search the web for 'blockchain enterprise adoption 2026'. "
+            f"For each topic, use the calculator to compute a 'hype score' from 1-100 "
+            f"based on: (number_of_search_results * 10) capped at 100. "
+            f"Use formula: min(result_count * 10, 100). "
+            f"Write {self.OUTPUT_DIR}/dashboard_data.json with JSON containing "
+            f"each topic's name, top 3 search result titles, and hype_score. "
+            f"Write {self.OUTPUT_DIR}/dashboard.html with a styled HTML page "
+            f"that displays all 4 topics in cards with their scores and key findings. "
+            f"Write {self.OUTPUT_DIR}/trend_analysis.md with a markdown report "
+            f"ranking all 4 topics by hype score and providing a brief analysis of each."
+        )
+        await self._run_task(executor, discovered, task5, "T5_TechDashboard", status_cb)
+
+        # ==================================================================
+        # FINAL SCORECARD
+        # ==================================================================
+        self.section("FINAL SCORECARD")
 
         total_time = time.time() - self.start_time
         self.log(f"Total wall-clock time: {total_time:.1f}s")
-        self.log(f"Pipeline execution time: {pipeline_elapsed:.1f}s")
-        self.log("")
-        self.log("Pattern evidence collected:")
-        for k, v in self.pattern_evidence.items():
-            self.log(f"  {k}: {v}")
+        self.log(f"Task timings:")
+        for name, t in self.task_timings.items():
+            self.log(f"  {name}: {t:.1f}s")
+
+        # Check all expected output files
+        expected_files = {
+            # T1: Algorithm Benchmark
+            "T1_script": f"{self.OUTPUT_DIR}/sort_benchmark.py",
+            "T1_csv": f"{self.OUTPUT_DIR}/benchmark_results.csv",
+            "T1_report": f"{self.OUTPUT_DIR}/benchmark_report.md",
+            # T2: Data Pipeline
+            "T2_gen_script": f"{self.OUTPUT_DIR}/generate_sales.py",
+            "T2_csv": f"{self.OUTPUT_DIR}/sales_data.csv",
+            "T2_analyze_script": f"{self.OUTPUT_DIR}/analyze_sales.py",
+            "T2_analysis": f"{self.OUTPUT_DIR}/sales_analysis.txt",
+            "T2_report": f"{self.OUTPUT_DIR}/sales_report.md",
+            # T3: Investment Memo
+            "T3_memo": f"{self.OUTPUT_DIR}/investment_memo.md",
+            # T4: Library + Tests
+            "T4_init": f"{self.OUTPUT_DIR}/mathlib/__init__.py",
+            "T4_stats": f"{self.OUTPUT_DIR}/mathlib/stats.py",
+            "T4_geometry": f"{self.OUTPUT_DIR}/mathlib/geometry.py",
+            "T4_tests": f"{self.OUTPUT_DIR}/test_mathlib.py",
+            "T4_results": f"{self.OUTPUT_DIR}/test_results.txt",
+            "T4_readme": f"{self.OUTPUT_DIR}/mathlib/README.md",
+            # T5: Tech Dashboard
+            "T5_json": f"{self.OUTPUT_DIR}/dashboard_data.json",
+            "T5_html": f"{self.OUTPUT_DIR}/dashboard.html",
+            "T5_analysis": f"{self.OUTPUT_DIR}/trend_analysis.md",
+        }
+
+        self.section("ARTIFACT VERIFICATION")
+        artifacts_pass = 0
+        artifacts_total = len(expected_files)
+        for label, path in expected_files.items():
+            info = self._check_file(path, label)
+            if info.get("is_dir"):
+                self.log(f"  [DDIR] {label}: path is a directory (planner bug)")
+            elif info["exists"] and not info.get("is_stub", True):
+                status = "PASS"
+                artifacts_pass += 1
+                self.log(f"  [{status}] {label}: {info['size']} bytes, {info['lines']} lines")
+            elif info["exists"]:
+                status = "STUB"
+                self.log(f"  [{status}] {label}: {info['size']} bytes (looks like stub/generated code)")
+            else:
+                status = "MISS"
+                self.log(f"  [{status}] {label}: FILE NOT FOUND at {path}")
+
+        self.section("FILE CONTENT PREVIEWS")
+        for label, path in expected_files.items():
+            info = self._check_file(path, label)
+            if info.get("exists") and not info.get("is_dir"):
+                self.log(f"\n--- {label} ({info['size']} bytes) ---")
+                self.log(info["preview"])
+                if info["chars"] > 600:
+                    self.log(f"  ... ({info['chars'] - 600} more chars)")
+
+        self.section("TASK SUCCESS SUMMARY")
+        tasks_pass = 0
+        for name, result in self.task_results.items():
+            success = result.get("success", False)
+            steps = result.get("steps_executed", 0)
+            skills = result.get("skills_used", [])
+            replans = result.get("replans", 0)
+            elapsed = self.task_timings.get(name, 0)
+            status = "PASS" if success else "FAIL"
+            if success:
+                tasks_pass += 1
+            self.log(
+                f"  [{status}] {name}: {steps} steps, {len(skills)} skills "
+                f"({', '.join(skills[:4])}), {replans} replans, {elapsed:.1f}s"
+            )
 
         self.log("")
-        value_items = [
-            ("CircuitBreaker", "Prevents cascading LLM/tool failures", LLM_CIRCUIT_BREAKER.state == CircuitState.CLOSED),
-            ("AdaptiveTimeout", f"Adapted to {self.pattern_evidence.get('adaptive_timeout', 0):.1f}s from history", True),
-            ("ErrorClassification", "4 error types auto-classified", True),
-            ("FailureRouter", "Smart routing for 4 failure scenarios", True),
-            ("ToolCallCache", f"{cache_size} cached; task2 {self.pattern_evidence.get('task2_time',0):.1f}s vs task1 {self.pattern_evidence.get('task1_time',0):.1f}s", cache_size > 0 or self.pattern_evidence.get('task2_time', 999) < self.pattern_evidence.get('task1_time', 0)),
-            ("ToolStats", f"Per-tool success rates tracked", len(TOOL_STATS.get_all_summaries()) > 0),
-            ("CapabilityIndex", f"Chain: {self.pattern_evidence.get('capability_chain', [])}", bool(chain)),
-            ("SkillQTable", f"Ranked: {self.pattern_evidence.get('q_table_ranking', [])}", True),
-            ("COMACredit", "Counterfactual agent credits computed", True),
-            ("ValidationVerdict", "Structured verdicts with recovery hints", True),
-            ("DeadLetterQueue", "Failed ops queued for retry", True),
-            ("TimeoutWarning", "Pre-timeout alerts available", True),
+        self.log(f"  Tasks: {tasks_pass}/{len(self.task_results)} passed")
+        self.log(f"  Artifacts: {artifacts_pass}/{artifacts_total} real content")
+        self.log(f"  Total time: {total_time:.1f}s")
+
+        # Overall grade
+        total_score = tasks_pass + artifacts_pass
+        total_possible = len(self.task_results) + artifacts_total
+        pct = (total_score / total_possible * 100) if total_possible else 0
+        if pct >= 80:
+            grade = "A"
+        elif pct >= 60:
+            grade = "B"
+        elif pct >= 40:
+            grade = "C"
+        elif pct >= 20:
+            grade = "D"
+        else:
+            grade = "F"
+        self.log(f"\n  GRADE: {grade} ({total_score}/{total_possible} = {pct:.0f}%)")
+
+        return self.task_results
+
+
+# =============================================================================
+# ToolCallCache Tests
+# =============================================================================
+
+class TestToolCallCache:
+    """Tests for ToolCallCache TTL + LRU caching."""
+
+    @pytest.mark.unit
+    def test_make_key_deterministic(self):
+        """make_key produces same key for same inputs."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
+        k2 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
+        assert k1 == k2
+
+    @pytest.mark.unit
+    def test_make_key_different_params(self):
+        """make_key produces different keys for different params."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
+        k2 = ToolCallCache.make_key("web-search", "search", {"query": "ML"})
+        assert k1 != k2
+
+    @pytest.mark.unit
+    def test_make_key_sorts_params(self):
+        """make_key is order-independent for params."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
+        k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
+        assert k1 == k2
+
+    @pytest.mark.unit
+    def test_get_set(self):
+        """set() stores value, get() retrieves it."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache(ttl_seconds=60)
+        key = cache.make_key("s", "t", {"x": 1})
+        cache.set(key, {"result": "data"})
+        assert cache.get(key) == {"result": "data"}
+
+    @pytest.mark.unit
+    def test_get_miss(self):
+        """get() returns None for missing key."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache()
+        assert cache.get("nonexistent") is None
+
+    @pytest.mark.unit
+    def test_ttl_expiry(self):
+        """get() returns None for expired entries."""
+        import time as _time
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache(ttl_seconds=0)  # Immediate expiry
+        key = "test_key"
+        cache.set(key, "value")
+        _time.sleep(0.01)  # Ensure time passes
+        assert cache.get(key) is None
+
+    @pytest.mark.unit
+    def test_lru_eviction(self):
+        """Oldest entry is evicted when max_size is reached."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache(max_size=2)
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("c", 3)  # Should evict "a"
+        assert cache.get("a") is None
+        assert cache.get("b") == 2
+        assert cache.get("c") == 3
+
+    @pytest.mark.unit
+    def test_clear(self):
+        """clear() empties the cache."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache()
+        cache.set("a", 1)
+        cache.set("b", 2)
+        assert cache.size == 2
+        cache.clear()
+        assert cache.size == 0
+        assert cache.get("a") is None
+
+    @pytest.mark.unit
+    def test_size_property(self):
+        """size property returns number of cached entries."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache()
+        assert cache.size == 0
+        cache.set("a", 1)
+        assert cache.size == 1
+
+    @pytest.mark.unit
+    def test_overwrite_existing_key(self):
+        """Setting existing key updates value without eviction."""
+        from Jotty.core.agents.base.skill_plan_executor import ToolCallCache
+        cache = ToolCallCache(max_size=2)
+        cache.set("a", 1)
+        cache.set("b", 2)
+        cache.set("a", 10)  # Update, not evict
+        assert cache.size == 2
+        assert cache.get("a") == 10
+
+
+# =============================================================================
+# SkillPlanExecutor DAG + Exclusion Tests
+# =============================================================================
+
+class TestSkillPlanExecutorDAG:
+    """Tests for dependency graph and parallel group detection."""
+
+    def _make_executor(self):
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        mock_registry = MagicMock()
+        return SkillPlanExecutor(skills_registry=mock_registry)
+
+    @pytest.mark.unit
+    def test_build_dependency_graph_no_deps(self):
+        """Steps with no depends_on have empty dependency lists."""
+        executor = self._make_executor()
+        steps = [MagicMock(depends_on=None), MagicMock(depends_on=None)]
+        graph = executor._build_dependency_graph(steps)
+        assert graph == {0: [], 1: []}
+
+    @pytest.mark.unit
+    def test_build_dependency_graph_with_deps(self):
+        """Steps with depends_on reference earlier indices."""
+        executor = self._make_executor()
+        step0 = MagicMock(depends_on=None)
+        step1 = MagicMock(depends_on=[0])
+        step2 = MagicMock(depends_on=[0, 1])
+        graph = executor._build_dependency_graph([step0, step1, step2])
+        assert graph[0] == []
+        assert graph[1] == [0]
+        assert graph[2] == [0, 1]
+
+    @pytest.mark.unit
+    def test_build_dependency_graph_filters_invalid(self):
+        """Invalid dependency indices are filtered out."""
+        executor = self._make_executor()
+        step0 = MagicMock(depends_on=[99, -1, "bad"])  # All invalid
+        graph = executor._build_dependency_graph([step0])
+        assert graph[0] == []
+
+    @pytest.mark.unit
+    def test_find_parallel_groups_all_independent(self):
+        """All independent steps form a single parallel layer."""
+        executor = self._make_executor()
+        steps = [MagicMock(depends_on=None) for _ in range(3)]
+        groups = executor._find_parallel_groups(steps)
+        assert len(groups) == 1
+        assert sorted(groups[0]) == [0, 1, 2]
+
+    @pytest.mark.unit
+    def test_find_parallel_groups_sequential(self):
+        """Sequential chain produces one step per layer."""
+        executor = self._make_executor()
+        steps = [
+            MagicMock(depends_on=None),
+            MagicMock(depends_on=[0]),
+            MagicMock(depends_on=[1]),
         ]
+        groups = executor._find_parallel_groups(steps)
+        assert len(groups) == 3
+        assert groups[0] == [0]
+        assert groups[1] == [1]
+        assert groups[2] == [2]
 
-        passed = 0
-        for name, evidence, ok in value_items:
-            status = "PASS" if ok else "----"
-            if ok:
-                passed += 1
-            self.log(f"  [{status}] {name}: {evidence}")
+    @pytest.mark.unit
+    def test_find_parallel_groups_diamond(self):
+        """Diamond dependency pattern: 0 → {1,2} → 3."""
+        executor = self._make_executor()
+        steps = [
+            MagicMock(depends_on=None),      # 0: root
+            MagicMock(depends_on=[0]),        # 1: depends on 0
+            MagicMock(depends_on=[0]),        # 2: depends on 0
+            MagicMock(depends_on=[1, 2]),     # 3: depends on 1 and 2
+        ]
+        groups = executor._find_parallel_groups(steps)
+        assert len(groups) == 3
+        assert groups[0] == [0]
+        assert sorted(groups[1]) == [1, 2]
+        assert groups[2] == [3]
 
-        self.log(f"\n  Score: {passed}/{len(value_items)} patterns demonstrated value")
-        self.log(f"  Pipeline success: {result['success']}")
 
-        return result
+# =============================================================================
+# SkillPlanExecutor Exclusion Management Tests
+# =============================================================================
+
+class TestSkillExclusions:
+    """Tests for skill exclusion management."""
+
+    def _make_executor(self):
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        return SkillPlanExecutor(skills_registry=MagicMock())
+
+    @pytest.mark.unit
+    def test_exclude_skill(self):
+        """exclude_skill adds to exclusion set."""
+        executor = self._make_executor()
+        executor.exclude_skill("web-search")
+        assert "web-search" in executor.excluded_skills
+
+    @pytest.mark.unit
+    def test_clear_exclusions(self):
+        """clear_exclusions empties the set."""
+        executor = self._make_executor()
+        executor.exclude_skill("a")
+        executor.exclude_skill("b")
+        executor.clear_exclusions()
+        assert len(executor.excluded_skills) == 0
+
+    @pytest.mark.unit
+    def test_excluded_skills_property(self):
+        """excluded_skills returns the exclusion set."""
+        executor = self._make_executor()
+        assert executor.excluded_skills == set()
+        executor.exclude_skill("x")
+        assert "x" in executor.excluded_skills
+
+
+# =============================================================================
+# FailureRouter Tests
+# =============================================================================
+
+class TestFailureRouter:
+    """Tests for FailureRouter error classification and routing."""
+
+    @pytest.mark.unit
+    def test_timeout_pattern(self):
+        """Timeout errors route to retry_with_backoff."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("Connection timeout after 30s", "web-search")
+        assert result['action'] == 'retry_with_backoff'
+        assert result['failed_skill'] == 'web-search'
+
+    @pytest.mark.unit
+    def test_rate_limit_pattern(self):
+        """Rate limit errors route to wait_and_retry."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("Rate_limit exceeded, retry after 60s", "claude-cli-llm")
+        assert result['action'] == 'wait_and_retry'
+        assert result.get('delay') == 60
+
+    @pytest.mark.unit
+    def test_not_found_pattern(self):
+        """Not found errors route to try_alternative."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("Resource not_found at endpoint", "http-client")
+        assert result['action'] == 'try_alternative'
+
+    @pytest.mark.unit
+    def test_permission_pattern(self):
+        """Permission errors route to escalate."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("Permission denied: insufficient access", "file-manager")
+        assert result['action'] == 'escalate'
+
+    @pytest.mark.unit
+    def test_parse_error_pattern(self):
+        """Parse errors route to retry_with_fix."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("parse_error: unexpected token", "json-parser")
+        assert result['action'] == 'retry_with_fix'
+
+    @pytest.mark.unit
+    def test_infrastructure_fallback(self):
+        """Unknown infrastructure errors fall back to retry_with_backoff."""
+        from Jotty.core.agents.inspector import FailureRouter
+        result = FailureRouter().route("Connection reset by peer", "web-search")
+        assert result['action'] == 'retry_with_backoff'
+        assert result['error_type'] == 'infrastructure'
+
+    @pytest.mark.unit
+    def test_data_error_fallback(self):
+        """Data errors route to validate_inputs."""
+        from Jotty.core.agents.inspector import FailureRouter
+        result = FailureRouter().route("invalid JSON format in response body", "api-client")
+        assert result['action'] == 'validate_inputs'
+        assert result['error_type'] == 'data'
+
+    @pytest.mark.unit
+    def test_find_alternatives(self):
+        """_find_alternatives returns known alternatives."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        alts = router._find_alternatives("web-search")
+        assert "http-client" in alts
+
+    @pytest.mark.unit
+    def test_find_alternatives_unknown(self):
+        """_find_alternatives returns empty for unknown skills."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        assert router._find_alternatives("nonexistent-skill") == []
+
+    @pytest.mark.unit
+    def test_logic_error_with_alternative(self):
+        """Logic error with available alternative suggests it."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        # "SyntaxError" classified as LOGIC, web-search has alternatives
+        result = router.route("SyntaxError: invalid syntax in template", "web-search")
+        assert result['action'] == 'try_alternative'
+        assert 'suggested_agent' in result
+
+    @pytest.mark.unit
+    def test_logic_error_no_alternative(self):
+        """Logic error without alternative routes to replan."""
+        from Jotty.core.agents.inspector import FailureRouter
+        router = FailureRouter()
+        result = router.route("SyntaxError: invalid syntax in template", "custom-tool")
+        assert result['action'] == 'replan'
+
+
+# =============================================================================
+# ValidatorAgent _check_required_fields Tests
+# =============================================================================
+
+class TestCheckRequiredFields:
+    """Tests for ValidatorAgent._check_required_fields.
+
+    Uses object.__new__ to bypass the heavy __init__ and directly test
+    the pure-logic method.
+    """
+
+    def _make_validator(self, is_architect=True):
+        """Create a ValidatorAgent shell bypassing __init__."""
+        from Jotty.core.agents.inspector import ValidatorAgent
+        v = object.__new__(ValidatorAgent)
+        v.is_architect = is_architect
+        return v
+
+    @pytest.mark.unit
+    def test_architect_all_fields_present(self):
+        """No missing fields when architect result has all required fields."""
+        validator = self._make_validator(is_architect=True)
+        result = MagicMock()
+        result.reasoning = "Good reasoning"
+        result.confidence = 0.8
+        result.should_proceed = True
+        missing = validator._check_required_fields(result)
+        assert missing == []
+
+    @pytest.mark.unit
+    def test_architect_missing_reasoning(self):
+        """Missing reasoning reported for architect."""
+        validator = self._make_validator(is_architect=True)
+        result = MagicMock(spec=[])  # No attributes
+        missing = validator._check_required_fields(result)
+        assert 'reasoning' in missing
+        assert 'confidence' in missing
+        assert 'should_proceed' in missing
+
+    @pytest.mark.unit
+    def test_auditor_all_fields_present(self):
+        """No missing fields when auditor result has all required fields."""
+        validator = self._make_validator(is_architect=False)
+        result = MagicMock()
+        result.reasoning = "Valid output"
+        result.confidence = 0.9
+        result.is_valid = True
+        result.output_tag = "useful"
+        missing = validator._check_required_fields(result)
+        assert missing == []
+
+    @pytest.mark.unit
+    def test_auditor_missing_fields(self):
+        """Missing fields reported for auditor."""
+        validator = self._make_validator(is_architect=False)
+        result = MagicMock(spec=[])
+        missing = validator._check_required_fields(result)
+        assert 'reasoning' in missing
+        assert 'is_valid' in missing
+        assert 'output_tag' in missing
+
+    @pytest.mark.unit
+    def test_empty_reasoning_counts_as_missing(self):
+        """Empty reasoning string is treated as missing."""
+        validator = self._make_validator(is_architect=True)
+        result = MagicMock()
+        result.reasoning = ""
+        result.confidence = 0.5
+        result.should_proceed = True
+        missing = validator._check_required_fields(result)
+        assert 'reasoning' in missing
+
+
+# =============================================================================
+# ValidatorAgent _smart_truncate Tests (expanded)
+# =============================================================================
+
+class TestSmartTruncateExpanded:
+    """Expanded tests for ValidatorAgent._smart_truncate."""
+
+    def _make_validator(self):
+        """Create ValidatorAgent shell bypassing __init__."""
+        from Jotty.core.agents.inspector import ValidatorAgent
+        v = object.__new__(ValidatorAgent)
+        return v
+
+    @pytest.mark.unit
+    def test_no_truncation_needed(self):
+        """Short text returned as-is."""
+        v = self._make_validator()
+        assert v._smart_truncate("hello", 100) == "hello"
+
+    @pytest.mark.unit
+    def test_truncate_at_sentence(self):
+        """Truncation prefers sentence boundaries."""
+        v = self._make_validator()
+        text = "First sentence. Second sentence. Third very long sentence that goes beyond the limit."
+        result = v._smart_truncate(text, 40)
+        assert result.endswith("...")
+        assert "First sentence." in result
+
+    @pytest.mark.unit
+    def test_truncate_at_word(self):
+        """Truncation falls back to word boundary."""
+        v = self._make_validator()
+        text = "word1 word2 word3 word4 word5 word6 word7 word8 word9 word10"
+        result = v._smart_truncate(text, 30)
+        assert result.endswith("...")
+        assert not result[:-3].endswith(" ")  # Clean word boundary
+
+    @pytest.mark.unit
+    def test_hard_truncate(self):
+        """Hard truncation when no good boundary found."""
+        v = self._make_validator()
+        text = "a" * 100
+        result = v._smart_truncate(text, 50)
+        assert len(result) == 53  # 50 chars + "..."
+        assert result.endswith("...")
+
+    @pytest.mark.unit
+    def test_exact_length(self):
+        """Text at exact max_chars is not truncated."""
+        v = self._make_validator()
+        text = "x" * 50
+        result = v._smart_truncate(text, 50)
+        assert result == text
+
+
+# =============================================================================
+# ValidatorAgent get_statistics Tests
+# =============================================================================
+
+class TestValidatorStatistics:
+    """Tests for ValidatorAgent.get_statistics."""
+
+    @pytest.mark.unit
+    def test_statistics_initial(self):
+        """Initial statistics have zero counts."""
+        from Jotty.core.agents.inspector import ValidatorAgent
+        v = object.__new__(ValidatorAgent)
+        v.agent_name = "test_auditor"
+        v.is_architect = False
+        v.total_calls = 0
+        v.total_approvals = 0
+        mock_memory = MagicMock()
+        mock_memory.get_statistics.return_value = {"entries": 0}
+        v.memory = mock_memory
+        stats = v.get_statistics()
+        assert stats['agent_name'] == 'test_auditor'
+        assert stats['is_architect'] is False
+        assert stats['total_calls'] == 0
+        assert stats['approval_rate'] == 0.0
+
+    @pytest.mark.unit
+    def test_statistics_with_calls(self):
+        """Statistics reflect call and approval counts."""
+        from Jotty.core.agents.inspector import ValidatorAgent
+        v = object.__new__(ValidatorAgent)
+        v.agent_name = "test_arch"
+        v.is_architect = True
+        v.total_calls = 10
+        v.total_approvals = 7
+        mock_memory = MagicMock()
+        mock_memory.get_statistics.return_value = {"entries": 5}
+        v.memory = mock_memory
+        stats = v.get_statistics()
+        assert stats['total_calls'] == 10
+        assert stats['total_approvals'] == 7
+        assert stats['approval_rate'] == 0.7
+
+
+# =============================================================================
+# InternalReasoningTool Tests
+# =============================================================================
+
+class TestInternalReasoningTool:
+    """Tests for InternalReasoningTool reasoning capability."""
+
+    @pytest.mark.unit
+    def test_call_with_memory_scope(self):
+        """InternalReasoningTool retrieves memories for memory scope."""
+        from Jotty.core.agents.inspector import InternalReasoningTool
+        mock_memory = MagicMock()
+        mock_entry = MagicMock()
+        mock_entry.content = "past experience"
+        mock_entry.default_value = 0.8
+        mock_memory.retrieve.return_value = [mock_entry]
+        mock_memory.retrieve_causal.return_value = []
+        mock_config = MagicMock()
+        tool = InternalReasoningTool(memory=mock_memory, config=mock_config)
+        result = tool("How does this work?", context_scope="memory")
+        assert len(result["relevant_memories"]) == 1
+        assert result["relevant_memories"][0]["content"] == "past experience"
+        assert result["causal_insights"] == []
+
+    @pytest.mark.unit
+    def test_call_with_causal_scope(self):
+        """InternalReasoningTool retrieves causal knowledge for causal scope."""
+        from Jotty.core.agents.inspector import InternalReasoningTool
+        mock_memory = MagicMock()
+        mock_causal = MagicMock()
+        mock_causal.cause = "type annotation"
+        mock_causal.effect = "correct parsing"
+        mock_causal.confidence = 0.9
+        mock_memory.retrieve.return_value = []
+        mock_memory.retrieve_causal.return_value = [mock_causal]
+        mock_config = MagicMock()
+        tool = InternalReasoningTool(memory=mock_memory, config=mock_config)
+        result = tool("Why does X work?", context_scope="causal")
+        assert len(result["causal_insights"]) == 1
+        assert result["causal_insights"][0]["cause"] == "type annotation"
+        assert result["relevant_memories"] == []
+
+    @pytest.mark.unit
+    def test_call_with_all_scope(self):
+        """InternalReasoningTool retrieves both memories and causal for 'all' scope."""
+        from Jotty.core.agents.inspector import InternalReasoningTool
+        mock_memory = MagicMock()
+        mock_entry = MagicMock(content="mem", default_value=0.5)
+        mock_causal = MagicMock(cause="C", effect="E", confidence=0.7)
+        mock_memory.retrieve.return_value = [mock_entry]
+        mock_memory.retrieve_causal.return_value = [mock_causal]
+        mock_config = MagicMock()
+        tool = InternalReasoningTool(memory=mock_memory, config=mock_config)
+        result = tool("Analyze this", context_scope="all")
+        assert len(result["relevant_memories"]) == 1
+        assert len(result["causal_insights"]) == 1
+
+    @pytest.mark.unit
+    def test_tool_name_and_description(self):
+        """InternalReasoningTool has name 'reason_about'."""
+        from Jotty.core.agents.inspector import InternalReasoningTool
+        tool = InternalReasoningTool(memory=MagicMock(), config=MagicMock())
+        assert tool.name == "reason_about"
+        assert "reasoning" in tool.description.lower()
+
+
+# =============================================================================
+# ExecutionResult Tests
+# =============================================================================
+
+class TestExecutionResult:
+    """Tests for ExecutionResult serialization and display."""
+
+    @pytest.mark.unit
+    def test_to_dict_basic(self):
+        """to_dict produces JSON-serializable dict."""
+        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        result = ExecutionResult(
+            output="Hello world",
+            tier=ExecutionTier.DIRECT,
+            success=True,
+            llm_calls=1,
+            latency_ms=150.0,
+            cost_usd=0.001,
+        )
+        d = result.to_dict()
+        assert d['output'] == "Hello world"
+        assert d['tier'] == "DIRECT"
+        assert d['success'] is True
+        assert d['llm_calls'] == 1
+        assert d['latency_ms'] == 150.0
+        assert d['cost_usd'] == 0.001
+        assert d['trace_id'] is None
+
+    @pytest.mark.unit
+    def test_to_dict_with_steps(self):
+        """to_dict counts steps."""
+        from Jotty.core.execution.types import ExecutionResult, ExecutionTier, ExecutionStep
+        steps = [ExecutionStep(step_num=1, description="s1"), ExecutionStep(step_num=2, description="s2")]
+        result = ExecutionResult(output="out", tier=ExecutionTier.AGENTIC, steps=steps)
+        d = result.to_dict()
+        assert d['steps'] == 2
+
+    @pytest.mark.unit
+    def test_str_success(self):
+        """__str__ shows OK for successful result."""
+        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        result = ExecutionResult(
+            output="x", tier=ExecutionTier.DIRECT, success=True,
+            llm_calls=2, latency_ms=100.0, cost_usd=0.005,
+        )
+        s = str(result)
+        assert "[OK]" in s
+        assert "Tier 1" in s
+        assert "2 calls" in s
+
+    @pytest.mark.unit
+    def test_str_failure(self):
+        """__str__ shows FAIL for failed result."""
+        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        result = ExecutionResult(
+            output=None, tier=ExecutionTier.AGENTIC, success=False, error="timeout",
+        )
+        s = str(result)
+        assert "[FAIL]" in s
+        assert "Tier 2" in s
+
+    @pytest.mark.unit
+    def test_defaults(self):
+        """ExecutionResult defaults are sensible."""
+        from Jotty.core.execution.types import ExecutionResult, ExecutionTier
+        result = ExecutionResult(output="x", tier=ExecutionTier.DIRECT)
+        assert result.success is True
+        assert result.error is None
+        assert result.llm_calls == 0
+        assert result.steps == []
+        assert result.used_memory is False
+        assert result.metadata == {}
+
+
+# =============================================================================
+# ExecutionStep Property Tests
+# =============================================================================
+
+class TestExecutionStepProperties:
+    """Tests for ExecutionStep computed properties."""
+
+    @pytest.mark.unit
+    def test_duration_ms_complete(self):
+        """duration_ms computes from started_at and completed_at."""
+        from Jotty.core.execution.types import ExecutionStep
+        from datetime import datetime, timedelta
+        start = datetime(2026, 1, 1, 12, 0, 0)
+        end = start + timedelta(seconds=2.5)
+        step = ExecutionStep(step_num=1, description="test", started_at=start, completed_at=end)
+        assert step.duration_ms == 2500.0
+
+    @pytest.mark.unit
+    def test_duration_ms_incomplete(self):
+        """duration_ms returns None when not started or not completed."""
+        from Jotty.core.execution.types import ExecutionStep
+        step = ExecutionStep(step_num=1, description="test")
+        assert step.duration_ms is None
+
+    @pytest.mark.unit
+    def test_is_complete_with_result(self):
+        """is_complete is True when result is set."""
+        from Jotty.core.execution.types import ExecutionStep
+        step = ExecutionStep(step_num=1, description="test", result="done")
+        assert step.is_complete is True
+
+    @pytest.mark.unit
+    def test_is_complete_with_error(self):
+        """is_complete is True when error is set."""
+        from Jotty.core.execution.types import ExecutionStep
+        step = ExecutionStep(step_num=1, description="test", error="failed")
+        assert step.is_complete is True
+
+    @pytest.mark.unit
+    def test_is_complete_pending(self):
+        """is_complete is False when neither result nor error is set."""
+        from Jotty.core.execution.types import ExecutionStep
+        step = ExecutionStep(step_num=1, description="test")
+        assert step.is_complete is False
+
+
+# =============================================================================
+# ExecutionPlan Property Tests
+# =============================================================================
+
+class TestExecutionPlanProperties:
+    """Tests for ExecutionPlan computed properties."""
+
+    @pytest.mark.unit
+    def test_total_steps(self):
+        """total_steps counts all steps."""
+        from Jotty.core.execution.types import ExecutionPlan, ExecutionStep
+        plan = ExecutionPlan(goal="test", steps=[
+            ExecutionStep(step_num=1, description="s1"),
+            ExecutionStep(step_num=2, description="s2"),
+            ExecutionStep(step_num=3, description="s3"),
+        ])
+        assert plan.total_steps == 3
+
+    @pytest.mark.unit
+    def test_parallelizable_steps(self):
+        """parallelizable_steps counts steps that can run in parallel."""
+        from Jotty.core.execution.types import ExecutionPlan, ExecutionStep
+        plan = ExecutionPlan(goal="test", steps=[
+            ExecutionStep(step_num=1, description="s1", can_parallelize=True),
+            ExecutionStep(step_num=2, description="s2", can_parallelize=False),
+            ExecutionStep(step_num=3, description="s3", can_parallelize=True),
+        ])
+        assert plan.parallelizable_steps == 2
+
+    @pytest.mark.unit
+    def test_empty_plan(self):
+        """Empty plan has 0 steps."""
+        from Jotty.core.execution.types import ExecutionPlan
+        plan = ExecutionPlan(goal="nothing", steps=[])
+        assert plan.total_steps == 0
+        assert plan.parallelizable_steps == 0
+
+
+# =============================================================================
+# ValidationVerdict Tests
+# =============================================================================
+
+class TestValidationVerdict:
+    """Tests for ValidationVerdict structured validation results."""
+
+    @pytest.mark.unit
+    def test_is_pass_true(self):
+        """is_pass is True for PASS status."""
+        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus
+        v = ValidationVerdict(status=ValidationStatus.PASS)
+        assert v.is_pass is True
+
+    @pytest.mark.unit
+    def test_is_pass_false(self):
+        """is_pass is False for non-PASS status."""
+        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus
+        v = ValidationVerdict(status=ValidationStatus.FAIL)
+        assert v.is_pass is False
+
+    @pytest.mark.unit
+    def test_ok_factory(self):
+        """ok() creates a passing verdict."""
+        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        v = ValidationVerdict.ok(reason="all good", confidence=0.95)
+        assert v.status == ValidationStatus.PASS
+        assert v.reason == "all good"
+        assert v.confidence == 0.95
+        assert v.error_type == ErrorType.NONE
+
+    @pytest.mark.unit
+    def test_from_error_infrastructure(self):
+        """from_error classifies timeout as INFRASTRUCTURE and retryable."""
+        from Jotty.core.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        v = ValidationVerdict.from_error("Connection timeout after 30s")
+        assert v.status == ValidationStatus.FAIL
+        assert v.error_type == ErrorType.INFRASTRUCTURE
+        assert v.retryable is True
+        assert "timeout" in v.reason.lower()
+
+    @pytest.mark.unit
+    def test_from_error_logic(self):
+        """from_error classifies syntax errors as LOGIC and not retryable."""
+        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        v = ValidationVerdict.from_error("SyntaxError: invalid selector")
+        assert v.error_type == ErrorType.LOGIC
+        assert v.retryable is False
+
+    @pytest.mark.unit
+    def test_from_error_environment(self):
+        """from_error classifies SSL errors as ENVIRONMENT and retryable."""
+        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        v = ValidationVerdict.from_error("SSL certificate verification failed")
+        assert v.error_type == ErrorType.ENVIRONMENT
+        assert v.retryable is True
+
+    @pytest.mark.unit
+    def test_from_error_data(self):
+        """from_error classifies parse errors as DATA and not retryable."""
+        from Jotty.core.execution.types import ValidationVerdict, ErrorType
+        v = ValidationVerdict.from_error("Empty result set returned")
+        assert v.error_type == ErrorType.DATA
+        assert v.retryable is False
+
+    @pytest.mark.unit
+    def test_from_error_populates_issues(self):
+        """from_error adds error message to issues list."""
+        from Jotty.core.execution.types import ValidationVerdict
+        v = ValidationVerdict.from_error("something broke")
+        assert len(v.issues) == 1
+        assert v.issues[0] == "something broke"
+
+
+# =============================================================================
+# DeadLetterQueue Tests
+# =============================================================================
+
+class TestDeadLetterQueue:
+    """Tests for DeadLetterQueue thread-safe failed operation queue."""
+
+    @pytest.mark.unit
+    def test_enqueue_and_size(self):
+        """enqueue adds items and size reports correctly."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        dlq.enqueue("web_search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
+        assert dlq.size == 1
+
+    @pytest.mark.unit
+    def test_get_retryable(self):
+        """get_retryable returns items under max_retries."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
+        retryable = dlq.get_retryable()
+        assert len(retryable) == 1
+        assert retryable[0].operation == "op"
+
+    @pytest.mark.unit
+    def test_get_retryable_excludes_exhausted(self):
+        """get_retryable excludes items at max_retries."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
+        letter.retry_count = letter.max_retries  # Exhaust retries
+        retryable = dlq.get_retryable()
+        assert len(retryable) == 0
+
+    @pytest.mark.unit
+    def test_mark_resolved(self):
+        """mark_resolved removes item from queue."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
+        assert dlq.size == 1
+        dlq.mark_resolved(letter)
+        assert dlq.size == 0
+
+    @pytest.mark.unit
+    def test_retry_all_success(self):
+        """retry_all calls executor and removes successful items."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        dlq.enqueue("op1", {}, "error1", ErrorType.INFRASTRUCTURE)
+        dlq.enqueue("op2", {}, "error2", ErrorType.INFRASTRUCTURE)
+        successes = dlq.retry_all(lambda letter: True)
+        assert successes == 2
+        assert dlq.size == 0
+
+    @pytest.mark.unit
+    def test_retry_all_partial_failure(self):
+        """retry_all handles mixed success/failure."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        dlq.enqueue("good", {}, "err", ErrorType.INFRASTRUCTURE)
+        dlq.enqueue("bad", {}, "err", ErrorType.INFRASTRUCTURE)
+        successes = dlq.retry_all(lambda l: l.operation == "good")
+        assert successes == 1
+        assert dlq.size == 1  # "bad" still in queue
+
+    @pytest.mark.unit
+    def test_retry_all_increments_retry_count(self):
+        """retry_all increments retry_count even on failure."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
+        dlq.retry_all(lambda l: False)  # All fail
+        assert letter.retry_count == 1
+
+    @pytest.mark.unit
+    def test_max_size_eviction(self):
+        """Exceeding max_size evicts oldest entry."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue(max_size=2)
+        dlq.enqueue("first", {}, "err", ErrorType.INFRASTRUCTURE)
+        dlq.enqueue("second", {}, "err", ErrorType.INFRASTRUCTURE)
+        dlq.enqueue("third", {}, "err", ErrorType.INFRASTRUCTURE)
+        assert dlq.size == 2
+        # First should be evicted
+        retryable = dlq.get_retryable()
+        ops = [l.operation for l in retryable]
+        assert "first" not in ops
+        assert "second" in ops
+        assert "third" in ops
+
+    @pytest.mark.unit
+    def test_clear(self):
+        """clear empties the queue."""
+        from Jotty.core.execution.types import DeadLetterQueue, ErrorType
+        dlq = DeadLetterQueue()
+        dlq.enqueue("op1", {}, "err", ErrorType.INFRASTRUCTURE)
+        dlq.enqueue("op2", {}, "err", ErrorType.INFRASTRUCTURE)
+        dlq.clear()
+        assert dlq.size == 0
+
+
+# =============================================================================
+# TimeoutWarning Tests
+# =============================================================================
+
+class TestTimeoutWarning:
+    """Tests for TimeoutWarning threshold-based timeout alerts."""
+
+    @pytest.mark.unit
+    def test_initial_state(self):
+        """TimeoutWarning starts with zero elapsed."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=120)
+        assert tw.elapsed == 0.0
+        assert tw.is_expired is False
+
+    @pytest.mark.unit
+    def test_check_before_start(self):
+        """check returns None before start() is called."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=120)
+        assert tw.check() is None
+
+    @pytest.mark.unit
+    def test_fraction_used_zero_timeout(self):
+        """fraction_used returns 1.0 for zero timeout."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=0)
+        assert tw.fraction_used == 1.0
+
+    @pytest.mark.unit
+    def test_remaining_before_start(self):
+        """remaining returns full timeout before start."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=120)
+        assert tw.remaining == 120.0
+
+    @pytest.mark.unit
+    def test_start_resets_triggered(self):
+        """start() clears previously triggered thresholds."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=120)
+        tw._triggered.add(0.80)
+        tw.start()
+        assert len(tw._triggered) == 0
+
+    @pytest.mark.unit
+    def test_check_triggers_80_percent(self):
+        """check triggers 80% warning."""
+        from Jotty.core.execution.types import TimeoutWarning
+        tw = TimeoutWarning(timeout_seconds=100)
+        tw._start_time = 1.0  # Manually set
+        import time
+        # Simulate 85% elapsed by setting start_time in the past
+        tw._start_time = time.time() - 85
+        warning = tw.check()
+        assert warning is not None
+        assert "80%" in warning
+
+    @pytest.mark.unit
+    def test_one_shot_triggering(self):
+        """Each threshold only triggers once."""
+        from Jotty.core.execution.types import TimeoutWarning
+        import time as time_mod
+        tw = TimeoutWarning(timeout_seconds=100)
+        tw._start_time = time_mod.time() - 85  # 85% elapsed
+        first = tw.check()
+        assert first is not None
+        second = tw.check()
+        # 80% already triggered. 95% not yet triggered. May be None or 95%.
+        # At 85%, 95% threshold not crossed, so None.
+        assert second is None
+
+    @pytest.mark.unit
+    def test_is_expired(self):
+        """is_expired True when elapsed >= timeout."""
+        from Jotty.core.execution.types import TimeoutWarning
+        import time as time_mod
+        tw = TimeoutWarning(timeout_seconds=10)
+        tw._start_time = time_mod.time() - 20  # Well past expiry
+        assert tw.is_expired is True
+
+
+# =============================================================================
+# AdaptiveTimeout Tests
+# =============================================================================
+
+class TestAdaptiveTimeoutExpanded:
+    """Tests for AdaptiveTimeout P95-based adaptive timeouts."""
+
+    @pytest.mark.unit
+    def test_default_with_no_observations(self):
+        """Returns default_seconds when no observations exist."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0)
+        assert at.get("llm_call") == 30.0
+
+    @pytest.mark.unit
+    def test_default_with_insufficient_observations(self):
+        """Returns default when fewer than 3 observations."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0)
+        at.record("llm_call", 2.0)
+        at.record("llm_call", 3.0)
+        assert at.get("llm_call") == 30.0  # Only 2 < 3 required
+
+    @pytest.mark.unit
+    def test_adaptive_with_observations(self):
+        """With 3+ observations, returns P95 * multiplier."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0, max_seconds=300.0)
+        for t in [1.0, 2.0, 3.0, 4.0, 5.0]:
+            at.record("op", t)
+        timeout = at.get("op", multiplier=2.0)
+        # P95 of [1,2,3,4,5] ≈ 5 → 5*2 = 10
+        assert timeout >= 1.0  # Above min
+        assert timeout <= 300.0  # Below max
+        assert timeout != 30.0  # Not default
+
+    @pytest.mark.unit
+    def test_min_bound(self):
+        """Timeout never goes below min_seconds."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0, min_seconds=10.0)
+        for t in [0.01, 0.02, 0.03, 0.04]:
+            at.record("fast_op", t)
+        timeout = at.get("fast_op", multiplier=1.0)
+        assert timeout >= 10.0
+
+    @pytest.mark.unit
+    def test_max_bound(self):
+        """Timeout never exceeds max_seconds."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0, max_seconds=50.0)
+        for t in [100.0, 200.0, 300.0, 400.0]:
+            at.record("slow_op", t)
+        timeout = at.get("slow_op", multiplier=2.0)
+        assert timeout <= 50.0
+
+    @pytest.mark.unit
+    def test_separate_operations(self):
+        """Different operations have independent observations."""
+        from Jotty.core.execution.types import AdaptiveTimeout
+        at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0)
+        for t in [1.0, 2.0, 3.0, 4.0]:
+            at.record("fast", t)
+        for t in [50.0, 60.0, 70.0, 80.0]:
+            at.record("slow", t)
+        fast_t = at.get("fast", multiplier=2.0)
+        slow_t = at.get("slow", multiplier=2.0)
+        assert fast_t < slow_t
+
+
+# =============================================================================
+# CircuitBreaker Tests
+# =============================================================================
+
+class TestCircuitBreakerExpanded:
+    """Tests for CircuitBreaker state machine."""
+
+    @pytest.mark.unit
+    def test_initial_state_closed(self):
+        """CircuitBreaker starts CLOSED."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=3)
+        assert cb.state == CircuitState.CLOSED
+        assert cb.allow_request() is True
+
+    @pytest.mark.unit
+    def test_failures_below_threshold(self):
+        """Stays CLOSED with failures below threshold."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=3)
+        cb.record_failure()
+        cb.record_failure()
+        assert cb.state == CircuitState.CLOSED
+        assert cb.allow_request() is True
+
+    @pytest.mark.unit
+    def test_trips_to_open(self):
+        """Trips to OPEN when failures reach threshold."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=3)
+        cb.record_failure()
+        cb.record_failure()
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+        assert cb.allow_request() is False
+
+    @pytest.mark.unit
+    def test_cooldown_to_half_open(self):
+        """Transitions to HALF_OPEN after cooldown."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+        import time
+        time.sleep(0.02)
+        assert cb.state == CircuitState.HALF_OPEN
+        assert cb.allow_request() is True  # Probe allowed
+
+    @pytest.mark.unit
+    def test_success_resets_to_closed(self):
+        """record_success resets to CLOSED from any state."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+        import time
+        time.sleep(0.02)
+        assert cb.state == CircuitState.HALF_OPEN
+        cb.record_success()
+        assert cb.state == CircuitState.CLOSED
+        assert cb._failure_count == 0
+
+    @pytest.mark.unit
+    def test_half_open_failure_reopens(self):
+        """Failure in HALF_OPEN trips back to OPEN."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
+        cb.record_failure()
+        import time
+        time.sleep(0.02)
+        assert cb.state == CircuitState.HALF_OPEN
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+
+    @pytest.mark.unit
+    def test_manual_reset(self):
+        """reset() manually returns to CLOSED."""
+        from Jotty.core.execution.types import CircuitBreaker, CircuitState
+        cb = CircuitBreaker("test", failure_threshold=1)
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+        cb.reset()
+        assert cb.state == CircuitState.CLOSED
+        assert cb._failure_count == 0
 
 
 if __name__ == "__main__":

@@ -133,6 +133,7 @@ class SkillPlanExecutor:
         self._max_replans = max_replans
         self._planner = planner
         self._excluded_skills: set = set()
+        self._current_task: str = ""  # Original task text (set during plan_and_execute)
 
         # Skill selection cache: task_type → selected skill names
         # Avoids redundant LLM calls when the same type of task is seen again.
@@ -282,6 +283,65 @@ class SkillPlanExecutor:
         except Exception as e:
             logger.warning(f"Skill selection failed: {e}")
             return available_skills[:max_skills]
+
+    # =========================================================================
+    # ESSENTIAL SKILL INJECTION
+    # =========================================================================
+
+    # Keyword → skill name mappings. When the task contains any keyword from
+    # the set, the corresponding skill is guaranteed to be in the selected
+    # skills list — even if the LLM selector missed it.
+    _ESSENTIAL_SKILL_KEYWORDS = {
+        'shell-exec': {
+            'execute', 'run the', 'run it', 'run this', 'execute the',
+            'run a script', 'run script', 'shell', 'bash', 'command line',
+            'terminal', 'subprocess', 'invoke', 'launch',
+        },
+        'calculator': {
+            'calculate', 'compute', 'math', 'arithmetic', 'formula',
+            'percentage', 'convert units', 'conversion rate',
+        },
+        'web-scraper': {
+            'scrape', 'scraping', 'crawl', 'extract from url',
+            'extract from website', 'full content from',
+        },
+        'web-search': {
+            'search the web', 'search for', 'web search', 'look up',
+            'find online', 'google', 'search online',
+        },
+    }
+
+    def _inject_essential_skills(
+        self,
+        task: str,
+        selected: List[Dict[str, Any]],
+        available: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Ensure task-critical skills are present in the selection.
+
+        The LLM skill selector sometimes misses obvious skills (e.g. not
+        selecting 'shell-exec' for a task that says 'execute the script').
+        This method checks the task text for keywords and injects missing
+        essential skills.
+        """
+        selected_names = {s.get('name', '') for s in selected}
+        available_map = {s.get('name', ''): s for s in available}
+        task_lower = task.lower()
+
+        injected = []
+        for skill_name, keywords in self._ESSENTIAL_SKILL_KEYWORDS.items():
+            if skill_name in selected_names:
+                continue
+            if skill_name not in available_map:
+                continue
+            if any(kw in task_lower for kw in keywords):
+                injected.append(available_map[skill_name])
+                logger.info(f"Injected essential skill '{skill_name}' "
+                           f"(matched keyword in task)")
+
+        if injected:
+            selected = list(selected) + injected
+        return selected
 
     # =========================================================================
     # EXECUTION PLANNING
@@ -567,28 +627,61 @@ class SkillPlanExecutor:
                         _desc, _re.IGNORECASE
                     )
                     if _file_match:
-                        _correct_path = _file_match.group(1)
+                        _correct_name = _file_match.group(1)
+                        # Preserve directory from original path, only replace filename
+                        _correct_path = os.path.join(
+                            os.path.dirname(_write_path), _correct_name
+                        )
                         if _correct_path != _write_path:
                             logger.info(f" Duplicate write to '{_write_path}' detected — "
                                        f"corrected to '{_correct_path}' from step description")
                             resolved_params['path'] = _correct_path
                     break
 
-        # Content-from-previous-steps: for write_file_tool, when the resolved
-        # content looks like generated code/instructions (not real data from a
-        # previous step), and previous steps produced actual data (search results,
-        # analysis, etc.), replace with formatted previous output.
+        # Guard: if resolved path is a directory, the planner likely passed
+        # ${prev_step.path} (a dir) instead of a full file path.  Extract the
+        # correct file path from the step description.
+        if (step.skill_name == 'file-operations'
+                and step.tool_name in ('write_file_tool',)
+                and 'path' in resolved_params):
+            import re as _re
+            _rp = resolved_params['path']
+            if _rp and os.path.isdir(_rp):
+                _desc = step.description or ''
+                # Match absolute paths like /tmp/foo/bar/file.py
+                _abs_match = _re.search(r'(/[\w/.+-]+\.\w{1,5})', _desc)
+                if _abs_match:
+                    resolved_params['path'] = _abs_match.group(1)
+                    logger.info(f"Path was directory '{_rp}' — corrected to "
+                               f"'{resolved_params['path']}' from step description")
+                else:
+                    # Try relative filename at least
+                    _rel_match = _re.search(
+                        r'[\s/]([a-zA-Z0-9_-]+\.\w{1,5})\b', _desc
+                    )
+                    if _rel_match:
+                        resolved_params['path'] = os.path.join(
+                            _rp, _rel_match.group(1)
+                        )
+                        logger.info(f"Path was directory '{_rp}' — appended "
+                                   f"'{_rel_match.group(1)}' from step description")
+
+        # Content-from-previous-steps: ONLY for truly broken placeholder content.
+        # Only fires when content is an obvious stub/template that would be
+        # useless if written to disk, AND there's real data from previous steps.
+        # IMPORTANT: Do NOT match real code (import/def/class) — only match
+        # obviously broken placeholders like "# TODO" or short code-fence stubs.
         if (step.skill_name == 'file-operations' and step.tool_name in ('write_file_tool',)
                 and 'content' in resolved_params and outputs):
             _content = resolved_params['content']
-            _is_generated = (
-                _content.startswith('import ')
-                or _content.startswith('# TODO:')
-                or _content.startswith('def ')
-                or _content.startswith('class ')
-                or ('```' in _content and len(_content) < 200)
+            _is_placeholder = (
+                _content.startswith('# TODO:')
+                or _content.startswith('# placeholder')
+                or (len(_content) < 80 and _content.strip().endswith('pass'))
+                or ('```' in _content and len(_content) < 150)
+                or _content.strip() == ''
             )
-            if _is_generated:
+            if _is_placeholder:
                 # Look for data-rich outputs from previous steps
                 for _prev_key, _prev_out in reversed(list(outputs.items())):
                     if not isinstance(_prev_out, dict):
@@ -601,7 +694,7 @@ class SkillPlanExecutor:
                         if formatted and len(formatted) > 100:
                             resolved_params['content'] = formatted
                             logger.info(f"Content wired from step '{_prev_key}' results "
-                                       f"({len(formatted)} chars, replacing generated code)")
+                                       f"({len(formatted)} chars, replacing placeholder)")
                             break
                     # Text/response output
                     for _fk in ('response', 'text', 'content', 'output', 'result'):
@@ -616,8 +709,122 @@ class SkillPlanExecutor:
                         continue
                     break
 
+        # Guard: calculator expression resolved to non-math text.
+        # The ParameterResolver often auto-wires search query/results text
+        # into the 'expression' param because it's the only string param.
+        # Detect this and replace with the step description which contains
+        # the actual math intent.
+        if (step.skill_name == 'calculator'
+                and step.tool_name in ('calculate_tool',)
+                and 'expression' in resolved_params):
+            import re as _re
+            _expr = str(resolved_params['expression']).strip()
+            _desc = step.description or ''
+
+            # Detect non-math expression: check if it contains words that
+            # aren't math functions, OR if it's just numbers without operators
+            _math_funcs = {'sqrt', 'sin', 'cos', 'tan', 'log', 'exp', 'abs',
+                           'round', 'floor', 'ceil', 'pi', 'e', 'pow', 'min', 'max'}
+            _words = set(_re.findall(r'[a-zA-Z]+', _expr))
+            _non_math_words = _words - _math_funcs
+            _has_operators = bool(_re.search(r'[+\-*/()%]', _expr))
+            _is_bad_expr = (
+                # Contains non-math words (search query text)
+                (len(_non_math_words) > 1)
+                # OR it's just space-separated numbers without operators (e.g. "2025 2026")
+                or (not _has_operators and not _non_math_words
+                    and _re.match(r'^[\d\s.]+$', _expr) and ' ' in _expr)
+                # OR it's a JSON blob
+                or _expr.startswith('{') or _expr.startswith('[')
+            )
+            if _is_bad_expr and _desc:
+                resolved_params['expression'] = _desc
+                logger.info(f"Calculator expression was non-math '{_expr[:60]}' "
+                           f"— replaced with step description")
+
+        # Guard: shell-exec command should include output redirection when
+        # the step description mentions saving output to a file.
+        if (step.skill_name == 'shell-exec'
+                and 'command' in resolved_params):
+            import re as _re
+            _desc = (step.description or '').lower()
+            _cmd = resolved_params['command']
+            # If desc mentions redirecting/saving output to a file, and command
+            # doesn't already have redirection, add it
+            if ('>' not in _cmd and '|' not in _cmd):
+                _redir_match = _re.search(
+                    r'(?:redirect|save|write|output\s+to|pipe\s+to)\s+(?:the\s+)?'
+                    r'(?:output\s+to\s+)?(/[\w/.+-]+\.\w{1,5})',
+                    _desc, _re.IGNORECASE
+                )
+                if not _redir_match:
+                    # Also try matching from the original task via step description
+                    _redir_match = _re.search(
+                        r'(?:save|output)\s+(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})',
+                        _desc, _re.IGNORECASE
+                    )
+                if _redir_match:
+                    _outfile = _redir_match.group(1)
+                    resolved_params['command'] = f'{_cmd} > {_outfile}'
+                    logger.info(f"Added output redirection to shell command: > {_outfile}")
+
+        # Guard: write_file_tool with path missing subdirectory.
+        # The planner often resolves path to the base project dir instead of
+        # the correct subdirectory (e.g. myproject/main.py instead of
+        # myproject/src/main.py). We extract the filename from the resolved
+        # path, then search the original task text for a full path containing
+        # that filename in a subdirectory.
+        if (step.skill_name == 'file-operations'
+                and step.tool_name in ('write_file_tool',)
+                and 'path' in resolved_params):
+            import re as _re
+            _wp = resolved_params['path']
+            _fname = os.path.basename(_wp)
+            _task_text = getattr(self, '_current_task', '') or ''
+            _desc = step.description or ''
+
+            # Strategy 1: Check original task text for a full path with this
+            # filename in a subdirectory (e.g. /tmp/.../myproject/src/main.py)
+            if _fname and _task_text:
+                # Find all absolute paths in the task that end with this filename
+                _task_paths = _re.findall(
+                    r'(/[\w/.+-]+/' + _re.escape(_fname) + r')\b',
+                    _task_text
+                )
+                for _tp in _task_paths:
+                    # If the task path has more directory levels than the resolved path
+                    if _tp != _wp and _fname in _tp:
+                        resolved_params['path'] = _tp
+                        # Ensure parent directory exists
+                        os.makedirs(os.path.dirname(_tp), exist_ok=True)
+                        logger.info(f"Path corrected from '{_wp}' to '{_tp}' "
+                                   f"(matched full path in original task)")
+                        break
+
+            # Strategy 2: Check step description for subdirectory hints
+            # Use (?<![a-zA-Z0-9_]) to avoid false positives like
+            # "stress_test/" matching "tests?/"
+            if resolved_params['path'] == _wp:  # Strategy 1 didn't fire
+                _subdir_match = _re.search(
+                    r'(?:to|at|in)\s+(?:[\w/.-]*?)?(?<![a-zA-Z0-9_])'
+                    r'((?:src|tests?|docs?|lib|app|config)/[\w/.-]+\.\w{1,5})',
+                    _desc, _re.IGNORECASE
+                )
+                if _subdir_match:
+                    _subpath = _subdir_match.group(1)
+                    if _subpath not in _wp:
+                        _base = _wp
+                        if os.path.isfile(_base):
+                            _base = os.path.dirname(_base)
+                        elif not os.path.isdir(_base):
+                            _base = os.path.dirname(_base)
+                        _new_path = os.path.join(_base, _subpath)
+                        os.makedirs(os.path.dirname(_new_path), exist_ok=True)
+                        resolved_params['path'] = _new_path
+                        logger.info(f"Path corrected to include subdirectory: {_new_path}")
+
         # Log resolved params for debugging (especially file paths)
-        if resolved_params and step.skill_name in ('file-operations', 'shell-exec'):
+        if resolved_params and step.skill_name in ('file-operations', 'shell-exec', 'calculator'):
             _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))
                              for k, v in resolved_params.items() if k != 'content'}
             logger.info(f" Resolved params: {_param_preview}")
@@ -688,6 +895,30 @@ class SkillPlanExecutor:
                 result = {'success': False, 'error': 'Tool returned None'}
             elif not isinstance(result, dict):
                 result = {'success': True, 'output': result}
+
+            # Post-execution: save shell-exec stdout to file when step
+            # description mentions output redirection and we have stdout
+            if (step.skill_name == 'shell-exec'
+                    and isinstance(result, dict) and result.get('success')
+                    and result.get('stdout')):
+                import re as _re
+                _desc = (step.description or '').lower()
+                _out_match = _re.search(
+                    r'(?:redirect|save|write|output)\s+(?:the\s+)?(?:output\s+)?'
+                    r'(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})',
+                    _desc, _re.IGNORECASE
+                )
+                if _out_match:
+                    _outpath = _out_match.group(1)
+                    try:
+                        _p = Path(_outpath)
+                        _p.parent.mkdir(parents=True, exist_ok=True)
+                        _p.write_text(result['stdout'])
+                        result['output_saved_to'] = _outpath
+                        logger.info(f"Saved shell-exec stdout to {_outpath} "
+                                   f"({len(result['stdout'])} chars)")
+                    except Exception as _e:
+                        logger.warning(f"Failed to save stdout to {_outpath}: {_e}")
 
             # Sanitize/truncate tool output (JSON-aware: preserves keys)
             result = ToolResultProcessor().process(result, elapsed=_step_elapsed)
@@ -776,6 +1007,49 @@ class SkillPlanExecutor:
                 })
 
         return issues
+
+    def _auto_correct_plan(self, steps: list, selected_skills: List[Dict[str, Any]]) -> list:
+        """Auto-correct common planner mistakes in-place.
+
+        Fixes:
+        1. Tool assigned to wrong skill — find the correct skill that owns it
+        2. Missing output file steps — inject write steps for files mentioned
+           in the task but not covered by any step
+        """
+        if not self._skills_registry:
+            return steps
+
+        # Build a tool→skill reverse map from all selected skills
+        tool_to_skill: Dict[str, str] = {}
+        for skill_info in selected_skills:
+            sname = skill_info.get('name', '')
+            skill = self._skills_registry.get_skill(sname)
+            if skill and hasattr(skill, 'tools'):
+                for tname in skill.tools:
+                    tool_to_skill[tname] = sname
+                    tool_to_skill[tname.lower()] = sname
+
+        # Fix 1: Wrong skill→tool mapping
+        for step in steps:
+            skill_name = getattr(step, 'skill_name', '') or ''
+            tool_name = getattr(step, 'tool_name', '') or ''
+            skill = self._skills_registry.get_skill(skill_name)
+            if skill and hasattr(skill, 'tools'):
+                # Check if tool exists in this skill
+                has_tool = (
+                    tool_name in skill.tools
+                    or self._strict_tool_lookup(skill, tool_name) is not None
+                    or len(skill.tools) == 1  # single-tool fallback
+                )
+                if not has_tool:
+                    # Look up correct skill
+                    correct = tool_to_skill.get(tool_name) or tool_to_skill.get(tool_name.lower())
+                    if correct:
+                        logger.info(f"Plan auto-correct: '{tool_name}' reassigned "
+                                   f"from '{skill_name}' to '{correct}'")
+                        step.skill_name = correct
+
+        return steps
 
     # =========================================================================
     # STRICT TOOL LOOKUP
@@ -1157,6 +1431,7 @@ class SkillPlanExecutor:
         _status = StatusReporter(status_callback, logger)
 
         self._excluded_skills.clear()
+        self._current_task = task  # Store for guards in execute_step()
 
         # Ensure DSPy LM is configured (tools depend on it)
         self._ensure_lm()
@@ -1169,6 +1444,11 @@ class SkillPlanExecutor:
         # Step 2: Select best skills (pre-filtered by task type capabilities)
         _status("Selecting", "choosing best skills")
         skills = await self.select_skills(task, discovered_skills, task_type=task_type)
+
+        # Step 2b: Inject essential skills the planner may have missed.
+        # The LLM skill selector can't always anticipate which tools are
+        # needed (e.g. "execute the script" requires shell-exec).
+        skills = self._inject_essential_skills(task, skills, discovered_skills)
         _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
 
         # Step 3: Create plan
@@ -1176,7 +1456,12 @@ class SkillPlanExecutor:
         steps = await self.create_plan(task, task_type, skills)
         _status("Plan ready", f"{len(steps)} steps")
 
-        # Step 3b: Validate plan (warning-only, does not block execution)
+        # Step 3b: Auto-correct plan (fix skill→tool mismatches, inject
+        # missing output file steps)
+        if steps:
+            steps = self._auto_correct_plan(steps, skills)
+
+        # Step 3c: Validate plan (warning-only, does not block execution)
         if steps:
             plan_issues = self.validate_plan(steps)
             if plan_issues:

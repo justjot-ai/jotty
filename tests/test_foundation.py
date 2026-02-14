@@ -1,7 +1,8 @@
 """
 Tests for Foundation Module
 ============================
-Tests for SwarmConfig, AgentConfig (foundation), and Exception hierarchy.
+Tests for SwarmConfig, AgentConfig (foundation), Exception hierarchy,
+model_limits_catalog, robust_parsing functions, and token_counter.
 """
 import pytest
 from unittest.mock import patch, MagicMock
@@ -1138,3 +1139,1111 @@ class TestBaseAgentMemoryContext:
         result = agent.get_compressed_context(max_tokens=100)
         assert len(result) <= 100 * 4 + 10  # 4 chars/token + margin for "..."
         assert result.endswith("...")
+
+
+# =============================================================================
+# GoalNode Tests
+# =============================================================================
+
+class TestGoalNode:
+    """Tests for GoalNode similarity scoring."""
+
+    @pytest.mark.unit
+    def test_similarity_same_domain(self):
+        """Same domain adds 0.4 to similarity."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="query sales", domain="sql", operation_type="query")
+        b = GoalNode(goal_id="b", goal_text="query users", domain="sql", operation_type="analysis")
+        score = a.similarity_score(b)
+        assert score >= 0.4  # At least domain match
+
+    @pytest.mark.unit
+    def test_similarity_same_operation(self):
+        """Same operation type adds 0.2 to similarity."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="query X", domain="sql", operation_type="query")
+        b = GoalNode(goal_id="b", goal_text="query Y", domain="python", operation_type="query")
+        score = a.similarity_score(b)
+        assert score >= 0.2  # At least operation match
+
+    @pytest.mark.unit
+    def test_similarity_entity_overlap(self):
+        """Entity overlap contributes to similarity."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="q1", domain="sql", entities=["users", "orders"])
+        b = GoalNode(goal_id="b", goal_text="q2", domain="sql", entities=["users", "products"])
+        score = a.similarity_score(b)
+        # domain=0.4, entities overlap 1/3 * 0.3 = 0.1
+        assert score > 0.4
+
+    @pytest.mark.unit
+    def test_similarity_hierarchical_parent(self):
+        """Parent-child relationship adds 0.1 to similarity."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        parent = GoalNode(goal_id="parent", goal_text="data analysis", domain="general")
+        child = GoalNode(goal_id="child", goal_text="sql queries", domain="sql", parent_id="parent")
+        score = child.similarity_score(parent)
+        assert score >= 0.1  # At least hierarchical bonus
+
+    @pytest.mark.unit
+    def test_similarity_completely_different(self):
+        """Completely different nodes have low similarity."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="sql query", domain="sql", operation_type="query")
+        b = GoalNode(goal_id="b", goal_text="draw chart", domain="viz", operation_type="render")
+        score = a.similarity_score(b)
+        assert score == 0.0
+
+    @pytest.mark.unit
+    def test_similarity_capped_at_one(self):
+        """Similarity score cannot exceed 1.0."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="q", domain="sql", operation_type="query",
+                     entities=["users"], parent_id="b")
+        b = GoalNode(goal_id="b", goal_text="q", domain="sql", operation_type="query",
+                     entities=["users"])
+        score = a.similarity_score(b)
+        assert score <= 1.0
+
+    @pytest.mark.unit
+    def test_similarity_no_entities(self):
+        """Missing entities don't add entity overlap score."""
+        from Jotty.core.foundation.types.memory_types import GoalNode
+        a = GoalNode(goal_id="a", goal_text="q", domain="sql", operation_type="query", entities=[])
+        b = GoalNode(goal_id="b", goal_text="q", domain="sql", operation_type="query", entities=["users"])
+        score = a.similarity_score(b)
+        # domain=0.4 + operation=0.2, no entity overlap since a has no entities
+        assert abs(score - 0.6) < 0.01
+
+
+# =============================================================================
+# GoalHierarchy Tests
+# =============================================================================
+
+class TestGoalHierarchy:
+    """Tests for GoalHierarchy goal management and knowledge transfer."""
+
+    @pytest.mark.unit
+    def test_add_goal(self):
+        """add_goal creates a new node and returns its ID."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        goal_id = h.add_goal("analyze sales data", domain="sql")
+        assert goal_id in h.nodes
+        assert h.nodes[goal_id].goal_text == "analyze sales data"
+        assert h.nodes[goal_id].domain == "sql"
+
+    @pytest.mark.unit
+    def test_add_duplicate_increments_count(self):
+        """Adding the same goal text increments episode_count."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        goal_id = h.add_goal("analyze sales data")
+        assert h.nodes[goal_id].episode_count == 0
+        goal_id2 = h.add_goal("analyze sales data")
+        assert goal_id == goal_id2
+        assert h.nodes[goal_id].episode_count == 1
+
+    @pytest.mark.unit
+    def test_add_goal_with_parent(self):
+        """add_goal with explicit parent_id links to parent."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy, GoalNode
+        h = GoalHierarchy()
+        # Create parent first
+        parent_id = h.add_goal("data analysis", domain="general", operation_type="general")
+        child_id = h.add_goal("sql queries", domain="sql", parent_id=parent_id)
+        assert h.nodes[child_id].parent_id == parent_id
+        assert child_id in h.nodes[parent_id].children_ids
+
+    @pytest.mark.unit
+    def test_find_best_parent_by_domain(self):
+        """_find_best_parent returns domain node with operation_type='general'."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        h.add_goal("sql general", domain="sql", operation_type="general")
+        parent = h._find_best_parent("sql", "query")
+        assert parent is not None
+        assert h.nodes[parent].domain == "sql"
+
+    @pytest.mark.unit
+    def test_find_best_parent_no_match(self):
+        """_find_best_parent returns None when no matching domain exists and no root."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        parent = h._find_best_parent("unknown_domain", "query")
+        assert parent is None
+
+    @pytest.mark.unit
+    def test_get_related_goals_empty(self):
+        """get_related_goals returns empty for unknown goal_id."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        assert h.get_related_goals("nonexistent") == []
+
+    @pytest.mark.unit
+    def test_get_related_goals_finds_similar(self):
+        """get_related_goals returns goals with similarity > 0.3."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        id1 = h.add_goal("sales queries", domain="sql", operation_type="query", entities=["sales"])
+        id2 = h.add_goal("user queries", domain="sql", operation_type="query", entities=["users"])
+        id3 = h.add_goal("draw chart", domain="viz", operation_type="render")
+        related = h.get_related_goals(id1)
+        related_ids = [r[0] for r in related]
+        # id2 has same domain+operation → similarity >= 0.6, should be included
+        assert id2 in related_ids
+        # id3 has nothing in common → similarity 0.0, should not be included
+        assert id3 not in related_ids
+
+    @pytest.mark.unit
+    def test_get_related_goals_sorted_by_similarity(self):
+        """get_related_goals returns results sorted by similarity descending."""
+        from Jotty.core.foundation.types.memory_types import GoalHierarchy
+        h = GoalHierarchy()
+        id1 = h.add_goal("sales query", domain="sql", operation_type="query", entities=["sales"])
+        id2 = h.add_goal("user query", domain="sql", operation_type="query", entities=["users"])
+        id3 = h.add_goal("sales analysis", domain="sql", operation_type="analysis", entities=["sales"])
+        related = h.get_related_goals(id1)
+        if len(related) >= 2:
+            assert related[0][1] >= related[1][1]  # First has higher or equal similarity
+
+
+# =============================================================================
+# CausalLink Tests
+# =============================================================================
+
+class TestCausalLink:
+    """Tests for CausalLink context checking and confidence updates."""
+
+    @pytest.mark.unit
+    def test_applies_in_context_no_conditions(self):
+        """CausalLink with no conditions applies in any context."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(cause="type annotation", effect="correct parsing")
+        assert link.applies_in_context({"database": "trino"}) is True
+
+    @pytest.mark.unit
+    def test_applies_in_context_matching_condition(self):
+        """CausalLink applies when conditions match."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(
+            cause="type annotation", effect="correct parsing",
+            conditions=["database=trino"]
+        )
+        assert link.applies_in_context({"database": "trino"}) is True
+        assert link.applies_in_context({"database": "postgres"}) is False
+
+    @pytest.mark.unit
+    def test_applies_in_context_exception_blocks(self):
+        """CausalLink does not apply when exception matches."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(
+            cause="type annotation", effect="correct parsing",
+            conditions=["database=trino"],
+            exceptions=["version=2.0"]
+        )
+        assert link.applies_in_context({"database": "trino"}) is True
+        assert link.applies_in_context({"database": "trino", "version": "2.0"}) is False
+
+    @pytest.mark.unit
+    def test_applies_in_context_missing_condition_key(self):
+        """Missing context key passes condition check (not contradicted)."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(
+            cause="X", effect="Y", conditions=["database=trino"]
+        )
+        # "database" not in context → condition not contradicted → applies
+        assert link.applies_in_context({"other_key": "val"}) is True
+
+    @pytest.mark.unit
+    def test_update_confidence_supported(self):
+        """Supported evidence increases confidence."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(cause="X", effect="Y", confidence=0.5)
+        link.update_confidence(supported=True)
+        assert link.confidence > 0.5
+        assert link.confidence <= 0.99
+
+    @pytest.mark.unit
+    def test_update_confidence_contradicted(self):
+        """Contradicting evidence decreases confidence."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(cause="X", effect="Y", confidence=0.5)
+        link.update_confidence(supported=False)
+        assert link.confidence < 0.5
+        assert link.confidence >= 0.1
+
+    @pytest.mark.unit
+    def test_update_confidence_clamped(self):
+        """Confidence stays within [0.1, 0.99] bounds."""
+        from Jotty.core.foundation.types.memory_types import CausalLink
+        link = CausalLink(cause="X", effect="Y", confidence=0.99)
+        for _ in range(20):
+            link.update_confidence(supported=True)
+        assert link.confidence <= 0.99
+
+        link2 = CausalLink(cause="X", effect="Y", confidence=0.1)
+        for _ in range(20):
+            link2.update_confidence(supported=False)
+        assert link2.confidence >= 0.1
+
+
+# =============================================================================
+# MemoryEntry Tests
+# =============================================================================
+
+class TestMemoryEntry:
+    """Tests for MemoryEntry value retrieval and UCB scoring."""
+
+    @pytest.mark.unit
+    def test_get_value_exact_match(self):
+        """get_value returns exact goal value when present."""
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, GoalValue, MemoryLevel
+        entry = MemoryEntry(
+            key="k1", content="test content",
+            level=MemoryLevel.EPISODIC, context={},
+            goal_values={"goal_a": GoalValue(value=0.8)}
+        )
+        assert entry.get_value("goal_a") == 0.8
+
+    @pytest.mark.unit
+    def test_get_value_default(self):
+        """get_value returns default_value when goal not found."""
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, MemoryLevel
+        entry = MemoryEntry(
+            key="k1", content="test", level=MemoryLevel.EPISODIC,
+            context={}, default_value=0.3
+        )
+        assert entry.get_value("unknown_goal") == 0.3
+
+    @pytest.mark.unit
+    def test_get_ucb_score_unexplored(self):
+        """Unexplored entry (ucb_visits=0) returns infinity."""
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, MemoryLevel
+        entry = MemoryEntry(
+            key="k1", content="test", level=MemoryLevel.EPISODIC,
+            context={}, ucb_visits=0
+        )
+        score = entry.get_ucb_score("goal", total_accesses=10)
+        assert score == float('inf')
+
+    @pytest.mark.unit
+    def test_get_ucb_score_explored(self):
+        """Explored entry returns value + exploration bonus."""
+        import math
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, GoalValue, MemoryLevel
+        entry = MemoryEntry(
+            key="k1", content="test", level=MemoryLevel.EPISODIC,
+            context={}, ucb_visits=5,
+            goal_values={"goal": GoalValue(value=0.7)}
+        )
+        score = entry.get_ucb_score("goal", total_accesses=100, c=2.0)
+        expected_bonus = 2.0 * math.sqrt(math.log(101) / 5)
+        expected = 0.7 + expected_bonus
+        assert abs(score - expected) < 0.001
+
+    @pytest.mark.unit
+    def test_post_init_content_hash(self):
+        """__post_init__ computes content_hash from content."""
+        import hashlib
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, MemoryLevel
+        entry = MemoryEntry(key="k", content="hello world", level=MemoryLevel.SEMANTIC, context={})
+        expected_hash = hashlib.md5("hello world".encode()).hexdigest()
+        assert entry.content_hash == expected_hash
+
+    @pytest.mark.unit
+    def test_post_init_token_count(self):
+        """__post_init__ estimates token_count from content length."""
+        from Jotty.core.foundation.types.memory_types import MemoryEntry, MemoryLevel
+        content = "a" * 100
+        entry = MemoryEntry(key="k", content=content, level=MemoryLevel.SEMANTIC, context={})
+        assert entry.token_count == 100 // 4 + 1
+
+
+# =============================================================================
+# AdaptiveThreshold Tests
+# =============================================================================
+
+class TestAdaptiveThreshold:
+    """Tests for AdaptiveThreshold Welford's running statistics."""
+
+    @pytest.mark.unit
+    def test_initial_state(self):
+        """AdaptiveThreshold starts with initial mean and std."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.5, initial_std=0.2)
+        assert t.mean == 0.5
+        assert t.std == 0.2
+        assert t.count == 0
+
+    @pytest.mark.unit
+    def test_update_mean(self):
+        """update() adjusts mean with Welford's algorithm."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.0, initial_std=0.0)
+        t.update(1.0)
+        assert t.mean == 1.0
+        t.update(3.0)
+        assert t.mean == 2.0  # (1+3)/2
+
+    @pytest.mark.unit
+    def test_update_std(self):
+        """update() computes running standard deviation."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.0, initial_std=0.0)
+        for v in [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]:
+            t.update(v)
+        # Expected std for this dataset ≈ 2.0
+        assert abs(t.mean - 5.0) < 0.01
+        assert t.std > 0
+
+    @pytest.mark.unit
+    def test_is_high(self):
+        """is_high returns True for values above mean + sigma * std."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.5, initial_std=0.1)
+        # High threshold = 0.5 + 1.5 * max(0.1, 0.1) = 0.65
+        assert t.is_high(0.8) is True
+        assert t.is_high(0.5) is False
+
+    @pytest.mark.unit
+    def test_is_low(self):
+        """is_low returns True for values below mean - sigma * std."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.5, initial_std=0.1)
+        # Low threshold = 0.5 - 1.5 * 0.1 = 0.35
+        assert t.is_low(0.2) is True
+        assert t.is_low(0.5) is False
+
+    @pytest.mark.unit
+    def test_is_extreme(self):
+        """is_extreme returns True for values far from mean in either direction."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.5, initial_std=0.1)
+        # Extreme threshold = 2.0 * max(0.1, 0.1) = 0.2
+        assert t.is_extreme(0.8) is True  # |0.8 - 0.5| = 0.3 > 0.2
+        assert t.is_extreme(0.2) is True  # |0.2 - 0.5| = 0.3 > 0.2
+        assert t.is_extreme(0.5) is False
+
+    @pytest.mark.unit
+    def test_std_floor(self):
+        """Std uses floor of 0.1 for is_high/is_low/is_extreme."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveThreshold
+        t = AdaptiveThreshold(initial_mean=0.5, initial_std=0.01)
+        # std=0.01 but floor is 0.1, so threshold = 0.5 + 1.5 * 0.1 = 0.65
+        assert t.is_high(0.7) is True
+        assert t.is_high(0.6) is False
+
+
+# =============================================================================
+# EpsilonGreedy Tests
+# =============================================================================
+
+class TestEpsilonGreedy:
+    """Tests for EpsilonGreedy deterministic exploration."""
+
+    @pytest.mark.unit
+    def test_epsilon_decays(self):
+        """Epsilon decays after each should_explore call."""
+        from Jotty.core.foundation.robust_parsing import EpsilonGreedy
+        eg = EpsilonGreedy(initial_epsilon=0.3, decay=0.9, min_epsilon=0.05)
+        initial = eg.epsilon
+        eg.should_explore()
+        assert eg.epsilon < initial
+        assert eg.epsilon == max(0.05, initial * 0.9)
+
+    @pytest.mark.unit
+    def test_epsilon_min_floor(self):
+        """Epsilon never goes below min_epsilon."""
+        from Jotty.core.foundation.robust_parsing import EpsilonGreedy
+        eg = EpsilonGreedy(initial_epsilon=0.1, decay=0.5, min_epsilon=0.05)
+        for _ in range(100):
+            eg.should_explore()
+        assert eg.epsilon >= 0.05
+
+    @pytest.mark.unit
+    def test_decide_exploit(self):
+        """decide() returns exploit_decision when not exploring."""
+        from Jotty.core.foundation.robust_parsing import EpsilonGreedy
+        eg = EpsilonGreedy(initial_epsilon=0.0, min_epsilon=0.0)
+        # With epsilon=0, should never explore
+        result = eg.decide(exploit_decision=False)
+        assert result is False
+
+    @pytest.mark.unit
+    def test_decision_count_increments(self):
+        """Decision count increments on each should_explore call."""
+        from Jotty.core.foundation.robust_parsing import EpsilonGreedy
+        eg = EpsilonGreedy()
+        assert eg.decision_count == 0
+        eg.should_explore()
+        assert eg.decision_count == 1
+        eg.should_explore()
+        assert eg.decision_count == 2
+
+
+# =============================================================================
+# AdaptiveWeight Tests
+# =============================================================================
+
+class TestAdaptiveWeight:
+    """Tests for AdaptiveWeight momentum-based gradient descent."""
+
+    @pytest.mark.unit
+    def test_initial_values(self):
+        """AdaptiveWeight initializes with given values."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeight
+        w = AdaptiveWeight(name="test", value=0.5, learning_rate=0.02)
+        assert w.name == "test"
+        assert w.value == 0.5
+        assert w.learning_rate == 0.02
+        assert w.updates == 0
+
+    @pytest.mark.unit
+    def test_update_increases_with_positive_gradient(self):
+        """Positive gradient increases weight value."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeight
+        w = AdaptiveWeight(name="test", value=0.5)
+        w.update(gradient=1.0, reward=1.0)
+        assert w.value > 0.5
+        assert w.updates == 1
+
+    @pytest.mark.unit
+    def test_update_decreases_with_negative_gradient(self):
+        """Negative gradient decreases weight value."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeight
+        w = AdaptiveWeight(name="test", value=0.5)
+        w.update(gradient=-1.0, reward=1.0)
+        assert w.value < 0.5
+
+    @pytest.mark.unit
+    def test_update_clamps_value(self):
+        """Weight value stays within [0.05, 0.95]."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeight
+        w = AdaptiveWeight(name="test", value=0.94, learning_rate=0.5)
+        w.update(gradient=1.0, reward=1.0)
+        assert w.value <= 0.95
+
+        w2 = AdaptiveWeight(name="test", value=0.06, learning_rate=0.5)
+        w2.update(gradient=-1.0, reward=1.0)
+        assert w2.value >= 0.05
+
+    @pytest.mark.unit
+    def test_to_dict_roundtrip(self):
+        """to_dict/from_dict preserves all fields."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeight
+        w = AdaptiveWeight(name="test", value=0.6, momentum=0.1, learning_rate=0.02, updates=5)
+        d = w.to_dict()
+        w2 = AdaptiveWeight.from_dict(d)
+        assert w2.name == w.name
+        assert w2.value == w.value
+        assert w2.momentum == w.momentum
+        assert w2.updates == w.updates
+
+
+# =============================================================================
+# AdaptiveWeightGroup Tests
+# =============================================================================
+
+class TestAdaptiveWeightGroup:
+    """Tests for AdaptiveWeightGroup normalized weight management."""
+
+    @pytest.mark.unit
+    def test_initialization_normalizes(self):
+        """Weights are normalized to sum to 1.0 on init."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 1.0, "b": 1.0, "c": 1.0})
+        all_w = group.get_all()
+        assert abs(sum(all_w.values()) - 1.0) < 0.001
+        assert abs(all_w["a"] - 1/3) < 0.001
+
+    @pytest.mark.unit
+    def test_get_returns_weight(self):
+        """get() returns current weight value."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 0.5, "b": 0.5})
+        assert group.get("a") == 0.5  # Already normalized
+
+    @pytest.mark.unit
+    def test_get_unknown_returns_zero(self):
+        """get() returns 0.0 for unknown weight name."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 1.0})
+        assert group.get("nonexistent") == 0.0
+
+    @pytest.mark.unit
+    def test_update_from_feedback_renormalizes(self):
+        """update_from_feedback maintains sum=1.0 after update."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 0.5, "b": 0.3, "c": 0.2})
+        group.update_from_feedback("a", gradient=0.5, reward=0.8)
+        all_w = group.get_all()
+        assert abs(sum(all_w.values()) - 1.0) < 0.001
+
+    @pytest.mark.unit
+    def test_update_from_feedback_unknown_noop(self):
+        """update_from_feedback does nothing for unknown weight."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 0.5, "b": 0.5})
+        before = group.get_all()
+        group.update_from_feedback("nonexistent", gradient=1.0)
+        after = group.get_all()
+        assert before == after
+
+    @pytest.mark.unit
+    def test_to_dict_roundtrip(self):
+        """to_dict/from_dict preserves group state."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 0.6, "b": 0.3, "c": 0.1})
+        group.update_from_feedback("a", gradient=0.3, reward=0.5)
+        d = group.to_dict()
+        group2 = AdaptiveWeightGroup.from_dict(d)
+        for name in ["a", "b", "c"]:
+            assert abs(group.get(name) - group2.get(name)) < 0.001
+
+    @pytest.mark.unit
+    def test_repr(self):
+        """__repr__ shows weight names and values."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"alpha": 0.5, "beta": 0.5})
+        rep = repr(group)
+        assert "AdaptiveWeightGroup" in rep
+        assert "alpha=" in rep
+        assert "beta=" in rep
+
+    @pytest.mark.unit
+    def test_zero_weights_handled(self):
+        """All-zero weights don't cause division by zero."""
+        from Jotty.core.foundation.robust_parsing import AdaptiveWeightGroup
+        group = AdaptiveWeightGroup({"a": 0.0, "b": 0.0})
+        all_w = group.get_all()
+        assert abs(sum(all_w.values()) - 1.0) < 0.001
+
+
+# ===========================================================================
+# Model Limits Catalog Tests
+# ===========================================================================
+
+@pytest.mark.unit
+class TestModelLimitsCatalog:
+    """Tests for core/foundation/model_limits_catalog.py."""
+
+    def test_get_model_limits_exact_match(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("gpt-4o")
+        assert limits["max_prompt"] == 128000
+        assert limits["max_output"] == 16384
+
+    def test_get_model_limits_anthropic(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("claude-3-opus-20240229")
+        assert limits["max_prompt"] == 200000
+        assert limits["max_output"] == 4096
+
+    def test_get_model_limits_case_insensitive(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("GPT-4O")
+        assert limits["max_prompt"] == 128000
+
+    def test_get_model_limits_partial_match(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("gpt-4o-something")
+        assert "max_prompt" in limits
+        assert "max_output" in limits
+
+    def test_get_model_limits_path_extraction(self):
+        """Model path like 'provider/model' extracts base model via partial or path match."""
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("openai/gpt-4o")
+        # Will match via partial match (gpt-4 is a substring), so gets a result
+        assert "max_prompt" in limits
+        assert "max_output" in limits
+
+    def test_get_model_limits_unknown_fallback(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("totally-unknown-model-xyz")
+        assert limits["max_prompt"] == 30000
+        assert limits["max_output"] == 4096
+
+    def test_get_model_limits_conservative_mode(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("gpt-4o", conservative=True)
+        assert limits["max_prompt"] == 30000
+        assert limits["max_output"] == 16384
+
+    def test_get_model_limits_conservative_small_model(self):
+        """Conservative mode doesn't affect models under 30k."""
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("gpt-4", conservative=True)
+        assert limits["max_prompt"] == 8192
+
+    def test_list_supported_models(self):
+        from Jotty.core.foundation.model_limits_catalog import list_supported_models
+        models = list_supported_models()
+        assert isinstance(models, dict)
+        assert len(models) > 50
+        assert "gpt-4o" in models
+
+    def test_list_supported_models_returns_copy(self):
+        from Jotty.core.foundation.model_limits_catalog import list_supported_models
+        m1 = list_supported_models()
+        m2 = list_supported_models()
+        assert m1 is not m2
+
+    def test_get_models_by_provider_openai(self):
+        from Jotty.core.foundation.model_limits_catalog import get_models_by_provider
+        openai = get_models_by_provider("openai")
+        assert len(openai) > 10
+        assert all("gpt" in k or "o1" in k or "text-embedding" in k or "chatgpt" in k or "ft:" in k
+                    for k in openai.keys())
+
+    def test_get_models_by_provider_anthropic(self):
+        from Jotty.core.foundation.model_limits_catalog import get_models_by_provider
+        anthropic = get_models_by_provider("anthropic")
+        assert len(anthropic) > 5
+        assert all("claude" in k for k in anthropic.keys())
+
+    def test_get_models_by_provider_unknown(self):
+        from Jotty.core.foundation.model_limits_catalog import get_models_by_provider
+        result = get_models_by_provider("nonexistent")
+        assert result == {}
+
+    def test_get_max_context_models(self):
+        from Jotty.core.foundation.model_limits_catalog import get_max_context_models
+        big = get_max_context_models(min_tokens=200000)
+        assert len(big) > 0
+        # Should be sorted descending by max_prompt
+        values = [v["max_prompt"] for v in big.values()]
+        assert values == sorted(values, reverse=True)
+
+    def test_get_max_context_models_all_large(self):
+        from Jotty.core.foundation.model_limits_catalog import get_max_context_models
+        result = get_max_context_models(min_tokens=1000000)
+        assert all(v["max_prompt"] >= 1000000 for v in result.values())
+
+    def test_get_model_info_alias(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_info, get_model_limits
+        assert get_model_info("gpt-4o") == get_model_limits("gpt-4o")
+
+    def test_gemini_large_context(self):
+        from Jotty.core.foundation.model_limits_catalog import get_model_limits
+        limits = get_model_limits("gemini-1.5-pro")
+        assert limits["max_prompt"] == 2000000
+
+    def test_meta_llama_models(self):
+        from Jotty.core.foundation.model_limits_catalog import get_models_by_provider
+        meta = get_models_by_provider("meta")
+        assert len(meta) > 5
+
+
+# ===========================================================================
+# Robust Parsing Functions Tests
+# ===========================================================================
+
+@pytest.mark.unit
+class TestParseFloatRobust:
+    """Tests for parse_float_robust."""
+
+    def test_none_returns_default(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust(None) is None
+        assert parse_float_robust(None, 0.5) == 0.5
+
+    def test_int_input(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust(7) == 7.0
+
+    def test_float_input(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust(0.7) == 0.7
+
+    def test_string_number(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust("0.7") == 0.7
+
+    def test_string_percentage(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert abs(parse_float_robust("70%") - 0.7) < 0.001
+
+    def test_string_percentage_word(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        result = parse_float_robust("70 percent")
+        assert result == 0.7
+
+    def test_string_approximate(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        result = parse_float_robust("approximately 0.7")
+        assert result == 0.7
+
+    def test_empty_string_returns_default(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust("") is None
+        assert parse_float_robust("  ") is None
+
+    def test_dict_with_value_key(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust({"value": 0.8}) == 0.8
+
+    def test_dict_with_score_key(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust({"score": 0.9}) == 0.9
+
+    def test_dict_with_confidence_key(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust({"confidence": 0.6}) == 0.6
+
+    def test_dict_without_known_key(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust({"unknown": 1.0}) is None
+
+    def test_json_string(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        assert parse_float_robust('{"value": 0.5}') == 0.5
+
+    def test_string_with_embedded_number(self):
+        from Jotty.core.foundation.robust_parsing import parse_float_robust
+        result = parse_float_robust("score is 0.85 out of 1.0")
+        assert result == 0.85
+
+
+@pytest.mark.unit
+class TestParseBoolRobust:
+    """Tests for parse_bool_robust."""
+
+    def test_none_returns_default(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust(None) is False
+        assert parse_bool_robust(None, True) is True
+
+    def test_bool_passthrough(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust(True) is True
+        assert parse_bool_robust(False) is False
+
+    def test_int_input(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust(1) is True
+        assert parse_bool_robust(0) is False
+        assert parse_bool_robust(-1) is False
+
+    def test_float_input(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust(0.5) is True
+        assert parse_bool_robust(0.0) is False
+
+    def test_positive_strings(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        for s in ["true", "yes", "1", "proceed", "valid", "accept", "approved", "pass"]:
+            assert parse_bool_robust(s) is True, f"Failed for '{s}'"
+
+    def test_negative_strings(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        for s in ["false", "no", "0", "block", "invalid", "reject", "denied", "fail"]:
+            assert parse_bool_robust(s) is False, f"Failed for '{s}'"
+
+    def test_case_insensitive(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust("TRUE") is True
+        assert parse_bool_robust("FALSE") is False
+
+    def test_unknown_string_returns_default(self):
+        from Jotty.core.foundation.robust_parsing import parse_bool_robust
+        assert parse_bool_robust("maybe") is False
+        assert parse_bool_robust("maybe", True) is True
+
+
+@pytest.mark.unit
+class TestParseJsonRobust:
+    """Tests for parse_json_robust."""
+
+    def test_none_returns_none(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        assert parse_json_robust(None) is None
+
+    def test_dict_passthrough(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        d = {"key": "val"}
+        assert parse_json_robust(d) is d
+
+    def test_json_string(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        result = parse_json_robust('{"name": "test"}')
+        assert result == {"name": "test"}
+
+    def test_markdown_code_block(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        text = 'Here is the result:\n```json\n{"status": "ok"}\n```'
+        result = parse_json_robust(text)
+        assert result == {"status": "ok"}
+
+    def test_markdown_code_block_no_lang(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        text = 'Result:\n```\n{"status": "ok"}\n```'
+        result = parse_json_robust(text)
+        assert result == {"status": "ok"}
+
+    def test_embedded_json_in_text(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        text = 'The response is {"key": "value"} and some trailing text.'
+        result = parse_json_robust(text)
+        assert result == {"key": "value"}
+
+    def test_invalid_json_returns_none(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        assert parse_json_robust("not json at all") is None
+
+    def test_nested_braces(self):
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        text = 'result: {"a": {"b": 1}}'
+        result = parse_json_robust(text)
+        assert result == {"a": {"b": 1}}
+
+    def test_non_dict_json(self):
+        """Non-dict JSON like list returns the parsed value."""
+        from Jotty.core.foundation.robust_parsing import parse_json_robust
+        result = parse_json_robust("[1, 2, 3]")
+        assert result == [1, 2, 3]
+
+
+@pytest.mark.unit
+class TestSafeHash:
+    """Tests for safe_hash."""
+
+    def test_none_returns_zero(self):
+        from Jotty.core.foundation.robust_parsing import safe_hash
+        assert safe_hash(None) == 0
+
+    def test_string_input(self):
+        from Jotty.core.foundation.robust_parsing import safe_hash
+        h = safe_hash("hello")
+        assert isinstance(h, int)
+        assert h != 0
+
+    def test_int_input(self):
+        from Jotty.core.foundation.robust_parsing import safe_hash
+        h = safe_hash(42)
+        assert isinstance(h, int)
+
+    def test_max_length_truncation(self):
+        from Jotty.core.foundation.robust_parsing import safe_hash
+        long_text = "a" * 10000
+        h1 = safe_hash(long_text)
+        h2 = safe_hash(long_text, max_length=10)
+        assert h1 != h2
+
+    def test_deterministic(self):
+        from Jotty.core.foundation.robust_parsing import safe_hash
+        assert safe_hash("test") == safe_hash("test")
+
+
+@pytest.mark.unit
+class TestContentSimilarity:
+    """Tests for content_similarity."""
+
+    def test_identical_content(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        assert content_similarity("hello world", "hello world") is True
+
+    def test_similar_content(self):
+        """Similar content passes with appropriate threshold."""
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        # Jaccard of 3/5 = 0.6, so use threshold=0.5
+        assert content_similarity(
+            "the quick brown fox",
+            "the quick brown dog",
+            threshold=0.5,
+        ) is True
+
+    def test_different_content(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        assert content_similarity("hello world", "goodbye universe") is False
+
+    def test_none_inputs(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        assert content_similarity(None, None) is True
+        assert content_similarity(None, "test") is False
+        assert content_similarity("test", None) is False
+
+    def test_empty_strings(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        assert content_similarity("", "") is True
+
+    def test_case_insensitive(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        assert content_similarity("Hello World", "hello world") is True
+
+    def test_custom_threshold(self):
+        from Jotty.core.foundation.robust_parsing import content_similarity
+        # Low threshold = more similar
+        assert content_similarity("a b c", "a b d", threshold=0.3) is True
+        # High threshold = stricter
+        assert content_similarity("a b c", "a d e", threshold=0.9) is False
+
+
+# ===========================================================================
+# Token Counter Tests
+# ===========================================================================
+
+@pytest.mark.unit
+class TestTokenCounter:
+    """Tests for core/foundation/token_counter.py."""
+
+    def test_init_default_model(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter()
+        assert counter.model == "gpt-4.1"
+
+    def test_init_custom_model(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="claude-3-opus")
+        assert counter.model == "claude-3-opus"
+
+    def test_map_model_name_direct(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        assert counter.tokencost_model == "gpt-4o"
+
+    def test_map_model_name_claude(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="claude-3-opus")
+        assert counter.tokencost_model == "claude-3-opus-20240229"
+
+    def test_map_model_name_unknown(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="totally-unknown")
+        assert counter.tokencost_model == "totally-unknown"
+
+    def test_count_tokens_empty(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        assert counter.count_tokens("") == 0
+
+    def test_count_tokens_nonempty(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        count = counter.count_tokens("Hello, world!")
+        assert count > 0
+
+    def test_count_messages_empty(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        assert counter.count_messages([]) == 0
+
+    def test_count_messages_nonempty(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        msgs = [{"role": "user", "content": "Hello"}, {"role": "assistant", "content": "Hi"}]
+        count = counter.count_messages(msgs)
+        assert count > 0
+
+    def test_get_model_limits(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        limits = counter.get_model_limits()
+        assert "max_prompt" in limits
+        assert "max_output" in limits
+        assert limits["max_prompt"] == 128000
+
+    def test_will_overflow_false(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        assert counter.will_overflow(1000, 1000) is False
+
+    def test_will_overflow_true(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        # gpt-4o has 128000 max_prompt, 90% = 115200
+        assert counter.will_overflow(115000, 1000) is True
+
+    def test_will_overflow_custom_margin(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        # At 50% margin, 128000*0.5=64000
+        assert counter.will_overflow(60000, 5000) is False
+        assert counter.will_overflow(60000, 5000, safety_margin=0.5) is True
+
+    def test_get_remaining_tokens(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        remaining = counter.get_remaining_tokens(1000)
+        # 128000 * 0.9 - 1000 = 114200
+        assert remaining == 114200
+
+    def test_get_remaining_tokens_over_limit(self):
+        from Jotty.core.foundation.token_counter import TokenCounter
+        counter = TokenCounter(model="gpt-4o")
+        remaining = counter.get_remaining_tokens(200000)
+        assert remaining == 0
+
+
+@pytest.mark.unit
+class TestTokenCounterConvenience:
+    """Tests for token_counter module-level convenience functions."""
+
+    def setup_method(self):
+        """Reset global counter between tests."""
+        import Jotty.core.foundation.token_counter as tc
+        tc._default_counter = None
+
+    def test_get_token_counter_creates_instance(self):
+        from Jotty.core.foundation.token_counter import get_token_counter
+        counter = get_token_counter()
+        assert counter is not None
+
+    def test_get_token_counter_caches(self):
+        from Jotty.core.foundation.token_counter import get_token_counter
+        c1 = get_token_counter("gpt-4o")
+        c2 = get_token_counter()
+        assert c1 is c2
+
+    def test_get_token_counter_new_model(self):
+        from Jotty.core.foundation.token_counter import get_token_counter
+        c1 = get_token_counter("gpt-4o")
+        c2 = get_token_counter("claude-3-opus")
+        assert c1 is not c2
+        assert c2.model == "claude-3-opus"
+
+    def test_count_tokens_function(self):
+        from Jotty.core.foundation.token_counter import count_tokens
+        count = count_tokens("hello world")
+        assert count > 0
+
+    def test_count_tokens_accurate_function(self):
+        from Jotty.core.foundation.token_counter import count_tokens_accurate
+        count = count_tokens_accurate("hello world")
+        assert count > 0
+
+    def test_count_tokens_accurate_empty(self):
+        from Jotty.core.foundation.token_counter import count_tokens_accurate
+        assert count_tokens_accurate("") == 0
+
+    def test_estimate_tokens(self):
+        from Jotty.core.foundation.token_counter import estimate_tokens
+        text = "a" * 100
+        assert estimate_tokens(text) == 26  # 100 // 4 + 1
+
+    def test_estimate_tokens_empty(self):
+        from Jotty.core.foundation.token_counter import estimate_tokens
+        assert estimate_tokens("") == 1  # 0 // 4 + 1
+
+    def test_get_model_limits_function(self):
+        from Jotty.core.foundation.token_counter import get_model_limits
+        limits = get_model_limits("gpt-4o")
+        assert limits["max_prompt"] == 128000
+
+    def test_will_overflow_function(self):
+        from Jotty.core.foundation.token_counter import will_overflow
+        assert will_overflow(1000, 1000, "gpt-4o") is False
+
+    def test_count_message_tokens_safe(self):
+        from Jotty.core.foundation.token_counter import count_message_tokens_safe
+        msgs = [{"role": "user", "content": "hello"}]
+        count = count_message_tokens_safe(msgs, "gpt-4o")
+        assert count > 0
+
+    def test_get_tokenizer_info(self):
+        from Jotty.core.foundation.token_counter import get_tokenizer_info
+        info = get_tokenizer_info("gpt-4o")
+        assert "available" in info
+        assert "model" in info
+        assert info["model"] == "gpt-4o"

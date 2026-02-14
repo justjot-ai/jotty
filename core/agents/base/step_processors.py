@@ -184,6 +184,21 @@ class ParameterResolver:
                     if formatted and len(formatted) > 50:
                         return formatted
 
+            # URL param: extract first URL from nested search results
+            if param_name in ('url', 'link', 'webpage_url', 'page_url'):
+                # Direct match
+                if 'url' in obj:
+                    return str(obj['url'])
+                if 'link' in obj:
+                    return str(obj['link'])
+                # Nested in results list (search results)
+                if 'results' in obj and isinstance(obj['results'], list):
+                    for item in obj['results']:
+                        if isinstance(item, dict):
+                            url = item.get('link') or item.get('url') or item.get('href', '')
+                            if url and url.startswith('http'):
+                                return str(url)
+
             # Common field mappings
             for fk in ('path', 'output', 'content', 'stdout', 'result', 'response'):
                 if param_name.lower() in (fk, f'file_{fk}', f'{fk}_path') and fk in obj:

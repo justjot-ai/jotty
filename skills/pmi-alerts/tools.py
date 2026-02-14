@@ -56,7 +56,7 @@ async def list_alerts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading alerts...")
 
-    result = client.get("/v2/alerts", params={
+    result = client.get("/api/alerts", params={
         "symbol": params.get("symbol", ""),
         "alert_type": params.get("alert_type", ""),
     })
@@ -95,7 +95,7 @@ async def create_alert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     value = params["value"]
     status.emit("Creating", f"Creating alert: {symbol} {condition} {value}...")
 
-    result = client.post("/v2/alerts", data={
+    result = client.post("/api/alerts", data={
         "symbol": symbol,
         "condition": condition,
         "value": value,
@@ -135,7 +135,7 @@ async def delete_alert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     alert_id = params["alert_id"]
     status.emit("Deleting", f"Deleting alert {alert_id}...")
 
-    result = client.delete(f"/v2/alerts/{alert_id}")
+    result = client.delete(f"/api/alerts/{alert_id}")
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to delete alert {alert_id}"))
 
@@ -161,7 +161,7 @@ async def get_alert_stats_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Getting alert statistics...")
 
-    result = client.get("/v2/alerts/stats")
+    result = client.get("/api/alerts/stats")
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get alert stats"))
 

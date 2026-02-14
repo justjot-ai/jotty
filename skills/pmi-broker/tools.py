@@ -54,7 +54,7 @@ async def list_brokers_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading broker connections...")
 
-    result = client.get("/v2/brokers")
+    result = client.get("/api/brokers")
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to list brokers"))
 
@@ -83,7 +83,7 @@ async def get_broker_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     broker = params["broker"]
     status.emit("Checking", f"Checking {broker} status...")
 
-    result = client.get(f"/v2/brokers/{broker}/status")
+    result = client.get(f"/api/brokers/{broker}/status")
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to get status for {broker}"))
 
@@ -118,7 +118,7 @@ async def refresh_tokens_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     broker = params["broker"]
     status.emit("Refreshing", f"Refreshing {broker} tokens...")
 
-    result = client.post(f"/v2/brokers/{broker}/refresh")
+    result = client.post(f"/api/brokers/{broker}/refresh")
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to refresh tokens for {broker}"))
 

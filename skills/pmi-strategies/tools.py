@@ -55,7 +55,7 @@ async def list_strategies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading strategies...")
 
-    result = client.get("/api/strategies", params={
+    result = client.get("/v2/strategies", params={
         "active_only": params.get("active_only", False),
     })
     if not result.get("success"):
@@ -89,7 +89,7 @@ async def run_strategy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     dry_run = params.get("dry_run", True)
     status.emit("Running", f"Executing strategy {strategy_id} (dry_run={dry_run})...")
 
-    result = client.post(f"/api/strategies/{strategy_id}/run", data={
+    result = client.post(f"/v2/strategies/{strategy_id}/run", data={
         "dry_run": dry_run,
         "symbols": params.get("symbols"),
     })
@@ -126,7 +126,7 @@ async def get_strategy_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     strategy_id = params["strategy_id"]
     status.emit("Fetching", f"Getting status for strategy {strategy_id}...")
 
-    result = client.get(f"/api/strategies/{strategy_id}/status")
+    result = client.get(f"/v2/strategies/status/{strategy_id}")
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to get strategy status"))
 
@@ -162,7 +162,7 @@ async def generate_signals_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Generating", "Generating trading signals...")
 
-    result = client.post("/api/strategies/generate-signals", data={
+    result = client.post("/v2/strategies/generate-signals", data={
         "symbols": params.get("symbols"),
         "strategy_id": params.get("strategy_id"),
     })

@@ -151,6 +151,17 @@ def write_file_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 pass  # Not valid JSON after stripping — keep original
 
     status.emit("Writing", f"📝 Writing {file_path.name}...")
+    # Guard: if path exists as a directory (created by mistake by create_directory_tool),
+    # remove the empty directory so we can write the file
+    if file_path.is_dir():
+        try:
+            file_path.rmdir()  # Only removes empty dirs — safe
+        except OSError:
+            return tool_error(
+                f'Path is a non-empty directory: {params["path"]}. '
+                f'Cannot overwrite a directory with a file.',
+                path=str(file_path)
+            )
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(content, encoding=encoding)
 
@@ -226,6 +237,17 @@ def create_directory_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     parents = params.get('parents', True)
     dir_path = Path(params['path'])
+
+    # Guard: if path looks like a file (has extension), create parent dir instead.
+    # LLM planners often pass the full file path to create_directory when they
+    # mean "ensure the parent directory exists for this file".
+    _file_exts = {'.md', '.txt', '.py', '.js', '.ts', '.json', '.csv', '.html',
+                  '.xml', '.yaml', '.yml', '.pdf', '.epub', '.docx', '.xlsx',
+                  '.toml', '.ini', '.cfg', '.sh', '.bash', '.sql', '.css',
+                  '.java', '.c', '.cpp', '.go', '.rs', '.rb', '.php', '.swift'}
+    if dir_path.suffix.lower() in _file_exts:
+        # This is a file path, not a directory — create the parent instead
+        dir_path = dir_path.parent
 
     if dir_path.exists():
         if dir_path.is_dir():

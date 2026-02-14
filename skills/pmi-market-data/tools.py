@@ -98,7 +98,7 @@ async def get_quotes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", f"Getting quotes for {len(symbols)} symbols...")
 
-    result = client.post("/v2/get_quotes", data={"symbols": symbols})
+    result = client.post("/v2/get_ltps", data={"symbols": symbols})
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get quotes"))
 
@@ -131,7 +131,7 @@ async def search_symbols_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     query = params["query"]
     status.emit("Searching", f"Searching symbols: {query}...")
 
-    result = client.get("/v2/search_symbols", params={
+    result = client.get("/api/search/symbols", params={
         "q": query,
         "exchange": params.get("exchange", ""),
         "limit": params.get("limit", 10),
@@ -140,7 +140,7 @@ async def search_symbols_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(result.get("error", "Symbol search failed"))
 
     return tool_response(
-        symbols=result.get("symbols", result.get("data", [])),
+        symbols=result.get("results", result.get("symbols", result.get("data", []))),
         query=query,
     )
 
@@ -201,7 +201,7 @@ async def get_chart_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     days = params.get("days", 30)
     status.emit("Fetching", f"Getting chart data for {symbol} ({interval})...")
 
-    result = client.get("/v2/get_chart_data", params={
+    result = client.get("/api/chart/data", params={
         "symbol": symbol,
         "interval": interval,
         "days": days,
@@ -237,13 +237,15 @@ async def get_market_breadth_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Getting market breadth...")
 
-    result = client.get("/v2/get_market_breadth", params={
+    result = client.get("/api/analysis/market-breadth", params={
         "exchange": params.get("exchange", ""),
     })
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get market breadth"))
 
     return tool_response(
+        indices=result.get("indices"),
+        category=result.get("category"),
         advances=result.get("advances"),
         declines=result.get("declines"),
         unchanged=result.get("unchanged"),
@@ -272,7 +274,7 @@ async def get_sector_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     period = params.get("period", "1d")
     status.emit("Analyzing", f"Getting sector analysis ({period})...")
 
-    result = client.get("/v2/get_sector_analysis", params={"period": period})
+    result = client.get("/api/analysis/sectors", params={"period": period})
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get sector analysis"))
 

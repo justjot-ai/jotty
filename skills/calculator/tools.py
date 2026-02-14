@@ -38,6 +38,84 @@ LENGTH_TO_METERS = {
 WEIGHT_TO_KG = {'kg': 1, 'g': 0.001, 'lbs': 0.453592, 'oz': 0.0283495}
 
 
+def _extract_math_expression(text: str) -> str:
+    """Extract a math expression from natural language.
+
+    LLM planners often pass descriptions like 'Calculate the percentage gain
+    if stock went from $500 to $850' instead of '(850-500)/500*100'.
+    This method extracts numbers and infers the operation.
+    """
+    import re
+
+    cleaned = text.strip()
+
+    # If it already looks like a math expression, return as-is
+    if re.match(r'^[\d\s+\-*/().,%e^]+$', cleaned):
+        return cleaned
+
+    # Strip dollar signs, commas from numbers
+    cleaned = re.sub(r'\$([0-9,.]+)', r'\1', cleaned)
+    cleaned = cleaned.replace(',', '')
+
+    # Try to find an embedded math expression (e.g. "(850-500)/500*100")
+    math_match = re.search(r'([\d.]+\s*[+\-*/^%]\s*[\d.]+(?:\s*[+\-*/^%]\s*[\d.]+)*)', cleaned)
+    if math_match:
+        expr = math_match.group(1).replace('^', '**')
+        return expr
+
+    # Extract all numbers from the text
+    numbers = [float(x) for x in re.findall(r'[\d]+\.?\d*', cleaned)]
+    lower = cleaned.lower()
+
+    if len(numbers) >= 2:
+        a, b = numbers[0], numbers[1]
+
+        # Percentage gain/change
+        if any(kw in lower for kw in ('percentage gain', 'percent gain', '% gain',
+                                       'percentage change', 'percent change',
+                                       'percentage increase', 'percent increase')):
+            return f'({b}-{a})/{a}*100'
+
+        # Percentage decrease
+        if any(kw in lower for kw in ('percentage decrease', 'percent decrease',
+                                       'percentage loss', 'percent loss')):
+            return f'({a}-{b})/{a}*100'
+
+        # Conversion / multiply
+        if any(kw in lower for kw in ('convert', 'at rate', 'at a rate', 'multiply',
+                                       'times', 'rate of')):
+            return f'{a}*{b}'
+
+        # P/E × EPS = price (or similar product relationships)
+        if any(kw in lower for kw in ('p/e', 'pe ratio', 'implied price',
+                                       'implied stock price')):
+            return f'{a}*{b}'
+
+        # Division
+        if any(kw in lower for kw in ('divide', 'ratio of', 'divided by')):
+            return f'{a}/{b}'
+
+        # Difference
+        if any(kw in lower for kw in ('difference', 'subtract', 'minus', 'less')):
+            return f'{a}-{b}'
+
+        # Sum
+        if any(kw in lower for kw in ('sum', 'add', 'plus', 'total', 'combined')):
+            return f'{a}+{b}'
+
+    if len(numbers) == 3:
+        a, b, c = numbers[0], numbers[1], numbers[2]
+        # Three numbers with percentage context: (b-a)/a * 100
+        if 'percent' in lower or '%' in lower:
+            return f'({b}-{a})/{a}*100'
+        # P/E, EPS, implied price: P/E * EPS
+        if 'p/e' in lower or 'pe ratio' in lower:
+            return f'{a}*{b}'
+
+    # If nothing matched, return original — let eval try and fail gracefully
+    return text
+
+
 @tool_wrapper(required_params=['expression'])
 def calculate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -47,6 +125,7 @@ def calculate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     - Basic arithmetic: +, -, *, /, **, %
     - Functions: sqrt, sin, cos, tan, log, log10, exp, abs, round, floor, ceil
     - Constants: pi, e
+    - Natural language: 'percentage gain from 500 to 850' → (850-500)/500*100
 
     Args:
         params: Dictionary containing:
@@ -57,22 +136,27 @@ def calculate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     status.set_callback(params.pop('_status_callback', None))
 
-    expression = params['expression']
+    raw_expression = params['expression']
+    expression = _extract_math_expression(raw_expression)
 
     try:
         result = eval(expression, SAFE_MATH)
 
         if isinstance(result, (int, float)):
-            return tool_response(result=float(result), expression=expression)
+            response = tool_response(result=float(result), expression=expression)
+            if expression != raw_expression:
+                response['original_input'] = raw_expression
+                response['parsed_expression'] = expression
+            return response
         else:
             return tool_error(f'Expression did not evaluate to a number: {result}')
 
     except ZeroDivisionError:
         return tool_error('Division by zero')
     except NameError as e:
-        return tool_error(f'Unknown function or variable: {str(e)}')
+        return tool_error(f'Unknown function or variable: {str(e)}. Expression: {expression}')
     except SyntaxError as e:
-        return tool_error(f'Invalid expression syntax: {str(e)}')
+        return tool_error(f'Invalid expression syntax: {str(e)}. Expression: {expression}')
 
 
 @tool_wrapper(required_params=['value', 'from_unit', 'to_unit'])
