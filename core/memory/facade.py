@@ -14,11 +14,15 @@ Usage:
     results = memory.retrieve("How to handle X?", top_k=5)
 """
 
+import threading
 from typing import Optional, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
     from Jotty.core.foundation.configs import MemoryConfig
+
+_lock = threading.Lock()
+_singletons: Dict[str, object] = {}
 
 
 def _resolve_memory_config(config) -> 'SwarmConfig':
@@ -44,24 +48,38 @@ def _resolve_memory_config(config) -> 'SwarmConfig':
 
 def get_memory_system():
     """
-    Return a MemorySystem instance (recommended entry point).
+    Return a MemorySystem singleton (recommended entry point).
+
+    Thread-safe with double-checked locking.
 
     Returns:
         MemorySystem instance with auto-detected backend.
     """
-    from Jotty.core.memory.memory_system import MemorySystem
-    return MemorySystem()
+    key = 'memory_system'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.memory.memory_system import MemorySystem
+                _singletons[key] = MemorySystem()
+    return _singletons[key]
 
 
 def get_brain_manager():
     """
-    Return a BrainInspiredMemoryManager for hierarchical memory management.
+    Return a BrainInspiredMemoryManager singleton for hierarchical memory management.
+
+    Thread-safe with double-checked locking.
 
     Returns:
         BrainInspiredMemoryManager instance.
     """
-    from Jotty.core.memory.memory_orchestrator import BrainInspiredMemoryManager
-    return BrainInspiredMemoryManager()
+    key = 'brain_manager'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.memory.memory_orchestrator import BrainInspiredMemoryManager
+                _singletons[key] = BrainInspiredMemoryManager()
+    return _singletons[key]
 
 
 def get_consolidator(config=None):

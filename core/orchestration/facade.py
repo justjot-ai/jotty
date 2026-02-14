@@ -14,15 +14,22 @@ Usage:
     components = list_components()
 """
 
+import threading
 from typing import Optional, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
 
+_lock = threading.Lock()
+_singletons: Dict[str, object] = {}
+
 
 def get_swarm_intelligence(config=None):
     """
-    Return a SwarmIntelligence instance for multi-agent coordination.
+    Return a SwarmIntelligence singleton for multi-agent coordination.
+
+    Thread-safe with double-checked locking. Parameterized configs
+    bypass the cache and return fresh instances.
 
     Args:
         config: Optional SwarmConfig.
@@ -30,8 +37,16 @@ def get_swarm_intelligence(config=None):
     Returns:
         SwarmIntelligence instance.
     """
-    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
-    return SwarmIntelligence(config=config)
+    if config is not None:
+        from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+        return SwarmIntelligence(config=config)
+    key = 'swarm_intelligence'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+                _singletons[key] = SwarmIntelligence(config=config)
+    return _singletons[key]
 
 
 def get_paradigm_executor(manager=None):
@@ -68,13 +83,20 @@ def get_training_daemon(manager=None):
 
 def get_ensemble_manager():
     """
-    Return an EnsembleManager instance for prompt ensembling.
+    Return an EnsembleManager singleton for prompt ensembling.
+
+    Thread-safe with double-checked locking.
 
     Returns:
         EnsembleManager instance (stateless).
     """
-    from Jotty.core.orchestration.ensemble_manager import EnsembleManager
-    return EnsembleManager()
+    key = 'ensemble_manager'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.orchestration.ensemble_manager import EnsembleManager
+                _singletons[key] = EnsembleManager()
+    return _singletons[key]
 
 
 def get_provider_manager(config: Optional['SwarmConfig'] = None):
@@ -110,13 +132,20 @@ def get_model_tier_router(default_provider: str = None):
 
 def get_swarm_router():
     """
-    Return a SwarmRouter instance for centralized task routing.
+    Return a SwarmRouter singleton for centralized task routing.
+
+    Thread-safe with double-checked locking.
 
     Returns:
         SwarmRouter instance.
     """
-    from Jotty.core.orchestration.swarm_router import SwarmRouter
-    return SwarmRouter()
+    key = 'swarm_router'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.orchestration.swarm_router import SwarmRouter
+                _singletons[key] = SwarmRouter()
+    return _singletons[key]
 
 
 def list_components() -> Dict[str, str]:

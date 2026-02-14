@@ -12,7 +12,11 @@ Usage:
     tracker.check_budget("my-scope")
 """
 
+import threading
 from typing import Optional, Dict
+
+_lock = threading.Lock()
+_singletons: Dict[str, object] = {}
 
 
 def get_budget_tracker(name: str = "default"):
@@ -56,7 +60,9 @@ def get_llm_cache():
 
 def get_tokenizer(encoding_name: Optional[str] = None):
     """
-    Return a SmartTokenizer instance for model-aware token counting.
+    Return a SmartTokenizer singleton for model-aware token counting.
+
+    Thread-safe with double-checked locking.
 
     Args:
         encoding_name: Optional encoding name for token counting.
@@ -64,8 +70,13 @@ def get_tokenizer(encoding_name: Optional[str] = None):
     Returns:
         SmartTokenizer instance.
     """
-    from Jotty.core.utils.tokenizer import SmartTokenizer
-    return SmartTokenizer(encoding_name=encoding_name)
+    key = f'tokenizer_{encoding_name}'
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.utils.tokenizer import SmartTokenizer
+                _singletons[key] = SmartTokenizer(encoding_name=encoding_name)
+    return _singletons[key]
 
 
 def list_components() -> Dict[str, str]:

@@ -174,6 +174,7 @@ class BudgetTracker:
     """
 
     _instances: Dict[str, 'BudgetTracker'] = {}
+    _instances_lock = threading.Lock()
 
     def __init__(
         self,
@@ -215,9 +216,11 @@ class BudgetTracker:
 
     @classmethod
     def get_instance(cls, name: str = "default", **kwargs) -> 'BudgetTracker':
-        """Get a singleton instance by name."""
+        """Get a singleton instance by name (thread-safe, double-checked locking)."""
         if name not in cls._instances:
-            cls._instances[name] = cls(**kwargs)
+            with cls._instances_lock:
+                if name not in cls._instances:
+                    cls._instances[name] = cls(**kwargs)
         return cls._instances[name]
 
     @classmethod

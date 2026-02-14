@@ -121,6 +121,7 @@ class LLMCallCache:
     """
 
     _instances: Dict[str, 'LLMCallCache'] = {}
+    _instances_lock = threading.Lock()
 
     def __init__(
         self,
@@ -164,7 +165,7 @@ class LLMCallCache:
     @classmethod
     def get_instance(cls, name: str = "default", **kwargs) -> 'LLMCallCache':
         """
-        Get a singleton cache instance by name.
+        Get a singleton cache instance by name (thread-safe, double-checked locking).
 
         Args:
             name: Instance name for multiple cache contexts
@@ -174,7 +175,9 @@ class LLMCallCache:
             LLMCallCache instance
         """
         if name not in cls._instances:
-            cls._instances[name] = cls(**kwargs)
+            with cls._instances_lock:
+                if name not in cls._instances:
+                    cls._instances[name] = cls(**kwargs)
         return cls._instances[name]
 
     @classmethod
