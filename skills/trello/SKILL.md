@@ -1,3 +1,8 @@
+---
+name: trello
+description: "Integrates with Trello API to manage boards, lists, and cards. Supports listing boards, viewing board details with lists, managing cards (create, update, move), and adding comments. Use when the user wants to trello board, trello card, create."
+---
+
 # Trello Skill
 
 ## Description

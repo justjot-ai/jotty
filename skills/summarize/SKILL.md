@@ -1,3 +1,8 @@
+---
+name: summarize
+description: "This skill provides comprehensive text summarization capabilities using Claude CLI. It can summarize plain text, fetch and summarize web pages, and extract content from various file formats including txt, md, pdf, and html. Use when the user wants to summary, tldr, condense."
+---
+
 # Summarize Skill
 
 Text summarization skill using Claude CLI for summarizing text, URLs, and files.

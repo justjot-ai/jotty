@@ -1,3 +1,8 @@
+---
+name: skill-discovery
+description: "Meta-skill for discovering and understanding available Jotty skills. Helps agents find the right tools for tasks."
+---
+
 # Skill Discovery
 
 ## Description

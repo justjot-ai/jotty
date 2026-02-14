@@ -1,3 +1,8 @@
+---
+name: pdf-tools
+description: "Comprehensive PDF toolkit for extracting, manipulating, and creating PDF files. Uses pdfplumber for extraction, pypdf for manipulation, and reportlab for creation. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # PDF Tools Skill
 
 ## Description

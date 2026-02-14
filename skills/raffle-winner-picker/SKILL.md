@@ -1,3 +1,8 @@
+---
+name: raffle-winner-picker
+description: "This skill randomly selects winners from lists, spreadsheets, or CSV files for giveaways and contests. Uses cryptographically secure random selection and provides transparent results."
+---
+
 # Raffle Winner Picker Skill
 
 Picks random winners from lists, spreadsheets, or files for giveaways, raffles, and contests with fair, unbiased selection.

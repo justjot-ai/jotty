@@ -1,3 +1,8 @@
+---
+name: v2v-to-pdf-telegram-remarkable
+description: "This composite skill combines: 1. V2V trending search 2. PDF generation 3. Telegram sending 4. reMarkable uploading. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # V2V to PDF + Telegram + reMarkable Skill
 
 Complete workflow: Search V2V trending topics → Generate PDF → Send to Telegram and reMarkable.

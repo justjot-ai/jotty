@@ -1,3 +1,8 @@
+---
+name: claude-cli-llm
+description: "This skill provides LLM capabilities including cutting-edge prompt ensembling techniques: - **Multi-Perspective Synthesis**: Virtual expert panel with different lenses - **Self-Consistency**: Multiple samples with synthesis - **Generative Self-Aggregation (GSA)**: Diverse drafts + context-enriched synthesis - **Debate**: Multi-round argumentation with final judgment Based on latest research (2025-2026) on prompt engineering and LLM ensembling. Use when the user wants to summarize, analyze text, generate content."
+---
+
 # Claude CLI LLM Skill
 
 Text generation, summarization, and **Prompt Ensembling** using DSPy LM.

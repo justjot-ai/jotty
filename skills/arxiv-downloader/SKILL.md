@@ -1,3 +1,8 @@
+---
+name: arxiv-downloader
+description: "Downloads and extracts content from arXiv papers. Supports 40+ conference/journal templates and can extract text from LaTeX source or compile to PDF. Use when the user wants to download paper, arxiv paper, research paper."
+---
+
 # ArXiv Downloader Skill
 
 ## Description

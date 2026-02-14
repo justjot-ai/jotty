@@ -1,3 +1,8 @@
+---
+name: notion-research-documentation
+description: "This skill enables comprehensive research workflows: search for information across Notion workspace, fetch and analyze relevant pages, synthesize findings, and create well-structured documentation with proper citations. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Notion Research Documentation Skill
 
 Searches across Notion workspace, synthesizes findings, and creates comprehensive research documentation.

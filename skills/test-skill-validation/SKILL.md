@@ -1,3 +1,8 @@
+---
+name: test-skill-validation
+description: "[Detailed description of what this skill does and when to use it]. Use when the user wants to run tests, test, testing."
+---
+
 # Test Skill Validation Skill
 
 Test skill for validation

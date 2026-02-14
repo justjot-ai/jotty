@@ -1,3 +1,8 @@
+---
+name: technical-analysis
+description: "Multi-timeframe technical analysis for NSE stocks — 30+ indicators, buy/sell signals, support/resistance."
+---
+
 # technical-analysis
 
 Multi-timeframe technical analysis for NSE stocks — 30+ indicators, buy/sell signals, support/resistance.

@@ -1,3 +1,8 @@
+---
+name: pmi-trading
+description: "Place market/limit/SL orders, smart orders with bracket logic, exit positions, cancel orders, and view order history across connected brokers. Use when the user wants to trade, trading, buy."
+---
+
 # PMI Trading
 
 Order placement and position management via PlanMyInvesting API.

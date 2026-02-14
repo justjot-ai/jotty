@@ -1,3 +1,8 @@
+---
+name: slack
+description: "This skill provides tools to send messages, read channels, upload files, and interact with Slack workspaces using the Slack Web API via requests. Use when the user wants to send to slack, slack message, post to slack."
+---
+
 # Slack Skill
 
 Interact with Slack channels and users using the Slack Web API.

@@ -1,3 +1,8 @@
+---
+name: pmi-watchlist
+description: "Create, manage, and monitor stock watchlists. Add/remove symbols and refresh live prices."
+---
+
 # PMI Watchlist
 
 Watchlist management via PlanMyInvesting API.

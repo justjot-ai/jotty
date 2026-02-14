@@ -1,3 +1,8 @@
+---
+name: hyperopt
+description: "Hyperparameter optimization using Optuna Bayesian search for ML models."
+---
+
 # Hyperopt Skill
 
 Hyperparameter optimization using Optuna Bayesian search for ML models.

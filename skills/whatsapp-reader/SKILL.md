@@ -1,3 +1,8 @@
+---
+name: whatsapp-reader
+description: "Reads messages from a WhatsApp chat or group using the existing WhatsApp Web session (same session as `/whatsapp login`). Supports listing chats and fetching messages by chat name or ID. Intended for summarizing learnings from a channel/group (e.g. #my-ai-ml). Use when the user wants to whatsapp message, read whatsapp, whatsapp chat."
+---
+
 # WhatsApp Reader Skill
 
 Read messages from WhatsApp Web chats (personal WhatsApp via Baileys). Use with Jotty swarm to read channel/group messages and summarize learnings.

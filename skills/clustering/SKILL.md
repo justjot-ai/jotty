@@ -1,3 +1,8 @@
+---
+name: clustering
+description: "**Description:** Unsupervised clustering algorithms and cluster analysis. Use when the user wants to cluster, group data."
+---
+
 # Clustering Skill
 
 **Description:** Unsupervised clustering algorithms and cluster analysis.

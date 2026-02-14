@@ -1,3 +1,8 @@
+---
+name: investing-commodities
+description: "Fetches latest commodities prices from investing.com."
+---
+
 # Investing.com Commodities Price Fetcher
 
 Fetches latest commodities prices from investing.com.

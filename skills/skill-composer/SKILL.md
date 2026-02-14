@@ -1,3 +1,8 @@
+---
+name: skill-composer
+description: "Compose multiple skills into sequential, parallel, or conditional workflows."
+---
+
 # Skill Composer
 
 Compose multiple skills into sequential, parallel, or conditional workflows.

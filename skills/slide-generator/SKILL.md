@@ -1,3 +1,8 @@
+---
+name: slide-generator
+description: "Generates actual PowerPoint (.pptx) slides using python-pptx. Creates professional presentations with proper slide layouts, not just markdown documents. Use when the user wants to create slides, presentation, slideshow."
+---
+
 # Slide Generator Skill
 
 ## Description

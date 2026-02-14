@@ -1,3 +1,8 @@
+---
+name: model-metrics
+description: "**Description:** Comprehensive model evaluation metrics for classification, regression, and ranking."
+---
+
 # Model Metrics Skill
 
 **Description:** Comprehensive model evaluation metrics for classification, regression, and ranking.

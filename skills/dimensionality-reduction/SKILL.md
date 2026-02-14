@@ -1,3 +1,8 @@
+---
+name: dimensionality-reduction
+description: "**Description:** Dimensionality reduction techniques for visualization and feature extraction."
+---
+
 # Dimensionality Reduction Skill
 
 **Description:** Dimensionality reduction techniques for visualization and feature extraction.

@@ -1,3 +1,8 @@
+---
+name: media-production-pipeline
+description: "This composite skill combines: 1. **Image Enhancement** (Source): image-enhancer 2. **Design Creation** (Processor): canvas-design 3. **GIF Creation** (Sink): slack-gif-creator."
+---
+
 # Media Production Pipeline Composite Skill
 
 Complete media production workflow: image enhancement → design creation → GIF generation.

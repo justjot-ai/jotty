@@ -1,3 +1,8 @@
+---
+name: weather-checker
+description: "This skill provides weather information including temperature, humidity, wind speed, and multi-day forecasts for any city or location worldwide. Use when the user wants to weather, forecast, temperature."
+---
+
 # Weather Checker
 
 Check current weather and forecast for any location using the wttr.in API.

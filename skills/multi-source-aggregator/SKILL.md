@@ -1,3 +1,8 @@
+---
+name: multi-source-aggregator
+description: "Template for aggregating data from multiple sources."
+---
+
 # Multi-Source Aggregator
 
 Template for aggregating data from multiple sources.

@@ -1,3 +1,8 @@
+---
+name: ensemble-builder
+description: "**Description:** Advanced model ensembling - stacking, blending, voting, and weighted combinations. Use when the user wants to ensemble, combine models, model ensemble."
+---
+
 # Ensemble Builder Skill
 
 **Description:** Advanced model ensembling - stacking, blending, voting, and weighted combinations.

@@ -1,3 +1,8 @@
+---
+name: web-scraper
+description: "Advanced web scraping capabilities using Scrapy. Supports single page scraping or spider mode (following links), with proxy support for geo-blocked content. Use when the user wants to scrape, crawl, extract data."
+---
+
 # Web Scraper Skill
 
 ## Description

@@ -1,3 +1,8 @@
+---
+name: feature-engineer
+description: "**Description:** Automatic feature engineering for tabular data. Use when the user wants to feature engineering, extract features, feature selection."
+---
+
 # Feature Engineer Skill
 
 **Description:** Automatic feature engineering for tabular data.

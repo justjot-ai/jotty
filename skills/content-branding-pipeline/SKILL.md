@@ -1,3 +1,8 @@
+---
+name: content-branding-pipeline
+description: "This composite skill combines: 1. **Domain Brainstorming** (Source): domain-name-brainstormer 2. **Artifact Creation** (Processor): artifacts-builder 3. **Brand Guidelines** (Processor): brand-guidelines 4. **Theme Application** (Sink): theme-factory. Use when the user wants to brand, branding, brand guidelines."
+---
+
 # Content & Branding Pipeline Composite Skill
 
 Complete content creation workflow: domain brainstorming → artifact creation → brand → theme.

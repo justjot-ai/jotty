@@ -1,3 +1,8 @@
+---
+name: presenton
+description: "Integrates with [Presenton](https://github.com/presenton/presenton), an open-source AI presentation generator that runs locally via Docker. Generate professional presentations from text prompts, with support for multiple LLM providers and export to PPTX/PDF. Use when the user wants to generate."
+---
+
 # Presenton AI Presentation Generator Skill
 
 ## Description

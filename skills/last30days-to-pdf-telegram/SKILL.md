@@ -1,3 +1,8 @@
+---
+name: last30days-to-pdf-telegram
+description: "This composite skill combines: 1. **last30days-claude-cli**: Research topics from last 30 days 2. **document-converter**: Convert markdown to PDF 3. **telegram-sender**: Send PDF to Telegram. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # Last30Days → PDF → Telegram Composite Skill
 
 Research topics using last30days skill, generate PDF, and send to Telegram.

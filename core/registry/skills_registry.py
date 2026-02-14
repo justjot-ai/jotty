@@ -1064,6 +1064,21 @@ class SkillsRegistry:
 
         try:
             content = skill_md.read_text()
+
+            # Parse YAML frontmatter (Anthropic skill format)
+            if content.startswith("---"):
+                end_idx = content.find("---", 3)
+                if end_idx > 0:
+                    frontmatter = content[3:end_idx].strip()
+                    for fm_line in frontmatter.split("\n"):
+                        if fm_line.startswith("description:"):
+                            fm_desc = fm_line[len("description:"):].strip().strip('"').strip("'")
+                            if fm_desc:
+                                metadata['description'] = fm_desc
+                                metadata['_desc_from_frontmatter'] = True
+                    # Strip frontmatter from content for section parsing
+                    content = content[end_idx + 3:].lstrip("\n")
+
             lines = content.split("\n")
 
             title = ""
@@ -1075,12 +1090,13 @@ class SkillsRegistry:
                 # Get title from first heading
                 if line.startswith("# ") and not title:
                     title = line[2:].strip()
-                    # Find description: first non-empty line after title that isn't a heading
-                    for j in range(i + 1, min(i + 5, len(lines))):
-                        next_line = lines[j].strip()
-                        if next_line and not next_line.startswith("#") and not next_line.startswith("---"):
-                            metadata['description'] = next_line
-                            break
+                    # Find description from body only if frontmatter didn't provide one
+                    if not metadata['description']:
+                        for j in range(i + 1, min(i + 5, len(lines))):
+                            next_line = lines[j].strip()
+                            if next_line and not next_line.startswith("#") and not next_line.startswith("---"):
+                                metadata['description'] = next_line
+                                break
                     continue
 
                 # Detect section headers
@@ -1115,11 +1131,14 @@ class SkillsRegistry:
                     continue
 
                 # Parse section content
-                if current_section == 'description' and stripped:
-                    if metadata['description']:
-                        metadata['description'] += " " + stripped
-                    else:
-                        metadata['description'] = stripped
+                # Note: if frontmatter already set description (with "Use when..." info),
+                # the body ## Description section is skipped to preserve the richer version
+                if current_section == 'description' and stripped and not stripped.startswith("- "):
+                    if not metadata.get('_desc_from_frontmatter'):
+                        if metadata['description']:
+                            metadata['description'] += " " + stripped
+                        else:
+                            metadata['description'] = stripped
 
                 elif current_section == 'type' and stripped:
                     type_val = stripped.lower().strip()

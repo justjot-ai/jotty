@@ -1,3 +1,8 @@
+---
+name: search-summarize-pdf-telegram
+description: "This composite skill combines: 1. **web-search**: Search the web for any topic 2. **claude-cli-llm**: Summarize search results using Claude 3. **document-converter**: Convert summary to PDF 4. **telegram-sender**: Send PDF to Telegram. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # Search → Summarize → PDF → Telegram Composite Skill
 
 Search any topic, summarize with Claude CLI LLM, generate PDF, and send to Telegram.

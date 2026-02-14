@@ -1,3 +1,8 @@
+---
+name: justjot-converters
+description: "Utility converters for transforming content between formats and distributing documents to devices. Wraps JustJot.ai's specialized converters for arXiv papers, YouTube videos, HTML pages, and device sync utilities (Kindle, reMarkable). Use when the user wants to convert, transform, export."
+---
+
 # JustJot Converters Skill
 
 ## Description

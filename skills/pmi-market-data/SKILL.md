@@ -1,3 +1,8 @@
+---
+name: pmi-market-data
+description: "Provides live quotes, multi-symbol quotes, symbol search, market indices, OHLCV chart data, market breadth, and sector analysis via the PlanMyInvesting REST API. Use when the user wants to analyze data, data analysis, dataset."
+---
+
 # PMI Market Data
 
 Real-time and historical market data from PlanMyInvesting.

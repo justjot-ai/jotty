@@ -1,3 +1,8 @@
+---
+name: pmi-portfolio
+description: "View portfolio holdings and P&L summary across all connected brokers."
+---
+
 # PMI Portfolio
 
 Portfolio management via PlanMyInvesting API.

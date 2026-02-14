@@ -1,3 +1,8 @@
+---
+name: spotify
+description: "This skill provides tools to search for music, control playback, and manage playlists using the Spotify Web API via requests. Use when the user wants to music, playlist."
+---
+
 # Spotify Skill
 
 Control Spotify playback and manage playlists using the Spotify Web API.

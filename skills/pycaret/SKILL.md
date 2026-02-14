@@ -1,3 +1,8 @@
+---
+name: pycaret
+description: "**Description:** Full AutoML pipeline using PyCaret - compare models, tune, ensemble, deploy."
+---
+
 # PyCaret AutoML Skill
 
 **Description:** Full AutoML pipeline using PyCaret - compare models, tune, ensemble, deploy.

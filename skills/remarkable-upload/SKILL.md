@@ -1,3 +1,8 @@
+---
+name: remarkable-upload
+description: "Uploads PDFs to reMarkable cloud for syncing to device. Supports registration, upload, and status checking. Use when the user wants to send to remarkable, remarkable tablet, upload."
+---
+
 # reMarkable Upload Skill
 
 ## Description

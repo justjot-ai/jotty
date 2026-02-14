@@ -1,3 +1,8 @@
+---
+name: stock-research-deep
+description: "Performs **deep research** using multi-stage context intelligence methodology. Unlike shallow research (single-pass), this skill implements: 1. **Initial Broad Research** - Parallel searches across all aspects 2. **Gap Analysis** - AI identifies what's missing 3. **Targeted Follow-up** - Fills knowledge gaps 4. **Cross-Referencing** - Verifies information 5. **Progressive Synthesis** - Builds context layer by layer 6. **Quality Validation** - Ensures comprehensive coverage 7. **Iterative Refinement** - Refines weak sections. Use when the user wants to search for, look up, find information."
+---
+
 # Deep Stock Research Skill
 
 ## Description

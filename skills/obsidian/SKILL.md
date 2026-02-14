@@ -1,3 +1,8 @@
+---
+name: obsidian
+description: "Provides file-based tools for interacting with Obsidian markdown vaults. Supports listing, reading, creating, updating, and searching notes, as well as finding backlinks between notes. Use when the user wants to save to obsidian, obsidian note, obsidian vault."
+---
+
 # Obsidian Skill
 
 ## Description

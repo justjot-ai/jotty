@@ -1,3 +1,8 @@
+---
+name: claude-api-llm
+description: "This skill uses the Anthropic Messages API with `tool_use` for structured outputs. Unlike claude-cli-llm (DSPy/text-based), responses are clean JSON with zero preamble, zero code fences, and zero template collisions. Preferred when ANTHROPIC_API_KEY is available. Key advantages: - **generate_code_tool**: Forced tool_use returns clean code — no fences, no preamble - **agentic_generate_tool**: Multi-step tool loop (generate + write + execute) in one call - **structured_output_tool**: JSON schema-constrained output via tool_use - **generate_text_tool**: Drop-in replacement for claude-cli-llm's text generation."
+---
+
 # Claude API LLM Skill
 
 Structured code generation and text output using Anthropic API `tool_use`.

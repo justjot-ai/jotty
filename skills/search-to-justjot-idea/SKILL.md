@@ -1,3 +1,8 @@
+---
+name: search-to-justjot-idea
+description: "Multi-agent skill that searches for information on any topic, summarizes it using Claude CLI LLM, and creates a structured idea on JustJot.ai using MCP client (direct MongoDB access). Use when the user wants to search for, look up, find information."
+---
+
 # Search to JustJot Idea Skill
 
 ## Description

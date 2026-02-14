@@ -1,3 +1,8 @@
+---
+name: content-pipeline
+description: "Content pipeline toolkit that orchestrates document processing flows: Source -> Processors -> Sinks. Wraps JustJot.ai's ContentPipeline for integration with Jotty's skill system. Supports converting content from various sources (markdown, arxiv, html, pdf, youtube) through processors (diagram rendering, latex handling, image downloading) to multiple output formats (pdf, epub, markdown, docx, html, remarkable)."
+---
+
 # Content Pipeline Skill
 
 ## Description

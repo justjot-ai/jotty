@@ -1,3 +1,8 @@
+---
+name: pmi-alerts
+description: "Create, manage, and monitor stock price alerts with configurable conditions and notification channels."
+---
+
 # PMI Alerts
 
 Price and event alert management via PlanMyInvesting API.

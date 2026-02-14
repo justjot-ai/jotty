@@ -1,3 +1,8 @@
+---
+name: pmi-strategies
+description: "List, execute, and monitor trading strategies. Generate trading signals from active strategies."
+---
+
 # PMI Strategies
 
 Trading strategy management via PlanMyInvesting API.

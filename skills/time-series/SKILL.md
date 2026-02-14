@@ -1,3 +1,8 @@
+---
+name: time-series
+description: "**Description:** Time series analysis and forecasting tools. Use when the user wants to convert time, timezone, time zone."
+---
+
 # Time Series Skill
 
 **Description:** Time series analysis and forecasting tools.

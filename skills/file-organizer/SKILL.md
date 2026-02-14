@@ -1,3 +1,8 @@
+---
+name: file-organizer
+description: "This skill acts as your personal organization assistant, helping you maintain a clean, logical file structure across your computer without the mental overhead of constant manual organization. Use when the user wants to file, read file, write file."
+---
+
 # File Organizer Skill
 
 Intelligently organizes files and folders by understanding context, finding duplicates, and suggesting better organizational structures.

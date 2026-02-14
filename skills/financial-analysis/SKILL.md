@@ -1,3 +1,8 @@
+---
+name: financial-analysis
+description: "AI-driven financial analysis tools that combine real market data from PlanMyInvesting with LLM intelligence for sentiment analysis, earnings analysis, and multi-stock comparisons. Use when the user wants to stock, financial, analyze."
+---
+
 # Financial Analysis
 
 LLM-powered financial analysis using PlanMyInvesting data.

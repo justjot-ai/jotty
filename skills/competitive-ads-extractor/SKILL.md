@@ -1,3 +1,8 @@
+---
+name: competitive-ads-extractor
+description: "This skill helps you understand your competitors' advertising strategies by extracting ads from ad libraries (Facebook, Google, etc.) and analyzing messaging, creative approaches, and targeting strategies. Use when the user wants to analyze."
+---
+
 # Competitive Ads Extractor Skill
 
 Extracts and analyzes competitors' ads from ad libraries to understand messaging and creative approaches that resonate.

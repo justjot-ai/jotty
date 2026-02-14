@@ -1,3 +1,8 @@
+---
+name: product-launch-pipeline
+description: "This composite skill combines: 1. **Domain Brainstorming** (Source): domain-name-brainstormer 2. **Lead Research** (Processor): lead-research-assistant 3. **Competitor Analysis** (Processor): competitive-ads-extractor 4. **Content Creation** (Sink): content-research-writer."
+---
+
 # Product Launch Pipeline Composite Skill
 
 Complete product launch workflow: domain brainstorming → lead research → competitor analysis → content creation.

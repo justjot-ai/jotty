@@ -1,3 +1,8 @@
+---
+name: latex-generator
+description: "Generates professional LaTeX documents with proper mathematical notation, styled in the StatQuest format. Use when the user wants to latex, tex document, mathematical notation."
+---
+
 # LaTeX Document Generator - StatQuest Style
 
 Generates professional LaTeX documents with proper mathematical notation, styled in the StatQuest format.

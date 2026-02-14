@@ -1,3 +1,8 @@
+---
+name: notion-knowledge-capture
+description: "This skill captures insights, decisions, and knowledge from chat context, formats them appropriately, and saves to Notion wikis or databases with proper organization and linking for easy discovery. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Notion Knowledge Capture Skill
 
 Transforms conversations and discussions into structured documentation pages in Notion.

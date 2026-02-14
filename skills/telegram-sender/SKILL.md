@@ -1,3 +1,8 @@
+---
+name: telegram-sender
+description: "This skill sends text messages and files (PDFs, images, etc.) to Telegram using the Telegram Bot API. Use when the user wants to send telegram, message on telegram, notify via telegram."
+---
+
 # Telegram Sender Skill
 
 Send messages and files to Telegram channels/chats.

@@ -1,3 +1,8 @@
+---
+name: pmi-broker
+description: "List connected brokers, check connection status, and refresh authentication tokens."
+---
+
 # PMI Broker
 
 Broker connection management via PlanMyInvesting API.

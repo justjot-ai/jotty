@@ -1,3 +1,8 @@
+---
+name: auto-sklearn
+description: "**Description:** AutoML using auto-sklearn with ensemble selection."
+---
+
 # Auto-sklearn Skill
 
 **Description:** AutoML using auto-sklearn with ensemble selection.

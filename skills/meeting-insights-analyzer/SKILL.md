@@ -1,3 +1,8 @@
+---
+name: meeting-insights-analyzer
+description: "This skill transforms your meeting transcripts into actionable insights about your communication patterns, helping you become a more effective communicator and leader. Identifies when you avoid conflict, use filler words, dominate conversations, or miss opportunities to listen. Use when the user wants to meeting notes, meeting summary, meeting insights."
+---
+
 # Meeting Insights Analyzer Skill
 
 Analyzes meeting transcripts and recordings to uncover behavioral patterns, communication insights, and actionable feedback.

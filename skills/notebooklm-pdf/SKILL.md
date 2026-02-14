@@ -1,3 +1,8 @@
+---
+name: notebooklm-pdf
+description: "This skill uploads markdown or text content to Google NotebookLM and generates a formatted PDF document. NotebookLM provides AI-powered document processing and can create well-formatted PDFs from uploaded content. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # NotebookLM PDF Generator
 
 Generate PDFs using Google's NotebookLM by uploading markdown or text content.

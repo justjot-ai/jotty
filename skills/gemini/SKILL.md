@@ -1,3 +1,8 @@
+---
+name: gemini
+description: "This skill provides LLM capabilities using Google's Gemini models for text generation, image understanding (vision), and multi-turn chat conversations. Supports multiple Gemini models including gemini-1.5-flash, gemini-1.5-pro, and gemini-2.0-flash."
+---
+
 # Google Gemini Skill
 
 Text generation, vision, and chat capabilities using Google Gemini API.

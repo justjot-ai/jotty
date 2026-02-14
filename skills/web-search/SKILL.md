@@ -1,3 +1,8 @@
+---
+name: web-search
+description: "Provides web search capabilities using Google (via Serper API) or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research. Use when the user wants to search, find, lookup."
+---
+
 # Web Search Skill
 
 Web search with Google (Serper API) or DuckDuckGo, plus content scraping.

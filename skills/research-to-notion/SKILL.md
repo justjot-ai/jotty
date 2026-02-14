@@ -1,3 +1,8 @@
+---
+name: research-to-notion
+description: "This composite skill combines: 1. **Research** (Source): lead-research-assistant, competitive-ads-extractor, or web-search 2. **Content Writing** (Processor): content-research-writer 3. **Notion Documentation** (Sink): notion-research-documentation. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Research → Content → Notion Composite Skill
 
 Complete research workflow that combines research, content writing, and Notion documentation.

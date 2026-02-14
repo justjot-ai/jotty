@@ -1,3 +1,8 @@
+---
+name: visual-inspector
+description: "Provides on-demand visual inspection capabilities using Vision Language Models (VLM). Analyzes screenshots, code files, PPTX slides, PDF pages, and any image to extract rich state information. Uses litellm for unified VLM access (Claude Sonnet, GPT-4V, etc.)."
+---
+
 # Visual Inspector Skill
 
 VLM-powered visual state extraction for screenshots, files, presentations, PDFs, and code.

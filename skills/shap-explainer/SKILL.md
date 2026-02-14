@@ -1,3 +1,8 @@
+---
+name: shap-explainer
+description: "**Description:** Model explainability and interpretation using SHAP values. Use when the user wants to explain model, feature importance, shap values."
+---
+
 # SHAP Explainer Skill
 
 **Description:** Model explainability and interpretation using SHAP values.

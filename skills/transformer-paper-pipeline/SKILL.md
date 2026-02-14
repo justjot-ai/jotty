@@ -1,3 +1,8 @@
+---
+name: transformer-paper-pipeline
+description: "Generates a research paper on Transformers using Claude CLI LLM, converts it to LaTeX PDF, and sends to Telegram. Use when the user wants to generate, send."
+---
+
 # Transformer Paper Pipeline
 
 Generates a research paper on Transformers using Claude CLI LLM, converts it to LaTeX PDF, and sends to Telegram.

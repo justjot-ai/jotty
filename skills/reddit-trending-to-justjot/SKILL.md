@@ -1,3 +1,8 @@
+---
+name: reddit-trending-to-justjot
+description: "This composite skill combines: 1. **web-search**: Search Reddit for trending topics 2. **text-utils**: Format results as markdown 3. **mcp-justjot**: Create JustJot idea with the content. Use when the user wants to create."
+---
+
 # Reddit Trending → Markdown → JustJot Idea Pipeline
 
 Search Reddit for trending topics, format as markdown, and create a JustJot idea.

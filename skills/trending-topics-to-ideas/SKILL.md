@@ -1,3 +1,8 @@
+---
+name: trending-topics-to-ideas
+description: "This composite skill: 1. **Source**: Get trending topics (from web search, V2V, or Reddit) 2. **For each topic** (parallel processing): - Gather more details via HTTP/web search - Synthesize information via Claude CLI LLM - Create JustJot idea with synthesized content as sections. Use when the user wants to create."
+---
+
 # Trending Topics → Ideas Composite Skill
 
 Process trending topics: gather details → synthesize → create ideas with sections.

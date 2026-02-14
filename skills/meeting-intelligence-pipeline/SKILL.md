@@ -1,3 +1,8 @@
+---
+name: meeting-intelligence-pipeline
+description: "This composite skill combines: 1. **Meeting Analysis** (Source): meeting-insights-analyzer 2. **Meeting Preparation** (Processor): notion-meeting-intelligence 3. **Internal Communications** (Sink): internal-comms. Use when the user wants to meeting notes, meeting summary, meeting insights."
+---
+
 # Meeting Intelligence Pipeline Composite Skill
 
 Complete meeting workflow: analyze insights → prepare materials → generate communications.

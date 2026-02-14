@@ -1,3 +1,8 @@
+---
+name: statistical-tests
+description: "**Description:** Statistical hypothesis testing and analysis. Use when the user wants to run tests, test, testing."
+---
+
 # Statistical Tests Skill
 
 **Description:** Statistical hypothesis testing and analysis.

@@ -1,3 +1,8 @@
+---
+name: stock-research-comprehensive
+description: "Performs comprehensive stock research covering fundamentals, technical analysis, and broker research reports. Generates a markdown report, converts to PDF, and sends to Telegram. Use when the user wants to search for, look up, find information."
+---
+
 # Comprehensive Stock Research Skill
 
 ## Description

@@ -1,3 +1,8 @@
+---
+name: image-generator
+description: "Generate images using open-source models like Stable Diffusion, Flux, or SDXL. No API key required. Use when the user wants to generate image, create image, draw."
+---
+
 # image-generator
 
 ## Description

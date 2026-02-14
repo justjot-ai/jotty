@@ -1,3 +1,8 @@
+---
+name: openai-whisper-api
+description: "Transcribe audio recordings and voice memos to text. Translate speech from any language to English. Use for meeting recordings, interviews, podcasts, lectures, and video audio extraction. Supports mp3, wav, m4a, mp4 formats. Use when the user wants to transcribe, audio, speech."
+---
+
 # OpenAI Whisper API Skill
 
 ## Description

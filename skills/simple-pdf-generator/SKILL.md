@@ -1,3 +1,8 @@
+---
+name: simple-pdf-generator
+description: "Template for converting text/markdown content to PDF. Use when the user wants to create pdf, generate pdf, convert to pdf."
+---
+
 # Simple PDF Generator
 
 Template for converting text/markdown content to PDF.

@@ -1,3 +1,8 @@
+---
+name: docx-tools
+description: "Word document toolkit using python-docx for reading, creating, and manipulating Word documents (.docx files)."
+---
+
 # DOCX Tools Skill
 
 ## Description

@@ -1,3 +1,8 @@
+---
+name: brand-guidelines
+description: "This skill applies Anthropic's brand identity (colors, typography) to documents, presentations, and other artifacts to maintain consistent brand styling. Use when the user wants to brand, branding."
+---
+
 # Brand Guidelines Skill
 
 Applies Anthropic's official brand colors and typography to artifacts for consistent brand styling.

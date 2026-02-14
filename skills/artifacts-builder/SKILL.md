@@ -1,3 +1,8 @@
+---
+name: artifacts-builder
+description: "This skill helps create complex HTML artifacts for Claude.ai using modern frontend technologies. Supports multi-component artifacts requiring state management, routing, or shadcn/ui components. Use when the user wants to create."
+---
+
 # Artifacts Builder Skill
 
 Creates elaborate HTML artifacts using React, TypeScript, Tailwind CSS, and shadcn/ui.

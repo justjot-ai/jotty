@@ -1,3 +1,8 @@
+---
+name: mcp-justjot
+description: "Create, manage, and organize ideas on JustJot.ai via REST API — CRUD for ideas, templates, sections, and tags. Use when the user wants to create."
+---
+
 # mcp-justjot
 
 Create, manage, and organize ideas on JustJot.ai via REST API — CRUD for ideas, templates, sections, and tags.

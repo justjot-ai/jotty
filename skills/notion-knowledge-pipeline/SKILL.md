@@ -1,3 +1,8 @@
+---
+name: notion-knowledge-pipeline
+description: "This composite skill combines: 1. **Knowledge Capture** (Source): notion-knowledge-capture 2. **Research Documentation** (Processor): notion-research-documentation 3. **Implementation Planning** (Sink): notion-spec-to-implementation. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Notion Knowledge Pipeline Composite Skill
 
 Complete knowledge management workflow: capture → research → implement.

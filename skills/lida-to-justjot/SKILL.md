@@ -1,3 +1,8 @@
+---
+name: lida-to-justjot
+description: "Multi-agent skill that transforms data and natural language questions into AI-generated visualizations saved as JustJot ideas. Uses LIDA for visualization generation and JustJot's registry-driven section system for maximum compatibility with all 47+ section types. Use when the user wants to generate."
+---
+
 # LIDA to JustJot Skill
 
 ## Description

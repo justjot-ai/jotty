@@ -1,3 +1,8 @@
+---
+name: notion-spec-to-implementation
+description: "This skill reads specifications from Notion pages and creates structured implementation plans with tasks, milestones, and progress tracking. Helps bridge the gap between product specs and development execution. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Notion Spec to Implementation Skill
 
 Transforms Notion specifications into implementation plans with tasks, milestones, and progress tracking.

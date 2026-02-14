@@ -1,3 +1,8 @@
+---
+name: calculator
+description: "Provides mathematical calculation capabilities including basic arithmetic, scientific calculations, and unit conversions. Use when the user wants to calculate, math, add."
+---
+
 # Calculator Skill
 
 ## Description

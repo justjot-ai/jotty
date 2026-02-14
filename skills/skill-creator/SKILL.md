@@ -1,3 +1,8 @@
+---
+name: skill-creator
+description: "This skill assists in creating new Jotty skills by generating SKILL.md templates, validating skill structure, and providing best practices for skill development. Use when the user wants to create."
+---
+
 # Skill Creator Skill
 
 Helps create new Jotty skills by generating templates, validating structure, and providing guidance.

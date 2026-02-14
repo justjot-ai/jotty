@@ -1,3 +1,8 @@
+---
+name: video-downloader
+description: "This skill downloads videos from YouTube and other platforms directly to your computer. Supports various formats, quality options, and batch downloads. Use when the user wants to download video, video, convert video."
+---
+
 # Video Downloader Skill
 
 Downloads videos from YouTube and other platforms for offline viewing, editing, or archival.

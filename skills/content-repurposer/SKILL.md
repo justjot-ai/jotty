@@ -1,3 +1,8 @@
+---
+name: content-repurposer
+description: "Repurposes long-form content into multiple platform-specific formats: Twitter threads, LinkedIn posts, blog excerpts, email newsletters, and more."
+---
+
 # Content Repurposer Skill
 
 ## Description

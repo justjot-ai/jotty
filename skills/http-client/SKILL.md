@@ -1,3 +1,8 @@
+---
+name: http-client
+description: "Provides advanced HTTP request capabilities: GET, POST, PUT, DELETE requests with headers, authentication, and response handling. Use when the user wants to make request, api call, http request."
+---
+
 # HTTP Client Skill
 
 ## Description

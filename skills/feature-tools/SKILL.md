@@ -1,3 +1,8 @@
+---
+name: feature-tools
+description: "**Description:** Automated deep feature synthesis using Featuretools library. Use when the user wants to feature engineering, extract features, feature selection."
+---
+
 # Feature Tools Skill
 
 **Description:** Automated deep feature synthesis using Featuretools library.

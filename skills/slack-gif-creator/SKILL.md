@@ -1,3 +1,8 @@
+---
+name: slack-gif-creator
+description: "This skill creates animated GIFs specifically optimized for Slack's requirements. Supports both message GIFs and emoji GIFs with different size constraints and optimization strategies. Use when the user wants to send to slack, slack message, post to slack."
+---
+
 # Slack GIF Creator Skill
 
 Creates animated GIFs optimized for Slack with size constraints and animation primitives.

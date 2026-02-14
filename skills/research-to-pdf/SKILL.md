@@ -1,3 +1,8 @@
+---
+name: research-to-pdf
+description: "Research any topic and generate a comprehensive PDF report with AI-synthesized analysis. Use when the user wants to research report, create report, pdf report."
+---
+
 # research-to-pdf
 
 Research any topic and generate a comprehensive PDF report with AI-synthesized analysis.

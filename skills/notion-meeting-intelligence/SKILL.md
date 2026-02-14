@@ -1,3 +1,8 @@
+---
+name: notion-meeting-intelligence
+description: "This skill helps prepare for meetings by gathering context from Notion, enriching with research, and creating both internal pre-reads and external-facing agendas saved to Notion. Use when the user wants to save to notion, notion page, create notion."
+---
+
 # Notion Meeting Intelligence Skill
 
 Prepares meeting materials by gathering context from Notion and creating comprehensive pre-reads and agendas.

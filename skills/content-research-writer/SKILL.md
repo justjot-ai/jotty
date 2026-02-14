@@ -1,3 +1,8 @@
+---
+name: content-research-writer
+description: "This skill acts as your writing partner, helping you research, outline, draft, and refine content while maintaining your unique voice and style. Provides collaborative outlining, research assistance, hook improvement, and section-by-section feedback. Use when the user wants to write article, research and write, create content."
+---
+
 # Content Research Writer Skill
 
 Assists in writing high-quality content by conducting research, adding citations, improving hooks, and providing real-time feedback.

@@ -1,3 +1,8 @@
+---
+name: gif-creator
+description: "GIF creation toolkit using Pillow. Create animated GIFs from images, text animations, loading spinners, and optimize GIFs for various platforms like Slack. Use when the user wants to create gif, make gif, animated."
+---
+
 # GIF Creator Skill
 
 ## Description

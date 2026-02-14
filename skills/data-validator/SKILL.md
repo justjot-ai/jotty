@@ -1,3 +1,8 @@
+---
+name: data-validator
+description: "**Description:** Data validation and quality checking for ML pipelines. Use when the user wants to analyze data, data analysis, dataset."
+---
+
 # Data Validator Skill
 
 **Description:** Data validation and quality checking for ML pipelines.

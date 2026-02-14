@@ -1,3 +1,8 @@
+---
+name: canvas-design
+description: "This skill creates visual art and design pieces by first establishing a design philosophy, then expressing it visually through form, space, color, and composition. Outputs original visual designs as PNG or PDF files. Use when the user wants to create."
+---
+
 # Canvas Design Skill
 
 Creates visual art and designs in PNG and PDF formats using design philosophy principles.

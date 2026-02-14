@@ -1,3 +1,8 @@
+---
+name: text-utils
+description: "Provides text manipulation, encoding/decoding, formatting, and text processing utilities. Use when the user wants to format text, count words, extract text."
+---
+
 # Text Utilities Skill
 
 ## Description
