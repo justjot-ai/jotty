@@ -1,7 +1,7 @@
 """TodoCreatorAgent — validates DAGs, assigns actors, manages todos."""
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 import dspy
@@ -14,7 +14,7 @@ from .base import AgentResult
 logger = logging.getLogger(__name__)
 
 from .dag_types import (
-    DAGAgentMixin, SwarmResources, Actor,
+    DAGAgentMixin, SwarmResources, Actor, ExecutableDAG,
     ActorAssignmentSignature,
     DAGValidationSignature, OptimizeDAGSignature,
 )

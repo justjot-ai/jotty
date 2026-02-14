@@ -373,6 +373,17 @@ class TDLambdaLearner:
 
         # DrZero HRPO-style grouped learning
         self.grouped_baseline = GroupedValueBaseline(config)
+
+        # =====================================================================
+        # PREDICTIVE MAINTENANCE: Tool Reliability Tracking
+        # =====================================================================
+        # Track success/failure rates for tools (APIs, skills, external services)
+        # Used to predict when a tool is degrading and route around it
+        # =====================================================================
+        self.tool_reliability: Dict[str, Dict[str, Any]] = {}  # tool_name -> stats
+        self.tool_failure_threshold = 0.75  # Alert if success rate < 75%
+        self.tool_degraded_threshold = 0.85  # Warning if success rate < 85%
+        self.min_tool_samples = 5  # Need 5+ samples before making judgements
     
     def start_episode(self, goal: str, task_type: str = "", domain: str = "") -> None:
         """
@@ -893,6 +904,221 @@ class TDLambdaLearner:
                 
                 current = memory.goal_values[related_goal].value
                 memory.goal_values[related_goal].value = max(0, min(1, current + transfer_delta))
+
+    # =========================================================================
+    # PREDICTIVE MAINTENANCE: Tool Reliability Tracking
+    # =========================================================================
+
+    def update_tool_reliability(
+        self,
+        tool_name: str,
+        success: bool,
+        latency_ms: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Track tool reliability for predictive maintenance.
+
+        PROBLEM: External tools (APIs, services) can degrade over time
+        - Search API starts returning 404s (20% failure rate)
+        - Database query times out frequently
+        - LLM provider has intermittent outages
+
+        SOLUTION: Track success/failure rates + latency for each tool
+        When reliability drops below threshold, alert and suggest alternatives
+
+        WHY THIS MATTERS:
+        - Proactive routing: Avoid failing tools before users notice
+        - Cost savings: Don't waste API calls on broken tools
+        - User experience: Graceful degradation instead of hard failures
+
+        EXAMPLE:
+        Tool: "web-search-api"
+        - Successes: 85, Failures: 15, Success rate: 85%
+        - Status: DEGRADED (below 85% threshold)
+        - Action: Route to alternative search tool
+
+        Args:
+            tool_name: Name of the tool/API/service
+            success: Whether the tool call succeeded
+            latency_ms: Optional latency in milliseconds
+
+        Returns:
+            Dict with 'status', 'success_rate', 'recommendations'
+        """
+        # Initialize tool stats if first time seeing this tool
+        if tool_name not in self.tool_reliability:
+            self.tool_reliability[tool_name] = {
+                'successes': 0,
+                'failures': 0,
+                'total': 0,
+                'latencies': [],  # Last 100 latencies
+                'first_seen': datetime.now().isoformat(),
+                'last_updated': datetime.now().isoformat()
+            }
+
+        stats = self.tool_reliability[tool_name]
+
+        # Update counts
+        stats['total'] += 1
+        if success:
+            stats['successes'] += 1
+        else:
+            stats['failures'] += 1
+
+        # Track latency (keep last 100 samples for moving average)
+        if latency_ms is not None:
+            stats['latencies'].append(latency_ms)
+            if len(stats['latencies']) > 100:
+                stats['latencies'].pop(0)  # Remove oldest
+
+        stats['last_updated'] = datetime.now().isoformat()
+
+        # Compute success rate
+        success_rate = stats['successes'] / stats['total'] if stats['total'] > 0 else 1.0
+
+        # Determine tool health status
+        status = self._assess_tool_health(tool_name, success_rate, stats)
+
+        return status
+
+    def _assess_tool_health(
+        self,
+        tool_name: str,
+        success_rate: float,
+        stats: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Assess tool health and generate recommendations.
+
+        HEALTH LEVELS:
+        - HEALTHY: Success rate >= 85% (no action needed)
+        - DEGRADED: 75% <= Success rate < 85% (warning, monitor closely)
+        - FAILING: Success rate < 75% (critical, route around immediately)
+
+        Returns status dict with recommendations.
+        """
+        total = stats['total']
+
+        # Need minimum samples before making judgements
+        if total < self.min_tool_samples:
+            return {
+                'tool': tool_name,
+                'status': 'LEARNING',
+                'success_rate': success_rate,
+                'total_calls': total,
+                'message': f'Collecting data ({total}/{self.min_tool_samples} samples)',
+                'recommendations': []
+            }
+
+        # Calculate average latency
+        avg_latency = None
+        if stats['latencies']:
+            avg_latency = sum(stats['latencies']) / len(stats['latencies'])
+
+        # Assess health
+        if success_rate >= self.tool_degraded_threshold:
+            status = 'HEALTHY'
+            message = f'Tool operating normally ({success_rate:.1%} success)'
+            recommendations = []
+
+        elif success_rate >= self.tool_failure_threshold:
+            status = 'DEGRADED'
+            message = (
+                f'Tool showing signs of degradation ({success_rate:.1%} success, '
+                f'below {self.tool_degraded_threshold:.0%} threshold)'
+            )
+            recommendations = [
+                'Monitor closely for further degradation',
+                'Consider alternative tools if available',
+                'Check tool provider status page'
+            ]
+            logger.warning(f" {message}")
+
+        else:
+            status = 'FAILING'
+            message = (
+                f'Tool is failing frequently ({success_rate:.1%} success, '
+                f'below {self.tool_failure_threshold:.0%} threshold)'
+            )
+            recommendations = [
+                '🚨 CRITICAL: Route to alternative tool immediately',
+                'Investigate root cause of failures',
+                'Alert on-call engineer if production-critical'
+            ]
+            logger.error(f"🚨 {message}")
+
+        return {
+            'tool': tool_name,
+            'status': status,
+            'success_rate': success_rate,
+            'total_calls': total,
+            'successes': stats['successes'],
+            'failures': stats['failures'],
+            'avg_latency_ms': avg_latency,
+            'message': message,
+            'recommendations': recommendations
+        }
+
+    def get_tool_health_report(self) -> Dict[str, Any]:
+        """
+        Generate comprehensive health report for all tools.
+
+        Returns:
+            Dict with 'healthy', 'degraded', 'failing' tool lists
+        """
+        healthy = []
+        degraded = []
+        failing = []
+
+        for tool_name, stats in self.tool_reliability.items():
+            if stats['total'] < self.min_tool_samples:
+                continue  # Skip tools still learning
+
+            success_rate = stats['successes'] / stats['total']
+            status = self._assess_tool_health(tool_name, success_rate, stats)
+
+            if status['status'] == 'HEALTHY':
+                healthy.append(status)
+            elif status['status'] == 'DEGRADED':
+                degraded.append(status)
+            elif status['status'] == 'FAILING':
+                failing.append(status)
+
+        return {
+            'timestamp': datetime.now().isoformat(),
+            'total_tools': len(self.tool_reliability),
+            'healthy': healthy,
+            'degraded': degraded,
+            'failing': failing,
+            'summary': {
+                'healthy_count': len(healthy),
+                'degraded_count': len(degraded),
+                'failing_count': len(failing)
+            }
+        }
+
+    def should_avoid_tool(self, tool_name: str) -> bool:
+        """
+        Check if a tool should be avoided due to poor reliability.
+
+        Use this in routing logic to skip failing tools.
+
+        Example:
+            if not td_learner.should_avoid_tool("web-search-api"):
+                result = call_web_search()
+
+        Returns:
+            True if tool is FAILING and should be avoided, False otherwise
+        """
+        if tool_name not in self.tool_reliability:
+            return False  # Unknown tool = no data = don't avoid
+
+        stats = self.tool_reliability[tool_name]
+        if stats['total'] < self.min_tool_samples:
+            return False  # Not enough data yet
+
+        success_rate = stats['successes'] / stats['total']
+        return success_rate < self.tool_failure_threshold
 
 
 # =============================================================================

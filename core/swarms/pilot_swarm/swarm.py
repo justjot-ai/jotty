@@ -270,6 +270,12 @@ class PilotSwarm(DomainSwarm):
             )
 
             new_subtasks_raw = replan.get('subtasks', []) if isinstance(replan, dict) else []
+
+            # Guard: if replanner returned nothing, don't waste a retry
+            if not new_subtasks_raw:
+                logger.warning("  Re-planner returned no subtasks — stopping retries")
+                break
+
             for st_raw in new_subtasks_raw:
                 if isinstance(st_raw, dict):
                     try:
@@ -811,10 +817,21 @@ class PilotSwarm(DomainSwarm):
             if st.id in all_results:
                 r = all_results[st.id]
                 if isinstance(r, dict):
-                    for key in ['synthesis', 'explanation', 'content', 'assessment']:
+                    # Check all meaningful result keys
+                    for key in ['synthesis', 'explanation', 'content', 'assessment',
+                                'key_findings', 'read_content', 'visual_analysis']:
                         if r.get(key):
-                            result_preview = f" — {str(r[key])[:300]}"
+                            val = r[key]
+                            if isinstance(val, list):
+                                val = '; '.join(str(v) for v in val[:5])
+                            result_preview = f" — {str(val)[:300]}"
                             break
+                    # Also check file operations for read_content
+                    if not result_preview:
+                        for op in r.get('file_operations', []):
+                            if isinstance(op, dict) and op.get('read_content'):
+                                result_preview = f" — read: {str(op['read_content'])[:300]}"
+                                break
             parts.append(f"  [{st.id}] {st.type.value} ({status}): {st.description[:80]}{result_preview}")
 
         parts.append("")

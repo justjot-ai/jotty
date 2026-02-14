@@ -585,7 +585,7 @@ class JottyGAIAAdapter:
                 logger.info(f"[Ensemble] {most_common[1]}/{len(attempts)} attempts agree on: {most_common[0][:50]}")
                 return most_common[0]
 
-            # Check for numerical consensus (same magnitude)
+            # Check for numerical consensus (same ORDER OF MAGNITUDE - log scale)
             numeric_answers = []
             for ans in answers:
                 num = self._extract_number(ans)
@@ -593,25 +593,38 @@ class JottyGAIAAdapter:
                     numeric_answers.append((ans, num))
 
             if len(numeric_answers) >= 2:
-                # Group by magnitude (within 10% tolerance)
+                # Group by order of magnitude (log-scale clustering)
+                # e.g., 65M and 66M cluster together (both ~10^7)
+                # but 65 and 65M do NOT (10^1 vs 10^7)
                 clusters = []
                 for ans, num in numeric_answers:
                     matched = False
                     for cluster in clusters:
                         cluster_num = cluster[0][1]
-                        if abs(num - cluster_num) / max(abs(num), abs(cluster_num), 1) < 0.1:
-                            cluster.append((ans, num))
-                            matched = True
-                            break
+                        # Use log-distance: same order of magnitude if within 0.5 log units
+                        # This allows 10M-100M to cluster, but not 1M-100M
+                        try:
+                            if num > 0 and cluster_num > 0:
+                                log_diff = abs(math.log10(num) - math.log10(cluster_num))
+                                if log_diff < 0.5:  # Within half an order of magnitude
+                                    cluster.append((ans, num))
+                                    matched = True
+                                    break
+                        except (ValueError, OverflowError):
+                            pass
                     if not matched:
                         clusters.append([(ans, num)])
 
-                # Pick largest cluster
+                # Pick largest cluster (most attempts agree on this magnitude)
                 if clusters:
                     largest_cluster = max(clusters, key=len)
                     if len(largest_cluster) >= 2:
-                        consensus_ans = largest_cluster[0][0]
-                        logger.info(f"[Ensemble] Numerical consensus: {len(largest_cluster)}/{len(attempts)} agree on magnitude ~{largest_cluster[0][1]:.2e}")
+                        # Pick the answer from largest cluster that's closest to median
+                        cluster_values = [num for _, num in largest_cluster]
+                        median = sorted(cluster_values)[len(cluster_values) // 2]
+                        best_in_cluster = min(largest_cluster, key=lambda x: abs(x[1] - median))
+                        consensus_ans = best_in_cluster[0]
+                        logger.info(f"[Ensemble] Numerical consensus: {len(largest_cluster)}/{len(attempts)} agree on magnitude ~{best_in_cluster[1]:.2e}")
                         return consensus_ans
 
         # IMPROVEMENT 2 & 3: SCORE WITH DYNAMIC WEIGHTS + MAGNITUDE

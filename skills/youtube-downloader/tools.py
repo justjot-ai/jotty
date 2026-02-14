@@ -6,12 +6,14 @@ Refactored to use Jotty core utilities.
 """
 
 import re
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-
 from Jotty.core.utils.skill_status import SkillStatus
+
+logger = logging.getLogger(__name__)
 
 # Status emitter for progress updates
 status = SkillStatus("youtube-downloader")
@@ -48,7 +50,7 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         params: Dictionary containing:
             - video_url (str, required): YouTube video URL
             - output_format (str, optional): 'markdown', 'pdf', 'epub' (default: 'markdown')
-            - include_timestamp (bool, optional): Include timestamps (default: True)
+            - include_timestamps (bool, optional): Include timestamps (default: True)
             - summarize (bool, optional): Generate AI summary (default: False)
             - output_dir (str, optional): Output directory
 
@@ -61,17 +63,71 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if not video_id:
         return tool_error(f'Invalid YouTube URL: {params["video_url"]}')
 
-    output_format = params.get('output_format', 'markdown')
     output_dir = Path(params.get('output_dir', './output/youtube'))
     output_dir.mkdir(parents=True, exist_ok=True)
+    include_timestamps = params.get('include_timestamps', True)
+
+    # Try to import and use youtube-transcript-api
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+    except ImportError:
+        return tool_response(
+            video_id=video_id,
+            title='YouTube Video',
+            output_path=str(output_dir / f'{video_id}.md'),
+            message='youtube-transcript-api not installed. Run: pip install youtube-transcript-api',
+            transcript_length=0
+        )
+
+    # Fetch transcript
+    status.emit("fetching", f"transcript for {video_id}")
+
+    try:
+        # Try direct API first (no proxy - might work depending on IP)
+        api = YouTubeTranscriptApi()
+        transcript_data = api.fetch(video_id)
+        logger.info(f"[YouTube] Successfully fetched {len(transcript_data)} segments")
+
+    except Exception as e:
+        logger.warning(f"[YouTube] API failed: {e}")
+        return tool_error(f'Failed to fetch transcript: {str(e)}. YouTube may be blocking this IP address. Try using browser-automation skill to manually extract transcript from youtube.com/watch?v={video_id}')
+
+    # Format as markdown
+    status.emit("processing", "transcript")
+    markdown_lines = [
+        f"# YouTube Transcript: {video_id}",
+        f"URL: https://youtube.com/watch?v={video_id}",
+        "",
+        "## Transcript",
+        ""
+    ]
+
+    for entry in transcript_data:
+        text = entry['text'].strip()
+        if include_timestamps:
+            start_time = entry['start']
+            minutes = int(start_time // 60)
+            seconds = int(start_time % 60)
+            timestamp = f"[{minutes:02d}:{seconds:02d}]"
+            markdown_lines.append(f"{timestamp} {text}")
+        else:
+            markdown_lines.append(text)
+
+    markdown_content = "\n".join(markdown_lines)
+
+    # Save to file
+    output_path = output_dir / f'{video_id}.md'
+    output_path.write_text(markdown_content, encoding='utf-8')
+
+    status.emit("creating", str(output_path))
 
     return tool_response(
         video_id=video_id,
-        title='YouTube Video',
-        author='Unknown',
-        output_path=str(output_dir / f'{video_id}.md'),
-        message='YouTube downloader requires youtube-transcript-api. Install: pip install youtube-transcript-api',
-        transcript_length=0
+        title=f'YouTube Video {video_id}',
+        output_path=str(output_path),
+        transcript_length=len(transcript_data),
+        message=f'Successfully downloaded {len(transcript_data)} transcript segments'
     )
 
 

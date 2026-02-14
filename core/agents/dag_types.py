@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -407,6 +407,16 @@ class Actor:
 # =============================================================================
 # EXECUTABLE DAG (Enhanced with Jotty integration)
 # =============================================================================
+
+@dataclass
+class TrajectoryStep:
+    """A single step in the DAG execution trajectory."""
+    task_id: str = ""
+    agent: str = ""
+    action: str = ""
+    result: str = ""
+    timestamp: Optional[datetime] = None
+
 
 @dataclass
 class ExecutableDAG:

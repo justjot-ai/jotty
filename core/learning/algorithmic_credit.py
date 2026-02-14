@@ -20,6 +20,7 @@ import math
 import random
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime
 import logging
 
 # DSPy loaded lazily — saves ~6s on module import
@@ -62,9 +63,31 @@ class Coalition:
     """A subset of agents."""
     members: List[str]
     value: float  # Estimated value of this coalition
-    
+
     def __hash__(self) -> int:
         return hash(frozenset(self.members))
+
+
+@dataclass
+class AuditTrail:
+    """
+    XAI (Explainable AI) audit trail for credit assignment.
+
+    Provides human-readable transparency into WHY agents received credit.
+    Critical for production systems where stakeholders need to understand
+    and trust the credit assignment decisions.
+    """
+    timestamp: str
+    task_description: str
+    agents: List[str]
+    global_reward: float
+    shapley_values: Dict[str, float]
+    difference_rewards: Dict[str, float]
+    combined_credits: Dict[str, float]
+    confidence_scores: Dict[str, float]
+    explanation: str  # Human-readable explanation
+    top_contributor: str
+    contribution_percentage: Dict[str, float]
 
 
 # =============================================================================
@@ -520,12 +543,16 @@ class AlgorithmicCreditAssigner:
     def __init__(self, config: Any = None) -> None:
         self.shapley_estimator = ShapleyValueEstimator()
         self.difference_estimator = DifferenceRewardEstimator()
-        
+
         # Adaptive weight based on estimate confidence
         # Higher confidence in Shapley -> use more Shapley
         self.min_shapley_weight = 0.3
         self.max_shapley_weight = 0.7
-        
+
+        # XAI: Audit trail for transparency and explainability
+        self.audit_log: List[AuditTrail] = []
+        self.max_audit_history = 1000  # Keep last 1000 trails
+
         logger.info(" AlgorithmicCreditAssigner initialized")
     
     async def assign_credit(
@@ -594,9 +621,205 @@ class AlgorithmicCreditAssigner:
             for agent in results:
                 results[agent].combined_credit = \
                     (results[agent].combined_credit / total_credit) * global_reward
-        
+
+        # =====================================================================
+        # XAI: GENERATE AUDIT TRAIL FOR TRANSPARENCY
+        # =====================================================================
+        # PROBLEM: Credit assignment is complex (Shapley + Difference Rewards)
+        # Stakeholders need to understand WHY an agent got credit.
+        #
+        # SOLUTION: Generate human-readable explanation with:
+        # 1. What each agent contributed (Shapley value)
+        # 2. How they impacted others (Difference reward)
+        # 3. Why they got their final credit (combined formula)
+        # 4. Confidence in the estimates
+        #
+        # WHY THIS MATTERS:
+        # - Trust: Humans can verify the logic
+        # - Debugging: Identify if credit assignment is fair
+        # - Compliance: Audit logs for regulated industries
+        # =====================================================================
+        audit_trail = self._generate_audit_trail(
+            task=task,
+            agents=agents,
+            global_reward=global_reward,
+            results=results
+        )
+
+        # Store audit trail (limit history to prevent memory bloat)
+        self.audit_log.append(audit_trail)
+        if len(self.audit_log) > self.max_audit_history:
+            self.audit_log.pop(0)  # Remove oldest
+
+        # Log explanation for immediate visibility
+        logger.info(f"\n{'='*70}\nCREDIT ASSIGNMENT AUDIT TRAIL\n{'='*70}\n{audit_trail.explanation}\n{'='*70}")
+
         return results
     
+    def _generate_audit_trail(
+        self,
+        task: str,
+        agents: List[str],
+        global_reward: float,
+        results: Dict[str, AgentContribution]
+    ) -> AuditTrail:
+        """
+        Generate human-readable audit trail explaining credit assignment.
+
+        EXAMPLE OUTPUT:
+        ───────────────────────────────────────────────────────────────
+        Task: "Research quantum computing and write report"
+        Global Reward: 0.85
+
+        Credit Assignment Breakdown:
+        1. 🏆 Researcher (45.2% of credit = 0.384)
+           - Shapley Value: 0.412 (marginal contribution)
+           - Difference Reward: 0.350 (impact without them)
+           - Why: Strong independent contribution (Shapley) + helped
+             others succeed (positive difference reward)
+           - Confidence: 87% (narrow confidence interval)
+
+        2. Writer (32.4% of credit = 0.275)
+           - Shapley Value: 0.285
+           - Difference Reward: 0.265
+           - Why: Solid contribution but less critical than Researcher
+           - Confidence: 82%
+
+        3. Editor (22.4% of credit = 0.191)
+           - Shapley Value: 0.198
+           - Difference Reward: 0.183
+           - Why: Supporting role, lower marginal impact
+           - Confidence: 79%
+
+        Top Contributor: Researcher (removed them → 35% value drop)
+        ───────────────────────────────────────────────────────────────
+        """
+        # Sort agents by combined credit (descending)
+        sorted_agents = sorted(
+            results.items(),
+            key=lambda x: x[1].combined_credit,
+            reverse=True
+        )
+
+        # Extract data for audit trail
+        shapley_values = {agent: r.shapley_value for agent, r in results.items()}
+        diff_rewards = {agent: r.difference_reward for agent, r in results.items()}
+        combined_credits = {agent: r.combined_credit for agent, r in results.items()}
+        confidence_scores = {agent: r.confidence for agent, r in results.items()}
+
+        # Calculate contribution percentages
+        total_credit = sum(combined_credits.values()) or 1.0
+        contribution_pct = {
+            agent: (credit / total_credit) * 100
+            for agent, credit in combined_credits.items()
+        }
+
+        # Build human-readable explanation
+        explanation_lines = [
+            f"Task: \"{task[:100]}{'...' if len(task) > 100 else ''}\"",
+            f"Global Reward: {global_reward:.3f}",
+            f"Agents: {len(agents)}",
+            "",
+            "Credit Assignment Breakdown:"
+        ]
+
+        for rank, (agent, contrib) in enumerate(sorted_agents, 1):
+            medal = "🏆" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
+            pct = contribution_pct[agent]
+
+            # Explain WHY this agent got this credit
+            shapley = contrib.shapley_value
+            diff = contrib.difference_reward
+
+            # Interpret the credit components
+            if shapley > 0.3 and diff > 0.3:
+                why = "Strong independent contribution + helped others succeed"
+            elif shapley > 0.3:
+                why = "Strong independent contribution, neutral team impact"
+            elif diff > 0.3:
+                why = "Enabled others to succeed (high difference reward)"
+            elif shapley < 0.1 and diff < 0.1:
+                why = "Supporting role, lower marginal impact"
+            else:
+                why = "Moderate contribution to team success"
+
+            explanation_lines.extend([
+                "",
+                f"{medal} {agent} ({pct:.1f}% of credit = {contrib.combined_credit:.3f})",
+                f"   - Shapley Value: {shapley:.3f} (marginal contribution)",
+                f"   - Difference Reward: {diff:.3f} (impact on team)",
+                f"   - Why: {why}",
+                f"   - Confidence: {contrib.confidence * 100:.0f}% {self._confidence_bar(contrib.confidence)}"
+            ])
+
+        # Add top contributor summary
+        top_agent, top_contrib = sorted_agents[0]
+        explanation_lines.extend([
+            "",
+            f"Top Contributor: {top_agent}",
+            f"Impact: Removing them would decrease success by ~{top_contrib.shapley_value * 100:.0f}%"
+        ])
+
+        explanation = "\n".join(explanation_lines)
+
+        return AuditTrail(
+            timestamp=datetime.now().isoformat(),
+            task_description=task,
+            agents=agents,
+            global_reward=global_reward,
+            shapley_values=shapley_values,
+            difference_rewards=diff_rewards,
+            combined_credits=combined_credits,
+            confidence_scores=confidence_scores,
+            explanation=explanation,
+            top_contributor=top_agent,
+            contribution_percentage=contribution_pct
+        )
+
+    def _confidence_bar(self, confidence: float) -> str:
+        """Visual confidence bar: ███▒▒ 60%"""
+        filled = int(confidence * 5)
+        empty = 5 - filled
+        return "█" * filled + "▒" * empty
+
+    def get_audit_history(self, limit: int = 10) -> List[AuditTrail]:
+        """
+        Get recent audit trails for review.
+
+        Args:
+            limit: Maximum number of trails to return (most recent first)
+
+        Returns:
+            List of AuditTrail objects
+        """
+        return self.audit_log[-limit:] if self.audit_log else []
+
+    def export_audit_log(self, filepath: str) -> None:
+        """
+        Export audit log to JSON file for compliance/archival.
+
+        Args:
+            filepath: Path to save JSON file
+        """
+        with open(filepath, 'w') as f:
+            json.dump(
+                [
+                    {
+                        'timestamp': trail.timestamp,
+                        'task': trail.task_description,
+                        'agents': trail.agents,
+                        'global_reward': trail.global_reward,
+                        'credits': trail.combined_credits,
+                        'top_contributor': trail.top_contributor,
+                        'explanation': trail.explanation
+                    }
+                    for trail in self.audit_log
+                ],
+                f,
+                indent=2
+            )
+        logger.info(f"Exported {len(self.audit_log)} audit trails to {filepath}")
+
     def clear_caches(self) -> None:
         """Clear all caches."""
         self.shapley_estimator.clear_cache()
@@ -609,6 +832,7 @@ class AlgorithmicCreditAssigner:
 __all__ = [
     'AgentContribution',
     'Coalition',
+    'AuditTrail',
     'ShapleyValueEstimator',
     'DifferenceRewardEstimator',
     'AlgorithmicCreditAssigner'

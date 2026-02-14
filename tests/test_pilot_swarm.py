@@ -756,6 +756,31 @@ class TestRetryLoop:
         assert "Do NOT repeat completed work" in ctx
 
     @pytest.mark.unit
+    def test_build_replan_context_extracts_rich_keys(self):
+        """Replan context extracts key_findings, read_content, visual_analysis."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="Research",
+                    status=SubtaskStatus.COMPLETED),
+            Subtask(id="s2", type=SubtaskType.CODE, description="Read file",
+                    status=SubtaskStatus.COMPLETED),
+            Subtask(id="s3", type=SubtaskType.BROWSE, description="Inspect image",
+                    status=SubtaskStatus.COMPLETED),
+        ]
+        all_results = {
+            's1': {'key_findings': ['Python is popular', 'Rust is fast']},
+            's2': {'file_operations': [{'file_path': '/tmp/x.py', 'read_content': 'class Foo: pass'}]},
+            's3': {'visual_analysis': 'Screenshot shows a login form'},
+        }
+
+        ctx = PilotSwarm._build_replan_context("Analyze codebase", subtasks, all_results, ["Fix bug"])
+
+        assert "Python is popular; Rust is fast" in ctx
+        assert "class Foo: pass" in ctx
+        assert "Screenshot shows a login form" in ctx
+
+    @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_retry_loop_triggers_on_validation_failure(self):
         """When validator returns failure, planner is called again."""
@@ -764,48 +789,48 @@ class TestRetryLoop:
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_retries=1)
 
-        # Track planner calls
-        planner_calls = []
+        plan_result = {
+            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
+            'reasoning': 'plan',
+        }
 
-        async def mock_plan(**kwargs):
-            planner_calls.append(kwargs)
-            return {
-                'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
-                'reasoning': 'plan',
-            }
-
-        swarm._planner = MagicMock()
-        swarm._planner.plan = mock_plan
+        # Track how many times each phase runs
+        phase_counts = {1: 0, 3: 0, 4: 0}
 
         # Validator: fail first time, succeed second
-        validate_count = [0]
-        async def mock_validate(**kwargs):
-            validate_count[0] += 1
-            if validate_count[0] == 1:
-                return {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['Missing tests']}
-            return {'success': True, 'assessment': 'Done', 'remaining_gaps': []}
+        validate_results = [
+            {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['Missing tests']},
+            {'success': True, 'assessment': 'Done', 'remaining_gaps': []},
+        ]
+        validate_idx = [0]
 
+        # Mock planner/validator — these get called by _execute_phases but
+        # their coroutine return values are consumed by executor.run_phase,
+        # so we make run_phase return the right dict directly.
+        swarm._planner = MagicMock()
+        swarm._planner.plan = AsyncMock(return_value=plan_result)
         swarm._validator = MagicMock()
-        swarm._validator.validate = mock_validate
+        swarm._validator.validate = AsyncMock(return_value={})
 
         # Mock searcher for analyze subtask
-        async def mock_search(**kwargs):
-            return {'synthesis': 'analyzed', 'key_findings': []}
         swarm._searcher = MagicMock()
-        swarm._searcher.search = mock_search
+        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
 
-        # Mock executor
+        # Mock executor — consumes the coroutine arg and returns our controlled dicts
         executor = MagicMock()
-        async def mock_run_phase(phase_num, *args, **kwargs):
-            # For phase 1, return initial plan
+        async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
+            # Consume the coroutine to avoid warnings
+            if asyncio.iscoroutine(coro):
+                coro.close()
+            phase_counts[phase_num] = phase_counts.get(phase_num, 0) + 1
             if phase_num == 1:
-                return await mock_plan()
-            # For phase 3 (validation), call validator
+                return plan_result
             if phase_num == 3:
-                return await mock_validate()
-            # For phase 4 (replan), call planner
+                idx = validate_idx[0]
+                validate_idx[0] += 1
+                return validate_results[min(idx, len(validate_results) - 1)]
             if phase_num == 4:
-                return await mock_plan()
+                return plan_result
             return {}
         executor.run_phase = mock_run_phase
         executor.elapsed = MagicMock(return_value=1.0)
@@ -813,8 +838,8 @@ class TestRetryLoop:
         result = await swarm._execute_phases(executor, "Build app with tests", "", swarm.config)
 
         assert result.retry_count == 1
-        # Planner called at least twice (initial + replan)
-        assert len(planner_calls) >= 2
+        assert phase_counts[4] == 1  # re-plan happened once
+        assert phase_counts[3] == 2  # validated twice
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -825,33 +850,31 @@ class TestRetryLoop:
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_retries=2)
 
-        async def mock_plan(**kwargs):
-            return {
-                'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
-                'reasoning': 'plan',
-            }
+        plan_result = {
+            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
+            'reasoning': 'plan',
+        }
+        fail_validation = {'success': False, 'assessment': 'Still not done', 'remaining_gaps': ['gap']}
+
         swarm._planner = MagicMock()
-        swarm._planner.plan = mock_plan
-
-        # Validator always fails
-        async def mock_validate(**kwargs):
-            return {'success': False, 'assessment': 'Still not done', 'remaining_gaps': ['gap']}
+        swarm._planner.plan = AsyncMock(return_value=plan_result)
         swarm._validator = MagicMock()
-        swarm._validator.validate = mock_validate
-
-        async def mock_search(**kwargs):
-            return {'synthesis': 'analyzed', 'key_findings': []}
+        swarm._validator.validate = AsyncMock(return_value=fail_validation)
         swarm._searcher = MagicMock()
-        swarm._searcher.search = mock_search
+        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
 
+        validate_count = [0]
         executor = MagicMock()
-        async def mock_run_phase(phase_num, *args, **kwargs):
+        async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
+            if asyncio.iscoroutine(coro):
+                coro.close()
             if phase_num == 1:
-                return await mock_plan()
+                return plan_result
             if phase_num == 3:
-                return await mock_validate()
+                validate_count[0] += 1
+                return fail_validation
             if phase_num == 4:
-                return await mock_plan()
+                return plan_result
             return {}
         executor.run_phase = mock_run_phase
         executor.elapsed = MagicMock(return_value=2.0)
@@ -859,6 +882,50 @@ class TestRetryLoop:
         result = await swarm._execute_phases(executor, "Impossible goal", "", swarm.config)
 
         assert result.retry_count == 2
+        assert result.success is False
+        assert validate_count[0] == 3  # initial + 2 retries
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_empty_replan_stops_retries(self):
+        """If replanner returns no subtasks, stop retrying immediately."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig(max_retries=3)
+
+        plan_result = {
+            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
+            'reasoning': 'plan',
+        }
+        empty_replan = {'subtasks': [], 'reasoning': 'nothing to do'}
+        fail_validation = {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['gap']}
+
+        swarm._planner = MagicMock()
+        swarm._planner.plan = AsyncMock(return_value=plan_result)
+        swarm._validator = MagicMock()
+        swarm._validator.validate = AsyncMock(return_value=fail_validation)
+        swarm._searcher = MagicMock()
+        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
+
+        executor = MagicMock()
+        async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
+            if asyncio.iscoroutine(coro):
+                coro.close()
+            if phase_num == 1:
+                return plan_result
+            if phase_num == 3:
+                return fail_validation
+            if phase_num == 4:
+                return empty_replan  # replanner returns nothing
+            return {}
+        executor.run_phase = mock_run_phase
+        executor.elapsed = MagicMock(return_value=1.0)
+
+        result = await swarm._execute_phases(executor, "Some goal", "", swarm.config)
+
+        # Should stop after first failed validation + empty replan, NOT retry 3 times
+        assert result.retry_count == 0  # never incremented because break before increment
         assert result.success is False
 
     @pytest.mark.unit
@@ -1024,6 +1091,59 @@ class TestParallelExecution:
         waves = PilotSwarm._compute_waves([])
         assert waves == []
 
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_parallel_execution_is_concurrent(self):
+        """Prove wave-based execution runs tasks concurrently, not sequentially.
+
+        3 independent subtasks each sleep 0.2s. Sequential = 0.6s, parallel < 0.4s.
+        """
+        import time
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig(max_concurrent=3)
+
+        execution_log = []
+
+        async def mock_execute_subtask(subtask, context, config):
+            execution_log.append(('start', subtask.id, time.monotonic()))
+            await asyncio.sleep(0.2)
+            execution_log.append(('end', subtask.id, time.monotonic()))
+            return {'synthesis': f'done {subtask.id}'}
+
+        swarm._execute_subtask = mock_execute_subtask
+
+        subtasks = [
+            Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
+            Subtask(id="s2", type=SubtaskType.SEARCH, description="B"),
+            Subtask(id="s3", type=SubtaskType.SEARCH, description="C"),
+        ]
+
+        all_results = {}
+        waves = PilotSwarm._compute_waves(subtasks)
+        semaphore = asyncio.Semaphore(swarm.config.max_concurrent)
+
+        start = time.monotonic()
+        for wave in waves:
+            async def _run(st):
+                async with semaphore:
+                    result = await mock_execute_subtask(st, "", swarm.config)
+                    all_results[st.id] = result
+                    st.status = SubtaskStatus.COMPLETED
+            await asyncio.gather(*[_run(st) for st in wave])
+        elapsed = time.monotonic() - start
+
+        # All 3 completed
+        assert len(all_results) == 3
+        # Parallel: should take ~0.2s, not ~0.6s
+        assert elapsed < 0.45, f"Took {elapsed:.2f}s — not parallel!"
+
+        # Verify all 3 started before any finished
+        starts = [t for ev, _, t in execution_log if ev == 'start']
+        ends = [t for ev, _, t in execution_log if ev == 'end']
+        assert max(starts) < min(ends), "Tasks didn't overlap — not concurrent"
+
 
 # =============================================================================
 # IMPROVED CONTEXT TESTS
@@ -1097,7 +1217,8 @@ class TestSubtaskRetry:
         swarm._execute_subtask = mock_execute_subtask
 
         subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
-        result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+        with patch('asyncio.sleep', new_callable=AsyncMock):
+            result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
 
         assert result == {'synthesis': 'success'}
         assert call_count[0] == 2
@@ -1140,10 +1261,37 @@ class TestSubtaskRetry:
 
         subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
 
-        with pytest.raises(ConnectionError, match="Connection refused"):
-            await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=1)
+        with patch('asyncio.sleep', new_callable=AsyncMock):
+            with pytest.raises(ConnectionError, match="Connection refused"):
+                await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=1)
 
         assert call_count[0] == 2  # initial + 1 retry
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_retry_on_rate_limit_string(self):
+        """Retries when error message contains rate limit indicator."""
+        from Jotty.core.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        swarm.config = PilotConfig()
+
+        call_count = [0]
+
+        async def mock_execute_subtask(subtask, context, config):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise Exception("API returned 429 rate limit exceeded")
+            return {'synthesis': 'success after rate limit'}
+
+        swarm._execute_subtask = mock_execute_subtask
+
+        subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
+        with patch('asyncio.sleep', new_callable=AsyncMock):
+            result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+
+        assert result == {'synthesis': 'success after rate limit'}
+        assert call_count[0] == 2
 
 
 # =============================================================================

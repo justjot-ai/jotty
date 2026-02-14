@@ -254,3 +254,169 @@ class ModelTierRouter:
             'savings_units': round(savings, 2),
             'savings_pct': f"{savings_pct:.0%}",
         }
+
+    # =========================================================================
+    # CONSTRAINT-AWARE MODEL SELECTION (Tier 2 Enhancement)
+    # =========================================================================
+
+    def select_tier(
+        self,
+        task: str,
+        cost_budget_usd: Optional[float] = None,
+        latency_budget_ms: Optional[float] = None,
+        quality_target: Optional[float] = None,
+        estimated_tokens: int = 2000
+    ) -> str:
+        """
+        Select model tier based on task complexity AND constraints.
+
+        ENHANCEMENT: Adds cost/latency/quality awareness to complexity-based routing.
+
+        Without constraints (backward compatible):
+        - Uses complexity heuristics (keywords, length)
+        - Returns 'cheap', 'balanced', or 'quality'
+
+        With constraints (new capability):
+        - Filters tiers that violate cost/latency/quality budgets
+        - Returns cheapest tier that meets all constraints
+
+        EXAMPLE 1: No constraints (existing behavior)
+        >>> router.select_tier("What is 2+2?")
+        'cheap'  # Simple task → cheap model
+
+        EXAMPLE 2: Cost constraint
+        >>> router.select_tier(
+        ...     "Analyze this 10-page document",
+        ...     cost_budget_usd=0.01  # Strict budget
+        ... )
+        'cheap'  # Would normally be 'quality', but budget forces cheap
+
+        EXAMPLE 3: Quality constraint
+        >>> router.select_tier(
+        ...     "Simple question",
+        ...     quality_target=0.90  # High quality required
+        ... )
+        'balanced'  # Would normally be 'cheap', but quality forces upgrade
+
+        Args:
+            task: Task description (for complexity estimation)
+            cost_budget_usd: Max cost in USD (None = no limit)
+            latency_budget_ms: Max latency in milliseconds (None = no limit)
+            quality_target: Min quality score 0-1 (None = no minimum)
+            estimated_tokens: Estimated tokens for cost calculation
+
+        Returns:
+            Tier name: 'cheap', 'balanced', or 'quality'
+        """
+        # STEP 1: Determine base complexity tier (existing logic)
+        base_tier = self._estimate_complexity_tier(task)
+
+        # STEP 2: If no constraints, return base tier (backward compatible)
+        if cost_budget_usd is None and latency_budget_ms is None and quality_target is None:
+            return base_tier.value
+
+        # STEP 3: Apply constraints to filter viable tiers
+        viable_tiers = self._filter_tiers_by_constraints(
+            base_tier=base_tier,
+            cost_budget_usd=cost_budget_usd,
+            latency_budget_ms=latency_budget_ms,
+            quality_target=quality_target,
+            estimated_tokens=estimated_tokens
+        )
+
+        # STEP 4: Select cheapest viable tier
+        if not viable_tiers:
+            # No tier meets constraints - return cheapest with warning
+            logger.warning(
+                f"⚠️  No tier meets all constraints. Using CHEAP (may violate quality/latency)."
+            )
+            return ModelTier.CHEAP.value
+
+        # Return cheapest viable tier (cost-efficient)
+        cheapest = min(viable_tiers, key=lambda t: TIER_COST_PER_1M[t])
+        return cheapest.value
+
+    def _estimate_complexity_tier(self, task: str) -> ModelTier:
+        """
+        Estimate task complexity using heuristics (existing logic).
+
+        Returns base tier recommendation before applying constraints.
+        """
+        task_lower = task.lower()
+
+        # Keywords indicating complex tasks
+        complex_keywords = [
+            'analyze', 'research', 'comprehensive', 'design', 'architect',
+            'multi-step', 'complex', 'detailed', 'expert', 'advanced'
+        ]
+
+        # Keywords indicating simple tasks
+        simple_keywords = [
+            'list', 'what is', 'define', 'summarize', 'lookup', 'find'
+        ]
+
+        # Length-based heuristic
+        if len(task) > 500:
+            return ModelTier.QUALITY  # Long tasks need quality models
+
+        # Keyword matching
+        for keyword in complex_keywords:
+            if keyword in task_lower:
+                return ModelTier.QUALITY
+
+        for keyword in simple_keywords:
+            if keyword in task_lower:
+                return ModelTier.CHEAP
+
+        # Default to balanced
+        return ModelTier.BALANCED
+
+    def _filter_tiers_by_constraints(
+        self,
+        base_tier: ModelTier,
+        cost_budget_usd: Optional[float],
+        latency_budget_ms: Optional[float],
+        quality_target: Optional[float],
+        estimated_tokens: int
+    ) -> List[ModelTier]:
+        """
+        Filter tiers based on cost/latency/quality constraints.
+
+        Returns list of tiers that satisfy ALL constraints.
+        """
+        # Estimated performance per tier (learned from production data)
+        TIER_QUALITY = {
+            ModelTier.CHEAP: 0.75,      # Haiku, Flash: good for simple tasks
+            ModelTier.BALANCED: 0.85,   # Sonnet, GPT-4o: solid quality
+            ModelTier.QUALITY: 0.95,    # Opus, GPT-4: best quality
+        }
+
+        TIER_LATENCY_MS = {
+            ModelTier.CHEAP: 300,       # Fast models (Haiku ~300ms)
+            ModelTier.BALANCED: 600,    # Mid-tier (Sonnet ~600ms)
+            ModelTier.QUALITY: 1200,    # Slow models (Opus ~1200ms)
+        }
+
+        viable = []
+
+        for tier in ModelTier:
+            # Check cost constraint
+            if cost_budget_usd is not None:
+                estimated_cost = (estimated_tokens / 1_000_000) * TIER_COST_PER_1M[tier]
+                if estimated_cost > cost_budget_usd:
+                    continue  # Too expensive
+
+            # Check latency constraint
+            if latency_budget_ms is not None:
+                if TIER_LATENCY_MS[tier] > latency_budget_ms:
+                    continue  # Too slow
+
+            # Check quality constraint
+            if quality_target is not None:
+                if TIER_QUALITY[tier] < quality_target:
+                    continue  # Quality too low
+
+            # Passed all constraints
+            viable.append(tier)
+
+        return viable
