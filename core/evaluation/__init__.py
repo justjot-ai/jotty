@@ -8,7 +8,11 @@ Based on OAgents evaluation approach.
 from .reproducibility import ReproducibilityConfig, set_reproducible_seeds, ensure_reproducibility
 from .benchmark import Benchmark, BenchmarkResult, BenchmarkMetrics, CustomBenchmark
 from .evaluation_protocol import EvaluationProtocol, EvaluationRun, EvaluationReport
-from .ablation_study import AblationStudy, ComponentContribution, AblationResult, ComponentType
+from .ablation_study import (
+    AblationStudy, ComponentContribution, AblationResult, ComponentType,
+    ConfigTuner, ConfigSearchGroup, ConfigTrialResult, TuningResult,
+    DEFAULT_SEARCH_GROUPS,
+)
 from .gaia_benchmark import GAIABenchmark
 from .eval_store import EvalStore
 
@@ -28,5 +32,10 @@ __all__ = [
     'ComponentContribution',
     'AblationResult',
     'ComponentType',
+    'ConfigTuner',
+    'ConfigSearchGroup',
+    'ConfigTrialResult',
+    'TuningResult',
+    'DEFAULT_SEARCH_GROUPS',
     'EvalStore',
 ]
