@@ -170,7 +170,11 @@ def print_summary(results, total_time, run_id):
 
 
 def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, args):
-    """Unified retry logic with escalating strategies."""
+    """Unified retry logic with escalating strategies.
+
+    On retries, passes skip_validation=False to force the Orchestrator to use
+    the full agent pipeline (Sonnet + web search) instead of Haiku fast path.
+    """
     if bench_result.success or not expected:
         return bench_result
 
@@ -190,7 +194,7 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
         modified_task = dict(task)
 
         if attempt == 0 and _looks_like_refusal(raw):
-            strategy = "refusal->AGENTIC"
+            strategy = "refusal->full_pipeline"
         elif attempt == 0 and has_audio and not bench_result.success:
             strategy = "audio_hint"
             modified_task['Question'] = (
@@ -210,7 +214,11 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
             strategy = f"retry#{attempt}"
 
         print(f"  [{idx}/{total}] (retry: {strategy})", flush=True)
-        bench_result = benchmark.evaluate_task(modified_task, adapter)
+        # Force full agent pipeline on retries (skip_validation=False bypasses
+        # Orchestrator's Haiku fast path, using Sonnet + web search instead)
+        bench_result = benchmark.evaluate_task(
+            modified_task, adapter, skip_validation=False,
+        )
         raw = str(getattr(adapter, 'last_raw_answer', '') or '')
 
     return bench_result

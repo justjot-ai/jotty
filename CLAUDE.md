@@ -4,6 +4,35 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
+## Common Tasks → Swarms (START HERE!)
+
+| Task | Swarm | Quick Example |
+|------|-------|---------------|
+| **Generate learning materials** (K-12, Olympiad) | `olympiad_learning_swarm` | `learn_topic("economics", "5th Grade Economics", "Student")` |
+| **Research ArXiv papers** | `arxiv_learning_swarm` | Research academic papers and create summaries |
+| **Write/review code** | `coding_swarm` | Generate, test, and review code |
+| **Testing & QA** | `testing_swarm` | Create test suites and validate code |
+| **Research topics** | `research_swarm` | Deep research with web search |
+| **Data analysis** | `data_analysis_swarm` | Analyze datasets and create visualizations |
+| **DevOps tasks** | `devops_swarm` | Deployment, monitoring, infrastructure |
+
+### Educational Content Example
+```python
+from Jotty.core.swarms.olympiad_learning_swarm import learn_topic
+
+# Generate comprehensive learning material with PDF + HTML
+result = await learn_topic(
+    subject="general",           # or "mathematics", "physics", etc.
+    topic="Economics for 5th Grade",
+    student_name="Student",
+    depth="deep",               # quick/standard/deep/marathon
+    target="foundation",        # foundation/intermediate/advanced/olympiad
+    send_telegram=True          # Auto-send to Telegram
+)
+# ✅ Generates: PDF (A4, professional) + HTML (interactive)
+# ✅ Includes: Concepts, patterns, problems, examples, real-life scenarios
+```
+
 ## Start Here: Discovery API
 
 **Don't know what Jotty can do? Start with `capabilities()`:**

@@ -143,7 +143,9 @@ class BaseOlympiadAgent(BaseSwarmAgent):
                 logger.info(f"Repaired truncated JSON from {self.__class__.__name__}")
                 return repaired
 
-        logger.warning(f"Failed to parse JSON from {self.__class__.__name__}")
+        # Log at debug level since we return empty list as fallback (graceful degradation)
+        preview = text[:100].replace('\n', ' ') if text else '(empty)'
+        logger.debug(f"Failed to parse JSON from {self.__class__.__name__}, preview: {preview}...")
         return []
 
     def _repair_truncated_json(self, text: str) -> Any:
@@ -600,6 +602,8 @@ class MistakeAnalyzerAgent(BaseOlympiadAgent):
             )
 
             mistakes_data = self._parse_json_output(str(result.mistakes_json))
+            if not mistakes_data:
+                logger.debug(f"MistakeAnalyzerAgent: No mistakes data parsed from JSON")
             mistakes = []
             for m in (mistakes_data if isinstance(mistakes_data, list) else []):
                 mistakes.append(MistakeEntry(
@@ -854,8 +858,9 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
             if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=16384)
-                logger.info("NarrativeEditor using Sonnet model (16K output)")
+                # Use 240s timeout for NarrativeEditor (2x default) since it processes large content
+                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=16384, timeout=240)
+                logger.info("NarrativeEditor using Sonnet model (16K output, 240s timeout)")
                 return
         except Exception as e:
             logger.debug(f"Sonnet not available for NarrativeEditor: {e}")
@@ -884,8 +889,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
             Dict with edited_content, socratic_questions, breakthrough_moments
         """
         try:
-            # Sonnet has 200K context — send full content, no truncation needed
-            content_input = assembled_content
+            # Sonnet has 200K context — DSPy should handle summarization if needed
             logger.info(f"NarrativeEditor: processing {len(assembled_content)} chars with Sonnet")
 
             insights_str = ' | '.join(i for i in key_insights if i)
@@ -893,7 +897,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
 
             result = self._call_with_own_lm(
                 self._editor,
-                assembled_content=content_input,
+                assembled_content=assembled_content,
                 running_example=running_example or "the scenario from the introduction",
                 key_insights=insights_str or "Key concept insights",
                 pattern_names=patterns_str or "Core patterns",

@@ -40,6 +40,13 @@ async def generate_economics_material():
     logger.info("GENERATING 5TH GRADE ECONOMICS LEARNING MATERIAL")
     logger.info("=" * 80)
 
+    # Force DSPy to use DirectAnthropicLM (not Claude CLI) for all calls
+    import dspy
+    from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM
+
+    lm = DirectAnthropicLM(model="claude-3-5-haiku-20241022")
+    dspy.settings.configure(lm=lm)
+
     # Configure for 5th grade level
     config = OlympiadLearningConfig(
         subject=Subject.GENERAL,  # Economics falls under general
@@ -63,7 +70,7 @@ async def generate_economics_material():
         # Output
         generate_pdf=True,
         generate_html=True,
-        send_telegram=False,
+        send_telegram=True,  # Auto-send to Telegram
 
         # Engagement
         celebration_word="Amazing!",  # Age-appropriate celebration

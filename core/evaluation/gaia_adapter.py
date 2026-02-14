@@ -27,6 +27,16 @@ def _extract_answer_from_output(output) -> str:
     if output is None:
         return ""
     if isinstance(output, str):
+        # Handle string representations of dicts (e.g. from skill results)
+        stripped = output.strip()
+        if stripped.startswith('{') and stripped.endswith('}'):
+            try:
+                import ast
+                parsed = ast.literal_eval(stripped)
+                if isinstance(parsed, dict):
+                    return _extract_answer_from_output(parsed)
+            except (ValueError, SyntaxError):
+                pass
         return output
     # AgenticExecutionResult: use final_output, else last step content from outputs
     if hasattr(output, "final_output") and output.final_output is not None:
@@ -50,13 +60,23 @@ def _extract_answer_from_output(output) -> str:
                 return str(output[field]).strip()
         # Skill-style dict: {'success': True, 'results': [str or dict, ...]}
         if "results" in output and isinstance(output["results"], list):
+            # Collect all text fragments from results and return the longest
+            candidates = []
             for item in output["results"]:
                 if isinstance(item, str) and len(item.strip()) > 2:
-                    return item.strip()
-                if isinstance(item, dict):
+                    candidates.append(item.strip())
+                elif isinstance(item, dict):
                     for f in ("content", "response", "text", "output", "result", "summary", "answer", "message"):
                         if f in item and item[f]:
-                            return str(item[f]).strip()
+                            candidates.append(str(item[f]).strip())
+                            break
+            if candidates:
+                # Return longest candidate (most likely the actual answer)
+                return max(candidates, key=len)
+        # Last resort for dicts: 'answer' or 'message' fields
+        for field in ("answer", "message", "summary"):
+            if field in output and output[field]:
+                return str(output[field]).strip()
     # Avoid returning object repr (e.g. "AgenticExecutionResult(success=...")
     if hasattr(output, "summary"):
         summary = output.summary() if callable(output.summary) else output.summary
@@ -274,8 +294,11 @@ class JottyGAIAAdapter:
         run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
 
         # Force Orchestrator to use full agent pipeline (Sonnet + web search)
-        # instead of fast path (Haiku direct call) for non-attachment tasks
+        # instead of fast path (Haiku direct call) — dramatically improves accuracy
         run_kwargs['skip_validation'] = False
+
+        # Forward any remaining kwargs (e.g. overrides from retry logic)
+        run_kwargs.update(kwargs)
 
         result = self._run_async(prompt, **run_kwargs)
         self.last_result = result

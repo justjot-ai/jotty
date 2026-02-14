@@ -490,7 +490,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         phase5_results = await executor.run_parallel(
             5, "Narrative Editing + Rank Tips",
             [
-                ("NarrativeEditor", AgentRole.CRITIC,
+                ("NarrativeEditor", AgentRole.REVIEWER,
                  self._narrative_editor.edit(
                      assembled_content=complete_content, running_example=running_example,
                      key_insights=key_insights, pattern_names=pattern_names,

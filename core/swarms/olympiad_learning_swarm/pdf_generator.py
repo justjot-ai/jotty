@@ -22,18 +22,52 @@ _LESSON_HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <title>{title} - {student_name}</title>
 <style>
+/* Print/PDF styling */
 @page {{
     size: A4;
     margin: 2cm 2.2cm;
     @bottom-center {{ content: counter(page) " / " counter(pages); font-size: 9pt; color: #888; }}
 }}
+
+/* Screen styling - A4 page preview */
+@media screen {{
+    body {{
+        background: #e0e0e0;
+        padding: 20px 0;
+    }}
+    .page-container {{
+        width: 210mm;  /* A4 width */
+        min-height: 297mm;  /* A4 height */
+        margin: 0 auto 20px;
+        padding: 2cm 2.2cm;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }}
+}}
+
+/* Print styling - remove page containers */
+@media print {{
+    body {{
+        background: white;
+        padding: 0;
+    }}
+    .page-container {{
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        page-break-after: always;
+    }}
+    .page-container:last-child {{
+        page-break-after: auto;
+    }}
+}}
+
 * {{ box-sizing: border-box; }}
 body {{
     font-family: 'Georgia', 'Times New Roman', serif;
     font-size: 12pt;
     line-height: 1.65;
     color: #222;
-    max-width: 100%;
     margin: 0;
     padding: 0;
 }}
@@ -169,18 +203,36 @@ h3 {{
 }}
 .next-topics ol {{ margin: 8px 0; padding-left: 20px; }}
 .stats-bar {{
-    display: flex;
-    gap: 20px;
+    width: 100%;
     background: #fafafa;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 10px 16px;
     margin: 15px 0;
     font-size: 11pt;
+    border-collapse: separate;
 }}
-.stat {{ text-align: center; }}
-.stat-value {{ font-size: 18pt; font-weight: bold; color: #1a237e; }}
-.stat-label {{ font-size: 9pt; color: #888; text-transform: uppercase; }}
+.stat {{
+    display: inline-block;
+    text-align: center;
+    min-width: 18%;
+    margin-right: 2%;
+    vertical-align: top;
+}}
+.stat-value {{
+    display: block;
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1a237e;
+    margin-bottom: 4px;
+}}
+.stat-label {{
+    display: block;
+    font-size: 9pt;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: normal;
+}}
 code {{
     background: #f5f5f5;
     padding: 2px 6px;
@@ -257,6 +309,7 @@ li {{ margin-bottom: 4px; }}
 </style>
 </head>
 <body>
+<div class="page-container">
 
 <h1>{title}</h1>
 <div class="subtitle">Personalized for {student_name}</div>
@@ -271,6 +324,7 @@ li {{ margin-bottom: 4px; }}
 
 {body_html}
 
+</div><!-- .page-container -->
 </body>
 </html>"""
 
