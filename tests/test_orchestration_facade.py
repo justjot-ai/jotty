@@ -12,11 +12,11 @@ import pytest
 class TestOrchestrationFacade:
     """Tests for orchestration facade accessor functions."""
 
-    def test_get_swarm_intelligence_returns_class(self):
+    def test_get_swarm_intelligence_returns_instance(self):
         from Jotty.core.orchestration.facade import get_swarm_intelligence
         from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
         result = get_swarm_intelligence()
-        assert result is SwarmIntelligence
+        assert isinstance(result, SwarmIntelligence)
 
     def test_get_paradigm_executor_returns_class(self):
         from Jotty.core.orchestration.facade import get_paradigm_executor
@@ -42,11 +42,11 @@ class TestOrchestrationFacade:
         result = get_provider_manager()
         assert isinstance(result, ProviderManager)
 
-    def test_get_model_tier_router_returns_class(self):
+    def test_get_model_tier_router_returns_instance(self):
         from Jotty.core.orchestration.facade import get_model_tier_router
         from Jotty.core.orchestration.model_tier_router import ModelTierRouter
         result = get_model_tier_router()
-        assert result is ModelTierRouter
+        assert isinstance(result, ModelTierRouter)
 
     def test_get_swarm_router_returns_instance(self):
         from Jotty.core.orchestration.facade import get_swarm_router

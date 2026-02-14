@@ -15,6 +15,10 @@ from .ablation_study import (
 )
 from .gaia_benchmark import GAIABenchmark
 from .gaia_adapter import JottyGAIAAdapter
+from .gaia_signatures import (
+    GAIAAnswerExtractSignature,
+    normalize_gaia_answer_with_dspy,
+)
 from .eval_store import EvalStore
 from .llm_doc_sources import (
     LLMDocSource,
@@ -36,6 +40,8 @@ __all__ = [
     'CustomBenchmark',
     'GAIABenchmark',
     'JottyGAIAAdapter',
+    'GAIAAnswerExtractSignature',
+    'normalize_gaia_answer_with_dspy',
     'EvaluationProtocol',
     'EvaluationRun',
     'EvaluationReport',

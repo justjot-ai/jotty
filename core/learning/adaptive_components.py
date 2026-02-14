@@ -19,8 +19,17 @@ from ..foundation.data_structures import (
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
+from ..foundation.configs.learning import LearningConfig as FocusedLearningConfig
+
 if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
+
+
+def _ensure_swarm_config(config):
+    """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedLearningConfig):
+        return SwarmConfig.from_configs(learning=config)
+    return config
 
 
 
@@ -41,12 +50,12 @@ class AdaptiveLearningRate:
     - TD error variance analysis
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
-        self.alpha = config.alpha
-        self.min_alpha = config.alpha_min
-        self.max_alpha = config.alpha_max
-        self.adaptation_rate = config.alpha_adaptation_rate
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
+        self.alpha = self.config.alpha
+        self.min_alpha = self.config.alpha_min
+        self.max_alpha = self.config.alpha_max
+        self.adaptation_rate = self.config.alpha_adaptation_rate
         
         # Tracking
         self.td_errors: List[float] = []
@@ -136,8 +145,8 @@ class IntermediateRewardCalculator:
     - Good reasoning steps
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         self.step_rewards: List[float] = []
     
     def reset(self):
@@ -205,10 +214,10 @@ class AdaptiveExploration:
     - Goal-specific exploration rates
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
-        self.epsilon = config.epsilon_start
-        self.ucb_c = config.ucb_coefficient
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
+        self.epsilon = self.config.epsilon_start
+        self.ucb_c = self.config.ucb_coefficient
         
         # Per-goal exploration
         self.goal_epsilons: Dict[str, float] = {}

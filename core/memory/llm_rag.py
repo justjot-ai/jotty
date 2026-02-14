@@ -46,6 +46,14 @@ from ..foundation.data_structures import (
     MemoryEntry, MemoryLevel, SwarmConfig,
     GoalHierarchy, GoalNode
 )
+from ..foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
+
+
+def _ensure_swarm_config(config):
+    """Accept MemoryConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedMemoryConfig):
+        return SwarmConfig.from_configs(memory=config)
+    return config
 
 
 # =============================================================================
@@ -160,22 +168,22 @@ class SlidingWindowChunker:
 class RecencyValueRanker:
     """
     Pre-ranks memories by recency and value WITHOUT any content analysis.
-    
+
     Why no keywords:
     - Multilingual: "日付リテラル" (date literal in Japanese) won't match "DATE"
     - Code: "def parse_date():" won't match "date parsing"
     - Unique text: Domain-specific jargon breaks keyword extraction
     - Synonyms: "revenue" vs "sales" vs "income" all mean similar things
-    
+
     Our approach:
     - Use recency (recent memories more likely relevant)
     - Use learned value (high-value memories proved useful)
     - Use access patterns (frequently accessed = important)
     - Let LLM do ALL semantic matching
     """
-    
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
     
     def prerank(self, 
                 memories: List[MemoryEntry],
@@ -420,10 +428,10 @@ class LLMRelevanceScorer:
        LLM: 0.80 (understands missing filters cause slowness)
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
-        self.window_size = config.rag_window_size
-        self.use_cot = config.rag_use_cot
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
+        self.window_size = self.config.rag_window_size
+        self.use_cot = self.config.rag_use_cot
         
         # Create the scorer agent (DSPy loaded on first use)
         dspy = _get_dspy()
@@ -546,8 +554,8 @@ class MemorySynthesizer:
     The synthesis creates NEW knowledge that doesn't exist in any single memory!
     """
 
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         self.synthesizer = _get_dspy().ChainOfThought(_get_memory_synthesis_signature())
 
     def synthesize_wisdom(self,
@@ -662,9 +670,9 @@ class DeduplicationEngine:
     # Set to True to skip expensive LLM deduplication calls (use hash-only)
     SKIP_LLM_DEDUP = True
 
-    def __init__(self, config: SwarmConfig):
-        self.config = config
-        self.threshold = config.similarity_threshold
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
+        self.threshold = self.config.similarity_threshold
         self.checker = _get_dspy().ChainOfThought(_get_dedup_signature()) if not self.SKIP_LLM_DEDUP else None
     
     def check_duplicate(self, mem_a: MemoryEntry, mem_b: MemoryEntry) -> Tuple[bool, float, str]:
@@ -803,10 +811,10 @@ class CausalExtractor:
     - "Trino parser requires type annotation for date columns" (causation)
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         self.extractor = _get_dspy().ChainOfThought(_get_causal_signature())
-        self.min_evidence = config.causal_min_support
+        self.min_evidence = self.config.causal_min_support
     
     def extract_from_episodes(self, 
                                success_episodes: List[Dict],
@@ -888,23 +896,23 @@ class LLMRAGRetriever:
     - Domain-specific jargon
     """
     
-    def __init__(self, config: SwarmConfig, use_embedding_prefilter: bool = True):
-        self.config = config
-        
+    def __init__(self, config, use_embedding_prefilter: bool = True):
+        self.config = _ensure_swarm_config(config)
+
         self.chunker = SlidingWindowChunker(
-            chunk_size=config.chunk_size,
-            overlap=config.chunk_overlap
+            chunk_size=self.config.chunk_size,
+            overlap=self.config.chunk_overlap
         )
-        
+
         # NO keyword filter - use recency/value ranking instead
-        self.preranker = RecencyValueRanker(config)
+        self.preranker = RecencyValueRanker(self.config)
 
         # Optional embedding pre-filter (fast ~2ms first pass)
         # Narrows candidates before expensive LLM scoring
         self.embedding_prefilter = None
         if use_embedding_prefilter:
             self.embedding_prefilter = EmbeddingPreFilter(
-                top_k=min(50, config.rag_max_candidates)
+                top_k=min(50, self.config.rag_max_candidates)
             )
         
         # Pure LLM semantic scoring (second pass on pre-filtered candidates)

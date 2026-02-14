@@ -75,6 +75,106 @@ cache = get_llm_cache()                # response caching
 tok = get_tokenizer()                  # accurate token counting
 ```
 
+## Usage Examples (how to actually use returned objects)
+
+### Memory — store, retrieve, check status
+```python
+from Jotty.core.memory import get_memory_system
+mem = get_memory_system()
+
+# Store (levels: episodic, semantic, procedural, meta, causal)
+mem_id = mem.store("Task X succeeded with approach Y", level="episodic",
+                   goal="research", metadata={"reward": 1.0})
+
+# Retrieve (returns List[MemoryResult] with .content, .level, .relevance)
+results = mem.retrieve("How to handle task X?", goal="research", top_k=5)
+for r in results:
+    print(f"[{r.level}] {r.content} (relevance={r.relevance})")
+
+# Status
+status = mem.status()  # {'backend': 'full', 'operations': {...}, 'total_memories': N}
+```
+
+### Learning — TD-Lambda updates
+```python
+from Jotty.core.learning import get_td_lambda
+td = get_td_lambda()  # gamma=0.99, lambda_trace=0.95
+
+td.update(
+    state={"task": "research", "agent": "researcher"},
+    action={"tool": "web-search"},
+    reward=1.0,
+    next_state={"task": "research", "agent": "researcher", "step": 2},
+)
+```
+
+### Budget Tracking — record LLM costs
+```python
+from Jotty.core.utils import get_budget_tracker
+bt = get_budget_tracker()
+
+bt.record_call("researcher", tokens_input=1000, tokens_output=500, model="gpt-4o")
+bt.record_call("coder", tokens_input=500, tokens_output=200, model="gpt-4o-mini")
+
+usage = bt.get_usage()  # {'calls': 2, 'tokens_input': 1500, 'tokens_output': 700, ...}
+```
+
+### LLM Cache — cache and retrieve responses
+```python
+from Jotty.core.utils import get_llm_cache
+cache = get_llm_cache()
+
+cache.set("prompt-hash-123", {"answer": "cached response"})
+hit = cache.get("prompt-hash-123")  # returns CachedResponse or None
+if hit:
+    print(hit.response["answer"])   # NOTE: .response attribute, not subscript
+
+stats = cache.stats()  # CacheStats with .hits, .misses, .hit_rate
+```
+
+### Circuit Breaker — fault tolerance
+```python
+from Jotty.core.utils import get_circuit_breaker
+cb = get_circuit_breaker("openai-api")
+
+cb.record_success()           # keeps circuit CLOSED
+cb.record_failure(Exception("timeout"))  # increments failure count
+print(cb.state)               # CircuitState.CLOSED / OPEN / HALF_OPEN
+```
+
+### Tokenizer — count tokens
+```python
+from Jotty.core.utils import get_tokenizer
+tok = get_tokenizer()
+count = tok.count_tokens("Hello world, this is a test")  # int
+```
+
+### Context Management — build context within token limits
+```python
+from Jotty.core.context import get_context_manager
+ctx = get_context_manager()  # max_tokens=28000
+
+ctx.register_goal("Research AI startups")
+ctx.register_critical_memory("Budget is $0.50 max")
+ctx.add_chunk("Previous research findings...", category="research")
+
+result = ctx.build_context(
+    system_prompt="You are a research assistant",
+    user_input="Find recent AI startup funding rounds",
+)
+```
+
+### Swarm Intelligence — agent routing and tracking
+```python
+from Jotty.core.orchestration import get_swarm_intelligence
+si = get_swarm_intelligence()
+
+si.register_agent("researcher")
+si.record_task_result("researcher", task_type="web_search", success=True,
+                      execution_time=2.5)
+best = si.get_best_agent_for_task("web_search", available_agents=["researcher", "coder"])
+```
+
 ## Top-Level Imports (shortcuts)
 
 ```python

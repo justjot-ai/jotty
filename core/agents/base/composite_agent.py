@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
 from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
 
-# Reuse canonical enums from agent_team — single source of truth
-from Jotty.core.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+# Canonical definitions in foundation — breaks agents → swarms circular dependency
+from Jotty.core.foundation.types.execution_types import CoordinationPattern, MergeStrategy
 
 if TYPE_CHECKING:
     from Jotty.core.swarms.base.domain_swarm import DomainSwarm

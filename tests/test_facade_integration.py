@@ -192,19 +192,22 @@ class TestSkillsFacadeIntegration:
 class TestOrchestrationFacadeIntegration:
     """Test orchestration facade surfaces hidden components."""
 
-    def test_get_swarm_intelligence_returns_class(self):
+    def test_get_swarm_intelligence_returns_instance(self):
         from Jotty.core.orchestration import get_swarm_intelligence
         si = get_swarm_intelligence()
         assert si is not None
+        assert type(si).__name__ == "SwarmIntelligence"
 
-    def test_get_paradigm_executor_returns_class(self):
+    def test_get_paradigm_executor_returns_class_without_manager(self):
         from Jotty.core.orchestration import get_paradigm_executor
         pe = get_paradigm_executor()
+        # Without manager arg, returns the class for manual instantiation
         assert pe is not None
 
-    def test_get_training_daemon_returns_class(self):
+    def test_get_training_daemon_returns_class_without_manager(self):
         from Jotty.core.orchestration import get_training_daemon
         td = get_training_daemon()
+        # Without manager arg, returns the class for manual instantiation
         assert td is not None
 
     def test_get_ensemble_manager_returns_real_instance(self):

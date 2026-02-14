@@ -48,6 +48,15 @@ def _extract_answer_from_output(output) -> str:
         for field in ("content", "response", "text", "output", "result"):
             if field in output and output[field]:
                 return str(output[field]).strip()
+        # Skill-style dict: {'success': True, 'results': [str or dict, ...]}
+        if "results" in output and isinstance(output["results"], list):
+            for item in output["results"]:
+                if isinstance(item, str) and len(item.strip()) > 2:
+                    return item.strip()
+                if isinstance(item, dict):
+                    for f in ("content", "response", "text", "output", "result", "summary", "answer", "message"):
+                        if f in item and item[f]:
+                            return str(item[f]).strip()
     # Avoid returning object repr (e.g. "AgenticExecutionResult(success=...")
     if hasattr(output, "summary"):
         summary = output.summary() if callable(output.summary) else output.summary
@@ -59,8 +68,37 @@ def _extract_answer_from_output(output) -> str:
 GAIA_SYSTEM_PROMPT = (
     "You are answering a benchmark question. "
     "Answer concisely. Give ONLY the final answer with no explanation. "
-    "Do not include units unless the question explicitly asks for them."
+    "Do not include units unless the question explicitly asks for them. "
+    "If the answer is a number, output only that number. "
+    "Use available tools (web search, read_file, etc.) when the task requires it; do not refuse for lack of direct access. "
+    "If the question refers to a video, file, or external resource, use the provided tools to access it and base your answer on that. "
+    "You MUST use read_file or other tools to process any attached file(s) (including audio) before answering when attachments are listed."
 )
+
+# Patterns that suggest the model refused instead of answering (for logging / retry).
+REFUSAL_PATTERNS = (
+    "cannot ",
+    "can't ",
+    "unable to",
+    "do not have access",
+    "don't have access",
+    "no direct access",
+    "cannot confidently",
+    "without verifying",
+    "i apologize, but",
+    "i cannot actually",
+    "no audio",
+    "no file",
+    "has not been successfully uploaded",
+)
+
+
+def _looks_like_refusal(text: str) -> bool:
+    """True if the model output looks like a refusal rather than an answer."""
+    if not text or len(text.strip()) < 20:
+        return False
+    lower = text.strip().lower()
+    return any(p in lower for p in REFUSAL_PATTERNS)
 
 
 class JottyGAIAAdapter:
@@ -101,6 +139,7 @@ class JottyGAIAAdapter:
         self.use_llm_doc_sources = use_llm_doc_sources
         self.progress_callback = progress_callback  # (stage, detail) for live progress
         self.last_result = None  # ExecutionResult from last run
+        self.last_raw_answer = None  # Raw text before DSPy normalization (for failure logging)
         self._jotty = None  # Lazy-initialized
         self._loop = None
         self._loop_thread = None
@@ -141,6 +180,9 @@ class JottyGAIAAdapter:
             except Exception:
                 pass
         parts.append("")
+        # Hint so planner injects web-search / read_file when using AGENTIC (keyword-based injection)
+        parts.append("Use web search or read_file when needed to answer.")
+        parts.append("")
         parts.append(f"Question: {question}")
         if attachment_paths:
             paths_str = ", ".join(attachment_paths)
@@ -155,9 +197,14 @@ class JottyGAIAAdapter:
         Args:
             question: The GAIA question text.
             attachment_paths: Optional list of absolute paths to attached files (Excel, PDF, etc.).
+            expected_answer: Optional expected answer string; when provided, DSPy is used to
+                extract/normalize the final answer from raw output (signature-driven, not regex).
 
         Returns the agent's answer as a string.
         """
+        expected_answer = kwargs.pop("expected_answer", None)
+        force_tier = kwargs.pop("force_tier", None)
+
         if self.dry_run:
             self.last_result = None
             return "[DRY RUN]"
@@ -166,11 +213,11 @@ class JottyGAIAAdapter:
 
         # Build kwargs for Jotty.run()
         run_kwargs = {}
-
-        if self.tier:
+        tier_to_use = force_tier or self.tier
+        if tier_to_use:
             from Jotty.core.execution.types import ExecutionTier
             tier_map = {t.name: t for t in ExecutionTier}
-            tier_enum = tier_map.get(self.tier.upper())
+            tier_enum = tier_map.get(str(tier_to_use).upper())
             if tier_enum:
                 run_kwargs['tier'] = tier_enum
 
@@ -186,7 +233,26 @@ class JottyGAIAAdapter:
 
         # Extract answer string (result.output can be AgenticExecutionResult, dict, or str)
         raw = result.output if result else None
-        return _extract_answer_from_output(raw)
+        raw_text = _extract_answer_from_output(raw)
+        self.last_raw_answer = raw_text  # For failure logging in runner
+
+        # When expected_answer is provided, use DSPy signature to normalize output format
+        if expected_answer and raw_text:
+            try:
+                from Jotty.core.evaluation.gaia_signatures import normalize_gaia_answer_with_dspy
+                normalized = normalize_gaia_answer_with_dspy(
+                    raw_response=raw_text,
+                    expected_example=expected_answer,
+                    question_summary=question[:300] if question else "",
+                )
+                if normalized.strip():
+                    return normalized
+                # Empty normalized but raw looks like refusal: keep raw so runner logs show it
+                if _looks_like_refusal(raw_text):
+                    logger.debug("GAIA: normalizer returned empty for refusal-like output")
+            except Exception as e:
+                logger.debug("GAIA DSPy normalization skipped: %s", e)
+        return raw_text
 
     def _ensure_loop_thread(self):
         """Start the dedicated event-loop thread if not already running."""

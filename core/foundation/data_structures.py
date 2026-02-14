@@ -124,7 +124,36 @@ __all__ = [
     'SwarmIntelligenceView',
     # Parameter aliases
     'DEFAULT_PARAM_ALIASES',
+    # Focused configs (Phase 3)
+    'PersistenceConfig',
+    'ExecutionConfig',
+    'MemoryConfig',
+    'ContextBudgetConfig',
+    'LearningConfig',
+    'ValidationConfig',
+    'MonitoringConfig',
+    'IntelligenceConfig',
 ]
+
+# Lazy re-export of focused configs for convenient importing
+def __getattr__(name):
+    _CONFIG_MAP = {
+        'PersistenceConfig': '.configs.persistence',
+        'ExecutionConfig': '.configs.execution',
+        'MemoryConfig': '.configs.memory',
+        'ContextBudgetConfig': '.configs.context_budget',
+        'LearningConfig': '.configs.learning',
+        'ValidationConfig': '.configs.validation',
+        'MonitoringConfig': '.configs.monitoring',
+        'IntelligenceConfig': '.configs.intelligence',
+    }
+    if name in _CONFIG_MAP:
+        import importlib
+        mod = importlib.import_module(_CONFIG_MAP[name], __package__)
+        val = getattr(mod, name)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # =============================================================================
@@ -850,3 +879,105 @@ class SwarmConfig:
         """Serialize all config fields to a flat dictionary (replaces dataclasses.asdict)."""
         from dataclasses import fields as dc_fields
         return {f.name: getattr(self, f.name) for f in dc_fields(self)}
+
+    # =========================================================================
+    # Focused Config Extraction (Phase 3: subsystems import their own config)
+    # Usage: memory_system.init(config.to_memory_config())
+    # =========================================================================
+
+    def to_persistence_config(self) -> 'PersistenceConfig':
+        """Extract persistence-specific config."""
+        from .configs.persistence import PersistenceConfig
+        return PersistenceConfig(**{
+            f: getattr(self, f) for f in PersistenceView._FIELDS
+        })
+
+    def to_execution_config(self) -> 'ExecutionConfig':
+        """Extract execution-specific config."""
+        from .configs.execution import ExecutionConfig
+        return ExecutionConfig(**{
+            f: getattr(self, f) for f in ExecutionView._FIELDS
+        })
+
+    def to_memory_config(self) -> 'MemoryConfig':
+        """Extract memory-specific config."""
+        from .configs.memory import MemoryConfig
+        return MemoryConfig(**{
+            f: getattr(self, f) for f in MemoryView._FIELDS
+        })
+
+    def to_context_budget_config(self) -> 'ContextBudgetConfig':
+        """Extract context budget config."""
+        from .configs.context_budget import ContextBudgetConfig
+        return ContextBudgetConfig(**{
+            f: getattr(self, f) for f in ContextBudgetView._FIELDS
+        })
+
+    def to_learning_config(self) -> 'LearningConfig':
+        """Extract learning-specific config."""
+        from .configs.learning import LearningConfig
+        return LearningConfig(**{
+            f: getattr(self, f) for f in LearningView._FIELDS
+        })
+
+    def to_validation_config(self) -> 'ValidationConfig':
+        """Extract validation-specific config."""
+        from .configs.validation import ValidationConfig
+        return ValidationConfig(**{
+            f: getattr(self, f) for f in ValidationView._FIELDS
+        })
+
+    def to_monitoring_config(self) -> 'MonitoringConfig':
+        """Extract monitoring-specific config."""
+        from .configs.monitoring import MonitoringConfig
+        return MonitoringConfig(**{
+            f: getattr(self, f) for f in MonitoringView._FIELDS
+        })
+
+    def to_intelligence_config(self) -> 'IntelligenceConfig':
+        """Extract swarm intelligence config."""
+        from .configs.intelligence import IntelligenceConfig
+        return IntelligenceConfig(**{
+            f: getattr(self, f) for f in SwarmIntelligenceView._FIELDS
+        })
+
+    @classmethod
+    def from_configs(
+        cls,
+        persistence: 'PersistenceConfig' = None,
+        execution: 'ExecutionConfig' = None,
+        memory: 'MemoryConfig' = None,
+        context_budget: 'ContextBudgetConfig' = None,
+        learning: 'LearningConfig' = None,
+        validation: 'ValidationConfig' = None,
+        monitoring: 'MonitoringConfig' = None,
+        intelligence: 'IntelligenceConfig' = None,
+        **overrides,
+    ) -> 'SwarmConfig':
+        """Build a SwarmConfig by composing focused sub-configs.
+
+        Any fields not covered by sub-configs use defaults.
+        Extra keyword overrides are applied last.
+
+        Example:
+            config = SwarmConfig.from_configs(
+                memory=MemoryConfig(episodic_capacity=2000),
+                learning=LearningConfig(gamma=0.95),
+            )
+        """
+        from dataclasses import fields as dc_fields, asdict as dc_asdict
+        kwargs: Dict[str, Any] = {}
+
+        for sub_config in [persistence, execution, memory, context_budget,
+                           learning, validation, monitoring, intelligence]:
+            if sub_config is not None:
+                kwargs.update(dc_asdict(sub_config))
+
+        # Overrides win
+        kwargs.update(overrides)
+
+        # Filter to valid SwarmConfig fields
+        valid_fields = {f.name for f in dc_fields(cls)}
+        filtered = {k: v for k, v in kwargs.items() if k in valid_fields}
+
+        return cls(**filtered)

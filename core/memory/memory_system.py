@@ -140,8 +140,13 @@ class MemorySystem:
     def _init_full(self):
         """Initialize full SwarmMemory backend."""
         from Jotty.core.foundation.data_structures import SwarmConfig, MemoryLevel
+        from Jotty.core.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 
-        jc = self._jotty_config or SwarmConfig()
+        jc = self._jotty_config
+        if isinstance(jc, FocusedMemoryConfig):
+            jc = SwarmConfig.from_configs(memory=jc)
+        elif jc is None:
+            jc = SwarmConfig()
 
         from .cortex import SwarmMemory
         backend = SwarmMemory(
@@ -301,18 +306,21 @@ class MemorySystem:
     def _retrieve_full(self, query, goal, top_k, level):
         """Retrieve using SwarmMemory."""
         try:
-            results = self._backend.retrieve(
+            # SwarmMemory.retrieve_fast() supports top_k directly
+            # SwarmMemory.retrieve() uses budget_tokens, not top_k
+            results = self._backend.retrieve_fast(
                 query=query,
                 goal=goal,
+                budget_tokens=top_k * 500,  # estimate ~500 tokens per memory
                 top_k=top_k,
             )
             return [
                 MemoryResult(
-                    content=r.get('content', str(r)),
-                    level=r.get('level', 'unknown'),
-                    relevance=r.get('relevance', 0.0),
-                    timestamp=r.get('timestamp', 0.0),
-                    metadata=r.get('metadata', {}),
+                    content=getattr(r, 'content', str(r)),
+                    level=getattr(r, 'level', 'unknown') if not hasattr(r, 'level') or not hasattr(r.level, 'value') else r.level.value,
+                    relevance=getattr(r, 'relevance', 0.0),
+                    timestamp=getattr(r, 'timestamp', 0.0),
+                    metadata=getattr(r, 'metadata', {}),
                 )
                 for r in (results if isinstance(results, list) else [])
             ]

@@ -32,7 +32,15 @@ from ..foundation.data_structures import (
     MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
     GoalHierarchy, GoalNode, CausalLink, StoredEpisode
 )
+from ..foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 from .llm_rag import LLMRAGRetriever, DeduplicationEngine, CausalExtractor
+
+
+def _ensure_swarm_config(config):
+    """Accept MemoryConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedMemoryConfig):
+        return SwarmConfig.from_configs(memory=config)
+    return config
 
 
 _consolidation_loaded = False
@@ -82,9 +90,9 @@ class SwarmMemory(RetrievalMixin, ConsolidationMixin):
     - Protection against forgetting
     """
     
-    def __init__(self, agent_name: str, config: SwarmConfig):
+    def __init__(self, agent_name: str, config):
         self.agent_name = agent_name
-        self.config = config
+        self.config = _ensure_swarm_config(config)
         
         # Memory storage by level
         self.memories: Dict[MemoryLevel, Dict[str, MemoryEntry]] = {

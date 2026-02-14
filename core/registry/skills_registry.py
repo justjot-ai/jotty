@@ -852,10 +852,16 @@ class SkillsRegistry:
             logger.debug("Background n8n cache refresh failed: %s", e)
 
     def _scan_skills_metadata(self) -> None:
-        """Scan skill directories and register lazy SkillDefinitions (metadata only)."""
+        """Scan skill directories and register lazy SkillDefinitions (metadata only).
+
+        Discovery order (later sources don't overwrite earlier ones):
+            1. Built-in Jotty skills directory (self.skills_dir)
+            2. Installed skill packages (via 'jotty.skills' entry point group)
+            3. Claude Code skills directory (~/.claude/skills)
+        """
         excluded_dirs = {'composite-templates', '__pycache__', '.git', '.DS_Store'}
 
-        # Scan Jotty skills directory
+        # 1. Scan Jotty skills directory
         if self.skills_dir.exists():
             for skill_dir in self.skills_dir.iterdir():
                 if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
@@ -868,7 +874,10 @@ class SkillsRegistry:
         else:
             logger.warning(f"Skills directory not found: {self.skills_dir}")
 
-        # Scan Claude Code skills directory
+        # 2. Scan installed skill packages (entry point group: jotty.skills)
+        self._scan_plugin_skills(excluded_dirs)
+
+        # 3. Scan Claude Code skills directory
         if self.claude_skills_dir.exists():
             for skill_dir in self.claude_skills_dir.iterdir():
                 if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
@@ -881,6 +890,58 @@ class SkillsRegistry:
                             self.loaded_skills[skill.name] = skill
                     except Exception as e:
                         logger.error(f"Failed to register Claude Code skill {skill_dir.name}: {e}")
+
+    def _scan_plugin_skills(self, excluded_dirs: set) -> None:
+        """Discover skills from installed packages via entry points.
+
+        Packages register skill directories using the 'jotty.skills' entry point group.
+        Each entry point should point to a function that returns a Path to a skills directory.
+
+        Example pyproject.toml for a skill package:
+            [project.entry-points."jotty.skills"]
+            my-skills = "my_package:get_skills_dir"
+
+        Where get_skills_dir() returns Path("/path/to/skills/").
+        """
+        try:
+            from importlib.metadata import entry_points
+        except ImportError:
+            return  # Python < 3.9 without importlib_metadata
+
+        try:
+            # Python 3.12+: entry_points(group=...) is preferred
+            # Python 3.9-3.11: entry_points() returns a dict or SelectableGroups
+            eps = entry_points(group='jotty.skills')
+        except TypeError:
+            # Python 3.9 fallback
+            all_eps = entry_points()
+            eps = all_eps.get('jotty.skills', [])
+
+        for ep in eps:
+            try:
+                get_dir_fn = ep.load()
+                plugin_dir = Path(get_dir_fn())
+                if not plugin_dir.is_dir():
+                    logger.warning(f"Plugin skill dir not found: {ep.name} -> {plugin_dir}")
+                    continue
+
+                count = 0
+                for skill_dir in plugin_dir.iterdir():
+                    if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
+                        if skill_dir.name in self.loaded_skills:
+                            logger.debug(f"Skipping plugin skill {skill_dir.name} (already registered)")
+                            continue
+                        try:
+                            skill = self._register_lazy_skill(skill_dir.name, plugin_dir)
+                            if skill:
+                                self.loaded_skills[skill.name] = skill
+                                count += 1
+                        except Exception as e:
+                            logger.error(f"Failed to register plugin skill {skill_dir.name}: {e}")
+                if count > 0:
+                    logger.info(f"Loaded {count} skills from plugin '{ep.name}'")
+            except Exception as e:
+                logger.error(f"Failed to load skill plugin '{ep.name}': {e}")
 
     def _register_lazy_skill(self, skill_name: str, base_dir: Path) -> Optional[SkillDefinition]:
         """Register a skill with metadata only - tools loaded lazily on first access."""

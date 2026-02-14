@@ -16,66 +16,85 @@ Usage:
         print(f"{name}: {desc}")
 """
 
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.foundation.configs import LearningConfig
 
 
-def get_learning_system(config: Optional['SwarmConfig'] = None):
+def _resolve_learning_config(config) -> 'SwarmConfig':
+    """Convert LearningConfig or SwarmConfig to SwarmConfig for internal use.
+
+    Accepts:
+        - None → default SwarmConfig
+        - LearningConfig → SwarmConfig.from_configs(learning=config)
+        - SwarmConfig → pass through
+    """
+    if config is None:
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        return SwarmConfig()
+
+    from Jotty.core.foundation.configs.learning import LearningConfig
+    if isinstance(config, LearningConfig):
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        return SwarmConfig.from_configs(learning=config)
+
+    # Assume SwarmConfig
+    return config
+
+
+def get_learning_system(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
     """
     Return a configured LearningManager (unified learning coordinator).
 
     Args:
-        config: Optional SwarmConfig. If None, uses defaults.
+        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
 
     Returns:
         LearningManager instance.
     """
     from Jotty.core.learning.learning_coordinator import LearningManager
-    return LearningManager(config)
+    resolved = _resolve_learning_config(config)
+    return LearningManager(resolved)
 
 
-def get_td_lambda(config: Optional['SwarmConfig'] = None):
+def get_td_lambda(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
     """
     Return a TDLambdaLearner for temporal-difference learning.
 
     Args:
-        config: Optional SwarmConfig. If None, uses defaults.
+        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
 
     Returns:
         TDLambdaLearner instance.
     """
-    from Jotty.core.learning.learning import TDLambdaLearner
-    if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        config = SwarmConfig()
-    return TDLambdaLearner(config=config)
+    from Jotty.core.learning.td_lambda import TDLambdaLearner
+    resolved = _resolve_learning_config(config)
+    return TDLambdaLearner(config=resolved)
 
 
-def get_credit_assigner(config: Optional['SwarmConfig'] = None):
+def get_credit_assigner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
     """
     Return a ReasoningCreditAssigner for multi-step reasoning credit.
 
     Args:
-        config: Optional SwarmConfig. If None, uses defaults.
+        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
 
     Returns:
         ReasoningCreditAssigner instance.
     """
-    from Jotty.core.learning.learning import ReasoningCreditAssigner
-    if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        config = SwarmConfig()
-    return ReasoningCreditAssigner(config=config)
+    from Jotty.core.learning.reasoning_credit import ReasoningCreditAssigner
+    resolved = _resolve_learning_config(config)
+    return ReasoningCreditAssigner(config=resolved)
 
 
-def get_offline_learner(config: Optional['SwarmConfig'] = None):
+def get_offline_learner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
     """
     Return offline learning components: OfflineLearner, CounterfactualLearner, PatternDiscovery.
 
     Args:
-        config: Optional SwarmConfig. If None, uses defaults.
+        config: Optional LearningConfig or SwarmConfig. If None, uses defaults.
 
     Returns:
         Dict with 'offline_learner', 'counterfactual', and 'pattern_discovery' keys.
@@ -85,13 +104,11 @@ def get_offline_learner(config: Optional['SwarmConfig'] = None):
         CounterfactualLearner,
         PatternDiscovery,
     )
-    if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        config = SwarmConfig()
+    resolved = _resolve_learning_config(config)
     return {
-        "offline_learner": OfflineLearner(config=config),
-        "counterfactual": CounterfactualLearner(config=config),
-        "pattern_discovery": PatternDiscovery(config=config),
+        "offline_learner": OfflineLearner(config=resolved),
+        "counterfactual": CounterfactualLearner(config=resolved),
+        "pattern_discovery": PatternDiscovery(config=resolved),
     }
 
 

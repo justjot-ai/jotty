@@ -71,6 +71,11 @@ from .sdk_types import (
     SDKRequest,
 )
 
+from .execution_types import (
+    CoordinationPattern,
+    MergeStrategy,
+)
+
 __all__ = [
     # Enums
     'MemoryLevel',
@@ -110,4 +115,7 @@ __all__ = [
     'SDKSession',
     'SDKResponse',
     'SDKRequest',
+    # Execution types (shared between agents/ and swarms/)
+    'CoordinationPattern',
+    'MergeStrategy',
 ]

@@ -19,10 +19,19 @@ from ..foundation.data_structures import (
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
+from ..foundation.configs.learning import LearningConfig as FocusedLearningConfig
+
 if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
 
 from .adaptive_components import AdaptiveLearningRate, IntermediateRewardCalculator
+
+
+def _ensure_swarm_config(config):
+    """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedLearningConfig):
+        return SwarmConfig.from_configs(learning=config)
+    return config
 
 
 
@@ -346,11 +355,11 @@ class TDLambdaLearner:
     4. Terminal state has V(s') = 0
     """
     
-    def __init__(self, config: SwarmConfig, adaptive_lr: AdaptiveLearningRate = None):
-        self.config = config
-        self.gamma = config.gamma
-        self.lambda_trace = config.lambda_trace
-        self.alpha = config.alpha
+    def __init__(self, config, adaptive_lr: AdaptiveLearningRate = None):
+        self.config = _ensure_swarm_config(config)
+        self.gamma = self.config.gamma
+        self.lambda_trace = self.config.lambda_trace
+        self.alpha = self.config.alpha
 
         self.adaptive_lr = adaptive_lr
 

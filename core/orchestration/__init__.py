@@ -4,6 +4,21 @@ Orchestration Layer - Multi-Agent Coordination
 
 All imports are lazy to avoid loading DSPy at module level.
 
+Sub-module Structure (enforced by boundary linter):
+----------------------------------------------------
+  llm_providers/  — LLM provider adapters (Anthropic, OpenAI, Google)
+                    Leaf module: no intra-orchestration deps
+  intelligence    — SwarmIntelligence, ParadigmExecutor, EnsembleManager
+                    Depends on: llm_providers
+  routing         — SwarmRouter, ModelTierRouter, MorphScoring
+                    Depends on: intelligence, llm_providers
+  monitoring      — MetricsCollector, Benchmarking
+                    Leaf module: no intra-orchestration deps
+  learning        — SwarmLearner, LearningPipeline, CreditAssignment
+                    Depends on: intelligence, routing
+  public_api      — Facade, Orchestrator (top-level entry points)
+                    Depends on: all sub-modules
+
 Usage:
     from core.orchestration import Orchestrator
     swarm = Orchestrator(agents="Research AI startups")

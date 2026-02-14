@@ -20,36 +20,49 @@ if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
 
 
-def get_swarm_intelligence():
+def get_swarm_intelligence(config=None):
     """
-    Return the SwarmIntelligence class for multi-agent coordination.
+    Return a SwarmIntelligence instance for multi-agent coordination.
+
+    Args:
+        config: Optional SwarmConfig.
 
     Returns:
-        SwarmIntelligence class (instantiate with agents list).
+        SwarmIntelligence instance.
     """
     from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
-    return SwarmIntelligence
+    return SwarmIntelligence(config=config)
 
 
-def get_paradigm_executor():
+def get_paradigm_executor(manager=None):
     """
-    Return the ParadigmExecutor class for discussion paradigms (relay, debate, refinement).
+    Return a ParadigmExecutor for discussion paradigms (relay, debate, refinement).
+
+    Args:
+        manager: Orchestrator instance. If None, returns the class for manual instantiation.
 
     Returns:
-        ParadigmExecutor class (instantiate with orchestrator reference).
+        ParadigmExecutor instance (if manager provided) or class (if not).
     """
     from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+    if manager is not None:
+        return ParadigmExecutor(manager)
     return ParadigmExecutor
 
 
-def get_training_daemon():
+def get_training_daemon(manager=None):
     """
-    Return the TrainingDaemon class for background self-improvement.
+    Return a TrainingDaemon for background self-improvement.
+
+    Args:
+        manager: Orchestrator instance. If None, returns the class for manual instantiation.
 
     Returns:
-        TrainingDaemon class (instantiate with orchestrator reference).
+        TrainingDaemon instance (if manager provided) or class (if not).
     """
     from Jotty.core.orchestration.training_daemon import TrainingDaemon
+    if manager is not None:
+        return TrainingDaemon(manager)
     return TrainingDaemon
 
 
@@ -81,15 +94,18 @@ def get_provider_manager(config: Optional['SwarmConfig'] = None):
     )
 
 
-def get_model_tier_router():
+def get_model_tier_router(default_provider: str = None):
     """
-    Return a ModelTierRouter for complexity-based LLM model selection.
+    Return a ModelTierRouter instance for complexity-based LLM model selection.
+
+    Args:
+        default_provider: Optional default LLM provider name.
 
     Returns:
-        ModelTierRouter class.
+        ModelTierRouter instance.
     """
     from Jotty.core.orchestration.model_tier_router import ModelTierRouter
-    return ModelTierRouter
+    return ModelTierRouter(default_provider=default_provider)
 
 
 def get_swarm_router():

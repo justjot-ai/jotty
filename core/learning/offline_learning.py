@@ -26,8 +26,16 @@ from ..foundation.data_structures import (
     SwarmConfig, StoredEpisode, MemoryLevel,
     ValidationResult, AgentContribution, CausalLink
 )
+from ..foundation.configs.learning import LearningConfig as FocusedLearningConfig
 from ..memory.cortex import SwarmMemory
 from .learning import TDLambdaLearner, AdaptiveLearningRate
+
+
+def _ensure_swarm_config(config):
+    """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedLearningConfig):
+        return SwarmConfig.from_configs(learning=config)
+    return config
 
 
 # =============================================================================
@@ -180,8 +188,8 @@ class CounterfactualLearner:
     to improve credit assignment and learn from mistakes.
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         self.analyzer = dspy.ChainOfThought(CounterfactualSignature)
         
         # Cache to avoid redundant analysis
@@ -308,8 +316,8 @@ class PatternDiscovery:
     - Discriminative features
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         self.discoverer = dspy.ChainOfThought(PatternDiscoverySignature)
     
     async def discover_patterns(self,
@@ -422,8 +430,8 @@ class OfflineLearner:
     - Causal knowledge extraction
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
         
         # Episode buffer
         self.buffer = PrioritizedEpisodeBuffer(

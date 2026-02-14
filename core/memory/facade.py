@@ -14,10 +14,32 @@ Usage:
     results = memory.retrieve("How to handle X?", top_k=5)
 """
 
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Optional, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.foundation.configs import MemoryConfig
+
+
+def _resolve_memory_config(config) -> 'SwarmConfig':
+    """Convert MemoryConfig or SwarmConfig to SwarmConfig for internal use.
+
+    Accepts:
+        - None → default SwarmConfig
+        - MemoryConfig → SwarmConfig.from_configs(memory=config)
+        - SwarmConfig → pass through
+    """
+    if config is None:
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        return SwarmConfig()
+
+    from Jotty.core.foundation.configs.memory import MemoryConfig
+    if isinstance(config, MemoryConfig):
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        return SwarmConfig.from_configs(memory=config)
+
+    # Assume SwarmConfig
+    return config
 
 
 def get_memory_system():
@@ -58,21 +80,19 @@ def get_consolidator(config=None):
     return SharpWaveRippleConsolidator(config=config)
 
 
-def get_rag_retriever(config: Optional['SwarmConfig'] = None):
+def get_rag_retriever(config: Optional[Union['MemoryConfig', 'SwarmConfig']] = None):
     """
     Return an LLMRAGRetriever for LLM-powered retrieval-augmented generation.
 
     Args:
-        config: Optional SwarmConfig. If None, uses defaults.
+        config: Optional MemoryConfig or SwarmConfig. If None, uses defaults.
 
     Returns:
         LLMRAGRetriever instance.
     """
     from Jotty.core.memory.llm_rag import LLMRAGRetriever
-    if config is None:
-        from Jotty.core.foundation.data_structures import SwarmConfig
-        config = SwarmConfig()
-    return LLMRAGRetriever(config=config)
+    resolved = _resolve_memory_config(config)
+    return LLMRAGRetriever(config=resolved)
 
 
 def list_components() -> Dict[str, str]:

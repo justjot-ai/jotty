@@ -23,8 +23,17 @@ from ..foundation.data_structures import (
     ValidationResult, AgentContribution, StoredEpisode,
     LearningMetrics, AlertType, GoalHierarchy, CausalLink
 )
+from ..foundation.configs.learning import LearningConfig as FocusedLearningConfig
+
 if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
+
+
+def _ensure_swarm_config(config):
+    """Accept LearningConfig or SwarmConfig, return SwarmConfig."""
+    if isinstance(config, FocusedLearningConfig):
+        return SwarmConfig.from_configs(learning=config)
+    return config
 
 
 
@@ -44,10 +53,10 @@ class ReasoningCreditAssigner:
     4. Temporal position (early vs late decisions)
     """
     
-    def __init__(self, config: SwarmConfig):
-        self.config = config
-        self.reasoning_weight = config.reasoning_weight
-        self.evidence_weight = config.evidence_weight
+    def __init__(self, config):
+        self.config = _ensure_swarm_config(config)
+        self.reasoning_weight = self.config.reasoning_weight
+        self.evidence_weight = self.config.evidence_weight
     
     def analyze_contributions(self,
                                success: bool,

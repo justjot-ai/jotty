@@ -35,45 +35,13 @@ Date: February 2026
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 import re
 
+# Canonical definitions live in foundation — single source of truth
+from Jotty.core.foundation.types.execution_types import CoordinationPattern, MergeStrategy
+
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# COORDINATION PATTERNS
-# =============================================================================
-
-class CoordinationPattern(Enum):
-    """
-    Patterns for how agents coordinate within a team.
-
-    NONE: No pattern - swarm handles coordination manually (backward compatible)
-    PIPELINE: Sequential A → B → C, each passes output to next
-    PARALLEL: Concurrent A | B | C, results merged
-    CONSENSUS: All vote, majority wins (Byzantine fault tolerant)
-    HIERARCHICAL: Manager delegates to workers, aggregates results
-    BLACKBOARD: Shared workspace, agents contribute incrementally
-    ROUND_ROBIN: Agents take turns on subtasks
-    """
-    NONE = "none"
-    PIPELINE = "pipeline"
-    PARALLEL = "parallel"
-    CONSENSUS = "consensus"
-    HIERARCHICAL = "hierarchical"
-    BLACKBOARD = "blackboard"
-    ROUND_ROBIN = "round_robin"
-
-
-class MergeStrategy(Enum):
-    """How to merge results from parallel execution."""
-    COMBINE = "combine"      # Combine all outputs into list
-    FIRST = "first"          # Take first successful result
-    BEST = "best"            # Use scoring to pick best
-    VOTE = "vote"            # Majority voting
-    CONCAT = "concat"        # Concatenate string outputs
 
 
 # =============================================================================

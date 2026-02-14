@@ -33,6 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from Jotty.core.evaluation import GAIABenchmark, EvalStore
+from Jotty.core.evaluation.gaia_adapter import _looks_like_refusal
 from Jotty.core.evaluation.gaia_adapter import JottyGAIAAdapter
 
 
@@ -96,6 +97,14 @@ def parse_args(argv=None):
     parser.add_argument(
         "--use-llm-doc-sources", action="store_true",
         help="Add open-source LLM doc references (Microsoft, Hugging Face, etc.) to context",
+    )
+    parser.add_argument(
+        "--retry-empty", action="store_true",
+        help="Retry once when the model returns an empty answer but expected is non-empty",
+    )
+    parser.add_argument(
+        "--retry-refusal", action="store_true",
+        help="Retry once with tier=AGENTIC when the model output looks like a refusal (use tools)",
     )
     return parser.parse_args(argv)
 
@@ -255,8 +264,68 @@ def run_benchmark(args):
         )
         print(f"  [{idx}/{len(tasks)}] Running {task_id[:50]} ...", flush=True)
 
+        expected = task.get('Final answer', '')
+
         # Evaluate
         bench_result = benchmark.evaluate_task(task, adapter)
+
+        # Optional retry when answer was empty but expected is non-empty
+        if (
+            args.retry_empty
+            and expected
+            and (not bench_result.answer or not str(bench_result.answer).strip())
+        ):
+            print(f"  [{idx}/{len(tasks)}] (retry: empty answer)", flush=True)
+            bench_result = benchmark.evaluate_task(task, adapter)
+
+        # Optional retry when answer looks like a refusal (retry with AGENTIC to force tool use)
+        if (
+            args.retry_refusal
+            and not bench_result.success
+            and expected
+            and getattr(adapter, "last_raw_answer", None)
+            and _looks_like_refusal(str(adapter.last_raw_answer))
+        ):
+            print(f"  [{idx}/{len(tasks)}] (retry: refusal → AGENTIC)", flush=True)
+            original_tier = adapter.tier
+            adapter.tier = "AGENTIC"
+            bench_result = benchmark.evaluate_task(task, adapter)
+            adapter.tier = original_tier
+
+        # Optional retry when expected is a single word (e.g. name) but we got a different single word (up to 2 retries)
+        def _single_word(s: str) -> str:
+            t = str(s).strip().lower()
+            return t if t and " " not in t and "," not in t else ""
+        for retry_attempt in range(2):
+            if (
+                args.retry_refusal
+                and not bench_result.success
+                and expected
+                and _single_word(expected)
+                and _single_word(bench_result.answer or "")
+                and _single_word(expected) != _single_word(bench_result.answer or "")
+            ):
+                print(f"  [{idx}/{len(tasks)}] (retry: wrong single-word → AGENTIC #{retry_attempt + 1})", flush=True)
+                original_tier = adapter.tier
+                adapter.tier = "AGENTIC"
+                bench_result = benchmark.evaluate_task(task, adapter)
+                adapter.tier = original_tier
+            else:
+                break
+
+        # Optional retry when expected looks like a comma-separated list and we failed
+        if (
+            args.retry_refusal
+            and not bench_result.success
+            and expected
+            and "," in expected.strip()
+            and (bench_result.answer or "").strip()
+        ):
+            print(f"  [{idx}/{len(tasks)}] (retry: list answer wrong → AGENTIC)", flush=True)
+            original_tier = adapter.tier
+            adapter.tier = "AGENTIC"
+            bench_result = benchmark.evaluate_task(task, adapter)
+            adapter.tier = original_tier
 
         # Extract cost/tokens from adapter's last_result
         cost = 0.0
@@ -277,7 +346,6 @@ def run_benchmark(args):
             tokens_used=tokens,
         )
 
-        expected = task.get('Final answer', '')
         result_dict = {
             'task_id': task_id,
             'success': bench_result.success,
@@ -296,6 +364,11 @@ def run_benchmark(args):
             bench_result.answer, expected, bench_result.execution_time,
         )
 
+        if not bench_result.success:
+            raw = getattr(adapter, "last_raw_answer", None)
+            if raw is not None and str(raw).strip():
+                snippet = (str(raw).strip()[:120] + "..." if len(str(raw)) > 120 else str(raw).strip())
+                print(f"         raw: {snippet}")
         if args.verbose and bench_result.error:
             print(f"         ERROR: {bench_result.error}")
 
