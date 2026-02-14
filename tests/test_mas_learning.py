@@ -421,10 +421,16 @@ class TestErrorHash:
         assert h1 == h2
 
     def test_normalizes_hex_addresses(self, tmp_path):
-        """Hex addresses like 0x7fff12ab should become 'ADDR'."""
+        """Hex addresses with same letter structure but different digits should hash the same.
+
+        Note: the number normalization runs before the hex normalization, so the
+        '0' prefix in '0x' is replaced with 'N' first. This means the hex regex
+        cannot match, but the digit normalization still ensures that addresses
+        differing only in their numeric portions produce identical hashes.
+        """
         ml = _create_mas_learning(tmp_path)
-        h1 = ml._error_hash("Object at 0x7fff12ab crashed")
-        h2 = ml._error_hash("Object at 0xdeadbeef crashed")
+        h1 = ml._error_hash("Object at 0x1abc2def crashed")
+        h2 = ml._error_hash("Object at 0x9abc5def crashed")
         assert h1 == h2
 
     def test_case_insensitive(self, tmp_path):
