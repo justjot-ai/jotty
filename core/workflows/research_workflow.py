@@ -692,7 +692,7 @@ Maximum 500 words, extremely clear and actionable."""),
 
         with open(markdown_path, 'w', encoding='utf-8') as f:
             f.write(f"# {self.intent.topic}\n\n")
-            f.write(documentation_stage.output)
+            f.write(documentation_stage.result.output)
 
         if verbose:
             print(f"\n📄 Saved markdown: {markdown_path}")

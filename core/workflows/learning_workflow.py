@@ -678,7 +678,7 @@ Perfect for review before test."""),
             f.write(f"**Student:** {self.intent.student_name}\n\n")
             f.write(f"**Subject:** {self.intent.subject} | **Level:** {self.intent.level} | **Depth:** {self.intent.depth}\n\n")
             f.write("---\n\n")
-            f.write(content_stage.output)
+            f.write(content_stage.result.output)
 
         if verbose:
             print(f"\n📄 Saved markdown: {markdown_path}")
@@ -693,7 +693,7 @@ Perfect for review before test."""),
                 if stage.stage_name not in ["pdf_generation", "content_assembly"]:
                     chapters.append({
                         'title': stage.stage_name.replace('_', ' ').title(),
-                        'content': stage.output
+                        'content': stage.result.output
                     })
 
         # Generate outputs using OutputFormatManager
