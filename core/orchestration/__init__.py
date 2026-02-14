@@ -145,3 +145,9 @@ from .multi_swarm_coordinator import (
     get_multi_swarm_coordinator,
 )
 from .swarm_adapter import SwarmAdapter
+from .multi_strategy_benchmark import (
+    MultiStrategyBenchmark,
+    BenchmarkResults,
+    StrategyResult,
+    benchmark_strategies,
+)
