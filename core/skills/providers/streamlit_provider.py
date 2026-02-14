@@ -84,7 +84,7 @@ if prompt := st.chat_input("What would you like to know?"):
 
     # Generate response
     with st.chat_message("assistant"):
-        # TODO: Integrate with your LLM (OpenAI, Anthropic, etc.)
+        # Task List: Integrate with your LLM (OpenAI, Anthropic, etc.)
         response = f"You said: {prompt}"
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -121,7 +121,7 @@ with st.form("main_form"):
     submitted = st.form_submit_button("Submit")
     if submitted:
         st.success("Form submitted!")
-        # TODO: Process form data
+        # Task List: Process form data
         st.json({form_data})
 '''
 

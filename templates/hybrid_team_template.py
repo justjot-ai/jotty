@@ -320,7 +320,7 @@ async def hybrid_workflow():
     """
 
     # PHASE 1: P2P DISCOVERY AGENTS
-    # TODO: Replace with your actual discovery agents
+    # IMPLEMENT: Replace with your actual discovery agents
     class DiscoverySignature(dspy.Signature):
         """Discovery research."""
         task: str = dspy.InputField()

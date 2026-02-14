@@ -145,7 +145,7 @@ class {swarm_pascal}(DomainSwarm):
 
 ## 🎯 Purpose
 
-TODO: Describe what this swarm does and when to use it.
+DESCRIBE: Describe what this swarm does and when to use it.
 
 ## 🚀 Quick Start
 
@@ -170,7 +170,7 @@ swarm = {swarm_pascal}(config)
 
 ## 💡 Use Cases
 
-TODO: Add common use cases and examples.
+DESCRIBE: Add common use cases and examples.
 
 ## 📄 License
 

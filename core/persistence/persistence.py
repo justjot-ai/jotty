@@ -7,7 +7,7 @@ A-Team Design: NO HARDCODING ANYWHERE
 - All thresholds learned or configured
 
 Handles persistence of:
-- Roadmap TODOs (JSON + rich markdown)
+- Roadmap Task Lists (JSON + rich markdown)
 - Q-tables and experience buffers
 - Hierarchical memories (Cortex)
 - Episode trajectories
@@ -82,12 +82,12 @@ class Vault:
             d.mkdir(parents=True, exist_ok=True)
     
     # =========================================================================
-    # MARKOVIAN TODO PERSISTENCE (NO HARDCODING)
+    # MARKOVIAN Task List PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
     def save_markovian_todo(self, todo: 'SwarmTaskBoard') -> None:
         """
-        Save Markovian TODO state (JSON + rich markdown).
+        Save Markovian Task List state (JSON + rich markdown).
         
         NO HARDCODING:
         - All task attributes serialized dynamically
@@ -105,12 +105,12 @@ class Vault:
         with open(display_file, 'w') as f:
             f.write(self._format_todo_markdown(todo))
         
-        logger.info(f" Saved Markovian TODO: {len(todo.subtasks)} tasks, "
+        logger.info(f" Saved Markovian Task List: {len(todo.subtasks)} tasks, "
                    f"{len(todo.completed_tasks)} completed")
     
     def _serialize_todo(self, todo: Any) -> Dict:
         """
-        Serialize TODO to JSON-compatible dict.
+        Serialize Task List to JSON-compatible dict.
         
         NO HARDCODING: Serializes ALL task attributes dynamically.
         """
@@ -163,14 +163,14 @@ class Vault:
     
     def _format_todo_markdown(self, todo: Any) -> str:
         """
-        Format TODO as rich markdown display.
+        Format Task List as rich markdown display.
         
         NO HARDCODING:
         - Dynamically generates sections based on state
         - No hardcoded display thresholds
         - Sorting by priority * Q-value (algorithmic)
         """
-        md = f"# Markovian TODO - {todo.root_task}\n\n"
+        md = f"# Markovian Task List - {todo.root_task}\n\n"
         md += f"**ID:** `{todo.todo_id}`\n"
         md += f"**Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         md += "---\n\n"
@@ -474,7 +474,7 @@ class Vault:
         logger.info(" SAVING COMPLETE JOTTY STATE")
         logger.info(f"{'='*60}")
         
-        # Save TODO
+        # Save Task List
         if hasattr(conductor, 'todo'):
             self.save_markovian_todo(conductor.todo)
         

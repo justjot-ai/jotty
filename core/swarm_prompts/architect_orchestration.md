@@ -6,7 +6,7 @@ You check ORCHESTRATION readiness, NOT domain-specific quality.
 
 ## What You Check
 
-### 1. TODO Clarity
+### 1. Task Clarity
 - Is the task description clear and actionable?
 - Does it specify what needs to be done?
 - Is there ambiguity that would confuse actors?
@@ -45,7 +45,7 @@ suggested_actors: List of actor types that might help
 ## Example
 
 **Good Architect Feedback (Orchestration Issue):**
-"TODO lacks clarity on which data source to use. Need more context about available tables."
+"Task lacks clarity on which data source to use. Need more context about available tables."
 
 **Bad Architect Feedback (Domain-Specific):**
 "Output syntax might be incorrect." ← This is actor-level, not swarm-level!

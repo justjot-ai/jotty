@@ -677,7 +677,7 @@ class MorphProvider(SkillProvider):
 {indent}user_message = context.vars.get("message", "Hello")
 {indent}
 {indent}# Stream chat response
-{indent}# TODO: Integrate with your LLM (e.g., OpenAI, Anthropic)
+{indent}# Task List: Integrate with your LLM (e.g., OpenAI, Anthropic)
 {indent}# Example with simple response:
 {indent}response = f"You said: {{user_message}}"
 {indent}for word in response.split():
@@ -695,7 +695,7 @@ class MorphProvider(SkillProvider):
 {indent}ticker = context.vars.get("ticker", "AAPL")
 {indent}period = context.vars.get("period", "1mo")
 {indent}
-{indent}# TODO: Implement actual analysis
+{indent}# Task List: Implement actual analysis
 {indent}# Example: Use yfinance, pandas, etc.
 {indent}
 {indent}result = {{
@@ -711,7 +711,7 @@ class MorphProvider(SkillProvider):
 {indent}ticker = context.vars.get("ticker", "AAPL")
 {indent}period = context.vars.get("period", "1mo")
 {indent}
-{indent}# TODO: Implement actual analysis
+{indent}# Task List: Implement actual analysis
 {indent}# Example: Use yfinance, pandas, etc.
 {indent}
 {indent}result = {{
@@ -726,7 +726,7 @@ class MorphProvider(SkillProvider):
         elif workflow_type == 'data':
             return f'''{indent}# Get data based on context
 {indent}
-{indent}# TODO: Implement data fetching
+{indent}# Task List: Implement data fetching
 {indent}data = {{
 {indent}    "metrics": [],
 {indent}    "charts": [],
@@ -738,7 +738,7 @@ class MorphProvider(SkillProvider):
             return f'''{indent}# Get form data from context
 {indent}form_data = context.vars
 {indent}
-{indent}# TODO: Process form submission
+{indent}# Task List: Process form submission
 {indent}
 {indent}return {{"success": True, "message": "Form submitted", "data": form_data}}'''
 

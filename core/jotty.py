@@ -38,7 +38,7 @@ from .memory.cortex import SwarmMemory as Cortex
 # Axon = Agent Communication
 from .agents.axon import SmartAgentSlack as Axon
 
-# Roadmap = Markovian TODO (V2)
+# Roadmap = Markovian Task List (V2)
 from .orchestration import SwarmTaskBoard as Roadmap
 from .orchestration import SubtaskState as Checkpoint
 
@@ -161,7 +161,7 @@ def create_axon() -> Axon:
 
 def create_roadmap(goal: str) -> Roadmap:
     """
-    Create a new Roadmap (Markovian TODO) for task planning.
+    Create a new Roadmap (Markovian Task List) for task planning.
     
     The Roadmap tracks tasks with state, enables checkpointing,
     and supports dynamic updates during execution.

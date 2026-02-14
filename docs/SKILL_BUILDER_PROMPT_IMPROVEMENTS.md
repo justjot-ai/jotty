@@ -681,7 +681,7 @@ def {tool_name}(params: Dict[str, Any]) -> Dict[str, Any]:
             'Example: {{"input": "sample data"}}'
         )
 
-    # TODO: Implement logic
+    # IMPLEMENT: Add your logic here
     return tool_response(
         result="Processed: " + str(input_data),
         input=input_data

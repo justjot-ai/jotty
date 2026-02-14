@@ -693,7 +693,7 @@ class TestSwarmTaskBoard:
         board.add_task("t1", "A")
         summary = board.get_progress_summary()
         assert isinstance(summary, str)
-        assert "TODO Progress" in summary
+        assert "Task List Progress" in summary
 
     @pytest.mark.unit
     def test_get_progress_summary_shows_counts(self):

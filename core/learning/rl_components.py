@@ -53,7 +53,7 @@ class RLComponents:
         
         Similarity based on:
         1. Same actor (exact match bonus)
-        2. Similar state properties (TODO structure, pending tasks)
+        2. Similar state properties (Task List structure, pending tasks)
         3. Similar context (what came before)
         4. TD-error (prioritize surprising experiences)
         

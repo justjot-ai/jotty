@@ -246,7 +246,7 @@ ctx = get_context_manager(max_tokens=16000, safety_margin=0.90)
 
 ### `SmartContextManager.register_todo()`
 
-Register TODO list for preservation (never truncated).
+Register task list for preservation (never truncated).
 
 **Signature:**
 ```python

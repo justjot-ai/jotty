@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class LLMQPredictorSignature(dspy.Signature):
     """Predict Q-value (expected reward) for a state-action pair using LLM reasoning."""
     
-    state_description = dspy.InputField(desc="Current state of the swarm (TODO state, actor states, memory summary)")
+    state_description = dspy.InputField(desc="Current state of the swarm (Task List state, actor states, memory summary)")
     proposed_action = dspy.InputField(desc="The action being considered (which task, which actor)")
     historical_outcomes = dspy.InputField(desc="JSON of similar past state-action-reward tuples")
     goal_context = dspy.InputField(desc="The root goal we're trying to achieve")
@@ -169,7 +169,7 @@ class LLMQPredictor:
         4. Tool usage patterns (which tools work for which queries)
         
         Example:
-        Instead of: "TODO: 2 completed, 1 pending"
+        Instead of: "Task List: 2 completed, 1 pending"
         We get: "QUERY: Count P2P transactions yesterday | DOMAIN: UPI/transactions | 
                  TABLES: fact_upi_transactions | PARTITION: dl_last_updated | 
                  DATE_FILTER: yesterday | AGGREGATION: COUNT_DISTINCT | 
@@ -336,7 +336,7 @@ class LLMQPredictor:
                 pending = todo.get('pending', 0)
                 completed = todo.get('completed', 0)
                 failed = todo.get('failed', 0)
-                parts.append(f"TODO: {completed}/{pending}⏳/{failed}")
+                parts.append(f"Task List: {completed}/{pending}⏳/{failed}")
         
         # ====== 11. ACTOR CONTEXT ======
         if 'current_actor' in state:
@@ -820,7 +820,7 @@ class LLMQPredictor:
         
          A-TEAM: Lessons must be SPECIFIC and ACTIONABLE!
         
-        Example (BAD):  "SUCCESS: In state 'TODO: 2 completed', action 'Actor: SQL' worked"
+        Example (BAD):  "SUCCESS: In state 'Task List: 2 completed', action 'Actor: SQL' worked"
         Example (GOOD): "SUCCESS: For P2P transaction counts, use dl_last_updated as partition column (not txn_date/date/dt)"
         """
         if abs(td_error) < 0.1:

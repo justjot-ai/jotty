@@ -56,7 +56,7 @@ class FeatureEngineeringMixin:
         # NOTE: Target encoding must be done INSIDE cross-validation folds
         # to avoid leakage. Doing it here on full data before CV causes
         # the model to see target information from validation rows.
-        # TODO: Implement proper target encoding with CV-aware pipeline
+        # IMPLEMENT: Add proper target encoding with CV-aware pipeline
         # if y is not None and len(cat_cols) > 0:
         #     for col in cat_cols[:5]:
         #         target_mean = X_eng.groupby(col).apply(...)

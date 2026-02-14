@@ -186,7 +186,7 @@ See `conftest.py` for all available fixtures:
 
 ### Component Fixtures
 - `mock_memory` - Mock SwarmMemory
-- `mock_roadmap` - Mock MarkovianTODO
+- `mock_roadmap` - Mock MarkovianTaskList
 - `conductor_instance` - Conductor instance
 
 ### Utility Fixtures

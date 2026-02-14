@@ -17,7 +17,7 @@ class LLMContextManager:
 
     Ensures we NEVER exceed context length by:
     - Priority-based compression
-    - Task-critical preservation (TODO always kept)
+    - Task-critical preservation (task list always kept)
     - Intelligent summarization using LLM-based compression
     - Graceful degradation
     """

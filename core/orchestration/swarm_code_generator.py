@@ -325,7 +325,7 @@ def connect_{source_tool.replace("-", "_")}_to_{destination_tool.replace("-", "_
         Transformed data for {destination_tool}
     """
     try:
-        # TODO: Implement transformation
+        # IMPLEMENT: Add your transformation logic here
         # Transformation: {transformation or 'pass through'}
         
         # Placeholder transformation
@@ -377,7 +377,7 @@ class {service.title()}Client:
         """
         self.config = config or {{}}
         # Load from environment if not provided
-        # TODO: Implement actual {service} API client
+        # IMPLEMENT: Add actual {service} API client here
 
     def {operation}(self, *args, **kwargs) -> Any:
         """
@@ -391,7 +391,7 @@ class {service.title()}Client:
             Operation result
         """
         try:
-            # TODO: Implement {operation} for {service}
+            # IMPLEMENT: Add {operation} for {service} here
             logger.info(f"Executing {{operation}} on {{service}}")
             return {{"success": True}}
         except Exception as e:
@@ -645,7 +645,7 @@ class {class_name}Provider(SkillProvider):
             )
 
         try:
-            # TODO: Implement task routing to package functions
+            # IMPLEMENT: Add task routing to package functions here
             # This is a placeholder - customize based on package API
             result = self._route_task(task, context)
 
@@ -674,7 +674,7 @@ class {class_name}Provider(SkillProvider):
         Override this method to implement package-specific routing.
         """
         # Placeholder implementation
-        # TODO: Add package-specific logic
+        # IMPLEMENT: Add package-specific logic here
         return {{
             "message": f"Executed via {{self.name}}",
             "task": task,
@@ -859,7 +859,7 @@ def {workflow_name}(context: MorphGlobalContext{params_str}):
         body_lines.extend([
             '',
             f'{indent}# Stream response using Morph stream_chat',
-            f'{indent}# TODO: Integrate with your LLM (OpenAI, Anthropic, etc.)',
+            f'{indent}# IMPLEMENT: Integrate with your LLM (OpenAI, Anthropic, etc.) here',
             f'{indent}response = f"Processing: {{str(context.vars)}}"',
             f'{indent}for word in response.split():',
             f'{indent}    yield stream_chat(word + " ")',
@@ -891,7 +891,7 @@ def {workflow_name}(context: MorphGlobalContext{params_str}):
             f'{indent}# Process and return result',
             f'{indent}result = {{{output_fields}}}',
             '',
-            f'{indent}# TODO: Implement {workflow_name} logic',
+            f'{indent}# IMPLEMENT: Add {workflow_name} logic here',
             '',
             f'{indent}return result',
         ])

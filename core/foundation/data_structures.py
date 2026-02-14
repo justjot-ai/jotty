@@ -415,7 +415,7 @@ class SwarmConfig:
     persist_memories: bool = True
     persist_q_tables: bool = True
     persist_brain_state: bool = True
-    persist_todos: bool = True  # Save session TODOs to markdown
+    persist_todos: bool = True  # Save session task lists to markdown
     persist_agent_outputs: bool = True  # Save IOManager outputs
 
     # Storage format

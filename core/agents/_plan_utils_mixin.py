@@ -130,7 +130,7 @@ class PlanUtilsMixin:
                             params[param_name] = math_match.group(1).strip() if math_match else clean_task
                         elif param_name in ['message', 'text', 'content', 'body']:
                             # For write_file_tool, try LLM content gen first, then
-                            # fall back to previous step output (prev_ref), never TODO stub
+                            # fall back to previous step output (prev_ref), never placeholder stub
                             if tool_name == 'write_file_tool':
                                 file_content = self._generate_file_content(task)
                                 if file_content and file_content.get('content'):

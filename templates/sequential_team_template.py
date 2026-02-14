@@ -187,7 +187,7 @@ async def sequential_team_workflow():
     print("-" * 90)
 
     # Initialize your domain experts
-    # TODO: Replace with your actual experts
+    # IMPLEMENT: Replace with your actual experts
     from core.experts.product_manager_expert import ProductManagerExpertAgent
     from core.experts.ux_researcher_expert import UXResearcherExpertAgent
     # ... add more as needed
@@ -212,7 +212,7 @@ async def sequential_team_workflow():
     team_results = {}
 
     # AGENT 1: First Agent (Foundation)
-    # TODO: Replace with your actual agent signature
+    # IMPLEMENT: Replace with your actual agent signature
     from core.experts.product_manager_expert import ProductRequirementsGenerator
 
     agent1 = dspy.ChainOfThought(ProductRequirementsGenerator)
@@ -228,7 +228,7 @@ async def sequential_team_workflow():
     team_results['agent1'] = result1
 
     # AGENT 2: Second Agent (Builds on Agent 1)
-    # TODO: Replace with your actual agent signature
+    # IMPLEMENT: Replace with your actual agent signature
     from core.experts.ux_researcher_expert import UXResearchGenerator
 
     agent2 = dspy.ChainOfThought(UXResearchGenerator)

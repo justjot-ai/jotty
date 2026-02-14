@@ -187,7 +187,7 @@ Where and how state is saved. Consumer: `session_manager.py`, `base_learning_man
 | `persist_memories` | bool | `True` | Persist memory entries to disk |
 | `persist_q_tables` | bool | `True` | Persist Q-tables to disk |
 | `persist_brain_state` | bool | `True` | Persist brain/swarm intelligence state |
-| `persist_todos` | bool | `True` | Save session TODOs to markdown |
+| `persist_todos` | bool | `True` | Save session task lists to markdown |
 | `persist_agent_outputs` | bool | `True` | Save IOManager outputs |
 | `storage_format` | str | `"json"` | `"json"` or `"sqlite"` |
 | `compress_large_files` | bool | `True` | Gzip files larger than 1MB |

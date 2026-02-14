@@ -27,7 +27,7 @@ task_list_params = WidgetParamSchema(
             "enum": ["backlog", "pending", "in_progress", "completed", "failed"],
             "description": "Task status filter",
             "examples": [
-                {"value": "backlog", "description": "Tasks queued but not started (user's TODO list)"},
+                {"value": "backlog", "description": "Tasks queued but not started (user's Task List list)"},
                 {"value": "pending", "description": "Tasks ready to start"},
                 {"value": "in_progress", "description": "Currently running tasks"},
                 {"value": "completed", "description": "Finished tasks"},
@@ -59,7 +59,7 @@ widget = create_widget_with_params(
 # Parameters:
 #   status (string, optional): Task status filter
 #     Options:
-#       - "backlog": Tasks queued but not started (user's TODO list)
+#       - "backlog": Tasks queued but not started (user's Task List list)
 #       - "pending": Tasks ready to start
 #       - "in_progress": Currently running tasks
 #       - "completed": Finished tasks
@@ -263,7 +263,7 @@ STATUS_PARAM_SCHEMA = {
         "examples": [
             {
                 "value": "backlog",
-                "description": "Tasks queued but not started (user's TODO list)",
+                "description": "Tasks queued but not started (user's Task List list)",
                 "user_query": "show backlog tasks"
             },
             {

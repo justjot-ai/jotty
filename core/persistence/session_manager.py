@@ -5,7 +5,7 @@ A-Team Design Principles:
 - Single source of truth for all output paths
 - Auto-creates session folders
 - Auto-loads previous state if present
-- Persists memories, Q-tables, brain state, TODOs
+- Persists memories, Q-tables, brain state, task lists
 - Generates beautified logs automatically
 - No hardcoded paths anywhere
 
@@ -32,7 +32,7 @@ class SessionManager:
     - Per-session timestamped folders
     - Auto-load from outputs/latest/
     - Persistent memories, Q-tables, brain state
-    - Session TODO tracking
+    - Session task list tracking
     - Beautified log generation
     - Auto-cleanup old runs
     
@@ -157,7 +157,7 @@ class SessionManager:
             if self.config.persist_brain_state:
                 state['brain_state'] = self._load_brain_state(latest_dir)
             
-            # Load TODOs
+            # Load task lists
             if self.config.persist_todos:
                 state['todos'] = self._load_todos(latest_dir)
             
@@ -215,12 +215,12 @@ class SessionManager:
         return None
     
     def _load_todos(self, source_dir: Path) -> Optional[str]:
-        """Load session TODO markdown."""
+        """Load session task list markdown."""
         todo_file = source_dir / "jotty_state" / "markovian_todos" / "session_todo.md"
         if todo_file.exists():
             with open(todo_file) as f:
                 content = f.read()
-            logger.info(f" Loaded session TODO")
+            logger.info(f" Loaded session task list")
             return content
         return None
     
@@ -286,7 +286,7 @@ class SessionManager:
             json.dump(brain_state, f, indent=2, default=str)
     
     def _save_todos(self, todos: str) -> Any:
-        """Save session TODO markdown."""
+        """Save session task list markdown."""
         todo_file = self.session_dir / "jotty_state" / "markovian_todos" / "session_todo.md"
         with open(todo_file, 'w') as f:
             f.write(todos)

@@ -4,7 +4,7 @@ Jotty v6.4 - Smart Context Manager
 
 A-Team Critical Fix: Intelligent context management that:
 1. Catches API token limit errors and auto-recovers
-2. Preserves task-critical info (TODO, goals, critical memories)
+2. Preserves task-critical info (task list, goals, critical memories)
 3. Compresses intelligently based on task needs
 4. NEVER loses info needed for future tasks
 
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class ContextPriority(Enum):
     """Priority levels for context chunks during compression."""
-    CRITICAL = 1    # NEVER compress: current task, TODO state, goal
+    CRITICAL = 1    # NEVER compress: current task, task list state, goal
     HIGH = 2        # Compress last: recent memories, errors, tool results
     MEDIUM = 3      # Compress when needed: trajectory, history
     LOW = 4         # Compress first: verbose logs, old memories
@@ -66,7 +66,7 @@ class SmartContextManager:
     1. Task-aware prioritization
     2. API error catching and recovery
     3. Hierarchical compression
-    4. TODO preservation
+    4. task list preservation
     5. Memory consolidation instead of truncation
     """
     
@@ -123,9 +123,9 @@ class SmartContextManager:
     # =========================================================================
     
     def register_todo(self, todo_content: str) -> None:
-        """Register current TODO for preservation (NEVER compressed)."""
+        """Register current task list for preservation (NEVER compressed)."""
         self._current_todo = todo_content
-        logger.debug(f" Registered TODO ({len(todo_content)} chars)")
+        logger.debug(f" Registered task list ({len(todo_content)} chars)")
     
     def register_goal(self, goal: str) -> None:
         """Register current goal for preservation."""
@@ -195,10 +195,10 @@ class SmartContextManager:
         # - System prompt (instructions)
         # - User input (current question/task)
         # - Historical context (previous actions, memories, trajectory)
-        # - Critical state (TODO list, current goal, critical memories)
+        # - Critical state (task list list, current goal, critical memories)
         #
         # CHALLENGES:
-        # 1. Some info is CRITICAL (losing TODO = total failure)
+        # 1. Some info is CRITICAL (losing task list = total failure)
         # 2. Some info is NICE-TO-HAVE (old trajectory = helpful but not essential)
         # 3. Total tokens must stay under model limit (or API call fails)
         # 4. We want to use as much context as possible (more context = better decisions)
@@ -212,7 +212,7 @@ class SmartContextManager:
         #    Total fixed: ~2500 tokens
         #
         # 2. RESERVED COST (guaranteed to include):
-        #    - TODO list (e.g., 1000 tokens) → NEVER truncate
+        #    - task list list (e.g., 1000 tokens) → NEVER truncate
         #    - Current goal (e.g., 200 tokens) → NEVER truncate
         #    - Critical memories (e.g., 3 × 300 = 900 tokens) → NEVER truncate
         #    Total reserved: ~2100 tokens
@@ -237,7 +237,7 @@ class SmartContextManager:
         # Total fixed: 2500 tokens
         #
         # Reserved costs:
-        # - TODO: 1000 tokens (contains 5 pending tasks)
+        # - task list: 1000 tokens (contains 5 pending tasks)
         # - Goal: 200 tokens ("Research AI trends and create report")
         # - Critical memories: 3 × 300 = 900 tokens
         # Total reserved: 2100 tokens
@@ -269,7 +269,7 @@ class SmartContextManager:
         # STEP 2: CALCULATE RESERVED COSTS
         # =====================================================================
         # Reserved costs are for CRITICAL items that MUST be preserved
-        # If we lose TODO list, the agent forgets what it's working on → total failure
+        # If we lose task list list, the agent forgets what it's working on → total failure
         # If we lose goal, the agent forgets why it exists → total failure
         # If we lose critical memories, the agent makes wrong decisions → partial failure
         #
@@ -330,7 +330,7 @@ class SmartContextManager:
         #
         # WHY COMPRESS CRITICAL CHUNKS?
         # Losing a CRITICAL chunk is worse than compressing it. Even a compressed
-        # version of TODO list is better than no TODO list at all.
+        # version of task list list is better than no task list list at all.
         #
         # EXAMPLE:
         # Available: 5000 tokens
@@ -369,7 +369,7 @@ class SmartContextManager:
         # STEP 6: BUILD FINAL CONTEXT STRING
         # =====================================================================
         # Assemble the final context in a structured format:
-        # 1. TODO (if exists)
+        # 1. task list (if exists)
         # 2. Goal (if exists)
         # 3. Critical memories (if any)
         # 4. Other included chunks (sorted by priority)
@@ -378,9 +378,9 @@ class SmartContextManager:
         # =====================================================================
         context_parts = []
 
-        # Always include TODO
+        # Always include task list
         if self._current_todo:
-            context_parts.append(f"## Current TODO\n{self._current_todo}")
+            context_parts.append(f"## Current task list\n{self._current_todo}")
 
         # Always include goal
         if self._current_goal:
@@ -445,7 +445,7 @@ class SmartContextManager:
             try:
                 result = self.summarizer(
                     content=chunk.content,
-                    preserve_keywords="bank_code, bank_contribution, error, TODO, goal",
+                    preserve_keywords="bank_code, bank_contribution, error, task list, goal",
                     max_length=target_tokens * self.chars_per_token
                 )
                 compressed_content = result.summary

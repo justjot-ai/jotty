@@ -63,7 +63,7 @@ async def main():
     print("=== Budget Allocation Result ===\n")
     print(f"Truncated: {result['truncated']}")
     print(f"\nPreserved:")
-    print(f"  - TODO: {result['preserved']['todo']}")
+    print(f"  - Task List: {result['preserved']['todo']}")
     print(f"  - Goal: {result['preserved']['goal']}")
     print(f"  - Critical memories: {result['preserved']['critical_memories']}")
     print(f"  - Chunks included: {result['preserved']['chunks_included']}/{result['preserved']['chunks_total']}")
@@ -74,7 +74,7 @@ async def main():
 
     print("\n=== Priority-Based Allocation ===\n")
     print("Order of inclusion:")
-    print("1. CRITICAL (TODO, Goal, Memories) → Always included")
+    print("1. CRITICAL (Task List, Goal, Memories) → Always included")
     print("2. HIGH priority chunks → Included if space")
     print("3. MEDIUM priority chunks → Included if space")
     print("4. LOW priority chunks → Included only if abundant space")

@@ -133,7 +133,7 @@ class TrajectoryPredictionSignature(dspy.Signature):
     """
     
     current_state = dspy.InputField(
-        desc="Current state: TODO progress, agent states, recent history"
+        desc="Current state: Task List progress, agent states, recent history"
     )
     acting_agent = dspy.InputField(
         desc="Which agent is about to act"

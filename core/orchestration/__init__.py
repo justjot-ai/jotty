@@ -144,3 +144,4 @@ from .multi_swarm_coordinator import (
     SwarmResult,
     get_multi_swarm_coordinator,
 )
+from .swarm_adapter import SwarmAdapter

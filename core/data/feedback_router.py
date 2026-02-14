@@ -8,7 +8,7 @@ Uses:
 - Game Theory: Agents decide who can help
 - Cooperation: Agents help each other automatically
 - Shared Scratchpad: Agents see each other's work
-- TODO System: Agents understand dependencies
+- Task List System: Agents understand dependencies
 
 The swarm ITSELF decides feedback routing based on:
 1. Task dependencies (who depends on whom)
@@ -71,7 +71,7 @@ class AgenticFeedbackRouter:
         failing_actor_goal: str,
         available_actors: Dict[str, Dict],  # {name: {capabilities, provides, dependencies}}
         task_dependencies: Dict[str, List[str]],  # {actor: [depends_on, ...]}
-        swarm_state: Dict,  # Current TODO, completed tasks, etc.
+        swarm_state: Dict,  # Current Task List, completed tasks, etc.
         shared_scratchpad: Dict[str, any],  # Actor outputs so far
     ) -> List[FeedbackMessage]:
         """

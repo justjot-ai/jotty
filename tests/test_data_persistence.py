@@ -469,7 +469,7 @@ class TestSessionManager:
     def test_save_state_todos(self, tmp_path):
         config = _make_mock_config(tmp_path)
         sm = SessionManager(config)
-        sm.save_state({"todos": "# TODO\n- something"})
+        sm.save_state({"todos": "# Task List\n- something"})
         todo_file = sm.session_dir / "jotty_state" / "markovian_todos" / "session_todo.md"
         assert todo_file.exists()
         assert "something" in todo_file.read_text()

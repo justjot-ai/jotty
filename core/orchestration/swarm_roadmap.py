@@ -420,7 +420,7 @@ class DecomposedQFunction:
 
 
 # =============================================================================
-# MARKOVIAN TODO - Long Horizon Task Management
+# MARKOVIAN Task List - Long Horizon Task Management
 # =============================================================================
 # TaskStatus enum now imported from core.foundation.types (see import section above)
 
@@ -779,7 +779,7 @@ class SwarmTaskBoard:
         in_progress = sum(1 for t in self.subtasks.values() if t.status == TaskStatus.IN_PROGRESS)
         
         return (
-            f"TODO Progress: {completed}/{total} completed "
+            f"Task List Progress: {completed}/{total} completed "
             f"({in_progress} in progress, {failed} failed)\n"
             f"Current: {self.current_task_id or 'None'}\n"
             f"Estimated remaining: {self.estimated_remaining_steps} steps\n"
@@ -912,7 +912,7 @@ class SwarmTaskBoard:
         pending = [t for t in self.subtasks.values() if t.status == TaskStatus.PENDING]
         in_progress = [t for t in self.subtasks.values() if t.status == TaskStatus.IN_PROGRESS]
         
-        summary = f"### TODO State\n"
+        summary = f"### Task List State\n"
         summary += f"**Root Task:** {self.root_task}\n"
         summary += f"**Progress:** {len(self.completed_tasks)}/{len(self.subtasks)} completed\n\n"
         

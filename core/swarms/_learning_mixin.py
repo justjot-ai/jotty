@@ -710,7 +710,7 @@ class SwarmLearningMixin:
                     if agent_name and target_agent and target_agent != agent_name:
                         continue
                     if desc:
-                        imp_lines.append(f"- [{priority}] TODO: {desc[:120]}")
+                        imp_lines.append(f"- [{priority}] TASK: {desc[:120]}")
                 if imp_lines:
                     lines.append("## Improvement Directives")
                     lines.extend(imp_lines)

@@ -87,7 +87,7 @@ class CoderSignature(dspy.Signature):
 
     RULES:
     1. Each file operation specifies the FULL file path
-    2. Code must be complete and runnable — no TODOs or placeholders
+    2. Code must be complete and runnable — no placeholders or unimplemented sections
     3. Include all necessary imports
     4. Handle errors gracefully
     5. Follow the language's conventions (PEP 8 for Python, etc.)

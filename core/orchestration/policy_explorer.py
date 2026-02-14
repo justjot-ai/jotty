@@ -25,14 +25,14 @@ except ImportError:
 class PolicyExplorerSignature(dspy.Signature):
     """LLM-based policy exploration for finding better action sequences."""
     
-    current_state = dspy.InputField(desc="Current TODO state and failures")
+    current_state = dspy.InputField(desc="Current Task List state and failures")
     failed_actions = dspy.InputField(desc="Actions that have failed and why")
     available_actions = dspy.InputField(desc="Available alternative actions")
     goal = dspy.InputField(desc="Root goal to achieve")
     
     analysis = dspy.OutputField(desc="Analysis of why current approach is failing")
     recommended_exploration = dspy.OutputField(desc="Specific alternative approach to try")
-    new_todo_items = dspy.OutputField(desc="JSON list of new TODO items to try")
+    new_todo_items = dspy.OutputField(desc="JSON list of new Task List items to try")
     confidence = dspy.OutputField(desc="Confidence this will work 0.0-1.0")
 
 
@@ -43,7 +43,7 @@ class PolicyExplorer:
     Instead of giving up when tasks fail:
     1. Analyzes failure patterns
     2. Generates alternative approaches
-    3. Updates TODO with new exploration paths
+    3. Updates Task List with new exploration paths
     4. Tracks exploration history to avoid loops
     """
     
@@ -74,7 +74,7 @@ class PolicyExplorer:
         goal: str
     ) -> List[TodoItem]:
         """
-        Generate new TODO items through exploration.
+        Generate new Task List items through exploration.
         
         Returns:
             List of new TodoItems to try
@@ -113,7 +113,7 @@ class PolicyExplorer:
                 goal=goal
             )
             
-            # Parse new TODO items
+            # Parse new Task List items
             new_items = []
             try:
                 items_json = json.loads(result.new_todo_items or "[]")
