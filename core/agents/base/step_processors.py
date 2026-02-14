@@ -64,6 +64,13 @@ class ParameterResolver:
     def __init__(self, outputs: Dict[str, Any]):
         self._outputs = outputs
 
+    @staticmethod
+    def _is_template(value) -> bool:
+        """Check if a value contains unresolved template references."""
+        if not isinstance(value, str):
+            return False
+        return '${' in value or ('{' in value and '}' in value)
+
     def resolve(
         self,
         params: Dict[str, Any],
@@ -86,6 +93,18 @@ class ParameterResolver:
         # Phase 0: resolve aliases via schema (before template substitution)
         if tool_schema is not None and _depth == 0:
             params = tool_schema.resolve_aliases(params)
+
+        # Phase -1: Direct resolution from inputs_needed (I/O contract)
+        if step and _depth == 0 and hasattr(step, 'inputs_needed') and step.inputs_needed:
+            for param_name, source in step.inputs_needed.items():
+                if param_name in params and self._is_template(params[param_name]):
+                    continue  # Has template — will be resolved by Phase 1
+                if source.startswith('literal:'):
+                    params[param_name] = source[8:]  # Strip "literal:" prefix
+                else:
+                    val = self.resolve_path(source)
+                    if val != source:  # Successfully resolved
+                        params[param_name] = val
 
         resolved = {}
 
@@ -112,9 +131,23 @@ class ParameterResolver:
             else:
                 resolved[key] = value
 
-        # Phase 2: auto-wire missing required params from outputs
+        # Phase 2: auto-wire missing required params from outputs (scoped to dependencies)
         if tool_schema is not None and _depth == 0 and self._outputs:
-            resolved = tool_schema.auto_wire(resolved, self._outputs)
+            scoped_keys = None
+            if step and hasattr(step, 'depends_on') and step.depends_on:
+                scoped_keys = []
+                for dep_idx in step.depends_on:
+                    scoped_keys.append(f'step_{dep_idx}')
+                    for k in self._outputs:
+                        if k.startswith(f'step_{dep_idx}') or k == f'step_{dep_idx}':
+                            scoped_keys.append(k)
+                    # Also include custom output_key-based keys
+                    if step and hasattr(step, 'inputs_needed') and step.inputs_needed:
+                        for source in step.inputs_needed.values():
+                            base_key = source.split('.')[0]
+                            if base_key in self._outputs and base_key not in scoped_keys:
+                                scoped_keys.append(base_key)
+            resolved = tool_schema.auto_wire(resolved, self._outputs, scoped_keys=scoped_keys)
 
         # Phase 3: validate with coercion, apply coerced values
         if tool_schema is not None and _depth == 0:

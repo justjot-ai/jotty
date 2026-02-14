@@ -2062,3 +2062,1499 @@ class TestAgenticExecutionResult:
             outputs={}, final_output="answer",
         )
         assert result.artifacts == []
+
+
+# =============================================================================
+# AutonomousAgent Tests
+# =============================================================================
+
+class TestAutonomousAgent:
+    """Tests for AutonomousAgent config, ExecutionContextManager, and factory."""
+
+    @pytest.mark.unit
+    def test_autonomous_agent_config_defaults(self):
+        """AutonomousAgentConfig has correct defaults."""
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgentConfig
+        config = AutonomousAgentConfig()
+        assert config.max_steps == 10
+        assert config.enable_replanning is False
+        assert config.max_replans == 3
+        assert config.skill_filter is None
+        assert config.default_output_skill is None
+        assert config.enable_output is False
+        assert config.enable_ensemble is False
+        assert config.ensemble_strategy == "multi_perspective"
+
+    @pytest.mark.unit
+    def test_autonomous_agent_config_custom(self):
+        """AutonomousAgentConfig accepts custom values."""
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgentConfig
+        config = AutonomousAgentConfig(
+            max_steps=20,
+            enable_replanning=True,
+            max_replans=5,
+            skill_filter="coding",
+            default_output_skill="telegram-sender",
+            enable_output=True,
+            enable_ensemble=True,
+            ensemble_strategy="debate",
+        )
+        assert config.max_steps == 20
+        assert config.enable_replanning is True
+        assert config.max_replans == 5
+        assert config.skill_filter == "coding"
+        assert config.default_output_skill == "telegram-sender"
+        assert config.enable_output is True
+        assert config.enable_ensemble is True
+        assert config.ensemble_strategy == "debate"
+
+    @pytest.mark.unit
+    def test_autonomous_agent_forces_enable_skills(self):
+        """AutonomousAgent constructor forces enable_skills=True."""
+        from Jotty.core.agents.base.autonomous_agent import (
+            AutonomousAgent, AutonomousAgentConfig,
+        )
+        config = AutonomousAgentConfig(name="TestAuto", enable_skills=False)
+        agent = AutonomousAgent(config)
+        assert agent.config.enable_skills is True
+
+    @pytest.mark.unit
+    def test_autonomous_agent_default_name(self):
+        """AutonomousAgent uses class name when no config provided."""
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgent
+        agent = AutonomousAgent()
+        assert agent.config.name == "AutonomousAgent"
+
+    @pytest.mark.unit
+    def test_execution_context_manager_empty(self):
+        """ExecutionContextManager starts empty."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager()
+        assert ctx.get_context() == []
+        assert ctx.get_trajectory() == []
+
+    @pytest.mark.unit
+    def test_execution_context_manager_add_step(self):
+        """add_step appends to history."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager()
+        ctx.add_step({"step": 0, "output": "hello"})
+        ctx.add_step({"step": 1, "output": "world"})
+        assert len(ctx.get_context()) == 2
+        assert ctx.get_context()[0]["step"] == 0
+        assert ctx.get_context()[1]["step"] == 1
+
+    @pytest.mark.unit
+    def test_execution_context_manager_get_context_returns_copy(self):
+        """get_context returns a copy, not the internal list."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager()
+        ctx.add_step({"step": 0})
+        snapshot = ctx.get_context()
+        snapshot.append({"step": 99})
+        assert len(ctx.get_context()) == 1
+
+    @pytest.mark.unit
+    def test_execution_context_manager_get_trajectory_excludes_compressed(self):
+        """get_trajectory returns only uncompressed steps."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager()
+        # Manually inject a compressed entry
+        ctx._history.append({"_compressed": True, "summary": "old stuff"})
+        ctx._history.append({"step": 5, "output": "recent"})
+        trajectory = ctx.get_trajectory()
+        assert len(trajectory) == 1
+        assert trajectory[0]["step"] == 5
+
+    @pytest.mark.unit
+    def test_execution_context_manager_compression_trigger(self):
+        """Compression triggers when total chars exceed max_history_size."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager(max_history_size=500)
+        # Add enough data to trigger compression
+        for i in range(20):
+            ctx.add_step({"step": i, "output": "A" * 50})
+        # After compression, history should be shorter than 20 entries
+        assert len(ctx.get_context()) < 20
+        # Should contain at least one compressed entry
+        compressed = [e for e in ctx.get_context() if e.get("_compressed")]
+        assert len(compressed) >= 1
+
+    @pytest.mark.unit
+    def test_execution_context_manager_compression_preserves_recent(self):
+        """Compression keeps recent entries intact."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager(max_history_size=500)
+        for i in range(20):
+            ctx.add_step({"step": i, "output": "X" * 50})
+        # The most recent entries should be uncompressed
+        trajectory = ctx.get_trajectory()
+        assert len(trajectory) > 0
+        # Last step should be the most recently added
+        last_uncompressed = trajectory[-1]
+        assert last_uncompressed["step"] == 19
+
+    @pytest.mark.unit
+    def test_execution_context_manager_no_compression_when_small(self):
+        """No compression when below threshold."""
+        from Jotty.core.agents.base.autonomous_agent import ExecutionContextManager
+        ctx = ExecutionContextManager(max_history_size=100_000)
+        for i in range(5):
+            ctx.add_step({"step": i, "output": "short"})
+        assert len(ctx.get_context()) == 5
+        compressed = [e for e in ctx.get_context() if e.get("_compressed")]
+        assert len(compressed) == 0
+
+    @pytest.mark.unit
+    def test_create_autonomous_agent_factory(self):
+        """create_autonomous_agent returns configured AutonomousAgent."""
+        from Jotty.core.agents.base.autonomous_agent import create_autonomous_agent
+        agent = create_autonomous_agent(max_steps=15, enable_replanning=True)
+        assert agent.config.name == "AutonomousAgent"
+        assert agent.config.max_steps == 15
+        assert agent.config.enable_replanning is True
+
+    @pytest.mark.unit
+    def test_create_autonomous_agent_factory_with_skill_filter(self):
+        """create_autonomous_agent respects skill_filter."""
+        from Jotty.core.agents.base.autonomous_agent import create_autonomous_agent
+        agent = create_autonomous_agent(skill_filter="research")
+        assert agent.config.skill_filter == "research"
+
+    @pytest.mark.unit
+    def test_build_result_success(self):
+        """_build_result produces correct success dict."""
+        import time
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgent
+        start_time = time.time()
+        result = AutonomousAgent._build_result(
+            task="test task",
+            task_type="research",
+            outputs={"step_0": {"result": "data"}},
+            skills_used=["web-search"],
+            errors=[],
+            warnings=[],
+            start_time=start_time,
+            stopped=False,
+        )
+        assert result["success"] is True
+        assert result["task"] == "test task"
+        assert result["task_type"] == "research"
+        assert result["steps_executed"] == 1
+        assert "web-search" in result["skills_used"]
+        assert result["stopped_early"] is False
+
+    @pytest.mark.unit
+    def test_build_result_failure(self):
+        """_build_result produces failure when errors present."""
+        import time
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgent
+        start_time = time.time()
+        result = AutonomousAgent._build_result(
+            task="failing task",
+            task_type="analysis",
+            outputs={},
+            skills_used=[],
+            errors=["step 1 failed"],
+            warnings=[],
+            start_time=start_time,
+            stopped=True,
+        )
+        assert result["success"] is False
+        assert result["stopped_early"] is True
+
+    @pytest.mark.unit
+    def test_build_result_too_hard(self):
+        """_build_result includes too_hard flag."""
+        import time
+        from Jotty.core.agents.base.autonomous_agent import AutonomousAgent
+        start_time = time.time()
+        result = AutonomousAgent._build_result(
+            task="impossible",
+            task_type="unknown",
+            outputs={},
+            skills_used=[],
+            errors=["TOO_HARD"],
+            warnings=[],
+            start_time=start_time,
+            stopped=True,
+            too_hard=True,
+        )
+        assert result.get("too_hard") is True
+
+
+# =============================================================================
+# AutoAgent Tests
+# =============================================================================
+
+class TestAutoAgent:
+    """Tests for AutoAgent configuration, mode prompts, and task type inference."""
+
+    @pytest.mark.unit
+    def test_auto_agent_default_creation(self):
+        """AutoAgent creates with default config."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent()
+        assert agent.config.name == "AutoAgent"
+        assert agent.config.max_steps == 10
+        assert agent.config.enable_replanning is True
+        assert agent.config.max_replans == 3
+
+    @pytest.mark.unit
+    def test_auto_agent_custom_name(self):
+        """AutoAgent uses custom name when provided."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent(name="MyAgent")
+        assert agent.config.name == "MyAgent"
+
+    @pytest.mark.unit
+    def test_auto_agent_custom_timeout(self):
+        """AutoAgent respects custom timeout."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent(timeout=600)
+        assert agent.config.timeout == 600.0
+
+    @pytest.mark.unit
+    def test_auto_agent_output_skill_config(self):
+        """AutoAgent configures output skill when both provided."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent(
+            default_output_skill="telegram-sender",
+            enable_output=True,
+        )
+        assert agent.default_output_skill == "telegram-sender"
+        assert agent.enable_output is True
+        assert agent.config.enable_output is True
+
+    @pytest.mark.unit
+    def test_auto_agent_output_disabled_without_skill(self):
+        """AutoAgent disables output when no skill specified."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent(enable_output=True, default_output_skill=None)
+        assert agent.enable_output is False
+        assert agent.config.enable_output is False
+
+    @pytest.mark.unit
+    def test_auto_agent_system_prompt(self):
+        """AutoAgent stores system_prompt in config."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent(system_prompt="You are an expert researcher.")
+        assert agent.config.system_prompt == "You are an expert researcher."
+
+    @pytest.mark.unit
+    def test_auto_agent_planner_injection(self):
+        """AutoAgent accepts injected planner."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        mock_planner = MagicMock()
+        agent = AutoAgent(planner=mock_planner)
+        assert agent._planner is mock_planner
+
+    @pytest.mark.unit
+    def test_mode_prompts_dict_has_expected_keys(self):
+        """_MODE_PROMPTS has entries for playwright, selenium, and terminal."""
+        from Jotty.core.agents.auto_agent import _MODE_PROMPTS
+        assert "browser-automation:playwright" in _MODE_PROMPTS
+        assert "browser-automation:selenium" in _MODE_PROMPTS
+        assert "terminal-session" in _MODE_PROMPTS
+
+    @pytest.mark.unit
+    def test_mode_prompts_content(self):
+        """_MODE_PROMPTS entries contain relevant guidance."""
+        from Jotty.core.agents.auto_agent import _MODE_PROMPTS
+        assert "Playwright" in _MODE_PROMPTS["browser-automation:playwright"]
+        assert "Selenium" in _MODE_PROMPTS["browser-automation:selenium"]
+        assert "pexpect" in _MODE_PROMPTS["terminal-session"]
+
+    @pytest.mark.unit
+    @patch.dict('os.environ', {'BROWSER_BACKEND': 'playwright'})
+    def test_get_mode_prompts_returns_matching(self):
+        """_get_mode_prompts returns prompt for matching skill and backend."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent()
+        prompts = agent._get_mode_prompts({"browser-automation"})
+        assert "Playwright" in prompts
+
+    @pytest.mark.unit
+    @patch.dict('os.environ', {'BROWSER_BACKEND': 'selenium'})
+    def test_get_mode_prompts_filters_by_backend(self):
+        """_get_mode_prompts only returns prompt matching BROWSER_BACKEND."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent()
+        prompts = agent._get_mode_prompts({"browser-automation"})
+        assert "Selenium" in prompts
+        assert "Playwright" not in prompts
+
+    @pytest.mark.unit
+    def test_get_mode_prompts_empty_when_no_match(self):
+        """_get_mode_prompts returns empty string for non-matching skills."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent()
+        prompts = agent._get_mode_prompts({"web-search", "calculator"})
+        assert prompts == ""
+
+    @pytest.mark.unit
+    def test_get_mode_prompts_terminal_session(self):
+        """_get_mode_prompts includes terminal-session prompt."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        agent = AutoAgent()
+        prompts = agent._get_mode_prompts({"terminal-session"})
+        assert "pexpect" in prompts
+
+    @pytest.mark.unit
+    def test_infer_task_type_with_planner(self):
+        """_infer_task_type delegates to planner when available."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        from Jotty.core.agents._execution_types import TaskType
+        mock_planner = MagicMock()
+        mock_planner.infer_task_type.return_value = (
+            TaskType.RESEARCH, "Looks like research", 0.9
+        )
+        agent = AutoAgent(planner=mock_planner)
+        result = agent._infer_task_type("Find recent AI papers")
+        assert result == "research"
+        mock_planner.infer_task_type.assert_called_once_with("Find recent AI papers")
+
+    @pytest.mark.unit
+    def test_infer_task_type_enum_returns_enum(self):
+        """_infer_task_type_enum returns TaskType enum."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        from Jotty.core.agents._execution_types import TaskType
+        mock_planner = MagicMock()
+        mock_planner.infer_task_type.return_value = (
+            TaskType.ANALYSIS, "Analysis task", 0.85
+        )
+        agent = AutoAgent(planner=mock_planner)
+        result = agent._infer_task_type_enum("Analyze this data")
+        assert result == TaskType.ANALYSIS
+
+    @pytest.mark.unit
+    def test_infer_task_type_enum_unknown_fallback(self):
+        """_infer_task_type_enum returns UNKNOWN for invalid types."""
+        from Jotty.core.agents.auto_agent import AutoAgent
+        from Jotty.core.agents._execution_types import TaskType
+        mock_planner = MagicMock()
+        mock_planner.infer_task_type.side_effect = Exception("planner error")
+        agent = AutoAgent(planner=mock_planner)
+        # When planner fails, base class fallback returns a string that may
+        # not match a TaskType enum value, resulting in UNKNOWN
+        with patch.object(agent, '_infer_task_type', return_value="unrecognized_type"):
+            result = agent._infer_task_type_enum("Do something weird")
+            assert result == TaskType.UNKNOWN
+
+
+# =============================================================================
+# FeedbackChannel Tests
+# =============================================================================
+
+class TestFeedbackChannel:
+    """Tests for FeedbackChannel inter-agent communication."""
+
+    @pytest.mark.unit
+    def test_feedback_type_enum_values(self):
+        """FeedbackType has expected enum values."""
+        from Jotty.core.agents.feedback_channel import FeedbackType
+        assert FeedbackType.QUESTION.value == "question"
+        assert FeedbackType.ERROR.value == "error"
+        assert FeedbackType.SUGGESTION.value == "suggestion"
+        assert FeedbackType.REQUEST.value == "request"
+        assert FeedbackType.CLARIFICATION.value == "clarification"
+        assert FeedbackType.RESPONSE.value == "response"
+
+    @pytest.mark.unit
+    def test_feedback_message_creation(self):
+        """FeedbackMessage creates with all fields."""
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+        msg = FeedbackMessage(
+            source_actor="AgentA",
+            target_actor="AgentB",
+            feedback_type=FeedbackType.QUESTION,
+            content="What tables are relevant?",
+            context={"tables": ["t1", "t2"]},
+            priority=1,
+        )
+        assert msg.source_actor == "AgentA"
+        assert msg.target_actor == "AgentB"
+        assert msg.feedback_type == FeedbackType.QUESTION
+        assert msg.content == "What tables are relevant?"
+        assert msg.context == {"tables": ["t1", "t2"]}
+        assert msg.priority == 1
+        assert msg.requires_response is True
+
+    @pytest.mark.unit
+    def test_feedback_message_defaults(self):
+        """FeedbackMessage has sensible defaults."""
+        from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
+        msg = FeedbackMessage(
+            source_actor="A",
+            target_actor="B",
+            feedback_type=FeedbackType.RESPONSE,
+            content="Here is the response",
+        )
+        assert msg.context == {}
+        assert msg.requires_response is True
+        assert msg.priority == 1
+        assert msg.original_message_id is None
+        assert msg.message_id.startswith("msg_")
+
+    @pytest.mark.unit
+    def test_feedback_channel_send(self):
+        """send() stores message and returns message ID."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        msg = FeedbackMessage(
+            source_actor="A",
+            target_actor="B",
+            feedback_type=FeedbackType.QUESTION,
+            content="Help?",
+        )
+        msg_id = channel.send(msg)
+        assert msg_id == msg.message_id
+        assert channel.message_count == 1
+
+    @pytest.mark.unit
+    def test_feedback_channel_get_for_actor(self):
+        """get_for_actor returns messages for the specified actor."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="C", target_actor="B",
+            feedback_type=FeedbackType.SUGGESTION, content="S1",
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="D",
+            feedback_type=FeedbackType.REQUEST, content="R1",
+        ))
+        messages = channel.get_for_actor("B")
+        assert len(messages) == 2
+        assert all(m.target_actor == "B" for m in messages)
+
+    @pytest.mark.unit
+    def test_feedback_channel_get_for_actor_clears(self):
+        """get_for_actor with clear=True removes retrieved messages."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        messages = channel.get_for_actor("B", clear=True)
+        assert len(messages) == 1
+        # Second retrieval should be empty
+        assert len(channel.get_for_actor("B")) == 0
+
+    @pytest.mark.unit
+    def test_feedback_channel_get_for_actor_no_clear(self):
+        """get_for_actor with clear=False keeps messages."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        messages = channel.get_for_actor("B", clear=False)
+        assert len(messages) == 1
+        # Messages still there
+        assert len(channel.get_for_actor("B", clear=False)) == 1
+
+    @pytest.mark.unit
+    def test_feedback_channel_priority_filtering(self):
+        """get_for_actor filters by priority_threshold."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="High",
+            priority=1,
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.SUGGESTION, content="Low",
+            priority=3,
+        ))
+        # Only get high priority
+        high = channel.get_for_actor("B", priority_threshold=1)
+        assert len(high) == 1
+        assert high[0].content == "High"
+
+    @pytest.mark.unit
+    def test_feedback_channel_priority_ordering(self):
+        """get_for_actor returns messages sorted by priority (high first)."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.SUGGESTION, content="Low",
+            priority=3,
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="High",
+            priority=1,
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.REQUEST, content="Medium",
+            priority=2,
+        ))
+        messages = channel.get_for_actor("B", priority_threshold=3)
+        assert messages[0].priority == 1
+        assert messages[1].priority == 2
+        assert messages[2].priority == 3
+
+    @pytest.mark.unit
+    def test_feedback_channel_has_feedback(self):
+        """has_feedback returns True when messages exist."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        assert channel.has_feedback("B") is False
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        assert channel.has_feedback("B") is True
+        assert channel.has_feedback("C") is False
+
+    @pytest.mark.unit
+    def test_feedback_channel_get_conversation(self):
+        """get_conversation returns all messages between two actors."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q from A",
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="B", target_actor="A",
+            feedback_type=FeedbackType.RESPONSE, content="R from B",
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="C", target_actor="A",
+            feedback_type=FeedbackType.QUESTION, content="Unrelated",
+        ))
+        conv = channel.get_conversation("A", "B")
+        assert len(conv) == 2
+        assert conv[0].content == "Q from A"
+        assert conv[1].content == "R from B"
+
+    @pytest.mark.unit
+    def test_feedback_channel_get_stats(self):
+        """get_stats returns correct statistics."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        channel.send(FeedbackMessage(
+            source_actor="B", target_actor="A",
+            feedback_type=FeedbackType.RESPONSE, content="R1",
+        ))
+        stats = channel.get_stats()
+        assert stats["total_messages"] == 2
+        assert stats["pending_messages"] == 2
+        assert "B" in stats["actors_with_pending"]
+        assert "A" in stats["actors_with_pending"]
+        assert stats["message_types"]["question"] == 1
+        assert stats["message_types"]["response"] == 1
+
+    @pytest.mark.unit
+    def test_feedback_channel_broadcast(self):
+        """broadcast sends to all specified participants except self."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        msg_ids = channel.broadcast(
+            source_actor="Leader",
+            content="Announcement",
+            participants=["Leader", "Agent1", "Agent2", "Agent3"],
+            priority=2,
+        )
+        # Should NOT send to Leader (self)
+        assert len(msg_ids) == 3
+        assert channel.has_feedback("Agent1") is True
+        assert channel.has_feedback("Agent2") is True
+        assert channel.has_feedback("Agent3") is True
+        assert channel.has_feedback("Leader") is False
+
+    @pytest.mark.unit
+    def test_feedback_channel_clear_all(self):
+        """clear_all removes all pending messages but keeps history."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        channel.send(FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="Q1",
+        ))
+        assert channel.has_feedback("B") is True
+        channel.clear_all()
+        assert channel.has_feedback("B") is False
+        # History is preserved
+        assert len(channel.message_history) == 1
+
+    @pytest.mark.unit
+    def test_feedback_channel_format_messages_empty(self):
+        """format_messages_for_agent returns empty string for no messages."""
+        from Jotty.core.agents.feedback_channel import FeedbackChannel
+        channel = FeedbackChannel()
+        assert channel.format_messages_for_agent("B", []) == ""
+
+    @pytest.mark.unit
+    def test_feedback_channel_format_messages_with_content(self):
+        """format_messages_for_agent produces formatted string."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+        msg = FeedbackMessage(
+            source_actor="A", target_actor="B",
+            feedback_type=FeedbackType.QUESTION, content="What tables?",
+            context={"tables": ["t1"]},
+        )
+        formatted = channel.format_messages_for_agent("B", [msg])
+        assert "MESSAGES FOR B" in formatted
+        assert "FROM A" in formatted
+        assert "What tables?" in formatted
+        assert "END MESSAGES" in formatted
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_feedback_channel_request_timeout(self):
+        """request() returns None on timeout."""
+        from Jotty.core.agents.feedback_channel import FeedbackChannel
+        channel = FeedbackChannel()
+        result = await channel.request(
+            source_actor="A",
+            target_actor="B",
+            content="Question?",
+            timeout=0.2,
+            poll_interval=0.05,
+        )
+        assert result is None
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_feedback_channel_request_with_response(self):
+        """request() returns response when available."""
+        from Jotty.core.agents.feedback_channel import (
+            FeedbackChannel, FeedbackMessage, FeedbackType,
+        )
+        channel = FeedbackChannel()
+
+        async def respond_later():
+            """Simulate delayed response."""
+            await asyncio.sleep(0.05)
+            # Get the pending question
+            pending = channel.messages.get("B", [])
+            if pending:
+                msg_id = pending[0].message_id
+                channel.send(FeedbackMessage(
+                    source_actor="B",
+                    target_actor="A",
+                    feedback_type=FeedbackType.RESPONSE,
+                    content="Here is the answer",
+                    original_message_id=msg_id,
+                ))
+
+        # Start response coroutine concurrently
+        import asyncio
+        task = asyncio.create_task(respond_later())
+        result = await channel.request(
+            source_actor="A",
+            target_actor="B",
+            content="What tables?",
+            timeout=2.0,
+            poll_interval=0.02,
+        )
+        await task
+        assert result is not None
+        assert result.content == "Here is the answer"
+        assert result.feedback_type == FeedbackType.RESPONSE
+
+
+# =============================================================================
+# DAGTypes Tests
+# =============================================================================
+
+try:
+    from Jotty.core.agents.dag_types import (
+        TaskType as _DAGTaskType, Actor as _DAGActor,
+        ExecutableDAG as _DAGExecutableDAG, DAGAgentMixin as _DAGMixin,
+        SwarmResources as _DAGSwarmResources,
+    )
+    _DAG_TYPES_AVAILABLE = True
+except (ImportError, Exception):
+    _DAG_TYPES_AVAILABLE = False
+
+_skip_no_dag = pytest.mark.skipif(
+    not _DAG_TYPES_AVAILABLE,
+    reason="dag_types not importable (missing dep)",
+)
+
+
+@_skip_no_dag
+class TestDAGTypes:
+    """Tests for DAG types: TaskType, Actor, ExecutableDAG, DAGAgentMixin, SwarmResources."""
+
+    @pytest.mark.unit
+    def test_dag_task_type_enum(self):
+        """DAG TaskType has expected values."""
+        from Jotty.core.agents.dag_types import TaskType
+        assert TaskType.SETUP.value == "setup"
+        assert TaskType.IMPLEMENTATION.value == "implementation"
+        assert TaskType.TESTING.value == "testing"
+        assert TaskType.EXECUTION.value == "execution"
+        assert TaskType.DOCUMENTATION.value == "documentation"
+        assert TaskType.VALIDATION.value == "validation"
+        assert TaskType.RESEARCH.value == "research"
+        assert TaskType.ANALYSIS.value == "analysis"
+
+    @pytest.mark.unit
+    def test_actor_creation(self):
+        """Actor dataclass initializes correctly."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(
+            name="coder",
+            capabilities=["coding", "testing"],
+            description="A coding agent",
+        )
+        assert actor.name == "coder"
+        assert actor.capabilities == ["coding", "testing"]
+        assert actor.description == "A coding agent"
+        assert actor.max_concurrent_tasks == 1
+
+    @pytest.mark.unit
+    def test_actor_can_handle_matching(self):
+        """Actor.can_handle returns True for matching capabilities."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(name="coder", capabilities=["coding", "testing"])
+        assert actor.can_handle("implementation") is True
+        assert actor.can_handle("testing") is True
+
+    @pytest.mark.unit
+    def test_actor_can_handle_no_match(self):
+        """Actor.can_handle returns False when no capability matches."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(name="coder", capabilities=["coding"])
+        assert actor.can_handle("research") is False
+        assert actor.can_handle("documentation") is False
+
+    @pytest.mark.unit
+    def test_actor_can_handle_setup(self):
+        """Actor with git capability can handle setup tasks."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(name="devops", capabilities=["git", "setup"])
+        assert actor.can_handle("setup") is True
+
+    @pytest.mark.unit
+    def test_actor_can_handle_research(self):
+        """Actor with web_search can handle research tasks."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(name="researcher", capabilities=["web_search"])
+        assert actor.can_handle("research") is True
+
+    @pytest.mark.unit
+    def test_actor_can_handle_unknown_type_fallback(self):
+        """Actor.can_handle uses type_name as fallback capability."""
+        from Jotty.core.agents.dag_types import Actor
+        actor = Actor(name="special", capabilities=["magic"])
+        assert actor.can_handle("magic") is True
+        assert actor.can_handle("nonexistent") is False
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_init(self):
+        """DAGAgentMixin._init_agent_infrastructure sets up metrics."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDagAgent")
+        assert obj._agent_config.name == "TestDagAgent"
+        assert obj._metrics["total_executions"] == 0
+        assert obj._metrics["successful_executions"] == 0
+        assert obj._initialized is False
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_track_execution(self):
+        """_track_execution updates metrics correctly."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        obj._track_execution(success=True, execution_time=1.5)
+        obj._track_execution(success=False, execution_time=0.5)
+        assert obj._metrics["total_executions"] == 2
+        assert obj._metrics["successful_executions"] == 1
+        assert obj._metrics["failed_executions"] == 1
+        assert obj._metrics["total_execution_time"] == 2.0
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_get_metrics(self):
+        """get_metrics computes success_rate and avg_execution_time."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        obj._track_execution(success=True, execution_time=2.0)
+        obj._track_execution(success=True, execution_time=4.0)
+        metrics = obj.get_metrics()
+        assert metrics["success_rate"] == 1.0
+        assert metrics["avg_execution_time"] == 3.0
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_get_metrics_zero(self):
+        """get_metrics handles zero executions."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        metrics = obj.get_metrics()
+        assert metrics["success_rate"] == 0.0
+        assert metrics["avg_execution_time"] == 0.0
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_reset_metrics(self):
+        """reset_metrics zeros all counters."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        obj._track_execution(success=True, execution_time=1.0)
+        obj.reset_metrics()
+        assert obj._metrics["total_executions"] == 0
+        assert obj._metrics["total_execution_time"] == 0.0
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_hooks(self):
+        """Pre and post hooks are called."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        pre_called = []
+        post_called = []
+        obj.add_pre_hook(lambda agent, **kw: pre_called.append(True))
+        obj.add_post_hook(lambda agent, result, **kw: post_called.append(result))
+        obj._run_pre_hooks()
+        obj._run_post_hooks("result_data")
+        assert len(pre_called) == 1
+        assert post_called == ["result_data"]
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_hooks_exception_handled(self):
+        """Hook exceptions are caught and logged."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        obj.add_pre_hook(lambda agent, **kw: (_ for _ in ()).throw(RuntimeError("hook fail")))
+        # Should not raise
+        obj._run_pre_hooks()
+
+    @pytest.mark.unit
+    def test_dag_agent_mixin_to_dict(self):
+        """to_dict returns serializable representation."""
+        from Jotty.core.agents.dag_types import DAGAgentMixin
+
+        class TestMixin(DAGAgentMixin):
+            pass
+
+        obj = TestMixin()
+        obj._init_agent_infrastructure("TestDag")
+        d = obj.to_dict()
+        assert d["name"] == "TestDag"
+        assert d["class"] == "TestMixin"
+        assert "metrics" in d
+        assert d["initialized"] is False
+
+    @pytest.mark.unit
+    def test_swarm_resources_singleton(self):
+        """SwarmResources is a singleton."""
+        from Jotty.core.agents.dag_types import SwarmResources
+        SwarmResources.reset()
+        try:
+            r1 = SwarmResources.get_instance()
+            r2 = SwarmResources.get_instance()
+            assert r1 is r2
+        finally:
+            SwarmResources.reset()
+
+    @pytest.mark.unit
+    def test_swarm_resources_reset(self):
+        """SwarmResources.reset clears singleton."""
+        from Jotty.core.agents.dag_types import SwarmResources
+        SwarmResources.reset()
+        try:
+            r1 = SwarmResources.get_instance()
+            SwarmResources.reset()
+            r2 = SwarmResources.get_instance()
+            assert r1 is not r2
+        finally:
+            SwarmResources.reset()
+
+    @pytest.mark.unit
+    def test_swarm_resources_has_components(self):
+        """SwarmResources initializes memory, context, bus, learner."""
+        from Jotty.core.agents.dag_types import SwarmResources
+        SwarmResources.reset()
+        try:
+            resources = SwarmResources.get_instance()
+            assert resources.memory is not None
+            assert resources.context is not None
+            assert resources.bus is not None
+            assert resources.learner is not None
+        finally:
+            SwarmResources.reset()
+
+    @pytest.mark.unit
+    def test_executable_dag_total_tasks(self):
+        """ExecutableDAG.total_tasks returns task count."""
+        from Jotty.core.agents.dag_types import ExecutableDAG
+        mock_todo = MagicMock()
+        mock_todo.subtasks = {"t1": MagicMock(), "t2": MagicMock()}
+        dag = ExecutableDAG(
+            markovian_todo=mock_todo,
+            assignments={},
+            validation_passed=True,
+        )
+        assert dag.total_tasks == 2
+
+    @pytest.mark.unit
+    def test_executable_dag_get_execution_stages(self):
+        """get_execution_stages returns topologically sorted stages."""
+        from Jotty.core.agents.dag_types import ExecutableDAG
+        mock_todo = MagicMock()
+        # t1 has no deps, t2 depends on t1, t3 depends on t1
+        t1 = MagicMock()
+        t1.depends_on = []
+        t2 = MagicMock()
+        t2.depends_on = ["t1"]
+        t3 = MagicMock()
+        t3.depends_on = ["t1"]
+        mock_todo.subtasks = {"t1": t1, "t2": t2, "t3": t3}
+        dag = ExecutableDAG(
+            markovian_todo=mock_todo,
+            assignments={},
+            validation_passed=True,
+        )
+        stages = dag.get_execution_stages()
+        assert len(stages) == 2
+        assert stages[0] == ["t1"]
+        assert set(stages[1]) == {"t2", "t3"}
+
+    @pytest.mark.unit
+    def test_executable_dag_add_trajectory_step(self):
+        """add_trajectory_step records execution step."""
+        from Jotty.core.agents.dag_types import ExecutableDAG
+        mock_todo = MagicMock()
+        mock_todo.subtasks = {}
+        dag = ExecutableDAG(
+            markovian_todo=mock_todo,
+            assignments={},
+            validation_passed=True,
+        )
+        dag.add_trajectory_step(
+            task_id="t1",
+            action_type="execute",
+            action_content="Run implementation",
+            observation="Success",
+            reward=1.0,
+        )
+        assert len(dag.trajectory) == 1
+        assert dag.trajectory[0].action_type == "execute"
+        assert dag.trajectory[0].reward == 1.0
+
+    @pytest.mark.unit
+    def test_executable_dag_to_dict(self):
+        """to_dict serializes DAG to dict."""
+        from Jotty.core.agents.dag_types import ExecutableDAG, Actor
+        mock_todo = MagicMock()
+        mock_todo.todo_id = "dag_1"
+        mock_todo.root_task = "Build app"
+        mock_todo.subtasks = {}
+        mock_todo.execution_order = []
+        actor = Actor(name="coder", capabilities=["coding"])
+        dag = ExecutableDAG(
+            markovian_todo=mock_todo,
+            assignments={"t1": actor},
+            validation_passed=True,
+            validation_issues=[],
+            fixes_applied=[],
+        )
+        d = dag.to_dict()
+        assert d["markovian_todo"]["todo_id"] == "dag_1"
+        assert d["markovian_todo"]["root_task"] == "Build app"
+        assert d["validation_passed"] is True
+        assert "t1" in d["assignments"]
+        assert d["assignments"]["t1"]["name"] == "coder"
+
+
+# =============================================================================
+# ExecutionTypes Deep Tests
+# =============================================================================
+
+class TestExecutionTypesDeep:
+    """Deep tests for _execution_types: TaskType, ExecutionStep, ToolParam, ToolStats, CapabilityIndex."""
+
+    @pytest.mark.unit
+    def test_task_type_enum_all_values(self):
+        """TaskType enum has all expected members."""
+        from Jotty.core.agents._execution_types import TaskType
+        assert TaskType.RESEARCH.value == "research"
+        assert TaskType.COMPARISON.value == "comparison"
+        assert TaskType.CREATION.value == "creation"
+        assert TaskType.COMMUNICATION.value == "communication"
+        assert TaskType.ANALYSIS.value == "analysis"
+        assert TaskType.AUTOMATION.value == "automation"
+        assert TaskType.UNKNOWN.value == "unknown"
+
+    @pytest.mark.unit
+    def test_execution_step_defaults(self):
+        """ExecutionStep has correct default values."""
+        from Jotty.core.agents._execution_types import ExecutionStep
+        step = ExecutionStep(
+            skill_name="web-search",
+            tool_name="search_web_tool",
+            params={"query": "AI"},
+            description="Search the web",
+        )
+        assert step.depends_on == []
+        assert step.output_key == ""
+        assert step.optional is False
+        assert step.verification == ""
+        assert step.fallback_skill == ""
+
+    @pytest.mark.unit
+    def test_execution_step_all_fields(self):
+        """ExecutionStep stores all provided fields."""
+        from Jotty.core.agents._execution_types import ExecutionStep
+        step = ExecutionStep(
+            skill_name="file-operations",
+            tool_name="write_file_tool",
+            params={"path": "/tmp/out.txt", "content": "hello"},
+            description="Write output file",
+            depends_on=[0, 1],
+            output_key="step_2",
+            optional=True,
+            verification="file exists",
+            fallback_skill="shell-exec",
+        )
+        assert step.skill_name == "file-operations"
+        assert step.depends_on == [0, 1]
+        assert step.output_key == "step_2"
+        assert step.optional is True
+        assert step.verification == "file exists"
+        assert step.fallback_skill == "shell-exec"
+
+    @pytest.mark.unit
+    def test_tool_param_defaults(self):
+        """ToolParam has correct defaults."""
+        from Jotty.core.agents._execution_types import ToolParam
+        p = ToolParam(name="query")
+        assert p.type_hint == "str"
+        assert p.required is True
+        assert p.description == ""
+        assert p.default is None
+        assert p.aliases == []
+        assert p.reserved is False
+
+    @pytest.mark.unit
+    def test_tool_param_reserved(self):
+        """ToolParam can be marked as reserved."""
+        from Jotty.core.agents._execution_types import ToolParam
+        p = ToolParam(name="_status_callback", reserved=True)
+        assert p.reserved is True
+
+    @pytest.mark.unit
+    def test_tool_stats_record_and_get(self):
+        """ToolStats records and retrieves stats."""
+        from Jotty.core.agents._execution_types import ToolStats
+        stats = ToolStats()
+        stats.record("web-search", "search_tool", success=True, latency_ms=500)
+        stats.record("web-search", "search_tool", success=True, latency_ms=700)
+        stats.record("web-search", "search_tool", success=False, latency_ms=1000)
+        s = stats.get_stats("web-search", "search_tool")
+        assert s["call_count"] == 3
+        assert abs(s["success_rate"] - 2 / 3) < 0.01
+        assert abs(s["avg_latency_ms"] - 733.33) < 1.0
+
+    @pytest.mark.unit
+    def test_tool_stats_empty(self):
+        """ToolStats returns zeros for unrecorded tools."""
+        from Jotty.core.agents._execution_types import ToolStats
+        stats = ToolStats()
+        s = stats.get_stats("unknown", "tool")
+        assert s["call_count"] == 0
+        assert s["success_rate"] == 0.0
+        assert s["avg_latency_ms"] == 0.0
+
+    @pytest.mark.unit
+    def test_tool_stats_get_summary(self):
+        """get_summary returns human-readable string."""
+        from Jotty.core.agents._execution_types import ToolStats
+        stats = ToolStats()
+        stats.record("calc", "add_tool", success=True, latency_ms=100)
+        summary = stats.get_summary("calc", "add_tool")
+        assert "calc/add_tool" in summary
+        assert "100%" in summary
+        assert "1 calls" in summary
+
+    @pytest.mark.unit
+    def test_tool_stats_get_summary_no_history(self):
+        """get_summary returns 'no history' for unrecorded tools."""
+        from Jotty.core.agents._execution_types import ToolStats
+        stats = ToolStats()
+        summary = stats.get_summary("unknown", "tool")
+        assert "no history" in summary
+
+    @pytest.mark.unit
+    def test_tool_stats_max_history(self):
+        """ToolStats respects max_history limit."""
+        from Jotty.core.agents._execution_types import ToolStats
+        stats = ToolStats(max_history=5)
+        for i in range(10):
+            stats.record("s", "t", success=True, latency_ms=100.0)
+        s = stats.get_stats("s", "t")
+        assert s["call_count"] == 5
+
+    @pytest.mark.unit
+    def test_tool_stats_global_instance(self):
+        """TOOL_STATS is a global singleton instance."""
+        from Jotty.core.agents._execution_types import TOOL_STATS, ToolStats
+        assert isinstance(TOOL_STATS, ToolStats)
+
+    @pytest.mark.unit
+    def test_capability_index_register_and_find_chain(self):
+        """CapabilityIndex.find_chain finds valid tool chains."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        idx.register("web-search", inputs=["query"], outputs=["search_results"])
+        idx.register("summarizer", inputs=["search_results"], outputs=["summary"])
+        chain = idx.find_chain("query", "summary")
+        assert chain == ["web-search", "summarizer"]
+
+    @pytest.mark.unit
+    def test_capability_index_no_chain(self):
+        """find_chain returns empty list when no chain exists."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        idx.register("web-search", inputs=["query"], outputs=["search_results"])
+        chain = idx.find_chain("query", "summary")
+        assert chain == []
+
+    @pytest.mark.unit
+    def test_capability_index_same_type(self):
+        """find_chain returns empty for same start and end type."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        chain = idx.find_chain("query", "query")
+        assert chain == []
+
+    @pytest.mark.unit
+    def test_capability_index_get_tools_for_type(self):
+        """get_tools_for_type returns producers and consumers."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        idx.register("web-search", inputs=["query"], outputs=["search_results"])
+        idx.register("rag", inputs=["search_results"], outputs=["answer"])
+        info = idx.get_tools_for_type("search_results")
+        assert "web-search" in info["producers"]
+        assert "rag" in info["consumers"]
+
+    @pytest.mark.unit
+    def test_capability_index_multi_hop_chain(self):
+        """find_chain finds multi-hop chains."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        idx.register("search", inputs=["query"], outputs=["results"])
+        idx.register("filter", inputs=["results"], outputs=["filtered"])
+        idx.register("summarize", inputs=["filtered"], outputs=["summary"])
+        chain = idx.find_chain("query", "summary")
+        assert chain == ["search", "filter", "summarize"]
+
+    @pytest.mark.unit
+    def test_capability_index_max_depth(self):
+        """find_chain respects max_depth limit."""
+        from Jotty.core.agents._execution_types import CapabilityIndex
+        idx = CapabilityIndex()
+        # Create a chain of depth 6
+        for i in range(6):
+            idx.register(f"tool_{i}", inputs=[f"type_{i}"], outputs=[f"type_{i+1}"])
+        # Should not find chain with max_depth=3
+        chain = idx.find_chain("type_0", "type_6", max_depth=3)
+        assert chain == []
+
+    @pytest.mark.unit
+    def test_agentic_execution_result_artifacts_from_outputs(self):
+        """AgenticExecutionResult.artifacts extracts from multiple outputs."""
+        from Jotty.core.agents._execution_types import AgenticExecutionResult, TaskType
+        result = AgenticExecutionResult(
+            success=True,
+            task="Generate files",
+            task_type=TaskType.CREATION,
+            skills_used=["file-operations"],
+            steps_executed=2,
+            outputs={
+                "step_0": {"path": "/tmp/a.txt", "success": True, "bytes_written": 100},
+                "step_1": {"path": "/tmp/b.txt", "success": True, "bytes_written": 200},
+            },
+            final_output="Done",
+        )
+        arts = result.artifacts
+        assert len(arts) == 2
+        paths = {a["path"] for a in arts}
+        assert "/tmp/a.txt" in paths
+        assert "/tmp/b.txt" in paths
+
+    @pytest.mark.unit
+    def test_agentic_execution_result_summary_with_skills(self):
+        """AgenticExecutionResult.summary includes skills info."""
+        from Jotty.core.agents._execution_types import AgenticExecutionResult, TaskType
+        result = AgenticExecutionResult(
+            success=True,
+            task="Research AI",
+            task_type=TaskType.RESEARCH,
+            skills_used=["web-search", "claude-cli-llm"],
+            steps_executed=3,
+            outputs={},
+            final_output="AI is advancing",
+            execution_time=5.0,
+        )
+        s = result.summary
+        assert "web-search" in s
+        assert "claude-cli-llm" in s
+        assert "completed successfully" in s
+
+    @pytest.mark.unit
+    def test_swarm_artifact_store_register_with_tags(self):
+        """SwarmArtifactStore register stores tags correctly."""
+        from Jotty.core.agents._execution_types import SwarmArtifactStore
+        store = SwarmArtifactStore()
+        store.register("s0", {"data": "x"}, tags=["search", "web"], description="Search result")
+        store.register("s1", {"data": "y"}, tags=["file"], description="File output")
+        results = store.query_by_tag("search")
+        assert "s0" in results
+        assert "s1" not in results
+
+    @pytest.mark.unit
+    def test_swarm_artifact_store_to_outputs_dict(self):
+        """to_outputs_dict converts to plain dict."""
+        from Jotty.core.agents._execution_types import SwarmArtifactStore
+        store = SwarmArtifactStore()
+        store.register("a", {"result": 1}, tags=["search"])
+        store.register("b", {"result": 2}, tags=["file"])
+        d = store.to_outputs_dict()
+        assert d == {"a": {"result": 1}, "b": {"result": 2}}
+
+
+# =============================================================================
+# ChatAssistant Tests
+# =============================================================================
+
+class TestChatAssistant:
+    """Tests for ChatAssistant keyword detection and factory."""
+
+    @pytest.mark.unit
+    def test_chat_assistant_creation(self):
+        """ChatAssistant creates with default config."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant.state_manager is None
+        assert assistant.config == {}
+
+    @pytest.mark.unit
+    def test_chat_assistant_with_state_manager(self):
+        """ChatAssistant stores state_manager reference."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        mock_sm = MagicMock()
+        assistant = ChatAssistant(state_manager=mock_sm)
+        assert assistant.state_manager is mock_sm
+
+    @pytest.mark.unit
+    def test_is_task_query_positive(self):
+        """_is_task_query detects task-related keywords."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_task_query("show me all tasks") is True
+        assert assistant._is_task_query("what is in the backlog") is True
+        assert assistant._is_task_query("any pending items?") is True
+        assert assistant._is_task_query("completed work") is True
+        assert assistant._is_task_query("tasks done today") is True
+        assert assistant._is_task_query("show my todo list") is True
+        assert assistant._is_task_query("what is in progress") is True
+
+    @pytest.mark.unit
+    def test_is_task_query_negative(self):
+        """_is_task_query rejects non-task queries."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_task_query("hello world") is False
+        assert assistant._is_task_query("what is the weather") is False
+        assert assistant._is_task_query("tell me a joke") is False
+
+    @pytest.mark.unit
+    def test_is_status_query_positive(self):
+        """_is_status_query detects status-related keywords."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_status_query("system status") is True
+        assert assistant._is_status_query("health check") is True
+        assert assistant._is_status_query("is the system running") is True
+
+    @pytest.mark.unit
+    def test_is_status_query_negative(self):
+        """_is_status_query rejects non-status queries."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_status_query("hello") is False
+        assert assistant._is_status_query("show tasks") is False
+
+    @pytest.mark.unit
+    def test_is_help_query_positive(self):
+        """_is_help_query detects help-related keywords."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_help_query("help me") is True
+        assert assistant._is_help_query("how do I do this") is True
+        assert assistant._is_help_query("what can you do") is True
+        assert assistant._is_help_query("your capabilities") is True
+
+    @pytest.mark.unit
+    def test_is_help_query_negative(self):
+        """_is_help_query rejects non-help queries."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        assert assistant._is_help_query("hello") is False
+        assert assistant._is_help_query("list tasks") is False
+        assert assistant._is_help_query("tell me a joke") is False
+
+    @pytest.mark.unit
+    def test_handle_help_query_returns_card(self):
+        """_handle_help_query returns a card with help text."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        result = assistant._handle_help_query()
+        assert isinstance(result, dict)
+        # Should be a card-type widget
+        assert "title" in str(result) or "content" in str(result) or "role" in result
+
+    @pytest.mark.unit
+    def test_handle_general_query(self):
+        """_handle_general_query returns text response."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        result = assistant._handle_general_query("hello world")
+        assert isinstance(result, dict)
+
+    @pytest.mark.unit
+    def test_task_to_dict_from_dict(self):
+        """_task_to_dict returns dict unchanged."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        task_dict = {"task_id": "1", "title": "Test", "status": "backlog"}
+        assert assistant._task_to_dict(task_dict) is task_dict
+
+    @pytest.mark.unit
+    def test_task_to_dict_from_object(self):
+        """_task_to_dict converts object with attributes to dict."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        mock_task = MagicMock()
+        mock_task.task_id = "T-001"
+        mock_task.title = "Build feature"
+        mock_task.description = "Build the feature"
+        mock_task.status = "in_progress"
+        mock_task.priority = 3
+        mock_task.created_at = None
+        mock_task.updated_at = None
+        result = assistant._task_to_dict(mock_task)
+        assert result["task_id"] == "T-001"
+        assert result["title"] == "Build feature"
+        assert result["status"] == "in_progress"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_run_no_goal_returns_summary(self):
+        """run() with no goal returns task summary widget."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        # With no state_manager, _fetch_tasks returns empty
+        result = await assistant.run()
+        assert isinstance(result, dict)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_run_help_query(self):
+        """run() routes help queries to _handle_help_query."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        result = await assistant.run(goal="help me understand")
+        assert isinstance(result, dict)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_run_status_query(self):
+        """run() routes status queries to _handle_status_query."""
+        from Jotty.core.agents.chat_assistant import ChatAssistant
+        assistant = ChatAssistant()
+        result = await assistant.run(goal="system status")
+        assert isinstance(result, dict)
+
+    @pytest.mark.unit
+    def test_create_chat_assistant_no_api_key(self):
+        """create_chat_assistant falls back to V1 without API key."""
+        from Jotty.core.agents.chat_assistant import create_chat_assistant, ChatAssistant
+        with patch.dict('os.environ', {}, clear=True):
+            # Remove ANTHROPIC_API_KEY if present
+            import os
+            old_key = os.environ.pop('ANTHROPIC_API_KEY', None)
+            try:
+                assistant = create_chat_assistant()
+                assert isinstance(assistant, ChatAssistant)
+            finally:
+                if old_key is not None:
+                    os.environ['ANTHROPIC_API_KEY'] = old_key

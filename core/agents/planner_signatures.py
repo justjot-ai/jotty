@@ -171,6 +171,15 @@ if DSPY_AVAILABLE:
         - output_key: A DESCRIPTIVE key for this step's output (e.g., "hn_scraper", "search_results", "generated_code" — NOT "step_0")
         - depends_on: List of step INDICES (0-based integers) this step needs
 
+        STEP I/O CONTRACTS (CRITICAL for correct wiring):
+        Each step MUST declare:
+        - inputs_needed: Dict mapping each param to its data source.
+          Use "step_key.field" for dependency data, "literal:value" for constants.
+          Example: {"content": "step_0.generated_code", "path": "literal:/tmp/stats.py"}
+        - outputs_produced: List of keys this step's output will contain.
+          Example: ["generated_code", "file_path"]
+        The execution engine uses these for SCOPED resolution — only declared sources are checked.
+
         REFERENCING PREVIOUS STEP OUTPUTS (CRITICAL):
         When a step needs output from a previous step, use ${output_key} syntax in params.
         Examples:

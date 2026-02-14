@@ -1,6 +1,6 @@
 # Jotty Configuration Reference
 
-Complete reference for all configuration classes in the Jotty AI Agent Framework.
+Complete reference for all configuration classes in the Jotty AI Agent Framework, organized by importance.
 
 **Source files:**
 - `core/foundation/data_structures.py` — SwarmConfig (120+ fields), ConfigViews, DEFAULT_PARAM_ALIASES
@@ -63,9 +63,179 @@ config.learning.gamma  # 0.99
 config.learning.gamma = 0.95  # writes back to config.gamma
 ```
 
-### 1. Persistence
+---
 
-Storage paths, save/load behavior, and retention.
+## Essential — Configure These First
+
+These control runtime behavior, cost, and quality. Misconfiguration here causes hangs, runaway bills, or silent bad outputs.
+
+### Execution
+
+Runtime limits, timeouts, and parallelism. Controls how long agents run and how many run concurrently.
+
+**View:** `config.execution`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_actor_iters` | int | `50` | Max iterations per actor agent |
+| `max_eval_iters` | int | `1` | Architect/Auditor ReAct iterations. 1=minimal, 2-3=balanced, 5-10=thorough |
+| `max_episode_iterations` | int | `12` | Max task iterations per episode in `swarm.run()` |
+| `async_timeout` | float | `60.0` | General async operation timeout (seconds) |
+| `actor_timeout` | float | `900.0` | Actor execution timeout (15 minutes) |
+| `max_concurrent_agents` | int | `10` | Max agents running in parallel |
+| `allow_partial_execution` | bool | `False` | Allow agents to execute with missing required params. Set `True` for RL with natural dependencies |
+| `max_eval_retries` | int | `3` | Retry attempts for validation |
+| `stream_message_timeout` | float | `0.15` | Streaming message timeout (seconds) |
+| `llm_timeout_seconds` | float | `180.0` | LLM API call timeout (3 minutes) |
+| `parallel_architect` | bool | `True` | Run architect validation in parallel |
+| `parallel_auditor` | bool | `True` | Run auditor validation in parallel |
+
+### Budget Controls
+
+LLM call and token budget enforcement. Prevents runaway cost.
+
+**View:** `config.monitoring`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_llm_calls_per_episode` | int | `100` | Max LLM calls per episode |
+| `max_llm_calls_per_agent` | int | `50` | Max LLM calls per individual agent |
+| `max_total_tokens_per_episode` | int | `500000` | Max tokens consumed per episode |
+| `enable_budget_enforcement` | bool | `True` | Enforce budget limits (hard stop) |
+| `budget_warning_threshold` | float | `0.8` | Warn at 80% of budget |
+| `enable_monitoring` | bool | `False` | Enable comprehensive monitoring (opt-in) |
+| `baseline_cost_per_success` | Optional[float] | `None` | Baseline cost for efficiency comparison |
+
+### Validation
+
+Quality loop: architect pre-checks, auditor post-checks, confidence overrides, and iterative refinement.
+
+**View:** `config.validation_settings`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_validation` | bool | `True` | Master switch for all validation |
+| `validation_mode` | str | `"full"` | `"full"`, `"architect_only"`, `"auditor_only"`, or `"none"` |
+| `max_validation_rounds` | int | `3` | Max rounds of validation per step |
+| `refinement_timeout` | float | `30.0` | Timeout for each refinement round (seconds) |
+| `advisory_confidence_threshold` | float | `0.85` | Below this, advisory feedback triggers retry |
+| `max_validation_retries` | int | `5` | Max retries on validation failure |
+| `require_all_architect` | bool | `True` | Require all architects to pass |
+| `require_all_auditor` | bool | `False` | Require all auditors to pass (False = majority) |
+| `enable_per_actor_swarm_auditor` | bool | `False` | Run swarm auditor after each actor (slow) |
+| `enable_final_swarm_auditor` | bool | `True` | Run swarm auditor once at end (recommended) |
+| `swarm_validation_confidence_threshold` | float | `0.6` | Only retry if confidence below this |
+| `enable_llm_planning` | bool | `False` | Use LLM to create initial TODO plan |
+| `min_confidence` | float | `0.5` | Minimum confidence to accept a result |
+
+#### Confidence Override
+
+Allows confident actors to override uncertain validators.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_confidence_override` | bool | `True` | Enable confident-actor override mechanism |
+| `confidence_override_threshold` | float | `0.30` | Min gap (actor - validator confidence) to allow override |
+| `confidence_moving_average_alpha` | float | `0.7` | Weight for exponential moving average of confidence |
+| `min_confidence_for_override` | float | `0.70` | Actor must be at least this confident to override |
+| `max_validator_confidence_to_override` | float | `0.95` | Don't override if validator is above 95% confident |
+
+#### Default Confidence Values
+
+Previously hardcoded, now configurable:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `default_confidence_on_error` | float | `0.3` | Confidence assigned when validation errors |
+| `default_confidence_no_validation` | float | `0.5` | Confidence when no validation is run |
+| `default_confidence_insight_share` | float | `0.7` | Confidence for shared insights |
+| `default_estimated_reward` | float | `0.6` | Estimated reward when no Auditor result yet |
+
+---
+
+## Core Features — Most Users Tune These
+
+### Memory (Hierarchical)
+
+Capacity limits for the 5-level memory hierarchy.
+
+**View:** `config.memory_settings`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `episodic_capacity` | int | `1000` | Max episodic memory entries (recent experiences) |
+| `semantic_capacity` | int | `500` | Max semantic memory entries (facts/knowledge) |
+| `procedural_capacity` | int | `200` | Max procedural memory entries (how-to patterns) |
+| `meta_capacity` | int | `100` | Max meta-memory entries (learning about learning) |
+| `causal_capacity` | int | `150` | Max causal knowledge entries (cause-effect links) |
+| `max_entry_tokens` | int | `2000` | Max tokens per memory entry to prevent oversized entries |
+
+**Computed property:** `config.total_memory_capacity` — sum of all 5 capacities.
+
+### Context Budget
+
+Token allocation across the context window. Controls how the model's context is divided.
+
+**View:** `config.context_budget`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_context_tokens` | int | `100000` | Total context window size |
+| `system_prompt_budget` | int | `5000` | Tokens reserved for system prompt |
+| `current_input_budget` | int | `15000` | Tokens reserved for current user input |
+| `trajectory_budget` | int | `20000` | Tokens reserved for agent trajectory/history |
+| `tool_output_budget` | int | `15000` | Tokens reserved for tool outputs |
+| `enable_dynamic_budget` | bool | `True` | Dynamically reallocate unused budget |
+| `min_memory_budget` | int | `10000` | Floor for memory token allocation |
+| `max_memory_budget` | int | `60000` | Ceiling for memory token allocation |
+
+**Computed property:** `config.memory_budget` — `max(min_memory_budget, max_context_tokens - reserved)` where reserved = system + input + trajectory + tool budgets.
+
+### RL Parameters (TD-Lambda)
+
+The learning engine. Set `enable_rl=False` to disable entirely for one-off tasks.
+
+**View:** `config.learning`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_rl` | bool | `True` | Master switch for all RL features |
+| `rl_verbosity` | str | `"quiet"` | `"quiet"` (minimal), `"normal"` (info), `"verbose"` (debug) |
+| `gamma` | float | `0.99` | TD discount factor |
+| `lambda_trace` | float | `0.95` | Eligibility trace decay for TD(lambda) |
+| `alpha` | float | `0.01` | TD learning rate |
+| `baseline` | float | `0.5` | Reward baseline for advantage calculation |
+| `n_step` | int | `3` | N-step returns lookahead |
+| `q_value_mode` | str | `"simple"` | `"simple"` (average reward per actor) or `"llm"` (LLM-based Q-value prediction) |
+
+#### Adaptive Learning Rate
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_adaptive_alpha` | bool | `True` | Dynamically adjust learning rate |
+| `alpha_min` | float | `0.001` | Learning rate floor |
+| `alpha_max` | float | `0.1` | Learning rate ceiling |
+| `alpha_adaptation_rate` | float | `0.1` | Speed of learning rate adaptation |
+
+#### Intermediate Rewards
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_intermediate_rewards` | bool | `True` | Reward agents during execution, not just at end |
+| `architect_proceed_reward` | float | `0.1` | Reward when architect approves a step |
+| `tool_success_reward` | float | `0.05` | Reward per successful tool call |
+
+#### Cooperative Rewards (Multi-Agent)
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `base_reward_weight` | float | `0.3` | Weight for agent's own success contribution |
+| `cooperation_bonus` | float | `0.4` | Bonus for helping other agents |
+| `predictability_bonus` | float | `0.3` | Bonus for predictable behavior |
+
+### Persistence
+
+Where and how state is saved. Controls output paths, backup strategy, and learning storage.
 
 **View:** `config.persistence`
 
@@ -106,176 +276,31 @@ Storage paths, save/load behavior, and retention.
 | `q_prune_percentage` | float | `0.2` | Fraction pruned when limit hit (20%) |
 | `enable_domain_transfer` | bool | `True` | Load learning from similar domains |
 
-#### Logs & Profiling
+---
+
+## Advanced Tuning — Power Users
+
+### Swarm Intelligence
+
+Trust adaptation, routing thresholds, and collective memory. Controls how the swarm evaluates and routes to agents.
+
+**View:** `config.intelligence`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enable_beautified_logs` | bool | `True` | Generate human-readable logs |
-| `enable_debug_logs` | bool | `True` | Keep raw debug logs |
-| `log_level` | str | `"INFO"` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `enable_profiling` | bool | `False` | Track execution times for performance analysis |
-| `profiling_verbosity` | str | `"summary"` | `"summary"` (end only) or `"detailed"` (per operation) |
+| `trust_decrease_on_struggle` | float | `0.1` | Trust penalty per adaptation window |
+| `trust_increase_on_excel` | float | `0.05` | Trust bonus per adaptation window |
+| `trust_min` | float | `0.1` | Minimum trust floor |
+| `adaptation_interval` | int | `5` | Adapt trust every N experiences |
+| `adaptation_struggle_threshold` | float | `0.3` | Success rate below this = struggling |
+| `adaptation_excel_threshold` | float | `0.8` | Success rate above this = excelling |
+| `stigmergy_routing_threshold` | float | `0.5` | Min signal strength for stigmergy routing |
+| `morph_min_rcs` | float | `0.3` | Min Role Clarity Score for TRAS routing |
+| `judge_intervention_confidence` | float | `0.6` | Auditor confidence below this triggers retry |
+| `memory_retrieval_budget` | int | `3000` | Tokens for memory retrieval in AgentRunner |
+| `collective_memory_limit` | int | `200` | Max items in swarm collective memory |
 
-### 2. Execution
-
-Runtime limits, timeouts, and parallelism controls.
-
-**View:** `config.execution`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_actor_iters` | int | `50` | Max iterations per actor agent |
-| `max_eval_iters` | int | `1` | Architect/Auditor ReAct iterations. 1=minimal, 2-3=balanced, 5-10=thorough |
-| `max_episode_iterations` | int | `12` | Max task iterations per episode in `swarm.run()` |
-| `async_timeout` | float | `60.0` | General async operation timeout (seconds) |
-| `actor_timeout` | float | `900.0` | Actor execution timeout (15 minutes) |
-| `max_concurrent_agents` | int | `10` | Max agents running in parallel |
-| `allow_partial_execution` | bool | `False` | Allow agents to execute with missing required params. Set `True` for RL with natural dependencies |
-| `max_eval_retries` | int | `3` | Retry attempts for validation |
-| `stream_message_timeout` | float | `0.15` | Streaming message timeout (seconds) |
-| `llm_timeout_seconds` | float | `180.0` | LLM API call timeout (3 minutes) |
-| `parallel_architect` | bool | `True` | Run architect validation in parallel |
-| `parallel_auditor` | bool | `True` | Run auditor validation in parallel |
-
-### 2.5. Validation & Multi-Round
-
-Validation flow, confidence overrides, and iterative refinement.
-
-**View:** `config.validation_settings`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_validation_rounds` | int | `3` | Max rounds of validation per step |
-| `refinement_timeout` | float | `30.0` | Timeout for each refinement round (seconds) |
-| `enable_validation` | bool | `True` | Master switch for all validation |
-| `validation_mode` | str | `"full"` | `"full"`, `"architect_only"`, `"auditor_only"`, or `"none"` |
-| `advisory_confidence_threshold` | float | `0.85` | Below this, advisory feedback triggers retry |
-| `max_validation_retries` | int | `5` | Max retries on validation failure |
-
-#### Confidence Override
-
-Allows confident actors to override uncertain validators.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_confidence_override` | bool | `True` | Enable confident-actor override mechanism |
-| `confidence_override_threshold` | float | `0.30` | Min gap (actor - validator confidence) to allow override |
-| `confidence_moving_average_alpha` | float | `0.7` | Weight for exponential moving average of confidence |
-| `min_confidence_for_override` | float | `0.70` | Actor must be at least this confident to override |
-| `max_validator_confidence_to_override` | float | `0.95` | Don't override if validator is above 95% confident |
-
-### 3. Memory (Hierarchical)
-
-Capacity limits for the 5-level memory hierarchy.
-
-**View:** `config.memory_settings`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `episodic_capacity` | int | `1000` | Max episodic memory entries (recent experiences) |
-| `semantic_capacity` | int | `500` | Max semantic memory entries (facts/knowledge) |
-| `procedural_capacity` | int | `200` | Max procedural memory entries (how-to patterns) |
-| `meta_capacity` | int | `100` | Max meta-memory entries (learning about learning) |
-| `causal_capacity` | int | `150` | Max causal knowledge entries (cause-effect links) |
-| `max_entry_tokens` | int | `2000` | Max tokens per memory entry to prevent oversized entries |
-
-**Computed property:** `config.total_memory_capacity` — sum of all 5 capacities.
-
-### 4. Context Budget
-
-Token allocation across the context window.
-
-**View:** `config.context_budget`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_context_tokens` | int | `100000` | Total context window size |
-| `system_prompt_budget` | int | `5000` | Tokens reserved for system prompt |
-| `current_input_budget` | int | `15000` | Tokens reserved for current user input |
-| `trajectory_budget` | int | `20000` | Tokens reserved for agent trajectory/history |
-| `tool_output_budget` | int | `15000` | Tokens reserved for tool outputs |
-| `enable_dynamic_budget` | bool | `True` | Dynamically reallocate unused budget |
-| `min_memory_budget` | int | `10000` | Floor for memory token allocation |
-| `max_memory_budget` | int | `60000` | Ceiling for memory token allocation |
-
-**Computed property:** `config.memory_budget` — `max(min_memory_budget, max_context_tokens - reserved)` where reserved = system + input + trajectory + tool budgets.
-
-### 4.5. Agentic Discovery Budget
-
-Token budgets for LLM-based artifact analysis.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `preview_token_budget` | int | `20000` | Token budget for LLM artifact analysis |
-| `max_description_tokens` | int | `5000` | Per-artifact description token limit |
-| `compression_trigger_ratio` | float | `0.8` | Compress when total context exceeds 80% of limit |
-| `chunking_threshold_tokens` | int | `15000` | Chunk artifacts larger than this |
-
-**Derived fields** (set in `__post_init__`, 1 token ~ 4 chars):
-
-| Field | Type | Derived From | Description |
-|-------|------|-------------|-------------|
-| `preview_char_limit` | int | `preview_token_budget * 4` | Char limit for previews (default: 80000) |
-| `max_description_chars` | int | `max_description_tokens * 4` | Char limit per description (default: 20000) |
-
-### 4.6. Token Counting
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `token_model_name` | Optional[str] | `None` | Override model name for token counting (e.g. `"gpt-4o"`). If `None`, uses main model name with automatic mapping |
-
-### 5. RL Parameters (TD-Lambda)
-
-Reinforcement learning core parameters.
-
-**View:** `config.learning`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_rl` | bool | `True` | Master switch for all RL features |
-| `rl_verbosity` | str | `"quiet"` | `"quiet"` (minimal), `"normal"` (info), `"verbose"` (debug) |
-| `gamma` | float | `0.99` | TD discount factor |
-| `lambda_trace` | float | `0.95` | Eligibility trace decay for TD(lambda) |
-| `alpha` | float | `0.01` | TD learning rate |
-| `baseline` | float | `0.5` | Reward baseline for advantage calculation |
-| `n_step` | int | `3` | N-step returns lookahead |
-| `q_value_mode` | str | `"simple"` | `"simple"` (average reward per actor) or `"llm"` (LLM-based Q-value prediction) |
-
-#### Adaptive Learning Rate
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_adaptive_alpha` | bool | `True` | Dynamically adjust learning rate |
-| `alpha_min` | float | `0.001` | Learning rate floor |
-| `alpha_max` | float | `0.1` | Learning rate ceiling |
-| `alpha_adaptation_rate` | float | `0.1` | Speed of learning rate adaptation |
-
-#### Intermediate Rewards
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_intermediate_rewards` | bool | `True` | Reward agents during execution, not just at end |
-| `architect_proceed_reward` | float | `0.1` | Reward when architect approves a step |
-| `tool_success_reward` | float | `0.05` | Reward per successful tool call |
-
-#### Cooperative Rewards (Multi-Agent)
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `base_reward_weight` | float | `0.3` | Weight for agent's own success contribution |
-| `cooperation_bonus` | float | `0.4` | Bonus for helping other agents |
-| `predictability_bonus` | float | `0.3` | Bonus for predictable behavior |
-
-#### Adaptive Learning Thresholds
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `adaptive_window_size` | int | `50` | Window size for learning rate adaptation |
-| `instability_threshold_multiplier` | float | `1.5` | `std_dev > mean * this` means unstable |
-| `slow_learning_threshold` | float | `0.01` | `mean_error < this` means learning too slowly |
-| `goal_transfer_discount` | float | `0.5` | Discount for value transfer to related goals |
-
-### 6. Exploration
+### Exploration
 
 Epsilon-greedy and UCB exploration controls.
 
@@ -290,9 +315,9 @@ Epsilon-greedy and UCB exploration controls.
 | `max_exploration_iterations` | int | `10` | Max iterations for policy exploration |
 | `policy_update_threshold` | int | `3` | Episodes before updating policy |
 
-### 7. Credit Assignment
+### Credit Assignment
 
-How contribution is attributed across agents.
+How contribution is attributed across agents in a multi-agent episode.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -302,90 +327,33 @@ How contribution is attributed across agents.
 | `reasoning_weight` | float | `0.3` | Weight for reasoning-based credit |
 | `evidence_weight` | float | `0.2` | Weight for evidence-based credit |
 
-### 8. Consolidation
+### Inter-Agent Communication
 
-Pattern extraction from accumulated memories.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `consolidation_threshold` | int | `100` | Min memories before consolidation triggers |
-| `consolidation_interval` | int | `3` | Consolidate every N episodes |
-| `min_cluster_size` | int | `5` | Min memories in a cluster to extract a pattern |
-| `pattern_confidence_threshold` | float | `0.7` | Min confidence to keep an extracted pattern |
-
-### 9. Offline Learning
-
-Batch updates from experience replay.
+Agent-to-agent message passing and result sharing.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `episode_buffer_size` | int | `1000` | Max episodes stored in replay buffer |
-| `offline_update_interval` | int | `50` | Run offline update every N episodes |
-| `replay_batch_size` | int | `20` | Batch size for replay updates |
-| `counterfactual_samples` | int | `5` | Counterfactual scenarios per offline update |
+| `enable_agent_communication` | bool | `True` | Enable inter-agent messaging |
+| `share_tool_results` | bool | `True` | Cache and share tool results across agents |
+| `share_insights` | bool | `True` | Share discovered insights between agents |
+| `max_messages_per_episode` | int | `20` | Cap on inter-agent messages per episode |
 
-### 10. Protection Mechanisms
+### Multi-Round Validation
 
-Prevent catastrophic forgetting and detect anomalies.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `protected_memory_threshold` | float | `0.8` | Memories above this importance are protected from eviction |
-| `task_memory_ratio` | float | `0.3` | Fraction of memory budget reserved for current task |
-| `suspicion_threshold` | float | `0.95` | Confidence above this flags a suspiciously certain agent |
-| `ood_entropy_threshold` | float | `0.8` | Entropy above this flags out-of-distribution input |
-| `min_rejection_rate` | float | `0.05` | Minimum rejection rate to maintain calibration |
-| `approval_reward_bonus` | float | `0.1` | Reward bonus for human-approved outputs |
-| `rejection_penalty` | float | `0.05` | Penalty for human-rejected outputs |
-
-### 11. Validation
-
-Architect/Auditor orchestration strategy.
+Iterative refinement on low-confidence or disagreement.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `require_all_architect` | bool | `True` | Require all architects to pass |
-| `require_all_auditor` | bool | `False` | Require all auditors to pass (False = majority) |
-| `enable_per_actor_swarm_auditor` | bool | `False` | Run swarm auditor after each actor (slow) |
-| `enable_final_swarm_auditor` | bool | `True` | Run swarm auditor once at end (recommended) |
-| `swarm_validation_confidence_threshold` | float | `0.6` | Only retry if confidence below this |
-| `enable_llm_planning` | bool | `False` | Use LLM to create initial TODO plan |
-| `min_confidence` | float | `0.5` | Minimum confidence to accept a result |
+| `enable_multi_round` | bool | `True` | Enable multi-round validation |
+| `refinement_on_low_confidence` | float | `0.6` | Trigger refinement when confidence below this |
+| `refinement_on_disagreement` | bool | `True` | Trigger refinement when agents disagree |
+| `max_refinement_rounds` | int | `2` | Max refinement iterations |
 
-#### Default Confidence Values
+---
 
-Previously hardcoded, now configurable:
+## Specialized — Domain-Specific or Rare Use
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `default_confidence_on_error` | float | `0.3` | Confidence assigned when validation errors |
-| `default_confidence_no_validation` | float | `0.5` | Confidence when no validation is run |
-| `default_confidence_insight_share` | float | `0.7` | Confidence for shared insights |
-| `default_estimated_reward` | float | `0.6` | Estimated reward when no Auditor result yet |
-
-### 12. Async
-
-Parallel execution of validation stages.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `parallel_architect` | bool | `True` | Run architect validation in parallel across agents |
-| `parallel_auditor` | bool | `True` | Run auditor validation in parallel across agents |
-
-### 13. Logging
-
-Output verbosity and metrics.
-
-**View:** `config.monitoring`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `verbose` | int | `1` | Verbosity level (0=silent, 1=normal, 2+=debug) |
-| `log_file` | Optional[str] | `None` | Path to log file. `None` = stdout only |
-| `enable_debug_logging` | bool | `False` | Enable debug-level logging. Default OFF for production |
-| `enable_metrics` | bool | `True` | Enable metrics collection |
-
-### 14. LLM-Based RAG
+### LLM-Based RAG
 
 Semantic retrieval without embedding models — uses LLM with sliding window.
 
@@ -404,50 +372,43 @@ Semantic retrieval without embedding models — uses LLM with sliding window.
 | `chunk_size` | int | `500` | Tokens per chunk for sliding window |
 | `chunk_overlap` | int | `50` | Overlap between chunks |
 
-### 15. Goal Hierarchy
+### Consolidation
 
-Knowledge transfer between related goals.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_goal_hierarchy` | bool | `True` | Enable hierarchical goal structure |
-| `goal_transfer_weight` | float | `0.3` | Weight for transferred knowledge between goals |
-
-### 16. Causal Learning
-
-Cause-effect relationship discovery.
+Pattern extraction from accumulated memories.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enable_causal_learning` | bool | `True` | Enable causal relationship tracking |
-| `causal_confidence_threshold` | float | `0.7` | Min confidence to confirm a causal link |
-| `causal_min_support` | int | `3` | Episodes needed before causal link is confirmed |
+| `consolidation_threshold` | int | `100` | Min memories before consolidation triggers |
+| `consolidation_interval` | int | `3` | Consolidate every N episodes |
+| `min_cluster_size` | int | `5` | Min memories in a cluster to extract a pattern |
+| `pattern_confidence_threshold` | float | `0.7` | Min confidence to keep an extracted pattern |
 
-### 17. Inter-Agent Communication
+### Offline Learning
 
-Agent-to-agent message passing and result sharing.
-
-**View:** `config.intelligence`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enable_agent_communication` | bool | `True` | Enable inter-agent messaging |
-| `share_tool_results` | bool | `True` | Cache and share tool results across agents |
-| `share_insights` | bool | `True` | Share discovered insights between agents |
-| `max_messages_per_episode` | int | `20` | Cap on inter-agent messages per episode |
-
-### 18. Multi-Round Validation
-
-Iterative refinement on low-confidence or disagreement.
+Batch updates from experience replay.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `enable_multi_round` | bool | `True` | Enable multi-round validation |
-| `refinement_on_low_confidence` | float | `0.6` | Trigger refinement when confidence below this |
-| `refinement_on_disagreement` | bool | `True` | Trigger refinement when agents disagree |
-| `max_refinement_rounds` | int | `2` | Max refinement iterations |
+| `episode_buffer_size` | int | `1000` | Max episodes stored in replay buffer |
+| `offline_update_interval` | int | `50` | Run offline update every N episodes |
+| `replay_batch_size` | int | `20` | Batch size for replay updates |
+| `counterfactual_samples` | int | `5` | Counterfactual scenarios per offline update |
 
-### 19. Adaptive Learning
+### Protection Mechanisms
+
+Prevent catastrophic forgetting and detect anomalies.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `protected_memory_threshold` | float | `0.8` | Memories above this importance are protected from eviction |
+| `task_memory_ratio` | float | `0.3` | Fraction of memory budget reserved for current task |
+| `suspicion_threshold` | float | `0.95` | Confidence above this flags a suspiciously certain agent |
+| `ood_entropy_threshold` | float | `0.8` | Entropy above this flags out-of-distribution input |
+| `min_rejection_rate` | float | `0.05` | Minimum rejection rate to maintain calibration |
+| `approval_reward_bonus` | float | `0.1` | Reward bonus for human-approved outputs |
+| `rejection_penalty` | float | `0.05` | Penalty for human-rejected outputs |
+
+### Adaptive Learning
 
 Dynamic parameter adjustment when learning stalls.
 
@@ -458,7 +419,35 @@ Dynamic parameter adjustment when learning stalls.
 | `stall_threshold` | float | `0.001` | Improvement below this = stalled |
 | `learning_boost_factor` | float | `2.0` | Multiply learning rate by this on stall |
 
-### 20. Deduplication
+#### Adaptive Learning Thresholds
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `adaptive_window_size` | int | `50` | Window size for learning rate adaptation |
+| `instability_threshold_multiplier` | float | `1.5` | `std_dev > mean * this` means unstable |
+| `slow_learning_threshold` | float | `0.01` | `mean_error < this` means learning too slowly |
+| `goal_transfer_discount` | float | `0.5` | Discount for value transfer to related goals |
+
+### Goal Hierarchy
+
+Knowledge transfer between related goals.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_goal_hierarchy` | bool | `True` | Enable hierarchical goal structure |
+| `goal_transfer_weight` | float | `0.3` | Weight for transferred knowledge between goals |
+
+### Causal Learning
+
+Cause-effect relationship discovery.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_causal_learning` | bool | `True` | Enable causal relationship tracking |
+| `causal_confidence_threshold` | float | `0.7` | Min confidence to confirm a causal link |
+| `causal_min_support` | int | `3` | Episodes needed before causal link is confirmed |
+
+### Deduplication
 
 Redundant memory removal.
 
@@ -467,7 +456,7 @@ Redundant memory removal.
 | `enable_deduplication` | bool | `True` | Enable memory deduplication |
 | `similarity_threshold` | float | `0.85` | LLM-judged similarity above this = duplicate |
 
-### 20.5. Learning Pipeline
+### Learning Pipeline
 
 Control which learning components run in `post_episode()`.
 
@@ -477,7 +466,31 @@ Control which learning components run in `post_episode()`.
 
 Valid component names: `td_lambda`, `swarm_learner`, `brain_consolidation`, `neurochunk_tiering`, `agent_abstractor`, `transfer_learning`, `swarm_intelligence`, `stigmergy`, `effectiveness`, `mas_learning`, `byzantine`, `credit_assignment`, `auditor_fixes`, `adaptive_learning`, `effectiveness_intervention`, `credit_pruning`, `curriculum`.
 
-### 21.5. Local-First Mode
+### Agentic Discovery Budget
+
+Token budgets for LLM-based artifact analysis.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `preview_token_budget` | int | `20000` | Token budget for LLM artifact analysis |
+| `max_description_tokens` | int | `5000` | Per-artifact description token limit |
+| `compression_trigger_ratio` | float | `0.8` | Compress when total context exceeds 80% of limit |
+| `chunking_threshold_tokens` | int | `15000` | Chunk artifacts larger than this |
+
+**Derived fields** (set in `__post_init__`, 1 token ~ 4 chars):
+
+| Field | Type | Derived From | Description |
+|-------|------|-------------|-------------|
+| `preview_char_limit` | int | `preview_token_budget * 4` | Char limit for previews (default: 80000) |
+| `max_description_chars` | int | `max_description_tokens * 4` | Char limit per description (default: 20000) |
+
+### Token Counting
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `token_model_name` | Optional[str] | `None` | Override model name for token counting (e.g. `"gpt-4o"`). If `None`, uses main model name with automatic mapping |
+
+### Local-First Mode
 
 Privacy-first operation without external API calls.
 
@@ -486,7 +499,7 @@ Privacy-first operation without external API calls.
 | `local_mode` | bool | `False` | Master switch for local-only inference |
 | `local_model` | str | `"ollama/llama3"` | Local model identifier (Ollama format) |
 
-### 22. Agent Registry & Parameter Mappings
+### Agent Registry & Parameter Mappings
 
 Dynamic agent capability tracking and custom parameter aliases.
 
@@ -496,23 +509,7 @@ Dynamic agent capability tracking and custom parameter aliases.
 | `auto_infer_capabilities` | bool | `True` | LLM infers capabilities if not provided |
 | `custom_param_mappings` | Dict[str, List[str]] | `{}` | Custom parameter name mappings for your domain |
 
-### 22.5. Budget Controls
-
-LLM call and token budget enforcement.
-
-**View:** `config.monitoring`
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `max_llm_calls_per_episode` | int | `100` | Max LLM calls per episode |
-| `max_llm_calls_per_agent` | int | `50` | Max LLM calls per individual agent |
-| `max_total_tokens_per_episode` | int | `500000` | Max tokens consumed per episode |
-| `enable_budget_enforcement` | bool | `True` | Enforce budget limits (hard stop) |
-| `budget_warning_threshold` | float | `0.8` | Warn at 80% of budget |
-| `enable_monitoring` | bool | `False` | Enable comprehensive monitoring (opt-in) |
-| `baseline_cost_per_success` | Optional[float] | `None` | Baseline cost for efficiency comparison |
-
-### 23. Reproducibility
+### Reproducibility
 
 Deterministic execution via fixed seeds.
 
@@ -528,25 +525,21 @@ Deterministic execution via fixed seeds.
 
 When `random_seed` is set, `__post_init__` calls `set_reproducible_seeds()` automatically.
 
-### Swarm Intelligence Tuning
+### Logging & Profiling
 
-Trust adaptation, routing thresholds, and collective memory.
-
-**View:** `config.intelligence`
+**View:** `config.monitoring`
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `trust_decrease_on_struggle` | float | `0.1` | Trust penalty per adaptation window |
-| `trust_increase_on_excel` | float | `0.05` | Trust bonus per adaptation window |
-| `trust_min` | float | `0.1` | Minimum trust floor |
-| `adaptation_interval` | int | `5` | Adapt trust every N experiences |
-| `adaptation_struggle_threshold` | float | `0.3` | Success rate below this = struggling |
-| `adaptation_excel_threshold` | float | `0.8` | Success rate above this = excelling |
-| `stigmergy_routing_threshold` | float | `0.5` | Min signal strength for stigmergy routing |
-| `morph_min_rcs` | float | `0.3` | Min Role Clarity Score for TRAS routing |
-| `judge_intervention_confidence` | float | `0.6` | Auditor confidence below this triggers retry |
-| `memory_retrieval_budget` | int | `3000` | Tokens for memory retrieval in AgentRunner |
-| `collective_memory_limit` | int | `200` | Max items in swarm collective memory |
+| `verbose` | int | `1` | Verbosity level (0=silent, 1=normal, 2+=debug) |
+| `log_file` | Optional[str] | `None` | Path to log file. `None` = stdout only |
+| `enable_debug_logging` | bool | `False` | Enable debug-level logging. Default OFF for production |
+| `enable_metrics` | bool | `True` | Enable metrics collection |
+| `enable_beautified_logs` | bool | `True` | Generate human-readable logs |
+| `enable_debug_logs` | bool | `True` | Keep raw debug logs |
+| `log_level` | str | `"INFO"` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `enable_profiling` | bool | `False` | Track execution times for performance analysis |
+| `profiling_verbosity` | str | `"summary"` | `"summary"` (end only) or `"detailed"` (per operation) |
 
 ---
 
@@ -556,13 +549,13 @@ Eight read/write proxy views group related fields for organized access. All view
 
 | View Property | Class | Description |
 |---------------|-------|-------------|
-| `config.persistence` | `PersistenceView` | Storage paths, save/load, retention |
 | `config.execution` | `ExecutionView` | Timeouts, parallelism, seeds |
+| `config.monitoring` | `MonitoringView` | Logging, profiling, budgets |
+| `config.validation_settings` | `ValidationView` | Validation, confidence, multi-round |
 | `config.memory_settings` | `MemoryView` | Capacities, RAG, chunking |
 | `config.context_budget` | `ContextBudgetView` | Token allocation |
 | `config.learning` | `LearningView` | RL, exploration, credit, consolidation, protection |
-| `config.validation_settings` | `ValidationView` | Validation, confidence, multi-round |
-| `config.monitoring` | `MonitoringView` | Logging, profiling, budgets |
+| `config.persistence` | `PersistenceView` | Storage paths, save/load, retention |
 | `config.intelligence` | `SwarmIntelligenceView` | Trust, routing, communication, local mode |
 
 ```python
@@ -581,7 +574,7 @@ config.learning.to_dict()  # {'alpha': 0.01, 'gamma': 0.99, ...}
 
 ## ExecutionConfig
 
-Configuration for the tiered execution system. Each tier progressively enables more features.
+Configuration for the tiered execution system. Each tier progressively enables more features. This is a separate config class from SwarmConfig, used by the execution engine.
 
 ```python
 from Jotty.core.execution.types import ExecutionConfig, ExecutionTier

@@ -57,6 +57,11 @@ class ExecutionStep:
     optional: bool = False
     verification: str = ""
     fallback_skill: str = ""
+    # I/O contracts: typed wiring declared by the planner
+    inputs_needed: Dict[str, str] = field(default_factory=dict)
+    # Maps param_name -> source. e.g. {"content": "step_0.generated_code", "path": "literal:stats.py"}
+    outputs_produced: List[str] = field(default_factory=list)
+    # Keys this step will produce. e.g. ["generated_code", "file_path"]
 
 
 # =============================================================================
@@ -446,17 +451,29 @@ class ToolSchema:
         self,
         params: Dict[str, Any],
         outputs: Dict[str, Any],
+        scoped_keys: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Fill missing required params from previous step outputs.
 
+        When scoped_keys provided: content/text/body/message params are resolved
+        ONLY from scoped outputs (declared dependencies). Other params use
+        broader search since path/command are less error-prone.
+
         Strategy for each missing param:
-        1. Exact name match in most recent output dict
-        2. Alias match in most recent output dict
-        3. Content-field match for content/text params
+        1. Exact name match in output dict (priority keys first)
+        2. Alias match in output dict
+        3. Content-field match for content/text params (scoped only)
         4. Most recent path for path params
         """
         wired = dict(params)
-        reversed_keys = list(reversed(list(outputs.keys())))
+        if scoped_keys is not None:
+            priority_keys = [k for k in scoped_keys if k in outputs]
+            fallback_keys = [k for k in reversed(list(outputs.keys())) if k not in priority_keys]
+        else:
+            priority_keys = list(reversed(list(outputs.keys())))
+            fallback_keys = []
+
+        _HIGH_STAKES_PARAMS = ('content', 'text', 'body', 'message')
 
         for tp in self.params:
             if not tp.required or tp.name in wired:
@@ -467,7 +484,12 @@ class ToolSchema:
             if alias_present:
                 continue
 
-            value = self._find_in_outputs(tp, outputs, reversed_keys)
+            value = self._find_in_outputs(tp, outputs, priority_keys)
+
+            # Content params: ONLY from scoped outputs (never random fallback)
+            if value is None and tp.name not in _HIGH_STAKES_PARAMS:
+                value = self._find_in_outputs(tp, outputs, fallback_keys)
+
             if value is not None:
                 wired[tp.name] = value
                 logger.debug(f"Auto-wired '{tp.name}' from outputs ({str(value)[:60]})")
@@ -494,17 +516,18 @@ class ToolSchema:
                     if val is not None and str(val).strip():
                         return val
 
-        # Strategy 3: content-field match for content/text/body params
+        # Strategy 3: direct field match for content/text/body params
+        # (no longer scans _CONTENT_FIELDS — relies on scoped resolution)
         if tp.name in ('content', 'text', 'body', 'message'):
             for key in reversed_keys:
                 out = outputs[key]
                 if not isinstance(out, dict):
                     continue
-                for cf in self._CONTENT_FIELDS:
-                    if cf in out:
-                        val = str(out[cf])
-                        if len(val) > 50:
-                            return val
+                # Direct match on param name only (not broadcast scan)
+                if tp.name in out:
+                    val = str(out[tp.name])
+                    if len(val) > 50:
+                        return val
 
         # Strategy 4: path fallback
         if tp.name in ('path', 'file_path', 'input_path'):
@@ -1158,6 +1181,8 @@ if PYDANTIC_AVAILABLE:
         optional: bool = Field(default=False, description="Whether step is optional")
         verification: str = Field(default="", description="How to confirm this step succeeded")
         fallback_skill: str = Field(default="", description="Alternative skill if this one fails")
+        inputs_needed: Dict[str, str] = Field(default_factory=dict, description="Map param_name to data source (e.g. step_0.field or literal:value)")
+        outputs_produced: List[str] = Field(default_factory=list, description="Output keys this step will produce")
 
         model_config = {"extra": "allow"}
 
