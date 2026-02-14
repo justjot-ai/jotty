@@ -76,7 +76,7 @@ logger = logging.getLogger(__name__)
 # DSPy Signatures (for JottyClaudeProvider fallback)
 # =============================================================================
 
-def _get_dspy_signatures():
+def _get_dspy_signatures() -> Tuple:
     """Lazy import DSPy signatures to avoid import errors when DSPy not configured."""
     import dspy
 

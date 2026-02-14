@@ -266,7 +266,7 @@ Evaluating model readiness for production deployment.
         except Exception as e:
             self._record_section_failure('Deployment Readiness', e)
 
-    def _create_latency_chart(self, latency_results):
+    def _create_latency_chart(self, latency_results) -> str:
         """Create 2-panel latency and throughput chart."""
         try:
             if not latency_results:

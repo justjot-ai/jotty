@@ -220,7 +220,7 @@ class SwarmDAGExecutor:
 
         return results
 
-    def get_agents(self):
+    def get_agents(self) -> Tuple:
         """Get DAG agents for external use."""
         from Jotty.core.agents.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
         import dspy

@@ -240,7 +240,7 @@ class ChatAssistant:
         columns = status_mapper.create_kanban_columns()
 
         # Priority mapping: numeric (1,2,3,4) → string ('low','medium','high','urgent')
-        def map_priority(priority_value):
+        def map_priority(priority_value) -> str:
             """Convert numeric priority to kanban string format."""
             if isinstance(priority_value, str):
                 # Already a string, validate it's correct
@@ -251,7 +251,7 @@ class ChatAssistant:
             priority_map = {1: 'low', 2: 'medium', 3: 'high', 4: 'urgent'}
             return priority_map.get(priority_value, 'medium')
 
-        def format_assignee(assignee_value):
+        def format_assignee(assignee_value) -> Dict:
             """Convert assignee to kanban object format {name, avatar?, email?}."""
             if not assignee_value:
                 return None

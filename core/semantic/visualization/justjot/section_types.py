@@ -521,7 +521,7 @@ def suggest_section_type(
 # Chart Data Normalization Utilities
 # ============================================
 
-def normalize_chart_value(value):
+def normalize_chart_value(value) -> None:
     """Normalize a chart value - convert float to int if whole number."""
     if value is None:
         return None

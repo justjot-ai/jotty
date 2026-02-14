@@ -175,7 +175,7 @@ class SmartDataExtractor:
             pass
         return None
     
-    def get_stats(self):
+    def get_stats(self) -> Dict:
         """Get extraction statistics for debugging."""
         if not self.extraction_stats:
             return {}

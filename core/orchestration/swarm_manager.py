@@ -177,7 +177,7 @@ def _create_tool_registry():
     from Jotty.core.registry.tools_registry import get_tools_registry
     return get_tools_registry()
 
-def _create_profiler(config):
+def _create_profiler(config) -> None:
     enable = getattr(config, 'enable_profiling', False)
     if not enable:
         return None
@@ -2182,7 +2182,7 @@ class Orchestrator:
         result['training_daemon'] = self.training_daemon_status()
 
         # Intelligence effectiveness A/B metrics (per task_type)
-        def _format_im(bucket):
+        def _format_im(bucket) -> Dict:
             gr = bucket.get('guided_runs', 0)
             gs = bucket.get('guided_successes', 0)
             ur = bucket.get('unguided_runs', 0)

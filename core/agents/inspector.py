@@ -888,7 +888,7 @@ Auditor Required Outputs:
         # If this gets too large, _smart_truncate will handle it
         return "\n".join(insights)
     
-    def _share_insight(self, insight: str):
+    def _share_insight(self, insight: str) -> None:
         """Share insight with other agents."""
         if not self.config.enable_agent_communication:
             return

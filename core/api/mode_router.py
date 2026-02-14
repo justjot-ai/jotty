@@ -105,7 +105,7 @@ class ModeRouter:
         self._initialized = False
         self._lm_configured = False
 
-    def _ensure_lm_configured(self):
+    def _ensure_lm_configured(self) -> bool:
         """Ensure DSPy LM is configured."""
         if self._lm_configured:
             return True
@@ -120,7 +120,7 @@ class ModeRouter:
             logger.warning(f"Could not configure LM: {e}")
         return False
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> None:
         """Lazy initialization of mode handlers."""
         if self._initialized:
             return
@@ -146,7 +146,7 @@ class ModeRouter:
             stream_callback=stream_cb,
         )
 
-    def _get_auto_agent(self, context: Optional[ExecutionContext] = None):
+    def _get_auto_agent(self, context: Optional[ExecutionContext] = None) -> None:
         """Get or create AutoAgent."""
         try:
             from Jotty.core.agents.auto_agent import AutoAgent

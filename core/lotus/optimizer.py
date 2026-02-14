@@ -269,7 +269,7 @@ class LotusOptimizer:
         def prompt_fn(item):
             return f"Does this satisfy the condition: {condition}?\nItem: {item}\nAnswer YES or NO:"
 
-        def parse_fn(response: str):
+        def parse_fn(response: str) -> Tuple:
             is_yes = "yes" in response.lower()
             confidence = 0.9 if is_yes or "no" in response.lower() else 0.5
             return is_yes, confidence
@@ -336,7 +336,7 @@ class LotusOptimizer:
         if schema:
             schema_hint = f" Output as JSON with fields: {list(schema.keys())}"
 
-        def parse_fn(response: str):
+        def parse_fn(response: str) -> Tuple:
             try:
                 parsed = json.loads(response)
                 return parsed, 0.9

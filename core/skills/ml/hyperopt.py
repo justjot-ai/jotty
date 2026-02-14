@@ -173,7 +173,7 @@ class HyperoptSkill(MLSkill):
             execution_time=execution_time,
         )
 
-    def _get_objective(self, model_name: str, X_scaled, y, cv, scoring: str,
+    def _get_objective(self, model_name: str, X_scaled, y, cv, scoring -> float: str,
                         problem_type: str):
         """Get objective function for model."""
         from sklearn.model_selection import cross_val_score
@@ -236,7 +236,7 @@ class HyperoptSkill(MLSkill):
 
         elif model_name in ['catboost', 'cat']:
             # CatBoost - handles categoricals natively
-            def objective(trial):
+            def objective(trial) -> float:
                 try:
                     from catboost import CatBoostClassifier, CatBoostRegressor
                     params = {

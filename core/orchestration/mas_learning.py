@@ -453,7 +453,7 @@ class MASLearning:
         except Exception as e:
             logger.warning(f"Could not save fix database: {e}")
 
-    def _load_fix_database(self):
+    def _load_fix_database(self) -> None:
         """Load fix database from disk."""
         path = self._get_fix_db_path()
         if not path.exists():
@@ -491,7 +491,7 @@ class MASLearning:
         except Exception as e:
             logger.warning(f"Could not save sessions: {e}")
 
-    def _load_sessions(self):
+    def _load_sessions(self) -> None:
         """Load session learnings from disk."""
         path = self._get_sessions_path()
         if not path.exists():

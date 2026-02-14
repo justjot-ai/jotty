@@ -221,7 +221,7 @@ def print_profile_summary() -> None:
     _global_timer.print_summary()
 
 
-def save_profiling_reports():
+def save_profiling_reports() -> None:
     """Save detailed profiling reports to files."""
     if _global_timer.profiling_report:
         files = _global_timer.profiling_report.save_reports()

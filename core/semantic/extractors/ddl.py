@@ -66,7 +66,7 @@ class DDLExtractor(BaseExtractor):
         """Normalize dialect name for sqlglot."""
         return self.DIALECT_MAP.get(dialect.lower(), dialect.lower())
 
-    def _parse_ddl(self):
+    def _parse_ddl(self) -> None:
         """Parse DDL using available parsers."""
         # Try simple-ddl-parser first (more DDL-specific)
         try:

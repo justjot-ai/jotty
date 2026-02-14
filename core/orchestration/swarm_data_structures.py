@@ -80,7 +80,7 @@ class AgentProfile:
         # Update specialization
         self._update_specialization()
 
-    def _update_specialization(self):
+    def _update_specialization(self) -> None:
         """Determine specialization based on performance."""
         if not self.task_success:
             return

@@ -26,7 +26,7 @@ import dspy
 logger = logging.getLogger(__name__)
 
 
-def configure_dspy_with_claude_cli():
+def configure_dspy_with_claude_cli() -> bool:
     """Configure DSPy to use Claude CLI as the LM"""
     try:
         from core.integration.direct_claude_cli_lm import DirectClaudeCLI

@@ -302,7 +302,7 @@ class ValidationAgent(MetaAgent):
             logger.warning(f"Failed to build memory context: {e}")
             return ""
 
-    def _store_validation_result(self, goal: str, inputs: Dict, result: ValidationResult):
+    def _store_validation_result(self, goal: str, inputs: Dict, result: ValidationResult) -> None:
         """Store validation result in memory for learning."""
         if self.memory is None or not self.validation_config.store_validation_history:
             return

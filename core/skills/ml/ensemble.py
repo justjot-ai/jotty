@@ -220,7 +220,7 @@ class EnsembleSkill(MLSkill):
             'gb': GradientBoostingRegressor(n_estimators=100, random_state=42),
         }
 
-    def _weighted_voting(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type):
+    def _weighted_voting(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type) -> Tuple:
         """Weighted voting ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -246,7 +246,7 @@ class EnsembleSkill(MLSkill):
 
         return None, 0
 
-    def _stacking(self, base_models, meta_learner, X_scaled, y, cv, scoring, problem_type):
+    def _stacking(self, base_models, meta_learner, X_scaled, y, cv, scoring, problem_type) -> Tuple:
         """Stacking ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import StackingClassifier, StackingRegressor
@@ -273,7 +273,7 @@ class EnsembleSkill(MLSkill):
         scores = cross_val_score(stacking, X_scaled, y, cv=cv, scoring=scoring)
         return stacking, scores.mean()
 
-    def _greedy_selection(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type):
+    def _greedy_selection(self, base_models, all_scores, X_scaled, y, cv, scoring, problem_type) -> Tuple:
         """Greedy ensemble selection."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -308,7 +308,7 @@ class EnsembleSkill(MLSkill):
 
         return [], 0
 
-    def _simple_average(self, base_models, X_scaled, y, cv, scoring, problem_type):
+    def _simple_average(self, base_models, X_scaled, y, cv, scoring, problem_type) -> Tuple:
         """Simple average ensemble."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
@@ -323,7 +323,7 @@ class EnsembleSkill(MLSkill):
         scores = cross_val_score(ensemble, X_scaled, y, cv=cv, scoring=scoring)
         return ensemble, scores.mean()
 
-    def _multi_level_stacking(self, X_scaled, y, cv, scoring, problem_type):
+    def _multi_level_stacking(self, X_scaled, y, cv, scoring, problem_type) -> Tuple:
         """Multi-level stacking (10/10 Kaggle Winner Strategy)."""
         from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import StackingClassifier, StackingRegressor

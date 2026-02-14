@@ -120,7 +120,7 @@ class MemorySystem:
 
         self._initialize_backend()
 
-    def _initialize_backend(self):
+    def _initialize_backend(self) -> None:
         """Initialize the best available memory backend."""
         if self.config.backend == MemoryBackend.FALLBACK:
             self._init_fallback()
@@ -303,7 +303,7 @@ class MemorySystem:
         else:
             return self._retrieve_fallback(query, top_k)
 
-    def _retrieve_full(self, query, goal, top_k, level):
+    def _retrieve_full(self, query, goal, top_k, level) -> List:
         """Retrieve using SwarmMemory."""
         try:
             # SwarmMemory.retrieve_fast() supports top_k directly
@@ -328,7 +328,7 @@ class MemorySystem:
             logger.warning(f"Full retrieval failed: {e}")
             return []
 
-    def _retrieve_fallback(self, query, top_k):
+    def _retrieve_fallback(self, query, top_k) -> List:
         """Retrieve using FallbackMemory."""
         try:
             results = self._backend.retrieve(query=query, top_k=top_k)

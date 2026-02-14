@@ -406,7 +406,7 @@ class CurriculumGenerator:
 
         logger.debug(f"Received executor feedback: success={success}, tools={tools_used}")
 
-    def _sync_tool_stats_from_state_manager(self):
+    def _sync_tool_stats_from_state_manager(self) -> None:
         """
         Sync tool success rates from AgentStateTracker.
 

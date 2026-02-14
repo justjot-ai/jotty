@@ -457,7 +457,7 @@ class MongoDBMemoryBackend:
         except Exception as e:
             logger.warning(f" Pattern extraction failed: {e}")
     
-    def _analyze_failure_pattern(self, task_spec: str, category: str, errors: List[str], task_id: str):
+    def _analyze_failure_pattern(self, task_spec: str, category: str, errors: List[str], task_id: str) -> None:
         """Analyze failure pattern using Jotty's memory API."""
         try:
             if not errors:

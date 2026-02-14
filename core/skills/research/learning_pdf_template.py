@@ -833,7 +833,7 @@ class VisualizationRenderer:
         return True
 
     @classmethod
-    def _render_bar_chart(cls, ax, data: dict, x_label: str, y_label: str):
+    def _render_bar_chart(cls, ax, data: dict, x_label: str, y_label: str) -> None:
         """Render a bar chart from spec data."""
         labels = data.get('labels', [])
         values = data.get('values', [])
@@ -899,7 +899,7 @@ class VisualizationRenderer:
             return '#d1d5db'
 
     @classmethod
-    def _render_line_chart(cls, ax, data: dict, x_label: str, y_label: str):
+    def _render_line_chart(cls, ax, data: dict, x_label: str, y_label: str) -> None:
         """Render a line chart from spec data."""
         labels = data.get('labels', [])
         series_list = data.get('series', [])
@@ -973,7 +973,7 @@ class VisualizationRenderer:
         ax.grid(alpha=0.2, color='#d1d5db', linestyle='--')
 
     @classmethod
-    def _render_heatmap(cls, ax, data: dict, x_label: str, y_label: str):
+    def _render_heatmap(cls, ax, data: dict, x_label: str, y_label: str) -> None:
         """Render a heatmap from spec data."""
         import numpy as np
 
@@ -1014,7 +1014,7 @@ class VisualizationRenderer:
         ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
     @classmethod
-    def _render_scatter(cls, ax, data: dict, x_label: str, y_label: str):
+    def _render_scatter(cls, ax, data: dict, x_label: str, y_label: str) -> None:
         """Render a scatter plot from spec data."""
         x = data.get('x', [])
         y = data.get('y', [])
@@ -1053,7 +1053,7 @@ class VisualizationRenderer:
                             if len(point_labels) <= 12 else None)
 
     @classmethod
-    def _render_pie(cls, ax, data: dict, x_label: str, y_label: str):
+    def _render_pie(cls, ax, data: dict, x_label: str, y_label: str) -> None:
         """Render a pie chart from spec data."""
         labels = data.get('labels', [])
         values = data.get('values', [])
@@ -1258,7 +1258,7 @@ def _convert_markdown_content(text: str) -> str:
     # =================================================================
     # STEP 2: Handle code blocks (preserve with placeholders)
     # =================================================================
-    def replace_code_block(match):
+    def replace_code_block(match) -> str:
         """Handle code blocks - extract and highlight code content."""
         full_match = match.group(0)
         # Extract code after optional language specifier

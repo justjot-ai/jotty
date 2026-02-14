@@ -62,7 +62,7 @@ class ContextAwareLM(BaseLM):
         self.provider = getattr(wrapped_lm, 'provider', 'unknown')
         self.history = getattr(wrapped_lm, 'history', [])
 
-    def _inject_context(self, prompt: str = None, messages: List[Dict] = None):
+    def _inject_context(self, prompt: str = None, messages: List[Dict] = None) -> Tuple:
         """Inject current date context into prompt or messages."""
         context = f"[System Context: {get_current_context()}]"
 
@@ -98,7 +98,7 @@ class ContextAwareLM(BaseLM):
         prompt, messages = self._inject_context(prompt, messages)
         return self._wrapped(prompt=prompt, messages=messages, **kwargs)
 
-    def inspect_history(self, n: int = 1):
+    def inspect_history(self, n: int = 1) -> Dict:
         """Delegate to wrapped LM."""
         if hasattr(self._wrapped, 'inspect_history'):
             return self._wrapped.inspect_history(n)

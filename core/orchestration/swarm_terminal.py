@@ -276,7 +276,7 @@ class SwarmTerminal:
             except Exception as e:
                 logger.debug(f"File operations fallback failed: {e}")
 
-    def _load_fix_database(self):
+    def _load_fix_database(self) -> None:
         """Load fix database from disk."""
         if not self._fix_db_path.exists():
             return

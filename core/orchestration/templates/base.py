@@ -549,7 +549,7 @@ class TemplateExecutor:
             logging.getLogger(__name__).debug(f"Skill {skill_name} failed: {e}")
             return {'success': False, 'error': str(e)}
 
-    def _get_skill_class(self, skill_name: str):
+    def _get_skill_class(self, skill_name: str) -> None:
         """Get skill class by name from registry."""
         # Skill name to class mapping
         SKILL_MAP = {

@@ -151,7 +151,7 @@ class TemplateRegistry:
         return templates
 
     @classmethod
-    def _ensure_initialized(cls):
+    def _ensure_initialized(cls) -> None:
         """Ensure built-in templates are registered."""
         if cls._initialized:
             return

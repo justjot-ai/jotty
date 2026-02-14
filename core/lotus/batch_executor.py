@@ -229,7 +229,7 @@ class BatchExecutor:
 
         return results
 
-    def _ensure_flush_timer(self, operation_type: str):
+    def _ensure_flush_timer(self, operation_type: str) -> None:
         """Ensure flush timer is running for operation type."""
         now = time.time()
         last_flush = self._last_flush_time.get(operation_type, 0)

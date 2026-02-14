@@ -802,7 +802,7 @@ JSON only:""",
         except Exception as e:
             logger.debug(f"Save learning failed: {e}")
 
-    def _guarded_section(self, section_name: str, report, fn_name: str, *args, **kwargs):
+    def _guarded_section(self, section_name: str, report, fn_name: str, *args, **kwargs) -> None:
         """Execute report section with skip guard and outcome recording."""
         manager = getattr(self, '_swarm_manager', None)
 

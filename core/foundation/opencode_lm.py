@@ -65,7 +65,7 @@ class OpenCodeLM(BaseLM):
         arch = os.uname().machine if hasattr(os, 'uname') else 'unknown'
         self.use_remote = arch in ('aarch64', 'arm64')
     
-    def forward(self, prompt: str = None, messages: list = None, **kwargs):
+    def forward(self, prompt: str = None, messages: list = None, **kwargs) -> Dict:
         """
         DSPy BaseLM required method
         Returns OpenAI-compatible response format

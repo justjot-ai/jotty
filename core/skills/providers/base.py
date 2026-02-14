@@ -524,7 +524,7 @@ class JottyDefaultProvider(SkillProvider):
         }
         return latency_map.get(category, 1000)
 
-    def _init_skills_registry(self):
+    def _init_skills_registry(self) -> None:
         """Lazy initialize SkillsRegistry and build category index."""
         if self._skills_registry is not None:
             return
@@ -539,7 +539,7 @@ class JottyDefaultProvider(SkillProvider):
             logger.warning(f"Could not initialize SkillsRegistry: {e}")
             self._skills_registry = None
 
-    def _build_category_index(self):
+    def _build_category_index(self) -> None:
         """Build index of skills by category for fast lookup."""
         if not self._skills_registry:
             return

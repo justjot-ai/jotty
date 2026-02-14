@@ -86,7 +86,7 @@ class MessageBus:
         self.subscribers[agent_name] = callback
         logger.debug(f" [MESSAGE BUS] Subscribed: {agent_name}")
         
-    def publish(self, message: Message):
+    def publish(self, message: Message) -> bool:
         """Publish message to target agent."""
         self.message_count += 1
         target = message.to_agent
@@ -502,7 +502,7 @@ class SmartAgentSlack:
         )
         return results
         
-    def _compress_agent_context(self, agent_name: str):
+    def _compress_agent_context(self, agent_name: str) -> None:
         """
         Compress an agent's accumulated context using internal Compressor.
         

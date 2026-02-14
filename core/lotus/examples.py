@@ -112,7 +112,7 @@ async def example_model_cascade():
     def prompt_fn(item):
         return f"Is this spam? Answer YES or NO with confidence.\n\nText: {item}"
 
-    def parse_fn(response):
+    def parse_fn(response) -> Tuple:
         is_spam = "yes" in response.lower()
         confidence = 0.9 if "confident" in response.lower() else 0.7
         return is_spam, confidence

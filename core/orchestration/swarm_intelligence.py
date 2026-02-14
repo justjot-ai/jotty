@@ -563,7 +563,7 @@ class SwarmIntelligence:
     # ONLINE ADAPTATION
     # =========================================================================
 
-    def _perform_online_adaptation(self):
+    def _perform_online_adaptation(self) -> None:
         """
         Adapt routing and specialization based on recent performance.
 

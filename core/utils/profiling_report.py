@@ -305,7 +305,7 @@ class ProfilingReport:
         lines.append("=" * 120)
         return "\n".join(lines)
 
-    def save_reports(self):
+    def save_reports(self) -> Dict:
         """Save all profiling reports to files."""
         profiling_dir = self.output_dir / "profiling"
         profiling_dir.mkdir(parents=True, exist_ok=True)

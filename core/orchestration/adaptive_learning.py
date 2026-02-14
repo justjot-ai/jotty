@@ -102,7 +102,7 @@ class AdaptiveLearning:
             "recommendation": self._get_recommendation()
         }
     
-    def _detect_plateau(self):
+    def _detect_plateau(self) -> None:
         """Detect if learning has plateaued (stuck at low/medium scores)."""
         if len(self.state.score_history) < 5:
             self.state.is_plateau = False
@@ -123,7 +123,7 @@ class AdaptiveLearning:
             self.state.is_plateau = False
             self.state.consecutive_no_improvement = 0
     
-    def _detect_convergence(self):
+    def _detect_convergence(self) -> None:
         """Detect if learning is converging (high stable scores)."""
         if len(self.state.score_history) < 3:
             self.state.is_converging = False
@@ -147,7 +147,7 @@ class AdaptiveLearning:
             else:
                 self.state.consecutive_improvement = 0
     
-    def _detect_acceleration(self):
+    def _detect_acceleration(self) -> None:
         """Detect if learning is accelerating."""
         if len(self.state.velocity_history) < 3:
             self.state.is_accelerating = False

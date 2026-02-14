@@ -187,7 +187,7 @@ class SemFilter(SemanticOperator):
                 item
             )
 
-        def parse_fn(response: str):
+        def parse_fn(response: str) -> Tuple:
             response_lower = response.lower()
             if "yes" in response_lower:
                 confidence = 0.9 if "confident" in response_lower else 0.7

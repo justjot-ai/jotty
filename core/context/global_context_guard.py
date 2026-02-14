@@ -479,7 +479,7 @@ class GlobalContextGuard:
 # DSPY INTEGRATION
 # =============================================================================
 
-def patch_dspy_with_guard(guard: GlobalContextGuard):
+def patch_dspy_with_guard(guard: GlobalContextGuard) -> None:
     """
     Patch DSPy to use GlobalContextGuard for ALL LLM calls.
     

@@ -81,7 +81,7 @@ class RewardCondition:
 # =============================================================================
 
 _RewardConditionSignature = None
-def _get_reward_condition_signature():
+def _get_reward_condition_signature() -> None:
     global _RewardConditionSignature
     if _RewardConditionSignature is None:
         dspy = _get_dspy()

@@ -361,7 +361,7 @@ class JottyGAIAAdapter:
         # combo already handles verbose outputs, numeric comparison, lists, etc.
         return raw_text
 
-    def _ensure_loop_thread(self):
+    def _ensure_loop_thread(self) -> None:
         """Start the dedicated event-loop thread if not already running."""
         if self._loop is not None and self._loop_thread is not None and self._loop_thread.is_alive():
             return

@@ -372,7 +372,7 @@ Group-specific thresholds optimized for equalized odds:
         if len(unique_groups) < 2 or y_prob is None:
             return {}
 
-        def _compute_metrics_at_threshold(yt, yp, threshold):
+        def _compute_metrics_at_threshold(yt, yp, threshold) -> Dict:
             preds = (yp >= threshold).astype(int)
             pos_mask = yt == 1
             neg_mask = yt == 0

@@ -225,13 +225,13 @@ def generate_openapi_spec(
     }
 
     # Define endpoints declaratively
-    def _ref(name):
+    def _ref(name) -> Dict:
         return {"$ref": f"#/components/schemas/{name}"}
 
-    def _json(schema):
+    def _json(schema) -> Dict:
         return {"application/json": {"schema": schema}}
 
-    def _sse():
+    def _sse() -> Dict:
         return {"text/event-stream": {"schema": {"type": "string", "format": "binary"}}}
 
     def _responses(ok_schema, ok_desc="Success"):
@@ -240,7 +240,7 @@ def generate_openapi_spec(
         r["500"] = {"description": "Internal server error", "content": _json(_ref("ErrorResponse"))}
         return r
 
-    def _auth():
+    def _auth() -> List:
         return [{"BearerAuth": []}]
 
     paths = {

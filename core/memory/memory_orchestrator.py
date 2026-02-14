@@ -338,7 +338,7 @@ class SimpleBrain:
         
         return triggers.get(self.consolidate_on, False)
     
-    def _prune_buffer(self):
+    def _prune_buffer(self) -> None:
         """Remove low-value experiences to make room."""
         if not self.experience_buffer:
             return

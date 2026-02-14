@@ -194,7 +194,7 @@ class FeatureSelectionSkill(MLSkill):
             execution_time=execution_time,
         )
 
-    def _correlation_filter(self, X: pd.DataFrame, threshold: float = 0.98):
+    def _correlation_filter(self, X: pd.DataFrame, threshold: float = 0.98) -> Tuple:
         """Remove highly correlated features."""
         corr_matrix = X.corr().abs()
         upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
@@ -212,7 +212,7 @@ class FeatureSelectionSkill(MLSkill):
         X_filtered = X.drop(columns=list(to_drop), errors='ignore')
         return X_filtered, to_drop
 
-    def _multi_model_importance(self, X: pd.DataFrame, y: pd.Series,
+    def _multi_model_importance(self, X: pd.DataFrame, y -> Tuple: pd.Series,
                                  problem_type: str, feature_scores: Dict):
         """Multi-model importance voting."""
         import lightgbm as lgb
@@ -381,7 +381,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _shap_importance(self, X: pd.DataFrame, y: pd.Series,
+    def _shap_importance(self, X: pd.DataFrame, y -> Tuple: pd.Series,
                           problem_type: str, feature_scores: Dict):
         """SHAP-based importance (World-Class)."""
         import lightgbm as lgb
@@ -980,7 +980,7 @@ class FeatureSelectionSkill(MLSkill):
 
         return feature_scores
 
-    def _pasha_selection(self, X: pd.DataFrame, y: pd.Series,
+    def _pasha_selection(self, X: pd.DataFrame, y -> Tuple: pd.Series,
                          problem_type: str, feature_scores: Dict):
         """
         PASHA - Progressive Adaptive Successive Halving Algorithm.
@@ -1050,7 +1050,7 @@ class FeatureSelectionSkill(MLSkill):
             results_lock = threading.Lock()
             rung_results = {}
 
-            def evaluate_at_rung(config_idx, config, budget):
+            def evaluate_at_rung(config_idx, config, budget) -> Tuple:
                 """Evaluate config at given budget rung."""
                 selected_feats = [f for f, v in config.items() if v == 1]
                 if len(selected_feats) < 3:

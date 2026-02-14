@@ -1224,7 +1224,7 @@ class LLMQPredictor:
         # Clamp to [0, 1]
         return max(0.0, min(1.0, score))
     
-    def _promote_demote_memories(self, episode_reward: float = None):
+    def _promote_demote_memories(self, episode_reward: float = None) -> None:
         """
         Move memories between tiers based on retention scores.
         
@@ -1277,7 +1277,7 @@ class LLMQPredictor:
         if len(self.tier1_working) >= self.tier1_max_size:
             self.tier1_threshold = min(0.95, self.tier1_threshold * 1.05)
     
-    def _cluster_tier2(self, keys: List[Tuple[str, str]]):
+    def _cluster_tier2(self, keys: List[Tuple[str, str]]) -> None:
         """
         Cluster Tier 2 memories by semantic similarity using ContextChunker.
         
@@ -1369,7 +1369,7 @@ class LLMQPredictor:
         
         return overlap / union if union > 0 else 0.0
     
-    def _promote_from_archive(self, top_k: int = 5):
+    def _promote_from_archive(self, top_k: int = 5) -> None:
         """
         Promote top-K memories from Tier 3 to Tier 2.
         

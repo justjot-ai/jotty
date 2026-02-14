@@ -86,7 +86,7 @@ class EnsembleMixin:
             from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
 
-            def _gen_perspective(name, prefix):
+            def _gen_perspective(name, prefix) -> Tuple:
                 prompt = f"{prefix}\n\n{goal}"
                 response = lm(prompt=prompt)
                 return name, response[0] if isinstance(response, list) else str(response)

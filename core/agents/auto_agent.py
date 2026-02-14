@@ -172,7 +172,7 @@ class AutoAgent(AutonomousAgent):
             from concurrent.futures import ThreadPoolExecutor, as_completed
             responses = {}
 
-            def _gen(name, prefix):
+            def _gen(name, prefix) -> Tuple:
                 prompt = f"{prefix}\n\n{task}"
                 response = lm(prompt=prompt)
                 return name, response[0] if isinstance(response, list) else str(response)
@@ -235,7 +235,7 @@ Provide:
     # =========================================================================
 
     @staticmethod
-    def _create_dspy_stream_callback(broadcaster: AgentEventBroadcaster, agent_id: str):
+    def _create_dspy_stream_callback(broadcaster: AgentEventBroadcaster, agent_id: str) -> None:
         """
         Create a DSPy callback that extracts ReAct intermediate steps
         (thoughts, actions, observations) and broadcasts them as AgentEvents.

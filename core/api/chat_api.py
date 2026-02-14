@@ -60,7 +60,7 @@ class ChatAPI:
             mode=mode
         )
 
-    def _ensure_chat_assistant_registered(self):
+    def _ensure_chat_assistant_registered(self) -> None:
         """
         Ensure ChatAssistant is registered with conductor.
 

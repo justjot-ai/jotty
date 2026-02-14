@@ -115,7 +115,7 @@ def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = No
     return swarm_manager
 
 
-def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement):
+def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
     """
     Enhance an AgentRunner with adaptive validation.
 

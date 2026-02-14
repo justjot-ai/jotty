@@ -33,7 +33,7 @@ class SessionMixin:
         """Get session by ID."""
         return self.sessions.get(session_id)
 
-    def session_send(self, session_id: str, from_agent: str, content: str, metadata: Dict = None):
+    def session_send(self, session_id: str, from_agent: str, content: str, metadata: Dict = None) -> bool:
         """Send message to a session (moltbot sessions_send pattern)."""
         session = self.sessions.get(session_id)
         if session:

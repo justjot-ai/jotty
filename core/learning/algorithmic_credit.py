@@ -73,7 +73,7 @@ class Coalition:
 
 _ShapleyEstimatorSignature = None
 
-def _get_shapley_signature():
+def _get_shapley_signature() -> None:
     """Lazy-create the DSPy Signature class (avoids module-level dspy import)."""
     global _ShapleyEstimatorSignature
     if _ShapleyEstimatorSignature is None:
@@ -307,7 +307,7 @@ class ShapleyValueEstimator:
 
 _CounterfactualSignature = None
 
-def _get_counterfactual_signature():
+def _get_counterfactual_signature() -> None:
     """Lazy-create the CounterfactualSignature DSPy class."""
     global _CounterfactualSignature
     if _CounterfactualSignature is None:

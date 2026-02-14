@@ -349,7 +349,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         except Exception as e:
             logger.debug(f"Failed to send Agent0 feedback: {e}")
 
-    def get_training_task(self, tool_aware: bool = True):
+    def get_training_task(self, tool_aware: bool = True) -> None:
         """
         Get a curriculum-generated training task targeting swarm weaknesses.
 
@@ -689,7 +689,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         logger.info(f"Task handoff: {from_agent} → {to_agent} ({task_type})")
         return handoff
 
-    def _accept_handoff(self, task_id: str):
+    def _accept_handoff(self, task_id: str) -> None:
         """
         Accept a pending handoff for this swarm.
 
@@ -701,7 +701,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         swarm_name = self.config.name or 'base_swarm'
         return self._swarm_intelligence.accept_handoff(task_id, swarm_name)
 
-    def _get_pending_handoffs(self):
+    def _get_pending_handoffs(self) -> List:
         """Get all pending handoffs for this swarm."""
         if not self._swarm_intelligence:
             return []
@@ -770,7 +770,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             use_hierarchy=True
         )
 
-    def _gossip_broadcast(self, message_type: str, content: Dict[str, Any]):
+    def _gossip_broadcast(self, message_type: str, content: Dict[str, Any]) -> None:
         """
         Broadcast message via gossip protocol.
 

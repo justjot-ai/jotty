@@ -48,7 +48,7 @@ if DSPY_AVAILABLE:
 _dspy_lm_configured = False
 
 
-def _ensure_dspy_lm():
+def _ensure_dspy_lm() -> None:
     """Ensure DSPy has a configured LM for Predict calls."""
     global _dspy_lm_configured
     if _dspy_lm_configured:

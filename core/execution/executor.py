@@ -284,7 +284,7 @@ class TierExecutor:
     # COMPONENT FACTORIES
     # =========================================================================
 
-    def _create_planner(self):
+    def _create_planner(self) -> None:
         """Create TaskPlanner directly — no adapter wrapper."""
         try:
             from Jotty.core.agents.agentic_planner import TaskPlanner
@@ -1165,7 +1165,7 @@ class TierExecutor:
 
     _swarms_registered = False
 
-    def _ensure_swarms_registered(self):
+    def _ensure_swarms_registered(self) -> None:
         """Trigger lazy import of all swarm modules so they register with SwarmRegistry."""
         if TierExecutor._swarms_registered:
             return
@@ -1188,7 +1188,7 @@ class TierExecutor:
                 logger.debug(f"Could not import swarm module {mod}: {e}")
         TierExecutor._swarms_registered = True
 
-    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None):
+    def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> None:
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
         from Jotty.core.swarms.registry import SwarmRegistry

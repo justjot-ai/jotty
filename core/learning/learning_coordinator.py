@@ -149,7 +149,7 @@ class LearningManager:
     # Session Registry Management
     # =========================================================================
 
-    def _load_registry(self):
+    def _load_registry(self) -> None:
         """Load learning session registry from disk."""
         if not self.registry_path.exists():
             return
@@ -740,13 +740,13 @@ class _NoOpLearner:
     def record_outcome(self, *args, **kwargs) -> None:
         pass
 
-    def predict_q_value(self, *args, **kwargs):
+    def predict_q_value(self, *args, **kwargs) -> Tuple:
         return 0.5, 0.1, None
 
-    def get_learned_context(self, *args, **kwargs):
+    def get_learned_context(self, *args, **kwargs) -> str:
         return ""
 
-    def get_q_table_stats(self):
+    def get_q_table_stats(self) -> Dict:
         return {'size': 0, 'avg_q_value': 0}
 
     def save_state(self, path) -> None:
@@ -762,10 +762,10 @@ class _NoOpMemory:
     def store(self, *args, **kwargs) -> None:
         pass
 
-    def retrieve(self, *args, **kwargs):
+    def retrieve(self, *args, **kwargs) -> List:
         return []
 
-    def get_statistics(self):
+    def get_statistics(self) -> Dict:
         return {'total_entries': 0}
 
     def save(self, path) -> None:

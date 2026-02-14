@@ -252,7 +252,7 @@ class MetricsCollector:
             all_durations = [r.duration_s for r in self._records]
             all_durations_sorted = sorted(all_durations)
 
-            def _pct(vals, p):
+            def _pct(vals, p) -> float:
                 if not vals:
                     return 0.0
                 idx = (p / 100) * (len(vals) - 1)

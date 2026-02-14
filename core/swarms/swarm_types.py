@@ -201,7 +201,7 @@ class SwarmResult:
 # DEFENSIVE UTILITIES — safe LLM output parsing
 # =============================================================================
 
-def _split_field(value, sep='|'):
+def _split_field(value, sep='|') -> List:
     """Safely split a DSPy output field into a list of strings.
     Handles: str (pipe-split), list (coerce items to str), dict (flatten), None.
     """
@@ -217,7 +217,7 @@ def _split_field(value, sep='|'):
     return [s.strip() for s in str(value).split(sep) if s.strip()]
 
 
-def _safe_join(items, sep=', '):
+def _safe_join(items, sep=', ') -> str:
     """Safely join items into a string, coercing non-string elements."""
     if not items:
         return ''

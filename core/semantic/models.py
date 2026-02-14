@@ -71,7 +71,7 @@ class Column:
         self._normalize_type()
         self._detect_semantics()
 
-    def _normalize_type(self):
+    def _normalize_type(self) -> None:
         """Normalize database-specific types to generic types."""
         # Skip if already explicitly set to a non-UNKNOWN value
         if self.normalized_type != ColumnType.UNKNOWN:
@@ -108,7 +108,7 @@ class Column:
         # Default to STRING for unknown types (safer than UNKNOWN)
         self.normalized_type = ColumnType.STRING
 
-    def _detect_semantics(self):
+    def _detect_semantics(self) -> None:
         """Auto-detect if column is dimension or measure."""
         name_lower = self.name.lower()
 

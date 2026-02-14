@@ -181,7 +181,7 @@ class ModelTierRouter:
             estimated_cost_ratio=cost_ratio,
         )
 
-    def get_lm_for_mode(self, mode: ValidationMode):
+    def get_lm_for_mode(self, mode: ValidationMode) -> None:
         """
         Get or create a DSPy LM instance for the given validation mode.
 

@@ -81,7 +81,7 @@ class SkillsManifest:
         if self.auto_discover:
             self._discover_new_skills()
 
-    def _load_manifest(self):
+    def _load_manifest(self) -> None:
         """Load manifest from YAML file."""
         if not self.manifest_path.exists():
             logger.warning(f"Manifest not found: {self.manifest_path}")
@@ -160,7 +160,7 @@ class SkillsManifest:
         except Exception as e:
             logger.error(f"Failed to load manifest: {e}")
 
-    def _discover_new_skills(self):
+    def _discover_new_skills(self) -> None:
         """Auto-discover skills not in manifest."""
         if not self.skills_dir.exists():
             return
@@ -327,7 +327,7 @@ class SkillsManifest:
         self._save_manifest()
         return True
 
-    def _save_manifest(self):
+    def _save_manifest(self) -> None:
         """Save manifest back to YAML file."""
         try:
             import yaml

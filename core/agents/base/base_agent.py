@@ -204,7 +204,7 @@ class BaseAgent(ABC):
     # LAZY INITIALIZATION
     # =========================================================================
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> None:
         """Ensure all infrastructure is initialized (lazy loading)."""
         if self._initialized:
             return
@@ -236,7 +236,7 @@ class BaseAgent(ABC):
             except Exception as e:
                 logger.warning(f"Failed to load API keys from {env_file}: {e}")
 
-    def _init_dspy_lm(self):
+    def _init_dspy_lm(self) -> None:
         """Auto-configure DSPy LM if not already set.
 
         Thread-safe: uses _dspy_lm_lock to prevent races when multiple

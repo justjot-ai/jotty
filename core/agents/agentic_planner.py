@@ -76,7 +76,7 @@ ExecutionPlanningSignature = None
 SkillSelectionSignature = None
 ReflectivePlanningSignature = None
 
-def _load_signatures():
+def _load_signatures() -> None:
     """Load DSPy signatures on first use."""
     global _signatures_loaded, TaskTypeInferenceSignature, CapabilityInferenceSignature
     global ExecutionPlanningSignature, SkillSelectionSignature, ReflectivePlanningSignature
@@ -186,7 +186,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         logger.info(f" TaskPlanner initialized (fast_model={fast_model} for classification)")
 
-    def _init_fast_lm(self):
+    def _init_fast_lm(self) -> None:
         """Initialize fast LM for routing/classification tasks.
 
         Priority:

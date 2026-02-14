@@ -46,7 +46,7 @@ except ImportError:
         DirectClaudeCLI = None
 
 
-def get_default_lm():
+def get_default_lm() -> None:
     """
     Get the default LM for diagram decisions.
 

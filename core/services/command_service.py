@@ -73,7 +73,7 @@ class CommandService:
         self._cli = None
         self._initialized = False
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> None:
         """Lazy initialization of command registry."""
         if self._initialized:
             return

@@ -106,7 +106,7 @@ class SemanticEmbedder:
         self.cache_max_size = 10000
         logger.info(f"SemanticEmbedder initialized with {model_name} (lazy)")
 
-    def _ensure_model(self):
+    def _ensure_model(self) -> None:
         """Load sentence-transformers + model on first use (saves ~14s on startup)."""
         if self._model_loaded:
             return

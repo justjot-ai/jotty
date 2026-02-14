@@ -90,7 +90,7 @@ class LotusArxiv:
         if not LOTUS_AVAILABLE:
             raise ImportError("LOTUS not available. Install with: pip install lotus-ai")
 
-    def _init_lotus(self):
+    def _init_lotus(self) -> None:
         """Initialize LOTUS with configured models."""
         if self._initialized:
             return

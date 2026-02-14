@@ -453,7 +453,7 @@ class SkillDefinition:
         """Get a specific tool callable."""
         return self.tools.get(tool_name)
 
-    def get_tool_schema(self, tool_name: str):
+    def get_tool_schema(self, tool_name: str) -> None:
         """Get or build a typed ToolSchema for a tool.
 
         Sources (highest priority first):
@@ -759,8 +759,8 @@ class SkillsRegistry:
             trigger_type = entry.get("trigger_type", "unknown")
 
             # Build lazy tool loader that binds workflow_id at load time
-            def _make_loader(wid=wf_id, sname=skill_name, wname=wf_name, bskill=base_skill_name):
-                def _loader():
+            def _make_loader(wid=wf_id, sname=skill_name, wname=wf_name, bskill=base_skill_name) -> Dict:
+                def _loader() -> Dict:
                     # Import the trigger function from the base skill's tools.py
                     base_skill = self.loaded_skills.get(bskill)
                     if base_skill:
@@ -961,7 +961,7 @@ class SkillsRegistry:
 
         # Create a loader closure that captures the skill directory info
         registry = self  # capture reference for closure
-        def make_tool_loader(s_dir, s_name, is_cc_skill, s_md):
+        def make_tool_loader(s_dir, s_name, is_cc_skill, s_md) -> Dict:
             def loader() -> Dict[str, Callable]:
                 # Dependency check deferred to first tool load
                 dep_result = registry.dependency_manager.ensure_skill_dependencies(s_name, s_dir)

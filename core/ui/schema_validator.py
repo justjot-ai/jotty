@@ -160,7 +160,7 @@ class SectionSchemaRegistry:
         parts = field_path.split('.')
         self._apply_transform_recursive(content, parts, transform_def)
 
-    def _apply_transform_recursive(self, obj: Any, path_parts: list, transform_def: Dict):
+    def _apply_transform_recursive(self, obj: Any, path_parts: list, transform_def: Dict) -> None:
         """Recursively apply transform to nested structures."""
         if not path_parts:
             return

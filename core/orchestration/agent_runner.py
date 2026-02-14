@@ -372,7 +372,7 @@ class AgentRunner:
     # AGENT HOOK BRIDGE
     # =========================================================================
 
-    def _bridge_agent_hooks(self):
+    def _bridge_agent_hooks(self) -> None:
         """Bridge hooks from the underlying BaseAgent into the AgentRunner
         lifecycle, so users only need to register hooks in one place.
 
@@ -385,7 +385,7 @@ class AgentRunner:
 
         # Wrap BaseAgent hooks to match AgentRunner's hook signature (**context)
         for pre_hook in getattr(agent, '_pre_hooks', []):
-            def _wrap_pre(fn=pre_hook, **ctx):
+            def _wrap_pre(fn=pre_hook, **ctx) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         # Can't await in sync hook runner — skip async agent hooks
@@ -397,7 +397,7 @@ class AgentRunner:
             self.add_hook('pre_execute', _wrap_pre, name=f"agent_bridge_pre_{id(pre_hook)}")
 
         for post_hook in getattr(agent, '_post_hooks', []):
-            def _wrap_post(fn=post_hook, **ctx):
+            def _wrap_post(fn=post_hook, **ctx) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         return

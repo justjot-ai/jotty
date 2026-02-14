@@ -26,7 +26,7 @@ class InferenceMixin:
     # Key = first 200 chars of task (stable identifier), Value = (TaskType, reasoning, confidence)
     _task_type_cache: dict = {}
 
-    def infer_task_type(self, task: str):
+    def infer_task_type(self, task: str) -> Tuple:
         """
         Infer task type using LLM semantic understanding.
 
