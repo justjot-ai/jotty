@@ -10,7 +10,7 @@ Available Swarms:
     ResearchSwarm, FundamentalSwarm, DataAnalysisSwarm,
     CodingSwarm, TestingSwarm, ReviewSwarm,
     IdeaWriterSwarm, DevOpsSwarm,
-    ArxivLearningSwarm, OlympiadLearningSwarm, LearningSwarm
+    ArxivLearningSwarm, OlympiadLearningSwarm, PerspectiveLearningSwarm, LearningSwarm
 
 Quick usage::
 
@@ -273,6 +273,30 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ConnectionMapperAgent": ".olympiad_learning_swarm",
     "ContentAssemblerAgent": ".olympiad_learning_swarm",
     "UnifiedTopicAgent": ".olympiad_learning_swarm",
+    # --- perspective_learning_swarm ---
+    "PerspectiveLearningSwarm": ".perspective_learning_swarm",
+    "PerspectiveLearningConfig": ".perspective_learning_swarm",
+    "PerspectiveLearningResult": ".perspective_learning_swarm",
+    "PerspectiveType": ".perspective_learning_swarm",
+    "Language": ".perspective_learning_swarm",
+    "AgeGroup": ".perspective_learning_swarm",
+    "ContentDepth": ".perspective_learning_swarm",
+    "PerspectiveSection": ".perspective_learning_swarm",
+    "LanguageContent": ".perspective_learning_swarm",
+    "DebatePoint": ".perspective_learning_swarm",
+    "ProjectActivity": ".perspective_learning_swarm",
+    "FrameworkModel": ".perspective_learning_swarm",
+    "teach_perspectives": ".perspective_learning_swarm",
+    "teach_perspectives_sync": ".perspective_learning_swarm",
+    "CurriculumDesignerAgent": ".perspective_learning_swarm",
+    "IntuitiveExplainerAgent": ".perspective_learning_swarm",
+    "FrameworkBuilderAgent": ".perspective_learning_swarm",
+    "StorytellerAgent": ".perspective_learning_swarm",
+    "DebateArchitectAgent": ".perspective_learning_swarm",
+    "ProjectDesignerAgent": ".perspective_learning_swarm",
+    "RealWorldConnectorAgent": ".perspective_learning_swarm",
+    "MultilingualAgent": ".perspective_learning_swarm",
+    "NarrativeEditorAgent": ".perspective_learning_swarm",
     # --- learning_swarm ---
     "LearningSwarm": ".learning_swarm",
     "LearningConfig": ".learning_swarm",

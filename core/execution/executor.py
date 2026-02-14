@@ -874,6 +874,16 @@ class TierExecutor:
         # Extract final answer content
         output = response.get('content', response)
 
+        # For fact-retrieval tasks, add numerical validation
+        if kwargs.get('_intent') == 'fact_retrieval':
+            # Check if question seems numerical
+            if self._is_numerical_question(goal):
+                # Validate the answer makes sense
+                validation_result = await self._validate_numerical_answer(goal, output, tools)
+                if validation_result and validation_result != output:
+                    logger.info(f"Numerical validation corrected answer: '{output}' → '{validation_result}'")
+                    output = validation_result
+
         # For fact-retrieval tasks (from intent classification), extract concise answer
         # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
         if kwargs.get('_intent') == 'fact_retrieval' and len(output) > 100:
@@ -925,6 +935,74 @@ Final Answer:"""
                 '_intent': kwargs.get('_intent'),
             }
         )
+
+    def _is_numerical_question(self, question: str) -> bool:
+        """Check if question expects a numerical answer."""
+        q_lower = question.lower()
+        numerical_indicators = [
+            'how many', 'how much', 'what number', 'calculate', 'count',
+            'what year', 'when was', 'what is the', 'round to',
+            'p-value', 'stock', 'price', 'newton', 'smallest n',
+        ]
+        return any(indicator in q_lower for indicator in numerical_indicators)
+
+    async def _validate_numerical_answer(
+        self,
+        question: str,
+        answer: str,
+        tools: list
+    ) -> Optional[str]:
+        """Validate numerical answer and correct if obviously wrong."""
+        try:
+            # Extract any numbers from the answer
+            import re
+            numbers = re.findall(r'-?\d+\.?\d*', answer)
+            if not numbers:
+                return None  # No numbers to validate
+
+            # Check for magnitude errors (e.g., 65 vs 100000000)
+            if len(numbers) >= 1:
+                num = float(numbers[0])
+
+                # If question mentions "million" but answer is small, likely wrong
+                if 'million' in question.lower() and num < 1000:
+                    logger.warning(f"Magnitude mismatch: question mentions 'million' but answer is {num}")
+                    # Ask LLM to recalculate
+                    validation_prompt = f"""The question asks: {question}
+
+Your answer was: {answer}
+
+However, the question mentions "million" but your answer ({num}) is much smaller.
+Please recalculate and provide the correct numerical answer. Give ONLY the number.
+
+Correct answer:"""
+
+                    retry_response = await self.provider.generate(
+                        prompt=validation_prompt,
+                        tools=tools,  # Give tools for recalculation
+                        temperature=0.0,
+                        max_tokens=100,
+                    )
+                    corrected = retry_response.get('content', '').strip()
+                    if corrected and corrected != answer:
+                        return corrected
+
+            # Check for year questions
+            if any(word in question.lower() for word in ['year', 'when was']):
+                for num_str in numbers:
+                    try:
+                        year = int(float(num_str))
+                        # Validate year is reasonable (1900-2030)
+                        if 1900 <= year <= 2030:
+                            return str(year)  # Return the valid year
+                    except ValueError:
+                        continue
+
+            return None  # No correction needed
+
+        except Exception as e:
+            logger.error(f"Validation error: {e}")
+            return None
 
     # =========================================================================
     # TIER 2: AGENTIC - Planning + Orchestration

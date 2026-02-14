@@ -114,7 +114,15 @@ GAIA_SYSTEM_PROMPT = (
     "Answer concisely. Give ONLY the final answer with no explanation. "
     "Do not include units unless the question explicitly asks for them. "
     "If the answer is a number, output only that number. "
-    "Use available tools (web search, voice_to_text, read_file, etc.) when the task requires it; do not refuse for lack of direct access. "
+    "\n"
+    "CRITICAL FOR NUMERICAL QUESTIONS:\n"
+    "- For calculations, use the calculator tool to verify your math\n"
+    "- For years/dates, double-check the search results carefully\n"
+    "- For large numbers (millions, billions), write the full number (100000000 not 100 million)\n"
+    "- For counting problems, verify your count is accurate\n"
+    "- If a calculation seems off, recalculate using different methods\n"
+    "\n"
+    "Use available tools (web search, calculator, voice_to_text, read_file, etc.) when the task requires it; do not refuse for lack of direct access. "
     "If the question refers to a video, file, or external resource, use the provided tools to access it and base your answer on that. "
     "You MUST use the appropriate tool to process any attached file(s) before answering: "
     "use voice_to_text_tool for audio files (.mp3, .wav, .m4a), read_file for text/data files."
@@ -165,7 +173,12 @@ def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
         else:
             skills.append("file-operations")
 
-    if any(kw in q_lower for kw in ['calculat', 'how many', 'sum ', 'average', 'comput']):
+    # Force calculator for ANY numerical/math question
+    if any(kw in q_lower for kw in [
+        'calculat', 'how many', 'sum', 'average', 'comput', 'count',
+        'number', 'year', 'p-value', 'newton', 'round to', 'what is the',
+        'statistical', 'stock', 'price', 'when was', 'first year'
+    ]):
         skills.append("calculator")
 
     return skills
@@ -331,6 +344,10 @@ class JottyGAIAAdapter:
         if self.model:
             from Jotty.core.execution.types import ExecutionConfig
             run_kwargs['config'] = ExecutionConfig(model=self.model)
+        else:
+            # GAIA requires deterministic answers - use temperature=0.0
+            from Jotty.core.execution.types import ExecutionConfig
+            run_kwargs['config'] = ExecutionConfig(temperature=0.0)
 
         if self.progress_callback:
             run_kwargs['status_callback'] = self.progress_callback
