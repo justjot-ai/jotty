@@ -106,6 +106,10 @@ def parse_args(argv=None):
         "--retry-refusal", action="store_true",
         help="Retry once with tier=AGENTIC when the model output looks like a refusal (use tools)",
     )
+    parser.add_argument(
+        "--optimize-dspy", action="store_true",
+        help="Compile DSPy module from successful results after run",
+    )
     return parser.parse_args(argv)
 
 
@@ -163,6 +167,53 @@ def print_summary(results, total_time, run_id):
     print(f"  Avg Time:  {avg_time:.1f}s/task")
     print(f"  Total Time: {total_time:.1f}s")
     print("=" * 70)
+
+
+def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, args):
+    """Unified retry logic with escalating strategies."""
+    if bench_result.success or not expected:
+        return bench_result
+
+    raw = str(getattr(adapter, 'last_raw_answer', '') or '')
+    question = task.get('Question', '')
+    attachment_path = task.get('attachment_local_path', '')
+    has_audio = bool(
+        attachment_path and
+        attachment_path.lower().rsplit('.', 1)[-1] in ('mp3', 'wav', 'm4a')
+    )
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        if bench_result.success:
+            return bench_result
+
+        modified_task = dict(task)
+
+        if attempt == 0 and _looks_like_refusal(raw):
+            strategy = "refusal->AGENTIC"
+        elif attempt == 0 and has_audio and not bench_result.success:
+            strategy = "audio_hint"
+            modified_task['Question'] = (
+                f"{question}\n\n"
+                f"IMPORTANT: You MUST use voice_to_text_tool with "
+                f"audio_path='{attachment_path}' "
+                f"to transcribe the audio before answering."
+            )
+        elif bench_result.answer and bench_result.answer.strip():
+            strategy = f"feedback#{attempt}"
+            modified_task['Question'] = (
+                f"{question}\n\n"
+                f"NOTE: A previous attempt returned '{bench_result.answer}' which was incorrect. "
+                f"Please search more carefully and verify your answer before responding."
+            )
+        else:
+            strategy = f"retry#{attempt}"
+
+        print(f"  [{idx}/{total}] (retry: {strategy})", flush=True)
+        bench_result = benchmark.evaluate_task(modified_task, adapter)
+        raw = str(getattr(adapter, 'last_raw_answer', '') or '')
+
+    return bench_result
 
 
 def run_benchmark(args):
@@ -269,63 +320,12 @@ def run_benchmark(args):
         # Evaluate
         bench_result = benchmark.evaluate_task(task, adapter)
 
-        # Optional retry when answer was empty but expected is non-empty
-        if (
-            args.retry_empty
-            and expected
-            and (not bench_result.answer or not str(bench_result.answer).strip())
-        ):
-            print(f"  [{idx}/{len(tasks)}] (retry: empty answer)", flush=True)
-            bench_result = benchmark.evaluate_task(task, adapter)
-
-        # Optional retry when answer looks like a refusal (retry with AGENTIC to force tool use)
-        if (
-            args.retry_refusal
-            and not bench_result.success
-            and expected
-            and getattr(adapter, "last_raw_answer", None)
-            and _looks_like_refusal(str(adapter.last_raw_answer))
-        ):
-            print(f"  [{idx}/{len(tasks)}] (retry: refusal → AGENTIC)", flush=True)
-            original_tier = adapter.tier
-            adapter.tier = "AGENTIC"
-            bench_result = benchmark.evaluate_task(task, adapter)
-            adapter.tier = original_tier
-
-        # Optional retry when expected is a single word (e.g. name) but we got a different single word (up to 2 retries)
-        def _single_word(s: str) -> str:
-            t = str(s).strip().lower()
-            return t if t and " " not in t and "," not in t else ""
-        for retry_attempt in range(2):
-            if (
-                args.retry_refusal
-                and not bench_result.success
-                and expected
-                and _single_word(expected)
-                and _single_word(bench_result.answer or "")
-                and _single_word(expected) != _single_word(bench_result.answer or "")
-            ):
-                print(f"  [{idx}/{len(tasks)}] (retry: wrong single-word → AGENTIC #{retry_attempt + 1})", flush=True)
-                original_tier = adapter.tier
-                adapter.tier = "AGENTIC"
-                bench_result = benchmark.evaluate_task(task, adapter)
-                adapter.tier = original_tier
-            else:
-                break
-
-        # Optional retry when expected looks like a comma-separated list and we failed
-        if (
-            args.retry_refusal
-            and not bench_result.success
-            and expected
-            and "," in expected.strip()
-            and (bench_result.answer or "").strip()
-        ):
-            print(f"  [{idx}/{len(tasks)}] (retry: list answer wrong → AGENTIC)", flush=True)
-            original_tier = adapter.tier
-            adapter.tier = "AGENTIC"
-            bench_result = benchmark.evaluate_task(task, adapter)
-            adapter.tier = original_tier
+        # Unified smart retry with escalating strategies
+        if args.retry_refusal or args.retry_empty:
+            bench_result = _smart_retry(
+                benchmark, task, adapter, bench_result, expected,
+                idx, len(tasks), args,
+            )
 
         # Extract cost/tokens from adapter's last_result
         cost = 0.0
@@ -377,6 +377,23 @@ def run_benchmark(args):
     # Finish run
     store.finish_run(run_id)
     print_summary(results, total_time, run_id)
+
+    # Optional DSPy compilation from successful results
+    if getattr(args, 'optimize_dspy', False):
+        try:
+            from Jotty.core.evaluation.gaia_dspy_optimizer import compile_gaia_module
+            successful = [
+                {'question': r['expected'], 'expected': r['expected'], 'success': r['success']}
+                for r in results if r.get('success')
+            ]
+            save_path = str(Path.home() / '.jotty' / 'gaia_compiled.json')
+            compiled = compile_gaia_module(successful, save_path)
+            if compiled:
+                print(f"\nDSPy module compiled from {len(successful)} examples -> {save_path}")
+            else:
+                print(f"\nDSPy compilation skipped (need >= 3 successful examples, got {len(successful)})")
+        except Exception as e:
+            print(f"\nDSPy compilation failed: {e}")
 
     # Stop adapter's event-loop thread so we don't leave it running
     try:

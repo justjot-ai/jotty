@@ -17,6 +17,7 @@ import time
 from typing import Dict, Any, Optional
 
 from Jotty.core.foundation.data_structures import EpisodeResult
+from Jotty.core.foundation.exceptions import AgentExecutionError, LLMError
 from Jotty.core.utils.async_utils import safe_status
 
 logger = logging.getLogger(__name__)
@@ -149,8 +150,10 @@ class ParadigmExecutor:
                         result=result, success=result.success, elapsed=_elapsed,
                     )
                     return result
+                except (AgentExecutionError, LLMError) as e:
+                    logger.warning(f"Fast-path failed for {agent_name} (recoverable): {e}, falling back to full pipeline")
                 except Exception as e:
-                    logger.warning(f"Fast-path failed for {agent_name}: {e}, falling back to full pipeline")
+                    logger.warning(f"Fast-path failed for {agent_name} (unexpected): {e}, falling back to full pipeline")
 
         # FULL PATH: Use the complete AgentRunner pipeline
         return await runner.run(goal=sub_goal, **kwargs)

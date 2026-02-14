@@ -36,7 +36,9 @@ from typing import List, Dict, Any, Optional, Union
 
 from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
-from Jotty.core.foundation.exceptions import AgentExecutionError
+from Jotty.core.foundation.exceptions import (
+    AgentExecutionError, LLMError, ConfigurationError, LearningError,
+)
 
 from ._lazy import LazyComponent
 from Jotty.core.utils.async_utils import safe_status, StatusReporter
@@ -290,8 +292,10 @@ class AgentFactory:
             try:
                 sm.learning.auto_load()
                 sm.mas_learning.integrate_with_terminal(sm.swarm_terminal)
+            except LearningError as e:
+                logger.warning(f"Background learning init failed (learning): {e}")
             except Exception as e:
-                logger.warning(f"Background learning init failed: {e}")
+                logger.warning(f"Background learning init failed (unexpected): {e}", exc_info=True)
             finally:
                 sm._learning_ready.set()
 
@@ -303,8 +307,10 @@ class AgentFactory:
             try:
                 sm.learning.auto_load()
                 sm.mas_learning.integrate_with_terminal(sm.swarm_terminal)
+            except LearningError as e:
+                logger.warning(f"Synchronous learning init failed (learning): {e}")
             except Exception as e:
-                logger.warning(f"Synchronous learning init failed: {e}")
+                logger.warning(f"Synchronous learning init failed (unexpected): {e}", exc_info=True)
             sm._learning_ready.set()
 
         # Init providers if available
@@ -579,6 +585,16 @@ class ExecutionEngine:
                         response = call_fn()
                         if response:
                             break
+                    except LLMError as e:
+                        logger.info(f"Fast path LLM error (recoverable): {e}")
+                        err_str = str(e)
+                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
+                                         'rate limit' in err_str.lower())
+                        if is_rate_limit:
+                            logger.info("Fast path rate limited — falling through to full pipeline (no retry)")
+                            _rate_limited = True
+                            break
+                        continue
                     except Exception as e:
                         err_str = str(e)
                         is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
@@ -622,15 +638,20 @@ class ExecutionEngine:
                 # Save learning (lightweight)
                 try:
                     sm._save_learnings()
+                except LearningError as e:
+                    logger.debug(f"Fast-path learning save failed (learning): {e}")
                 except Exception as e:
-                    logger.debug(f"Fast-path learning save failed: {e}")
+                    logger.debug(f"Fast-path learning save failed (unexpected): {e}", exc_info=True)
 
                 total_elapsed = _time.time() - run_start_time
                 _status("Complete", f"fast path success ({total_elapsed:.1f}s)")
                 return fast_result
 
+            except (AgentExecutionError, LLMError) as e:
+                logger.info(f"Fast path failed (recoverable: {type(e).__name__}): {e}, falling back to full pipeline")
+                # Fall through to normal pipeline
             except Exception as e:
-                logger.info(f"Fast path failed ({e}), falling back to full pipeline")
+                logger.info(f"Fast path failed (unexpected: {type(e).__name__}): {e}, falling back to full pipeline")
                 # Fall through to normal pipeline
 
         # Store gate decision for downstream use (AgentRunner will also gate architect/auditor)
@@ -648,8 +669,10 @@ class ExecutionEngine:
                     import dspy
                     dspy.configure(lm=tier_lm)
                     _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
+            except (ConfigurationError, LLMError) as e:
+                logger.debug(f"Model tier routing skipped (recoverable): {e}")
             except Exception as e:
-                logger.debug(f"Model tier routing skipped: {e}")
+                logger.debug(f"Model tier routing skipped (unexpected): {e}", exc_info=True)
 
         # Zero-config: LLM decides single vs multi-agent at RUN TIME (when goal is available)
         # SKIP when gate already classified as DIRECT — it's a simple task, no need
@@ -850,8 +873,15 @@ class ExecutionEngine:
                     profile_context.__exit__(None, None, None)
 
                 return result
+        except (AgentExecutionError, LLMError) as e:
+            _status("Error", f"{type(e).__name__}: {str(e)[:50]}")
+            # Exit profiling context on error
+            if profile_context:
+                profile_context.__exit__(type(e), e, None)
+            raise
         except Exception as e:
-            _status("Error", str(e)[:50])
+            _status("Error", f"unexpected: {str(e)[:50]}")
+            logger.error(f"Unexpected error in run(): {e}", exc_info=True)
             # Exit profiling context on error
             if profile_context:
                 profile_context.__exit__(type(e), e, None)
@@ -897,8 +927,10 @@ class ExecutionEngine:
                                 f"(method={route['method']}, conf={route['confidence']:.2f})"
                             )
                             break
+            except (ConfigurationError, LearningError) as e:
+                logger.debug(f"Router select_agent skipped (recoverable): {e}")
             except Exception as e:
-                logger.debug(f"Router select_agent skipped: {e}")
+                logger.debug(f"Router select_agent skipped (unexpected): {e}", exc_info=True)
 
         runner = sm.runners[agent_config.name]
 
@@ -1017,8 +1049,10 @@ class ExecutionEngine:
                 for i, hint in enumerate(learned_hints, 1):
                     logger.info(f" Hint {i}: {hint}")
 
+        except LearningError as e:
+            logger.warning(f"Pre-execution intelligence read failed (learning): {e}")
         except Exception as e:
-            logger.warning(f"Pre-execution intelligence read failed: {e}")
+            logger.warning(f"Pre-execution intelligence read failed (unexpected): {e}", exc_info=True)
 
         # Pass status_callback back for downstream
         if status_callback:
@@ -1107,8 +1141,10 @@ class ExecutionEngine:
                 if _intelligence_applied and sm.agents:
                     top = sm.agents[0].name if hasattr(sm.agents[0], 'name') else '?'
                     logger.info(f" Router: agents ordered for goal (lead={top})")
+        except LearningError as e:
+            logger.warning(f"Intelligence-guided selection failed (learning): {e}")
         except Exception as e:
-            logger.warning(f"Intelligence-guided selection failed: {e}")
+            logger.warning(f"Intelligence-guided selection failed (unexpected): {e}", exc_info=True)
 
         # Track guidance for A/B effectiveness metrics (per task_type)
         sm._last_run_guided = _intelligence_applied
@@ -1139,8 +1175,11 @@ class ExecutionEngine:
                     f" Auto paradigm: selected '{discussion_paradigm}' "
                     f"for task_type='{_task_type}'"
                 )
+            except LearningError as e:
+                logger.debug(f"Auto paradigm selection failed (learning): {e}")
+                discussion_paradigm = 'fanout'
             except Exception as e:
-                logger.debug(f"Auto paradigm selection failed: {e}")
+                logger.debug(f"Auto paradigm selection failed (unexpected): {e}", exc_info=True)
                 discussion_paradigm = 'fanout'
 
         # Track which paradigm is used (for _post_episode_learning)
@@ -1179,8 +1218,10 @@ class ExecutionEngine:
                     available_agents=available
                 )
                 logger.info(f" Coalition formed for '{_task_type}' with {len(available)} agents")
+            except LearningError as e:
+                logger.debug(f"Coalition formation skipped (learning): {e}")
             except Exception as e:
-                logger.debug(f"Coalition formation skipped: {e}")
+                logger.debug(f"Coalition formation skipped (unexpected): {e}", exc_info=True)
 
         # Status update at method start
         safe_status(status_callback, "Multi-agent exec", f"starting {len(sm.agents)} parallel agents")
@@ -1381,8 +1422,10 @@ class ExecutionEngine:
                         state = {'query': goal, 'agent': task.actor}
                         action = {'actor': task.actor, 'task': task.description[:100]}
                         sm.learning_manager.record_outcome(state, action, adjusted_reward)
+                    except LearningError as e:
+                        logger.debug(f"Divergence learning skipped for {task.actor} (learning): {e}")
                     except Exception as e:
-                        logger.debug(f"Divergence learning skipped for {task.actor}: {e}")
+                        logger.debug(f"Divergence learning skipped for {task.actor} (unexpected): {e}", exc_info=True)
 
                 if result.success:
                     sm.swarm_task_board.complete_task(task.task_id, result={'output': result.output})
@@ -1936,8 +1979,17 @@ class Orchestrator:
                     f"Task {i+1} {'passed' if result.success else 'failed'}",
                     f"type={task.task_type}, difficulty={task.difficulty:.1f}"
                 )
+            except (AgentExecutionError, LLMError) as e:
+                logger.warning(f"Training task {i+1} failed (recoverable: {type(e).__name__}): {e}")
+                results.append({
+                    'task_id': task.task_id,
+                    'task_type': task.task_type,
+                    'difficulty': task.difficulty,
+                    'success': False,
+                    'error': str(e),
+                })
             except Exception as e:
-                logger.warning(f"Training task {i+1} failed: {e}")
+                logger.warning(f"Training task {i+1} failed (unexpected): {e}", exc_info=True)
                 results.append({
                     'task_id': task.task_id,
                     'task_type': task.task_type,

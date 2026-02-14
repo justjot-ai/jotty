@@ -32,6 +32,14 @@ from pathlib import Path
 from Jotty.core.utils.async_utils import StatusReporter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from Jotty.core.foundation.exceptions import (
+    ConfigurationError,
+    LLMError,
+    DSPyError,
+    ToolExecutionError,
+    ExecutionError,
+)
+
 from .step_processors import ParameterResolver, ToolResultProcessor
 
 logger = logging.getLogger(__name__)
@@ -155,8 +163,10 @@ class SkillPlanExecutor:
                 from ..agentic_planner import TaskPlanner
                 self._planner = TaskPlanner()
                 logger.debug("SkillPlanExecutor: Initialized TaskPlanner")
+            except (ImportError, ConfigurationError, DSPyError) as e:
+                logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner (known): {e}")
             except Exception as e:
-                logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner: {e}")
+                logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner (unexpected): {e}", exc_info=True)
         return self._planner
 
     def _ensure_lm(self) -> None:
@@ -199,16 +209,20 @@ class SkillPlanExecutor:
                 dspy.configure(lm=lm)
                 logger.info("SkillPlanExecutor: Auto-configured DSPy LM with DirectAnthropicLM")
                 return
+        except (ImportError, LLMError, ConfigurationError) as e:
+            logger.debug(f"DirectAnthropicLM not available (known): {e}")
         except Exception as e:
-            logger.debug(f"DirectAnthropicLM not available: {e}")
+            logger.debug(f"DirectAnthropicLM not available (unexpected): {e}", exc_info=True)
 
         try:
             from Jotty.core.foundation.persistent_claude_lm import PersistentClaudeCLI
             lm = PersistentClaudeCLI()
             dspy.configure(lm=lm)
             logger.info("SkillPlanExecutor: Auto-configured DSPy LM with PersistentClaudeCLI")
+        except (ImportError, LLMError, ConfigurationError) as e:
+            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM (known): {e}")
         except Exception as e:
-            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM: {e}")
+            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM (unexpected): {e}", exc_info=True)
 
     # =========================================================================
     # SKILL SELECTION
@@ -280,8 +294,11 @@ class SkillPlanExecutor:
         except asyncio.TimeoutError:
             logger.warning(f"Skill selection timed out after {SKILL_SELECT_TIMEOUT}s — using top skills")
             return available_skills[:max_skills]
+        except (LLMError, DSPyError) as e:
+            logger.warning(f"Skill selection failed (LLM/DSPy): {e}")
+            return available_skills[:max_skills]
         except Exception as e:
-            logger.warning(f"Skill selection failed: {e}")
+            logger.warning(f"Skill selection failed (unexpected): {e}", exc_info=True)
             return available_skills[:max_skills]
 
     # =========================================================================
@@ -400,8 +417,11 @@ class SkillPlanExecutor:
         except asyncio.TimeoutError:
             logger.warning(f"Planning timed out after {PLAN_TIMEOUT}s — using direct LLM fallback")
             return []
+        except (LLMError, DSPyError) as e:
+            logger.warning(f"Planning failed (LLM/DSPy): {e}")
+            return []
         except Exception as e:
-            logger.error(f"Planning failed: {e}")
+            logger.error(f"Planning failed (unexpected): {e}", exc_info=True)
             return []
 
     async def create_reflective_plan(
@@ -459,8 +479,10 @@ class SkillPlanExecutor:
             except asyncio.TimeoutError:
                 logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
                 return [], "Replan timed out", ""
+            except (LLMError, DSPyError) as e:
+                logger.warning(f"Async reflective replanning failed (LLM/DSPy): {e}, falling back")
             except Exception as e:
-                logger.warning(f"Async reflective replanning failed: {e}, falling back")
+                logger.warning(f"Async reflective replanning failed (unexpected): {e}, falling back", exc_info=True)
 
         # Fallback: sync reflective replanning via thread pool
         elif hasattr(self.planner, 'replan_with_reflection'):
@@ -487,8 +509,10 @@ class SkillPlanExecutor:
             except asyncio.TimeoutError:
                 logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
                 return [], "Replan timed out", ""
+            except (LLMError, DSPyError) as e:
+                logger.warning(f"Reflective replanning failed (LLM/DSPy): {e}, falling back")
             except Exception as e:
-                logger.warning(f"Reflective replanning failed: {e}, falling back")
+                logger.warning(f"Reflective replanning failed (unexpected): {e}, falling back", exc_info=True)
 
         # Final fallback: regular plan_execution (prefer async)
         try:
@@ -522,8 +546,11 @@ class SkillPlanExecutor:
         except asyncio.TimeoutError:
             logger.warning(f"Fallback replanning timed out after {REPLAN_TIMEOUT}s")
             return [], "Replan timed out", ""
+        except (LLMError, DSPyError) as e:
+            logger.warning(f"Fallback replanning failed (LLM/DSPy): {e}")
+            return [], f"Replanning failed: {e}", ""
         except Exception as e:
-            logger.error(f"Fallback replanning failed: {e}")
+            logger.error(f"Fallback replanning failed (unexpected): {e}", exc_info=True)
             return [], f"Replanning failed: {e}", ""
 
     # =========================================================================
@@ -934,8 +961,23 @@ class SkillPlanExecutor:
             _status("Timeout", f" {step.skill_name} ({step_timeout}s)")
             return {'success': False, 'error': f'Tool timed out after {step_timeout}s'}
 
+        except ToolExecutionError as e:
+            logger.warning(f"Tool execution failed (recoverable): {step.skill_name}: {e}")
+            _status("Error", f" {step.skill_name}")
+            return {'success': False, 'error': str(e)}
+
+        except LLMError as e:
+            logger.warning(f"LLM call failed during tool execution: {step.skill_name}: {e}")
+            _status("Error", f" {step.skill_name} (LLM)")
+            return {'success': False, 'error': str(e)}
+
+        except (ExecutionError, DSPyError) as e:
+            logger.warning(f"Execution/DSPy error in tool: {step.skill_name}: {e}")
+            _status("Error", f" {step.skill_name}")
+            return {'success': False, 'error': str(e)}
+
         except Exception as e:
-            logger.error(f"Tool execution failed: {e}")
+            logger.error(f"Tool execution failed (unexpected): {step.skill_name}: {e}", exc_info=True)
             _status("Error", f" {step.skill_name}")
             return {'success': False, 'error': str(e)}
 
@@ -1189,8 +1231,10 @@ class SkillPlanExecutor:
             try:
                 task_type, reasoning, confidence = self.planner.infer_task_type(task)
                 return task_type.value
+            except (LLMError, DSPyError) as e:
+                logger.warning(f"Task type inference failed (LLM/DSPy): {e}")
             except Exception as e:
-                logger.warning(f"Task type inference failed: {e}")
+                logger.warning(f"Task type inference failed (unexpected): {e}", exc_info=True)
 
         # Keyword fallback
         task_lower = task.lower()

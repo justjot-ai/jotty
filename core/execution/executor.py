@@ -33,6 +33,9 @@ from .types import (
 from .tier_detector import TierDetector
 from Jotty.core.observability.tracing import SpanStatus
 from Jotty.core.orchestration.paradigm_executor import _extract_output_text
+from Jotty.core.foundation.exceptions import (
+    ExecutionError, AgentExecutionError, LLMError, ConfigurationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +288,11 @@ class TierExecutor:
         try:
             from Jotty.core.agents.agentic_planner import TaskPlanner
             return TaskPlanner()
+        except (ImportError, ConfigurationError) as e:
+            logger.warning(f"TaskPlanner creation failed (config/import): {e}")
+            return None
         except Exception as e:
-            logger.warning(f"TaskPlanner creation failed: {e}")
+            logger.warning(f"TaskPlanner creation failed (unexpected): {e}")
             return None
 
     def _create_validator(self):
@@ -319,8 +325,11 @@ class TierExecutor:
                 logger.debug(f"Could not inject DSPy LM into auditor: {lm_err}")
 
             return MultiRoundValidator([auditor], swarm_config)
+        except (ImportError, ConfigurationError) as e:
+            logger.warning(f"ValidatorAgent creation failed (config/import), using LLM fallback: {e}")
+            return _FallbackValidator(self.provider)
         except Exception as e:
-            logger.warning(f"ValidatorAgent creation failed, using LLM fallback validator: {e}")
+            logger.warning(f"ValidatorAgent creation failed (unexpected), using LLM fallback: {e}")
             return _FallbackValidator(self.provider)
 
     # =========================================================================
@@ -391,12 +400,31 @@ class TierExecutor:
             logger.info(f"Execution complete: {result}")
             return result
 
-        except Exception as e:
-            logger.error(f"Execution failed: {e}", exc_info=True)
+        except (ExecutionError, LLMError) as e:
+            logger.warning(f"Execution failed (recoverable): {e}")
             self.tracer.end_trace()
             duration_s = (time.time() - start_time)
 
-            # Record failure to metrics
+            self.metrics.record_execution(
+                agent_name=f"tier_{config.tier.value}",
+                task_type=config.tier.name.lower(),
+                duration_s=duration_s,
+                success=False,
+                error=str(e),
+            )
+
+            return ExecutionResult(
+                output=None,
+                tier=config.tier,
+                success=False,
+                error=str(e),
+                latency_ms=duration_s * 1000,
+            )
+        except Exception as e:
+            logger.error(f"Execution failed (unexpected): {e}", exc_info=True)
+            self.tracer.end_trace()
+            duration_s = (time.time() - start_time)
+
             self.metrics.record_execution(
                 agent_name=f"tier_{config.tier.value}",
                 task_type=config.tier.name.lower(),
@@ -702,12 +730,19 @@ class TierExecutor:
         total_llm_calls = 0
         total_cost = 0.0
 
+        # Extract GAIA-specific kwargs before they propagate
+        skip_gate = kwargs.pop('skip_complexity_gate', False)
+        hint_skills = kwargs.pop('hint_skills', [])
+
         # ComplexityGate: check if this can be answered directly without planning
-        try:
-            skip_planning = await self.complexity_gate.should_skip_planning(goal)
-        except Exception as e:
-            logger.warning(f"ComplexityGate error, proceeding with planning: {e}")
+        if skip_gate:
             skip_planning = False
+        else:
+            try:
+                skip_planning = await self.complexity_gate.should_skip_planning(goal)
+            except Exception as e:
+                logger.warning(f"ComplexityGate error, proceeding with planning: {e}")
+                skip_planning = False
 
         if skip_planning:
             logger.info("[Tier 2: AGENTIC] ComplexityGate: DIRECT — skipping planning")
@@ -754,7 +789,7 @@ class TierExecutor:
         # Step 1: Plan — use TaskPlanner directly
         with self.tracer.span("tier2_plan") as plan_span:
             plan_start = time.time()
-            plan_result = await self._run_planner(goal)
+            plan_result = await self._run_planner(goal, hint_skills=hint_skills)
             plan_duration = time.time() - plan_start
             total_llm_calls += 1
 
@@ -1168,11 +1203,15 @@ class TierExecutor:
     # HELPER METHODS
     # =========================================================================
 
-    async def _run_planner(self, goal: str) -> Dict[str, Any]:
+    async def _run_planner(self, goal: str, hint_skills: Optional[List[str]] = None) -> Dict[str, Any]:
         """Run TaskPlanner and return normalized plan dict.
 
         Calls planner.aplan_execution() directly. Handles both
         TaskPlanner (returns tuple) and mock planners (return dict).
+
+        Args:
+            goal: The task goal string.
+            hint_skills: Optional explicit skill names to include (e.g. from GAIA adapter).
         """
         planner = self.planner
 
@@ -1187,6 +1226,17 @@ class TierExecutor:
             skills = discovery.get('skills', [])[:10]
         except Exception:
             pass
+
+        # Merge hint skills (prepend so they're prioritized)
+        if hint_skills:
+            existing_names = {
+                s['name'] if isinstance(s, dict) else s for s in skills
+            }
+            hint_dicts = [
+                {'name': s, 'description': s}
+                for s in hint_skills if s not in existing_names
+            ]
+            skills = hint_dicts + skills
 
         try:
             steps, reasoning = await planner.aplan_execution(

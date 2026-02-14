@@ -70,10 +70,14 @@ GAIA_SYSTEM_PROMPT = (
     "Answer concisely. Give ONLY the final answer with no explanation. "
     "Do not include units unless the question explicitly asks for them. "
     "If the answer is a number, output only that number. "
-    "Use available tools (web search, read_file, etc.) when the task requires it; do not refuse for lack of direct access. "
+    "Use available tools (web search, voice_to_text, read_file, etc.) when the task requires it; do not refuse for lack of direct access. "
     "If the question refers to a video, file, or external resource, use the provided tools to access it and base your answer on that. "
-    "You MUST use read_file or other tools to process any attached file(s) (including audio) before answering when attachments are listed."
+    "You MUST use the appropriate tool to process any attached file(s) before answering: "
+    "use voice_to_text_tool for audio files (.mp3, .wav, .m4a), read_file for text/data files."
 )
+
+# Audio file extensions for tool routing
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpga', '.webm'}
 
 # Patterns that suggest the model refused instead of answering (for logging / retry).
 REFUSAL_PATTERNS = (
@@ -99,6 +103,28 @@ def _looks_like_refusal(text: str) -> bool:
         return False
     lower = text.strip().lower()
     return any(p in lower for p in REFUSAL_PATTERNS)
+
+
+def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
+    """Return explicit skill names for GAIA task based on content analysis."""
+    skills = ["web-search"]  # Always useful for GAIA
+    q_lower = question.lower()
+
+    for path in (attachment_paths or []):
+        ext = ('.' + path.rsplit('.', 1)[-1].lower()) if '.' in path else ''
+        if ext in AUDIO_EXTENSIONS:
+            skills.extend(["voice", "openai-whisper-api"])
+        elif ext in {'.xlsx', '.xls'}:
+            skills.append("xlsx-tools")
+        elif ext == '.pdf':
+            skills.append("pdf-tools")
+        else:
+            skills.append("file-operations")
+
+    if any(kw in q_lower for kw in ['calculat', 'how many', 'sum ', 'average', 'comput']):
+        skills.append("calculator")
+
+    return skills
 
 
 class JottyGAIAAdapter:
@@ -180,14 +206,27 @@ class JottyGAIAAdapter:
             except Exception:
                 pass
         parts.append("")
-        # Hint so planner injects web-search / read_file when using AGENTIC (keyword-based injection)
-        parts.append("Use web search or read_file when needed to answer.")
+        # Hint so planner injects web-search / voice / read_file when using AGENTIC (keyword-based injection)
+        parts.append(
+            "Use web_search, voice_to_text_tool, read_file, or calculator when needed to answer. "
+            "For factual questions, ALWAYS search the web first — do not guess."
+        )
         parts.append("")
         parts.append(f"Question: {question}")
         if attachment_paths:
-            paths_str = ", ".join(attachment_paths)
             parts.append("")
-            parts.append(f"Attached file(s) (use read_file to read): {paths_str}")
+            for path in attachment_paths:
+                ext = ('.' + path.rsplit('.', 1)[-1].lower()) if '.' in path else ''
+                if ext in AUDIO_EXTENSIONS:
+                    parts.append(
+                        f"Attached audio file: {path}\n"
+                        f"IMPORTANT: Use voice_to_text_tool with audio_path='{path}' to transcribe this audio file. "
+                        f"Do NOT use read_file for audio. Read the full transcript before answering."
+                    )
+                elif ext in {'.xlsx', '.xls', '.csv'}:
+                    parts.append(f"Attached spreadsheet: {path}\nUse read_file to read this file.")
+                else:
+                    parts.append(f"Attached file: {path}\nUse read_file to read this file.")
         return "\n".join(parts)
 
     def run(self, question: str, attachment_paths: Optional[list] = None, **kwargs) -> str:
@@ -227,6 +266,12 @@ class JottyGAIAAdapter:
 
         if self.progress_callback:
             run_kwargs['status_callback'] = self.progress_callback
+
+        # Bypass ComplexityGate so GAIA tasks always get full planning + tools
+        run_kwargs['skip_complexity_gate'] = True
+
+        # Inject explicit skills so the planner has voice/whisper/search available
+        run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
 
         result = self._run_async(prompt, **run_kwargs)
         self.last_result = result

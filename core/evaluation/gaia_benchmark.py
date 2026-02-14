@@ -145,8 +145,7 @@ class GAIABenchmark(Benchmark):
         start_time = time.time()
         try:
             run_kwargs = {**kwargs, "expected_answer": expected_answer}
-            if attachment_paths:
-                run_kwargs["force_tier"] = "AGENTIC"
+            run_kwargs["force_tier"] = "AGENTIC"
             if hasattr(agent, 'run'):
                 answer = agent.run(question, attachment_paths=attachment_paths, **run_kwargs)
             elif hasattr(agent, 'execute'):

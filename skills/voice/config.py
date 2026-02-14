@@ -68,7 +68,14 @@ class VoiceConfig:
 
     @property
     def has_local_whisper(self) -> bool:
-        """Check if local Whisper.cpp is available."""
+        """Check if local Whisper is available (Python package or whisper.cpp)."""
+        # Check Python whisper package first (openai-whisper)
+        try:
+            import whisper
+            return True
+        except ImportError:
+            pass
+        # Fall back to whisper.cpp binary
         if self.whisper_cpp_path and self.whisper_model_path:
             return Path(self.whisper_cpp_path).exists() and Path(self.whisper_model_path).exists()
         return False

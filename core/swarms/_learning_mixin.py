@@ -22,6 +22,19 @@ from .swarm_types import (
     ImprovementSuggestion,
     ImprovementType,
 )
+from ..foundation.exceptions import (
+    LearningError,
+    RewardCalculationError,
+    CreditAssignmentError,
+    PolicyUpdateError,
+    MemoryError,
+    MemoryStorageError,
+    MemoryRetrievalError,
+    ExecutionError,
+    AgentExecutionError,
+    LLMError,
+    ConfigurationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +219,10 @@ class SwarmLearningMixin:
             # Expected: missing optional dependencies or uninitialized components
             logger.debug(f"Pre-execution learning skipped (optional dep): {e}")
             self._learned_context = learned_context
+        except (LearningError, MemoryError) as e:
+            # Recoverable: learning or memory subsystem failed but execution can proceed
+            logger.warning(f"Pre-execution learning failed (recoverable): {e}")
+            self._learned_context = learned_context
         except Exception as e:
             # Unexpected: log at warning so degradation is visible
             logger.warning(f"Pre-execution learning failed unexpectedly: {type(e).__name__}: {e}", exc_info=True)
@@ -338,8 +355,10 @@ class SwarmLearningMixin:
 
         except (AttributeError, ImportError) as e:
             logger.debug(f"Pre-execution coordination skipped (optional dep): {e}")
+        except (LearningError, ExecutionError) as e:
+            logger.warning(f"Pre-execution coordination failed (recoverable): {e}")
         except Exception as e:
-            logger.warning(f"Pre-execution coordination failed: {type(e).__name__}: {e}")
+            logger.warning(f"Pre-execution coordination failed (unexpected): {type(e).__name__}: {e}", exc_info=True)
 
         return coord
 
@@ -474,8 +493,14 @@ class SwarmLearningMixin:
 
         except (AttributeError, ImportError) as e:
             logger.debug(f"Post-execution coordination skipped (optional dep): {e}")
+        except (LearningError, ExecutionError) as e:
+            logger.warning(f"Post-execution coordination failed (recoverable): {e}")
+            try:
+                si.metrics.record_error('coordination', 'post_execution', str(e))
+            except Exception:
+                pass
         except Exception as e:
-            logger.warning(f"Post-execution coordination failed: {type(e).__name__}: {e}")
+            logger.warning(f"Post-execution coordination failed (unexpected): {type(e).__name__}: {e}", exc_info=True)
             try:
                 si.metrics.record_error('coordination', 'post_execution', str(e))
             except Exception:
@@ -957,8 +982,11 @@ class SwarmLearningMixin:
 
             return improvements
 
+        except (MemoryRetrievalError, MemoryError) as e:
+            logger.warning(f"Expert knowledge retrieval failed (memory): {e}")
+            return []
         except Exception as e:
-            logger.debug(f"Expert knowledge retrieval skipped: {e}")
+            logger.debug(f"Expert knowledge retrieval skipped (unexpected): {e}")
             return []
 
     def _analyze_prior_failures(self) -> List[Dict[str, Any]]:
@@ -1012,8 +1040,10 @@ class SwarmLearningMixin:
                             })
                     except (json.JSONDecodeError, TypeError):
                         pass
+            except (MemoryRetrievalError, MemoryError) as e:
+                logger.warning(f"Failure analysis from memory failed (memory): {e}")
             except Exception as e:
-                logger.debug(f"Failure analysis from memory failed: {e}")
+                logger.debug(f"Failure analysis from memory failed (unexpected): {e}")
 
         return failures
 
@@ -1089,8 +1119,10 @@ class SwarmLearningMixin:
 
             logger.debug(f"Stored execution outcome to expert memory: {task_type} {'success' if success else 'failure'}")
 
+        except (MemoryStorageError, MemoryError) as e:
+            logger.warning(f"Failed to store execution improvement (memory): {e}")
         except Exception as e:
-            logger.debug(f"Failed to store execution improvement: {e}")
+            logger.debug(f"Failed to store execution improvement (unexpected): {e}")
 
     async def _post_execute_learning(
         self,
@@ -1171,8 +1203,10 @@ class SwarmLearningMixin:
                             f"Evaluation: {evaluation.result.value} "
                             f"(score: {evaluation.overall_score:.2f})"
                         )
+                except (LLMError, AgentExecutionError) as eval_err:
+                    logger.warning(f"Evaluation failed (LLM/agent): {eval_err}")
                 except Exception as eval_err:
-                    logger.debug(f"Evaluation skipped: {eval_err}")
+                    logger.debug(f"Evaluation skipped (unexpected): {eval_err}")
 
             # 4a. Audit evaluation quality (non-blocking)
             if evaluation and self._auditor and output_data:
@@ -1203,8 +1237,10 @@ class SwarmLearningMixin:
                         execution_time=execution_time,
                         success=success
                     )
+                except LearningError as e:
+                    logger.warning(f"Benchmark recording failed (learning): {e}")
                 except Exception as e:
-                    logger.debug(f"Benchmark recording failed: {e}")
+                    logger.debug(f"Benchmark recording failed (unexpected): {e}")
 
             # 4c. Auto-curate gold standard from excellent outputs
             if (evaluation and evaluation.overall_score >= 0.9 and
@@ -1212,8 +1248,10 @@ class SwarmLearningMixin:
                 self._gold_db and output_data and input_data):
                 try:
                     self._curate_gold_standard(task_type, input_data, output_data, evaluation)
+                except (LearningError, MemoryStorageError) as e:
+                    logger.warning(f"Gold standard curation failed (recoverable): {e}")
                 except Exception as e:
-                    logger.debug(f"Gold standard curation failed: {e}")
+                    logger.debug(f"Gold standard curation failed (unexpected): {e}")
 
             # 4d. Extract learnings from excellent executions
             if (evaluation and evaluation.overall_score >= 0.9 and
@@ -1254,8 +1292,10 @@ class SwarmLearningMixin:
                             })
                         self._improvement_history._save_history()
                         logger.info(f"Extracted {len(learnings)} learnings from excellent execution")
+                except (LearningError, LLMError) as e:
+                    logger.warning(f"Learning extraction failed (recoverable): {e}")
                 except Exception as e:
-                    logger.debug(f"Learning extraction failed: {e}")
+                    logger.debug(f"Learning extraction failed (unexpected): {e}")
 
             # 5. Run improvement cycle if evaluation below threshold
             if evaluation and evaluation.overall_score < self.config.improvement_threshold:
@@ -1263,8 +1303,10 @@ class SwarmLearningMixin:
                     suggestions = await self._run_improvement_cycle()
                     if suggestions:
                         logger.info(f"Generated {len(suggestions)} improvement suggestions")
+                except (LearningError, LLMError) as imp_err:
+                    logger.warning(f"Improvement cycle failed (recoverable): {imp_err}")
                 except Exception as imp_err:
-                    logger.debug(f"Improvement cycle skipped: {imp_err}")
+                    logger.debug(f"Improvement cycle skipped (unexpected): {imp_err}")
 
             # 6. Save state to disk
             try:
@@ -1286,10 +1328,16 @@ class SwarmLearningMixin:
 
         except (ImportError, AttributeError) as e:
             logger.debug(f"Post-execution learning skipped (optional dep): {e}")
+        except (LearningError, MemoryError) as e:
+            logger.warning(
+                f"Post-execution learning failed (recoverable): {e}. "
+                f"Learning data for this execution may be incomplete."
+            )
         except Exception as e:
             logger.warning(
                 f"Post-execution learning failed unexpectedly: {type(e).__name__}: {e}. "
-                f"Learning data for this execution may be lost."
+                f"Learning data for this execution may be lost.",
+                exc_info=True
             )
 
     async def _run_improvement_cycle(self) -> List[ImprovementSuggestion]:
@@ -1418,8 +1466,10 @@ class SwarmLearningMixin:
                     context={'swarm': self.config.name, 'agent': agent_name},
                     goal=f"Execution trace: {agent_name}"
                 )
+            except (MemoryStorageError, MemoryError) as e:
+                logger.warning(f"Failed to store trace in memory (memory): {e}")
             except Exception as e:
-                logger.debug(f"Failed to store trace in memory: {e}")
+                logger.debug(f"Failed to store trace in memory (unexpected): {e}")
 
     def record_improvement_outcome(
         self,
