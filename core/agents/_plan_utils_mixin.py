@@ -1067,6 +1067,12 @@ Filename: {filename}
                 verification = get_val(step_data, 'verification', '')
                 fallback_skill = get_val(step_data, 'fallback_skill', '')
 
+                # Parse I/O contracts (inputs_needed, outputs_produced)
+                raw_inputs = get_val(step_data, 'inputs_needed', {})
+                inputs_needed = raw_inputs if isinstance(raw_inputs, dict) else {}
+                raw_outputs = get_val(step_data, 'outputs_produced', [])
+                outputs_produced = raw_outputs if isinstance(raw_outputs, list) else []
+
                 step = ExecutionStep(
                     skill_name=skill_name,
                     tool_name=tool_name,
@@ -1077,6 +1083,8 @@ Filename: {filename}
                     optional=get_val(step_data, 'optional', False),
                     verification=verification,
                     fallback_skill=fallback_skill,
+                    inputs_needed=inputs_needed,
+                    outputs_produced=outputs_produced,
                 )
                 steps.append(step)
             except Exception as e:

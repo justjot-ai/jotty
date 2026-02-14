@@ -108,7 +108,7 @@ class TestParameterResolver:
         mock_schema = Mock()
         mock_schema.resolve_aliases = Mock(side_effect=lambda p: p)
         mock_schema.auto_wire = Mock(
-            side_effect=lambda params, outs: {**params, "query": "test search"}
+            side_effect=lambda params, outs, scoped_keys=None: {**params, "query": "test search"}
         )
         mock_validation = Mock()
         mock_validation.coerced_params = {}
@@ -775,17 +775,17 @@ class TestParameterResolverDeep:
 
     # ---- _resolve_missing_path ----
 
-    def test_resolve_missing_path_fallback_after_replan(self):
-        """_resolve_missing_path finds content from a different step key after replan."""
+    def test_resolve_missing_path_returns_unresolved_for_missing_step(self):
+        """_resolve_missing_path returns unresolved path when step doesn't exist (scoped resolution)."""
         outputs = {
             "step_2": {
-                "content": "This is the actual content from step 2 that is long enough to be useful and should be returned as fallback."
+                "content": "This is the actual content from step 2 that is long enough to be useful."
             }
         }
         resolver = ParameterResolver(outputs)
-        # step_0 doesn't exist, but _resolve_missing_path should find content from step_2
+        # step_0 doesn't exist — scoped resolution returns unresolved path
         result = resolver._resolve_missing_path("step_0.content")
-        assert "actual content" in result
+        assert result == "step_0.content"
 
     def test_resolve_missing_path_returns_original_for_non_step_pattern(self):
         """_resolve_missing_path returns original path for non-step patterns."""
@@ -1454,15 +1454,16 @@ class TestToolSchemaDeep:
         result = schema.auto_wire(params, outputs)
         assert result["query"] == "wired value"
 
-    def test_auto_wire_content_field_match(self):
-        """auto_wire uses content fields for content/text/body params."""
+    def test_auto_wire_content_direct_match(self):
+        """auto_wire matches content param via direct name match (not _CONTENT_FIELDS scan)."""
         schema = self._make_schema(params=[
             self._make_param(name="content", required=True),
         ])
-        outputs = {"step_0": {"response": "This is a substantial response that exceeds 50 characters in length."}}
+        # Direct 'content' key match — this works
+        outputs = {"step_0": {"content": "This is substantial content that exceeds 50 characters in length."}}
         params = {}
         result = schema.auto_wire(params, outputs)
-        assert "substantial response" in result.get("content", "")
+        assert "substantial content" in result.get("content", "")
 
     def test_auto_wire_path_strategy(self):
         """auto_wire uses path fallback for path/file_path params."""

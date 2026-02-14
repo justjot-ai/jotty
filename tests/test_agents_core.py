@@ -1509,13 +1509,14 @@ class TestToolSchema:
         assert result["query"] == "explicit"
 
     @pytest.mark.unit
-    def test_auto_wire_content_field_fallback(self):
-        """auto_wire uses content-field fallback for content/text/body params."""
+    def test_auto_wire_content_direct_name_match(self):
+        """auto_wire matches content param via direct name match (not _CONTENT_FIELDS scan)."""
         from Jotty.core.agents._execution_types import ToolSchema, ToolParam
         schema = ToolSchema(name="t", params=[
             ToolParam(name="content", required=True),
         ])
-        outputs = {"step_1": {"response": "A" * 60}}  # > 50 chars needed for content match
+        # Direct 'content' key — matches by name. 'response' no longer scanned via _CONTENT_FIELDS.
+        outputs = {"step_1": {"content": "A" * 60}}
         result = schema.auto_wire({}, outputs)
         assert result.get("content") == "A" * 60
 

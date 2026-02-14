@@ -1725,14 +1725,14 @@ class TestParameterResolver:
         resolver = ParameterResolver(outputs)
         assert resolver.resolve_path('step_0.items[0]') == 'first'
 
-    def test_resolve_path_missing_falls_back(self):
-        """Missing path keys trigger fallback resolution."""
+    def test_resolve_path_missing_returns_unresolved(self):
+        """Missing path keys return unresolved path (no broadcast scan)."""
         from Jotty.core.agents.base.step_processors import ParameterResolver
         outputs = {'step_0': {'content': 'actual content that is long enough to be valid for fallback resolution purposes'}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve_path('step_99.content')
-        # Should fall back to last output's content field
-        assert 'actual content' in result
+        # Scoped resolution: step_99 doesn't exist, return unresolved path
+        assert result == 'step_99.content'
 
     def test_sanitize_command_long_text(self):
         """Long non-command text in 'command' param gets auto-fixed."""
@@ -5217,6 +5217,462 @@ class TestCircuitBreakerExpanded:
         cb.reset()
         assert cb.state == CircuitState.CLOSED
         assert cb._failure_count == 0
+
+
+# =============================================================================
+# I/O Contract & Scoped Resolution Tests
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestIOContractFields:
+    """Test inputs_needed/outputs_produced fields on ExecutionStep and schema."""
+
+    def test_execution_step_defaults(self):
+        """ExecutionStep has empty I/O contracts by default."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        step = AgenticStep('skill', 'tool', {}, 'desc')
+        assert step.inputs_needed == {}
+        assert step.outputs_produced == []
+
+    def test_execution_step_with_io_contracts(self):
+        """ExecutionStep accepts I/O contract fields."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {'path': 'out.py'},
+            'Write generated code',
+            depends_on=[0],
+            inputs_needed={'content': 'step_0.generated_code', 'path': 'literal:stats.py'},
+            outputs_produced=['file_path', 'bytes_written'],
+        )
+        assert step.inputs_needed == {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
+        assert step.outputs_produced == ['file_path', 'bytes_written']
+        assert step.depends_on == [0]
+
+    def test_execution_step_schema_with_io_contracts(self):
+        """ExecutionStepSchema Pydantic model accepts I/O contract fields."""
+        from Jotty.core.agents._execution_types import ExecutionStepSchema
+        if ExecutionStepSchema is None:
+            pytest.skip("Pydantic not available")
+        schema = ExecutionStepSchema(
+            skill_name='web-search',
+            tool_name='search_web_tool',
+            params={'query': 'AI trends'},
+            description='Search for AI trends',
+            inputs_needed={'query': 'literal:AI trends'},
+            outputs_produced=['results', 'query'],
+        )
+        assert schema.inputs_needed == {'query': 'literal:AI trends'}
+        assert schema.outputs_produced == ['results', 'query']
+
+    def test_execution_step_schema_defaults(self):
+        """ExecutionStepSchema has empty I/O contracts by default."""
+        from Jotty.core.agents._execution_types import ExecutionStepSchema
+        if ExecutionStepSchema is None:
+            pytest.skip("Pydantic not available")
+        schema = ExecutionStepSchema(skill_name='test', tool_name='test_tool')
+        assert schema.inputs_needed == {}
+        assert schema.outputs_produced == []
+
+
+@pytest.mark.unit
+class TestScopedAutoWire:
+    """Test ToolSchema.auto_wire with scoped_keys parameter."""
+
+    def _make_schema(self, params):
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        return ToolSchema('test', params=[ToolParam(name=p, required=True) for p in params])
+
+    def test_scoped_content_only_from_dependencies(self):
+        """Content param should only be wired from scoped (dependency) outputs."""
+        schema = self._make_schema(['content'])
+        outputs = {
+            'step_0': {'content': 'wrong content from unrelated step'},
+            'step_1': {'content': 'correct content from dependency'},
+        }
+        # Scoped to step_1 only
+        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
+        assert result['content'] == 'correct content from dependency'
+
+    def test_scoped_content_not_from_unscoped(self):
+        """Content param should NOT be wired from non-dependency outputs."""
+        schema = self._make_schema(['content'])
+        outputs = {
+            'step_0': {'content': 'unrelated step content that should not be picked up'},
+        }
+        # Scoped to step_1 (which doesn't exist in outputs)
+        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
+        assert 'content' not in result
+
+    def test_non_content_params_use_fallback(self):
+        """Non-content params (path, command) can use broader output search."""
+        schema = self._make_schema(['path'])
+        outputs = {
+            'step_0': {'path': '/tmp/data.txt'},
+            'step_1': {'result': 'some text'},
+        }
+        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
+        assert result['path'] == '/tmp/data.txt'
+
+    def test_no_scoped_keys_uses_all_outputs(self):
+        """Without scoped_keys, all outputs are searched (backward compat)."""
+        schema = self._make_schema(['content'])
+        outputs = {
+            'step_0': {'content': 'a' * 100},
+        }
+        result = schema.auto_wire({}, outputs, scoped_keys=None)
+        assert 'content' in result
+
+    def test_scoped_keys_priority_ordering(self):
+        """Scoped keys are checked before fallback keys."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+        schema = ToolSchema('test', params=[ToolParam(name='query', required=True)])
+        outputs = {
+            'step_0': {'query': 'fallback query'},
+            'step_1': {'query': 'priority query'},
+        }
+        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
+        assert result['query'] == 'priority query'
+
+
+@pytest.mark.unit
+class TestScopedResolution:
+    """Test ParameterResolver with I/O contracts and scoped resolution."""
+
+    def test_io_contract_literal_resolution(self):
+        """Literal sources in inputs_needed are resolved directly."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write stats file',
+            inputs_needed={'path': 'literal:/tmp/stats.py'},
+        )
+        resolver = ParameterResolver({})
+        result = resolver.resolve({}, step)
+        assert result.get('path') == '/tmp/stats.py'
+
+    def test_io_contract_step_reference_resolution(self):
+        """Step references in inputs_needed resolve from outputs."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {
+            'step_0': {'generated_code': 'print("hello")', 'path': '/tmp/test.py'},
+        }
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write generated code',
+            inputs_needed={'content': 'step_0.generated_code'},
+        )
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({}, step)
+        assert result.get('content') == 'print("hello")'
+
+    def test_io_contract_does_not_override_templates(self):
+        """If param already has a template, inputs_needed should not override it."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        outputs = {'step_0': {'text': 'resolved text'}}
+        step = AgenticStep(
+            'test', 'test_tool',
+            {'content': '${step_0.text}'},
+            'Test step',
+            inputs_needed={'content': 'step_0.text'},
+        )
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({'content': '${step_0.text}'}, step)
+        # Template resolution should take precedence
+        assert result['content'] == 'resolved text'
+
+    def test_is_template_detection(self):
+        """_is_template correctly identifies template references."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        assert ParameterResolver._is_template('${step_0.content}')
+        assert ParameterResolver._is_template('{step_0}')
+        assert not ParameterResolver._is_template('plain text')
+        assert not ParameterResolver._is_template(42)
+
+    def test_resolve_missing_path_scoped(self):
+        """_resolve_missing_path uses scoped resolution — no broadcast scan."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+
+        outputs = {
+            'step_0': {'content': 'wrong content from step 0', 'path': '/init.py'},
+            'step_1': {'content': 'correct content from step 1', 'path': '/stats.py'},
+        }
+        resolver = ParameterResolver(outputs)
+
+        # Should resolve step_1.content from exact match
+        result = resolver._resolve_missing_path('step_1.content')
+        assert result == 'correct content from step 1'
+
+        # Missing step_5 should return unresolved (not random content)
+        result = resolver._resolve_missing_path('step_5.content')
+        assert result == 'step_5.content'
+
+    def test_resolve_missing_path_adjacent_step(self):
+        """Adjacent step (N-1) is checked as fallback."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+
+        outputs = {
+            'step_0': {'generated_code': 'code content here', 'path': '/test.py'},
+        }
+        resolver = ParameterResolver(outputs)
+
+        # step_1.generated_code should find it from adjacent step_0
+        result = resolver._resolve_missing_path('step_1.generated_code')
+        assert result == 'code content here'
+
+    def test_scoped_auto_wire_with_depends_on(self):
+        """auto_wire scoping via depends_on narrows the search to dependency outputs."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        from Jotty.core.agents._execution_types import (
+            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
+        )
+
+        outputs = {
+            'step_0': {'content': '__init__.py content that should NOT be used'},
+            'step_1': {'content': 'stats.py real content from dependency'},
+        }
+        step = AgenticStep(
+            'file-operations', 'write_file_tool', {},
+            'Write stats.py',
+            depends_on=[1],
+        )
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='content', required=True),
+            ToolParam(name='path', required=True),
+        ])
+        resolver = ParameterResolver(outputs)
+        result = resolver.resolve({}, step, tool_schema=schema)
+        # Content should come from step_1 (dependency), not step_0
+        assert 'stats.py real content' in result.get('content', '')
+
+
+@pytest.mark.unit
+class TestSemanticParamResolver:
+    """Test DSPy-based semantic parameter resolver."""
+
+    def test_init_creates_resolver(self):
+        """SemanticParamResolver initializes without error."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        resolver = SemanticParamResolver()
+        assert resolver._matcher is None  # Lazy init
+
+    def test_non_high_stakes_returns_none(self):
+        """Non-high-stakes params (e.g. 'query') return None immediately."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        resolver = SemanticParamResolver()
+        result = resolver.resolve('query', 'Search for data', {'step_0': {'text': 'hello'}})
+        assert result is None
+
+    @patch('Jotty.core.agents.base.step_processors._DSPY_AVAILABLE', False)
+    def test_no_dspy_returns_none(self):
+        """Without DSPy, resolver returns None gracefully."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        resolver = SemanticParamResolver()
+        result = resolver.resolve('content', 'Write file', {'step_0': {'text': 'hello'}})
+        assert result is None
+
+    def test_high_stakes_with_mock_dspy(self):
+        """High-stakes param resolves when DSPy returns high-confidence match."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+
+        resolver = SemanticParamResolver()
+        mock_matcher = Mock()
+        mock_matcher.return_value = Mock(
+            best_source='step_0.text',
+            confidence=0.9,
+        )
+        resolver._matcher = mock_matcher
+
+        outputs = {'step_0': {'text': 'Generated code content'}}
+        result = resolver.resolve('content', 'Write the generated code to disk', outputs)
+        assert result == 'Generated code content'
+
+    def test_low_confidence_returns_none(self):
+        """Low confidence match returns None."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+
+        resolver = SemanticParamResolver()
+        mock_matcher = Mock()
+        mock_matcher.return_value = Mock(
+            best_source='step_0.text',
+            confidence=0.3,
+        )
+        resolver._matcher = mock_matcher
+
+        outputs = {'step_0': {'text': 'Some text'}}
+        result = resolver.resolve('content', 'Write the generated code', outputs)
+        assert result is None
+
+    def test_no_match_returns_none(self):
+        """NO_MATCH response returns None."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+
+        resolver = SemanticParamResolver()
+        mock_matcher = Mock()
+        mock_matcher.return_value = Mock(
+            best_source='NO_MATCH',
+            confidence=0.9,
+        )
+        resolver._matcher = mock_matcher
+
+        outputs = {'step_0': {'text': 'Some text'}}
+        result = resolver.resolve('content', 'Write the generated code', outputs)
+        assert result is None
+
+    def test_empty_outputs_returns_none(self):
+        """Empty outputs dict returns None."""
+        from Jotty.core.agents.base.step_processors import SemanticParamResolver
+        resolver = SemanticParamResolver()
+        resolver._matcher = Mock()  # Won't be called
+        result = resolver.resolve('content', 'Write file', {})
+        assert result is None
+
+
+@pytest.mark.unit
+class TestDependencyResultsInjection:
+    """Test _dependency_results injection in execute_step."""
+
+    def test_dependency_results_format(self):
+        """Verify dependency results are serialized as JSON into resolved params."""
+        outputs = {
+            'step_0': {'content': 'step 0 data', 'path': '/tmp/a.py'},
+            'step_1': {'results': [{'title': 'Result 1'}]},
+        }
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+        step = AgenticStep(
+            'claude-cli-llm', 'generate_text_tool',
+            {'prompt': 'Summarize the data'},
+            'Synthesize results',
+            depends_on=[0, 1],
+        )
+
+        # Simulate DEPENDENCY_RESULTS logic
+        dep_results = {}
+        for dep_idx in step.depends_on:
+            dep_key = f'step_{dep_idx}'
+            for k, v in outputs.items():
+                if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                    dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
+
+        assert 'step_0' in dep_results
+        assert 'step_1' in dep_results
+        serialized = json.dumps(dep_results, default=str)
+        assert 'step 0 data' in serialized
+        assert 'Result 1' in serialized
+
+
+@pytest.mark.unit
+class TestPlanParsingIOContracts:
+    """Test that _parse_plan_to_steps extracts inputs_needed/outputs_produced."""
+
+    def test_plan_step_with_io_contracts(self):
+        """Steps with I/O contracts have them parsed into ExecutionStep."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        # Simulate what _parse_plan_to_steps does
+        raw_inputs = {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
+        raw_outputs = ['generated_code', 'file_path']
+
+        inputs_needed = raw_inputs if isinstance(raw_inputs, dict) else {}
+        outputs_produced = raw_outputs if isinstance(raw_outputs, list) else []
+
+        step = AgenticStep(
+            skill_name='file-operations',
+            tool_name='write_file_tool',
+            params={'content': '${step_0.generated_code}'},
+            description='Write stats file',
+            inputs_needed=inputs_needed,
+            outputs_produced=outputs_produced,
+        )
+        assert step.inputs_needed == {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
+        assert step.outputs_produced == ['generated_code', 'file_path']
+
+    def test_plan_step_without_io_contracts(self):
+        """Steps without I/O contracts get empty defaults."""
+        from Jotty.core.agents._execution_types import ExecutionStep as AgenticStep
+
+        raw_inputs = None
+        raw_outputs = 'not_a_list'
+
+        inputs_needed = raw_inputs if isinstance(raw_inputs, dict) else {}
+        outputs_produced = raw_outputs if isinstance(raw_outputs, list) else []
+
+        step = AgenticStep(
+            skill_name='web-search',
+            tool_name='search_web_tool',
+            params={'query': 'test'},
+            description='Search',
+            inputs_needed=inputs_needed,
+            outputs_produced=outputs_produced,
+        )
+        assert step.inputs_needed == {}
+        assert step.outputs_produced == []
+
+
+@pytest.mark.unit
+class TestContentFieldScopingRegression:
+    """Regression tests: stats.py should NOT get __init__.py content."""
+
+    def test_scoped_auto_wire_prevents_wrong_content(self):
+        """auto_wire with scoped_keys prevents step_0 content leaking to step_2."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='content', required=True),
+            ToolParam(name='path', required=True),
+        ])
+        outputs = {
+            'step_0': {'content': '# __init__.py content\nfrom . import main', 'path': '__init__.py'},
+            'step_1': {'content': '# stats.py\nimport statistics\ndef mean(data): ...', 'path': 'stats.py'},
+        }
+
+        # Step 2 depends on step_1 only — should NOT get step_0's content
+        result = schema.auto_wire(
+            {'path': 'stats.py'}, outputs,
+            scoped_keys=['step_1'],
+        )
+        assert 'statistics' in result.get('content', '')
+        assert '__init__' not in result.get('content', '')
+
+    def test_unscoped_auto_wire_gets_most_recent(self):
+        """Without scoped_keys, auto_wire uses most recent (backward compat)."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        schema = ToolSchema('write_file_tool', params=[
+            ToolParam(name='content', required=True),
+        ])
+        outputs = {
+            'step_0': {'content': 'first content' + 'x' * 100},
+            'step_1': {'content': 'second content' + 'x' * 100},
+        }
+
+        # No scoped_keys — should get most recent (step_1)
+        result = schema.auto_wire({}, outputs, scoped_keys=None)
+        assert 'second content' in result.get('content', '')
+
+    def test_find_in_outputs_no_longer_scans_content_fields(self):
+        """Strategy 3 in _find_in_outputs no longer uses _CONTENT_FIELDS broadcast."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        schema = ToolSchema('test', params=[
+            ToolParam(name='content', required=True),
+        ])
+        outputs = {
+            'step_0': {
+                'response': 'This is a response field that used to be picked up by _CONTENT_FIELDS',
+            },
+        }
+        # With the new code, 'content' param looks for 'content' key directly,
+        # NOT for 'response' via _CONTENT_FIELDS scan
+        result = schema.auto_wire({}, outputs, scoped_keys=None)
+        # Should NOT find content via 'response' field anymore
+        assert 'content' not in result
 
 
 if __name__ == "__main__":

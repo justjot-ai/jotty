@@ -666,49 +666,6 @@ class SkillPlanExecutor:
                         logger.info(f"Path was directory '{_rp}' — appended "
                                    f"'{_rel_match.group(1)}' from step description")
 
-        # Content-from-previous-steps: ONLY for truly broken placeholder content.
-        # Only fires when content is an obvious stub/template that would be
-        # useless if written to disk, AND there's real data from previous steps.
-        # IMPORTANT: Do NOT match real code (import/def/class) — only match
-        # obviously broken placeholders like "# TODO" or short code-fence stubs.
-        if (step.skill_name == 'file-operations' and step.tool_name in ('write_file_tool',)
-                and 'content' in resolved_params and outputs):
-            _content = resolved_params['content']
-            _is_placeholder = (
-                _content.startswith('# TODO:')
-                or _content.startswith('# placeholder')
-                or (len(_content) < 80 and _content.strip().endswith('pass'))
-                or ('```' in _content and len(_content) < 150)
-                or _content.strip() == ''
-            )
-            if _is_placeholder:
-                # Look for data-rich outputs from previous steps
-                for _prev_key, _prev_out in reversed(list(outputs.items())):
-                    if not isinstance(_prev_out, dict):
-                        continue
-                    # Search results: format into readable report
-                    if 'results' in _prev_out and isinstance(_prev_out['results'], list):
-                        formatted = ToolResultProcessor._format_search_results(
-                            _prev_out['results'], _prev_out.get('query', '')
-                        )
-                        if formatted and len(formatted) > 100:
-                            resolved_params['content'] = formatted
-                            logger.info(f"Content wired from step '{_prev_key}' results "
-                                       f"({len(formatted)} chars, replacing placeholder)")
-                            break
-                    # Text/response output
-                    for _fk in ('response', 'text', 'content', 'output', 'result'):
-                        if _fk in _prev_out:
-                            _val = str(_prev_out[_fk])
-                            if len(_val) > 100 and not _val.startswith('{"success"'):
-                                resolved_params['content'] = _val
-                                logger.info(f"Content wired from step '{_prev_key}'.{_fk} "
-                                           f"({len(_val)} chars)")
-                                break
-                    else:
-                        continue
-                    break
-
         # Guard: calculator expression resolved to non-math text.
         # The ParameterResolver often auto-wires search query/results text
         # into the 'expression' param because it's the only string param.
@@ -822,6 +779,17 @@ class SkillPlanExecutor:
                         os.makedirs(os.path.dirname(_new_path), exist_ok=True)
                         resolved_params['path'] = _new_path
                         logger.info(f"Path corrected to include subdirectory: {_new_path}")
+
+        # Inject dependency outputs as DEPENDENCY_RESULTS context
+        if hasattr(step, 'depends_on') and step.depends_on and 'context' not in resolved_params:
+            dep_results = {}
+            for dep_idx in step.depends_on:
+                dep_key = f'step_{dep_idx}'
+                for k, v in outputs.items():
+                    if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                        dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
+            if dep_results:
+                resolved_params['_dependency_results'] = json.dumps(dep_results, default=str)
 
         # Log resolved params for debugging (especially file paths)
         if resolved_params and step.skill_name in ('file-operations', 'shell-exec', 'calculator'):

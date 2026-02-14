@@ -528,39 +528,46 @@ class ParameterResolver:
         return str(value)
 
     def _resolve_missing_path(self, path: str) -> str:
-        """Fallback resolution for missing output keys (common after replans)."""
+        """Step-scoped fallback resolution for missing output keys.
+
+        Resolution priority:
+        1. Exact step key match (step_N in outputs)
+        2. Adjacent step (N-1) for field lookup
+        3. Return unresolved path (not random content) so semantic fallback can handle it
+        """
         step_match = re.match(r'^step_(\d+)(?:\.(.+))?$', path)
         if not step_match or not self._outputs:
             return path
 
+        step_idx = int(step_match.group(1))
         field = step_match.group(2)
-        for k in reversed(list(self._outputs.keys())):
-            v = self._outputs[k]
-            if not isinstance(v, dict):
-                continue
-            if field and field in v:
-                cand = str(v[field])
-                if len(cand) > 50 or field == 'path':
-                    logger.info(f"Resolved missing '{path}' → '{k}'.{field}")
-                    return cand
-            for cf in self._CONTENT_FIELDS:
-                if cf in v:
-                    cand = str(v[cf])
-                    if len(cand) > 100 and not cand.strip().startswith('{"success"'):
-                        logger.info(f"Resolved missing '{path}' → '{k}'.{cf} ({len(cand)} chars)")
-                        return cand
 
-        # Last resort: raw last output
-        last_key = list(self._outputs.keys())[-1]
-        last_val = self._outputs[last_key]
-        if isinstance(last_val, dict):
-            for cf in self._CONTENT_FIELDS + ('path',):
-                if cf in last_val:
-                    logger.info(f"Resolved missing '{path}' → last '{last_key}'.{cf}")
-                    return str(last_val[cf])
-            logger.info(f"Resolved missing '{path}' → last output '{last_key}' (full)")
-            return json.dumps(last_val, default=str)
-        return str(last_val)
+        # Strategy 1: exact step key match
+        exact_key = f'step_{step_idx}'
+        if exact_key in self._outputs:
+            v = self._outputs[exact_key]
+            if isinstance(v, dict):
+                if field and field in v:
+                    logger.info(f"Resolved missing '{path}' -> '{exact_key}'.{field}")
+                    return str(v[field])
+                if not field:
+                    return json.dumps(v, default=str)
+            elif not field:
+                return str(v)
+
+        # Strategy 2: try adjacent step (N-1) only
+        adj_key = f'step_{step_idx - 1}' if step_idx > 0 else None
+        if adj_key and adj_key in self._outputs:
+            v = self._outputs[adj_key]
+            if isinstance(v, dict) and field and field in v:
+                cand = str(v[field])
+                if cand.strip():
+                    logger.info(f"Resolved missing '{path}' -> adjacent '{adj_key}'.{field}")
+                    return cand
+
+        # Strategy 3: return unresolved (no broad scan)
+        logger.warning(f"Could not resolve '{path}' — no matching step output found")
+        return path
 
     def _aggregate_research_outputs(self) -> str:
         """Aggregate all research_* outputs into a formatted string."""
@@ -721,7 +728,104 @@ class ToolResultProcessor:
         return cleaned
 
 
+# =============================================================================
+# SEMANTIC PARAMETER RESOLVER (DSPy-based fallback)
+# =============================================================================
+
+try:
+    import dspy
+    _DSPY_AVAILABLE = True
+except ImportError:
+    _DSPY_AVAILABLE = False
+
+
+if _DSPY_AVAILABLE:
+    class ParameterMatchSignature(dspy.Signature):
+        """Match a missing parameter to the best available data source by meaning."""
+        parameter_name: str = dspy.InputField(desc="Name of missing parameter")
+        parameter_purpose: str = dspy.InputField(desc="What the tool needs this for")
+        available_outputs: str = dspy.InputField(desc="JSON of available step outputs with previews")
+
+        best_source: str = dspy.OutputField(desc="Best source key (e.g., 'step_0.text') or 'NO_MATCH'")
+        confidence: float = dspy.OutputField(desc="0.0-1.0 confidence in the match")
+else:
+    ParameterMatchSignature = None  # type: ignore[assignment,misc]
+
+
+class SemanticParamResolver:
+    """DSPy-based fallback for when I/O contracts and templates fail.
+
+    Only called as a last-resort for high-stakes params (content/text/body).
+    Uses fast LM (Haiku) to minimize latency.
+    """
+
+    _CONFIDENCE_THRESHOLD = 0.7
+    _HIGH_STAKES_PARAMS = ('content', 'text', 'body', 'message')
+
+    def __init__(self):
+        self._matcher = None
+
+    def _ensure_matcher(self):
+        """Lazily initialize DSPy matcher to avoid import-time cost."""
+        if self._matcher is None and _DSPY_AVAILABLE and ParameterMatchSignature is not None:
+            self._matcher = dspy.Predict(ParameterMatchSignature)
+
+    def resolve(self, param_name: str, step_desc: str, outputs: Dict[str, Any]) -> Optional[Any]:
+        """Attempt semantic match. Returns value if confidence > threshold, else None.
+
+        Args:
+            param_name: Name of missing parameter
+            step_desc: Description of what the step does
+            outputs: All available step outputs
+
+        Returns:
+            Resolved value if confident match found, else None
+        """
+        if not _DSPY_AVAILABLE or param_name not in self._HIGH_STAKES_PARAMS:
+            return None
+
+        self._ensure_matcher()
+        if self._matcher is None:
+            return None
+
+        try:
+            previews = {}
+            for k, v in outputs.items():
+                if isinstance(v, dict):
+                    previews[k] = {
+                        sk: str(sv)[:200] for sk, sv in v.items()
+                        if isinstance(sv, (str, int, float, bool))
+                    }
+
+            if not previews:
+                return None
+
+            result = self._matcher(
+                parameter_name=param_name,
+                parameter_purpose=step_desc,
+                available_outputs=json.dumps(previews, default=str)
+            )
+
+            confidence = float(result.confidence) if result.confidence else 0.0
+            best_source = str(result.best_source).strip()
+
+            if confidence >= self._CONFIDENCE_THRESHOLD and best_source != 'NO_MATCH':
+                # Resolve the path from outputs
+                resolver = ParameterResolver(outputs)
+                val = resolver.resolve_path(best_source)
+                if val != best_source:  # Successfully resolved
+                    logger.info(f"Semantic resolver matched '{param_name}' -> '{best_source}' "
+                               f"(confidence={confidence:.2f})")
+                    return val
+        except Exception as e:
+            logger.debug(f"Semantic param resolver failed for '{param_name}': {e}")
+
+        return None
+
+
 __all__ = [
     'ParameterResolver',
     'ToolResultProcessor',
+    'SemanticParamResolver',
+    'ParameterMatchSignature',
 ]

@@ -92,7 +92,7 @@ async def get_pnl_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Calculating", "Computing P&L summary...")
 
-    result = client.get("/v2/get_pnl_summary", params={
+    result = client.post("/v2/get_pnl_summary", data={
         "period": params.get("period", "all"),
     })
     if not result.get("success"):
