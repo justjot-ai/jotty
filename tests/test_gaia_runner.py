@@ -188,7 +188,7 @@ class TestJottyGAIAAdapterPrompt:
         adapter = JottyGAIAAdapter()
         prompt = adapter._build_prompt("test question")
         assert GAIA_SYSTEM_PROMPT in prompt and "Question: test question" in prompt
-        assert "Use web search or read_file when needed to answer." in prompt
+        assert "web_search" in prompt and "voice_to_text_tool" in prompt
 
 
 @pytest.mark.unit

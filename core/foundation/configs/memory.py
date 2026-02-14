@@ -22,3 +22,43 @@ class MemoryConfig:
     synthesis_max_tokens: int = 800
     chunk_size: int = 500
     chunk_overlap: int = 50
+
+    def __post_init__(self):
+        # Positive capacity fields
+        _pos_fields = {
+            'episodic_capacity': self.episodic_capacity,
+            'semantic_capacity': self.semantic_capacity,
+            'procedural_capacity': self.procedural_capacity,
+            'meta_capacity': self.meta_capacity,
+            'causal_capacity': self.causal_capacity,
+            'max_entry_tokens': self.max_entry_tokens,
+            'rag_window_size': self.rag_window_size,
+            'rag_max_candidates': self.rag_max_candidates,
+            'synthesis_fetch_size': self.synthesis_fetch_size,
+            'synthesis_max_tokens': self.synthesis_max_tokens,
+            'chunk_size': self.chunk_size,
+        }
+        for name, val in _pos_fields.items():
+            if val < 1:
+                raise ValueError(f"{name} must be >= 1, got {val}")
+
+        # Unit interval [0, 1]
+        if not (0.0 <= self.rag_relevance_threshold <= 1.0):
+            raise ValueError(
+                f"rag_relevance_threshold must be in [0, 1], got {self.rag_relevance_threshold}"
+            )
+
+        # chunk_overlap must be non-negative and less than chunk_size
+        if self.chunk_overlap < 0:
+            raise ValueError(f"chunk_overlap must be >= 0, got {self.chunk_overlap}")
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError(
+                f"chunk_overlap ({self.chunk_overlap}) must be < chunk_size ({self.chunk_size})"
+            )
+
+        # retrieval_mode validation
+        valid_modes = {"synthesize", "raw", "ranked"}
+        if self.retrieval_mode not in valid_modes:
+            raise ValueError(
+                f"retrieval_mode must be one of {valid_modes}, got '{self.retrieval_mode}'"
+            )

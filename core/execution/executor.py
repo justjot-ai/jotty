@@ -347,6 +347,10 @@ class TierExecutor:
         start_time = time.time()
         config = config or self.config
 
+        # Pop GAIA-specific kwargs early so they don't leak to tiers that don't expect them
+        _skip_complexity_gate = kwargs.pop('skip_complexity_gate', False)
+        _hint_skills = kwargs.pop('hint_skills', [])
+
         # Auto-detect tier if not specified
         if config.tier is None:
             config.tier = await self._detector.adetect(goal)
@@ -364,7 +368,12 @@ class TierExecutor:
                 if config.tier == ExecutionTier.DIRECT:
                     result = await self._execute_tier1(goal, config, status_callback, **kwargs)
                 elif config.tier == ExecutionTier.AGENTIC:
-                    result = await self._execute_tier2(goal, config, status_callback, **kwargs)
+                    result = await self._execute_tier2(
+                        goal, config, status_callback,
+                        skip_complexity_gate=_skip_complexity_gate,
+                        hint_skills=_hint_skills,
+                        **kwargs,
+                    )
                 elif config.tier == ExecutionTier.LEARNING:
                     result = await self._execute_tier3(goal, config, status_callback, **kwargs)
                 elif config.tier == ExecutionTier.AUTONOMOUS:

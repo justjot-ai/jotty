@@ -22,3 +22,26 @@ class ExecutionConfig:
     torch_seed: Optional[int] = None
     python_hash_seed: Optional[int] = None
     enable_deterministic: bool = True
+
+    def __post_init__(self):
+        # Positive integer limits
+        _pos_int_fields = {
+            'max_actor_iters': self.max_actor_iters,
+            'max_eval_iters': self.max_eval_iters,
+            'max_episode_iterations': self.max_episode_iterations,
+            'max_concurrent_agents': self.max_concurrent_agents,
+            'max_eval_retries': self.max_eval_retries,
+        }
+        for name, val in _pos_int_fields.items():
+            if val < 1:
+                raise ValueError(f"{name} must be >= 1, got {val}")
+
+        # Positive timeout fields
+        _pos_float_fields = {
+            'async_timeout': self.async_timeout,
+            'actor_timeout': self.actor_timeout,
+            'llm_timeout_seconds': self.llm_timeout_seconds,
+        }
+        for name, val in _pos_float_fields.items():
+            if val <= 0:
+                raise ValueError(f"{name} must be > 0, got {val}")

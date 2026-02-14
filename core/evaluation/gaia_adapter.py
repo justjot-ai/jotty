@@ -273,6 +273,10 @@ class JottyGAIAAdapter:
         # Inject explicit skills so the planner has voice/whisper/search available
         run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
 
+        # Force Orchestrator to use full agent pipeline (Sonnet + web search)
+        # instead of fast path (Haiku direct call) for non-attachment tasks
+        run_kwargs['skip_validation'] = False
+
         result = self._run_async(prompt, **run_kwargs)
         self.last_result = result
 

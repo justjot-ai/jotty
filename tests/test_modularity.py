@@ -206,9 +206,9 @@ class TestSwarmConfigBridge:
 
     def test_to_context_budget_config(self):
         from Jotty.core.foundation.data_structures import SwarmConfig
-        cfg = SwarmConfig(max_context_tokens=50000)
+        cfg = SwarmConfig(max_context_tokens=200000)
         ctx = cfg.to_context_budget_config()
-        assert ctx.max_context_tokens == 50000
+        assert ctx.max_context_tokens == 200000
 
     def test_to_validation_config(self):
         from Jotty.core.foundation.data_structures import SwarmConfig
@@ -643,3 +643,335 @@ class TestOrchestrationSubBoundaries:
             assert len(deps) == 0, "llm_providers should be a leaf"
         finally:
             sys.path.pop(0)
+
+
+# =============================================================================
+# Part C: Thread Safety for Facade Singletons
+# =============================================================================
+
+@pytest.mark.unit
+class TestFacadeThreadSafety:
+    """Verify facade files have thread-safe singleton patterns."""
+
+    def test_memory_facade_has_lock(self):
+        """memory/facade.py uses threading.Lock for singletons."""
+        import Jotty.core.memory.facade as mf
+        assert hasattr(mf, '_lock'), "memory facade missing _lock"
+        assert hasattr(mf, '_singletons'), "memory facade missing _singletons"
+        import threading
+        assert isinstance(mf._lock, type(threading.Lock()))
+
+    def test_orchestration_facade_has_lock(self):
+        """orchestration/facade.py uses threading.Lock for singletons."""
+        import Jotty.core.orchestration.facade as of
+        assert hasattr(of, '_lock'), "orchestration facade missing _lock"
+        assert hasattr(of, '_singletons'), "orchestration facade missing _singletons"
+        import threading
+        assert isinstance(of._lock, type(threading.Lock()))
+
+    def test_utils_facade_has_lock(self):
+        """utils/facade.py uses threading.Lock for singletons."""
+        import Jotty.core.utils.facade as uf
+        assert hasattr(uf, '_lock'), "utils facade missing _lock"
+        assert hasattr(uf, '_singletons'), "utils facade missing _singletons"
+        import threading
+        assert isinstance(uf._lock, type(threading.Lock()))
+
+    def test_memory_facade_returns_same_instance(self):
+        """get_memory_system() returns same singleton across calls."""
+        import Jotty.core.memory.facade as mf
+        mf._singletons.clear()
+        ms1 = mf.get_memory_system()
+        ms2 = mf.get_memory_system()
+        assert ms1 is ms2
+
+    def test_orchestration_facade_returns_same_instance(self):
+        """get_ensemble_manager() returns same singleton across calls."""
+        import Jotty.core.orchestration.facade as of
+        of._singletons.clear()
+        em1 = of.get_ensemble_manager()
+        em2 = of.get_ensemble_manager()
+        assert em1 is em2
+
+    def test_orchestration_facade_config_bypass(self):
+        """get_swarm_intelligence(config=...) bypasses cache."""
+        import Jotty.core.orchestration.facade as of
+        of._singletons.clear()
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        si1 = of.get_swarm_intelligence()
+        si2 = of.get_swarm_intelligence(config=SwarmConfig())
+        assert si1 is not si2  # Config-parameterized call returns fresh instance
+
+    def test_budget_tracker_thread_safe_singleton(self):
+        """BudgetTracker.get_instance() has class-level lock."""
+        from Jotty.core.utils.budget_tracker import BudgetTracker
+        import threading
+        assert hasattr(BudgetTracker, '_instances_lock')
+        assert isinstance(BudgetTracker._instances_lock, type(threading.Lock()))
+
+    def test_llm_cache_thread_safe_singleton(self):
+        """LLMCallCache.get_instance() has class-level lock."""
+        from Jotty.core.utils.llm_cache import LLMCallCache
+        import threading
+        assert hasattr(LLMCallCache, '_instances_lock')
+        assert isinstance(LLMCallCache._instances_lock, type(threading.Lock()))
+
+    def test_concurrent_memory_facade_access(self):
+        """Multiple threads getting memory system don't race."""
+        import Jotty.core.memory.facade as mf
+        import threading
+        mf._singletons.clear()
+        results = []
+        errors = []
+
+        def _get():
+            try:
+                results.append(mf.get_memory_system())
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=_get) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+
+        assert len(errors) == 0, f"Errors during concurrent access: {errors}"
+        assert len(results) == 8
+        # All threads got the same singleton
+        assert all(r is results[0] for r in results)
+
+    def test_concurrent_budget_tracker_access(self):
+        """Multiple threads getting budget tracker don't race."""
+        from Jotty.core.utils.budget_tracker import BudgetTracker
+        import threading
+        BudgetTracker.reset_instances()
+        results = []
+        errors = []
+
+        def _get():
+            try:
+                results.append(BudgetTracker.get_instance("concurrent_test"))
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=_get) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=10)
+
+        assert len(errors) == 0, f"Errors during concurrent access: {errors}"
+        assert len(results) == 8
+        assert all(r is results[0] for r in results)
+        BudgetTracker.reset_instances()
+
+
+# =============================================================================
+# Config Validation (__post_init__)
+# =============================================================================
+
+@pytest.mark.unit
+class TestConfigValidation:
+    """Validate __post_init__ on all focused config dataclasses."""
+
+    # --- LearningConfig ---
+
+    def test_learning_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        cfg = LearningConfig()  # Should not raise
+        assert cfg.gamma == 0.99
+
+    def test_learning_config_gamma_out_of_range(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="gamma"):
+            LearningConfig(gamma=1.5)
+
+    def test_learning_config_gamma_negative(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="gamma"):
+            LearningConfig(gamma=-0.1)
+
+    def test_learning_config_alpha_min_gt_max(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="alpha_min"):
+            LearningConfig(alpha_min=0.5, alpha_max=0.1)
+
+    def test_learning_config_epsilon_end_gt_start(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="epsilon_end"):
+            LearningConfig(epsilon_end=0.5, epsilon_start=0.1)
+
+    def test_learning_config_replay_gt_buffer(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="replay_batch_size"):
+            LearningConfig(replay_batch_size=2000, episode_buffer_size=100)
+
+    def test_learning_config_negative_q_table(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        with pytest.raises(ValueError, match="max_q_table_size"):
+            LearningConfig(max_q_table_size=0)
+
+    def test_learning_config_valid_custom(self):
+        from Jotty.core.foundation.configs import LearningConfig
+        cfg = LearningConfig(
+            gamma=0.5, alpha=0.05, alpha_min=0.01, alpha_max=0.1,
+            epsilon_start=0.5, epsilon_end=0.01,
+            replay_batch_size=10, episode_buffer_size=100,
+        )
+        assert cfg.gamma == 0.5
+
+    # --- MemoryConfig ---
+
+    def test_memory_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import MemoryConfig
+        cfg = MemoryConfig()  # Should not raise
+        assert cfg.episodic_capacity == 1000
+
+    def test_memory_config_zero_capacity(self):
+        from Jotty.core.foundation.configs import MemoryConfig
+        with pytest.raises(ValueError, match="episodic_capacity"):
+            MemoryConfig(episodic_capacity=0)
+
+    def test_memory_config_bad_threshold(self):
+        from Jotty.core.foundation.configs import MemoryConfig
+        with pytest.raises(ValueError, match="rag_relevance_threshold"):
+            MemoryConfig(rag_relevance_threshold=1.5)
+
+    def test_memory_config_chunk_overlap_gte_size(self):
+        from Jotty.core.foundation.configs import MemoryConfig
+        with pytest.raises(ValueError, match="chunk_overlap"):
+            MemoryConfig(chunk_overlap=500, chunk_size=500)
+
+    def test_memory_config_bad_retrieval_mode(self):
+        from Jotty.core.foundation.configs import MemoryConfig
+        with pytest.raises(ValueError, match="retrieval_mode"):
+            MemoryConfig(retrieval_mode="invalid")
+
+    # --- ContextBudgetConfig ---
+
+    def test_context_budget_defaults_valid(self):
+        from Jotty.core.foundation.configs import ContextBudgetConfig
+        cfg = ContextBudgetConfig()  # Should not raise
+        assert cfg.max_context_tokens == 100000
+
+    def test_context_budget_min_gt_max_memory(self):
+        from Jotty.core.foundation.configs import ContextBudgetConfig
+        with pytest.raises(ValueError, match="min_memory_budget"):
+            ContextBudgetConfig(min_memory_budget=70000, max_memory_budget=50000)
+
+    def test_context_budget_sum_exceeds_max(self):
+        from Jotty.core.foundation.configs import ContextBudgetConfig
+        with pytest.raises(ValueError, match="Sum of static budgets"):
+            ContextBudgetConfig(
+                max_context_tokens=10000,
+                system_prompt_budget=5000,
+                current_input_budget=5000,
+                trajectory_budget=5000,
+                tool_output_budget=5000,
+            )
+
+    def test_context_budget_zero_budget(self):
+        from Jotty.core.foundation.configs import ContextBudgetConfig
+        with pytest.raises(ValueError, match="system_prompt_budget"):
+            ContextBudgetConfig(system_prompt_budget=0)
+
+    # --- ExecutionConfig ---
+
+    def test_execution_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import ExecutionConfig
+        cfg = ExecutionConfig()
+        assert cfg.max_actor_iters == 50
+
+    def test_execution_config_zero_iters(self):
+        from Jotty.core.foundation.configs import ExecutionConfig
+        with pytest.raises(ValueError, match="max_actor_iters"):
+            ExecutionConfig(max_actor_iters=0)
+
+    def test_execution_config_negative_timeout(self):
+        from Jotty.core.foundation.configs import ExecutionConfig
+        with pytest.raises(ValueError, match="async_timeout"):
+            ExecutionConfig(async_timeout=-1.0)
+
+    # --- PersistenceConfig ---
+
+    def test_persistence_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import PersistenceConfig
+        cfg = PersistenceConfig()
+        assert cfg.storage_format == "json"
+
+    def test_persistence_config_bad_format(self):
+        from Jotty.core.foundation.configs import PersistenceConfig
+        with pytest.raises(ValueError, match="storage_format"):
+            PersistenceConfig(storage_format="xml")
+
+    def test_persistence_config_zero_interval(self):
+        from Jotty.core.foundation.configs import PersistenceConfig
+        with pytest.raises(ValueError, match="auto_save_interval"):
+            PersistenceConfig(auto_save_interval=0)
+
+    # --- ValidationConfig ---
+
+    def test_validation_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import ValidationConfig
+        cfg = ValidationConfig()
+        assert cfg.enable_validation is True
+
+    def test_validation_config_bad_confidence(self):
+        from Jotty.core.foundation.configs import ValidationConfig
+        with pytest.raises(ValueError, match="min_confidence"):
+            ValidationConfig(min_confidence=2.0)
+
+    def test_validation_config_bad_mode(self):
+        from Jotty.core.foundation.configs import ValidationConfig
+        with pytest.raises(ValueError, match="validation_mode"):
+            ValidationConfig(validation_mode="turbo")
+
+    def test_validation_config_negative_timeout(self):
+        from Jotty.core.foundation.configs import ValidationConfig
+        with pytest.raises(ValueError, match="refinement_timeout"):
+            ValidationConfig(refinement_timeout=-5.0)
+
+    # --- MonitoringConfig ---
+
+    def test_monitoring_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import MonitoringConfig
+        cfg = MonitoringConfig()
+        assert cfg.log_level == "INFO"
+
+    def test_monitoring_config_bad_log_level(self):
+        from Jotty.core.foundation.configs import MonitoringConfig
+        with pytest.raises(ValueError, match="log_level"):
+            MonitoringConfig(log_level="VERBOSE")
+
+    def test_monitoring_config_bad_threshold(self):
+        from Jotty.core.foundation.configs import MonitoringConfig
+        with pytest.raises(ValueError, match="budget_warning_threshold"):
+            MonitoringConfig(budget_warning_threshold=1.5)
+
+    def test_monitoring_config_negative_verbose(self):
+        from Jotty.core.foundation.configs import MonitoringConfig
+        with pytest.raises(ValueError, match="verbose"):
+            MonitoringConfig(verbose=-1)
+
+    def test_monitoring_config_bad_baseline_cost(self):
+        from Jotty.core.foundation.configs import MonitoringConfig
+        with pytest.raises(ValueError, match="baseline_cost_per_success"):
+            MonitoringConfig(baseline_cost_per_success=-0.5)
+
+    # --- IntelligenceConfig ---
+
+    def test_intelligence_config_defaults_valid(self):
+        from Jotty.core.foundation.configs import IntelligenceConfig
+        cfg = IntelligenceConfig()
+        assert cfg.trust_min == 0.1
+
+    def test_intelligence_config_bad_trust(self):
+        from Jotty.core.foundation.configs import IntelligenceConfig
+        with pytest.raises(ValueError, match="trust_min"):
+            IntelligenceConfig(trust_min=1.5)
+
+    def test_intelligence_config_zero_budget(self):
+        from Jotty.core.foundation.configs import IntelligenceConfig
+        with pytest.raises(ValueError, match="memory_retrieval_budget"):
+            IntelligenceConfig(memory_retrieval_budget=0)

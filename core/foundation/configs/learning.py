@@ -85,3 +85,77 @@ class LearningConfig:
     protected_memory_threshold: float = 0.8
     suspicion_threshold: float = 0.95
     min_rejection_rate: float = 0.05
+
+    def __post_init__(self):
+        # --- Probability / ratio fields: must be in [0, 1] ---
+        _unit_fields = {
+            'learning_alpha': self.learning_alpha,
+            'learning_gamma': self.learning_gamma,
+            'learning_epsilon': self.learning_epsilon,
+            'q_prune_percentage': self.q_prune_percentage,
+            'gamma': self.gamma,
+            'lambda_trace': self.lambda_trace,
+            'alpha': self.alpha,
+            'alpha_min': self.alpha_min,
+            'alpha_max': self.alpha_max,
+            'alpha_adaptation_rate': self.alpha_adaptation_rate,
+            'base_reward_weight': self.base_reward_weight,
+            'cooperation_bonus': self.cooperation_bonus,
+            'predictability_bonus': self.predictability_bonus,
+            'slow_learning_threshold': self.slow_learning_threshold,
+            'goal_transfer_discount': self.goal_transfer_discount,
+            'epsilon_start': self.epsilon_start,
+            'epsilon_end': self.epsilon_end,
+            'credit_decay': self.credit_decay,
+            'min_contribution': self.min_contribution,
+            'reasoning_weight': self.reasoning_weight,
+            'evidence_weight': self.evidence_weight,
+            'pattern_confidence_threshold': self.pattern_confidence_threshold,
+            'similarity_threshold': self.similarity_threshold,
+            'goal_transfer_weight': self.goal_transfer_weight,
+            'causal_confidence_threshold': self.causal_confidence_threshold,
+            'protected_memory_threshold': self.protected_memory_threshold,
+            'suspicion_threshold': self.suspicion_threshold,
+            'min_rejection_rate': self.min_rejection_rate,
+            'stall_threshold': self.stall_threshold,
+            'exploration_boost_on_stall': self.exploration_boost_on_stall,
+        }
+        for name, val in _unit_fields.items():
+            if not (0.0 <= val <= 1.0):
+                raise ValueError(f"{name} must be in [0, 1], got {val}")
+
+        # --- Positive integer fields ---
+        _pos_int_fields = {
+            'max_q_table_size': self.max_q_table_size,
+            'adaptive_window_size': self.adaptive_window_size,
+            'epsilon_decay_episodes': self.epsilon_decay_episodes,
+            'max_exploration_iterations': self.max_exploration_iterations,
+            'policy_update_threshold': self.policy_update_threshold,
+            'consolidation_threshold': self.consolidation_threshold,
+            'consolidation_interval': self.consolidation_interval,
+            'min_cluster_size': self.min_cluster_size,
+            'episode_buffer_size': self.episode_buffer_size,
+            'offline_update_interval': self.offline_update_interval,
+            'replay_batch_size': self.replay_batch_size,
+            'counterfactual_samples': self.counterfactual_samples,
+            'stall_detection_window': self.stall_detection_window,
+            'causal_min_support': self.causal_min_support,
+        }
+        for name, val in _pos_int_fields.items():
+            if val < 1:
+                raise ValueError(f"{name} must be >= 1, got {val}")
+
+        # --- Ordering constraints ---
+        if self.alpha_min > self.alpha_max:
+            raise ValueError(
+                f"alpha_min ({self.alpha_min}) must be <= alpha_max ({self.alpha_max})"
+            )
+        if self.epsilon_end > self.epsilon_start:
+            raise ValueError(
+                f"epsilon_end ({self.epsilon_end}) must be <= epsilon_start ({self.epsilon_start})"
+            )
+        if self.replay_batch_size > self.episode_buffer_size:
+            raise ValueError(
+                f"replay_batch_size ({self.replay_batch_size}) must be "
+                f"<= episode_buffer_size ({self.episode_buffer_size})"
+            )

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
-from ..base_swarm import SwarmConfig, SwarmResult
+from ..swarm_types import SwarmBaseConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class TeachingMode(Enum):
 # =============================================================================
 
 @dataclass
-class OlympiadLearningConfig(SwarmConfig):
+class OlympiadLearningConfig(SwarmBaseConfig):
     """Configuration for OlympiadLearningSwarm."""
 
     # Core parameters

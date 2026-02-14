@@ -24,3 +24,38 @@ class ValidationConfig:
     refinement_on_low_confidence: float = 0.6
     refinement_on_disagreement: bool = True
     max_refinement_rounds: int = 2
+
+    def __post_init__(self):
+        # Confidence/threshold fields: [0, 1]
+        _unit_fields = {
+            'swarm_validation_confidence_threshold': self.swarm_validation_confidence_threshold,
+            'min_confidence': self.min_confidence,
+            'default_confidence_on_error': self.default_confidence_on_error,
+            'default_confidence_no_validation': self.default_confidence_no_validation,
+            'default_confidence_insight_share': self.default_confidence_insight_share,
+            'default_estimated_reward': self.default_estimated_reward,
+            'refinement_on_low_confidence': self.refinement_on_low_confidence,
+        }
+        for name, val in _unit_fields.items():
+            if not (0.0 <= val <= 1.0):
+                raise ValueError(f"{name} must be in [0, 1], got {val}")
+
+        # Positive integers
+        _pos_int_fields = {
+            'max_validation_rounds': self.max_validation_rounds,
+            'max_refinement_rounds': self.max_refinement_rounds,
+        }
+        for name, val in _pos_int_fields.items():
+            if val < 1:
+                raise ValueError(f"{name} must be >= 1, got {val}")
+
+        # Positive timeout
+        if self.refinement_timeout <= 0:
+            raise ValueError(f"refinement_timeout must be > 0, got {self.refinement_timeout}")
+
+        # Validation mode
+        valid_modes = {"full", "quick", "none"}
+        if self.validation_mode not in valid_modes:
+            raise ValueError(
+                f"validation_mode must be one of {valid_modes}, got '{self.validation_mode}'"
+            )

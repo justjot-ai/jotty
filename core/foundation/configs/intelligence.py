@@ -23,3 +23,30 @@ class IntelligenceConfig:
     max_messages_per_episode: int = 20
     local_mode: bool = False
     local_model: str = "ollama/llama3"
+
+    def __post_init__(self):
+        # Unit interval [0, 1] fields
+        _unit_fields = {
+            'trust_decrease_on_struggle': self.trust_decrease_on_struggle,
+            'trust_increase_on_excel': self.trust_increase_on_excel,
+            'trust_min': self.trust_min,
+            'adaptation_struggle_threshold': self.adaptation_struggle_threshold,
+            'adaptation_excel_threshold': self.adaptation_excel_threshold,
+            'stigmergy_routing_threshold': self.stigmergy_routing_threshold,
+            'morph_min_rcs': self.morph_min_rcs,
+            'judge_intervention_confidence': self.judge_intervention_confidence,
+        }
+        for name, val in _unit_fields.items():
+            if not (0.0 <= val <= 1.0):
+                raise ValueError(f"{name} must be in [0, 1], got {val}")
+
+        # Positive integer fields
+        _pos_int_fields = {
+            'adaptation_interval': self.adaptation_interval,
+            'memory_retrieval_budget': self.memory_retrieval_budget,
+            'collective_memory_limit': self.collective_memory_limit,
+            'max_messages_per_episode': self.max_messages_per_episode,
+        }
+        for name, val in _pos_int_fields.items():
+            if val < 1:
+                raise ValueError(f"{name} must be >= 1, got {val}")
