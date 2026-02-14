@@ -638,6 +638,20 @@ class SkillPlanExecutor:
                             resolved_params['path'] = _correct_path
                     break
 
+        # Guard: strip LLM preamble and code fences from file content.
+        # LLM tools return "I'll create a script...\n```python\ncode\n```"
+        # which must be stripped before writing to a file.
+        if (step.skill_name == 'file-operations'
+                and step.tool_name in ('write_file_tool',)
+                and 'content' in resolved_params):
+            _content = resolved_params['content']
+            if isinstance(_content, str) and '```' in _content:
+                _extracted = ParameterResolver._extract_code_from_fences(_content)
+                if _extracted != _content:
+                    resolved_params['content'] = _extracted
+                    logger.info(f"Stripped LLM preamble/fences from file content "
+                               f"({len(_content)} → {len(_extracted)} chars)")
+
         # Guard: if resolved path is a directory, the planner likely passed
         # ${prev_step.path} (a dir) instead of a full file path.  Extract the
         # correct file path from the step description.

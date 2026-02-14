@@ -57,7 +57,7 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Auto-recovery: look for a recently written .py file in cwd
         import glob as _glob
         import time as _time
-        _cwd = cwd or os.getcwd()
+        _cwd = working_directory or os.getcwd()
         _recent_py = sorted(
             _glob.glob(os.path.join(_cwd, '*.py')),
             key=os.path.getmtime, reverse=True

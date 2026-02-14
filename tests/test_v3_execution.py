@@ -6481,6 +6481,219 @@ class TestRealWorldEdgeCases:
         assert len(serialized) < 1000
 
 
+# =============================================================================
+# CODE FENCE EXTRACTION TESTS
+# =============================================================================
+
+
+@pytest.mark.unit
+class TestCodeFenceExtraction:
+    """Test ParameterResolver._extract_code_from_fences() for LLM preamble stripping."""
+
+    def _extract(self, value: str) -> str:
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        return ParameterResolver._extract_code_from_fences(value)
+
+    def test_no_fences_returns_original(self):
+        """Plain text with no code fences is returned unchanged."""
+        code = "def hello():\n    print('world')\n"
+        assert self._extract(code) == code
+
+    def test_fences_without_preamble_returns_original(self):
+        """Code fences without conversational preamble are returned unchanged."""
+        value = "```python\ndef hello():\n    print('world')\n```"
+        assert self._extract(value) == value
+
+    def test_single_fence_with_preamble_extracts_code(self):
+        """LLM response with preamble + single code block extracts just the code."""
+        value = (
+            "I'll create a Python script that calculates compound interest.\n\n"
+            "```python\n"
+            "def compound_interest(principal, rate, years):\n"
+            "    return principal * (1 + rate) ** years\n"
+            "```\n\n"
+            "This script calculates compound interest over time."
+        )
+        result = self._extract(value)
+        assert result.startswith("def compound_interest")
+        assert "I'll create" not in result
+        assert "```" not in result
+        assert "This script calculates" not in result
+
+    def test_preamble_with_here_is(self):
+        """Detects 'Here is' preamble pattern."""
+        value = (
+            "Here is the implementation you requested:\n\n"
+            "```python\n"
+            "import os\nprint(os.getcwd())\n"
+            "```"
+        )
+        result = self._extract(value)
+        assert result == "import os\nprint(os.getcwd())"
+
+    def test_preamble_with_sure(self):
+        """Detects 'Sure, ...' preamble pattern."""
+        value = (
+            "Sure, here's a weather fetcher script:\n\n"
+            "```python\n"
+            "import requests\nresponse = requests.get('http://example.com')\n"
+            "```"
+        )
+        result = self._extract(value)
+        assert "Sure" not in result
+        assert result.startswith("import requests")
+
+    def test_multiple_code_blocks_concatenated(self):
+        """Multiple code blocks in LLM response are concatenated."""
+        value = (
+            "I'll create two functions for you:\n\n"
+            "```python\n"
+            "def add(a, b):\n    return a + b\n"
+            "```\n\n"
+            "And another one:\n\n"
+            "```python\n"
+            "def multiply(a, b):\n    return a * b\n"
+            "```"
+        )
+        result = self._extract(value)
+        assert "def add" in result
+        assert "def multiply" in result
+        assert "I'll create" not in result
+
+    def test_language_tag_stripped(self):
+        """Code fence language tags (```python) are stripped."""
+        value = (
+            "Let me write this for you:\n\n"
+            "```javascript\n"
+            "const x = 42;\nconsole.log(x);\n"
+            "```"
+        )
+        result = self._extract(value)
+        assert result == "const x = 42;\nconsole.log(x);"
+
+    def test_short_preamble_not_stripped(self):
+        """Very short text before fences (< 10 chars) is not treated as preamble."""
+        value = "Code:\n```python\nprint('hi')\n```"
+        # "Code:" is only 5 chars — below threshold
+        assert self._extract(value) == value
+
+    def test_non_preamble_text_not_stripped(self):
+        """Text before fences that doesn't match preamble indicators is kept."""
+        value = (
+            "## Configuration Reference\n\n"
+            "```yaml\n"
+            "key: value\n"
+            "```"
+        )
+        # "## Configuration Reference" doesn't match any preamble indicator
+        assert self._extract(value) == value
+
+    def test_empty_code_block_not_extracted(self):
+        """Empty code blocks are not extracted."""
+        value = "I'll create a script:\n\n```python\n```"
+        # The block is empty — should return original
+        assert self._extract(value) == value
+
+    def test_sanitize_content_calls_extraction(self):
+        """_sanitize_content_param integrates code fence extraction."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        value = (
+            "I'll create a calculator:\n\n"
+            "```python\n"
+            "result = 2 + 2\nprint(result)\n"
+            "```"
+        )
+        result = resolver._sanitize_content_param('content', value)
+        assert result == "result = 2 + 2\nprint(result)"
+
+    def test_non_content_key_skips_extraction(self):
+        """_sanitize_content_param only applies to 'content' key."""
+        from Jotty.core.agents.base.step_processors import ParameterResolver
+        resolver = ParameterResolver({})
+        value = "I'll create: ```python\ncode\n```"
+        result = resolver._sanitize_content_param('query', value)
+        assert result == value  # Unchanged for non-content keys
+
+
+@pytest.mark.unit
+class TestCodeFenceExtractionInExecuteStep:
+    """Test that code fence extraction works in the execute_step pipeline."""
+
+    @pytest.mark.asyncio
+    async def test_file_write_strips_fences(self):
+        """file-operations/write_file_tool strips LLM preamble from content."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.agents._execution_types import ExecutionStep as AgentStep
+
+        mock_registry = MagicMock()
+        mock_skill = MagicMock()
+        mock_tool = MagicMock(return_value={'success': True, 'path': '/tmp/test.py'})
+        mock_skill.tools = {'write_file_tool': mock_tool}
+        mock_skill.get_tool_schema.return_value = None
+        mock_registry.get_skill.return_value = mock_skill
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = AgentStep(
+            skill_name='file-operations',
+            tool_name='write_file_tool',
+            params={
+                'path': '/tmp/test.py',
+                'content': (
+                    "I'll create a test script:\n\n"
+                    "```python\n"
+                    "print('hello world')\n"
+                    "```\n\n"
+                    "This prints hello world."
+                ),
+            },
+            description='Write test.py',
+        )
+
+        await executor.execute_step(step, {})
+
+        # Verify the tool was called with extracted code, not full LLM response
+        call_args = mock_tool.call_args[0][0]
+        assert "I'll create" not in call_args.get('content', '')
+        assert "```" not in call_args.get('content', '')
+        assert "print('hello world')" in call_args.get('content', '')
+
+
+@pytest.mark.unit
+class TestShellExecCwdFix:
+    """Regression test for shell-exec cwd UnboundLocalError."""
+
+    def test_cwd_not_referenced_before_assignment(self):
+        """Verify the shell-exec tool doesn't reference cwd before assignment."""
+        import ast
+        tools_path = Path(__file__).parent.parent / 'skills' / 'shell-exec' / 'tools.py'
+        if not tools_path.exists():
+            pytest.skip("shell-exec tools.py not found")
+
+        source = tools_path.read_text()
+        # Parse the AST and check that `cwd` is not used before its assignment
+        # in execute_command_tool. We verify by checking the source doesn't
+        # contain `= cwd or` before the `cwd = None` line.
+        lines = source.split('\n')
+        cwd_assignment_line = None
+        cwd_usage_line = None
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped == 'cwd = None':
+                cwd_assignment_line = i
+            if 'working_directory or os.getcwd()' in stripped and cwd_usage_line is None:
+                cwd_usage_line = i
+
+        # The usage should reference working_directory, not cwd
+        assert cwd_usage_line is not None, "Expected working_directory reference in NL guard"
+        if cwd_assignment_line:
+            # Usage should come before assignment (it's in the NL guard block)
+            # and should NOT reference `cwd` variable
+            for i, line in enumerate(lines, 1):
+                if i < (cwd_assignment_line or 999) and '= cwd or' in line:
+                    pytest.fail(f"Line {i} references 'cwd' before assignment on line {cwd_assignment_line}")
+
+
 if __name__ == "__main__":
     import sys
     if "--integration" in sys.argv:

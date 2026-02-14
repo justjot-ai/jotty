@@ -395,9 +395,18 @@ class ParameterResolver:
         return value
 
     def _sanitize_content_param(self, key: str, value: str) -> str:
-        """Detect 'content' params that resolved to wrong values."""
+        """Detect 'content' params that resolved to wrong values.
+
+        Also extracts code from LLM responses that contain preamble + code fences.
+        """
         if key != 'content':
             return value
+
+        # First: extract code from LLM responses with code fences
+        extracted = self._extract_code_from_fences(value)
+        if extracted != value:
+            logger.info(f"Extracted code from fenced LLM response ({len(value)} → {len(extracted)} chars)")
+            return extracted
 
         vs = value.strip()
         if not self._is_bad_content(vs):
@@ -408,6 +417,63 @@ class ParameterResolver:
             logger.info(f"Auto-fixed 'content' from bad/short value → real content ({len(replacement)} chars)")
             return replacement
         return value
+
+    @staticmethod
+    def _extract_code_from_fences(value: str) -> str:
+        """Extract code from LLM responses containing code fences.
+
+        LLM tools return responses like:
+            "I'll create a Python script that...\n```python\n<actual code>\n```\nThis script..."
+
+        This method detects such patterns and extracts just the code content,
+        stripping conversational preamble/postamble and the fence markers.
+
+        Returns:
+            Extracted code if fences found and preamble detected, original value otherwise.
+        """
+        if '```' not in value:
+            return value
+
+        # Find all fenced code blocks
+        fence_pattern = re.compile(
+            r'```(?:\w+)?\s*\n(.*?)```',
+            re.DOTALL,
+        )
+        blocks = fence_pattern.findall(value)
+        if not blocks:
+            return value
+
+        # Check if there's conversational preamble before the first fence
+        first_fence_pos = value.find('```')
+        preamble = value[:first_fence_pos].strip()
+
+        # Detect LLM preamble: conversational text before code fences
+        # Must have at least some non-trivial preamble text
+        _PREAMBLE_INDICATORS = (
+            "i'll", "i will", "here's", "here is", "let me", "below is",
+            "the following", "this script", "this code", "this program",
+            "creates a", "generate", "create a", "write a", "build a",
+            "implement", "develop", "design", "sure", "certainly",
+            "of course", "happy to",
+        )
+        preamble_lower = preamble.lower()[:200]
+        has_preamble = (
+            len(preamble) > 10
+            and any(ind in preamble_lower for ind in _PREAMBLE_INDICATORS)
+        )
+
+        if not has_preamble:
+            return value
+
+        # Single code block: return its content directly
+        if len(blocks) == 1:
+            extracted = blocks[0].strip()
+            if extracted:
+                return extracted
+
+        # Multiple code blocks: concatenate with newlines (multi-file LLM output)
+        combined = '\n\n'.join(block.strip() for block in blocks if block.strip())
+        return combined if combined else value
 
     def _schema_coerce_param(self, key: str, value: str, tool_schema, step) -> str:
         """Schema-driven parameter coercion using ToolParam type hints.
@@ -437,9 +503,15 @@ class ParameterResolver:
         if key == 'command' and len(value) > 150:
             return self._sanitize_command_param(key, value, step)
 
-        # Content params: check for bad content
-        if key == 'content' and self._is_bad_content(value.strip()):
-            return self._sanitize_content_param(key, value)
+        # Content/script params: extract code from fences, then check for bad content
+        if key in ('content', 'script'):
+            extracted = self._extract_code_from_fences(value)
+            if extracted != value:
+                logger.info(f"Schema coercion: extracted code from fenced LLM response for '{key}' "
+                           f"({len(value)} → {len(extracted)} chars)")
+                return extracted
+            if key == 'content' and self._is_bad_content(value.strip()):
+                return self._sanitize_content_param(key, value)
 
         # All other typed params: coerce via TypeCoercer
         if tp and tp.type_hint and tp.type_hint.lower() not in ('str', 'string', ''):
