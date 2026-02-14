@@ -386,54 +386,72 @@ _INTENT_SWARM_MAP: Dict[TaskIntent, Optional[str]] = {
     TaskIntent.CONVERSATION: None,
 }
 
-# Domain keyword map (signal 2) — covers all 11 swarms
+# Domain keyword map (signal 2) — covers all 11 swarms.
+# Multi-word phrases are matched exactly; single words use suffix tolerance
+# (see _keyword_match). More specific swarms (testing, review, devops, etc.)
+# should have enough keywords to outweigh generic swarms on relevant goals.
 _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "coding": [
         "code", "program", "implement", "develop", "function", "class",
         "api", "script", "debug", "refactor", "compile", "syntax",
         "algorithm", "software", "repository", "git", "backend", "frontend",
+        "microservice", "endpoint", "sdk", "library",
     ],
     "research": [
-        "research", "investigate", "study", "report", "analyze company",
-        "stock analysis", "market research",
+        "research", "investigate", "report", "analyze company",
+        "stock analysis", "market research", "deep dive", "compare",
     ],
     "testing": [
         "test", "coverage", "unit test", "integration test", "qa",
-        "pytest", "regression", "benchmark", "assert",
+        "pytest", "regression", "benchmark", "assert", "load test",
+        "end-to-end test", "e2e test", "test suite", "test case",
+        "cypress", "selenium", "locust",
     ],
     "review": [
         "review", "audit", "check code", "pull request", "code review",
-        "peer review", "pr review",
+        "peer review", "pr review", "code quality", "vulnerability",
+        "security audit",
     ],
     "data_analysis": [
-        "data", "dataset", "statistics", "visualization", "csv",
+        "dataset", "statistics", "visualization", "csv",
         "chart", "graph", "analytics", "dashboard", "pandas", "dataframe",
-        "spreadsheet", "excel", "plot",
+        "spreadsheet", "excel", "plot", "histogram", "correlation",
+        "outlier", "trend", "metric",
     ],
     "devops": [
         "deploy", "docker", "ci/cd", "infrastructure", "kubernetes",
         "terraform", "ansible", "pipeline", "monitoring", "nginx",
-        "server", "cloud", "aws", "gcp", "azure",
+        "server", "cloud", "aws", "gcp", "azure", "elk", "log aggregation",
+        "grafana", "prometheus", "provision", "auto-scaling", "cloudformation",
+        "helm", "container",
     ],
     "idea_writer": [
         "write article", "blog post", "essay", "content creation",
         "creative writing", "copywriting", "newsletter", "editorial",
+        "blog", "article", "whitepaper", "case study", "draft article",
+        "draft report", "write copy",
     ],
     "fundamental": [
         "stock", "valuation", "financial", "earnings", "investment",
-        "portfolio", "market cap", "dividend", "pe ratio",
+        "portfolio", "market cap", "dividend", "pe ratio", "fundamental",
+        "balance sheet", "income statement", "cash flow", "price target",
+        "intrinsic value", "revenue growth", "profit margin",
     ],
     "learning": [
-        "learn", "curriculum", "teach", "training material",
-        "study guide", "lesson plan", "education",
+        "curriculum", "teach", "training material", "study guide",
+        "lesson plan", "education", "tutorial", "course", "certification",
+        "workshop", "education program", "training program", "training course",
+        "study plan", "syllabus",
     ],
     "arxiv_learning": [
         "arxiv", "paper", "academic paper", "research paper",
         "preprint", "journal", "scientific paper", "literature review",
+        "scholarly", "citation",
     ],
     "olympiad_learning": [
         "olympiad", "competition", "competitive", "math olympiad",
-        "science olympiad", "imo", "ioi", "contest",
+        "science olympiad", "imo", "ioi", "contest", "olympiad problem",
+        "competition problem",
     ],
 }
 
@@ -468,11 +486,15 @@ class TaskClassifier:
     """
     Smart swarm router combining intent classification, keyword domain
     matching, and skill category voting to select the best domain swarm.
+
+    Weights are tuned so keyword is dominant (0.55) because it's the only
+    signal that distinguishes all 11 swarms. Intent (7 categories) is too
+    coarse — e.g. CODE_GENERATION absorbs testing/review/devops tasks.
     """
 
-    INTENT_WEIGHT = 0.40
-    KEYWORD_WEIGHT = 0.35
-    SKILL_WEIGHT = 0.25
+    INTENT_WEIGHT = 0.30
+    KEYWORD_WEIGHT = 0.55
+    SKILL_WEIGHT = 0.15
 
     def __init__(self):
         self._intent_classifier = get_intent_classifier()
@@ -482,15 +504,25 @@ class TaskClassifier:
         Classify which swarm should handle a goal.
 
         Combines three signals:
-        1. IntentClassifier → swarm mapping (weight=0.4)
-        2. Domain keyword matching (weight=0.35)
-        3. Skill category voting (weight=0.25)
+        1. IntentClassifier → swarm mapping (weight=0.30)
+        2. Domain keyword matching (weight=0.55)
+        3. Skill category voting (weight=0.15)
 
         Returns TaskClassification with swarm_name=None if confidence
         is below CONFIDENCE_THRESHOLD (fallback to Orchestrator auto-swarm).
         """
         # Signal 1: Intent classification
         intent_analysis = self._intent_classifier.classify(goal)
+
+        # Guard: CONVERSATION intent means no task to route
+        if intent_analysis.intent == TaskIntent.CONVERSATION:
+            return TaskClassification(
+                swarm_name=None,
+                confidence=0.0,
+                reasoning=f"Conversational (intent={intent_analysis.intent.value})",
+                intent=intent_analysis.intent,
+            )
+
         intent_swarm = _INTENT_SWARM_MAP.get(intent_analysis.intent)
 
         # Signal 2: Domain keyword matching
@@ -545,17 +577,27 @@ class TaskClassifier:
             intent=intent_analysis.intent,
         )
 
+    # Common English suffixes for fuzzy keyword matching
+    _SUFFIX_PATTERN = r'(?:s|ing|ed|er|ment|tion|ize|ise|ly|ity|ness|ous|ive|al|able|ible)?'
+
     def _keyword_match(self, goal: str) -> Optional[str]:
-        """Match goal against domain keywords using word-boundary regex."""
+        """Match goal against domain keywords using suffix-tolerant regex.
+
+        Single-word keywords allow common English suffixes so that
+        'test' matches 'testing', 'learn' matches 'learning', etc.
+        Multi-word keywords require the exact phrase (with optional suffix
+        on the last word).
+        """
         goal_lower = goal.lower()
         best_swarm = None
         best_count = 0
 
         for swarm_name, keywords in _DOMAIN_KEYWORDS.items():
-            count = sum(
-                1 for kw in keywords
-                if re.search(r'\b' + re.escape(kw) + r'\b', goal_lower)
-            )
+            count = 0
+            for kw in keywords:
+                pattern = r'\b' + re.escape(kw) + self._SUFFIX_PATTERN + r'\b'
+                if re.search(pattern, goal_lower):
+                    count += 1
             if count > best_count:
                 best_count = count
                 best_swarm = swarm_name

@@ -448,6 +448,9 @@ class TierExecutor:
             # Force TIER 1 execution for fact-retrieval tasks
             config.tier = ExecutionTier.DIRECT
 
+            # Pass intent for answer extraction
+            kwargs['_intent'] = 'fact_retrieval'
+
             # Hint the registry with detected tools (helps skill discovery)
             if intent_analysis.required_tools:
                 kwargs['hint_skills'] = intent_analysis.required_tools
@@ -828,8 +831,40 @@ class TierExecutor:
 
             llm_span.add_cost(input_tokens, output_tokens, cost)
 
+        # Extract final answer content
+        output = response.get('content', response)
+
+        # For fact-retrieval tasks (from intent classification), extract concise answer
+        # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
+        if kwargs.get('_intent') == 'fact_retrieval' and len(output) > 100:
+            # Response is too verbose for a fact answer - extract the actual answer
+            extraction_prompt = f"""Extract ONLY the final answer from this response. Return just the answer with no explanation.
+
+Response: {output}
+
+Rules:
+- If it's a number, return just the number
+- If it's a name, return just the name
+- If it's a date/year, return just the date/year
+- If it's yes/no, return just Yes or No
+- No explanations, no context, just the answer
+
+Final Answer:"""
+
+            extraction_response = await self.provider.generate(
+                prompt=extraction_prompt,
+                temperature=0.0,
+                max_tokens=100,
+            )
+            extracted = extraction_response.get('content', '').strip()
+
+            # Use extracted answer if it's significantly shorter and non-empty
+            if extracted and len(extracted) < len(output) / 3:
+                logger.info(f"Extracted concise answer: '{extracted}' from verbose response")
+                output = extracted
+
         return ExecutionResult(
-            output=response.get('content', response),
+            output=output,
             tier=ExecutionTier.DIRECT,
             success=True,
             llm_calls=1,
@@ -839,6 +874,7 @@ class TierExecutor:
                 'skills_discovered': skill_names,
                 'tools_used': len(tools),
                 'tokens': tokens,
+                '_intent': kwargs.get('_intent'),
             }
         )
 
