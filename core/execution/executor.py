@@ -60,30 +60,112 @@ class LLMProvider:
                 self._client = UnifiedLMProvider.create_lm(self._provider_name, self._model)
         return self._client
 
+    async def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
+        """Execute a tool by name and return result as string."""
+        try:
+            # Get the skill registry
+            from Jotty.core.registry import get_unified_registry
+            registry = get_unified_registry()
+
+            # Find the tool across all skills
+            tool_func = None
+            for skill_name in registry.list_skills():
+                skill = registry.get_skill(skill_name)
+                if skill and hasattr(skill, 'tools') and tool_name in skill.tools:
+                    tool_func = skill.tools[tool_name]
+                    logger.debug(f"Found tool '{tool_name}' in skill '{skill_name}'")
+                    break
+
+            if not tool_func:
+                logger.warning(f"Tool '{tool_name}' not found in any skill")
+                return f"Tool '{tool_name}' not found"
+
+            # Execute the tool
+            result = await tool_func(tool_input) if asyncio.iscoroutinefunction(tool_func) else tool_func(tool_input)
+
+            # Convert result to string
+            if isinstance(result, dict):
+                # Extract relevant content from result
+                if 'output' in result:
+                    return str(result['output'])
+                elif 'result' in result:
+                    return str(result['result'])
+                elif 'content' in result:
+                    return str(result['content'])
+                else:
+                    return str(result)
+            else:
+                return str(result)
+
+        except Exception as e:
+            logger.error(f"Tool execution failed for {tool_name}: {e}", exc_info=True)
+            return f"Error executing {tool_name}: {str(e)}"
+
     async def generate(self, prompt: str, tools=None, temperature: float = 0.7,
                        max_tokens: int = 4000, **kwargs) -> Dict[str, Any]:
-        """Generate a response. Returns {'content': str, 'usage': {...}}."""
+        """Generate a response with tool-calling loop. Returns {'content': str, 'usage': {...}}."""
         client = self._get_client()
 
         if self._provider_name == 'anthropic':
-            api_kwargs = {
-                'model': self._model,
-                'max_tokens': max_tokens,
-                'temperature': temperature,
-                'messages': [{'role': 'user', 'content': prompt}],
-            }
-            if tools:
-                api_kwargs['tools'] = tools
+            messages = [{'role': 'user', 'content': prompt}]
+            total_input_tokens = 0
+            total_output_tokens = 0
 
-            response = await client.messages.create(**api_kwargs)
+            # Tool-calling loop (max 5 iterations to prevent infinite loops)
+            for iteration in range(5):
+                api_kwargs = {
+                    'model': self._model,
+                    'max_tokens': max_tokens,
+                    'temperature': temperature,
+                    'messages': messages,
+                }
+                if tools:
+                    api_kwargs['tools'] = tools
+
+                response = await client.messages.create(**api_kwargs)
+                total_input_tokens += response.usage.input_tokens
+                total_output_tokens += response.usage.output_tokens
+
+                # Check if response contains tool calls
+                tool_use_blocks = [block for block in response.content if block.type == 'tool_use']
+
+                if not tool_use_blocks:
+                    # No tool calls - extract final text answer
+                    content = ''.join(
+                        block.text for block in response.content if hasattr(block, 'text')
+                    )
+                    return {
+                        'content': content,
+                        'usage': {
+                            'input_tokens': total_input_tokens,
+                            'output_tokens': total_output_tokens,
+                        },
+                    }
+
+                # Execute tools and prepare tool results
+                messages.append({'role': 'assistant', 'content': response.content})
+
+                tool_results = []
+                for tool_block in tool_use_blocks:
+                    tool_result = await self._execute_tool(tool_block.name, tool_block.input)
+                    tool_results.append({
+                        'type': 'tool_result',
+                        'tool_use_id': tool_block.id,
+                        'content': tool_result,
+                    })
+
+                # Add tool results to conversation
+                messages.append({'role': 'user', 'content': tool_results})
+
+            # Max iterations reached - return last response
             content = ''.join(
                 block.text for block in response.content if hasattr(block, 'text')
             )
             return {
                 'content': content,
                 'usage': {
-                    'input_tokens': response.usage.input_tokens,
-                    'output_tokens': response.usage.output_tokens,
+                    'input_tokens': total_input_tokens,
+                    'output_tokens': total_output_tokens,
                 },
             }
         else:
@@ -358,29 +440,20 @@ class TierExecutor:
         logger.info(f"Intent classified: {intent_analysis.intent.value} "
                    f"(confidence: {intent_analysis.confidence:.2f})")
 
-        # Route FACT_RETRIEVAL tasks directly to optimized executor
+        # Route FACT_RETRIEVAL tasks to TIER 1 (DIRECT) with tools
+        # This ensures proper tool-calling loop execution
         if intent_analysis.intent.value == 'fact_retrieval':
-            logger.info("Routing to FactRetrievalExecutor (optimized for Q&A)")
-            from Jotty.core.execution.fact_retrieval_executor import get_fact_retrieval_executor
+            logger.info("Routing FACT_RETRIEVAL to TIER 1 (DIRECT) with tool execution")
 
-            fact_executor = get_fact_retrieval_executor()
-            answer = await fact_executor.execute(
-                question=goal,
-                attachments=attachments,
-                context=kwargs.get('context')
-            )
+            # Force TIER 1 execution for fact-retrieval tasks
+            config.tier = ExecutionTier.DIRECT
 
-            return ExecutionResult(
-                output=answer,
-                success=True,
-                tier=ExecutionTier.RESEARCH,  # Treated as research tier
-                execution_time=0.0,
-                metadata={
-                    'intent': intent_analysis.intent.value,
-                    'tools_used': intent_analysis.required_tools,
-                    'route': 'fact_retrieval_executor'
-                }
-            )
+            # Hint the registry with detected tools (helps skill discovery)
+            if intent_analysis.required_tools:
+                kwargs['hint_skills'] = intent_analysis.required_tools
+                logger.debug(f"Hinting tools for fact-retrieval: {intent_analysis.required_tools}")
+
+            # Continue to normal execution (will hit TIER 1 path below)
 
         # Pop deprecated GAIA-specific hacks (no longer needed)
         _skip_complexity_gate = kwargs.pop('skip_complexity_gate', False)
