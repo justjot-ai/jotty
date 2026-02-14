@@ -83,6 +83,10 @@ class LLMProvider:
             # Execute the tool
             result = await tool_func(tool_input) if asyncio.iscoroutinefunction(tool_func) else tool_func(tool_input)
 
+            # Handle case where result is a coroutine (tool returned async without being awaited)
+            if asyncio.iscoroutine(result):
+                result = await result
+
             # Convert result to string
             if isinstance(result, dict):
                 # Extract relevant content from result
@@ -111,8 +115,9 @@ class LLMProvider:
             total_input_tokens = 0
             total_output_tokens = 0
 
-            # Tool-calling loop (max 5 iterations to prevent infinite loops)
-            for iteration in range(5):
+            # Tool-calling loop (max 15 iterations for complex multi-hop questions like GAIA)
+            MAX_ITERATIONS = 15
+            for iteration in range(MAX_ITERATIONS):
                 api_kwargs = {
                     'model': self._model,
                     'max_tokens': max_tokens,
@@ -148,6 +153,7 @@ class LLMProvider:
                 tool_results = []
                 for tool_block in tool_use_blocks:
                     tool_result = await self._execute_tool(tool_block.name, tool_block.input)
+                    logger.info(f"Tool '{tool_block.name}' returned: {tool_result[:200]}...")
                     tool_results.append({
                         'type': 'tool_result',
                         'tool_use_id': tool_block.id,
@@ -156,10 +162,26 @@ class LLMProvider:
 
                 # Add tool results to conversation
                 messages.append({'role': 'user', 'content': tool_results})
+                logger.debug(f"Continuing tool-calling loop iteration {iteration+1}/{MAX_ITERATIONS}")
 
-            # Max iterations reached - return last response
+            # Max iterations reached - force final answer with one more call WITHOUT tools
+            logger.warning(f"Max iterations ({MAX_ITERATIONS}) reached, forcing final answer")
+            messages.append({
+                'role': 'user',
+                'content': 'Based on all the information gathered above, provide ONLY the final answer to the question. No explanations, just the answer.'
+            })
+            final_response = await client.messages.create(
+                model=self._model,
+                max_tokens=max_tokens,
+                temperature=0.0,  # Deterministic for final answer
+                messages=messages,
+                # No tools - force text answer
+            )
+            total_input_tokens += final_response.usage.input_tokens
+            total_output_tokens += final_response.usage.output_tokens
+
             content = ''.join(
-                block.text for block in response.content if hasattr(block, 'text')
+                block.text for block in final_response.content if hasattr(block, 'text')
             )
             return {
                 'content': content,
@@ -785,10 +807,27 @@ class TierExecutor:
         if status_callback:
             status_callback("direct", "Discovering skills...")
 
-        # Discover relevant skills
-        discovery = self.registry.discover_for_task(goal)
-        raw_skills = discovery.get('skills', [])[:5]
-        skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
+        # For fact-retrieval tasks, force essential research tools
+        # The default discovery returns irrelevant skills (mindmap, slides, etc.)
+        if kwargs.get('_intent') == 'fact_retrieval':
+            # GAIA/fact-retrieval tasks need: search, PDF reading, calculator, files, browser automation
+            # Top performers (75%+) use: multi-agent architecture, browser interaction, PDF parsing
+            skill_names = [
+                'web-search',           # Web search + fetch_webpage_tool for PDFs
+                'web-scraper',          # Structured data extraction from HTML/tables
+                'browser-automation',   # Form filling, JS execution, table extraction
+                'document-converter',   # PDF/doc conversion
+                'pdf-tools',           # Advanced PDF parsing and text extraction
+                'calculator',          # Mathematical calculations
+                'file-operations',     # File I/O
+                'openai-whisper-api',  # Audio transcription for tasks with .mp3
+            ]
+            logger.info(f"Using curated tools for fact-retrieval: {skill_names}")
+        else:
+            # Normal discovery for other task types
+            discovery = self.registry.discover_for_task(goal)
+            raw_skills = discovery.get('skills', [])[:5]
+            skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
 
         if status_callback:
             status_callback("direct", f"Found {len(skill_names)} skills")
@@ -797,6 +836,7 @@ class TierExecutor:
         tools = []
         if skill_names:
             tools = self.registry.get_claude_tools(skill_names)
+            logger.info(f"Loaded {len(tools)} tool definitions: {[t.get('name', '?') for t in tools]}")
 
         if status_callback:
             status_callback("direct", "Calling LLM...")
@@ -859,9 +899,17 @@ Final Answer:"""
             extracted = extraction_response.get('content', '').strip()
 
             # Use extracted answer if it's significantly shorter and non-empty
-            if extracted and len(extracted) < len(output) / 3:
+            # BUT don't use it if it's empty or just says "Unable to..." or error messages
+            if (extracted and
+                len(extracted) < len(output) / 3 and
+                len(extracted) > 0 and
+                not extracted.lower().startswith(('unable', 'error', 'i cannot', 'i apologize'))):
                 logger.info(f"Extracted concise answer: '{extracted}' from verbose response")
                 output = extracted
+            elif not extracted or len(extracted) < 2:
+                # Extraction returned empty/garbage - keep original
+                logger.warning(f"Answer extraction returned empty/invalid, keeping original output")
+                pass  # Keep original output
 
         return ExecutionResult(
             output=output,

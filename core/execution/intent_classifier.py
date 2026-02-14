@@ -393,13 +393,13 @@ _INTENT_SWARM_MAP: Dict[TaskIntent, Optional[str]] = {
 _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "coding": [
         "code", "program", "implement", "develop", "function", "class",
-        "api", "script", "debug", "refactor", "compile", "syntax",
+        "api", "debug", "refactor", "compile", "syntax",
         "algorithm", "software", "repository", "git", "backend", "frontend",
-        "microservice", "endpoint", "sdk", "library",
+        "microservice", "endpoint", "sdk", "library", "websocket",
     ],
     "research": [
-        "research", "investigate", "report", "analyze company",
-        "stock analysis", "market research", "deep dive", "compare",
+        "research", "investigate", "analyze company",
+        "stock analysis", "market research", "deep dive",
     ],
     "testing": [
         "test", "coverage", "unit test", "integration test", "qa",
@@ -410,13 +410,13 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "review": [
         "review", "audit", "check code", "pull request", "code review",
         "peer review", "pr review", "code quality", "vulnerability",
-        "security audit",
+        "vulnerabilities", "security audit", "owasp",
     ],
     "data_analysis": [
         "dataset", "statistics", "visualization", "csv",
         "chart", "graph", "analytics", "dashboard", "pandas", "dataframe",
         "spreadsheet", "excel", "plot", "histogram", "correlation",
-        "outlier", "trend", "metric",
+        "outlier", "trend", "metric", "a/b test",
     ],
     "devops": [
         "deploy", "docker", "ci/cd", "infrastructure", "kubernetes",
@@ -435,7 +435,7 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
         "stock", "valuation", "financial", "earnings", "investment",
         "portfolio", "market cap", "dividend", "pe ratio", "fundamental",
         "balance sheet", "income statement", "cash flow", "price target",
-        "intrinsic value", "revenue growth", "profit margin",
+        "intrinsic value", "revenue growth", "profit margin", "earnings report",
     ],
     "learning": [
         "curriculum", "teach", "training material", "study guide",
@@ -446,7 +446,7 @@ _DOMAIN_KEYWORDS: Dict[str, List[str]] = {
     "arxiv_learning": [
         "arxiv", "paper", "academic paper", "research paper",
         "preprint", "journal", "scientific paper", "literature review",
-        "scholarly", "citation",
+        "scholarly", "citation", "journal article",
     ],
     "olympiad_learning": [
         "olympiad", "competition", "competitive", "math olympiad",
@@ -597,7 +597,8 @@ class TaskClassifier:
             for kw in keywords:
                 pattern = r'\b' + re.escape(kw) + self._SUFFIX_PATTERN + r'\b'
                 if re.search(pattern, goal_lower):
-                    count += 1
+                    # Multi-word phrases are stronger signals (more specific)
+                    count += 2 if ' ' in kw else 1
             if count > best_count:
                 best_count = count
                 best_swarm = swarm_name

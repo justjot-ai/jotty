@@ -197,13 +197,15 @@ class JottyGAIAAdapter:
     ):
         """
         Args:
-            tier: Execution tier name (DIRECT, AGENTIC, etc.). None = auto-detect.
+            tier: Execution tier name (DIRECT, AGENTIC, etc.). None = DIRECT (tool-calling optimized for GAIA).
             model: Model override (e.g. 'claude-sonnet-4-20250514').
             dry_run: If True, skip Jotty entirely and return placeholder.
             use_llm_doc_sources: If True, append open-source LLM doc references (Microsoft, Hugging Face, etc.) to context.
             progress_callback: Optional (stage, detail) callback for real-time progress; can also be set on .progress_callback before each run.
         """
-        self.tier = tier
+        # Default to DIRECT tier for GAIA (single LLM call with tools, optimized for fact-retrieval)
+        # Top GAIA performers (75%+) use tool-calling, not swarm orchestration
+        self.tier = tier if tier is not None else "DIRECT"
         self.model = model
         self.dry_run = dry_run
         self.use_llm_doc_sources = use_llm_doc_sources
@@ -343,6 +345,10 @@ class JottyGAIAAdapter:
         # "report", "data", "content" that falsely match ReviewSwarm, DataAnalysisSwarm, etc.
         # This forces tier4/tier5 to go directly to the Orchestrator.
         run_kwargs['skip_swarm_selection'] = True
+
+        # Mark as fact-retrieval task for curated tool selection (browser, PDF, web search, calculator)
+        # This ensures executor uses the optimized tool set for GAIA (top performers use these tools)
+        run_kwargs['_intent'] = 'fact_retrieval'
 
         # Forward any remaining kwargs (e.g. skip_validation=False from retry logic)
         run_kwargs.update(kwargs)
