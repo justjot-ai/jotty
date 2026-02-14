@@ -1,5 +1,5 @@
 ---
-name: algorithmic-art
+name: creating-algorithmic-art
 description: "Generative art toolkit using Pillow and numpy for creating various types of algorithmic and procedural art including noise-based images, flow fields, geometric patterns, fractals, and landscapes. Also includes artistic filters to transform existing images."
 ---
 
@@ -186,6 +186,32 @@ List all available color palettes for generative art.
 - `cyberpunk` - Dark with neon accents
 - `earth` - Natural earth tones (browns, tans)
 - `cosmic` - Space-themed deep purples and blues
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Choose algorithm
+- [ ] Step 2: Configure parameters
+- [ ] Step 3: Generate artwork
+- [ ] Step 4: Export image
+```
+
+**Step 1: Choose algorithm**
+Select the generative art algorithm (fractal, L-system, cellular automata, etc.).
+
+**Step 2: Configure parameters**
+Set colors, dimensions, iterations, and algorithm-specific settings.
+
+**Step 3: Generate artwork**
+Execute the algorithm to produce the visual output.
+
+**Step 4: Export image**
+Save the generated artwork in the desired format (PNG, SVG, etc.).
 
 ## Triggers
 - "algorithmic art"

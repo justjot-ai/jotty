@@ -1,5 +1,5 @@
 ---
-name: github
+name: managing-github
 description: "Provides tools for interacting with GitHub repositories using the `gh` CLI. Supports pull requests, issues, repository information, and GitHub Actions workflows. Use when the user wants to create pr, list issues, pull request."
 ---
 
@@ -16,6 +16,32 @@ base
 ## Capabilities
 - code
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Authenticate and list repos
+- [ ] Step 2: Inspect repository
+- [ ] Step 3: Search code
+- [ ] Step 4: Create artifacts
+```
+
+**Step 1: Authenticate and list repos**
+Connect to GitHub and list available repositories.
+
+**Step 2: Inspect repository**
+Get repo details, list issues, and review pull requests.
+
+**Step 3: Search code**
+Search for specific code patterns across repositories.
+
+**Step 4: Create artifacts**
+Create issues, pull requests, or update repository files.
 
 ## Triggers
 - "create pr"

@@ -1,5 +1,5 @@
 ---
-name: multi-source-aggregator
+name: aggregating-multi-source
 description: "Template for aggregating data from multiple sources."
 ---
 

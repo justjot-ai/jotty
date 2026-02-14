@@ -1,5 +1,5 @@
 ---
-name: pmi-market-data
+name: fetching-pmi-market-data
 description: "Provides live quotes, multi-symbol quotes, symbol search, market indices, OHLCV chart data, market breadth, and sector analysis via the PlanMyInvesting REST API. Use when the user wants to analyze data, data analysis, dataset."
 ---
 
@@ -89,6 +89,32 @@ Get sector-wise performance analysis.
 
 **Returns:**
 - `sectors` (list), `period`
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Select data type
+- [ ] Step 2: Fetch market data
+- [ ] Step 3: Process and format
+- [ ] Step 4: Return results
+```
+
+**Step 1: Select data type**
+Choose the market data category (stocks, indices, ETFs, etc.).
+
+**Step 2: Fetch market data**
+Retrieve real-time or historical data from PlanMyInvesting API.
+
+**Step 3: Process and format**
+Parse the response and format data for analysis.
+
+**Step 4: Return results**
+Deliver structured market data with key metrics highlighted.
 
 ## Triggers
 - "pmi market data"

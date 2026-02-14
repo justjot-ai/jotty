@@ -1,5 +1,5 @@
 ---
-name: docx-tools
+name: processing-docx
 description: "Word document toolkit using python-docx for reading, creating, and manipulating Word documents (.docx files)."
 ---
 
@@ -75,6 +75,32 @@ List available styles in a Word document.
 - `python-docx` library
 
 Install with: `pip install python-docx`
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Load document
+- [ ] Step 2: Inspect content
+- [ ] Step 3: Modify content
+- [ ] Step 4: Export document
+```
+
+**Step 1: Load document**
+Open the target Word document for processing.
+
+**Step 2: Inspect content**
+List sections, paragraphs, tables, and images.
+
+**Step 3: Modify content**
+Update text, add tables, insert images, or change formatting.
+
+**Step 4: Export document**
+Save the modified document to the desired format.
 
 ## Triggers
 - "docx tools"

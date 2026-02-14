@@ -1,5 +1,5 @@
 ---
-name: pdf-tools
+name: processing-pdfs
 description: "Comprehensive PDF toolkit for extracting, manipulating, and creating PDF files. Uses pdfplumber for extraction, pypdf for manipulation, and reportlab for creation. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 
@@ -88,6 +88,32 @@ Install all dependencies:
 ```bash
 pip install pdfplumber pypdf reportlab
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Load PDF
+- [ ] Step 2: Extract content
+- [ ] Step 3: Modify document
+- [ ] Step 4: Export result
+```
+
+**Step 1: Load PDF**
+Open the target PDF file for processing.
+
+**Step 2: Extract content**
+Read text, images, or metadata from the PDF.
+
+**Step 3: Modify document**
+Merge, split, rotate pages, or add watermarks.
+
+**Step 4: Export result**
+Save the processed PDF to the output path.
 
 ## Triggers
 - "pdf tools"

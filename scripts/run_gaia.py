@@ -25,12 +25,25 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
 
 # Allow running from repo root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+# Ensure ANTHROPIC_API_KEY is in the environment BEFORE any Jotty imports.
+# Without this, DSPy/litellm falls back to DirectClaudeCLI (subprocess to claude binary),
+# which is slow (~3s/call) and unreliable. With the API key, DSPy uses the native API.
+if not os.environ.get("ANTHROPIC_API_KEY"):
+    _env_file = Path(__file__).resolve().parent.parent.parent / ".env.anthropic"
+    if _env_file.exists():
+        for _line in _env_file.read_text().splitlines():
+            if _line.strip() and not _line.startswith('#') and '=' in _line:
+                _k, _, _v = _line.partition('=')
+                if _k.strip() == "ANTHROPIC_API_KEY" and _v.strip():
+                    os.environ["ANTHROPIC_API_KEY"] = _v.strip()
 
 from Jotty.core.evaluation import GAIABenchmark, EvalStore
 from Jotty.core.evaluation.gaia_adapter import _looks_like_refusal

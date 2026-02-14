@@ -1,5 +1,5 @@
 ---
-name: clustering
+name: clustering-data
 description: "**Description:** Unsupervised clustering algorithms and cluster analysis. Use when the user wants to cluster, group data."
 ---
 
@@ -31,6 +31,10 @@ derived
 
 ## Tags
 clustering, kmeans, dbscan, unsupervised, segmentation
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "clustering"

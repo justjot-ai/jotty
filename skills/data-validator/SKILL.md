@@ -1,5 +1,5 @@
 ---
-name: data-validator
+name: validating-data
 description: "**Description:** Data validation and quality checking for ML pipelines. Use when the user wants to analyze data, data analysis, dataset."
 ---
 
@@ -28,6 +28,10 @@ base
 
 ## Tags
 data-quality, validation, schema, drift-detection, data-integrity
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "data validator"

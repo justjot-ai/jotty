@@ -1,5 +1,5 @@
 ---
-name: youtube-downloader
+name: downloading-youtube
 description: "Downloads YouTube video transcripts and converts them to markdown/PDF/EPUB. Supports single videos and playlists with optional AI summarization. Use when the user wants to download video, youtube video, get video from youtube."
 ---
 

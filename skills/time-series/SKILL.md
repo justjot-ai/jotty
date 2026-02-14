@@ -1,5 +1,5 @@
 ---
-name: time-series
+name: analyzing-time-series
 description: "**Description:** Time series analysis and forecasting tools. Use when the user wants to convert time, timezone, time zone."
 ---
 
@@ -32,6 +32,10 @@ derived
 
 ## Tags
 time-series, forecasting, arima, decomposition, anomaly-detection
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "time series"

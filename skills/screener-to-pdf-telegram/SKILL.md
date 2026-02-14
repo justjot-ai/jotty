@@ -1,5 +1,5 @@
 ---
-name: screener-to-pdf-telegram
+name: screening-to-pdf-telegram
 description: "Complete pipeline that fetches financial data from screener.in, analyzes it with Claude LLM, generates PDF, and sends to Telegram. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 
@@ -55,6 +55,28 @@ Complete workflow: Screener.in → Analysis → PDF → Telegram
 - `telegram_sent` (bool): Whether sent to Telegram
 - `analysis` (str): Generated analysis text
 - `error` (str, optional): Error message if failed
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Fetch financial data
+- [ ] Step 2: Analyze with AI
+- [ ] Step 3: Generate PDF
+- [ ] Step 4: Send to Telegram
+```
+
+**Step 1: Fetch financial data**
+Retrieve company financials from screener.in for the specified symbols.
+
+**Step 2: Analyze with AI**
+Use Claude LLM to synthesize a comprehensive financial analysis.
+
+**Step 3: Generate PDF**
+Convert the analysis to a professionally formatted PDF.
+
+**Step 4: Send to Telegram**
+Deliver the PDF report to the specified Telegram chat.
 
 ## Triggers
 - "screener to pdf telegram"

@@ -1,5 +1,5 @@
 ---
-name: research-to-pdf
+name: researching-to-pdf
 description: "Research any topic and generate a comprehensive PDF report with AI-synthesized analysis. Use when the user wants to research report, create report, pdf report."
 ---
 
@@ -37,6 +37,24 @@ sequential
 - research
 - document
 
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search for topic information
+- [ ] Step 2: Synthesize research with AI
+- [ ] Step 3: Generate PDF document
+```
+
+**Step 1: Search for topic information**
+Use web-search to gather comprehensive data on the research topic.
+
+**Step 2: Synthesize research with AI**
+Use Claude LLM to analyze and synthesize findings into a structured report.
+
+**Step 3: Generate PDF document**
+Convert the markdown report into a professional PDF with proper formatting.
 
 ## Triggers
 - "research report"

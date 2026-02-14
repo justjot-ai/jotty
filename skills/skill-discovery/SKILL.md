@@ -1,5 +1,5 @@
 ---
-name: skill-discovery
+name: discovering-skills
 description: "Meta-skill for discovering and understanding available Jotty skills. Helps agents find the right tools for tasks."
 ---
 
@@ -75,6 +75,32 @@ result = list_skills_tool({'category': 'documents'})
 # Get info about a skill
 result = get_skill_info_tool({'skill_name': 'slide-generator'})
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search skills catalog
+- [ ] Step 2: Analyze capabilities
+- [ ] Step 3: Rank matches
+- [ ] Step 4: Return recommendations
+```
+
+**Step 1: Search skills catalog**
+Query the registry for skills matching the task description.
+
+**Step 2: Analyze capabilities**
+Evaluate skill capabilities, tools, and compatibility.
+
+**Step 3: Rank matches**
+Score and rank skills by relevance to the task.
+
+**Step 4: Return recommendations**
+Provide the best-matching skills with usage examples.
 
 ## Triggers
 - "skill discovery"

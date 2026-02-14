@@ -1,5 +1,5 @@
 ---
-name: presenton
+name: presenting-presenton
 description: "Integrates with [Presenton](https://github.com/presenton/presenton), an open-source AI presentation generator that runs locally via Docker. Generate professional presentations from text prompts, with support for multiple LLM providers and export to PPTX/PDF. Use when the user wants to generate."
 ---
 
@@ -232,6 +232,10 @@ The skill will automatically use these environment variables if set:
 - `pixabay` - Free stock images
 - `dalle3` - OpenAI DALL-E 3
 - `gemini_flash` - Google Gemini image generation
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "presenton"

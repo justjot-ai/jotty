@@ -1,5 +1,5 @@
 ---
-name: remarkable-sender
+name: sending-remarkable
 description: "This skill uploads PDFs to reMarkable tablet using rmapi (reMarkable cloud API client). Use when the user wants to send to remarkable, remarkable tablet."
 ---
 

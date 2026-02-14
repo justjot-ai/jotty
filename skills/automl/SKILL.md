@@ -1,5 +1,5 @@
 ---
-name: automl
+name: running-automl
 description: "Automatic machine learning — model selection, training, and optimization using scikit-learn. Use when the user wants to auto ml, automatic model, model selection."
 ---
 

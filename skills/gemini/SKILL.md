@@ -1,5 +1,5 @@
 ---
-name: gemini
+name: calling-gemini
 description: "This skill provides LLM capabilities using Google's Gemini models for text generation, image understanding (vision), and multi-turn chat conversations. Supports multiple Gemini models including gemini-1.5-flash, gemini-1.5-pro, and gemini-2.0-flash."
 ---
 
@@ -153,6 +153,10 @@ Base URL: `https://generativelanguage.googleapis.com/v1beta/models/{model}:gener
 Uses direct HTTP requests to Google Generative Language API via urllib.
 No external dependencies required beyond Python standard library.
 The GeminiAPIClient class handles authentication, request formatting, and response parsing.
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "gemini"

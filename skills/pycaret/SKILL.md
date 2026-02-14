@@ -1,5 +1,5 @@
 ---
-name: pycaret
+name: running-pycaret
 description: "**Description:** Full AutoML pipeline using PyCaret - compare models, tune, ensemble, deploy."
 ---
 
@@ -26,6 +26,10 @@ derived
 
 ## Tags
 automl, pycaret, classification, regression, ensemble
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "pycaret"

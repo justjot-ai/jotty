@@ -1,5 +1,5 @@
 ---
-name: slack-gif-creator
+name: creating-slack-gifs
 description: "This skill creates animated GIFs specifically optimized for Slack's requirements. Supports both message GIFs and emoji GIFs with different size constraints and optimization strategies. Use when the user wants to send to slack, slack message, post to slack."
 ---
 
@@ -90,6 +90,24 @@ result = await create_slack_gif_tool({
 
 - `PIL` (Pillow): For image processing
 - `imageio`: For GIF creation
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Define animation parameters
+- [ ] Step 2: Generate animated frames
+- [ ] Step 3: Optimize for Slack
+```
+
+**Step 1: Define animation parameters**
+Set GIF type (message/emoji), dimensions, and animation style.
+
+**Step 2: Generate animated frames**
+Create animation frames based on the description and parameters.
+
+**Step 3: Optimize for Slack**
+Compress and optimize the GIF to meet Slack size requirements.
 
 ## Triggers
 - "slack gif creator"

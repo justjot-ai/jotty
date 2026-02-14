@@ -1,5 +1,5 @@
 ---
-name: notion-spec-to-implementation
+name: implementing-notion-specs
 description: "This skill reads specifications from Notion pages and creates structured implementation plans with tasks, milestones, and progress tracking. Helps bridge the gap between product specs and development execution. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -73,6 +73,24 @@ result = await create_implementation_plan_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For parsing specs and generating plans
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Read specification
+- [ ] Step 2: Generate plan
+- [ ] Step 3: Create task database
+```
+
+**Step 1: Read specification**
+Fetch and parse the specification from the Notion page.
+
+**Step 2: Generate plan**
+Break down the spec into tasks, milestones, and dependencies.
+
+**Step 3: Create task database**
+Write the implementation plan to a Notion database with tracking.
 
 ## Triggers
 - "notion spec to implementation"

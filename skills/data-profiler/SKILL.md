@@ -1,5 +1,5 @@
 ---
-name: data-profiler
+name: profiling-data
 description: "**Description:** Comprehensive data profiling and exploratory data analysis (EDA). Use when the user wants to analyze, profile, dataset."
 ---
 

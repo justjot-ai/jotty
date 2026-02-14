@@ -1,5 +1,5 @@
 ---
-name: invoice-organizer
+name: organizing-invoices
 description: "This skill transforms chaotic folders of invoices, receipts, and financial documents into a clean, tax-ready filing system without manual effort. Extracts key information from PDFs and images, renames files consistently, and organizes them into logical folders. Use when the user wants to invoice, receipt, billing."
 ---
 

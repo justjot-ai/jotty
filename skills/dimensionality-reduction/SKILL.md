@@ -1,5 +1,5 @@
 ---
-name: dimensionality-reduction
+name: reducing-dimensionality
 description: "**Description:** Dimensionality reduction techniques for visualization and feature extraction."
 ---
 
@@ -31,6 +31,10 @@ derived
 
 ## Tags
 dimensionality-reduction, pca, tsne, umap, visualization
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "dimensionality reduction"

@@ -1,5 +1,5 @@
 ---
-name: shell-exec
+name: executing-shell
 description: "Provides safe shell command execution capabilities with timeout and output capture. Use when the user wants to run command, execute shell, run script."
 ---
 

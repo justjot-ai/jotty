@@ -1,5 +1,5 @@
 ---
-name: database-tools
+name: managing-databases
 description: "Multi-database skill using SQLAlchemy with connection pooling, safe parameterized queries, and natural language query support. Use when the user wants to query database, run sql, database query."
 ---
 
@@ -16,6 +16,36 @@ base
 ## Capabilities
 - data-fetch
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to database
+- [ ] Step 2: Inspect schema
+- [ ] Step 3: Execute queries
+- [ ] Step 4: Export results
+- [ ] Step 5: Close connection
+```
+
+**Step 1: Connect to database**
+Establish connection to the target database using credentials.
+
+**Step 2: Inspect schema**
+List tables and describe their structure to understand the data model.
+
+**Step 3: Execute queries**
+Run SQL queries to read, insert, update, or analyze data.
+
+**Step 4: Export results**
+Export query results to the desired format (CSV, JSON, etc.).
+
+**Step 5: Close connection**
+Clean up by closing the database connection.
 
 ## Triggers
 - "query database"

@@ -1,5 +1,5 @@
 ---
-name: media-production-pipeline
+name: producing-media-pipeline
 description: "This composite skill combines: 1. **Image Enhancement** (Source): image-enhancer 2. **Design Creation** (Processor): canvas-design 3. **GIF Creation** (Sink): slack-gif-creator."
 ---
 
@@ -74,6 +74,24 @@ Source → Processor → Sink pattern:
 - **Sink**: Slack GIF creator
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Enhance image
+- [ ] Step 2: Create design
+- [ ] Step 3: Create GIF
+```
+
+**Step 1: Enhance image**
+Upscale and enhance the source image to the target resolution.
+
+**Step 2: Create design**
+Generate a visual design from the brief using canvas-design.
+
+**Step 3: Create GIF**
+Produce an animated GIF optimized for Slack or web use.
 
 ## Triggers
 - "media production pipeline"

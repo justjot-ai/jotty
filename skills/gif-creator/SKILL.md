@@ -1,5 +1,5 @@
 ---
-name: gif-creator
+name: creating-gifs
 description: "GIF creation toolkit using Pillow. Create animated GIFs from images, text animations, loading spinners, and optimize GIFs for various platforms like Slack. Use when the user wants to create gif, make gif, animated."
 ---
 
@@ -77,6 +77,32 @@ Extract individual frames from a GIF file.
 - `Pillow` library
 
 Install: `pip install Pillow`
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Define animation
+- [ ] Step 2: Generate frames
+- [ ] Step 3: Assemble GIF
+- [ ] Step 4: Optimize output
+```
+
+**Step 1: Define animation**
+Specify the animation type, dimensions, and duration.
+
+**Step 2: Generate frames**
+Create individual frames for the animation sequence.
+
+**Step 3: Assemble GIF**
+Combine frames into an animated GIF with proper timing.
+
+**Step 4: Optimize output**
+Compress and optimize the GIF for target size requirements.
 
 ## Triggers
 - "gif creator"

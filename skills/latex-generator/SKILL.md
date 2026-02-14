@@ -1,5 +1,5 @@
 ---
-name: latex-generator
+name: generating-latex
 description: "Generates professional LaTeX documents with proper mathematical notation, styled in the StatQuest format. Use when the user wants to latex, tex document, mathematical notation."
 ---
 

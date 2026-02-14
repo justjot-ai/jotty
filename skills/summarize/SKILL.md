@@ -1,5 +1,5 @@
 ---
-name: summarize
+name: summarizing
 description: "This skill provides comprehensive text summarization capabilities using Claude CLI. It can summarize plain text, fetch and summarize web pages, and extract content from various file formats including txt, md, pdf, and html. Use when the user wants to summary, tldr, condense."
 ---
 
@@ -174,6 +174,32 @@ Tool Functions (exported)
     ├── summarize_file_tool
     └── extract_key_points_tool
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Identify content source
+- [ ] Step 2: Extract content
+- [ ] Step 3: Generate summary
+- [ ] Step 4: Format output
+```
+
+**Step 1: Identify content source**
+Determine input type: text, file, URL, or conversation.
+
+**Step 2: Extract content**
+Read and parse the source content into processable text.
+
+**Step 3: Generate summary**
+Use AI to create a summary at the requested length and detail level.
+
+**Step 4: Format output**
+Structure the summary with key points, sections, or bullet points.
 
 ## Triggers
 - "summarize"

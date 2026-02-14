@@ -1,0 +1,151 @@
+# Jotty CI Pipeline
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+        pip install black isort flake8 bandit
+
+    - name: Code formatting (black)
+      run: black --check --line-length=100 Jotty/
+
+    - name: Import sorting (isort)
+      run: isort --check-only --profile=black --line-length=100 Jotty/
+
+    - name: Linting (flake8)
+      run: flake8 Jotty/ --max-line-length=100 --extend-ignore=E203,E501,W503
+
+    - name: Security scan (bandit)
+      run: bandit -c .bandit.yaml -r Jotty/
+
+  jotty-doctor:
+    name: Jotty Doctor Health Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Jotty Doctor
+      run: python scripts/jotty_doctor.py
+
+    - name: Check imports
+      run: python scripts/jotty_doctor.py --imports
+
+    - name: Security scan
+      run: python scripts/jotty_doctor.py --secrets
+
+  tests:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short --maxfail=5 \
+          --ignore=tests/integration/ \
+          -m "not requires_llm"
+
+    - name: Upload coverage
+      if: matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  type-checking:
+    name: Type Checking
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mypy
+        pip install -r requirements.txt
+
+    - name: Run mypy
+      run: mypy Jotty/core/swarms --ignore-missing-imports
+      continue-on-error: true  # Warning only for now
+
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check swarm READMEs
+      run: |
+        # Verify all swarms have documentation
+        for swarm in olympiad_learning_swarm coding_swarm research_swarm arxiv_learning_swarm; do
+          if [ ! -f "Jotty/core/swarms/${swarm}/README.md" ]; then
+            echo "Missing README: ${swarm}"
+            exit 1
+          fi
+        done
+
+        for swarm in testing_swarm review_swarm data_analysis_swarm devops_swarm fundamental_swarm idea_writer_swarm learning_swarm; do
+          if [ ! -f "Jotty/core/swarms/${swarm}.md" ]; then
+            echo "Missing doc: ${swarm}.md"
+            exit 1
+          fi
+        done
+
+        echo "✅ All swarms documented"

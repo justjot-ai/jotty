@@ -1,5 +1,5 @@
 ---
-name: technical-analysis
+name: analyzing-technicals
 description: "Multi-timeframe technical analysis for NSE stocks — 30+ indicators, buy/sell signals, support/resistance."
 ---
 
@@ -39,6 +39,10 @@ Analyze a stock ticker across multiple timeframes. Calculates 30+ indicators
 
 - pandas
 - pandas_ta (preferred) or ta (fallback)
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "technical analysis"

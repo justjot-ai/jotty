@@ -1,5 +1,5 @@
 ---
-name: changelog-generator
+name: generating-changelogs
 description: "This skill transforms technical git commits into polished, user-friendly changelogs that your customers and users will actually understand and appreciate. It saves hours of manual changelog writing by automating the process. Use when the user wants to changelog, release notes, version history."
 ---
 

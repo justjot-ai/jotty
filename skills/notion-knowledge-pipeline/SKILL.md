@@ -1,5 +1,5 @@
 ---
-name: notion-knowledge-pipeline
+name: running-notion-knowledge-pipeline
 description: "This composite skill combines: 1. **Knowledge Capture** (Source): notion-knowledge-capture 2. **Research Documentation** (Processor): notion-research-documentation 3. **Implementation Planning** (Sink): notion-spec-to-implementation. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -74,6 +74,24 @@ Source → Processor → Sink pattern:
 - **Sink**: Implementation planning
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Capture knowledge
+- [ ] Step 2: Research and document
+- [ ] Step 3: Create implementation plan
+```
+
+**Step 1: Capture knowledge**
+Save insights, decisions, and concepts to Notion with proper categorization.
+
+**Step 2: Research and document**
+Search Notion and web for related information, then create comprehensive documentation.
+
+**Step 3: Create implementation plan**
+Transform specifications into actionable implementation plans with tasks and milestones.
 
 ## Triggers
 - "notion knowledge pipeline"

@@ -1,5 +1,5 @@
 ---
-name: content-pipeline
+name: running-content-pipeline
 description: "Content pipeline toolkit that orchestrates document processing flows: Source -> Processors -> Sinks. Wraps JustJot.ai's ContentPipeline for integration with Jotty's skill system. Supports converting content from various sources (markdown, arxiv, html, pdf, youtube) through processors (diagram rendering, latex handling, image downloading) to multiple output formats (pdf, epub, markdown, docx, html, remarkable)."
 ---
 
@@ -140,6 +140,28 @@ result = run_pipeline_tool({
 ## Dependencies
 - JustJot.ai core modules (auto-imported if available)
 - Optional: pandoc, latex, mermaid-cli for full functionality
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Ingest source content
+- [ ] Step 2: Process content
+- [ ] Step 3: Export to target format
+```
+
+**Step 1: Ingest source content**
+Load content from the source (markdown, ArXiv, HTML, PDF, or YouTube).
+
+**Step 2: Process content**
+Apply processors: render diagrams, handle LaTeX, download images, fix syntax.
+
+**Step 3: Export to target format**
+Write the processed document to one or more sinks (PDF, EPUB, DOCX, HTML, reMarkable).
 
 ## Triggers
 - "content pipeline"

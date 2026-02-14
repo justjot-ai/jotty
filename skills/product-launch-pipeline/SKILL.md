@@ -1,5 +1,5 @@
 ---
-name: product-launch-pipeline
+name: launching-products-pipeline
 description: "This composite skill combines: 1. **Domain Brainstorming** (Source): domain-name-brainstormer 2. **Lead Research** (Processor): lead-research-assistant 3. **Competitor Analysis** (Processor): competitive-ads-extractor 4. **Content Creation** (Sink): content-research-writer."
 ---
 
@@ -71,6 +71,28 @@ Source → Processor → Processor → Sink pattern:
 - **Sink**: Content research writer
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Brainstorm domain names
+- [ ] Step 2: Research leads
+- [ ] Step 3: Analyze competitors
+- [ ] Step 4: Write launch content
+```
+
+**Step 1: Brainstorm domain names**
+Generate and validate domain name suggestions for the product.
+
+**Step 2: Research leads**
+Find and qualify potential leads in the target industry.
+
+**Step 3: Analyze competitors**
+Extract competitor ads and analyze competitive positioning.
+
+**Step 4: Write launch content**
+Create marketing content: outlines, drafts, or full articles.
 
 ## Triggers
 - "product launch pipeline"

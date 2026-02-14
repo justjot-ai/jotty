@@ -1,5 +1,5 @@
 ---
-name: android-automation
+name: automating-android
 description: "Full Android device control: touch, swipe, type, screenshot, UI tree inspection, app lifecycle management, and element-based interaction. Designed for MAS-Bench hybrid mobile agent evaluation. Mirrors browser-automation architecture but targets Android."
 ---
 
@@ -182,6 +182,36 @@ Get device hardware and software info.
 
 **Returns:**
 - `serial`, `model`, `brand`, `sdk`, `screen_width`, `screen_height`
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to device
+- [ ] Step 2: Navigate to target
+- [ ] Step 3: Perform actions
+- [ ] Step 4: Capture results
+- [ ] Step 5: Clean up
+```
+
+**Step 1: Connect to device**
+Establish ADB connection to the target Android device.
+
+**Step 2: Navigate to target**
+Launch the app or navigate to the required screen.
+
+**Step 3: Perform actions**
+Execute taps, swipes, text input, and other UI interactions.
+
+**Step 4: Capture results**
+Take screenshots or extract text to verify outcomes.
+
+**Step 5: Clean up**
+Close apps and disconnect from the device.
 
 ## Triggers
 - "android automation"

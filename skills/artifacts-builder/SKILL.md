@@ -1,5 +1,5 @@
 ---
-name: artifacts-builder
+name: building-artifacts
 description: "This skill helps create complex HTML artifacts for Claude.ai using modern frontend technologies. Supports multi-component artifacts requiring state management, routing, or shadcn/ui components. Use when the user wants to create."
 ---
 

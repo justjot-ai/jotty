@@ -1,5 +1,5 @@
 ---
-name: whatsapp
+name: messaging-whatsapp
 description: "Dual-provider WhatsApp integration supporting both Baileys (open-source) and the official WhatsApp Business Cloud API. Inspired by OpenClaw's approach: prefers Baileys (free, open-source) when available, falls back to Business API. Use when the user wants to whatsapp message, read whatsapp, whatsapp chat."
 ---
 
@@ -184,6 +184,32 @@ Set verification token:
 ```bash
 export WHATSAPP_VERIFY_TOKEN=jotty
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to WhatsApp
+- [ ] Step 2: Select recipient
+- [ ] Step 3: Compose message
+- [ ] Step 4: Send message
+```
+
+**Step 1: Connect to WhatsApp**
+Authenticate with the WhatsApp Business API.
+
+**Step 2: Select recipient**
+Identify the target phone number or group.
+
+**Step 3: Compose message**
+Prepare text, file, location, or contact to send.
+
+**Step 4: Send message**
+Deliver the message via WhatsApp.
 
 ## Triggers
 - "whatsapp"

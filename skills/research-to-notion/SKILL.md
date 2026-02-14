@@ -1,5 +1,5 @@
 ---
-name: research-to-notion
+name: researching-to-notion
 description: "This composite skill combines: 1. **Research** (Source): lead-research-assistant, competitive-ads-extractor, or web-search 2. **Content Writing** (Processor): content-research-writer 3. **Notion Documentation** (Sink): notion-research-documentation. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -73,6 +73,24 @@ Source → Processor → Sink pattern:
 - **Sink**: Notion research documentation
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Research the topic
+- [ ] Step 2: Write content
+- [ ] Step 3: Save to Notion
+```
+
+**Step 1: Research the topic**
+Use web-search, lead research, or competitive analysis to gather data.
+
+**Step 2: Write content**
+Use content-research-writer to draft structured content from research.
+
+**Step 3: Save to Notion**
+Create a Notion page with the documented research and citations.
 
 ## Triggers
 - "research to notion"

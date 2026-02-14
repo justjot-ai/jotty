@@ -1,5 +1,5 @@
 ---
-name: investing-commodities-to-telegram
+name: sending-commodities-to-telegram
 description: "Fetches latest commodities prices from investing.com and sends to Telegram. Use when the user wants to send to telegram, telegram message, notify via telegram."
 ---
 
@@ -41,6 +41,24 @@ Fetches commodities prices and sends formatted report to Telegram.
 - `telegram_sent` (bool): Whether sent to Telegram
 - `telegram_message_id` (int, optional): Telegram message ID if sent
 - `error` (str, optional): Error message if failed
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Fetch commodities prices
+- [ ] Step 2: Format report
+- [ ] Step 3: Send to Telegram
+```
+
+**Step 1: Fetch commodities prices**
+Retrieve latest commodities data from investing.com.
+
+**Step 2: Format report**
+Structure the price data into a formatted HTML/markdown report.
+
+**Step 3: Send to Telegram**
+Deliver the commodities report to the specified Telegram chat.
 
 ## Triggers
 - "investing commodities to telegram"

@@ -1,5 +1,5 @@
 ---
-name: mcp-builder
+name: building-mcp
 description: "This skill assists in building MCP servers by providing templates, validation, and best practices. Helps create Python and Node.js MCP servers following the Model Context Protocol specification. Use when the user wants to create."
 ---
 

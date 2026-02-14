@@ -1,5 +1,5 @@
 ---
-name: trello
+name: managing-trello
 description: "Integrates with Trello API to manage boards, lists, and cards. Supports listing boards, viewing board details with lists, managing cards (create, update, move), and adding comments. Use when the user wants to trello board, trello card, create."
 ---
 
@@ -164,6 +164,32 @@ result = add_comment_tool({
     'text': 'This is a comment on the card'
 })
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to board
+- [ ] Step 2: Inspect board state
+- [ ] Step 3: Manage cards
+- [ ] Step 4: Report status
+```
+
+**Step 1: Connect to board**
+Authenticate and select the target Trello board.
+
+**Step 2: Inspect board state**
+List columns and cards to understand current project status.
+
+**Step 3: Manage cards**
+Create, update, or move cards between lists.
+
+**Step 4: Report status**
+Summarize board activity and current state.
 
 ## Triggers
 - "trello"

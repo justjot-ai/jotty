@@ -1,5 +1,5 @@
 ---
-name: notion-research-documentation
+name: documenting-notion-research
 description: "This skill enables comprehensive research workflows: search for information across Notion workspace, fetch and analyze relevant pages, synthesize findings, and create well-structured documentation with proper citations. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -72,6 +72,24 @@ result = await research_and_document_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For synthesis and analysis
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search Notion workspace
+- [ ] Step 2: Synthesize findings
+- [ ] Step 3: Create documentation
+```
+
+**Step 1: Search Notion workspace**
+Query Notion for pages and databases related to the research topic.
+
+**Step 2: Synthesize findings**
+Analyze found pages and synthesize insights with AI assistance.
+
+**Step 3: Create documentation**
+Write comprehensive documentation with proper citations in Notion.
 
 ## Triggers
 - "notion research documentation"

@@ -1,0 +1,19 @@
+# Bandit security configuration for Jotty
+
+# Tests to skip
+skips:
+  - B101  # assert_used - we use asserts in tests
+  - B601  # paramiko_calls - intentional SSH usage
+  - B404  # import_subprocess - we need subprocess for validation
+
+# Tests to run (default: all except skipped)
+# Commented out means run all
+
+# Exclude paths
+exclude_dirs:
+  - /tests/
+  - /venv/
+  - /.venv/
+  - /build/
+  - /dist/
+  - /__pycache__/

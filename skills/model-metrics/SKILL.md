@@ -1,5 +1,5 @@
 ---
-name: model-metrics
+name: evaluating-model-metrics
 description: "**Description:** Comprehensive model evaluation metrics for classification, regression, and ranking."
 ---
 
@@ -31,6 +31,10 @@ derived
 
 ## Tags
 metrics, evaluation, classification, regression, cross-validation
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "model metrics"

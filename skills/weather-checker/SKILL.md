@@ -1,5 +1,5 @@
 ---
-name: weather-checker
+name: checking-weather
 description: "This skill provides weather information including temperature, humidity, wind speed, and multi-day forecasts for any city or location worldwide. Use when the user wants to weather, forecast, temperature."
 ---
 

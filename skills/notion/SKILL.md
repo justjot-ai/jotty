@@ -1,5 +1,5 @@
 ---
-name: notion
+name: managing-notion
 description: "Integrates with Notion API to search, read, create, and update pages and databases. Supports full CRUD operations on Notion workspace content. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -153,6 +153,32 @@ result = create_database_item_tool({
     }
 })
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to workspace
+- [ ] Step 2: Search and navigate
+- [ ] Step 3: Create or update pages
+- [ ] Step 4: Organize content
+```
+
+**Step 1: Connect to workspace**
+Authenticate with the Notion workspace via API.
+
+**Step 2: Search and navigate**
+Search pages and databases to find relevant content.
+
+**Step 3: Create or update pages**
+Create new pages or update existing ones with structured content.
+
+**Step 4: Organize content**
+Manage databases, properties, and page relationships.
 
 ## Triggers
 - "notion"

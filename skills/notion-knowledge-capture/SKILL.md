@@ -1,5 +1,5 @@
 ---
-name: notion-knowledge-capture
+name: capturing-notion-knowledge
 description: "This skill captures insights, decisions, and knowledge from chat context, formats them appropriately, and saves to Notion wikis or databases with proper organization and linking for easy discovery. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -73,6 +73,24 @@ result = await capture_knowledge_to_notion_tool({
 ## Dependencies
 
 - `notion`: For Notion API integration
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Parse content
+- [ ] Step 2: Format for Notion
+- [ ] Step 3: Save to Notion
+```
+
+**Step 1: Parse content**
+Analyze the input content to determine type (FAQ, how-to, decision, concept).
+
+**Step 2: Format for Notion**
+Structure the content with proper headers, tags, and categorization.
+
+**Step 3: Save to Notion**
+Create a Notion page in the appropriate wiki or database with linking.
 
 ## Triggers
 - "notion knowledge capture"

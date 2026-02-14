@@ -1,5 +1,5 @@
 ---
-name: text-utils
+name: processing-text
 description: "Provides text manipulation, encoding/decoding, formatting, and text processing utilities. Use when the user wants to format text, count words, extract text."
 ---
 
@@ -16,6 +16,32 @@ base
 ## Capabilities
 - analyze
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Parse input text
+- [ ] Step 2: Apply transformations
+- [ ] Step 3: Validate output
+- [ ] Step 4: Return result
+```
+
+**Step 1: Parse input text**
+Read and analyze the input text content.
+
+**Step 2: Apply transformations**
+Perform text operations: format, convert, extract, or clean.
+
+**Step 3: Validate output**
+Check the transformed text meets requirements.
+
+**Step 4: Return result**
+Deliver the processed text in the requested format.
 
 ## Triggers
 - "format text"

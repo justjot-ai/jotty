@@ -1,5 +1,5 @@
 ---
-name: obsidian
+name: managing-obsidian
 description: "Provides file-based tools for interacting with Obsidian markdown vaults. Supports listing, reading, creating, updating, and searching notes, as well as finding backlinks between notes. Use when the user wants to save to obsidian, obsidian note, obsidian vault."
 ---
 
@@ -174,6 +174,32 @@ get_backlinks_tool({
     'note_path': 'Concepts/machine-learning'
 })
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Open vault
+- [ ] Step 2: Search and navigate
+- [ ] Step 3: Read or create notes
+- [ ] Step 4: Update and link
+```
+
+**Step 1: Open vault**
+Connect to the target Obsidian vault directory.
+
+**Step 2: Search and navigate**
+Search notes and explore backlinks to find relevant content.
+
+**Step 3: Read or create notes**
+Read existing notes or create new ones with proper formatting.
+
+**Step 4: Update and link**
+Update note content and maintain bidirectional links.
 
 ## Triggers
 - "obsidian"

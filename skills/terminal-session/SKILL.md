@@ -1,5 +1,5 @@
 ---
-name: terminal-session
+name: managing-terminal-sessions
 description: "Provides persistent terminal sessions that maintain state across commands, support for SSH connections, and interactive command execution with expect-based pattern matching."
 ---
 
@@ -62,6 +62,10 @@ result = terminal_ssh_connect({
 ## Dependencies
 
 - pexpect
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "terminal session"

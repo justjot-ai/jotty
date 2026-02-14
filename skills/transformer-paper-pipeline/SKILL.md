@@ -1,5 +1,5 @@
 ---
-name: transformer-paper-pipeline
+name: processing-transformer-papers
 description: "Generates a research paper on Transformers using Claude CLI LLM, converts it to LaTeX PDF, and sends to Telegram. Use when the user wants to generate, send."
 ---
 
@@ -46,6 +46,24 @@ Generates a comprehensive transformer paper and sends PDF to Telegram.
 - `telegram_sent` (bool): Whether sent to Telegram
 - `telegram_message_id` (int, optional): Telegram message ID if sent
 - `error` (str, optional): Error message if failed
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Generate paper content
+- [ ] Step 2: Compile LaTeX PDF
+- [ ] Step 3: Send to Telegram
+```
+
+**Step 1: Generate paper content**
+Use Claude LLM to write a comprehensive transformer research paper.
+
+**Step 2: Compile LaTeX PDF**
+Convert the paper content to LaTeX and compile to PDF.
+
+**Step 3: Send to Telegram**
+Deliver the compiled PDF to the specified Telegram chat.
 
 ## Triggers
 - "transformer paper pipeline"

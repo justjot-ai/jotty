@@ -1,5 +1,5 @@
 ---
-name: spotify
+name: managing-spotify
 description: "This skill provides tools to search for music, control playback, and manage playlists using the Spotify Web API via requests. Use when the user wants to music, playlist."
 ---
 
@@ -206,6 +206,32 @@ This skill uses the Spotify Web API with the following endpoints:
 - Spotify requires a Premium account for playback control features
 - Access tokens expire after 1 hour and need to be refreshed
 - Some endpoints may not work without an active Spotify device
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search catalog
+- [ ] Step 2: Get details
+- [ ] Step 3: Analyze features
+- [ ] Step 4: Manage playlists
+```
+
+**Step 1: Search catalog**
+Search Spotify for artists, tracks, albums, or playlists.
+
+**Step 2: Get details**
+Retrieve detailed information about artists, albums, or tracks.
+
+**Step 3: Analyze features**
+Get audio features and recommendations based on preferences.
+
+**Step 4: Manage playlists**
+Create playlists and add recommended tracks.
 
 ## Triggers
 - "spotify"

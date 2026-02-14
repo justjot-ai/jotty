@@ -1,5 +1,5 @@
 ---
-name: mindmap-generator
+name: generating-mindmaps
 description: "Generates visual mindmap diagrams from text content using LLM analysis. Creates Mermaid mindmap syntax that can be rendered or converted to PDF. Use when the user wants to mind map, mindmap, brainstorm diagram."
 ---
 

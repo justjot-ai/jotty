@@ -1,5 +1,5 @@
 ---
-name: visual-inspector
+name: inspecting-visuals
 description: "Provides on-demand visual inspection capabilities using Vision Language Models (VLM). Analyzes screenshots, code files, PPTX slides, PDF pages, and any image to extract rich state information. Uses litellm for unified VLM access (Claude Sonnet, GPT-4V, etc.)."
 ---
 
@@ -113,6 +113,32 @@ Capture browser screenshot and analyze with VLM.
 
 - litellm
 - Optional: pygmentize (code rendering), poppler/pdftoppm (PDF), LibreOffice (PPTX), ImageMagick (SVG)
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Capture target
+- [ ] Step 2: Analyze visuals
+- [ ] Step 3: Detect issues
+- [ ] Step 4: Generate report
+```
+
+**Step 1: Capture target**
+Take a screenshot or load the image to inspect.
+
+**Step 2: Analyze visuals**
+Use AI vision to identify UI elements, layout, and content.
+
+**Step 3: Detect issues**
+Find visual bugs, accessibility problems, or design inconsistencies.
+
+**Step 4: Generate report**
+Produce a structured inspection report with findings.
 
 ## Triggers
 - "visual inspector"

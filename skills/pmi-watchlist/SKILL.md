@@ -1,5 +1,5 @@
 ---
-name: pmi-watchlist
+name: managing-pmi-watchlist
 description: "Create, manage, and monitor stock watchlists. Add/remove symbols and refresh live prices."
 ---
 
@@ -55,6 +55,32 @@ Refresh live prices for all symbols in a watchlist.
 
 **Parameters:**
 - `watchlist_id` (str, required): Watchlist ID
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Fetch watchlist
+- [ ] Step 2: Get stock data
+- [ ] Step 3: Analyze performance
+- [ ] Step 4: Generate alerts
+```
+
+**Step 1: Fetch watchlist**
+Retrieve the user's watchlist from PlanMyInvesting.
+
+**Step 2: Get stock data**
+Fetch current prices and metrics for watchlist stocks.
+
+**Step 3: Analyze performance**
+Compare stocks against benchmarks and signals.
+
+**Step 4: Generate alerts**
+Create alerts for price targets or significant changes.
 
 ## Triggers
 - "pmi watchlist"

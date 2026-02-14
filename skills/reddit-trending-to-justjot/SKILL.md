@@ -1,5 +1,5 @@
 ---
-name: reddit-trending-to-justjot
+name: fetching-reddit-trending-to-justjot
 description: "This composite skill combines: 1. **web-search**: Search Reddit for trending topics 2. **text-utils**: Format results as markdown 3. **mcp-justjot**: Create JustJot idea with the content. Use when the user wants to create."
 ---
 
@@ -58,6 +58,24 @@ Uses generic pipeline pattern:
 - Sink: mcp-justjot (create_idea_tool)
 
 DRY: Reuses existing skills, no duplication.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search Reddit
+- [ ] Step 2: Format as markdown
+- [ ] Step 3: Create JustJot idea
+```
+
+**Step 1: Search Reddit**
+Find trending posts and discussions on the specified topic.
+
+**Step 2: Format as markdown**
+Structure the Reddit results into organized markdown content.
+
+**Step 3: Create JustJot idea**
+Save the formatted content as a JustJot idea via MCP client.
 
 ## Triggers
 - "reddit trending to justjot"

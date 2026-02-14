@@ -1,5 +1,5 @@
 ---
-name: file-organizer
+name: organizing-files
 description: "This skill acts as your personal organization assistant, helping you maintain a clean, logical file structure across your computer without the mental overhead of constant manual organization. Use when the user wants to file, read file, write file."
 ---
 

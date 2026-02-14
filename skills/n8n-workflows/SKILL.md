@@ -1,5 +1,5 @@
 ---
-name: n8n-workflows
+name: managing-n8n-workflows
 description: "This skill integrates with n8n workflow automation to list, trigger, monitor, and manage workflows. Each n8n workflow is also registered as a derived skill for direct discovery by the planner."
 ---
 
@@ -20,6 +20,10 @@ base
 
 ## Use When
 User wants to trigger an n8n workflow, list automations, check execution status, or manage workflow activation
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "n8n workflows"

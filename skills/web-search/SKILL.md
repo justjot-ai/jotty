@@ -1,5 +1,5 @@
 ---
-name: web-search
+name: searching-web
 description: "Provides web search capabilities using Google (via Serper API) or DuckDuckGo, and web page content extraction. Supports combined search+scrape for deep research. Use when the user wants to search, find, lookup."
 ---
 
@@ -20,6 +20,32 @@ base
 - research
 - data-fetch
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Construct query
+- [ ] Step 2: Execute search
+- [ ] Step 3: Parse results
+- [ ] Step 4: Return ranked results
+```
+
+**Step 1: Construct query**
+Build the search query with optional filters and parameters.
+
+**Step 2: Execute search**
+Run the web search across configured search providers.
+
+**Step 3: Parse results**
+Extract titles, URLs, snippets, and metadata from search results.
+
+**Step 4: Return ranked results**
+Deliver deduplicated, ranked results with relevance scores.
 
 ## Triggers
 - "search"

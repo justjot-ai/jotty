@@ -1,5 +1,5 @@
 ---
-name: screener-financials
+name: screening-financials
 description: "Fetches financial data for Indian companies from screener.in. Includes free proxy rotation to avoid blocking and rate limits. Use when the user wants to financial, finance, investment."
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: dev-workflow
+name: managing-dev-workflow
 description: "This composite skill combines: 1. **Changelog Generation** (Source): changelog-generator 2. **Skill Creation** (Processor): skill-creator 3. **Webapp Testing** (Sink): webapp-testing."
 ---
 
@@ -73,6 +73,24 @@ Source → Processor → Sink pattern:
 - **Sink**: Webapp testing
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Generate changelog
+- [ ] Step 2: Create skill
+- [ ] Step 3: Test application
+```
+
+**Step 1: Generate changelog**
+Analyze recent git commits to generate a version changelog.
+
+**Step 2: Create skill**
+Scaffold a new Jotty skill with proper structure and configuration.
+
+**Step 3: Test application**
+Run webapp tests with screenshots to verify functionality.
 
 ## Triggers
 - "dev workflow"

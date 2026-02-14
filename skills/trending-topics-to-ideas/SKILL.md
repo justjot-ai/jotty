@@ -1,5 +1,5 @@
 ---
-name: trending-topics-to-ideas
+name: discovering-trending-topics-to-ideas
 description: "This composite skill: 1. **Source**: Get trending topics (from web search, V2V, or Reddit) 2. **For each topic** (parallel processing): - Gather more details via HTTP/web search - Synthesize information via Claude CLI LLM - Create JustJot idea with synthesized content as sections. Use when the user wants to create."
 ---
 
@@ -65,6 +65,28 @@ Uses parallel processing pattern:
   - Sink: Create idea (mcp-justjot)
 
 DRY: Reuses existing skills, no duplication.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Get trending topics
+- [ ] Step 2: Research each topic
+- [ ] Step 3: Synthesize content
+- [ ] Step 4: Create JustJot ideas
+```
+
+**Step 1: Get trending topics**
+Fetch trending topics from Reddit, V2V, or web search.
+
+**Step 2: Research each topic**
+Gather additional details for each topic via web search.
+
+**Step 3: Synthesize content**
+Use Claude LLM to create structured summaries for each topic.
+
+**Step 4: Create JustJot ideas**
+Save each synthesized topic as a JustJot idea with sections.
 
 ## Triggers
 - "trending topics to ideas"

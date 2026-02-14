@@ -1,5 +1,5 @@
 ---
-name: file-operations
+name: managing-files
 description: "Provides essential file system operations: read, write, list directories, create/delete files and directories, search files, and get file metadata. Use when the user wants to read file, write file, create file."
 ---
 
@@ -16,6 +16,32 @@ base
 ## Capabilities
 - file-ops
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Locate files
+- [ ] Step 2: Read and inspect
+- [ ] Step 3: Process and write
+- [ ] Step 4: Verify results
+```
+
+**Step 1: Locate files**
+Search and list files in the target directory.
+
+**Step 2: Read and inspect**
+Read file contents and check file metadata.
+
+**Step 3: Process and write**
+Create directories, write files, or modify content.
+
+**Step 4: Verify results**
+Confirm file operations completed successfully.
 
 ## Triggers
 - "read file"

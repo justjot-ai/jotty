@@ -1,5 +1,5 @@
 ---
-name: http-client
+name: requesting-http
 description: "Provides advanced HTTP request capabilities: GET, POST, PUT, DELETE requests with headers, authentication, and response handling. Use when the user wants to make request, api call, http request."
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: document-converter
+name: converting-documents
 description: "Converts documents between various formats: Markdown, PDF, EPUB, DOCX, HTML. Uses Pandoc for conversions. Use when the user wants to convert, transform, export."
 ---
 
@@ -16,6 +16,32 @@ base
 ## Capabilities
 - document
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Load source document
+- [ ] Step 2: Parse content
+- [ ] Step 3: Convert format
+- [ ] Step 4: Save output
+```
+
+**Step 1: Load source document**
+Read the input file (Markdown, HTML, DOCX, etc.).
+
+**Step 2: Parse content**
+Extract text, images, and structure from the source.
+
+**Step 3: Convert format**
+Transform content to the target format (PDF, EPUB, DOCX, HTML).
+
+**Step 4: Save output**
+Write the converted document to the output path.
 
 ## Triggers
 - "convert"

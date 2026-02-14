@@ -1,5 +1,5 @@
 ---
-name: investing-commodities
+name: analyzing-commodities
 description: "Fetches latest commodities prices from investing.com."
 ---
 

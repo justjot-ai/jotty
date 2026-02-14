@@ -1,5 +1,5 @@
 ---
-name: slide-generator
+name: generating-slides
 description: "Generates actual PowerPoint (.pptx) slides using python-pptx. Creates professional presentations with proper slide layouts, not just markdown documents. Use when the user wants to create slides, presentation, slideshow."
 ---
 
@@ -45,6 +45,10 @@ Generate PowerPoint slides from a topic using AI.
 - `python-pptx` library
 - `claude-cli-llm` skill (for topic-based generation)
 - `telegram-sender` skill (optional, for sending)
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "slide generator"

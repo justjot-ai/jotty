@@ -1,5 +1,5 @@
 ---
-name: text-chunker
+name: chunking-text
 description: "Splits text into semantic chunks for RAG (Retrieval Augmented Generation) systems. Uses intelligent chunking that preserves context and structure. Use when the user wants to text processing, string manipulation, text utility."
 ---
 

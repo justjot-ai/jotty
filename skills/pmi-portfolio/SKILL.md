@@ -1,5 +1,5 @@
 ---
-name: pmi-portfolio
+name: managing-pmi-portfolio
 description: "View portfolio holdings and P&L summary across all connected brokers."
 ---
 

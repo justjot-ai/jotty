@@ -1,5 +1,5 @@
 ---
-name: feature-tools
+name: processing-features
 description: "**Description:** Automated deep feature synthesis using Featuretools library. Use when the user wants to feature engineering, extract features, feature selection."
 ---
 

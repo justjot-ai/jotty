@@ -1,5 +1,5 @@
 ---
-name: financial-visualization
+name: visualizing-financials
 description: "This skill extracts structured financial data from research results and generates: - **Financial Charts**: Price trends, revenue growth, profitability metrics, peer comparisons - **Data Tables**: Financial statements, valuation metrics, key ratios, peer comparisons - **Visual Analytics**: Trend analysis, comparative charts, performance dashboards. Use when the user wants to financial, finance, investment."
 ---
 
@@ -197,6 +197,36 @@ This skill integrates with:
 - `stock-research-deep`: Add visualizations to comprehensive reports
 - `stock-research-comprehensive`: Enhance reports with charts and tables
 - `document-converter`: Charts embedded in PDF output
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Extract financial data
+- [ ] Step 2: Select chart types
+- [ ] Step 3: Generate charts
+- [ ] Step 4: Generate data tables
+- [ ] Step 5: Add insights
+```
+
+**Step 1: Extract financial data**
+Parse research results to extract structured financial metrics.
+
+**Step 2: Select chart types**
+AI-powered selection of optimal chart types based on data completeness.
+
+**Step 3: Generate charts**
+Create financial charts: revenue growth, profitability, valuation, health scores.
+
+**Step 4: Generate data tables**
+Build formatted tables for financial statements, ratios, and peer comparisons.
+
+**Step 5: Add insights**
+Generate AI narratives, detect anomalies, and forecast trends for each chart.
 
 ## Triggers
 - "financial visualization"

@@ -1,5 +1,5 @@
 ---
-name: xlsx-tools
+name: processing-xlsx
 description: "Excel file manipulation toolkit using openpyxl and pandas. Provides tools for reading, writing, and manipulating Excel workbooks including cell updates, formulas, and charts."
 ---
 
@@ -132,6 +132,36 @@ result = create_chart_tool({
     'title': 'Sales Data'
 })
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Load spreadsheet
+- [ ] Step 2: Inspect sheets
+- [ ] Step 3: Read and analyze data
+- [ ] Step 4: Modify content
+- [ ] Step 5: Save spreadsheet
+```
+
+**Step 1: Load spreadsheet**
+Open the target Excel file for reading or editing.
+
+**Step 2: Inspect sheets**
+List worksheets and examine their structure and data.
+
+**Step 3: Read and analyze data**
+Extract data from specific cells, ranges, or sheets.
+
+**Step 4: Modify content**
+Update cells, add formulas, create charts, or format data.
+
+**Step 5: Save spreadsheet**
+Write the modified spreadsheet to the output path.
 
 ## Triggers
 - "xlsx tools"

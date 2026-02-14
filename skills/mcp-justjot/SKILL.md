@@ -1,5 +1,5 @@
 ---
-name: mcp-justjot
+name: connecting-mcp-justjot
 description: "Create, manage, and organize ideas on JustJot.ai via REST API — CRUD for ideas, templates, sections, and tags. Use when the user wants to create."
 ---
 
@@ -47,6 +47,10 @@ User wants to create, list, update, delete, or organize ideas on JustJot.ai
 | `JUSTJOT_API_KEY` or `CLERK_SECRET_KEY` | Clerk API key for service auth | No |
 | `JUSTJOT_USER_ID` | User ID for service auth | No |
 | `JUSTJOT_AUTH_TOKEN` | Bearer token (fallback) | No |
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "mcp justjot"

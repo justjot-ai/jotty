@@ -1,5 +1,5 @@
 ---
-name: statistical-tests
+name: running-statistical-tests
 description: "**Description:** Statistical hypothesis testing and analysis. Use when the user wants to run tests, test, testing."
 ---
 
@@ -32,6 +32,10 @@ derived
 
 ## Tags
 statistics, hypothesis-testing, ttest, anova, chi-square
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
 
 ## Triggers
 - "statistical tests"

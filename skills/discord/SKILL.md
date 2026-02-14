@@ -1,5 +1,5 @@
 ---
-name: discord
+name: messaging-discord
 description: "This skill provides tools to send messages, read channels, create threads, and interact with Discord servers using the Discord API via requests. Use when the user wants to send discord, discord message, post to discord."
 ---
 
@@ -19,6 +19,32 @@ base
 ## Capabilities
 - communicate
 
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to server
+- [ ] Step 2: Select channel
+- [ ] Step 3: Compose content
+- [ ] Step 4: Send to Discord
+```
+
+**Step 1: Connect to server**
+Authenticate with the Discord bot credentials.
+
+**Step 2: Select channel**
+List and identify the target Discord channel.
+
+**Step 3: Compose content**
+Prepare the message or file to send.
+
+**Step 4: Send to Discord**
+Post the message, upload files, or add reactions.
 
 ## Triggers
 - "send discord"

@@ -1,5 +1,5 @@
 ---
-name: claude-api-llm
+name: calling-claude-api
 description: "This skill uses the Anthropic Messages API with `tool_use` for structured outputs. Unlike claude-cli-llm (DSPy/text-based), responses are clean JSON with zero preamble, zero code fences, and zero template collisions. Preferred when ANTHROPIC_API_KEY is available. Key advantages: - **generate_code_tool**: Forced tool_use returns clean code — no fences, no preamble - **agentic_generate_tool**: Multi-step tool loop (generate + write + execute) in one call - **structured_output_tool**: JSON schema-constrained output via tool_use - **generate_text_tool**: Drop-in replacement for claude-cli-llm's text generation."
 ---
 
@@ -84,6 +84,32 @@ base
 
 ## Author
 Jotty Framework
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Prepare prompt
+- [ ] Step 2: Select model and parameters
+- [ ] Step 3: Execute LLM call
+- [ ] Step 4: Process response
+```
+
+**Step 1: Prepare prompt**
+Construct the prompt with system context and user input.
+
+**Step 2: Select model and parameters**
+Choose the appropriate Claude model and set temperature/tokens.
+
+**Step 3: Execute LLM call**
+Send the request to the Claude API and receive the response.
+
+**Step 4: Process response**
+Parse the response, extract structured content, and handle tool use.
 
 ## Triggers
 - "claude api llm"

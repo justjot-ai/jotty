@@ -1,5 +1,5 @@
 ---
-name: voice
+name: processing-voice
 description: "Multi-provider voice skill for speech-to-text (STT) and text-to-speech (TTS) capabilities. Supports cloud providers (ElevenLabs, OpenAI Whisper) and local providers (Piper TTS, Whisper.cpp STT). Inspired by OpenClaw's voice architecture with automatic provider selection."
 ---
 
@@ -179,6 +179,32 @@ result = stream_voice_tool({
 ### Piper Voices
 - `en_US-lessac-medium` - Default English voice
 - Other Piper ONNX model files
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Select provider
+- [ ] Step 2: Configure parameters
+- [ ] Step 3: Process audio
+- [ ] Step 4: Deliver output
+```
+
+**Step 1: Select provider**
+Auto-detect available providers (ElevenLabs, OpenAI Whisper, Piper TTS, Whisper.cpp).
+
+**Step 2: Configure parameters**
+Set language, voice ID, audio format, and quality settings.
+
+**Step 3: Process audio**
+Execute speech-to-text transcription or text-to-speech synthesis.
+
+**Step 4: Deliver output**
+Return transcribed text, save audio file, or stream audio chunks.
 
 ## Triggers
 - "voice"

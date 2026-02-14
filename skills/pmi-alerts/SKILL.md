@@ -1,5 +1,5 @@
 ---
-name: pmi-alerts
+name: alerting-pmi
 description: "Create, manage, and monitor stock price alerts with configurable conditions and notification channels."
 ---
 

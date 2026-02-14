@@ -1,5 +1,5 @@
 ---
-name: meeting-intelligence-pipeline
+name: running-meeting-intelligence
 description: "This composite skill combines: 1. **Meeting Analysis** (Source): meeting-insights-analyzer 2. **Meeting Preparation** (Processor): notion-meeting-intelligence 3. **Internal Communications** (Sink): internal-comms. Use when the user wants to meeting notes, meeting summary, meeting insights."
 ---
 
@@ -67,6 +67,24 @@ Source → Processor → Sink pattern:
 - **Sink**: Internal communications
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Analyze meeting transcripts
+- [ ] Step 2: Prepare meeting materials
+- [ ] Step 3: Generate communications
+```
+
+**Step 1: Analyze meeting transcripts**
+Process transcript files to extract speaking ratios, action items, and decisions.
+
+**Step 2: Prepare meeting materials**
+Create pre-read documents and agendas in Notion with relevant context.
+
+**Step 3: Generate communications**
+Draft internal communications summarizing meeting outcomes.
 
 ## Triggers
 - "meeting intelligence pipeline"

@@ -1,5 +1,5 @@
 ---
-name: claude-cli-llm
+name: calling-claude-cli
 description: "This skill provides LLM capabilities including cutting-edge prompt ensembling techniques: - **Multi-Perspective Synthesis**: Virtual expert panel with different lenses - **Self-Consistency**: Multiple samples with synthesis - **Generative Self-Aggregation (GSA)**: Diverse drafts + context-enriched synthesis - **Debate**: Multi-round argumentation with final judgment Based on latest research (2025-2026) on prompt engineering and LLM ensembling. Use when the user wants to summarize, analyze text, generate content."
 ---
 
@@ -26,6 +26,28 @@ base
 - analyze
 - code
 
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Prepare prompt
+- [ ] Step 2: Select strategy
+- [ ] Step 3: Execute LLM call
+- [ ] Step 4: Process and synthesize
+```
+
+**Step 1: Prepare prompt**
+Construct the prompt with system context, conversation history, and user input.
+
+**Step 2: Select strategy**
+Choose execution mode: direct call, ensemble (multi-perspective, self-consistency, GSA, or debate).
+
+**Step 3: Execute LLM call**
+Send the request to Claude via CLI and receive the response.
+
+**Step 4: Process and synthesize**
+Parse the response, merge ensemble results if applicable, and extract structured content.
 
 ## Triggers
 - "summarize"

@@ -1,5 +1,5 @@
 ---
-name: slack
+name: messaging-slack
 description: "This skill provides tools to send messages, read channels, upload files, and interact with Slack workspaces using the Slack Web API via requests. Use when the user wants to send to slack, slack message, post to slack."
 ---
 
@@ -176,6 +176,32 @@ This skill uses the Slack Web API with the following endpoints:
 - `reactions.add` - Add reactions
 - `files.upload` - Upload files
 - `users.info` - Get user details
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Connect to workspace
+- [ ] Step 2: Select channel
+- [ ] Step 3: Compose message
+- [ ] Step 4: Send to Slack
+```
+
+**Step 1: Connect to workspace**
+Authenticate with the Slack workspace.
+
+**Step 2: Select channel**
+List channels and identify the target channel.
+
+**Step 3: Compose message**
+Prepare the message content with formatting.
+
+**Step 4: Send to Slack**
+Post the message or upload files to the channel.
 
 ## Triggers
 - "slack"

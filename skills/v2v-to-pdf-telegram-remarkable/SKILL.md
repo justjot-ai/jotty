@@ -1,5 +1,5 @@
 ---
-name: v2v-to-pdf-telegram-remarkable
+name: converting-v2v-to-pdf-telegram
 description: "This composite skill combines: 1. V2V trending search 2. PDF generation 3. Telegram sending 4. reMarkable uploading. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 
@@ -54,6 +54,28 @@ result = await v2v_to_pdf_and_send_tool({
 - `send_remarkable` (bool, optional): Send to reMarkable (default: True)
 - `telegram_chat_id` (str, optional): Telegram chat ID
 - `remarkable_folder` (str, optional): reMarkable folder (default: '/')
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search V2V trending
+- [ ] Step 2: Generate PDF
+- [ ] Step 3: Send to Telegram
+- [ ] Step 4: Upload to reMarkable
+```
+
+**Step 1: Search V2V trending**
+Find trending topics and discussions on V2V.ai.
+
+**Step 2: Generate PDF**
+Convert the research results into a formatted PDF document.
+
+**Step 3: Send to Telegram**
+Deliver the PDF to the specified Telegram chat.
+
+**Step 4: Upload to reMarkable**
+Upload the PDF to the reMarkable tablet for reading.
 
 ## Triggers
 - "v2v to pdf telegram remarkable"

@@ -1,5 +1,5 @@
 ---
-name: notion-meeting-intelligence
+name: analyzing-notion-meetings
 description: "This skill helps prepare for meetings by gathering context from Notion, enriching with research, and creating both internal pre-reads and external-facing agendas saved to Notion. Use when the user wants to save to notion, notion page, create notion."
 ---
 
@@ -68,6 +68,24 @@ result = await prepare_meeting_materials_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For enriching with research
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Gather Notion context
+- [ ] Step 2: Enrich with research
+- [ ] Step 3: Create meeting materials
+```
+
+**Step 1: Gather Notion context**
+Search Notion for related project pages and prior meeting notes.
+
+**Step 2: Enrich with research**
+Use Claude LLM to add research context and analysis.
+
+**Step 3: Create meeting materials**
+Generate pre-read documents and external agendas in Notion.
 
 ## Triggers
 - "notion meeting intelligence"

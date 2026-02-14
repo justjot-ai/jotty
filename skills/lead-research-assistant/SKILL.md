@@ -1,5 +1,5 @@
 ---
-name: lead-research-assistant
+name: researching-leads
 description: "This skill helps you identify and qualify potential leads for your business by analyzing your product/service, understanding your ideal customer profile, and providing actionable outreach strategies. Perfect for sales, business development, and marketing professionals. Use when the user wants to search for, look up, find information."
 ---
 

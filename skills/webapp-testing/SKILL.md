@@ -1,5 +1,5 @@
 ---
-name: webapp-testing
+name: testing-webapps
 description: "This skill provides tools for testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs. Use when the user wants to web page, website, fetch url."
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: pmi-trading
+name: trading-pmi
 description: "Place market/limit/SL orders, smart orders with bracket logic, exit positions, cancel orders, and view order history across connected brokers. Use when the user wants to trade, trading, buy."
 ---
 
@@ -64,6 +64,32 @@ Get order history with filters.
 - `status` (str, optional): Filter (open, completed, cancelled)
 - `broker` (str, optional): Filter by broker
 - `symbol` (str, optional): Filter by symbol
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Analyze position
+- [ ] Step 2: Calculate signals
+- [ ] Step 3: Generate recommendations
+- [ ] Step 4: Execute or report
+```
+
+**Step 1: Analyze position**
+Review current portfolio positions and market conditions.
+
+**Step 2: Calculate signals**
+Compute technical and fundamental trading signals.
+
+**Step 3: Generate recommendations**
+Produce buy/sell/hold recommendations with reasoning.
+
+**Step 4: Execute or report**
+Place trades or deliver the analysis report.
 
 ## Triggers
 - "pmi trading"

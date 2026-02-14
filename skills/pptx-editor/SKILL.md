@@ -1,5 +1,5 @@
 ---
-name: pptx-editor
+name: editing-pptx
 description: "Editing toolkit for existing PowerPoint (.pptx) files using python-pptx. This skill is focused on modifying existing presentations, unlike slide-generator which creates new presentations from scratch. Use when the user wants to create."
 ---
 
@@ -165,6 +165,36 @@ result = reorder_slides_tool({
     'new_order': [3, 0, 1, 2]  # For a 4-slide presentation
 })
 ```
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Load presentation
+- [ ] Step 2: Inspect slides
+- [ ] Step 3: Modify content
+- [ ] Step 4: Apply styling
+- [ ] Step 5: Save presentation
+```
+
+**Step 1: Load presentation**
+Open the target PowerPoint file for editing.
+
+**Step 2: Inspect slides**
+List slides and analyze their current content and layout.
+
+**Step 3: Modify content**
+Update text, images, charts, and formatting across slides.
+
+**Step 4: Apply styling**
+Set themes, colors, fonts, and transitions.
+
+**Step 5: Save presentation**
+Export the modified presentation to the desired format.
 
 ## Triggers
 - "pptx editor"

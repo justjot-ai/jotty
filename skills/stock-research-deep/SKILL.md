@@ -1,5 +1,5 @@
 ---
-name: stock-research-deep
+name: researching-stocks-deep
 description: "Performs **deep research** using multi-stage context intelligence methodology. Unlike shallow research (single-pass), this skill implements: 1. **Initial Broad Research** - Parallel searches across all aspects 2. **Gap Analysis** - AI identifies what's missing 3. **Targeted Follow-up** - Fills knowledge gaps 4. **Cross-Referencing** - Verifies information 5. **Progressive Synthesis** - Builds context layer by layer 6. **Quality Validation** - Ensures comprehensive coverage 7. **Iterative Refinement** - Refines weak sections. Use when the user wants to search for, look up, find information."
 ---
 
@@ -155,6 +155,36 @@ result = await tool({
 - `document-converter` skill
 - `telegram-sender` skill
 - Claude CLI installed and authenticated
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Initial broad research
+- [ ] Step 2: Gap analysis
+- [ ] Step 3: Targeted follow-up research
+- [ ] Step 4: Progressive synthesis
+- [ ] Step 5: Quality validation and refinement
+- [ ] Step 6: Generate and deliver report
+```
+
+**Step 1: Initial broad research**
+Execute parallel searches across 12 financial aspects.
+
+**Step 2: Gap analysis**
+AI identifies missing information and knowledge gaps.
+
+**Step 3: Targeted follow-up research**
+Fill knowledge gaps with focused additional searches.
+
+**Step 4: Progressive synthesis**
+Build comprehensive report section by section with accumulated context.
+
+**Step 5: Quality validation and refinement**
+Validate coverage, identify weak sections, and refine with additional research.
+
+**Step 6: Generate and deliver report**
+Convert to PDF and send to Telegram.
 
 ## Triggers
 - "stock research deep"

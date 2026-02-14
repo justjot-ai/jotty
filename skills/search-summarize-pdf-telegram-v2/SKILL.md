@@ -1,5 +1,5 @@
 ---
-name: search-summarize-pdf-telegram-v2
+name: searching-summarizing-pdf-telegram-v2
 description: "This skill uses the generic pipeline framework (`core/registry/pipeline_skill.py`) to define workflows declaratively as arrays of source/processor/sink steps. Use when the user wants to create pdf, generate pdf, convert to pdf."
 ---
 
@@ -93,6 +93,28 @@ result = await search_summarize_pdf_telegram_v2_tool({
     'send_telegram': True
 })
 ```
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Search web for topic
+- [ ] Step 2: Summarize findings
+- [ ] Step 3: Generate PDF report
+- [ ] Step 4: Send to Telegram
+```
+
+**Step 1: Search web for topic**
+Use web-search to find relevant articles and data.
+
+**Step 2: Summarize findings**
+Condense search results into key insights using Claude LLM.
+
+**Step 3: Generate PDF report**
+Format the summary as a professional PDF document.
+
+**Step 4: Send to Telegram**
+Deliver the PDF report to the specified Telegram chat.
 
 ## Triggers
 - "search summarize pdf telegram v2"

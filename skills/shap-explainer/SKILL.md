@@ -1,5 +1,5 @@
 ---
-name: shap-explainer
+name: explaining-shap
 description: "**Description:** Model explainability and interpretation using SHAP values. Use when the user wants to explain model, feature importance, shap values."
 ---
 

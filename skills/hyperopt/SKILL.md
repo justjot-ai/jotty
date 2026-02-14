@@ -1,5 +1,5 @@
 ---
-name: hyperopt
+name: optimizing-hyperparameters
 description: "Hyperparameter optimization using Optuna Bayesian search for ML models."
 ---
 

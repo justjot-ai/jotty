@@ -1,5 +1,5 @@
 ---
-name: justjot-converters
+name: converting-justjot
 description: "Utility converters for transforming content between formats and distributing documents to devices. Wraps JustJot.ai's specialized converters for arXiv papers, YouTube videos, HTML pages, and device sync utilities (Kindle, reMarkable). Use when the user wants to convert, transform, export."
 ---
 
@@ -208,6 +208,36 @@ sync_to_remarkable_tool({
 - Optional: youtube-transcript-api, yt-dlp for YouTube
 - Optional: rmapy, rmapi for reMarkable
 - Optional: html2text for HTML conversion
+
+## Reference
+
+For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Fetch source content
+- [ ] Step 2: Select target format
+- [ ] Step 3: Transform sections
+- [ ] Step 4: Assemble document
+- [ ] Step 5: Export result
+```
+
+**Step 1: Fetch source content**
+Retrieve the original idea or content from JustJot.
+
+**Step 2: Select target format**
+Determine the output format (PDF, EPUB, Markdown, etc.).
+
+**Step 3: Transform sections**
+Convert each section type to the target format representation.
+
+**Step 4: Assemble document**
+Combine transformed sections into a cohesive document.
+
+**Step 5: Export result**
+Save or deliver the final converted document.
 
 ## Triggers
 - "justjot converters"

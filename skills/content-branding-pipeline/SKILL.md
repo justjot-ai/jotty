@@ -1,5 +1,5 @@
 ---
-name: content-branding-pipeline
+name: running-content-branding-pipeline
 description: "This composite skill combines: 1. **Domain Brainstorming** (Source): domain-name-brainstormer 2. **Artifact Creation** (Processor): artifacts-builder 3. **Brand Guidelines** (Processor): brand-guidelines 4. **Theme Application** (Sink): theme-factory. Use when the user wants to brand, branding, brand guidelines."
 ---
 
@@ -67,6 +67,28 @@ Source → Processor → Processor → Sink pattern:
 - **Sink**: Theme factory
 
 No code duplication - reuses existing skills.
+
+## Workflow
+
+```
+Task Progress:
+- [ ] Step 1: Brainstorm domain names
+- [ ] Step 2: Create artifact
+- [ ] Step 3: Apply brand guidelines
+- [ ] Step 4: Apply theme
+```
+
+**Step 1: Brainstorm domain names**
+Generate creative domain name suggestions for the project.
+
+**Step 2: Create artifact**
+Build the HTML, presentation, or document artifact.
+
+**Step 3: Apply brand guidelines**
+Apply Anthropic brand colors, typography, and styling.
+
+**Step 4: Apply theme**
+Finalize the artifact with the selected visual theme.
 
 ## Triggers
 - "content branding pipeline"
