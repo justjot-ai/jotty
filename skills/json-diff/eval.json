@@ -1,0 +1,35 @@
+{
+  "skill": "json-diff",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to comparing json",
+      "expected_skill": "json-diff",
+      "should_match": true,
+      "notes": "Should discover json-diff in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "json_diff_tool",
+      "input": {
+        "a": {
+          "x": 1
+        },
+        "b": {
+          "x": 2
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of json_diff_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use json-diff with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

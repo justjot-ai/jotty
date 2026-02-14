@@ -1,0 +1,31 @@
+{
+  "skill": "nato-phonetic-alphabet",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to spelling with nato",
+      "expected_skill": "nato-phonetic-alphabet",
+      "should_match": true,
+      "notes": "Should discover nato-phonetic-alphabet in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "nato_tool",
+      "input": {
+        "action": "encode",
+        "text": "ABC"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of nato_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use nato-phonetic-alphabet with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

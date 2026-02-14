@@ -1,0 +1,38 @@
+{
+  "skill": "markdown-table-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to markdown table generator",
+      "expected_skill": "markdown-table-generator",
+      "should_match": true,
+      "notes": "Should discover markdown-table-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_markdown_table",
+      "input": {
+        "data": [
+          {
+            "name": "Alice",
+            "score": 95
+          }
+        ],
+        "align": {
+          "score": "right"
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_markdown_table"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use markdown-table-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

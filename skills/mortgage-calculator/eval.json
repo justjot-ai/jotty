@@ -1,0 +1,32 @@
+{
+  "skill": "mortgage-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to mortgage calculator",
+      "expected_skill": "mortgage-calculator",
+      "should_match": true,
+      "notes": "Should discover mortgage-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "mortgage_tool",
+      "input": {
+        "principal": 300000,
+        "annual_rate": 6.5,
+        "term_years": 30
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of mortgage_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use mortgage-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

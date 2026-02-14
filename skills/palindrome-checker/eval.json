@@ -1,0 +1,30 @@
+{
+  "skill": "palindrome-checker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to palindrome checker",
+      "expected_skill": "palindrome-checker",
+      "should_match": true,
+      "notes": "Should discover palindrome-checker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "palindrome_tool",
+      "input": {
+        "text": "racecar"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of palindrome_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use palindrome-checker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

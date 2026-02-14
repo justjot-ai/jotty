@@ -1,0 +1,30 @@
+{
+  "skill": "dependency-checker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to dependency checker",
+      "expected_skill": "dependency-checker",
+      "should_match": true,
+      "notes": "Should discover dependency-checker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "check_dependencies",
+      "input": {
+        "content": "requests==2.28.0\nflask>=2.0"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of check_dependencies"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use dependency-checker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "checksum-verifier",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to checksum verifier",
+      "expected_skill": "checksum-verifier",
+      "should_match": true,
+      "notes": "Should discover checksum-verifier in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "calculate_checksum",
+      "input": {
+        "text": "hello world",
+        "algorithm": "sha256"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of calculate_checksum"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use checksum-verifier with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

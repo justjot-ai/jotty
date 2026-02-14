@@ -1,0 +1,33 @@
+{
+  "skill": "sitemap-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to sitemap generator",
+      "expected_skill": "sitemap-generator",
+      "should_match": true,
+      "notes": "Should discover sitemap-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_sitemap",
+      "input": {
+        "urls": [
+          "https://example.com",
+          "https://example.com/about"
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_sitemap"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use sitemap-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

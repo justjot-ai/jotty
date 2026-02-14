@@ -163,28 +163,54 @@ class AutoWorkflow:
         previous_stages = []
 
         for deliverable in deliverables:
-            if deliverable not in deliverable_mapping:
-                print(f"⚠️  Unknown deliverable: {deliverable}, skipping")
-                continue
+            stage_config = self.stage_configs.get(deliverable, {})
 
-            stage_type = deliverable_mapping[deliverable]
+            # Check if stage is completely replaced
+            if stage_config.get("replace"):
+                # Use custom swarms
+                swarms = stage_config["custom_swarms"]
+                merge_strategy = stage_config.get("merge_strategy", MergeStrategy.BEST_OF_N)
+                context_from = stage_config.get("context_from", previous_stages.copy() if previous_stages else None)
 
-            # Get swarms from registry
-            swarms_config = self.registry.get_swarms_for_stage(stage_type, context)
-            merge_strategy_str = self.registry.get_merge_strategy(stage_type)
+            else:
+                # Auto-generate with SmartRegistry (possibly customized)
+                if deliverable not in deliverable_mapping:
+                    print(f"⚠️  Unknown deliverable: {deliverable}, skipping")
+                    continue
 
-            # Convert string to MergeStrategy enum
-            merge_strategy = getattr(MergeStrategy, merge_strategy_str, MergeStrategy.BEST_OF_N)
+                stage_type = deliverable_mapping[deliverable]
 
-            # Create swarms
-            swarms = SwarmAdapter.quick_swarms(
-                swarms_config,
-                model=self.stage_configs.get(deliverable, {}).get("model", "claude-3-5-haiku-20241022"),
-                max_tokens=self.stage_configs.get(deliverable, {}).get("max_tokens", 800)
-            )
+                # Get swarms from registry
+                swarms_config = self.registry.get_swarms_for_stage(stage_type, context)
 
-            # Determine context sources (use all previous stages)
-            context_from = previous_stages.copy() if previous_stages else None
+                # Apply customizations (additional prompts, context, etc.)
+                if stage_config.get("custom_prompts"):
+                    for custom_prompt in stage_config["custom_prompts"]:
+                        swarms_config.append((f"{deliverable.title()} Custom", custom_prompt))
+
+                if stage_config.get("additional_context"):
+                    # Add additional context to each swarm prompt
+                    swarms_config = [
+                        (name, f"{prompt}\n\nAdditional Context:\n{stage_config['additional_context']}")
+                        for name, prompt in swarms_config
+                    ]
+
+                # Get merge strategy (customized or default)
+                if stage_config.get("merge_strategy"):
+                    merge_strategy = stage_config["merge_strategy"]
+                else:
+                    merge_strategy_str = self.registry.get_merge_strategy(stage_type)
+                    merge_strategy = getattr(MergeStrategy, merge_strategy_str, MergeStrategy.BEST_OF_N)
+
+                # Create swarms
+                swarms = SwarmAdapter.quick_swarms(
+                    swarms_config,
+                    model=stage_config.get("model", "claude-3-5-haiku-20241022"),
+                    max_tokens=stage_config.get("max_tokens", 800)
+                )
+
+                # Determine context sources (use all previous stages)
+                context_from = previous_stages.copy() if previous_stages else None
 
             # Add stage
             self.pipeline.add_stage(
@@ -196,6 +222,22 @@ class AutoWorkflow:
             )
 
             previous_stages.append(deliverable)
+
+        # Add any custom stages
+        for stage_name, config in self.stage_configs.items():
+            if config.get("custom_stage"):
+                # This is a completely new stage to insert
+                swarms = config["swarms"]
+                merge_strategy = config.get("merge_strategy", MergeStrategy.BEST_OF_N)
+                context_from = config.get("context_from")
+
+                self.pipeline.add_stage(
+                    name=stage_name,
+                    swarms=swarms,
+                    merge_strategy=merge_strategy,
+                    context_from=context_from,
+                    max_context_chars=1500
+                )
 
     def _build_stage_context(self) -> Dict[str, Any]:
         """Build context dict for stage prompts."""
@@ -219,15 +261,21 @@ class AutoWorkflow:
         self,
         stage_name: str,
         model: Optional[str] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        merge_strategy: Optional[MergeStrategy] = None,
+        additional_context: Optional[str] = None,
+        custom_prompts: Optional[List[str]] = None
     ):
         """
-        Customize a specific stage.
+        Customize a specific stage (keeps auto-generation but tweaks it).
 
         Args:
             stage_name: Name of stage (e.g., "code", "tests")
             model: Model to use
             max_tokens: Max tokens for this stage
+            merge_strategy: Override merge strategy
+            additional_context: Additional context to inject
+            custom_prompts: Additional prompts to add to SmartRegistry prompts
         """
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -236,6 +284,117 @@ class AutoWorkflow:
             self.stage_configs[stage_name]["model"] = model
         if max_tokens:
             self.stage_configs[stage_name]["max_tokens"] = max_tokens
+        if merge_strategy:
+            self.stage_configs[stage_name]["merge_strategy"] = merge_strategy
+        if additional_context:
+            self.stage_configs[stage_name]["additional_context"] = additional_context
+        if custom_prompts:
+            self.stage_configs[stage_name]["custom_prompts"] = custom_prompts
+
+    def replace_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        merge_strategy: Optional[MergeStrategy] = None,
+        context_from: Optional[List[str]] = None
+    ):
+        """
+        Completely replace a stage with custom swarms (full control).
+
+        Args:
+            stage_name: Name of stage to replace
+            swarms: Custom swarms to use
+            merge_strategy: Merge strategy
+            context_from: Which stages to use as context
+        """
+        if stage_name not in self.stage_configs:
+            self.stage_configs[stage_name] = {}
+
+        self.stage_configs[stage_name]["replace"] = True
+        self.stage_configs[stage_name]["custom_swarms"] = swarms
+        if merge_strategy:
+            self.stage_configs[stage_name]["merge_strategy"] = merge_strategy
+        if context_from:
+            self.stage_configs[stage_name]["context_from"] = context_from
+
+    def add_custom_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        position: Optional[int] = None,
+        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
+        context_from: Optional[List[str]] = None
+    ):
+        """
+        Add a completely custom stage (insert new stage).
+
+        Args:
+            stage_name: Name for the new stage
+            swarms: Swarms to execute
+            position: Where to insert (None = append at end)
+            merge_strategy: How to merge results
+            context_from: Which stages to use as context
+        """
+        self.stage_configs[stage_name] = {
+            "custom_stage": True,
+            "swarms": swarms,
+            "position": position,
+            "merge_strategy": merge_strategy,
+            "context_from": context_from
+        }
+
+    def inspect_pipeline(self) -> Dict[str, Any]:
+        """
+        Inspect what the auto-generated pipeline will do.
+
+        Returns:
+            Dict with pipeline structure before execution
+        """
+        deliverables = self.intent.deliverables or self._infer_deliverables()
+
+        inspection = {
+            "goal": self.intent.goal,
+            "deliverables": deliverables,
+            "stages": []
+        }
+
+        for deliverable in deliverables:
+            stage_info = {
+                "name": deliverable,
+                "stage_type": deliverable,
+                "customized": deliverable in self.stage_configs,
+                "replaced": self.stage_configs.get(deliverable, {}).get("replace", False)
+            }
+            inspection["stages"].append(stage_info)
+
+        return inspection
+
+    def show_pipeline(self, verbose: bool = True):
+        """
+        Print pipeline structure (useful before executing).
+        """
+        inspection = self.inspect_pipeline()
+
+        if verbose:
+            print("\n" + "="*70)
+            print("PIPELINE INSPECTION")
+            print("="*70)
+            print(f"\n🎯 Goal: {inspection['goal']}")
+            print(f"📊 Stages: {len(inspection['stages'])}")
+            print()
+
+            for i, stage in enumerate(inspection["stages"], 1):
+                status = ""
+                if stage["replaced"]:
+                    status = "🔧 REPLACED (custom swarms)"
+                elif stage["customized"]:
+                    status = "⚙️  CUSTOMIZED (tweaked)"
+                else:
+                    status = "🤖 AUTO (SmartRegistry)"
+
+                print(f"{i}. {stage['name']:<20} {status}")
+
+            print("\n" + "="*70 + "\n")
 
     async def run(self, verbose: bool = True) -> PipelineResult:
         """Execute the workflow pipeline."""

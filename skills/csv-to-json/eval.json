@@ -1,0 +1,30 @@
+{
+  "skill": "csv-to-json",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to csv to json",
+      "expected_skill": "csv-to-json",
+      "should_match": true,
+      "notes": "Should discover csv-to-json in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "csv_to_json",
+      "input": {
+        "csv_text": "name,age\nAlice,30\nBob,25"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of csv_to_json"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use csv-to-json with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "skill": "data-structure-tool",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to data structure tool",
+      "expected_skill": "data-structure-tool",
+      "should_match": true,
+      "notes": "Should discover data-structure-tool in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "data_structure_tool",
+      "input": {
+        "structure": "stack",
+        "operations": [
+          {
+            "op": "push",
+            "value": 1
+          },
+          {
+            "op": "push",
+            "value": 2
+          },
+          {
+            "op": "pop"
+          }
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of data_structure_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use data-structure-tool with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

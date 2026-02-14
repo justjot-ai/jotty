@@ -1,0 +1,31 @@
+{
+  "skill": "roman-numeral-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting roman numerals",
+      "expected_skill": "roman-numeral-converter",
+      "should_match": true,
+      "notes": "Should discover roman-numeral-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "roman_tool",
+      "input": {
+        "action": "to_roman",
+        "number": 2024
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of roman_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use roman-numeral-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "skill": "binary-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting binary",
+      "expected_skill": "binary-converter",
+      "should_match": true,
+      "notes": "Should discover binary-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "binary_convert_tool",
+      "input": {
+        "action": "convert",
+        "value": "255",
+        "from_base": "decimal",
+        "to_base": "binary"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of binary_convert_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use binary-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

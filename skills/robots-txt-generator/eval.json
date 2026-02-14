@@ -1,0 +1,37 @@
+{
+  "skill": "robots-txt-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to robots txt generator",
+      "expected_skill": "robots-txt-generator",
+      "should_match": true,
+      "notes": "Should discover robots-txt-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_robots_txt",
+      "input": {
+        "rules": [
+          {
+            "user_agent": "*",
+            "disallow": [
+              "/admin"
+            ]
+          }
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_robots_txt"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use robots-txt-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

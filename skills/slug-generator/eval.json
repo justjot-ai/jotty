@@ -1,0 +1,30 @@
+{
+  "skill": "slug-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating slugs",
+      "expected_skill": "slug-generator",
+      "should_match": true,
+      "notes": "Should discover slug-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "slugify_tool",
+      "input": {
+        "text": "Hello World!"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of slugify_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use slug-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

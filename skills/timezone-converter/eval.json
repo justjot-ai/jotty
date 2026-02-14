@@ -1,0 +1,32 @@
+{
+  "skill": "timezone-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to timezone converter",
+      "expected_skill": "timezone-converter",
+      "should_match": true,
+      "notes": "Should discover timezone-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "timezone_convert_tool",
+      "input": {
+        "datetime_str": "2025-01-15 14:30",
+        "from_tz": "EST",
+        "to_tz": "PST"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of timezone_convert_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use timezone-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

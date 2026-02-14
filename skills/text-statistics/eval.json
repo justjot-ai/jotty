@@ -1,0 +1,30 @@
+{
+  "skill": "text-statistics",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to text statistics",
+      "expected_skill": "text-statistics",
+      "should_match": true,
+      "notes": "Should discover text-statistics in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "analyze_text_tool",
+      "input": {
+        "text": "Hello world. This is a test."
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of analyze_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use text-statistics with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

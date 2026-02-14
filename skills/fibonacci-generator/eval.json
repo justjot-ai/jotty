@@ -1,0 +1,31 @@
+{
+  "skill": "fibonacci-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to fibonacci generator",
+      "expected_skill": "fibonacci-generator",
+      "should_match": true,
+      "notes": "Should discover fibonacci-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "fibonacci_tool",
+      "input": {
+        "operation": "sequence",
+        "count": 10
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of fibonacci_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use fibonacci-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

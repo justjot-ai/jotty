@@ -1,0 +1,35 @@
+{
+  "skill": "sql-query-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to sql query builder",
+      "expected_skill": "sql-query-builder",
+      "should_match": true,
+      "notes": "Should discover sql-query-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "build_sql_query",
+      "input": {
+        "operation": "SELECT",
+        "table": "users",
+        "columns": [
+          "id",
+          "name"
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of build_sql_query"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use sql-query-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

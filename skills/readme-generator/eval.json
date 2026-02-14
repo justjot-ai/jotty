@@ -1,0 +1,31 @@
+{
+  "skill": "readme-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to readme generator",
+      "expected_skill": "readme-generator",
+      "should_match": true,
+      "notes": "Should discover readme-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_readme",
+      "input": {
+        "name": "MyProject",
+        "description": "A sample project"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_readme"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use readme-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

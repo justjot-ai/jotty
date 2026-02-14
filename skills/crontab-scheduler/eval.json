@@ -1,0 +1,30 @@
+{
+  "skill": "crontab-scheduler",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to crontab scheduler",
+      "expected_skill": "crontab-scheduler",
+      "should_match": true,
+      "notes": "Should discover crontab-scheduler in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "schedule_to_cron",
+      "input": {
+        "schedule": "every day at 3pm"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of schedule_to_cron"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use crontab-scheduler with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

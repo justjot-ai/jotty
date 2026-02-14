@@ -1,0 +1,32 @@
+{
+  "skill": "number-base-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting number bases",
+      "expected_skill": "number-base-converter",
+      "should_match": true,
+      "notes": "Should discover number-base-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "base_convert_tool",
+      "input": {
+        "number": "ff",
+        "from_base": 16,
+        "to_base": 10
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of base_convert_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use number-base-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

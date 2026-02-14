@@ -1,0 +1,31 @@
+{
+  "skill": "bmi-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to bmi calculator",
+      "expected_skill": "bmi-calculator",
+      "should_match": true,
+      "notes": "Should discover bmi-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "bmi_tool",
+      "input": {
+        "weight_kg": 70,
+        "height_m": 1.75
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of bmi_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use bmi-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

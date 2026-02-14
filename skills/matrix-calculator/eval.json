@@ -1,0 +1,40 @@
+{
+  "skill": "matrix-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to matrix calculator",
+      "expected_skill": "matrix-calculator",
+      "should_match": true,
+      "notes": "Should discover matrix-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "matrix_tool",
+      "input": {
+        "operation": "determinant",
+        "matrix_a": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of matrix_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use matrix-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "license-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to license generator",
+      "expected_skill": "license-generator",
+      "should_match": true,
+      "notes": "Should discover license-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_license",
+      "input": {
+        "license_type": "mit",
+        "author": "Test Author"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_license"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use license-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

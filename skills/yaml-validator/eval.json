@@ -1,0 +1,30 @@
+{
+  "skill": "yaml-validator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to yaml validator",
+      "expected_skill": "yaml-validator",
+      "should_match": true,
+      "notes": "Should discover yaml-validator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "validate_yaml",
+      "input": {
+        "yaml_text": "name: test\nvalue: 42"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of validate_yaml"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use yaml-validator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

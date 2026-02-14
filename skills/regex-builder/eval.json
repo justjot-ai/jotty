@@ -1,0 +1,31 @@
+{
+  "skill": "regex-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to building regex",
+      "expected_skill": "regex-builder",
+      "should_match": true,
+      "notes": "Should discover regex-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "regex_tool",
+      "input": {
+        "action": "preset",
+        "name": "email"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of regex_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use regex-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

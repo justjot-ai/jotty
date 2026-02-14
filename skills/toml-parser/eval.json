@@ -1,0 +1,30 @@
+{
+  "skill": "toml-parser",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to toml parser",
+      "expected_skill": "toml-parser",
+      "should_match": true,
+      "notes": "Should discover toml-parser in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "parse_toml",
+      "input": {
+        "toml_text": "[project]\nname = \"demo\"\nversion = \"1.0\""
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of parse_toml"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use toml-parser with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

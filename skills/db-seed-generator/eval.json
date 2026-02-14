@@ -1,0 +1,40 @@
+{
+  "skill": "db-seed-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to db seed generator",
+      "expected_skill": "db-seed-generator",
+      "should_match": true,
+      "notes": "Should discover db-seed-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_seed_data",
+      "input": {
+        "table": "users",
+        "columns": [
+          {
+            "name": "id",
+            "type": "integer"
+          },
+          {
+            "name": "name",
+            "type": "name"
+          }
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_seed_data"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use db-seed-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

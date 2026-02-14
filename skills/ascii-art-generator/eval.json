@@ -1,0 +1,30 @@
+{
+  "skill": "ascii-art-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to ascii art generator",
+      "expected_skill": "ascii-art-generator",
+      "should_match": true,
+      "notes": "Should discover ascii-art-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "ascii_art_tool",
+      "input": {
+        "text": "HI"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of ascii_art_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use ascii-art-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "morse-code-translator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to translating morse code",
+      "expected_skill": "morse-code-translator",
+      "should_match": true,
+      "notes": "Should discover morse-code-translator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "morse_tool",
+      "input": {
+        "action": "encode",
+        "text": "HELLO"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of morse_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use morse-code-translator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

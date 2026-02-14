@@ -1,0 +1,30 @@
+{
+  "skill": "countdown-timer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to countdown timer",
+      "expected_skill": "countdown-timer",
+      "should_match": true,
+      "notes": "Should discover countdown-timer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "countdown_tool",
+      "input": {
+        "target_date": "2025-12-25"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of countdown_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use countdown-timer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

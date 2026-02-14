@@ -1,0 +1,30 @@
+{
+  "skill": "word-frequency-analyzer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to word frequency analyzer",
+      "expected_skill": "word-frequency-analyzer",
+      "should_match": true,
+      "notes": "Should discover word-frequency-analyzer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "word_freq_tool",
+      "input": {
+        "text": "the cat sat on the mat the cat"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of word_freq_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use word-frequency-analyzer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

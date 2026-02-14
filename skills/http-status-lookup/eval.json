@@ -1,0 +1,30 @@
+{
+  "skill": "http-status-lookup",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to http status lookup",
+      "expected_skill": "http-status-lookup",
+      "should_match": true,
+      "notes": "Should discover http-status-lookup in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "lookup_http_status",
+      "input": {
+        "code": 404
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of lookup_http_status"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use http-status-lookup with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

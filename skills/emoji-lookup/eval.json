@@ -1,0 +1,31 @@
+{
+  "skill": "emoji-lookup",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to looking up emojis",
+      "expected_skill": "emoji-lookup",
+      "should_match": true,
+      "notes": "Should discover emoji-lookup in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "emoji_lookup_tool",
+      "input": {
+        "action": "search",
+        "query": "smile"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of emoji_lookup_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use emoji-lookup with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

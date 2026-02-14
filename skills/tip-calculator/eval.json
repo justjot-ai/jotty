@@ -1,0 +1,32 @@
+{
+  "skill": "tip-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tip calculator",
+      "expected_skill": "tip-calculator",
+      "should_match": true,
+      "notes": "Should discover tip-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "tip_tool",
+      "input": {
+        "bill_amount": 85.5,
+        "tip_percent": 18,
+        "num_people": 3
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of tip_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use tip-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "skill": "sorting-visualizer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to sorting visualizer",
+      "expected_skill": "sorting-visualizer",
+      "should_match": true,
+      "notes": "Should discover sorting-visualizer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "sorting_tool",
+      "input": {
+        "algorithm": "bubble",
+        "array": [
+          5,
+          3,
+          1,
+          4,
+          2
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of sorting_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use sorting-visualizer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

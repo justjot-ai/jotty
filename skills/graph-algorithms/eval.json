@@ -1,0 +1,42 @@
+{
+  "skill": "graph-algorithms",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to graph algorithms",
+      "expected_skill": "graph-algorithms",
+      "should_match": true,
+      "notes": "Should discover graph-algorithms in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "graph_tool",
+      "input": {
+        "operation": "bfs",
+        "graph": {
+          "A": [
+            "B",
+            "C"
+          ],
+          "B": [
+            "D"
+          ],
+          "C": [],
+          "D": []
+        },
+        "start": "A"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of graph_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use graph-algorithms with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

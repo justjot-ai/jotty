@@ -1,0 +1,32 @@
+{
+  "skill": "encryption-tool",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to encryption tool",
+      "expected_skill": "encryption-tool",
+      "should_match": true,
+      "notes": "Should discover encryption-tool in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "encryption_tool",
+      "input": {
+        "operation": "caesar",
+        "text": "hello",
+        "shift": 3
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of encryption_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use encryption-tool with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}
