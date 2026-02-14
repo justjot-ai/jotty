@@ -6,7 +6,7 @@
 
 | Function | Description |
 |----------|-------------|
-| [`search_web_tool`](#search_web_tool) | Search the web using Google (Serper API) or DuckDuckGo. |
+| [`search_web_tool`](#search_web_tool) | Search the web using Google (Serper API), SearXNG, or DuckDuckGo. |
 | [`fetch_webpage_tool`](#fetch_webpage_tool) | Fetch and extract text content from a web page. |
 | [`search_and_scrape_tool`](#search_and_scrape_tool) | Search web and scrape content from top results. |
 | [`serper_scrape_website_tool`](#serper_scrape_website_tool) | Scrape a website using Serper API for clean markdown extraction. |
@@ -23,13 +23,13 @@
 
 ## `search_web_tool`
 
-Search the web using Google (Serper API) or DuckDuckGo.  Priority: Serper API (Google) > DuckDuckGo library > HTML parsing fallback.
+Search the web using Google (Serper API), SearXNG, or DuckDuckGo.  Priority: Serper API (Google) > SearXNG > DuckDuckGo library > HTML parsing fallback.
 
 **Parameters:**
 
 - **query** (`str, required`): Search query
 - **max_results** (`int, optional`): Max results (default: 10, max: 20)
-- **provider** (`str, optional`): 'serper' or 'duckduckgo' (default: auto)
+- **provider** (`str, optional`): 'serper', 'searxng', or 'duckduckgo' (default: auto)
 
 **Returns:** Dictionary with success, results, count, query, provider
 

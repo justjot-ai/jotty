@@ -93,3 +93,8 @@ __all__ = list(_LAZY_IMPORTS.keys()) + [
     'get_reward_manager',
     'get_cooperative_agents',
 ]
+
+from .cost_aware_td import (
+    CostAwareTDLambda,
+    get_cost_aware_td_lambda,
+)

@@ -44,6 +44,11 @@ from .llm_rag import (
     RecencyValueRanker,
     SlidingWindowChunker,
 )
+from .incremental_consolidation import (
+    IncrementalConsolidator,
+    get_incremental_consolidator,
+)
+
 from .mongodb_backend import (
     MongoDBMemoryBackend,
     enable_mongodb_memory,
@@ -142,4 +147,7 @@ __all__ = [
     'get_brain_manager',
     'get_consolidator',
     'get_rag_retriever',
+    # incremental consolidation
+    'IncrementalConsolidator',
+    'get_incremental_consolidator',
 ]

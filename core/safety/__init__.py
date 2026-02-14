@@ -43,5 +43,15 @@ __all__ = [
     # Red Team
     'EthicalRedTeam',
     'BiasReport',
-    'FairnessAudit'
+    'FairnessAudit',
+    # Adaptive Thresholds
+    'AdaptiveThresholdManager',
+    'ThresholdHistory',
+    'get_adaptive_threshold_manager'
 ]
+
+from .adaptive_thresholds import (
+    AdaptiveThresholdManager,
+    ThresholdHistory,
+    get_adaptive_threshold_manager,
+)

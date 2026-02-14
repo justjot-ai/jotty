@@ -21,6 +21,8 @@ from .metrics import get_metrics, MetricsCollector
 from .health import HealthCheck
 
 __all__ = [
+    'DistributedTracer',
+    'get_distributed_tracer',
     'get_tracer',
     'trace_skill',
     'trace_agent',
@@ -29,3 +31,8 @@ __all__ = [
     'MetricsCollector',
     'HealthCheck',
 ]
+
+from .distributed_tracing import (
+    DistributedTracer,
+    get_distributed_tracer,
+)

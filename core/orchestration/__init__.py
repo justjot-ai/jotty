@@ -137,3 +137,10 @@ __all__ = list(_LAZY_MAP.keys()) + [
     'get_model_tier_router',
     'get_swarm_router',
 ]
+
+from .multi_swarm_coordinator import (
+    MultiSwarmCoordinator,
+    MergeStrategy,
+    SwarmResult,
+    get_multi_swarm_coordinator,
+)
