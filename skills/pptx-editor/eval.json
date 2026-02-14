@@ -1,0 +1,28 @@
+{
+  "skill": "pptx-editor",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to editing toolkit existing",
+      "expected_skill": "pptx-editor",
+      "should_match": true,
+      "notes": "Should discover pptx-editor in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "read_pptx_tool",
+      "input": {},
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of read_pptx_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pptx-editor with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

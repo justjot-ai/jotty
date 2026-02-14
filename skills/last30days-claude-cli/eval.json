@@ -1,0 +1,27 @@
+{
+  "skill": "last30days-claude-cli",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to researches topics last",
+      "expected_skill": "last30days-claude-cli",
+      "should_match": true,
+      "notes": "Should discover last30days-claude-cli in top-3 results"
+    },
+    {
+      "type": "functional",
+      "prompt": "Use last30days-claude-cli to perform a basic operation",
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of last30days-claude-cli"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use last30days-claude-cli with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

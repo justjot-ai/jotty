@@ -94,8 +94,8 @@ class SmartContextManager:
         
         # Current context state
         self.current_chunks: List[ContextChunk] = []
-        
-        # TODO/Task preservation
+
+        # Task/Goal preservation (never compressed)
         self._current_todo: Optional[str] = None
         self._current_goal: Optional[str] = None
         self._critical_memories: List[str] = []

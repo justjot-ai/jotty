@@ -1,0 +1,30 @@
+{
+  "skill": "skill-creator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to assists creating jotty",
+      "expected_skill": "skill-creator",
+      "should_match": true,
+      "notes": "Should discover skill-creator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`create_skill_template_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `create_skill_template_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use skill-creator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

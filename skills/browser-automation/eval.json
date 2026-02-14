@@ -1,0 +1,30 @@
+{
+  "skill": "browser-automation",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to comprehensive browser automation",
+      "expected_skill": "browser-automation",
+      "should_match": true,
+      "notes": "Should discover browser-automation in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "browser_navigate_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of browser_navigate_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use browser-automation with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

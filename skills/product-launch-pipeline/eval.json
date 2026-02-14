@@ -1,0 +1,30 @@
+{
+  "skill": "product-launch-pipeline",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines domain",
+      "expected_skill": "product-launch-pipeline",
+      "should_match": true,
+      "notes": "Should discover product-launch-pipeline in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "product_launch_pipeline_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of product_launch_pipeline_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use product-launch-pipeline with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "skill": "pmi-market-data",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to live quotes multisymbol",
+      "expected_skill": "pmi-market-data",
+      "should_match": true,
+      "notes": "Should discover pmi-market-data in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "get_quote_tool",
+      "input": {},
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of get_quote_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pmi-market-data with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "video-downloader",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to downloads videos youtube",
+      "expected_skill": "video-downloader",
+      "should_match": true,
+      "notes": "Should discover video-downloader in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`download_video_tool`",
+      "input": {
+        "url": "https://example.com/test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `download_video_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use video-downloader with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

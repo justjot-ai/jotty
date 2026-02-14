@@ -1,0 +1,30 @@
+{
+  "skill": "brand-guidelines",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to applies anthropics brand",
+      "expected_skill": "brand-guidelines",
+      "should_match": true,
+      "notes": "Should discover brand-guidelines in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`apply_brand_styling_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `apply_brand_styling_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use brand-guidelines with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

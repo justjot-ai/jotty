@@ -1,0 +1,30 @@
+{
+  "skill": "file-operations",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to essential file system",
+      "expected_skill": "file-operations",
+      "should_match": true,
+      "notes": "Should discover file-operations in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "read_file_tool",
+      "input": {
+        "path": "/tmp/test.txt"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of read_file_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use file-operations with a non-existent file path",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

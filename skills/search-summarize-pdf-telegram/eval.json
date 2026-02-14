@@ -1,0 +1,30 @@
+{
+  "skill": "search-summarize-pdf-telegram",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines websearch",
+      "expected_skill": "search-summarize-pdf-telegram",
+      "should_match": true,
+      "notes": "Should discover search-summarize-pdf-telegram in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "search_summarize_pdf_telegram_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of search_summarize_pdf_telegram_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use search-summarize-pdf-telegram with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

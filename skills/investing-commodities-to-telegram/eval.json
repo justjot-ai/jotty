@@ -1,0 +1,30 @@
+{
+  "skill": "investing-commodities-to-telegram",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to fetches latest commodities",
+      "expected_skill": "investing-commodities-to-telegram",
+      "should_match": true,
+      "notes": "Should discover investing-commodities-to-telegram in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`commodities_to_telegram_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `commodities_to_telegram_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use investing-commodities-to-telegram with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

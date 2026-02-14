@@ -1,0 +1,30 @@
+{
+  "skill": "simple-pdf-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to template converting textmarkdown",
+      "expected_skill": "simple-pdf-generator",
+      "should_match": true,
+      "notes": "Should discover simple-pdf-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_pdf_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_pdf_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use simple-pdf-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

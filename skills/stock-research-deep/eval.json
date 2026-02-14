@@ -1,0 +1,30 @@
+{
+  "skill": "stock-research-deep",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to performs deep research",
+      "expected_skill": "stock-research-deep",
+      "should_match": true,
+      "notes": "Should discover stock-research-deep in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "deep_stock_research_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of deep_stock_research_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use stock-research-deep with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

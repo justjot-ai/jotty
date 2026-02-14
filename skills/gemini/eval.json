@@ -1,0 +1,30 @@
+{
+  "skill": "gemini",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to capabilities googles gemini",
+      "expected_skill": "gemini",
+      "should_match": true,
+      "notes": "Should discover gemini in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_text_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use gemini with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "pycaret",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description full automl",
+      "expected_skill": "pycaret",
+      "should_match": true,
+      "notes": "Should discover pycaret in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "pycaret_classify_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of pycaret_classify_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pycaret with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

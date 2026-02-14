@@ -1,0 +1,30 @@
+{
+  "skill": "notion-spec-to-implementation",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to reads specifications notion",
+      "expected_skill": "notion-spec-to-implementation",
+      "should_match": true,
+      "notes": "Should discover notion-spec-to-implementation in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`create_implementation_plan_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `create_implementation_plan_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use notion-spec-to-implementation with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

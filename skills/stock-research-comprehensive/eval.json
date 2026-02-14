@@ -1,0 +1,30 @@
+{
+  "skill": "stock-research-comprehensive",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to performs comprehensive stock",
+      "expected_skill": "stock-research-comprehensive",
+      "should_match": true,
+      "notes": "Should discover stock-research-comprehensive in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "comprehensive_stock_research_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of comprehensive_stock_research_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use stock-research-comprehensive with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

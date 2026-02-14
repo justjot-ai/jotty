@@ -1,0 +1,31 @@
+{
+  "skill": "time-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to convert time between",
+      "expected_skill": "time-converter",
+      "should_match": true,
+      "notes": "Should discover time-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "time_converter_tool",
+      "input": {
+        "input": "test data",
+        "format": "text"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of time_converter_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use time-converter with unsupported format",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

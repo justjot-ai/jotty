@@ -1,0 +1,30 @@
+{
+  "skill": "last30days-to-epub-telegram",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines lastdaysclaudecli",
+      "expected_skill": "last30days-to-epub-telegram",
+      "should_match": true,
+      "notes": "Should discover last30days-to-epub-telegram in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "last30days_to_epub_telegram_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of last30days_to_epub_telegram_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use last30days-to-epub-telegram with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "shell-exec",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to safe shell command",
+      "expected_skill": "shell-exec",
+      "should_match": true,
+      "notes": "Should discover shell-exec in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "execute_command_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of execute_command_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use shell-exec with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

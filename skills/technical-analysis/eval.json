@@ -1,0 +1,30 @@
+{
+  "skill": "technical-analysis",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to multitimeframe technical analysis",
+      "expected_skill": "technical-analysis",
+      "should_match": true,
+      "notes": "Should discover technical-analysis in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`technical_analysis_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `technical_analysis_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use technical-analysis with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

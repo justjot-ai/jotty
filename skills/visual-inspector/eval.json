@@ -1,0 +1,30 @@
+{
+  "skill": "visual-inspector",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to ondemand visual inspection",
+      "expected_skill": "visual-inspector",
+      "should_match": true,
+      "notes": "Should discover visual-inspector in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "visual_inspect_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of visual_inspect_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use visual-inspector with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

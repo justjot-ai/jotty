@@ -1,0 +1,30 @@
+{
+  "skill": "slack-gif-creator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to creates animated gifs",
+      "expected_skill": "slack-gif-creator",
+      "should_match": true,
+      "notes": "Should discover slack-gif-creator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`create_slack_gif_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `create_slack_gif_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use slack-gif-creator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

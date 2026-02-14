@@ -1,0 +1,30 @@
+{
+  "skill": "android-automation",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to full android device",
+      "expected_skill": "android-automation",
+      "should_match": true,
+      "notes": "Should discover android-automation in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "device_connect_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of device_connect_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use android-automation with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

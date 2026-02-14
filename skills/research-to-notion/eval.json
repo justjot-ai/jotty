@@ -1,0 +1,30 @@
+{
+  "skill": "research-to-notion",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines research",
+      "expected_skill": "research-to-notion",
+      "should_match": true,
+      "notes": "Should discover research-to-notion in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "research_to_notion_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of research_to_notion_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use research-to-notion with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

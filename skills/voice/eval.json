@@ -1,0 +1,30 @@
+{
+  "skill": "voice",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to multiprovider voice speechtotext",
+      "expected_skill": "voice",
+      "should_match": true,
+      "notes": "Should discover voice in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "voice_to_text_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of voice_to_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use voice with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

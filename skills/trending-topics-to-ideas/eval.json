@@ -1,0 +1,30 @@
+{
+  "skill": "trending-topics-to-ideas",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite source trending",
+      "expected_skill": "trending-topics-to-ideas",
+      "should_match": true,
+      "notes": "Should discover trending-topics-to-ideas in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "trending_topics_to_ideas_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of trending_topics_to_ideas_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use trending-topics-to-ideas with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

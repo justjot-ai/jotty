@@ -110,8 +110,8 @@ def generate_tool_hints() -> str:
         hint = schema.get('llmHint', f"return_{section_type.replace('-', '_')}(content, title)")
         description = schema.get('description', '')
 
-        # TODO: Get category from section registry
-        category = 'General'
+        # Get category from schema, default to 'General' if not specified
+        category = schema.get('category', 'General')
 
         if category not in by_category:
             by_category[category] = []

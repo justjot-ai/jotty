@@ -1,0 +1,30 @@
+{
+  "skill": "skill-discovery",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to metaskill discovering understanding",
+      "expected_skill": "skill-discovery",
+      "should_match": true,
+      "notes": "Should discover skill-discovery in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "list_categories_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of list_categories_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use skill-discovery with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

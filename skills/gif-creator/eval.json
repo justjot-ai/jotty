@@ -1,0 +1,30 @@
+{
+  "skill": "gif-creator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to creation toolkit pillow",
+      "expected_skill": "gif-creator",
+      "should_match": true,
+      "notes": "Should discover gif-creator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "create_gif_from_images_tool",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of create_gif_from_images_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use gif-creator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

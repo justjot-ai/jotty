@@ -1,0 +1,31 @@
+{
+  "skill": "discord",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tools send messages",
+      "expected_skill": "discord",
+      "should_match": true,
+      "notes": "Should discover discord in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "send_message_tool",
+      "input": {
+        "to": "test_recipient",
+        "message": "Hello from eval"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of send_message_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use discord with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

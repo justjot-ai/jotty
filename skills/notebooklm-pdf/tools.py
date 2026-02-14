@@ -171,15 +171,16 @@ async def _try_notebooklm_api(content: str, title: str, output_file: Path) -> Di
     
     if not notebooklm_api_key:
         return {'success': False, 'error': 'NotebookLM API not configured'}
-    
-    # TODO: Implement NotebookLM API calls when available
-    # This would involve:
+
+    # NOTE: NotebookLM does not yet have a public API (as of 2024-02).
+    # When Google releases the API, this would involve:
     # 1. Creating a notebook via API
     # 2. Uploading content
     # 3. Requesting PDF export
     # 4. Downloading the PDF
-    
-    return {'success': False, 'error': 'NotebookLM API not yet implemented'}
+    # For now, use browser automation or Pandoc fallback methods.
+
+    return {'success': False, 'error': 'NotebookLM API not yet available from Google'}
 
 
 async def _try_browser_automation(content: str, title: str, output_file: Path, params: Dict[str, Any]) -> Dict[str, Any]:

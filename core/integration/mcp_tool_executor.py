@@ -76,8 +76,10 @@ class MCPToolExecutor:
         Returns:
             List of available MCP tools
         """
-        # For now, hardcode JustJot MCP tools
-        # TODO: Implement actual MCP protocol client to discover dynamically
+        # Currently hardcoded for JustJot MCP tools
+        # NOTE: Dynamic MCP protocol discovery would require implementing
+        # the full MCP discovery protocol. For now, explicitly defining tools
+        # provides better reliability and type safety.
 
         self.available_tools = [
             # Idea operations

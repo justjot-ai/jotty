@@ -1,0 +1,30 @@
+{
+  "skill": "text-utils",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to text manipulation encodingdecoding",
+      "expected_skill": "text-utils",
+      "should_match": true,
+      "notes": "Should discover text-utils in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "encode_text_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of encode_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use text-utils with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

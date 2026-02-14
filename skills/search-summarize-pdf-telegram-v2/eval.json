@@ -1,0 +1,30 @@
+{
+  "skill": "search-summarize-pdf-telegram-v2",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generic pipeline framework",
+      "expected_skill": "search-summarize-pdf-telegram-v2",
+      "should_match": true,
+      "notes": "Should discover search-summarize-pdf-telegram-v2 in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "search_summarize_pdf_telegram_v2_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of search_summarize_pdf_telegram_v2_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use search-summarize-pdf-telegram-v2 with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

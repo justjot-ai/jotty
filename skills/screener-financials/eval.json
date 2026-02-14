@@ -1,0 +1,28 @@
+{
+  "skill": "screener-financials",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to fetches financial data",
+      "expected_skill": "screener-financials",
+      "should_match": true,
+      "notes": "Should discover screener-financials in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "get_company_financials_tool",
+      "input": {},
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of get_company_financials_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use screener-financials with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

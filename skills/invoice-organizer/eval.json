@@ -1,0 +1,30 @@
+{
+  "skill": "invoice-organizer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to transforms chaotic folders",
+      "expected_skill": "invoice-organizer",
+      "should_match": true,
+      "notes": "Should discover invoice-organizer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`organize_invoices_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `organize_invoices_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use invoice-organizer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

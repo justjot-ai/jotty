@@ -1,0 +1,28 @@
+{
+  "skill": "docx-tools",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to word document toolkit",
+      "expected_skill": "docx-tools",
+      "should_match": true,
+      "notes": "Should discover docx-tools in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "read_docx_tool",
+      "input": {},
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of read_docx_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use docx-tools with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

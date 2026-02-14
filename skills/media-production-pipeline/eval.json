@@ -1,0 +1,30 @@
+{
+  "skill": "media-production-pipeline",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines image",
+      "expected_skill": "media-production-pipeline",
+      "should_match": true,
+      "notes": "Should discover media-production-pipeline in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "media_production_pipeline_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of media_production_pipeline_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use media-production-pipeline with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

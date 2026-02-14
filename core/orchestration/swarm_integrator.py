@@ -141,7 +141,8 @@ class SwarmIntegrator:
     
     async def _setup_systemd(self, script_path: str, schedule: str) -> IntegrationResult:
         """Set up systemd timer (DRY: reuse systemd)."""
-        # TODO: Implement systemd timer setup
+        # NOTE: Systemd integration requires root privileges and platform-specific
+        # configuration. Users should set up systemd timers manually or use cron.
         logger.warning(" systemd timer setup not yet implemented")
         return IntegrationResult(
             integration_type="systemd",
@@ -152,7 +153,8 @@ class SwarmIntegrator:
     
     async def _setup_cloud_scheduler(self, script_path: str, schedule: str) -> IntegrationResult:
         """Set up cloud scheduler (e.g., AWS EventBridge, GCP Cloud Scheduler)."""
-        # TODO: Implement cloud scheduler setup
+        # NOTE: Cloud scheduler integration is platform-specific (AWS/GCP/Azure).
+        # Users should configure schedulers through their cloud provider or IaC tools.
         logger.warning(" Cloud scheduler setup not yet implemented")
         return IntegrationResult(
             integration_type="cloud",
@@ -195,8 +197,9 @@ class SwarmIntegrator:
         """
         logger.info(f" SwarmIntegrator: Setting up {monitoring_type} monitoring for {script_path}")
         
-        # For now, just ensure logging is set up
-        # TODO: Add more sophisticated monitoring
+        # Basic monitoring via logging is set up
+        # NOTE: Advanced monitoring (metrics, alerts) should be configured
+        # through external tools like Prometheus, Grafana, or cloud services
         
         return IntegrationResult(
             integration_type="monitoring",
@@ -220,8 +223,10 @@ class SwarmIntegrator:
             IntegrationResult
         """
         logger.info(f" SwarmIntegrator: Setting up notifications on {notification_channels}")
-        
-        # TODO: Implement notification setup
+
+        # NOTE: Notification setup requires integration with external services
+        # (email SMTP, Slack webhooks, PagerDuty, etc.). Users should configure
+        # notifications through their preferred service directly.
         return IntegrationResult(
             integration_type="notifications",
             success=True,

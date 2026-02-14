@@ -218,6 +218,28 @@ class JottyGAIAAdapter:
     def _get_jotty(self):
         """Lazy-initialize the Jotty instance (call from main thread only for dry_run; else from loop thread)."""
         if self._jotty is None:
+            import os
+            from pathlib import Path
+
+            # Load Jotty/.env so ANTHROPIC_API_KEY etc. are available
+            # (may not be in the environment when run from CI or Claude Code)
+            env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+            if env_path.exists() and not os.environ.get('ANTHROPIC_API_KEY'):
+                for line in env_path.read_text().splitlines():
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, _, value = line.partition('=')
+                        os.environ.setdefault(key.strip(), value.strip())
+
+            # Configure DSPy to use Anthropic API directly (not Claude CLI)
+            # to avoid "cannot be launched inside another Claude Code session" errors
+            try:
+                import dspy
+                api_lm = dspy.LM("anthropic/claude-sonnet-4-20250514")
+                dspy.configure(lm=api_lm)
+            except Exception as e:
+                logger.debug(f"DSPy API LM configuration: {e}")
+
             from Jotty.jotty import Jotty
             self._jotty = Jotty()
         return self._jotty
@@ -316,6 +338,11 @@ class JottyGAIAAdapter:
 
         # Inject explicit skills so the planner has voice/whisper/search available
         run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
+
+        # Skip swarm keyword selection — GAIA system prompt contains words like
+        # "report", "data", "content" that falsely match ReviewSwarm, DataAnalysisSwarm, etc.
+        # This forces tier4/tier5 to go directly to the Orchestrator.
+        run_kwargs['skip_swarm_selection'] = True
 
         # Forward any remaining kwargs (e.g. skip_validation=False from retry logic)
         run_kwargs.update(kwargs)

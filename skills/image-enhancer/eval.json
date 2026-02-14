@@ -1,0 +1,30 @@
+{
+  "skill": "image-enhancer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to takes images screenshots",
+      "expected_skill": "image-enhancer",
+      "should_match": true,
+      "notes": "Should discover image-enhancer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`enhance_image_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `enhance_image_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use image-enhancer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

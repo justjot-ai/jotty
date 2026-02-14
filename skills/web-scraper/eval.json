@@ -1,0 +1,30 @@
+{
+  "skill": "web-scraper",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to advanced scraping capabilities",
+      "expected_skill": "web-scraper",
+      "should_match": true,
+      "notes": "Should discover web-scraper in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "scrape_website_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of scrape_website_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use web-scraper with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

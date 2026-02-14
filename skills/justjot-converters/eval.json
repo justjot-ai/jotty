@@ -1,0 +1,30 @@
+{
+  "skill": "justjot-converters",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to utility converters transforming",
+      "expected_skill": "justjot-converters",
+      "should_match": true,
+      "notes": "Should discover justjot-converters in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "arxiv_to_markdown_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of arxiv_to_markdown_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use justjot-converters with unsupported format",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "data-profiler",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description comprehensive data",
+      "expected_skill": "data-profiler",
+      "should_match": true,
+      "notes": "Should discover data-profiler in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "profile_data_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of profile_data_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use data-profiler with a non-existent file path",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

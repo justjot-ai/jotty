@@ -1,0 +1,30 @@
+{
+  "skill": "artifacts-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to helps create complex",
+      "expected_skill": "artifacts-builder",
+      "should_match": true,
+      "notes": "Should discover artifacts-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`init_artifact_project_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `init_artifact_project_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use artifacts-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "presenton",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to integrates presentonhttpsgithubcompresentonpresenton opensource",
+      "expected_skill": "presenton",
+      "should_match": true,
+      "notes": "Should discover presenton in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "check_presenton_status_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of check_presenton_status_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use presenton with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

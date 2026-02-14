@@ -1,0 +1,30 @@
+{
+  "skill": "feature-engineer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description automatic feature",
+      "expected_skill": "feature-engineer",
+      "should_match": true,
+      "notes": "Should discover feature-engineer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "feature_engineer_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of feature_engineer_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use feature-engineer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

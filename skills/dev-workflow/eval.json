@@ -1,0 +1,30 @@
+{
+  "skill": "dev-workflow",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines changelog",
+      "expected_skill": "dev-workflow",
+      "should_match": true,
+      "notes": "Should discover dev-workflow in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "dev_workflow_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of dev_workflow_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use dev-workflow with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

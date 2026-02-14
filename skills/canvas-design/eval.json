@@ -1,0 +1,30 @@
+{
+  "skill": "canvas-design",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to creates visual design",
+      "expected_skill": "canvas-design",
+      "should_match": true,
+      "notes": "Should discover canvas-design in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`create_design_artwork_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `create_design_artwork_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use canvas-design with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

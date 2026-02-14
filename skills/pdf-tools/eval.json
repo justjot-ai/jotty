@@ -1,0 +1,30 @@
+{
+  "skill": "pdf-tools",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to comprehensive toolkit extracting",
+      "expected_skill": "pdf-tools",
+      "should_match": true,
+      "notes": "Should discover pdf-tools in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "extract_text_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of extract_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pdf-tools with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

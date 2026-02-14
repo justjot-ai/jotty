@@ -1,0 +1,30 @@
+{
+  "skill": "mcp-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to assists building servers",
+      "expected_skill": "mcp-builder",
+      "should_match": true,
+      "notes": "Should discover mcp-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`create_mcp_server_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `create_mcp_server_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use mcp-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

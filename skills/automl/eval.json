@@ -1,0 +1,30 @@
+{
+  "skill": "automl",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to automatic machine learning",
+      "expected_skill": "automl",
+      "should_match": true,
+      "notes": "Should discover automl in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "automl_classify_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of automl_classify_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use automl with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

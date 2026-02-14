@@ -1,0 +1,30 @@
+{
+  "skill": "internal-comms",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to templates guidelines writing",
+      "expected_skill": "internal-comms",
+      "should_match": true,
+      "notes": "Should discover internal-comms in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`write_internal_comm_tool`",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `write_internal_comm_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use internal-comms with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

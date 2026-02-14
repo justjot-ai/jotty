@@ -1,0 +1,30 @@
+{
+  "skill": "multi-source-aggregator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to template aggregating data",
+      "expected_skill": "multi-source-aggregator",
+      "should_match": true,
+      "notes": "Should discover multi-source-aggregator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "aggregate_sources_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of aggregate_sources_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use multi-source-aggregator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

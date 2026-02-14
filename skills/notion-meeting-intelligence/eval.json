@@ -1,0 +1,30 @@
+{
+  "skill": "notion-meeting-intelligence",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to helps prepare meetings",
+      "expected_skill": "notion-meeting-intelligence",
+      "should_match": true,
+      "notes": "Should discover notion-meeting-intelligence in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`prepare_meeting_materials_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `prepare_meeting_materials_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use notion-meeting-intelligence with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

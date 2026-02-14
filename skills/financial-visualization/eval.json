@@ -1,0 +1,30 @@
+{
+  "skill": "financial-visualization",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to extracts structured financial",
+      "expected_skill": "financial-visualization",
+      "should_match": true,
+      "notes": "Should discover financial-visualization in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`generate_intelligent_charts_tool` \u2b50 **BEST OF AI**",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `generate_intelligent_charts_tool` \u2b50 **BEST OF AI**"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use financial-visualization with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "webapp-testing",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tools testing local",
+      "expected_skill": "webapp-testing",
+      "should_match": true,
+      "notes": "Should discover webapp-testing in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`test_webapp_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `test_webapp_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use webapp-testing with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

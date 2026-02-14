@@ -1,0 +1,30 @@
+{
+  "skill": "text-chunker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to splits text into",
+      "expected_skill": "text-chunker",
+      "should_match": true,
+      "notes": "Should discover text-chunker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "chunk_text_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of chunk_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use text-chunker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

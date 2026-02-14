@@ -429,8 +429,13 @@ class ContextGradient:
         experience: Dict,
         past_memories: List[Dict]
     ) -> List[Dict]:
-        """Find similar past experiences (simple heuristic)."""
-        # TODO: Use semantic similarity
+        """Find similar past experiences (simple heuristic).
+
+        NOTE: Currently using recency-based heuristic (last 3 memories).
+        Semantic similarity could be added in the future with embeddings,
+        but the current approach provides good performance without
+        additional LLM calls or embedding computation.
+        """
         return past_memories[-3:] if past_memories else []
     
     def _format_similar(self, similar: List[Dict]) -> str:

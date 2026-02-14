@@ -40,12 +40,12 @@ from Jotty.core.foundation.types import TaskStatus
 
 
 # =============================================================================
-# TODO ITEM - Shared across modules
+# TASK ITEM - Shared across modules
 # =============================================================================
 
 @dataclass
 class TodoItem:
-    """A single TODO item with RL metadata."""
+    """A single task item with RL metadata (Roadmap task)."""
     id: str
     description: str
     actor: str  # Which actor handles this

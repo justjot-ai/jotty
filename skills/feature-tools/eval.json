@@ -1,0 +1,30 @@
+{
+  "skill": "feature-tools",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description automated deep",
+      "expected_skill": "feature-tools",
+      "should_match": true,
+      "notes": "Should discover feature-tools in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "featuretools_dfs_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of featuretools_dfs_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use feature-tools with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

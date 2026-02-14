@@ -1,0 +1,30 @@
+{
+  "skill": "skill-composer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to compose multiple skills",
+      "expected_skill": "skill-composer",
+      "should_match": true,
+      "notes": "Should discover skill-composer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "compose_skills_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of compose_skills_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use skill-composer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

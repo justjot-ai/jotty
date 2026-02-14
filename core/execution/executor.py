@@ -14,6 +14,7 @@ Tier 5 (AUTONOMOUS): Sandbox + coalition + full features
 
 import asyncio
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, Optional, List, Callable, Tuple
@@ -350,6 +351,7 @@ class TierExecutor:
         # Pop GAIA-specific kwargs early so they don't leak to tiers that don't expect them
         _skip_complexity_gate = kwargs.pop('skip_complexity_gate', False)
         _hint_skills = kwargs.pop('hint_skills', [])
+        _skip_swarm_selection = kwargs.pop('skip_swarm_selection', False)
 
         # Auto-detect tier if not specified
         if config.tier is None:
@@ -377,9 +379,17 @@ class TierExecutor:
                 elif config.tier == ExecutionTier.LEARNING:
                     result = await self._execute_tier3(goal, config, status_callback, **kwargs)
                 elif config.tier == ExecutionTier.AUTONOMOUS:
-                    result = await self._execute_tier5(goal, config, status_callback, **kwargs)
+                    result = await self._execute_tier5(
+                        goal, config, status_callback,
+                        skip_swarm_selection=_skip_swarm_selection,
+                        **kwargs,
+                    )
                 else:  # RESEARCH
-                    result = await self._execute_tier4(goal, config, status_callback, **kwargs)
+                    result = await self._execute_tier4(
+                        goal, config, status_callback,
+                        skip_swarm_selection=_skip_swarm_selection,
+                        **kwargs,
+                    )
 
                 root_span.set_status(SpanStatus.OK)
 
@@ -1014,11 +1024,13 @@ class TierExecutor:
         """Tier 4: Domain swarm execution. Expected: 10-30s, $0.15."""
         logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
 
+        skip_swarm = kwargs.pop('skip_swarm_selection', False)
+
         if status_callback:
             status_callback("research", "Selecting domain swarm...")
 
-        # Select and instantiate swarm
-        swarm = self._select_swarm(goal, config.swarm_name)
+        # Select and instantiate swarm (skip if caller says so — e.g. GAIA adapter)
+        swarm = None if skip_swarm else self._select_swarm(goal, config.swarm_name)
 
         if swarm is None:
             return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
@@ -1091,10 +1103,12 @@ class TierExecutor:
         """Tier 5: Autonomous execution with sandbox, coalition, curriculum."""
         logger.info(f"[Tier 5: AUTONOMOUS] Executing: {goal[:50]}...")
 
+        skip_swarm = kwargs.pop('skip_swarm_selection', False)
+
         if status_callback:
             status_callback("autonomous", "Selecting swarm...")
 
-        swarm = self._select_swarm(goal, config.swarm_name)
+        swarm = None if skip_swarm else self._select_swarm(goal, config.swarm_name)
         sandbox_log = None
 
         with self.tracer.span("tier5_autonomous", sandbox=config.enable_sandbox) as auto_span:
@@ -1185,13 +1199,14 @@ class TierExecutor:
                 return swarm
             logger.warning(f"Swarm '{swarm_name}' not in registry, attempting auto-detect")
 
-        # Auto-detect from goal keywords
+        # Auto-detect from goal keywords (word-boundary matching to avoid
+        # false positives like 'pr' matching inside 'appropriate')
         goal_lower = goal.lower()
         keyword_map = {
             'coding': ['code', 'program', 'implement', 'develop', 'function', 'class', 'api'],
             'research': ['research', 'analyze', 'investigate', 'study', 'report'],
             'testing': ['test', 'coverage', 'unit test', 'integration test', 'qa'],
-            'review': ['review', 'audit', 'check code', 'pull request', 'pr'],
+            'review': ['review', 'audit', 'check code', 'pull request'],
             'data_analysis': ['data', 'dataset', 'statistics', 'visualization', 'csv'],
             'devops': ['deploy', 'docker', 'ci/cd', 'infrastructure', 'kubernetes'],
             'idea_writer': ['write', 'article', 'blog', 'essay', 'content'],
@@ -1200,7 +1215,7 @@ class TierExecutor:
         }
 
         for name, keywords in keyword_map.items():
-            if any(kw in goal_lower for kw in keywords):
+            if any(re.search(r'\b' + re.escape(kw) + r'\b', goal_lower) for kw in keywords):
                 swarm = SwarmRegistry.create(name)
                 if swarm:
                     logger.info(f"Auto-detected swarm: {name}")

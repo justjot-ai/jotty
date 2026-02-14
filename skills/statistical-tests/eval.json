@@ -1,0 +1,30 @@
+{
+  "skill": "statistical-tests",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description statistical hypothesis",
+      "expected_skill": "statistical-tests",
+      "should_match": true,
+      "notes": "Should discover statistical-tests in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "ttest_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of ttest_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use statistical-tests with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

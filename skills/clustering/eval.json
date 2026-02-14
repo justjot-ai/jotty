@@ -1,0 +1,30 @@
+{
+  "skill": "clustering",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description unsupervised clustering",
+      "expected_skill": "clustering",
+      "should_match": true,
+      "notes": "Should discover clustering in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "cluster_kmeans_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of cluster_kmeans_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use clustering with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

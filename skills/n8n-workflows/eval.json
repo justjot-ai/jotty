@@ -1,0 +1,30 @@
+{
+  "skill": "n8n-workflows",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to integrates workflow automation",
+      "expected_skill": "n8n-workflows",
+      "should_match": true,
+      "notes": "Should discover n8n-workflows in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "list_n8n_workflows_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of list_n8n_workflows_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use n8n-workflows with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

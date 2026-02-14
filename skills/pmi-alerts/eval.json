@@ -1,0 +1,30 @@
+{
+  "skill": "pmi-alerts",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to create manage monitor",
+      "expected_skill": "pmi-alerts",
+      "should_match": true,
+      "notes": "Should discover pmi-alerts in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "list_alerts_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of list_alerts_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pmi-alerts with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

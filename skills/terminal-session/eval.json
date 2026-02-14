@@ -1,0 +1,30 @@
+{
+  "skill": "terminal-session",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to persistent terminal sessions",
+      "expected_skill": "terminal-session",
+      "should_match": true,
+      "notes": "Should discover terminal-session in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "terminal_create_session_tool",
+      "input": {
+        "name": "test_item"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of terminal_create_session_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use terminal-session with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

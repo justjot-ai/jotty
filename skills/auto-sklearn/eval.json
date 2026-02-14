@@ -1,0 +1,30 @@
+{
+  "skill": "auto-sklearn",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description automl autosklearn",
+      "expected_skill": "auto-sklearn",
+      "should_match": true,
+      "notes": "Should discover auto-sklearn in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "autosklearn_classify_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of autosklearn_classify_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use auto-sklearn with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

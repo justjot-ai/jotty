@@ -1,0 +1,30 @@
+{
+  "skill": "search-to-justjot-idea",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to multiagent searches information",
+      "expected_skill": "search-to-justjot-idea",
+      "should_match": true,
+      "notes": "Should discover search-to-justjot-idea in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "search_and_create_idea_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of search_and_create_idea_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use search-to-justjot-idea with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "test-skill-validation",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to detailed description what",
+      "expected_skill": "test-skill-validation",
+      "should_match": true,
+      "notes": "Should discover test-skill-validation in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`tool_name_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `tool_name_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use test-skill-validation with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

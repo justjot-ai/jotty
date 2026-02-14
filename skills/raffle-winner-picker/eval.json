@@ -1,0 +1,30 @@
+{
+  "skill": "raffle-winner-picker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to randomly selects winners",
+      "expected_skill": "raffle-winner-picker",
+      "should_match": true,
+      "notes": "Should discover raffle-winner-picker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`pick_raffle_winner_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `pick_raffle_winner_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use raffle-winner-picker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

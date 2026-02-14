@@ -1,0 +1,30 @@
+{
+  "skill": "openai-image-gen",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generate edit create",
+      "expected_skill": "openai-image-gen",
+      "should_match": true,
+      "notes": "Should discover openai-image-gen in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_image_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_image_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use openai-image-gen with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

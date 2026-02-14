@@ -1,0 +1,30 @@
+{
+  "skill": "openai-whisper-api",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to transcribe audio recordings",
+      "expected_skill": "openai-whisper-api",
+      "should_match": true,
+      "notes": "Should discover openai-whisper-api in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "transcribe_audio_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of transcribe_audio_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use openai-whisper-api with invalid credentials",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "document-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converts documents between",
+      "expected_skill": "document-converter",
+      "should_match": true,
+      "notes": "Should discover document-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "convert_to_pdf_tool",
+      "input": {
+        "input": "test data",
+        "format": "text"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of convert_to_pdf_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use document-converter with a non-existent file path",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

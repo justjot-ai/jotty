@@ -1,0 +1,30 @@
+{
+  "skill": "time-series",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description time series",
+      "expected_skill": "time-series",
+      "should_match": true,
+      "notes": "Should discover time-series in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "timeseries_decompose_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of timeseries_decompose_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use time-series with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

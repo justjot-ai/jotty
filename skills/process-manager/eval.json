@@ -1,0 +1,30 @@
+{
+  "skill": "process-manager",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to process management capabilities",
+      "expected_skill": "process-manager",
+      "should_match": true,
+      "notes": "Should discover process-manager in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "list_processes_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of list_processes_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use process-manager with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

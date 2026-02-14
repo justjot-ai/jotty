@@ -1,0 +1,30 @@
+{
+  "skill": "reddit-trending-to-justjot",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines websearch",
+      "expected_skill": "reddit-trending-to-justjot",
+      "should_match": true,
+      "notes": "Should discover reddit-trending-to-justjot in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "reddit_trending_to_justjot_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of reddit_trending_to_justjot_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use reddit-trending-to-justjot with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

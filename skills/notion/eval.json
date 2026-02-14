@@ -1,0 +1,30 @@
+{
+  "skill": "notion",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to integrates notion search",
+      "expected_skill": "notion",
+      "should_match": true,
+      "notes": "Should discover notion in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "search_pages_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of search_pages_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use notion with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

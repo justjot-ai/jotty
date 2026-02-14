@@ -1,0 +1,30 @@
+{
+  "skill": "dimensionality-reduction",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description dimensionality reduction",
+      "expected_skill": "dimensionality-reduction",
+      "should_match": true,
+      "notes": "Should discover dimensionality-reduction in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "pca_reduce_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of pca_reduce_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use dimensionality-reduction with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

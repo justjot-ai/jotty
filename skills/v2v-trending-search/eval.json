@@ -1,0 +1,30 @@
+{
+  "skill": "v2v-trending-search",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to searches vvai trending",
+      "expected_skill": "v2v-trending-search",
+      "should_match": true,
+      "notes": "Should discover v2v-trending-search in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "search_v2v_trending_tool",
+      "input": {
+        "query": "test query"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of search_v2v_trending_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use v2v-trending-search with an empty query",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

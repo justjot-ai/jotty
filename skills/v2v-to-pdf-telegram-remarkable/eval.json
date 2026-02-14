@@ -1,0 +1,30 @@
+{
+  "skill": "v2v-to-pdf-telegram-remarkable",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to composite combines trending",
+      "expected_skill": "v2v-to-pdf-telegram-remarkable",
+      "should_match": true,
+      "notes": "Should discover v2v-to-pdf-telegram-remarkable in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "v2v_to_pdf_and_send_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of v2v_to_pdf_and_send_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use v2v-to-pdf-telegram-remarkable with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

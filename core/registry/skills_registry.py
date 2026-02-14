@@ -163,11 +163,11 @@ class BaseSkill:
         self._status_callback = status_callback
         self._context: Dict[str, Any] = {}
 
-    def set_status_callback(self, callback: Callable):
+    def set_status_callback(self, callback: Callable) -> None:
         """Set status callback for progress reporting."""
         self._status_callback = callback
 
-    def set_context(self, **context):
+    def set_context(self, **context) -> None:
         """Set execution context (session_id, user_id, metadata, etc.)."""
         self._context.update(context)
 

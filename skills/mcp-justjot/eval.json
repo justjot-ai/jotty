@@ -1,0 +1,30 @@
+{
+  "skill": "mcp-justjot",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to create manage organize",
+      "expected_skill": "mcp-justjot",
+      "should_match": true,
+      "notes": "Should discover mcp-justjot in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "Ideas",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of Ideas"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use mcp-justjot with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

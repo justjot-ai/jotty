@@ -1,0 +1,30 @@
+{
+  "skill": "arxiv-downloader",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to downloads extracts content",
+      "expected_skill": "arxiv-downloader",
+      "should_match": true,
+      "notes": "Should discover arxiv-downloader in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "download_arxiv_paper_tool",
+      "input": {
+        "url": "https://example.com/test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of download_arxiv_paper_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use arxiv-downloader with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

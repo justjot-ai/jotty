@@ -1,0 +1,28 @@
+{
+  "skill": "http-client",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to advanced http request",
+      "expected_skill": "http-client",
+      "should_match": true,
+      "notes": "Should discover http-client in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "http_get_tool",
+      "input": {},
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of http_get_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use http-client with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

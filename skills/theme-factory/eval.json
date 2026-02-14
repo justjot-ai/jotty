@@ -1,0 +1,30 @@
+{
+  "skill": "theme-factory",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to curated collection professional",
+      "expected_skill": "theme-factory",
+      "should_match": true,
+      "notes": "Should discover theme-factory in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`apply_theme_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `apply_theme_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use theme-factory with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

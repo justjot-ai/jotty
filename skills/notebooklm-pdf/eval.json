@@ -1,0 +1,30 @@
+{
+  "skill": "notebooklm-pdf",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to uploads markdown text",
+      "expected_skill": "notebooklm-pdf",
+      "should_match": true,
+      "notes": "Should discover notebooklm-pdf in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "notebooklm_pdf_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of notebooklm_pdf_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use notebooklm-pdf with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

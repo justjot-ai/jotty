@@ -1,0 +1,30 @@
+{
+  "skill": "domain-name-brainstormer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to helps find perfect",
+      "expected_skill": "domain-name-brainstormer",
+      "should_match": true,
+      "notes": "Should discover domain-name-brainstormer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "`brainstorm_domains_tool`",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of `brainstorm_domains_tool`"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use domain-name-brainstormer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

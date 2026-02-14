@@ -1,0 +1,30 @@
+{
+  "skill": "pmi-watchlist",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to create manage monitor",
+      "expected_skill": "pmi-watchlist",
+      "should_match": true,
+      "notes": "Should discover pmi-watchlist in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "list_watchlists_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of list_watchlists_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pmi-watchlist with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

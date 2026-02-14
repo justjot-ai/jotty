@@ -1,0 +1,30 @@
+{
+  "skill": "data-validator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to description data validation",
+      "expected_skill": "data-validator",
+      "should_match": true,
+      "notes": "Should discover data-validator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "validate_schema_tool",
+      "input": {
+        "query": "test"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of validate_schema_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use data-validator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}
