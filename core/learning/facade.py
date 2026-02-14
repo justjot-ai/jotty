@@ -21,6 +21,10 @@ from typing import Optional, Union, Dict, Any, TYPE_CHECKING
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
     from Jotty.core.foundation.configs import LearningConfig
+    from Jotty.core.learning.learning_coordinator import LearningManager
+    from Jotty.core.learning.td_lambda import TDLambdaLearner
+    from Jotty.core.learning.reasoning_credit import ReasoningCreditAssigner
+    from Jotty.core.learning.shaped_rewards import ShapedRewardManager
 
 
 def _resolve_learning_config(config) -> 'SwarmConfig':
@@ -44,7 +48,7 @@ def _resolve_learning_config(config) -> 'SwarmConfig':
     return config
 
 
-def get_learning_system(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
+def get_learning_system(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None) -> 'LearningManager':
     """
     Return a configured LearningManager (unified learning coordinator).
 
@@ -59,7 +63,7 @@ def get_learning_system(config: Optional[Union['LearningConfig', 'SwarmConfig']]
     return LearningManager(resolved)
 
 
-def get_td_lambda(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
+def get_td_lambda(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None) -> 'TDLambdaLearner':
     """
     Return a TDLambdaLearner for temporal-difference learning.
 
@@ -74,7 +78,7 @@ def get_td_lambda(config: Optional[Union['LearningConfig', 'SwarmConfig']] = Non
     return TDLambdaLearner(config=resolved)
 
 
-def get_credit_assigner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
+def get_credit_assigner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None) -> 'ReasoningCreditAssigner':
     """
     Return a ReasoningCreditAssigner for multi-step reasoning credit.
 
@@ -89,7 +93,7 @@ def get_credit_assigner(config: Optional[Union['LearningConfig', 'SwarmConfig']]
     return ReasoningCreditAssigner(config=resolved)
 
 
-def get_offline_learner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None):
+def get_offline_learner(config: Optional[Union['LearningConfig', 'SwarmConfig']] = None) -> Dict[str, Any]:
     """
     Return offline learning components: OfflineLearner, CounterfactualLearner, PatternDiscovery.
 
@@ -112,7 +116,7 @@ def get_offline_learner(config: Optional[Union['LearningConfig', 'SwarmConfig']]
     }
 
 
-def get_reward_manager():
+def get_reward_manager() -> 'ShapedRewardManager':
     """
     Return a ShapedRewardManager for reward shaping.
 
@@ -123,12 +127,12 @@ def get_reward_manager():
     return ShapedRewardManager()
 
 
-def get_cooperative_agents():
+def get_cooperative_agents() -> Dict[str, type]:
     """
     Return cooperative multi-agent components.
 
     Returns:
-        Dict with 'predictive_agent' and 'nash_solver' keys.
+        Dict with 'predictive_agent' and 'nash_solver' keys (class objects).
     """
     from Jotty.core.learning.predictive_cooperation import (
         PredictiveCooperativeAgent,

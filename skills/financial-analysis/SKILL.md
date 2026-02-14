@@ -18,6 +18,17 @@ derived
 - analyze
 - research
 
+
+## Triggers
+- "stock price"
+- "financial data"
+- "analyze stock"
+- "market data"
+- "portfolio"
+
+## Category
+workflow-automation
+
 ## Use When
 User wants sentiment analysis, earnings analysis, or stock comparison with AI-generated insights
 

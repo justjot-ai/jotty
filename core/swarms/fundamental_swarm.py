@@ -58,7 +58,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .base_swarm import (
-    SwarmConfig, SwarmResult, AgentRole,
+    SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam, _split_field, _safe_join, _safe_num
@@ -98,7 +98,7 @@ class RatingScale(Enum):
 
 
 @dataclass
-class FundamentalConfig(SwarmConfig):
+class FundamentalConfig(SwarmBaseConfig):
     """Configuration for FundamentalSwarm."""
     valuation_methods: List[ValuationType] = field(default_factory=lambda: [
         ValuationType.DCF, ValuationType.COMPARABLES

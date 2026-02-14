@@ -57,7 +57,7 @@ from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
+    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam, _split_field
@@ -97,7 +97,7 @@ class CoverageTarget(Enum):
 
 
 @dataclass
-class TestingConfig(SwarmConfig):
+class TestingConfig(SwarmBaseConfig):
     """Configuration for TestingSwarm."""
     test_types: List[TestType] = field(default_factory=lambda: [TestType.UNIT, TestType.INTEGRATION])
     framework: TestFramework = TestFramework.PYTEST

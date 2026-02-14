@@ -12,6 +12,16 @@ base
 - data-fetch
 - research
 
+
+## Triggers
+- "scrape website"
+- "extract from page"
+- "get content from url"
+- "fetch webpage"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### scrape_website_tool

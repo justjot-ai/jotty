@@ -14,10 +14,13 @@ Usage:
     providers = list_providers()
 """
 
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Jotty.core.registry.unified_registry import UnifiedRegistry
 
 
-def get_registry():
+def get_registry() -> 'UnifiedRegistry':
     """
     Return the UnifiedRegistry (single entry point for all capabilities).
 
@@ -58,7 +61,7 @@ def list_providers() -> List[Dict[str, Any]]:
     return result
 
 
-def get_provider(name: str):
+def get_provider(name: str) -> Any:
     """
     Get a specific skill provider by name.
 

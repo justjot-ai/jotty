@@ -11,6 +11,17 @@ base
 ## Capabilities
 - code
 
+
+## Triggers
+- "create pr"
+- "list issues"
+- "github"
+- "pull request"
+- "check ci"
+
+## Category
+workflow-automation
+
 ## Prerequisites
 - GitHub CLI (`gh`) must be installed: https://cli.github.com/
 - Must be authenticated: `gh auth login`

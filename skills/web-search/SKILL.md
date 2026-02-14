@@ -15,6 +15,17 @@ base
 - research
 - data-fetch
 
+
+## Triggers
+- "search for"
+- "look up"
+- "find information about"
+- "what is the latest"
+- "google"
+
+## Category
+workflow-automation
+
 ## Providers
 
 ### Serper API (Google Search) - Recommended

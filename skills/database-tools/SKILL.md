@@ -11,6 +11,17 @@ base
 ## Capabilities
 - data-fetch
 
+
+## Triggers
+- "query database"
+- "run sql"
+- "database query"
+- "select from"
+- "insert into"
+
+## Category
+workflow-automation
+
 ## Supported Databases
 - PostgreSQL
 - MySQL

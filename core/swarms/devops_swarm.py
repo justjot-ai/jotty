@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .base_swarm import (
-    SwarmConfig, SwarmResult, AgentRole,
+    SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam, _split_field
@@ -103,7 +103,7 @@ class ContainerPlatform(Enum):
 
 
 @dataclass
-class DevOpsConfig(SwarmConfig):
+class DevOpsConfig(SwarmBaseConfig):
     """Configuration for DevOpsSwarm."""
     cloud_provider: CloudProvider = CloudProvider.AWS
     iac_tool: IaCTool = IaCTool.TERRAFORM

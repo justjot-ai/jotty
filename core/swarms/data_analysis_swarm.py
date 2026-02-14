@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
+    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam, _split_field
@@ -96,7 +96,7 @@ class VisualizationType(Enum):
 
 
 @dataclass
-class DataAnalysisConfig(SwarmConfig):
+class DataAnalysisConfig(SwarmBaseConfig):
     """Configuration for DataAnalysisSwarm."""
     analysis_types: List[AnalysisType] = field(default_factory=lambda: [
         AnalysisType.EDA, AnalysisType.STATISTICAL

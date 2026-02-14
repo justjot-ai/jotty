@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Optional
 from collections import Counter
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ DEFAULT_PERSPECTIVES = [
 ]
 
 
+@tool_wrapper()
 def ensemble_prompt_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Prompt Ensembling: Ask same question from multiple perspectives and synthesize.
@@ -725,6 +727,7 @@ def _calculate_agreement_score(responses: List[str]) -> float:
         return 0.5  # Default moderate confidence
 
 
+@tool_wrapper()
 def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Summarize text using Claude.
@@ -782,6 +785,7 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Summarization failed: {str(e)}'}
 
 
+@tool_wrapper()
 def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate text using Claude.
@@ -835,6 +839,7 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': f'Text generation failed: {str(e)}'}
 
 
+@tool_wrapper()
 def claude_cli_llm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Unified LLM tool for text generation with optional ensembling.

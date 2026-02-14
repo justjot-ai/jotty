@@ -57,7 +57,7 @@ from pathlib import Path
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
+    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
 from .base import DomainSwarm, AgentTeam, _split_field
@@ -96,7 +96,7 @@ class ReviewStatus(Enum):
 
 
 @dataclass
-class ReviewConfig(SwarmConfig):
+class ReviewConfig(SwarmBaseConfig):
     """Configuration for ReviewSwarm."""
     review_types: List[ReviewType] = field(default_factory=lambda: [
         ReviewType.CODE, ReviewType.SECURITY, ReviewType.PERFORMANCE

@@ -11,8 +11,32 @@ would create/close a loop each time and leave Jotty internals with stale refs).
 
 import asyncio
 import logging
+import os
 import threading
 from typing import Callable, Optional
+
+# Ensure ANTHROPIC_API_KEY is in the environment for DSPy/litellm.
+# The native Anthropic SDK picks it up from .env files, but litellm doesn't.
+if not os.environ.get("ANTHROPIC_API_KEY"):
+    for env_file in (".env.anthropic", ".env"):
+        try:
+            from pathlib import Path
+            env_path = Path(env_file)
+            if not env_path.exists():
+                # Try project root
+                env_path = Path(__file__).resolve().parent.parent.parent.parent / env_file
+            if env_path.exists():
+                for line in env_path.read_text().splitlines():
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, _, val = line.partition('=')
+                        if key.strip() == "ANTHROPIC_API_KEY" and val.strip():
+                            os.environ["ANTHROPIC_API_KEY"] = val.strip()
+                            break
+                if os.environ.get("ANTHROPIC_API_KEY"):
+                    break
+        except Exception:
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -293,11 +317,7 @@ class JottyGAIAAdapter:
         # Inject explicit skills so the planner has voice/whisper/search available
         run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
 
-        # Force Orchestrator to use full agent pipeline (Sonnet + web search)
-        # instead of fast path (Haiku direct call) — dramatically improves accuracy
-        run_kwargs['skip_validation'] = False
-
-        # Forward any remaining kwargs (e.g. overrides from retry logic)
+        # Forward any remaining kwargs (e.g. skip_validation=False from retry logic)
         run_kwargs.update(kwargs)
 
         result = self._run_async(prompt, **run_kwargs)
@@ -308,22 +328,10 @@ class JottyGAIAAdapter:
         raw_text = _extract_answer_from_output(raw)
         self.last_raw_answer = raw_text  # For failure logging in runner
 
-        # When expected_answer is provided, use DSPy signature to normalize output format
-        if expected_answer and raw_text:
-            try:
-                from Jotty.core.evaluation.gaia_signatures import normalize_gaia_answer_with_dspy
-                normalized = normalize_gaia_answer_with_dspy(
-                    raw_response=raw_text,
-                    expected_example=expected_answer,
-                    question_summary=question[:300] if question else "",
-                )
-                if normalized.strip():
-                    return normalized
-                # Empty normalized but raw looks like refusal: keep raw so runner logs show it
-                if _looks_like_refusal(raw_text):
-                    logger.debug("GAIA: normalizer returned empty for refusal-like output")
-            except Exception as e:
-                logger.debug("GAIA DSPy normalization skipped: %s", e)
+        # DSPy answer normalization: disabled — extraction + benchmark matching
+        # is more reliable than an extra LLM call that can fail/timeout/empty.
+        # The _extract_answer_from_output() + GAIABenchmark.validate_answer()
+        # combo already handles verbose outputs, numeric comparison, lists, etc.
         return raw_text
 
     def _ensure_loop_thread(self):

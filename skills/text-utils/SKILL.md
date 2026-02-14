@@ -11,6 +11,16 @@ base
 ## Capabilities
 - analyze
 
+
+## Triggers
+- "format text"
+- "count words"
+- "extract text"
+- "text processing"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### encode_text_tool

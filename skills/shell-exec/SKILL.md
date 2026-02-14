@@ -11,6 +11,16 @@ base
 ## Capabilities
 - code
 
+
+## Triggers
+- "run command"
+- "execute shell"
+- "run script"
+- "terminal command"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### execute_command_tool

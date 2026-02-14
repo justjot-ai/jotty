@@ -32,6 +32,16 @@ sequential
 - research
 - document
 
+
+## Triggers
+- "research report"
+- "create report"
+- "pdf report"
+- "research to pdf"
+
+## Category
+document-creation
+
 ## Usage
 
 ```python
@@ -75,7 +85,3 @@ result = await tool({
 ## Author
 
 Jotty Framework
-
-## Category
-
-research

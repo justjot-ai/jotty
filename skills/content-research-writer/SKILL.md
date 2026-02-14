@@ -18,6 +18,16 @@ derived
 - research
 - document
 
+
+## Triggers
+- "write article"
+- "research and write"
+- "create content"
+- "write blog post"
+
+## Category
+document-creation
+
 ## Tools
 
 ### `write_content_with_research_tool`

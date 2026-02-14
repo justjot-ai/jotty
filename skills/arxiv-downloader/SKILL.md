@@ -12,6 +12,16 @@ base
 - research
 - document
 
+
+## Triggers
+- "download paper"
+- "arxiv paper"
+- "research paper"
+- "academic paper"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### download_arxiv_paper_tool

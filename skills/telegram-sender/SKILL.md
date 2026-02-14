@@ -14,6 +14,16 @@ base
 ## Capabilities
 - communicate
 
+
+## Triggers
+- "send telegram"
+- "message on telegram"
+- "notify via telegram"
+- "telegram notification"
+
+## Category
+workflow-automation
+
 ## Features
 
 - Send text messages

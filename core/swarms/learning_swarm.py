@@ -57,7 +57,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 from .base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
+    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace, GoldStandard, GoldStandardDB,
     ImprovementHistory, ImprovementSuggestion, ImprovementType,
     Evaluation, EvaluationResult, SwarmRegistry
@@ -88,7 +88,7 @@ class OptimizationType(Enum):
 
 
 @dataclass
-class LearningConfig(SwarmConfig):
+class LearningConfig(SwarmBaseConfig):
     """Configuration for LearningSwarm."""
     learning_mode: LearningMode = LearningMode.FULL_CYCLE
     optimization_types: List[OptimizationType] = field(default_factory=lambda: [OptimizationType.ALL])

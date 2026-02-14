@@ -5,12 +5,14 @@ import re
 from typing import Dict, Any
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("text-utils")
 
 
 
+@tool_wrapper()
 def encode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Encode text using various encodings.
@@ -74,6 +76,7 @@ def encode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def decode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Decode text from various encodings.
@@ -137,6 +140,7 @@ def decode_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def format_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Format text in various ways.
@@ -206,6 +210,7 @@ def format_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract text from various formats.
@@ -296,6 +301,7 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def count_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Count words, characters, lines, etc. in text.
@@ -361,6 +367,7 @@ def count_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Find and replace text patterns.

@@ -30,7 +30,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from Jotty.core.utils.skill_status import SkillStatus
-from Jotty.core.utils.tool_helpers import tool_response, tool_error
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -458,6 +458,7 @@ def _selenium_screenshot(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e), 'backend': 'selenium'}
 
 
+@tool_wrapper()
 async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Navigate to a URL and optionally wait for content.
@@ -547,6 +548,7 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_screenshot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Take a screenshot of the current page or a specific URL.
@@ -628,6 +630,7 @@ async def browser_screenshot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fill form fields on the current page.
@@ -732,6 +735,7 @@ async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Click an element on the page.
@@ -809,6 +813,7 @@ async def browser_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract data from the current page using selectors.
@@ -893,6 +898,7 @@ async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_execute_js_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute JavaScript on the current page.
@@ -946,6 +952,7 @@ async def browser_execute_js_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_wait_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Wait for an element or condition.
@@ -999,6 +1006,7 @@ async def browser_wait_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e), 'found': False}
 
 
+@tool_wrapper()
 async def browser_close_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Close the browser session.
@@ -1020,6 +1028,7 @@ async def browser_close_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 async def browser_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate PDF from current page or URL.
@@ -1085,6 +1094,7 @@ async def browser_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def browser_connect_cdp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Connect to browser via Chrome DevTools Protocol (CDP).
@@ -1142,6 +1152,7 @@ def browser_connect_cdp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Close Selenium browser session.
@@ -1170,6 +1181,7 @@ def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 COOKIE_STORAGE_PATH = os.path.expanduser("~/jotty/browser")
 
 
+@tool_wrapper()
 async def browser_save_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Save browser cookies to file for session persistence.
@@ -1212,6 +1224,7 @@ async def browser_save_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
 
+@tool_wrapper()
 async def browser_load_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Load cookies from file to restore a browser session.
@@ -1253,6 +1266,7 @@ async def browser_load_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
 
+@tool_wrapper()
 async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Reset browser state: clear cookies, cache, and create fresh context.
@@ -1290,6 +1304,7 @@ async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
 
+@tool_wrapper()
 def browser_accessibility_tree_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract accessibility tree via CDP for reliable element discovery.
@@ -1321,6 +1336,7 @@ def browser_accessibility_tree_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def browser_dom_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get DOM structure with visibility, bounds, and interactive state.
@@ -1354,6 +1370,7 @@ def browser_dom_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def browser_cdp_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Click at exact page coordinates via CDP.

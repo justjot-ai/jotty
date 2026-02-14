@@ -20,6 +20,10 @@ from typing import Optional, Union, Dict, TYPE_CHECKING
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
     from Jotty.core.foundation.configs import MemoryConfig
+    from Jotty.core.memory.memory_system import MemorySystem
+    from Jotty.core.memory.memory_orchestrator import BrainInspiredMemoryManager
+    from Jotty.core.memory.consolidation_engine import SharpWaveRippleConsolidator
+    from Jotty.core.memory.llm_rag import LLMRAGRetriever
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
@@ -46,7 +50,7 @@ def _resolve_memory_config(config) -> 'SwarmConfig':
     return config
 
 
-def get_memory_system():
+def get_memory_system() -> 'MemorySystem':
     """
     Return a MemorySystem singleton (recommended entry point).
 
@@ -64,7 +68,7 @@ def get_memory_system():
     return _singletons[key]
 
 
-def get_brain_manager():
+def get_brain_manager() -> 'BrainInspiredMemoryManager':
     """
     Return a BrainInspiredMemoryManager singleton for hierarchical memory management.
 
@@ -82,7 +86,7 @@ def get_brain_manager():
     return _singletons[key]
 
 
-def get_consolidator(config=None):
+def get_consolidator(config=None) -> 'SharpWaveRippleConsolidator':
     """
     Return a SharpWaveRippleConsolidator for brain-inspired memory consolidation.
 
@@ -98,7 +102,7 @@ def get_consolidator(config=None):
     return SharpWaveRippleConsolidator(config=config)
 
 
-def get_rag_retriever(config: Optional[Union['MemoryConfig', 'SwarmConfig']] = None):
+def get_rag_retriever(config: Optional[Union['MemoryConfig', 'SwarmConfig']] = None) -> 'LLMRAGRetriever':
     """
     Return an LLMRAGRetriever for LLM-powered retrieval-augmented generation.
 

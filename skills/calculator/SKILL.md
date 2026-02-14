@@ -11,6 +11,17 @@ base
 ## Capabilities
 - analyze
 
+
+## Triggers
+- "calculate"
+- "compute"
+- "math"
+- "what is the result of"
+- "how much is"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### calculate_tool

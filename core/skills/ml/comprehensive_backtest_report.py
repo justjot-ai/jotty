@@ -933,11 +933,16 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
     async def send_to_telegram(self, pdf_path: Path, result: 'ComprehensiveBacktestResult') -> bool:
         """Send comprehensive report to Telegram."""
         try:
+            import os
             from telegram import Bot
 
-            # Telegram config from planmyinvesting
-            BOT_TOKEN = '5228780618:AAE1W6XghhgnFtOGsUJfee_NRUssx32RyOU'
-            REPORTS_CHANNEL = '-1001723570817'
+            # Telegram config from environment variables
+            BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+            if not BOT_TOKEN:
+                logger.error("TELEGRAM_BOT_TOKEN environment variable not set")
+                return
+
+            REPORTS_CHANNEL = os.getenv('TELEGRAM_REPORTS_CHANNEL', '-1001723570817')
 
             bot = Bot(token=BOT_TOKEN)
 

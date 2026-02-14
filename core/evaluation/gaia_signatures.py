@@ -45,6 +45,25 @@ if DSPY_AVAILABLE:
         )
 
 
+_dspy_lm_configured = False
+
+
+def _ensure_dspy_lm():
+    """Ensure DSPy has a configured LM for Predict calls."""
+    global _dspy_lm_configured
+    if _dspy_lm_configured:
+        return
+    if not DSPY_AVAILABLE:
+        return
+    try:
+        if dspy.settings.lm is None:
+            lm = dspy.LM("anthropic/claude-haiku-4-5-20251001")
+            dspy.configure(lm=lm)
+        _dspy_lm_configured = True
+    except Exception:
+        pass
+
+
 def normalize_gaia_answer_with_dspy(
     raw_response: str,
     expected_example: str,
@@ -63,6 +82,8 @@ def normalize_gaia_answer_with_dspy(
     """
     if not DSPY_AVAILABLE or not raw_response or not raw_response.strip():
         return (raw_response or "").strip()
+
+    _ensure_dspy_lm()
 
     try:
         predictor = dspy.Predict(GAIAAnswerExtractSignature)

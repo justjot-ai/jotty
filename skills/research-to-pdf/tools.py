@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 import logging
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def emit_status(stage: str, detail: str = ""):
     logger.info(f"[research-to-pdf] {stage}: {detail}")
 
 
+@tool_wrapper()
 async def research_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Research a topic and generate a PDF report.

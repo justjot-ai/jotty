@@ -975,3 +975,215 @@ class TestConfigValidation:
         from Jotty.core.foundation.configs import IntelligenceConfig
         with pytest.raises(ValueError, match="memory_retrieval_budget"):
             IntelligenceConfig(memory_retrieval_budget=0)
+
+
+# =============================================================================
+# Phase 9.5-1: SwarmConfig Validation Delegation
+# =============================================================================
+
+@pytest.mark.unit
+class TestSwarmConfigValidationDelegation:
+    """SwarmConfig.__post_init__ delegates to focused config validation."""
+
+    def test_swarm_config_default_passes_validation(self):
+        """Default SwarmConfig() must pass all focused-config validation."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        cfg = SwarmConfig()  # Should not raise
+        assert cfg.gamma == 0.99
+
+    def test_swarm_config_validates_via_focused_configs(self):
+        """Bad values caught by focused-config __post_init__."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        with pytest.raises(ValueError, match="SwarmConfig validation failed"):
+            SwarmConfig(gamma=1.5)
+
+    def test_swarm_config_catches_multiple_errors(self):
+        """Multiple invalid fields produce multiple error lines."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        with pytest.raises(ValueError) as exc_info:
+            SwarmConfig(gamma=1.5, episodic_capacity=0, max_actor_iters=0)
+        msg = str(exc_info.value)
+        assert "to_learning_config" in msg
+        assert "to_memory_config" in msg
+        assert "to_execution_config" in msg
+
+    def test_swarm_config_single_subsystem_error(self):
+        """Error from one subsystem only mentions that subsystem."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        with pytest.raises(ValueError, match="to_persistence_config"):
+            SwarmConfig(storage_format="xml")
+
+    def test_validate_method_exists(self):
+        """SwarmConfig has _validate_via_focused_configs method."""
+        from Jotty.core.foundation.data_structures import SwarmConfig
+        assert hasattr(SwarmConfig, '_validate_via_focused_configs')
+
+
+# =============================================================================
+# Phase 9.5-2a: Trigger Discovery
+# =============================================================================
+
+@pytest.mark.unit
+class TestTriggerDiscovery:
+    """Skills trigger parsing and discovery scoring."""
+
+    def test_triggers_parsed_from_skill_md(self):
+        """Skills with ## Triggers section have triggers in metadata."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        ws = reg.get_skill('web-search')
+        triggers = ws.metadata.get('triggers', [])
+        assert len(triggers) > 0
+        assert any('search' in t for t in triggers)
+
+    def test_triggers_boost_discovery_score(self):
+        """Skills with matching triggers score higher in discover()."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        results = reg.discover('search for AI trends')
+        # web-search should be in top results due to trigger match
+        names = [r['name'] for r in results[:10]]
+        assert 'web-search' in names
+
+    def test_category_parsed_from_skill_md(self):
+        """Skills with ## Category section have category set."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        ws = reg.get_skill('web-search')
+        assert ws.category != "general"  # Should be workflow-automation
+
+
+# =============================================================================
+# Phase 9.5-2b: @tool_wrapper Migration Verification
+# =============================================================================
+
+@pytest.mark.unit
+class TestToolWrapperMigration:
+    """Verify migrated skills use @tool_wrapper."""
+
+    def test_migrated_skills_have_tool_wrapper(self):
+        """All 9 migrated skills have @tool_wrapper in tools.py."""
+        migrated = [
+            "database-tools", "arxiv-downloader", "content-research-writer",
+            "research-to-pdf", "browser-automation", "text-utils",
+            "image-generator", "document-converter", "claude-cli-llm",
+        ]
+        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        for skill_name in migrated:
+            tools_py = skills_dir / skill_name / "tools.py"
+            assert tools_py.exists(), f"{skill_name}/tools.py not found"
+            content = tools_py.read_text()
+            assert "tool_wrapper" in content, (
+                f"{skill_name}/tools.py missing tool_wrapper import"
+            )
+
+    def test_migrated_skills_parse_correctly(self):
+        """All migrated skills parse without syntax errors."""
+        import ast
+        migrated = [
+            "database-tools", "arxiv-downloader", "content-research-writer",
+            "research-to-pdf", "browser-automation", "text-utils",
+            "image-generator", "document-converter", "claude-cli-llm",
+        ]
+        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        for skill_name in migrated:
+            tools_py = skills_dir / skill_name / "tools.py"
+            content = tools_py.read_text()
+            try:
+                ast.parse(content)
+            except SyntaxError as e:
+                pytest.fail(f"{skill_name}/tools.py has syntax error: {e}")
+
+    def test_original_skills_still_have_tool_wrapper(self):
+        """Skills that already had @tool_wrapper are unchanged."""
+        original = ["calculator", "web-search", "file-operations", "github"]
+        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        for skill_name in original:
+            tools_py = skills_dir / skill_name / "tools.py"
+            content = tools_py.read_text()
+            assert "@tool_wrapper" in content, (
+                f"{skill_name}/tools.py lost @tool_wrapper decorator"
+            )
+
+
+# =============================================================================
+# Phase 9.5-2c: Parameter Schema Parsing
+# =============================================================================
+
+@pytest.mark.unit
+class TestParameterSchemaParsing:
+    """Verify parameter schemas parsed from SKILL.md."""
+
+    def test_web_search_has_tool_schemas(self):
+        """web-search skill has parsed tool parameter schemas."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        ws = reg.get_skill('web-search')
+        assert len(ws._tool_metadata) > 0
+        # search_web_tool should have query parameter
+        search_meta = ws._tool_metadata.get('search_web_tool')
+        assert search_meta is not None
+        props = search_meta.parameters.get('properties', {})
+        assert 'query' in props
+
+    def test_schema_has_required_params(self):
+        """Parsed schemas include required parameter list."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        ws = reg.get_skill('web-search')
+        search_meta = ws._tool_metadata.get('search_web_tool')
+        required = search_meta.parameters.get('required', [])
+        assert 'query' in required
+
+    def test_claude_tool_format_output(self):
+        """to_claude_tools() produces valid Claude API tool format."""
+        from Jotty.core.registry.skills_registry import SkillsRegistry
+        reg = SkillsRegistry()
+        reg.init()
+        ws = reg.get_skill('web-search')
+        tools = ws.to_claude_tools()
+        assert len(tools) > 0
+        for tool in tools:
+            assert 'name' in tool
+            assert 'description' in tool
+            assert 'input_schema' in tool
+            schema = tool['input_schema']
+            assert schema['type'] == 'object'
+
+
+# =============================================================================
+# Phase 9.5-3: Facade Return Type Annotations
+# =============================================================================
+
+@pytest.mark.unit
+class TestFacadeReturnAnnotations:
+    """Verify all facade public functions have return type annotations."""
+
+    def test_all_facades_have_return_annotations(self):
+        """Every public get_* and list_* function has a return annotation."""
+        import inspect
+        from Jotty.core.memory import facade as mem_f
+        from Jotty.core.learning import facade as learn_f
+        from Jotty.core.context import facade as ctx_f
+        from Jotty.core.skills import facade as skills_f
+        from Jotty.core.orchestration import facade as orch_f
+        from Jotty.core.utils import facade as utils_f
+
+        missing = []
+        for mod in [mem_f, learn_f, ctx_f, skills_f, orch_f, utils_f]:
+            for name in dir(mod):
+                if name.startswith('_'):
+                    continue
+                obj = getattr(mod, name)
+                if not callable(obj) or not (name.startswith('get_') or name.startswith('list_')):
+                    continue
+                sig = inspect.signature(obj)
+                if sig.return_annotation is inspect.Parameter.empty:
+                    missing.append(f"{mod.__name__}.{name}")
+
+        assert len(missing) == 0, f"Missing return annotations: {missing}"

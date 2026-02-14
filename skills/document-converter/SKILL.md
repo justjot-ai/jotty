@@ -11,6 +11,17 @@ base
 ## Capabilities
 - document
 
+
+## Triggers
+- "convert to pdf"
+- "create pdf"
+- "convert document"
+- "export as"
+- "generate report"
+
+## Category
+document-creation
+
 ## Tools
 
 ### convert_to_pdf_tool

@@ -794,7 +794,7 @@ class SwarmConfig:
     # Computed properties
     # =========================================================================
     def __post_init__(self):
-        """Calculate derived config values."""
+        """Calculate derived config values and validate via focused configs."""
         # Set reproducibility seeds if configured
         if self.random_seed is not None:
             try:
@@ -808,6 +808,26 @@ class SwarmConfig:
                 )
             except ImportError:
                 pass  # Evaluation module not available
+
+        # Validate via focused configs (catches invalid field combos)
+        self._validate_via_focused_configs()
+
+    def _validate_via_focused_configs(self):
+        """Delegate validation to focused configs that have __post_init__ checks."""
+        errors = []
+        for method_name in [
+            'to_memory_config', 'to_learning_config', 'to_context_budget_config',
+            'to_execution_config', 'to_persistence_config', 'to_validation_config',
+            'to_monitoring_config', 'to_intelligence_config',
+        ]:
+            try:
+                getattr(self, method_name)()
+            except (ValueError, TypeError) as e:
+                errors.append(f"{method_name}: {e}")
+        if errors:
+            raise ValueError(
+                f"SwarmConfig validation failed:\n" + "\n".join(errors)
+            )
         
     @property
     def memory_budget(self) -> int:

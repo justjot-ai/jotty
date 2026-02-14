@@ -990,11 +990,21 @@ class SkillsRegistry:
         elif parsed_type == 'composite':
             resolved_skill_type = SkillType.COMPOSITE
 
+        # Store triggers in metadata for discovery scoring
+        skill_meta = {"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
+        if skill_metadata['triggers']:
+            skill_meta['triggers'] = skill_metadata['triggers']
+
+        # Parse tool parameter schemas from SKILL.md
+        tool_schemas = self._parse_tool_schemas(skill_md)
+
         return SkillDefinition(
             name=skill_name,
             description=skill_metadata['description'] or f"Skill: {skill_name}",
             _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
-            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill},
+            metadata=skill_meta,
+            tool_metadata=tool_schemas,
+            category=skill_metadata.get('skill_category') or "general",
             capabilities=skill_metadata['capabilities'],
             use_when=skill_metadata['use_when'],
             skill_type=resolved_skill_type,
@@ -1045,6 +1055,8 @@ class SkillsRegistry:
             'execution_mode': '',
             'capabilities': [],
             'use_when': '',
+            'triggers': [],
+            'skill_category': '',
         }
 
         if not skill_md.exists():
@@ -1092,6 +1104,12 @@ class SkillsRegistry:
                 elif stripped.lower() in ["## use when", "**use when**", "use when:"]:
                     current_section = 'use_when'
                     continue
+                elif stripped.lower() in ["## triggers", "**triggers**", "triggers:"]:
+                    current_section = 'triggers'
+                    continue
+                elif stripped.lower() in ["## category", "**category**", "category:"]:
+                    current_section = 'skill_category'
+                    continue
                 elif stripped.startswith("##") or stripped.startswith("**"):
                     current_section = None  # End of relevant sections
                     continue
@@ -1129,6 +1147,14 @@ class SkillsRegistry:
                     else:
                         metadata['use_when'] = stripped
 
+                elif current_section == 'triggers' and stripped.startswith("-"):
+                    trigger = stripped[1:].strip().strip('"').strip("'")
+                    if trigger:
+                        metadata['triggers'].append(trigger.lower())
+
+                elif current_section == 'skill_category' and stripped:
+                    metadata['skill_category'] = stripped.lower().strip()
+
             # Fallback description to title
             if not metadata['description']:
                 metadata['description'] = title
@@ -1157,6 +1183,136 @@ class SkillsRegistry:
             logger.debug(f"Could not parse {skill_md}: {e}")
 
         return metadata
+
+    def _parse_tool_schemas(self, skill_md: Path) -> Dict[str, 'ToolMetadata']:
+        """Parse ## Tools section from SKILL.md to extract parameter schemas.
+
+        Parses the common SKILL.md parameter documentation format::
+
+            ### tool_name
+            Description text.
+
+            **Parameters:**
+            - `param` (type, required): Description
+            - `param2` (type, optional): Description (default: value)
+
+        Returns dict mapping tool_name -> ToolMetadata with JSON Schema parameters.
+        """
+        import re
+
+        if not skill_md.exists():
+            return {}
+
+        try:
+            content = skill_md.read_text()
+        except Exception:
+            return {}
+
+        tool_schemas: Dict[str, ToolMetadata] = {}
+        lines = content.split("\n")
+        in_tools_section = False
+        current_tool = None
+        current_desc = ""
+        current_params: Dict[str, Any] = {}
+        current_required: List[str] = []
+        in_params = False
+
+        _TYPE_MAP = {
+            "str": "string", "string": "string",
+            "int": "integer", "integer": "integer",
+            "float": "number", "number": "number",
+            "bool": "boolean", "boolean": "boolean",
+            "list": "array", "array": "array",
+            "dict": "object", "object": "object",
+        }
+
+        def _flush_tool():
+            nonlocal current_tool, current_desc, current_params, current_required, in_params
+            if current_tool:
+                schema = {
+                    "type": "object",
+                    "properties": current_params,
+                }
+                if current_required:
+                    schema["required"] = current_required
+                tool_schemas[current_tool] = ToolMetadata(
+                    name=current_tool,
+                    description=current_desc.strip(),
+                    parameters=schema,
+                )
+            current_tool = None
+            current_desc = ""
+            current_params = {}
+            current_required = []
+            in_params = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Detect ## Tools section
+            if stripped.lower() == "## tools":
+                in_tools_section = True
+                continue
+
+            if not in_tools_section:
+                continue
+
+            # End of ## Tools section (next ## heading)
+            if stripped.startswith("## ") and stripped.lower() != "## tools":
+                _flush_tool()
+                break
+
+            # Detect ### tool_name
+            if stripped.startswith("### "):
+                _flush_tool()
+                current_tool = stripped[4:].strip()
+                in_params = False
+                continue
+
+            if current_tool is None:
+                continue
+
+            # Detect **Parameters:** marker
+            if stripped.lower().startswith("**parameters"):
+                in_params = True
+                continue
+
+            # Detect **Returns:** marker — end of params
+            if stripped.lower().startswith("**returns"):
+                in_params = False
+                continue
+
+            # Parse parameter line: - `name` (type, required/optional): Description
+            if in_params and stripped.startswith("- `"):
+                param_match = re.match(
+                    r'^-\s*`(\w+)`\s*\((\w+)(?:,\s*(required|optional))?\):\s*(.*)',
+                    stripped,
+                )
+                if param_match:
+                    pname = param_match.group(1)
+                    ptype = param_match.group(2).lower()
+                    preq = param_match.group(3)
+                    pdesc = param_match.group(4).strip()
+                    json_type = _TYPE_MAP.get(ptype, "string")
+                    prop: Dict[str, Any] = {"type": json_type, "description": pdesc}
+                    # Extract default from description
+                    default_match = re.search(r'\(default:\s*([^)]+)\)', pdesc)
+                    if default_match:
+                        prop["default"] = default_match.group(1).strip()
+                    current_params[pname] = prop
+                    if preq == "required":
+                        current_required.append(pname)
+                continue
+
+            # Collect tool description (text before **Parameters:** and not a list item)
+            if current_tool and not in_params and stripped and not stripped.startswith("**") and not stripped.startswith("- "):
+                if current_desc:
+                    current_desc += " " + stripped
+                else:
+                    current_desc = stripped
+
+        _flush_tool()
+        return tool_schemas
 
     def _read_skill_description(self, skill_md: Path) -> str:
         """Read description from SKILL.md (lightweight metadata parsing)."""
@@ -1686,6 +1842,12 @@ class SkillsRegistry:
             for cap in skill.capabilities:
                 if cap.lower() in task_lower:
                     score += 2
+
+            # Trigger match: boost if any trigger phrase appears in task
+            triggers = skill.metadata.get('triggers', [])
+            for trigger in triggers:
+                if trigger in task_lower:
+                    score += 4  # Triggers are high-confidence matches
 
             if score > 0:
                 # Type boost: pre-built workflows and specialized skills are preferred

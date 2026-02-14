@@ -11,6 +11,17 @@ base
 ## Capabilities
 - file-ops
 
+
+## Triggers
+- "read file"
+- "write file"
+- "create file"
+- "delete file"
+- "list files"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### read_file_tool

@@ -222,8 +222,8 @@ class TestJottyGAIAAdapterRun:
         answer = adapter.run("What is the answer?")
         assert answer == "42"
 
-    def test_run_uses_dspy_normalizer_when_expected_answer_given(self):
-        """When expected_answer is passed, adapter uses DSPy to normalize raw output."""
+    def test_run_returns_raw_answer_when_expected_answer_given(self):
+        """When expected_answer is passed, adapter returns extracted raw answer (DSPy normalization disabled)."""
         adapter = JottyGAIAAdapter(tier="DIRECT", dry_run=False)
         fake_result = FakeExecutionResult(
             output="The 3rd base player had 519 at bats in the 1977 season."
@@ -232,15 +232,9 @@ class TestJottyGAIAAdapterRun:
         mock_jotty.run = AsyncMock(return_value=fake_result)
         adapter._jotty = mock_jotty
 
-        with patch("Jotty.core.evaluation.gaia_signatures.normalize_gaia_answer_with_dspy") as m_norm:
-            m_norm.return_value = "519"
-            answer = adapter.run("How many at bats?", expected_answer="519")
-        assert answer == "519"
-        m_norm.assert_called_once()
-        # Adapter calls normalizer with raw_response, expected_example, question_summary
-        call_kw = m_norm.call_args.kwargs if m_norm.call_args.kwargs else {}
-        assert call_kw.get("expected_example") == "519"
-        assert "519" in (call_kw.get("raw_response") or "")
+        answer = adapter.run("How many at bats?", expected_answer="519")
+        # Raw answer is returned directly (GAIABenchmark.validate_answer handles matching)
+        assert "519" in answer
 
     def test_run_with_none_output(self):
         """run() handles None output gracefully."""

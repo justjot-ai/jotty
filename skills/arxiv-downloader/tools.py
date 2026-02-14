@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 import xml.etree.ElementTree as ET
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,7 @@ def _request_with_retry(url: str, params: Optional[Dict] = None, max_retries: in
 
 
 
+@tool_wrapper()
 def download_arxiv_paper_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Download an arXiv paper and extract its content.
@@ -218,6 +220,7 @@ def download_arxiv_paper_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def search_arxiv_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search arXiv for papers matching a query.

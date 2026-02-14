@@ -21,6 +21,17 @@ base
 - analyze
 - code
 
+
+## Triggers
+- "summarize"
+- "analyze text"
+- "generate content"
+- "rewrite"
+- "explain"
+
+## Category
+workflow-automation
+
 ## Usage
 
 ### Basic LLM Call

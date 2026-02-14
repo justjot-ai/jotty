@@ -11,10 +11,15 @@ Usage:
     ctx = get_context_manager()
 """
 
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Jotty.core.context.context_manager import SmartContextManager
+    from Jotty.core.context.global_context_guard import GlobalContextGuard
+    from Jotty.core.context.content_gate import ContentGate
 
 
-def get_context_manager():
+def get_context_manager() -> 'SmartContextManager':
     """
     Return a SmartContextManager for auto-chunking and compression.
 
@@ -25,7 +30,7 @@ def get_context_manager():
     return SmartContextManager()
 
 
-def get_context_guard():
+def get_context_guard() -> 'GlobalContextGuard':
     """
     Return a GlobalContextGuard for context overflow protection.
 
@@ -36,7 +41,7 @@ def get_context_guard():
     return GlobalContextGuard()
 
 
-def get_content_gate():
+def get_content_gate() -> 'ContentGate':
     """
     Return a ContentGate for relevance-based content filtering.
 

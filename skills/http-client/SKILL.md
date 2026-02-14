@@ -11,6 +11,17 @@ base
 ## Capabilities
 - data-fetch
 
+
+## Triggers
+- "make request"
+- "api call"
+- "http request"
+- "fetch url"
+- "post data"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### http_get_tool

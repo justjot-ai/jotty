@@ -11,6 +11,16 @@ base
 ## Capabilities
 - media
 
+
+## Triggers
+- "download video"
+- "youtube video"
+- "get video from youtube"
+- "save video"
+
+## Category
+workflow-automation
+
 ## Tools
 
 ### download_youtube_video_tool

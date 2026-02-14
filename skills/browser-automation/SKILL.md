@@ -15,6 +15,16 @@ base
 - data-fetch
 - code
 
+
+## Triggers
+- "open browser"
+- "automate browser"
+- "navigate to"
+- "click on page"
+
+## Category
+workflow-automation
+
 ## Features
 
 - Navigate to URLs with JS rendering

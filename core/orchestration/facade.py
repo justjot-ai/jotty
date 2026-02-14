@@ -15,16 +15,23 @@ Usage:
 """
 
 import threading
-from typing import Optional, Dict, Any, TYPE_CHECKING
+from typing import Optional, Dict, Any, Union, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.foundation.data_structures import SwarmConfig
+    from Jotty.core.orchestration.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.orchestration.paradigm_executor import ParadigmExecutor
+    from Jotty.core.orchestration.training_daemon import TrainingDaemon
+    from Jotty.core.orchestration.ensemble_manager import EnsembleManager
+    from Jotty.core.orchestration.provider_manager import ProviderManager
+    from Jotty.core.orchestration.model_tier_router import ModelTierRouter
+    from Jotty.core.orchestration.swarm_router import SwarmRouter
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def get_swarm_intelligence(config=None):
+def get_swarm_intelligence(config=None) -> 'SwarmIntelligence':
     """
     Return a SwarmIntelligence singleton for multi-agent coordination.
 
@@ -49,7 +56,7 @@ def get_swarm_intelligence(config=None):
     return _singletons[key]
 
 
-def get_paradigm_executor(manager=None):
+def get_paradigm_executor(manager=None) -> Union['ParadigmExecutor', Type['ParadigmExecutor']]:
     """
     Return a ParadigmExecutor for discussion paradigms (relay, debate, refinement).
 
@@ -65,7 +72,7 @@ def get_paradigm_executor(manager=None):
     return ParadigmExecutor
 
 
-def get_training_daemon(manager=None):
+def get_training_daemon(manager=None) -> Union['TrainingDaemon', Type['TrainingDaemon']]:
     """
     Return a TrainingDaemon for background self-improvement.
 
@@ -81,7 +88,7 @@ def get_training_daemon(manager=None):
     return TrainingDaemon
 
 
-def get_ensemble_manager():
+def get_ensemble_manager() -> 'EnsembleManager':
     """
     Return an EnsembleManager singleton for prompt ensembling.
 
@@ -99,7 +106,7 @@ def get_ensemble_manager():
     return _singletons[key]
 
 
-def get_provider_manager(config: Optional['SwarmConfig'] = None):
+def get_provider_manager(config: Optional['SwarmConfig'] = None) -> 'ProviderManager':
     """
     Return a ProviderManager for skill provider registry management.
 
@@ -116,7 +123,7 @@ def get_provider_manager(config: Optional['SwarmConfig'] = None):
     )
 
 
-def get_model_tier_router(default_provider: str = None):
+def get_model_tier_router(default_provider: str = None) -> 'ModelTierRouter':
     """
     Return a ModelTierRouter instance for complexity-based LLM model selection.
 
@@ -130,7 +137,7 @@ def get_model_tier_router(default_provider: str = None):
     return ModelTierRouter(default_provider=default_provider)
 
 
-def get_swarm_router():
+def get_swarm_router() -> 'SwarmRouter':
     """
     Return a SwarmRouter singleton for centralized task routing.
 

@@ -14,6 +14,16 @@ base
 ## Capabilities
 - communicate
 
+
+## Triggers
+- "send discord"
+- "discord message"
+- "post to discord"
+- "discord notification"
+
+## Category
+workflow-automation
+
 ## Features
 
 - Send messages to channels

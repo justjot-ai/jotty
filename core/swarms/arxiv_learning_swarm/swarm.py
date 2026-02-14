@@ -9,7 +9,7 @@ from pathlib import Path
 import dspy
 
 from ..base_swarm import (
-    BaseSwarm, SwarmConfig, SwarmResult, AgentRole,
+    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm, ExecutionTrace
 )
 from ..base import DomainSwarm, AgentTeam

@@ -134,7 +134,13 @@ class ExecutionTrace:
 
 @dataclass
 class SwarmBaseConfig:
-    """Base configuration for all swarms."""
+    """Base configuration for all swarms.
+
+    All swarm-specific configs should inherit from this class.
+
+    ⚠️ DEPRECATED: SwarmConfig has been renamed to SwarmBaseConfig.
+    If you see import errors, use: from ..swarm_types import SwarmBaseConfig
+    """
     name: str = "BaseSwarm"
     domain: str = "general"
     version: str = "1.0.0"
@@ -147,6 +153,33 @@ class SwarmBaseConfig:
     improvement_threshold: float = 0.7  # Below this triggers improvement
     gold_standard_max_version: int = 3  # Max gold standard versions before capping
     output_dir: str = field(default_factory=lambda: str(Path.home() / "jotty" / "swarm_outputs"))
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        # Validate max_retries
+        if self.max_retries < 0:
+            raise ValueError(
+                f"max_retries must be >= 0, got {self.max_retries}\n"
+                f"💡 Suggestion: Set max_retries to 3 (recommended) or 0 to disable retries"
+            )
+
+        # Validate timeout
+        if self.timeout_seconds <= 0:
+            raise ValueError(
+                f"timeout_seconds must be > 0, got {self.timeout_seconds}\n"
+                f"💡 Suggestion: Set timeout_seconds to 300 (5 minutes) or adjust based on task complexity"
+            )
+
+        # Validate improvement_threshold
+        if not 0.0 <= self.improvement_threshold <= 1.0:
+            raise ValueError(
+                f"improvement_threshold must be between 0.0 and 1.0, got {self.improvement_threshold}\n"
+                f"💡 Suggestion: Use 0.7 (70% quality threshold)"
+            )
+
+        # Ensure output directory exists
+        output_path = Path(self.output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
@@ -224,3 +257,30 @@ __all__ = [
     '_safe_join',
     '_safe_num',
 ]
+
+
+# =============================================================================
+# BACKWARD COMPATIBILITY WITH HELPFUL ERROR
+# =============================================================================
+
+def __getattr__(name: str):
+    """Intercept attempts to import deprecated names and provide helpful errors."""
+    if name == 'SwarmConfig':
+        import warnings
+        warnings.warn(
+            "\n" + "="*80 + "\n"
+            "⚠️  DEPRECATED: 'SwarmConfig' has been renamed to 'SwarmBaseConfig'\n\n"
+            "Fix your code:\n"
+            "  ❌ from ..swarm_types import SwarmConfig\n"
+            "  ✅ from ..swarm_types import SwarmBaseConfig\n\n"
+            "  ❌ class MyConfig(SwarmConfig):\n"
+            "  ✅ class MyConfig(SwarmBaseConfig):\n\n"
+            "See: Jotty/CLAUDE.md - Legacy Imports section\n"
+            + "="*80,
+            DeprecationWarning,
+            stacklevel=2
+        )
+        # Return the correct class (backward compatible)
+        return SwarmBaseConfig
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

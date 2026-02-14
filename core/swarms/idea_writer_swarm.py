@@ -61,7 +61,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 
 from .base_swarm import (
-    SwarmConfig, SwarmResult, AgentRole,
+    SwarmBaseConfig, SwarmResult, AgentRole,
     register_swarm,
 )
 from .base import DomainSwarm, AgentTeam, _split_field
@@ -100,7 +100,7 @@ class OutputFormat(Enum):
 
 
 @dataclass
-class WriterConfig(SwarmConfig):
+class WriterConfig(SwarmBaseConfig):
     """Configuration for IdeaWriterSwarm."""
     content_type: ContentType = ContentType.ARTICLE
     tone: Tone = Tone.PROFESSIONAL

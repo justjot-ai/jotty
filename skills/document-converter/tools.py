@@ -4,12 +4,14 @@ from typing import Dict, Any, Optional
 import shutil
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("document-converter")
 
 
 
+@tool_wrapper()
 def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to PDF format using Pandoc.
@@ -149,6 +151,7 @@ def convert_to_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def convert_to_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to EPUB format using Pandoc.
@@ -227,6 +230,7 @@ def convert_to_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def convert_to_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to DOCX format using Pandoc.
@@ -315,6 +319,7 @@ def convert_to_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def convert_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to HTML format using Pandoc.
@@ -407,6 +412,7 @@ def convert_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+@tool_wrapper()
 def convert_to_markdown_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert a document to Markdown format using Pandoc.

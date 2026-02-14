@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from urllib.parse import quote_plus
 
 from Jotty.core.utils.skill_status import SkillStatus
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,7 @@ def _build_connection_string(
     return url
 
 
+@tool_wrapper()
 def connect_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Connect to a database and verify connectivity.
@@ -186,6 +188,7 @@ def connect_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute a SQL query and return results.
@@ -265,6 +268,7 @@ def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def list_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     List all tables in the database.
@@ -316,6 +320,7 @@ def list_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def describe_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get detailed schema information for a table.
@@ -405,6 +410,7 @@ def describe_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def natural_language_query_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Convert natural language to SQL and execute.
@@ -556,6 +562,7 @@ SQL:"""
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def insert_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Safely insert data into a table.
@@ -634,6 +641,7 @@ def insert_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+@tool_wrapper()
 def get_database_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get database metadata and statistics.

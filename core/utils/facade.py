@@ -13,13 +13,19 @@ Usage:
 """
 
 import threading
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Jotty.core.utils.budget_tracker import BudgetTracker
+    from Jotty.core.utils.timeouts import CircuitBreaker
+    from Jotty.core.utils.llm_cache import LLMCallCache
+    from Jotty.core.utils.tokenizer import SmartTokenizer
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def get_budget_tracker(name: str = "default"):
+def get_budget_tracker(name: str = "default") -> 'BudgetTracker':
     """
     Return a BudgetTracker instance for LLM spending control.
 
@@ -33,7 +39,7 @@ def get_budget_tracker(name: str = "default"):
     return _get(name)
 
 
-def get_circuit_breaker(name: str = "default"):
+def get_circuit_breaker(name: str = "default") -> 'CircuitBreaker':
     """
     Return a CircuitBreaker instance for fail-fast patterns.
 
@@ -47,7 +53,7 @@ def get_circuit_breaker(name: str = "default"):
     return CircuitBreaker(config=CircuitBreakerConfig(name=name))
 
 
-def get_llm_cache():
+def get_llm_cache() -> 'LLMCallCache':
     """
     Return an LLMCallCache instance for semantic caching.
 
@@ -58,7 +64,7 @@ def get_llm_cache():
     return get_cache()
 
 
-def get_tokenizer(encoding_name: Optional[str] = None):
+def get_tokenizer(encoding_name: Optional[str] = None) -> 'SmartTokenizer':
     """
     Return a SmartTokenizer singleton for model-aware token counting.
 
