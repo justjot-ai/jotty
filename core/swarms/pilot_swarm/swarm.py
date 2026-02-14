@@ -734,11 +734,13 @@ class PilotSwarm(DomainSwarm):
                 deps = [d for d in st.depends_on if d in by_id]
                 if all(d in assigned for d in deps):
                     current_wave.append(st)
-                    assigned[st.id] = len(waves)
                 else:
                     still_remaining.append(st)
 
             if current_wave:
+                # Assign wave numbers AFTER processing the full wave
+                for st in current_wave:
+                    assigned[st.id] = len(waves)
                 waves.append(current_wave)
                 remaining = still_remaining
             else:

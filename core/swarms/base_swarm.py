@@ -82,6 +82,7 @@ from .improvement_agents import (
     LearnerAgent,
 )
 
+from .registry import (
     SwarmRegistry,
     register_swarm,
 )

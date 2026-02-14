@@ -409,6 +409,10 @@ print(result)
 "
 ```
 
+## Type hints
+
+The codebase targets 100% type hint coverage. Use `Any` when the concrete type is dynamic or would require heavy imports; prefer concrete types for public APIs. `core/py.typed` marks the package as typed (PEP 561). In `pyproject.toml`, uncomment `disallow_untyped_defs` to enforce strict mypy once all defs are annotated.
+
 ## Common Patterns
 
 ### Get all skills
