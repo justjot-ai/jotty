@@ -61,9 +61,9 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("    # Security headers")
     lines.append("    add_header X-Frame-Options SAMEORIGIN;")
     lines.append("    add_header X-Content-Type-Options nosniff;")
-    lines.append("    add_header X-XSS-Protection "1; mode=block";")
+    lines.append('    add_header X-XSS-Protection "1; mode=block";')
     if use_ssl:
-        lines.append("    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;")
+        lines.append('    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;')
     lines.append("")
 
     if cache_static:
@@ -71,7 +71,7 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         lines.append("    location ~* \\.(jpg|jpeg|png|gif|ico|css|js|woff2?|ttf|svg)$ {")
         lines.append(f"        proxy_pass http://{upstream_name};")
         lines.append("        expires 30d;")
-        lines.append("        add_header Cache-Control "public, immutable";")
+        lines.append('        add_header Cache-Control "public, immutable";')
         lines.append("    }")
         lines.append("")
 

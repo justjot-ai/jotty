@@ -100,7 +100,7 @@ def github_actions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             lines.append(f"          {cfg['version_key']}: ${{{{ matrix.{cfg['version_key']} }}}}")
         elif cfg.get("version_key") and cfg["versions"]:
             lines.append("        with:")
-            lines.append(f"          {cfg['version_key']}: "{cfg['versions'][0]}"")
+            lines.append(f'          {cfg["version_key"]}: "{cfg["versions"][0]}"')
 
         if cfg["install"]:
             lines.append(f"      - run: {cfg['install']}")
