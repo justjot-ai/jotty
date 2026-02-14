@@ -1,0 +1,30 @@
+{
+  "skill": "ip-lookup",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to looking up ip",
+      "expected_skill": "ip-lookup",
+      "should_match": true,
+      "notes": "Should discover ip-lookup in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "ip_lookup_tool",
+      "input": {
+        "ip": "8.8.8.8"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of ip_lookup_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use ip-lookup with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

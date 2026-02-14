@@ -1,0 +1,30 @@
+{
+  "skill": "markdown-to-html",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting markdown",
+      "expected_skill": "markdown-to-html",
+      "should_match": true,
+      "notes": "Should discover markdown-to-html in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "markdown_to_html_tool",
+      "input": {
+        "markdown": "# Hello\n\nThis is **bold**."
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of markdown_to_html_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use markdown-to-html with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

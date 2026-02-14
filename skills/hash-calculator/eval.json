@@ -1,0 +1,31 @@
+{
+  "skill": "hash-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to hashing data",
+      "expected_skill": "hash-calculator",
+      "should_match": true,
+      "notes": "Should discover hash-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "hash_tool",
+      "input": {
+        "text": "hello world",
+        "algorithm": "sha256"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of hash_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use hash-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

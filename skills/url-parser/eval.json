@@ -1,0 +1,30 @@
+{
+  "skill": "url-parser",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to parsing urls",
+      "expected_skill": "url-parser",
+      "should_match": true,
+      "notes": "Should discover url-parser in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "parse_url_tool",
+      "input": {
+        "url": "https://example.com:8080/path?q=test&page=2#section"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of parse_url_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use url-parser with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "color-converter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to converting colors",
+      "expected_skill": "color-converter",
+      "should_match": true,
+      "notes": "Should discover color-converter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "convert_color_tool",
+      "input": {
+        "color": "#FF5733",
+        "to_format": "rgb"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of convert_color_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use color-converter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

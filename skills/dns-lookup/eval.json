@@ -1,0 +1,31 @@
+{
+  "skill": "dns-lookup",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to looking up dns",
+      "expected_skill": "dns-lookup",
+      "should_match": true,
+      "notes": "Should discover dns-lookup in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "dns_lookup_tool",
+      "input": {
+        "domain": "example.com",
+        "record_type": "A"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of dns_lookup_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use dns-lookup with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

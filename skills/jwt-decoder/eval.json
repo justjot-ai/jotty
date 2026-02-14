@@ -1,0 +1,30 @@
+{
+  "skill": "jwt-decoder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to decoding jwt",
+      "expected_skill": "jwt-decoder",
+      "should_match": true,
+      "notes": "Should discover jwt-decoder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "decode_jwt_tool",
+      "input": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of decode_jwt_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use jwt-decoder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

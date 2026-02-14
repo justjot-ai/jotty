@@ -1,0 +1,30 @@
+{
+  "skill": "cron-job-manager",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to managing cron jobs",
+      "expected_skill": "cron-job-manager",
+      "should_match": true,
+      "notes": "Should discover cron-job-manager in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "explain_cron_tool",
+      "input": {
+        "expression": "0 9 * * 1-5"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of explain_cron_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use cron-job-manager with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

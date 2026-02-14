@@ -1,0 +1,30 @@
+{
+  "skill": "base64-encoder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to encoding base64",
+      "expected_skill": "base64-encoder",
+      "should_match": true,
+      "notes": "Should discover base64-encoder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "base64_encode_tool",
+      "input": {
+        "text": "Hello World"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of base64_encode_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use base64-encoder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

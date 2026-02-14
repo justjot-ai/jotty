@@ -1,0 +1,35 @@
+{
+  "skill": "json-transformer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to transforming json",
+      "expected_skill": "json-transformer",
+      "should_match": true,
+      "notes": "Should discover json-transformer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "flatten_json_tool",
+      "input": {
+        "data": {
+          "a": {
+            "b": 1,
+            "c": 2
+          }
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of flatten_json_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use json-transformer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

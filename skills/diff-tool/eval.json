@@ -1,0 +1,31 @@
+{
+  "skill": "diff-tool",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to comparing text",
+      "expected_skill": "diff-tool",
+      "should_match": true,
+      "notes": "Should discover diff-tool in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "diff_text_tool",
+      "input": {
+        "text_a": "hello world",
+        "text_b": "hello earth"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of diff_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use diff-tool with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

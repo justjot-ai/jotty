@@ -1,0 +1,30 @@
+{
+  "skill": "csv-analyzer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to analyzing csv",
+      "expected_skill": "csv-analyzer",
+      "should_match": true,
+      "notes": "Should discover csv-analyzer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "csv_summary_tool",
+      "input": {
+        "file_path": "test.csv"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of csv_summary_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use csv-analyzer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "skill": "regex-tester",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to testing regex",
+      "expected_skill": "regex-tester",
+      "should_match": true,
+      "notes": "Should discover regex-tester in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "regex_match_tool",
+      "input": {
+        "pattern": "\\d+",
+        "text": "abc 123 def 456"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of regex_match_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use regex-tester with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "skill": "uuid-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating uuids",
+      "expected_skill": "uuid-generator",
+      "should_match": true,
+      "notes": "Should discover uuid-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_uuid_tool",
+      "input": {
+        "version": 4
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_uuid_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use uuid-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

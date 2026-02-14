@@ -1,0 +1,31 @@
+{
+  "skill": "date-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to calculating dates",
+      "expected_skill": "date-calculator",
+      "should_match": true,
+      "notes": "Should discover date-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "date_diff_tool",
+      "input": {
+        "date_a": "2024-01-01",
+        "date_b": "2024-12-31"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of date_diff_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use date-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

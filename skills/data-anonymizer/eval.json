@@ -1,0 +1,30 @@
+{
+  "skill": "data-anonymizer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to anonymizing data",
+      "expected_skill": "data-anonymizer",
+      "should_match": true,
+      "notes": "Should discover data-anonymizer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "anonymize_text_tool",
+      "input": {
+        "text": "Contact john@example.com or call 555-123-4567"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of anonymize_text_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use data-anonymizer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

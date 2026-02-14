@@ -1,0 +1,30 @@
+{
+  "skill": "lorem-ipsum-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating lorem ipsum",
+      "expected_skill": "lorem-ipsum-generator",
+      "should_match": true,
+      "notes": "Should discover lorem-ipsum-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "lorem_ipsum_tool",
+      "input": {
+        "paragraphs": 2
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of lorem_ipsum_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use lorem-ipsum-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}
