@@ -1093,6 +1093,171 @@ Filename: {filename}
 
         return steps
 
+    def _enrich_io_contracts(self, steps: List[ExecutionStep]) -> List[ExecutionStep]:
+        """Post-process LLM plan to auto-populate I/O contracts from tool schemas.
+
+        The fast LLM (Haiku/Gemini Flash) often omits ``inputs_needed`` and
+        ``outputs_produced``, and uses bare ``${step_0}`` instead of field-level
+        ``${step_0.holdings}``.  This method fixes that by:
+
+        1. Auto-populating ``outputs_produced`` from each tool's ``returns`` schema.
+        2. Auto-populating ``inputs_needed`` by scanning params for template refs.
+        3. Upgrading bare ``${output_key}`` to ``${output_key.best_field}`` when
+           the receiving param name matches a declared output field.
+
+        Args:
+            steps: Parsed ExecutionStep objects from ``_parse_plan_to_steps()``.
+
+        Returns:
+            Same list, mutated in-place with enriched I/O contracts.
+        """
+        if not steps:
+            return steps
+
+        # Build output_key -> ToolSchema mapping
+        key_to_schema: Dict[str, ToolSchema] = {}
+        key_to_step_idx: Dict[str, int] = {}
+
+        try:
+            from ..registry.skills_registry import get_skills_registry
+            registry = get_skills_registry()
+        except Exception:
+            registry = None
+
+        for i, step in enumerate(steps):
+            output_key = step.output_key or f'step_{i}'
+
+            # --- Phase 1: Auto-populate outputs_produced from tool schema ---
+            schema = self._get_tool_schema_for_step(step, registry)
+            if schema and schema.outputs:
+                declared_names = schema.output_field_names
+                if not step.outputs_produced:
+                    step.outputs_produced = declared_names
+                    logger.debug(f"Step {i} ({output_key}): auto-set outputs_produced={declared_names}")
+                key_to_schema[output_key] = schema
+
+            key_to_step_idx[output_key] = i
+
+        # --- Phase 2 & 3: Enrich params with field-level refs + inputs_needed ---
+        template_re = re.compile(r'\$\{([^}]+)\}')
+
+        for i, step in enumerate(steps):
+            if not step.params:
+                continue
+
+            updated_params = {}
+            inferred_inputs: Dict[str, str] = dict(step.inputs_needed)  # preserve existing
+
+            for param_name, param_value in step.params.items():
+                if not isinstance(param_value, str):
+                    updated_params[param_name] = param_value
+                    continue
+
+                new_value = param_value
+
+                # Find all template refs in this param value
+                for match in template_re.finditer(param_value):
+                    ref = match.group(1)  # e.g. "step_0" or "step_0.results"
+
+                    if '.' in ref:
+                        # Already field-level — record in inputs_needed
+                        base_key = ref.split('.')[0]
+                        if param_name not in inferred_inputs:
+                            inferred_inputs[param_name] = ref
+                        continue
+
+                    # Bare ref like ${step_0} or ${market_breadth}
+                    if ref not in key_to_schema:
+                        continue
+
+                    schema = key_to_schema[ref]
+                    best_field = self._match_output_field(
+                        param_name, schema.output_field_names
+                    )
+                    if best_field:
+                        # Upgrade: ${step_0} -> ${step_0.holdings}
+                        old_ref = f'${{{ref}}}'
+                        new_ref = f'${{{ref}.{best_field}}}'
+                        new_value = new_value.replace(old_ref, new_ref)
+                        logger.info(
+                            f"Step {i}: upgraded {old_ref} -> {new_ref} "
+                            f"(param '{param_name}' matched field '{best_field}')"
+                        )
+                        if param_name not in inferred_inputs:
+                            inferred_inputs[param_name] = f'{ref}.{best_field}'
+
+                updated_params[param_name] = new_value
+
+            step.params = updated_params
+            if inferred_inputs and not step.inputs_needed:
+                step.inputs_needed = inferred_inputs
+
+        return steps
+
+    @staticmethod
+    def _get_tool_schema_for_step(step: ExecutionStep, registry) -> Optional[ToolSchema]:
+        """Look up ToolSchema for a step's tool from the registry."""
+        if not registry:
+            return None
+        try:
+            skill_obj = registry.get_skill(step.skill_name)
+            if not skill_obj or not hasattr(skill_obj, 'tools'):
+                return None
+            tool_func = skill_obj.tools.get(step.tool_name)
+            if not tool_func:
+                return None
+            # Check cached schema first
+            if hasattr(tool_func, '_tool_schema'):
+                return tool_func._tool_schema
+            return ToolSchema.from_tool_function(tool_func, step.tool_name)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _match_output_field(param_name: str, output_fields: List[str]) -> Optional[str]:
+        """Match a receiving param name to the best output field.
+
+        Matching priority:
+        1. Exact name match (param='holdings', field='holdings')
+        2. Semantic match (param='content'/'text'/'body' -> largest text field)
+        3. Single-field schemas (only one output field — unambiguous)
+
+        Args:
+            param_name: The receiving parameter name (e.g. 'content', 'text', 'data')
+            output_fields: Declared output field names from the producer tool
+
+        Returns:
+            Best matching field name, or None if no confident match.
+        """
+        if not output_fields:
+            return None
+
+        # 1. Exact match
+        if param_name in output_fields:
+            return param_name
+
+        # 2. Semantic match for content-like params
+        _CONTENT_PARAMS = {'content', 'text', 'body', 'message', 'data', 'input', 'prompt'}
+        _CONTENT_FIELDS = {'content', 'text', 'results', 'data', 'output', 'summary', 'response'}
+        _IGNORE_FIELDS = {'success', 'error', 'status', 'count', 'query', 'provider'}
+
+        if param_name in _CONTENT_PARAMS:
+            # Prefer content-like fields from the output
+            for field_name in output_fields:
+                if field_name in _CONTENT_FIELDS:
+                    return field_name
+            # If no content field, pick first non-meta field
+            for field_name in output_fields:
+                if field_name not in _IGNORE_FIELDS:
+                    return field_name
+
+        # 3. Single non-meta field — unambiguous
+        non_meta = [f for f in output_fields if f not in _IGNORE_FIELDS]
+        if len(non_meta) == 1:
+            return non_meta[0]
+
+        return None
+
     def _maybe_decompose_plan(
         self,
         steps: list,

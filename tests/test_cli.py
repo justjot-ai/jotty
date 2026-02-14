@@ -200,7 +200,7 @@ class TestCommandRegistry:
         assert registry.get('n8n').name == 'workflow'
         assert registry.get('schedule').name == 'workflow'
         assert registry.get('automl').name == 'ml'
-        assert registry.get('last30days').name == 'research'
+        assert registry.get('search').name == 'research'
 
 
 class TestCompleter:

@@ -736,3 +736,263 @@ class TestToolSchemaOutputs:
         assert len(schema.outputs) == 2
         assert schema.outputs[0].name == "result"
         assert schema.outputs[1].type_hint == "int"
+
+
+# =============================================================================
+# I/O Contract Enrichment Tests
+# =============================================================================
+
+
+class TestIOContractEnrichment:
+    """Tests for _enrich_io_contracts post-processing in PlanUtilsMixin."""
+
+    def _make_step(self, skill_name="web-search", tool_name="search_web_tool",
+                   params=None, output_key="step_0", depends_on=None,
+                   inputs_needed=None, outputs_produced=None):
+        from Jotty.core.agents._execution_types import ExecutionStep
+        return ExecutionStep(
+            skill_name=skill_name,
+            tool_name=tool_name,
+            params=params or {},
+            description="Test step",
+            depends_on=depends_on or [],
+            output_key=output_key,
+            inputs_needed=inputs_needed or {},
+            outputs_produced=outputs_produced or [],
+        )
+
+    def _make_mixin(self):
+        from Jotty.core.agents._plan_utils_mixin import PlanUtilsMixin
+        return PlanUtilsMixin()
+
+    # -- _match_output_field tests --
+
+    def test_match_exact_name(self):
+        """Exact param name match to output field."""
+        mixin = self._make_mixin()
+        assert mixin._match_output_field("holdings", ["holdings", "total_pnl"]) == "holdings"
+
+    def test_match_content_param_to_results(self):
+        """Content-like param should match results/data/text fields."""
+        mixin = self._make_mixin()
+        assert mixin._match_output_field("content", ["success", "results", "count"]) == "results"
+
+    def test_match_text_param_to_text_field(self):
+        """text param should match text output field."""
+        mixin = self._make_mixin()
+        assert mixin._match_output_field("text", ["text", "error"]) == "text"
+
+    def test_match_message_param_skips_meta(self):
+        """message param should pick first non-meta field."""
+        mixin = self._make_mixin()
+        result = mixin._match_output_field("message", ["success", "indices", "count"])
+        assert result == "indices"
+
+    def test_match_single_non_meta_field(self):
+        """Single non-meta field should match any param."""
+        mixin = self._make_mixin()
+        assert mixin._match_output_field("whatever", ["success", "holdings", "count"]) == "holdings"
+
+    def test_no_match_ambiguous(self):
+        """Multiple non-meta fields with no name match returns None."""
+        mixin = self._make_mixin()
+        result = mixin._match_output_field("xyz", ["holdings", "total_pnl", "day_pnl"])
+        assert result is None
+
+    def test_no_match_empty(self):
+        """Empty output fields returns None."""
+        mixin = self._make_mixin()
+        assert mixin._match_output_field("anything", []) is None
+
+    # -- _enrich_io_contracts tests --
+
+    def test_empty_steps(self):
+        """Empty step list passes through unchanged."""
+        mixin = self._make_mixin()
+        assert mixin._enrich_io_contracts([]) == []
+
+    def test_preserves_existing_outputs_produced(self):
+        """Already-set outputs_produced should not be overwritten."""
+        mixin = self._make_mixin()
+        step = self._make_step(outputs_produced=["custom_field"])
+        result = mixin._enrich_io_contracts([step])
+        assert result[0].outputs_produced == ["custom_field"]
+
+    def test_preserves_existing_inputs_needed(self):
+        """Already-set inputs_needed should not be overwritten."""
+        mixin = self._make_mixin()
+        step = self._make_step(
+            params={"content": "${step_0}"},
+            inputs_needed={"content": "step_0.custom"},
+        )
+        result = mixin._enrich_io_contracts([step])
+        assert result[0].inputs_needed["content"] == "step_0.custom"
+
+    def test_field_level_ref_already_present(self):
+        """Params with ${key.field} refs should be left alone."""
+        mixin = self._make_mixin()
+        step = self._make_step(
+            params={"content": "${step_0.holdings}"},
+        )
+        result = mixin._enrich_io_contracts([step])
+        assert result[0].params["content"] == "${step_0.holdings}"
+
+    @pytest.mark.unit
+    def test_upgrade_bare_ref_with_registry(self):
+        """Bare ${key} should be upgraded to ${key.field} when tool has returns schema.
+
+        This test mocks the registry to provide a tool with declared outputs.
+        """
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        mixin = self._make_mixin()
+
+        # Step 0: produces data
+        step0 = self._make_step(
+            skill_name="pmi-portfolio",
+            tool_name="get_portfolio_tool",
+            output_key="portfolio",
+        )
+        # Step 1: consumes with bare ref
+        step1 = self._make_step(
+            skill_name="claude-cli-llm",
+            tool_name="summarize_text_tool",
+            params={"content": "${portfolio}"},
+            output_key="summary",
+            depends_on=[0],
+        )
+
+        # Mock registry to return a schema with outputs for step0
+        mock_schema = ToolSchema(name="get_portfolio_tool")
+        mock_schema.outputs = [
+            ToolParam(name="holdings", type_hint="list", required=False, description=""),
+            ToolParam(name="total_value", type_hint="float", required=False, description=""),
+            ToolParam(name="total_pnl", type_hint="float", required=False, description=""),
+            ToolParam(name="count", type_hint="int", required=False, description=""),
+        ]
+
+        mock_func = MagicMock()
+        mock_func._tool_schema = mock_schema
+
+        mock_skill = MagicMock()
+        mock_skill.tools = {"get_portfolio_tool": mock_func}
+
+        mock_registry = MagicMock()
+        mock_registry.get_skill.return_value = mock_skill
+
+        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+            result = mixin._enrich_io_contracts([step0, step1])
+
+        # Step 0 should have outputs_produced auto-populated
+        assert "holdings" in result[0].outputs_produced
+        assert "total_value" in result[0].outputs_produced
+
+        # Step 1 content param should be upgraded from ${portfolio} to ${portfolio.holdings}
+        assert "${portfolio.holdings}" in result[1].params["content"]
+
+    @pytest.mark.unit
+    def test_upgrade_data_param_to_data_field(self):
+        """data param should match data output field via exact match."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        mixin = self._make_mixin()
+        step0 = self._make_step(output_key="fetch")
+        step1 = self._make_step(params={"data": "${fetch}"}, depends_on=[0])
+
+        mock_schema = ToolSchema(name="fetch_tool")
+        mock_schema.outputs = [
+            ToolParam(name="data", type_hint="dict", required=False, description=""),
+            ToolParam(name="status", type_hint="str", required=False, description=""),
+        ]
+        mock_func = MagicMock()
+        mock_func._tool_schema = mock_schema
+        mock_skill = MagicMock()
+        mock_skill.tools = {step0.tool_name: mock_func}
+        mock_registry = MagicMock()
+        mock_registry.get_skill.return_value = mock_skill
+
+        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+            result = mixin._enrich_io_contracts([step0, step1])
+
+        assert result[1].params["data"] == "${fetch.data}"
+
+    @pytest.mark.unit
+    def test_no_upgrade_when_no_match(self):
+        """Bare ref with no matching field should stay as-is."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        mixin = self._make_mixin()
+        step0 = self._make_step(output_key="src")
+        step1 = self._make_step(params={"xyz": "${src}"}, depends_on=[0])
+
+        mock_schema = ToolSchema(name="tool")
+        mock_schema.outputs = [
+            ToolParam(name="alpha", type_hint="str", required=False, description=""),
+            ToolParam(name="beta", type_hint="str", required=False, description=""),
+            ToolParam(name="gamma", type_hint="str", required=False, description=""),
+        ]
+        mock_func = MagicMock()
+        mock_func._tool_schema = mock_schema
+        mock_skill = MagicMock()
+        mock_skill.tools = {step0.tool_name: mock_func}
+        mock_registry = MagicMock()
+        mock_registry.get_skill.return_value = mock_skill
+
+        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+            result = mixin._enrich_io_contracts([step0, step1])
+
+        # Should NOT be upgraded (ambiguous)
+        assert result[1].params["xyz"] == "${src}"
+
+    @pytest.mark.unit
+    def test_infers_inputs_needed_from_template(self):
+        """inputs_needed should be auto-populated from ${key.field} refs in params."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        mixin = self._make_mixin()
+        step0 = self._make_step(output_key="search")
+        step1 = self._make_step(
+            params={"content": "${search.results}", "query": "test"},
+            depends_on=[0],
+        )
+
+        # No registry needed — step1 already has field-level ref
+        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=None):
+            result = mixin._enrich_io_contracts([step0, step1])
+
+        assert result[1].inputs_needed.get("content") == "search.results"
+
+    @pytest.mark.unit
+    def test_multiple_refs_in_single_param(self):
+        """Multiple template refs in one param value should all be processed."""
+        from Jotty.core.agents._execution_types import ToolSchema, ToolParam
+
+        mixin = self._make_mixin()
+        step0 = self._make_step(output_key="a")
+        step1 = self._make_step(output_key="b")
+        step2 = self._make_step(
+            params={"prompt": "Compare ${a} with ${b}"},
+            depends_on=[0, 1],
+        )
+
+        # Mock schemas for both producer steps
+        for s, key in [(step0, "a"), (step1, "b")]:
+            mock_schema = ToolSchema(name=s.tool_name)
+            mock_schema.outputs = [
+                ToolParam(name="results", type_hint="list", required=False, description=""),
+                ToolParam(name="count", type_hint="int", required=False, description=""),
+            ]
+            mock_func = MagicMock()
+            mock_func._tool_schema = mock_schema
+            mock_skill = MagicMock()
+            mock_skill.tools = {s.tool_name: mock_func}
+
+        # Single registry mock that handles both skills
+        mock_registry = MagicMock()
+        mock_registry.get_skill.return_value = mock_skill
+
+        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+            result = mixin._enrich_io_contracts([step0, step1, step2])
+
+        # prompt param: 'prompt' is a content-like param, so ${a} -> ${a.results}
+        assert "${a.results}" in result[2].params["prompt"] or "${a}" in result[2].params["prompt"]

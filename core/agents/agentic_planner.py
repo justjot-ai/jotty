@@ -544,6 +544,11 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 steps = decomposed
                 reasoning = f"Decomposed for quality: {reasoning}"
 
+            # Post-plan enrichment: auto-populate I/O contracts from tool schemas
+            # The fast LLM often omits inputs_needed/outputs_produced and uses
+            # bare ${step_0} refs instead of field-level ${step_0.holdings}
+            steps = self._enrich_io_contracts(steps)
+
             used_skills = {step.skill_name for step in steps}
             if len(steps) > 0:
                 logger.info(f" Plan uses {len(used_skills)} skills: {used_skills}")
@@ -659,6 +664,9 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 steps = decomposed
                 reasoning = f"Decomposed for quality: {reasoning}"
 
+            # Post-plan enrichment: auto-populate I/O contracts from tool schemas
+            steps = self._enrich_io_contracts(steps)
+
             logger.info(f"Planned {len(steps)} execution steps (async)")
             return steps, reasoning
 
@@ -727,6 +735,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             reflection = str(getattr(result, 'reflection', ''))
             reasoning = str(getattr(result, 'reasoning', ''))
             steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
+            steps = self._enrich_io_contracts(steps)
 
             if steps:
                 logger.info(f"Reflective replan produced {len(steps)} new steps (async)")
@@ -877,6 +886,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.info(f" Reflective replanning: reflection='{reflection[:100]}...'")
 
             steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
+            steps = self._enrich_io_contracts(steps)
 
             if steps:
                 logger.info(f" Reflective replan produced {len(steps)} new steps")

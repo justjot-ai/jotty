@@ -169,12 +169,28 @@ class ParameterResolver:
                     return extracted.replace('\\', '\\\\')
             return raw.replace('\\', '\\\\')
 
-        # Always substitute ${ref} patterns (explicit template references)
-        value = re.sub(r'\$\{([^}]+)\}', replacer, value)
-
-        # Skip bare {ref} substitution for code content to protect f-strings
+        # Detect code content — f-strings use ${var:fmt} which collides with templates
         _CODE_MARKERS = ('def ', 'class ', 'import ', 'from ', 'f"', "f'", 'async def ', 'if __name__')
-        if not any(marker in value for marker in _CODE_MARKERS):
+        _is_code = any(marker in value for marker in _CODE_MARKERS)
+
+        if _is_code:
+            # In code: only substitute ${ref} patterns that look like real template refs
+            # (step_N, output keys) — skip f-string patterns like ${var:,.2f}
+            def _code_safe_replacer(match, _param_name=param_name):
+                ref_path = match.group(1)
+                # F-string format specifiers contain : or ! — not template refs
+                if ':' in ref_path or '!' in ref_path:
+                    return match.group(0)  # Return original unchanged
+                # Only resolve if it matches a known output key
+                base_key = ref_path.split('.')[0]
+                if base_key not in self._outputs:
+                    return match.group(0)  # Not a known output — leave as-is
+                return replacer(match, _param_name)
+            value = re.sub(r'\$\{([^}]+)\}', _code_safe_replacer, value)
+        else:
+            # Non-code: substitute all ${ref} patterns (explicit template references)
+            value = re.sub(r'\$\{([^}]+)\}', replacer, value)
+            # Also substitute bare {ref} patterns
             value = re.sub(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', replacer, value)
 
         # Aggregate unresolved research references
