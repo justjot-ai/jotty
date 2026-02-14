@@ -84,7 +84,7 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("        proxy_set_header X-Forwarded-Proto $scheme;")
     if websocket:
         lines.append("        proxy_set_header Upgrade $http_upgrade;")
-        lines.append("        proxy_set_header Connection "upgrade";")
+        lines.append('        proxy_set_header Connection "upgrade";')
         lines.append("        proxy_read_timeout 86400;")
     lines.append("    }")
     lines.append("}")
@@ -134,7 +134,7 @@ def nginx_static_site_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("")
     lines.append("    location ~* \\.(jpg|jpeg|png|gif|ico|css|js|woff2?|ttf|svg)$ {")
     lines.append("        expires 30d;")
-    lines.append("        add_header Cache-Control "public, immutable";")
+    lines.append('        add_header Cache-Control "public, immutable";')
     lines.append("    }")
     lines.append("")
     lines.append("    gzip on;")

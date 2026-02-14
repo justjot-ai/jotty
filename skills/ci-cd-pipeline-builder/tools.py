@@ -145,7 +145,7 @@ def github_actions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         lines.append("    steps:")
         lines.append("      - uses: actions/checkout@v4")
         lines.append("      - name: Deploy")
-        lines.append("        run: echo "Add deployment steps here"")
+        lines.append('        run: echo "Add deployment steps here"')
         lines.append("        env:")
         lines.append("          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}")
 
