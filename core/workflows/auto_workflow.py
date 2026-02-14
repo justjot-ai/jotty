@@ -68,6 +68,41 @@ class AutoWorkflow:
         self.stage_configs = {}
 
     @classmethod
+    def from_intent(
+        cls,
+        goal: str,
+        project_type: Optional[str] = None,
+        deliverables: Optional[List[str]] = None,
+        tech_stack: Optional[List[str]] = None,
+        features: Optional[List[str]] = None,
+        requirements: Optional[List[str]] = None
+    ) -> "AutoWorkflow":
+        """
+        Create workflow from intent (without executing).
+        Allows inspection and customization before execution.
+
+        Args:
+            goal: What you want to build/achieve
+            project_type: Type of project (optional)
+            deliverables: What to generate (optional)
+            tech_stack: Technologies to use (optional)
+            features: Features to include (optional)
+            requirements: Custom requirements (optional)
+
+        Returns:
+            AutoWorkflow instance (not yet executed)
+        """
+        intent = WorkflowIntent(
+            goal=goal,
+            project_type=project_type,
+            deliverables=deliverables,
+            tech_stack=tech_stack,
+            features=features,
+            requirements=requirements
+        )
+        return cls(intent)
+
+    @classmethod
     async def execute(
         cls,
         goal: str,

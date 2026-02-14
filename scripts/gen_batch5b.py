@@ -1,7 +1,93 @@
 """Batch 5b: Pure Python utility skills (10 skills)."""
 import sys, os
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 from generate_skills import create_skill
+
+SKILLS_DIR = Path(__file__).parent.parent / "skills"
+
+
+def _get_regex_builder_code() -> str:
+    """Return regex-builder tools.py code, creating it if needed."""
+    tools_path = SKILLS_DIR / "regex-builder" / "tools.py"
+    if tools_path.exists():
+        return tools_path.read_text()
+    # First-run: write the file, then return its content
+    tools_path.parent.mkdir(parents=True, exist_ok=True)
+    code = (
+        '"""Regex Builder Skill — build, test, and explain regex patterns."""\n'
+        'import re\n'
+        'from typing import Dict, Any\n'
+        '\n'
+        'from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
+        'from Jotty.core.utils.skill_status import SkillStatus\n'
+        '\n'
+        'status = SkillStatus("regex-builder")\n'
+        '\n'
+        '_PRESETS = {\n'
+        '    "email": {"pattern": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "description": "Email address"},\n'
+        '    "url": {"pattern": r\'https?://[^\\s<>"]+\', "description": "HTTP/HTTPS URL"},\n'
+        '    "phone": {"pattern": r"\\+?1?[-.\\s]?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}", "description": "US phone number"},\n'
+        '    "ipv4": {"pattern": r"\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "description": "IPv4 address"},\n'
+        '    "date_iso": {"pattern": r"\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])", "description": "ISO date (YYYY-MM-DD)"},\n'
+        '    "uuid": {"pattern": r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "description": "UUID v4"},\n'
+        '    "hex_color": {"pattern": r"#(?:[0-9a-fA-F]{3}){1,2}\\b", "description": "Hex color code"},\n'
+        '    "ip": {"pattern": r"\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "description": "IPv4 address"},\n'
+        '    "date": {"pattern": r"\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])", "description": "ISO date"},\n'
+        '}\n'
+        '\n'
+        '_EXPLAIN = {\n'
+        '    "\\\\d": "digit (0-9)", "\\\\w": "word char (a-z, A-Z, 0-9, _)", "\\\\s": "whitespace",\n'
+        '    "\\\\b": "word boundary", ".": "any character", "+": "one or more", "*": "zero or more",\n'
+        '    "?": "zero or one (optional)", "^": "start of string", "$": "end of string",\n'
+        '    "\\\\D": "non-digit", "\\\\W": "non-word char", "\\\\S": "non-whitespace",\n'
+        '}\n'
+        '\n'
+        '\n'
+        '@tool_wrapper(required_params=["action"])\n'
+        'def regex_tool(params: Dict[str, Any]) -> Dict[str, Any]:\n'
+        '    """Build, test, or explain regular expressions."""\n'
+        '    status.set_callback(params.pop("_status_callback", None))\n'
+        '    action = params["action"]\n'
+        '\n'
+        '    if action == "preset":\n'
+        '        name = params.get("name", "")\n'
+        '        if not name:\n'
+        '            return tool_response(available=list(_PRESETS.keys()))\n'
+        '        preset = _PRESETS.get(name)\n'
+        '        if not preset:\n'
+        '            return tool_error(f"Unknown preset: {name}. Available: {list(_PRESETS.keys())}")\n'
+        '        return tool_response(name=name, **preset)\n'
+        '\n'
+        '    if action == "test":\n'
+        '        pattern = params.get("pattern", "")\n'
+        '        text = params.get("text", "")\n'
+        '        if not pattern or not text:\n'
+        '            return tool_error("pattern and text required for test")\n'
+        '        try:\n'
+        '            matches = re.findall(pattern, text)\n'
+        '            full = bool(re.fullmatch(pattern, text))\n'
+        '            return tool_response(pattern=pattern, matches=matches, count=len(matches), full_match=full)\n'
+        '        except re.error as e:\n'
+        '            return tool_error(f"Invalid regex: {e}")\n'
+        '\n'
+        '    if action == "explain":\n'
+        '        pattern = params.get("pattern", "")\n'
+        '        if not pattern:\n'
+        '            return tool_error("pattern required for explain")\n'
+        '        parts = []\n'
+        '        for token, desc in _EXPLAIN.items():\n'
+        '            if token in pattern:\n'
+        '                parts.append({"token": token, "meaning": desc})\n'
+        '        return tool_response(pattern=pattern, components=parts)\n'
+        '\n'
+        '    return tool_error(f"Unknown action: {action}. Use: preset, test, explain")\n'
+        '\n'
+        '\n'
+        '__all__ = ["regex_tool"]\n'
+    )
+    tools_path.write_text(code)
+    return code
 
 # ── 1. json-diff ────────────────────────────────────────────────────
 create_skill(
@@ -379,77 +465,7 @@ Build, test, or explain regex patterns.
 - `name` (str): Preset name (for preset): email, url, phone, ip, date, uuid
 - `pattern` (str): Regex pattern (for test/explain)
 - `text` (str): Text to test against (for test)""",
-    tools_code="""\"\"\"Regex Builder Skill — build, test, and explain regex patterns.\"\"\"
-import re
-from typing import Dict, Any
-
-from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-from Jotty.core.utils.skill_status import SkillStatus
-
-status = SkillStatus("regex-builder")
-
-_PRESETS = {
-    "email": {"pattern": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "description": "Email address"},
-    "url": {"pattern": r'https?://[^\\s<>"]+', "description": "HTTP/HTTPS URL"},
-    "phone": {"pattern": r"\\+?1?[-.\\s]?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}", "description": "US phone number"},
-    "ipv4": {"pattern": r"\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "description": "IPv4 address"},
-    "date_iso": {"pattern": r"\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])", "description": "ISO date (YYYY-MM-DD)"},
-    "uuid": {"pattern": r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "description": "UUID v4"},
-    "hex_color": {"pattern": r"#(?:[0-9a-fA-F]{3}){1,2}\\b", "description": "Hex color code"},
-    "ip": {"pattern": r"\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "description": "IPv4 address"},
-    "date": {"pattern": r"\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])", "description": "ISO date"},
-}
-
-_EXPLAIN = {
-    "\\\\\\\\d": "digit (0-9)", "\\\\\\\\w": "word char (a-z, A-Z, 0-9, _)", "\\\\\\\\s": "whitespace",
-    "\\\\\\\\b": "word boundary", ".": "any character", "+": "one or more", "*": "zero or more",
-    "?": "zero or one (optional)", "^": "start of string", "$": "end of string",
-    "\\\\\\\\D": "non-digit", "\\\\\\\\W": "non-word char", "\\\\\\\\S": "non-whitespace",
-}
-
-
-@tool_wrapper(required_params=["action"])
-def regex_tool(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Build, test, or explain regular expressions."""
-    status.set_callback(params.pop("_status_callback", None))
-    action = params["action"]
-
-    if action == "preset":
-        name = params.get("name", "")
-        if not name:
-            return tool_response(available=list(_PRESETS.keys()))
-        preset = _PRESETS.get(name)
-        if not preset:
-            return tool_error(f"Unknown preset: {name}. Available: {list(_PRESETS.keys())}")
-        return tool_response(name=name, **preset)
-
-    if action == "test":
-        pattern = params.get("pattern", "")
-        text = params.get("text", "")
-        if not pattern or not text:
-            return tool_error("pattern and text required for test")
-        try:
-            matches = re.findall(pattern, text)
-            full = bool(re.fullmatch(pattern, text))
-            return tool_response(pattern=pattern, matches=matches, count=len(matches), full_match=full)
-        except re.error as e:
-            return tool_error(f"Invalid regex: {e}")
-
-    if action == "explain":
-        pattern = params.get("pattern", "")
-        if not pattern:
-            return tool_error("pattern required for explain")
-        parts = []
-        for token, desc in _EXPLAIN.items():
-            if token in pattern:
-                parts.append({"token": token, "meaning": desc})
-        return tool_response(pattern=pattern, components=parts)
-
-    return tool_error(f"Unknown action: {action}. Use: preset, test, explain")
-
-
-__all__ = ["regex_tool"]
-""",
+    tools_code=_get_regex_builder_code(),
 )
 
 # ── 6. binary-converter ─────────────────────────────────────────────
