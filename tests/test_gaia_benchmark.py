@@ -292,9 +292,9 @@ class TestGAIAValidateAnswer:
         assert self.bench.validate_answer(task, "") is False
 
     def test_both_empty(self):
-        """Empty expected and empty actual → match."""
+        """Empty expected → False (test split has no answers)."""
         task = _make_gaia_task(answer="")
-        assert self.bench.validate_answer(task, "") is True
+        assert self.bench.validate_answer(task, "") is False
 
     def test_numeric_completely_different(self):
         """Numerically different values fail."""

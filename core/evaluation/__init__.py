@@ -14,6 +14,7 @@ from .ablation_study import (
     DEFAULT_SEARCH_GROUPS,
 )
 from .gaia_benchmark import GAIABenchmark
+from .gaia_adapter import JottyGAIAAdapter
 from .eval_store import EvalStore
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     'BenchmarkMetrics',
     'CustomBenchmark',
     'GAIABenchmark',
+    'JottyGAIAAdapter',
     'EvaluationProtocol',
     'EvaluationRun',
     'EvaluationReport',

@@ -148,7 +148,11 @@ def run_benchmark(args):
     # Load tasks
     print(f"Loading GAIA tasks from {args.data_dir} ...")
     benchmark = GAIABenchmark(benchmark_path=args.data_dir)
-    tasks = benchmark.load_tasks(split=args.split, level=args.level)
+    try:
+        tasks = benchmark.load_tasks(split=args.split, level=args.level)
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+        return 1
 
     if not tasks:
         print("No tasks found. Run download_gaia.py first.")

@@ -97,7 +97,7 @@ class GAIABenchmark(Benchmark):
                         # Apply level filter
                         if level is not None:
                             task_level = task_data.get('Level')
-                            if task_level is not None and int(task_level) != level:
+                            if task_level is None or int(task_level) != level:
                                 continue
                         tasks.append(task_data)
                 except Exception as e:
