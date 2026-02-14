@@ -1,0 +1,32 @@
+{
+  "skill": "image-resizer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to resizing images",
+      "expected_skill": "image-resizer",
+      "should_match": true,
+      "notes": "Should discover image-resizer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "resize_image_tool",
+      "input": {
+        "input_path": "photo.jpg",
+        "width": 800,
+        "height": 600
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of resize_image_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use image-resizer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

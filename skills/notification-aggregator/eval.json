@@ -1,0 +1,35 @@
+{
+  "skill": "notification-aggregator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to aggregating notifications",
+      "expected_skill": "notification-aggregator",
+      "should_match": true,
+      "notes": "Should discover notification-aggregator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "send_notification_tool",
+      "input": {
+        "message": "Deployment completed successfully",
+        "channels": [
+          "console",
+          "log"
+        ],
+        "level": "info"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of send_notification_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use notification-aggregator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

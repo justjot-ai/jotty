@@ -1,0 +1,30 @@
+{
+  "skill": "ocr-extractor",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to extracting ocr text",
+      "expected_skill": "ocr-extractor",
+      "should_match": true,
+      "notes": "Should discover ocr-extractor in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "ocr_extract_tool",
+      "input": {
+        "image_path": "screenshot.png"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of ocr_extract_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use ocr-extractor with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

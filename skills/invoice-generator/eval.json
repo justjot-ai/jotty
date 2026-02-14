@@ -1,0 +1,37 @@
+{
+  "skill": "invoice-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating invoices",
+      "expected_skill": "invoice-generator",
+      "should_match": true,
+      "notes": "Should discover invoice-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_invoice_tool",
+      "input": {
+        "client_name": "Acme Corp",
+        "items": [
+          {
+            "description": "Consulting",
+            "quantity": 10,
+            "rate": 150
+          }
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_invoice_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use invoice-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

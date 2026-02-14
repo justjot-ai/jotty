@@ -1,0 +1,53 @@
+{
+  "skill": "decision-matrix-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to building decision matrices",
+      "expected_skill": "decision-matrix-builder",
+      "should_match": true,
+      "notes": "Should discover decision-matrix-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "build_decision_matrix_tool",
+      "input": {
+        "options": [
+          "Option A",
+          "Option B"
+        ],
+        "criteria": [
+          {
+            "name": "Cost",
+            "weight": 5
+          },
+          {
+            "name": "Quality",
+            "weight": 8
+          }
+        ],
+        "scores": {
+          "Option A": {
+            "Cost": 8,
+            "Quality": 6
+          },
+          "Option B": {
+            "Cost": 5,
+            "Quality": 9
+          }
+        }
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of build_decision_matrix_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use decision-matrix-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

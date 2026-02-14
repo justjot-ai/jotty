@@ -1,0 +1,31 @@
+{
+  "skill": "tax-calculator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to calculating taxes",
+      "expected_skill": "tax-calculator",
+      "should_match": true,
+      "notes": "Should discover tax-calculator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "calculate_federal_tax_tool",
+      "input": {
+        "income": 85000,
+        "filing_status": "single"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of calculate_federal_tax_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use tax-calculator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

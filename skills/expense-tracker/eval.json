@@ -1,0 +1,32 @@
+{
+  "skill": "expense-tracker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tracking expenses",
+      "expected_skill": "expense-tracker",
+      "should_match": true,
+      "notes": "Should discover expense-tracker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "add_expense_tool",
+      "input": {
+        "amount": 45.99,
+        "category": "food",
+        "description": "Lunch meeting"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of add_expense_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use expense-tracker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "skill": "copywriting-assistant",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to assisting copywriting",
+      "expected_skill": "copywriting-assistant",
+      "should_match": true,
+      "notes": "Should discover copywriting-assistant in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_copy_tool",
+      "input": {
+        "product": "AI Writing Assistant",
+        "audience": "content marketers",
+        "framework": "AIDA"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_copy_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use copywriting-assistant with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

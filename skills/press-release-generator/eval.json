@@ -1,0 +1,36 @@
+{
+  "skill": "press-release-generator",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to generating press releases",
+      "expected_skill": "press-release-generator",
+      "should_match": true,
+      "notes": "Should discover press-release-generator in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "generate_press_release_tool",
+      "input": {
+        "headline": "Acme Corp Launches New Product",
+        "company": "Acme Corp",
+        "body_points": [
+          "Revolutionary new widget",
+          "Available Q1 2025",
+          "Priced at $99"
+        ]
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of generate_press_release_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use press-release-generator with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

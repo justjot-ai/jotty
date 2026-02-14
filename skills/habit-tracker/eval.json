@@ -1,0 +1,31 @@
+{
+  "skill": "habit-tracker",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tracking habits",
+      "expected_skill": "habit-tracker",
+      "should_match": true,
+      "notes": "Should discover habit-tracker in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "log_habit_tool",
+      "input": {
+        "habit": "exercise",
+        "completed": true
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of log_habit_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use habit-tracker with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

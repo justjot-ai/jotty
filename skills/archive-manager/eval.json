@@ -1,0 +1,35 @@
+{
+  "skill": "archive-manager",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to managing archives",
+      "expected_skill": "archive-manager",
+      "should_match": true,
+      "notes": "Should discover archive-manager in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "create_archive_tool",
+      "input": {
+        "files": [
+          "file1.txt",
+          "file2.txt"
+        ],
+        "output": "archive.zip",
+        "format": "zip"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of create_archive_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use archive-manager with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

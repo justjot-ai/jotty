@@ -1,0 +1,31 @@
+{
+  "skill": "pomodoro-timer",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to tracking pomodoro",
+      "expected_skill": "pomodoro-timer",
+      "should_match": true,
+      "notes": "Should discover pomodoro-timer in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "start_pomodoro_tool",
+      "input": {
+        "task": "Write documentation",
+        "work_minutes": 25
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of start_pomodoro_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use pomodoro-timer with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

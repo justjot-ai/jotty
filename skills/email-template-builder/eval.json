@@ -1,0 +1,32 @@
+{
+  "skill": "email-template-builder",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to building email templates",
+      "expected_skill": "email-template-builder",
+      "should_match": true,
+      "notes": "Should discover email-template-builder in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "build_email_template_tool",
+      "input": {
+        "subject": "Welcome!",
+        "body": "Hello and welcome to our service.",
+        "template": "basic"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of build_email_template_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use email-template-builder with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

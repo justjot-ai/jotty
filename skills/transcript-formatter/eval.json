@@ -1,0 +1,30 @@
+{
+  "skill": "transcript-formatter",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to formatting transcripts",
+      "expected_skill": "transcript-formatter",
+      "should_match": true,
+      "notes": "Should discover transcript-formatter in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "format_transcript_tool",
+      "input": {
+        "text": "00:00:05 John: Hello everyone.\n00:00:08 Jane: Hi John, thanks for joining.\n00:00:12 John: Happy to be here. Let me share my thoughts on the project."
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of format_transcript_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use transcript-formatter with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}

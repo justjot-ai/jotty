@@ -1,0 +1,30 @@
+{
+  "skill": "rss-feed-reader",
+  "version": "1.0",
+  "scenarios": [
+    {
+      "type": "triggering",
+      "prompt": "I need to reading rss feeds",
+      "expected_skill": "rss-feed-reader",
+      "should_match": true,
+      "notes": "Should discover rss-feed-reader in top-3 results"
+    },
+    {
+      "type": "functional",
+      "tool": "fetch_rss_tool",
+      "input": {
+        "url": "https://feeds.bbci.co.uk/news/rss.xml"
+      },
+      "expected_output_keys": [
+        "success"
+      ],
+      "notes": "Basic invocation of fetch_rss_tool"
+    },
+    {
+      "type": "edge_case",
+      "prompt": "Use rss-feed-reader with missing required parameters",
+      "expected_behavior": "graceful_error",
+      "notes": "Should handle invalid input gracefully"
+    }
+  ]
+}
