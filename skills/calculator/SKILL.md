@@ -14,8 +14,11 @@ base
 
 ## Triggers
 - "calculate"
-- "compute"
 - "math"
+- "add"
+- "subtract"
+- "multiply"
+- "compute"
 - "what is the result of"
 - "how much is"
 

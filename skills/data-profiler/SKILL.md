@@ -24,6 +24,10 @@ base
 eda, profiling, data-quality, exploration, analysis
 
 ## Triggers
+- "analyze"
+- "profile"
+- "dataset"
+- "statistics"
 - "data profiler"
 - "file"
 - "read file"
@@ -31,7 +35,6 @@ eda, profiling, data-quality, exploration, analysis
 - "organize files"
 - "analyze data"
 - "data analysis"
-- "dataset"
 
 ## Category
 workflow-automation

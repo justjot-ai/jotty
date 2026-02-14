@@ -1,7 +1,7 @@
 # OpenAI Whisper API Skill
 
 ## Description
-Speech-to-text transcription and translation using OpenAI's Whisper API. Supports multiple audio formats and output formats including subtitles.
+Transcribe audio recordings and voice memos to text. Translate speech from any language to English. Use for meeting recordings, interviews, podcasts, lectures, and video audio extraction. Supports mp3, wav, m4a, mp4 formats.
 
 
 ## Type
@@ -10,6 +10,7 @@ base
 
 ## Capabilities
 - media
+- transcribe
 
 ## Tools
 
@@ -85,10 +86,15 @@ result = translate_audio_tool({
 - The `verbose_json` format includes word-level timestamps
 
 ## Triggers
-- "openai whisper api"
 - "transcribe"
+- "audio"
+- "speech"
+- "recording"
+- "voice"
+- "openai whisper api"
 - "speech to text"
 - "audio transcription"
+- "voice to text"
 
 ## Category
-workflow-automation
+media-creation

@@ -64,7 +64,7 @@ class ArxivLearningSwarm(DomainSwarm):
         # Optimization mode from config: "unified" (fast, 2 LLM calls) or "sequential" (original, 10+ calls)
         self._optimization_mode = self.config.optimization_mode
 
-    def set_optimization_mode(self, mode: str):
+    def set_optimization_mode(self, mode: str) -> None:
         """
         Switch optimization mode.
 
@@ -1262,7 +1262,7 @@ class ArxivLearningSwarm(DomainSwarm):
             import traceback
             traceback.print_exc()
 
-    def seed_gold_standards(self):
+    def seed_gold_standards(self) -> None:
         """
         Seed default gold standards for paper learning evaluation.
 

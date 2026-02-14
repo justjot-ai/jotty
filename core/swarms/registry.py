@@ -25,7 +25,7 @@ class SwarmRegistry:
     _swarms: Dict[str, Type['BaseSwarm']] = {}
 
     @classmethod
-    def register(cls, name: str, swarm_class: Type['BaseSwarm']):
+    def register(cls, name: str, swarm_class: Type['BaseSwarm']) -> None:
         """Register a swarm class."""
         cls._swarms[name] = swarm_class
 

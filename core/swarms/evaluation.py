@@ -44,7 +44,7 @@ class GoldStandardDB:
         self._cache: Dict[str, GoldStandard] = {}
         self._load_cache()
 
-    def _load_cache(self):
+    def _load_cache(self) -> None:
         """Load all gold standards into cache."""
         for file in self.path.glob("*.json"):
             try:
@@ -133,14 +133,14 @@ class ImprovementHistory:
         self.history: List[Dict[str, Any]] = []
         self._load_history()
 
-    def _load_history(self):
+    def _load_history(self) -> None:
         """Load improvement history."""
         history_file = self.path / "history.json"
         if history_file.exists():
             with open(history_file, 'r') as f:
                 self.history = json.load(f)
 
-    def _save_history(self):
+    def _save_history(self) -> None:
         """Save improvement history."""
         history_file = self.path / "history.json"
         with open(history_file, 'w') as f:
@@ -161,7 +161,7 @@ class ImprovementHistory:
         self._save_history()
         return entry['id']
 
-    def mark_applied(self, suggestion_id: str):
+    def mark_applied(self, suggestion_id: str) -> None:
         """Mark a suggestion as applied."""
         for entry in self.history:
             if entry['id'] == suggestion_id:
@@ -170,7 +170,7 @@ class ImprovementHistory:
                 break
         self._save_history()
 
-    def record_outcome(self, suggestion_id: str, success: bool, impact: float, notes: str = ""):
+    def record_outcome(self, suggestion_id: str, success: bool, impact: float, notes: str = "") -> None:
         """Record the outcome of an applied improvement."""
         for entry in self.history:
             if entry['id'] == suggestion_id:
@@ -203,13 +203,13 @@ class EvaluationHistory:
         self.evaluations: List[Dict[str, Any]] = []
         self._load()
 
-    def _load(self):
+    def _load(self) -> None:
         history_file = self.path / "evaluations.json"
         if history_file.exists():
             with open(history_file, 'r') as f:
                 self.evaluations = json.load(f)
 
-    def _save(self):
+    def _save(self) -> None:
         history_file = self.path / "evaluations.json"
         with open(history_file, 'w') as f:
             json.dump(self.evaluations[-200:], f, indent=2, default=str)

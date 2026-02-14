@@ -1062,51 +1062,85 @@ class TestTriggerDiscovery:
 
 @pytest.mark.unit
 class TestToolWrapperMigration:
-    """Verify migrated skills use @tool_wrapper."""
+    """Verify ALL skills use @tool_wrapper."""
 
-    def test_migrated_skills_have_tool_wrapper(self):
-        """All 9 migrated skills have @tool_wrapper in tools.py."""
-        migrated = [
-            "database-tools", "arxiv-downloader", "content-research-writer",
-            "research-to-pdf", "browser-automation", "text-utils",
-            "image-generator", "document-converter", "claude-cli-llm",
-        ]
+    def test_all_skills_have_tool_wrapper(self):
+        """Every skill tools.py imports tool_wrapper."""
         skills_dir = Path(__file__).resolve().parent.parent / "skills"
-        for skill_name in migrated:
-            tools_py = skills_dir / skill_name / "tools.py"
-            assert tools_py.exists(), f"{skill_name}/tools.py not found"
+        missing = []
+        for skill_dir in sorted(skills_dir.iterdir()):
+            tools_py = skill_dir / "tools.py"
+            if not tools_py.exists():
+                continue
             content = tools_py.read_text()
-            assert "tool_wrapper" in content, (
-                f"{skill_name}/tools.py missing tool_wrapper import"
-            )
+            if "tool_wrapper" not in content:
+                missing.append(skill_dir.name)
+        assert not missing, (
+            f"{len(missing)} skills missing tool_wrapper: {missing[:10]}"
+        )
 
-    def test_migrated_skills_parse_correctly(self):
-        """All migrated skills parse without syntax errors."""
+    def test_all_skills_parse_correctly(self):
+        """Every skill tools.py parses without syntax errors."""
         import ast
-        migrated = [
-            "database-tools", "arxiv-downloader", "content-research-writer",
-            "research-to-pdf", "browser-automation", "text-utils",
-            "image-generator", "document-converter", "claude-cli-llm",
-        ]
         skills_dir = Path(__file__).resolve().parent.parent / "skills"
-        for skill_name in migrated:
-            tools_py = skills_dir / skill_name / "tools.py"
+        errors = []
+        for skill_dir in sorted(skills_dir.iterdir()):
+            tools_py = skill_dir / "tools.py"
+            if not tools_py.exists():
+                continue
             content = tools_py.read_text()
             try:
                 ast.parse(content)
             except SyntaxError as e:
-                pytest.fail(f"{skill_name}/tools.py has syntax error: {e}")
+                errors.append(f"{skill_dir.name}: {e}")
+        assert not errors, f"Syntax errors in: {errors}"
 
-    def test_original_skills_still_have_tool_wrapper(self):
-        """Skills that already had @tool_wrapper are unchanged."""
-        original = ["calculator", "web-search", "file-operations", "github"]
+    def test_all_tool_functions_decorated(self):
+        """Every public tool function (params arg) has @*_wrapper decorator."""
+        import ast
         skills_dir = Path(__file__).resolve().parent.parent / "skills"
-        for skill_name in original:
-            tools_py = skills_dir / skill_name / "tools.py"
-            content = tools_py.read_text()
-            assert "@tool_wrapper" in content, (
-                f"{skill_name}/tools.py lost @tool_wrapper decorator"
-            )
+        undecorated = []
+        for skill_dir in sorted(skills_dir.iterdir()):
+            tools_py = skill_dir / "tools.py"
+            if not tools_py.exists():
+                continue
+            try:
+                tree = ast.parse(tools_py.read_text())
+            except SyntaxError:
+                continue
+            for node in ast.iter_child_nodes(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if node.name.startswith('_'):
+                        continue
+                    if node.args.args and node.args.args[0].arg == 'params':
+                        has_wrapper = any(
+                            (isinstance(d, ast.Call) and isinstance(d.func, ast.Name)
+                             and 'wrapper' in d.func.id)
+                            or (isinstance(d, ast.Name) and 'wrapper' in d.id)
+                            for d in node.decorator_list
+                        )
+                        if not has_wrapper:
+                            undecorated.append(
+                                f"{skill_dir.name}:{node.name}"
+                            )
+        assert not undecorated, (
+            f"{len(undecorated)} undecorated tool functions: {undecorated[:10]}"
+        )
+
+    def test_all_skills_have_triggers(self):
+        """Every SKILL.md has a ## Triggers section."""
+        skills_dir = Path(__file__).resolve().parent.parent / "skills"
+        missing = []
+        for skill_dir in sorted(skills_dir.iterdir()):
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
+            content = skill_md.read_text()
+            if "## Triggers" not in content:
+                missing.append(skill_dir.name)
+        assert not missing, (
+            f"{len(missing)} SKILL.md files missing triggers: {missing[:10]}"
+        )
 
 
 # =============================================================================

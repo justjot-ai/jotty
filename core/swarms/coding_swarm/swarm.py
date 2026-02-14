@@ -88,7 +88,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
         # Review module (lazy init)
         self._review_module = None
 
-    def set_team(self, team_config: TeamConfig):
+    def set_team(self, team_config: TeamConfig) -> None:
         """Set a custom team configuration."""
         self._team_config = team_config
 
@@ -220,7 +220,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
 
         return False
 
-    def _init_fullstack_agents(self):
+    def _init_fullstack_agents(self) -> None:
         """Lazy initialization of full-stack agents. Only creates agents when needed."""
         if hasattr(self, '_system_designer') and self._system_designer is not None:
             return

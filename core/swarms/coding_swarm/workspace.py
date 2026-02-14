@@ -107,7 +107,7 @@ class WorkspaceManager:
         pkg_str = " ".join(packages)
         return await self._terminal.execute(f"pip install {pkg_str}", timeout=60, working_dir=self._workspace_dir)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Remove workspace directory. Safe to call multiple times."""
         if self._workspace_dir:
             try:

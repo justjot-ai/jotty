@@ -77,7 +77,7 @@ class ResearchSwarm(DomainSwarm):
         self._social_sentiment_module = None
         self._technical_signals_module = None
 
-    def _init_shared_resources(self):
+    def _init_shared_resources(self) -> None:
         """Initialize shared swarm resources."""
         if self._initialized:
             return

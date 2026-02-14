@@ -1838,21 +1838,42 @@ class SkillsRegistry:
                 if word in desc_lower:
                     score += 1
 
-            # Capability match: boost if any capability keyword appears in task
+            # Capability match: bidirectional — cap in task OR task word in cap
             for cap in skill.capabilities:
-                if cap.lower() in task_lower:
+                cap_lower = cap.lower()
+                if cap_lower in task_lower:
                     score += 2
+                else:
+                    # Also check if any task word appears in the capability
+                    for word in stemmed:
+                        if word in cap_lower:
+                            score += 2
+                            break
 
-            # Trigger match: boost if any trigger phrase appears in task
+            # use_when match: check if task words appear in the use_when text
+            use_when_lower = (skill.use_when or '').lower()
+            if use_when_lower:
+                for word in stemmed:
+                    if word in use_when_lower:
+                        score += 1
+
+            # Trigger match: token-based — all words in trigger must appear in task
             triggers = skill.metadata.get('triggers', [])
+            task_word_set = set(task_lower.split())
             for trigger in triggers:
-                if trigger in task_lower:
-                    score += 4  # Triggers are high-confidence matches
+                trigger_words = trigger.lower().split()
+                if len(trigger_words) == 1:
+                    # Single-word trigger: substring match in task
+                    if trigger_words[0] in task_lower:
+                        score += 4
+                elif all(tw in task_word_set for tw in trigger_words):
+                    # Multi-word trigger: all words present in task
+                    score += 4
 
             if score > 0:
-                # Type boost: pre-built workflows and specialized skills are preferred
+                # Type boost: composite workflows get a small edge
                 if skill.skill_type == SkillType.COMPOSITE:
-                    score += 2
+                    score += 1
                 elif skill.skill_type == SkillType.DERIVED:
                     score += 1
 

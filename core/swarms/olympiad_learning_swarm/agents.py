@@ -226,7 +226,7 @@ class CurriculumArchitectAgent(BaseOlympiadAgent):
         self._ensure_sonnet_lm()
         self._architect = self._create_module(CurriculumArchitectSignature)
 
-    def _ensure_sonnet_lm(self):
+    def _ensure_sonnet_lm(self) -> None:
         """Create Sonnet LM instance for curriculum planning (does NOT set global)."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
@@ -853,7 +853,7 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
         # Use Predict (not ChainOfThought) to maximize output token budget for edited content
         self._editor = dspy.Predict(NarrativeEditorSignature)
 
-    def _ensure_sonnet_lm(self):
+    def _ensure_sonnet_lm(self) -> None:
         """Create Sonnet LM instance with 16K output for narrative editing (does NOT set global)."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
@@ -944,7 +944,7 @@ class RankTipsAgent(BaseOlympiadAgent):
         self._ensure_direct_api_lm()
         self._generator = self._create_module(RankTipsSignature)
 
-    def _ensure_direct_api_lm(self):
+    def _ensure_direct_api_lm(self) -> None:
         """Create DirectAnthropicLM instance for reliable generation (does NOT set global)."""
         try:
             from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available

@@ -156,7 +156,7 @@ class AgentTeam:
         self.agents[spec.attr_name] = spec
         return self
 
-    def set_instances(self, instances: Dict[str, Any]):
+    def set_instances(self, instances: Dict[str, Any]) -> None:
         """Set initialized agent instances (called by swarm)."""
         self._instances = instances
 

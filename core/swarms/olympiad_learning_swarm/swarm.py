@@ -1363,7 +1363,7 @@ class OlympiadLearningSwarm(DomainSwarm):
     # GOLD STANDARDS
     # =========================================================================
 
-    def seed_gold_standards(self):
+    def seed_gold_standards(self) -> None:
         """Seed default gold standards for evaluation."""
         self._init_agents()
         self.add_gold_standard(

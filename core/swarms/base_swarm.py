@@ -137,7 +137,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         # Learning lifecycle (populated by _pre_execute_learning)
         self._learned_context: Optional[Dict[str, Any]] = None
 
-    def _init_shared_resources(self):
+    def _init_shared_resources(self) -> None:
         """Initialize shared swarm resources."""
         if self._initialized:
             return
@@ -182,7 +182,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 
         self._initialized = True
 
-    def _init_self_improvement(self):
+    def _init_self_improvement(self) -> None:
         """Initialize self-improvement loop components."""
         # Gold standard database
         gold_path = self.config.gold_standard_path or str(
@@ -247,7 +247,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         save_dir.mkdir(parents=True, exist_ok=True)
         return str(save_dir / f"{safe_name}_{domain}.json")
 
-    def connect_swarm_intelligence(self, swarm_intelligence=None, enable_training: bool = False):
+    def connect_swarm_intelligence(self, swarm_intelligence=None, enable_training: bool = False) -> None:
         """
         Connect to SwarmIntelligence for Agent0 curriculum integration.
 
@@ -481,7 +481,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             swarm_name, default_tools or []
         )
 
-    def _curate_gold_standard(self, task_type, input_data, output_data, evaluation):
+    def _curate_gold_standard(self, task_type, input_data, output_data, evaluation) -> None:
         """Auto-curate gold standard from execution scoring >= 0.9."""
         if not self._gold_db:
             return
@@ -737,7 +737,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
 
         return coalition
 
-    def _dissolve_coalition(self, coalition_id: str):
+    def _dissolve_coalition(self, coalition_id: str) -> None:
         """Dissolve coalition after task completion."""
         if self._swarm_intelligence:
             self._swarm_intelligence.dissolve_coalition(coalition_id)
@@ -794,7 +794,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         swarm_name = self.config.name or 'base_swarm'
         return self._swarm_intelligence.gossip_receive(swarm_name)
 
-    def _build_supervisor_tree(self, agents: List[str] = None):
+    def _build_supervisor_tree(self, agents: List[str] = None) -> None:
         """
         Build hierarchical supervisor tree for O(log n) coordination.
 
@@ -889,7 +889,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             return None
         return self._swarm_intelligence.dequeue_task()
 
-    def _escalate_task(self, task_id: str, new_priority: int):
+    def _escalate_task(self, task_id: str, new_priority: int) -> None:
         """Escalate task priority."""
         if self._swarm_intelligence:
             self._swarm_intelligence.escalate_priority(task_id, new_priority)
@@ -972,13 +972,13 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     # CIRCUIT BREAKER
     # =========================================================================
 
-    def _record_circuit_failure(self, agent: str = None):
+    def _record_circuit_failure(self, agent: str = None) -> None:
         """Record failure for circuit breaker."""
         if self._swarm_intelligence:
             agent = agent or self.config.name or 'base_swarm'
             self._swarm_intelligence.record_circuit_failure(agent)
 
-    def _record_circuit_success(self, agent: str = None):
+    def _record_circuit_success(self, agent: str = None) -> None:
         """Record success - resets circuit breaker."""
         if self._swarm_intelligence:
             agent = agent or self.config.name or 'base_swarm'
@@ -1094,7 +1094,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
     # SMART CACHING
     # =========================================================================
 
-    def _cache_result(self, key: str, result: Any, ttl: float = 3600.0):
+    def _cache_result(self, key: str, result: Any, ttl: float = 3600.0) -> None:
         """Cache a result."""
         if self._swarm_intelligence:
             self._swarm_intelligence.cache_result(key, result, ttl)
@@ -1144,7 +1144,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             return []
         return self._improvement_history.get_pending_suggestions()
 
-    def apply_improvement(self, suggestion_id: str):
+    def apply_improvement(self, suggestion_id: str) -> None:
         """Mark an improvement as applied."""
         if self._improvement_history:
             self._improvement_history.mark_applied(suggestion_id)

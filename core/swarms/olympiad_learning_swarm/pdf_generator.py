@@ -620,7 +620,7 @@ async def _generate_pdf_reportlab(
 
         loop = asyncio.get_running_loop()
 
-        def _build():
+        def _build() -> None:
             doc = SimpleDocTemplate(output_path, pagesize=A4,
                                     leftMargin=60, rightMargin=60,
                                     topMargin=50, bottomMargin=50)

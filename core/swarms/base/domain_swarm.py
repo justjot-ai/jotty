@@ -244,7 +244,7 @@ class DomainSwarm(BaseSwarm):
         self._agents_initialized = False
         self._learning_recorded = False
 
-    def _init_agents(self):
+    def _init_agents(self) -> None:
         """
         Initialize agents from AGENT_TEAM definition.
 
@@ -355,7 +355,7 @@ class DomainSwarm(BaseSwarm):
             self._io_schema = None
         return self._io_schema
 
-    def _validate_output_fields(self, result: SwarmResult):
+    def _validate_output_fields(self, result: SwarmResult) -> None:
         """Validate and auto-populate output fields from SWARM_SIGNATURE."""
         schema = self.get_io_schema()
         if schema is None:

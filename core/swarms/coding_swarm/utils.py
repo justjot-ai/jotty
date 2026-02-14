@@ -95,7 +95,7 @@ _active_progress_callback = None
 _active_trace_callback = None
 
 
-def _progress(phase: str, agent: str, message: str):
+def _progress(phase: str, agent: str, message: str) -> None:
     """Log live progress."""
     logger.info("[%s] %s: %s", phase, agent, message)
     if _active_progress_callback is not None:

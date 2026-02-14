@@ -14,6 +14,9 @@ base
 
 
 ## Triggers
+- "scrape"
+- "crawl"
+- "extract data"
 - "scrape website"
 - "extract from page"
 - "get content from url"

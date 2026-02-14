@@ -13,6 +13,9 @@ base
 
 
 ## Triggers
+- "convert"
+- "transform"
+- "export"
 - "convert to pdf"
 - "create pdf"
 - "convert document"

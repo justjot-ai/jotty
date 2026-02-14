@@ -20,6 +20,10 @@ derived
 
 
 ## Triggers
+- "stock"
+- "financial"
+- "analyze"
+- "investment"
 - "stock price"
 - "financial data"
 - "analyze stock"

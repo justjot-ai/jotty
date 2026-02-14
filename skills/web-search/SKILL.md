@@ -17,6 +17,9 @@ base
 
 
 ## Triggers
+- "search"
+- "find"
+- "lookup"
 - "search for"
 - "look up"
 - "find information about"
