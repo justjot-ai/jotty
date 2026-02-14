@@ -76,22 +76,33 @@ class GroupedValueBaseline:
 
         logger.info("GroupedValueBaseline initialized (HRPO-inspired)")
 
-    def get_baseline(self, task_type: str, domain: str = None) -> float:
+    def get_baseline(self, task_type: str, domain: str = None,
+                     action_type: str = None) -> float:
         """
         Get baseline value for a task type.
 
         Uses hierarchical lookup:
-        1. Task-type specific baseline (most specific)
-        2. Domain-level baseline (if task_type unseen)
-        3. Global default (0.5)
+        1. Task-type + action-type composite (most specific, e.g. 'research:api')
+        2. Task-type specific baseline
+        3. Domain-level baseline (if task_type unseen)
+        4. Global default (0.5)
 
         Args:
             task_type: Type of task (e.g., 'aggregation', 'analysis')
             domain: Optional domain (e.g., 'ml', 'data')
+            action_type: Optional execution strategy ('api', 'gui', 'deeplink', 'rpa').
+                         When provided, enables the system to learn which strategy
+                         works best per task type (MAS-Bench hybrid routing).
 
         Returns:
             Baseline value for TD error computation
         """
+        # Most specific: task_type + action_type composite key
+        if action_type:
+            composite_key = f"{task_type}:{action_type}"
+            if self.group_counts.get(composite_key, 0) >= 3:
+                return self.group_baselines.get(composite_key, 0.5)
+
         # If we have enough samples for this task type, use its baseline
         if self.group_counts.get(task_type, 0) >= 3:
             return self.group_baselines.get(task_type, 0.5)
@@ -108,17 +119,21 @@ class GroupedValueBaseline:
         # Default baseline
         return 0.5
 
-    def update_group(self, task_type: str, reward: float, domain: str = None):
+    def update_group(self, task_type: str, reward: float, domain: str = None,
+                     action_type: str = None):
         """
         Update group baseline from new sample.
 
         Uses exponential moving average for stability:
-        baseline_new = (1 - α) * baseline_old + α * reward
+        baseline_new = (1 - alpha) * baseline_old + alpha * reward
 
         Args:
             task_type: Type of task
             reward: Observed reward
             domain: Optional domain for hierarchical update
+            action_type: Optional execution strategy ('api', 'gui', 'deeplink', 'rpa').
+                         Tracks per-task-type strategy effectiveness for MAS-Bench
+                         hybrid routing. Updates both composite and base keys.
         """
         # Update task-type baseline (EMA)
         old_baseline = self.group_baselines.get(task_type, 0.5)
@@ -135,6 +150,20 @@ class GroupedValueBaseline:
 
         self.group_counts[task_type] = self.group_counts.get(task_type, 0) + 1
 
+        # Update composite key for action_type dimension (MAS-Bench hybrid routing)
+        if action_type:
+            composite_key = f"{task_type}:{action_type}"
+            old_composite = self.group_baselines.get(composite_key, 0.5)
+            self.group_baselines[composite_key] = (
+                (1 - self.ema_alpha) * old_composite + self.ema_alpha * reward
+            )
+            if composite_key not in self.group_samples:
+                self.group_samples[composite_key] = []
+            self.group_samples[composite_key].append(reward)
+            if len(self.group_samples[composite_key]) > self.max_samples_per_group:
+                self.group_samples[composite_key] = self.group_samples[composite_key][-self.max_samples_per_group:]
+            self.group_counts[composite_key] = self.group_counts.get(composite_key, 0) + 1
+
         # Update domain baseline if provided
         if domain:
             old_domain = self.domain_baselines.get(domain, 0.5)
@@ -148,7 +177,8 @@ class GroupedValueBaseline:
         self._update_transfer_weights(task_type, reward)
 
         logger.debug(
-            f"Group baseline updated: {task_type} {old_baseline:.3f} → {self.group_baselines[task_type]:.3f}"
+            f"Group baseline updated: {task_type} {old_baseline:.3f} -> {self.group_baselines[task_type]:.3f}"
+            + (f" (action_type={action_type})" if action_type else "")
         )
 
     def get_group_variance(self, task_type: str) -> float:
@@ -220,6 +250,40 @@ class GroupedValueBaseline:
             self.transfer_matrix[task_type][other_type] = (
                 0.9 * old_weight + 0.1 * similarity
             )
+
+    def get_best_action_type(self, task_type: str,
+                            candidates: List[str] = None) -> Optional[str]:
+        """
+        Get the best-performing action_type for a task_type.
+
+        Compares composite baselines (task_type:action_type) and returns
+        the action_type with the highest learned baseline value.
+        Useful for MAS-Bench hybrid routing decisions.
+
+        Args:
+            task_type: Type of task (e.g., 'automation', 'research')
+            candidates: Action types to consider (default: ['api', 'gui', 'deeplink', 'rpa'])
+
+        Returns:
+            Best action_type, or None if insufficient data.
+        """
+        if candidates is None:
+            candidates = ['api', 'gui', 'deeplink', 'rpa']
+
+        best_type = None
+        best_value = -1.0
+        min_samples = 3
+
+        for action_type in candidates:
+            composite_key = f"{task_type}:{action_type}"
+            count = self.group_counts.get(composite_key, 0)
+            if count >= min_samples:
+                value = self.group_baselines.get(composite_key, 0.5)
+                if value > best_value:
+                    best_value = value
+                    best_type = action_type
+
+        return best_type
 
     def compute_relative_advantage(self, task_type: str, reward: float) -> float:
         """

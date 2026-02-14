@@ -1,35 +1,24 @@
 python
-# Basic usage with default SDXL model
+# Generate an image with default settings (SDXL)
 generate_image(
-    prompt="A serene mountain landscape at sunset with a crystal clear lake"
+    prompt="A serene mountain landscape at sunset with purple clouds"
 )
 
-# Using Flux model with custom parameters
+# Generate with specific model and custom settings
 generate_image(
-    prompt="A futuristic city with flying cars and neon lights",
-    model="flux",
-    negative_prompt="blurry, low quality, distorted",
-    num_inference_steps=75,
-    guidance_scale=8.0,
-    seed=42,
-    output_path="./futuristic_city.png"
-)
-
-# Using Stable Diffusion 1.5 with specific dimensions
-generate_image(
-    prompt="Portrait of a wise old wizard with a long white beard",
-    model="sd1.5",
-    width=512,
-    height=768,
-    negative_prompt="cartoon, anime, low quality"
-)
-
-# High-quality generation with more steps
-generate_image(
-    prompt="Photorealistic portrait of a red fox in autumn forest",
-    model="sdxl",
+    prompt="A cyberpunk cityscape with neon lights",
+    model="black-forest-labs/FLUX.1-dev",
+    output_path="cyberpunk_city.png",
     width=1024,
-    height=1024,
-    num_inference_steps=100,
-    guidance_scale=9.0
+    height=768,
+    num_inference_steps=30,
+    guidance_scale=8.0
+)
+
+# Quick generation with Stable Diffusion 1.5
+generate_image(
+    prompt="A cute robot playing guitar",
+    model="runwayml/stable-diffusion-v1-5",
+    width=512,
+    height=512
 )

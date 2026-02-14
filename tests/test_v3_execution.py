@@ -6694,6 +6694,638 @@ class TestShellExecCwdFix:
                     pytest.fail(f"Line {i} references 'cwd' before assignment on line {cwd_assignment_line}")
 
 
+# =============================================================================
+# Claude API LLM Skill Tests (mocked, no API calls)
+# =============================================================================
+
+
+def _load_claude_api_module():
+    """Load claude-api-llm tools module via sys.path (dashed dir name)."""
+    import sys
+    skill_path = str(Path(__file__).parent.parent / "skills" / "claude-api-llm")
+    if skill_path not in sys.path:
+        sys.path.insert(0, skill_path)
+    # Force reimport to avoid stale state
+    if "tools" in sys.modules and hasattr(sys.modules["tools"], "ClaudeAPIClient"):
+        return sys.modules["tools"]
+    import importlib
+    mod = importlib.import_module("tools")
+    return mod
+
+
+@pytest.mark.unit
+class TestClaudeAPIClient:
+    """Test ClaudeAPIClient singleton and API call wiring."""
+
+    def _get_mod(self):
+        mod = _load_claude_api_module()
+        mod.ClaudeAPIClient.reset()
+        return mod
+
+    def test_singleton_returns_same_instance(self):
+        """get_instance() returns the same object on repeated calls."""
+        mod = self._get_mod()
+        a = mod.ClaudeAPIClient.get_instance()
+        b = mod.ClaudeAPIClient.get_instance()
+        assert a is b
+        mod.ClaudeAPIClient.reset()
+
+    def test_reset_clears_singleton(self):
+        """reset() causes next get_instance() to create a new object."""
+        mod = self._get_mod()
+        a = mod.ClaudeAPIClient.get_instance()
+        mod.ClaudeAPIClient.reset()
+        b = mod.ClaudeAPIClient.get_instance()
+        assert a is not b
+        mod.ClaudeAPIClient.reset()
+
+    def test_call_with_tools_sends_tool_choice(self):
+        """call_with_tools passes tool_choice to API."""
+        mod = self._get_mod()
+        client = mod.ClaudeAPIClient.get_instance()
+
+        mock_response = Mock()
+        mock_response.content = []
+        mock_response.usage = Mock(input_tokens=10, output_tokens=20)
+
+        mock_anthropic = Mock()
+        mock_anthropic.messages.create.return_value = mock_response
+        client._client = mock_anthropic
+        client._model = "test-model"
+
+        client.call_with_tools(
+            messages=[{"role": "user", "content": "test"}],
+            tools=[{"name": "t", "description": "d", "input_schema": {"type": "object"}}],
+            tool_choice={"type": "tool", "name": "t"},
+        )
+
+        call_kwargs = mock_anthropic.messages.create.call_args[1]
+        assert call_kwargs["tool_choice"] == {"type": "tool", "name": "t"}
+        assert call_kwargs["model"] == "test-model"
+        mod.ClaudeAPIClient.reset()
+
+    def test_retry_on_rate_limit(self):
+        """_call_with_retry retries on 429 errors."""
+        mod = self._get_mod()
+        client = mod.ClaudeAPIClient.get_instance()
+
+        mock_response = Mock()
+        mock_response.content = []
+        mock_response.usage = Mock(input_tokens=5, output_tokens=5)
+
+        mock_anthropic = Mock()
+        mock_anthropic.messages.create.side_effect = [
+            Exception("429 Too Many Requests"),
+            mock_response,
+        ]
+        client._client = mock_anthropic
+        client._model = "test-model"
+
+        # Patch _time.sleep on the loaded module directly
+        original_sleep = mod._time.sleep
+        mod._time.sleep = lambda x: None
+        try:
+            result = client._call_with_retry(
+                messages=[{"role": "user", "content": "test"}],
+                max_retries=2,
+                base_delay=0.01,
+            )
+        finally:
+            mod._time.sleep = original_sleep
+
+        assert result is mock_response
+        assert mock_anthropic.messages.create.call_count == 2
+        mod.ClaudeAPIClient.reset()
+
+
+@pytest.mark.unit
+class TestLintGate:
+    """Test LintGate syntax validation."""
+
+    def _get_lint_gate(self):
+        mod = _load_claude_api_module()
+        return mod.LintGate
+
+    def test_valid_python_passes(self):
+        """Valid Python code returns None (no error)."""
+        LintGate = self._get_lint_gate()
+        assert LintGate.validate_python("x = 1\nprint(x)") is None
+
+    def test_invalid_python_returns_error(self):
+        """Invalid Python code returns error string."""
+        LintGate = self._get_lint_gate()
+        result = LintGate.validate_python("def foo(\n  x = ")
+        assert result is not None
+        assert "SyntaxError" in result
+
+    def test_empty_string_is_valid(self):
+        """Empty string is valid Python."""
+        LintGate = self._get_lint_gate()
+        assert LintGate.validate_python("") is None
+
+    def test_validate_non_python_passes_through(self):
+        """Non-Python languages pass through without validation."""
+        LintGate = self._get_lint_gate()
+        # Invalid Python but valid for "javascript"
+        assert LintGate.validate("const x = {", "javascript") is None
+
+    def test_validate_python_alias(self):
+        """'py' alias works for Python validation."""
+        LintGate = self._get_lint_gate()
+        assert LintGate.validate("x = 1", "py") is None
+        assert LintGate.validate("def (", "py") is not None
+
+
+@pytest.mark.unit
+class TestGenerateCodeTool:
+    """Test generate_code_tool with mocked API."""
+
+    def _import_tools(self):
+        return _load_claude_api_module()
+
+    def test_missing_prompt_returns_error(self):
+        """Missing prompt returns error."""
+        mod = self._import_tools()
+        result = mod.generate_code_tool({})
+        assert result["success"] is False
+        assert "prompt" in result["error"]
+
+    def test_successful_code_generation(self):
+        """Successful generation returns clean code with lint_passed=True."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        # Mock the API response with tool_use block
+        mock_block = Mock()
+        mock_block.type = "tool_use"
+        mock_block.input = {
+            "code": "def hello():\n    return 'world'\n",
+            "language": "python",
+            "filename": "hello.py",
+        }
+        mock_block.id = "test_id"
+        mock_block.name = "create_file"
+
+        mock_response = Mock()
+        mock_response.content = [mock_block]
+        mock_response.usage = Mock(input_tokens=10, output_tokens=50)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = mock_response
+        client._model = "test-model"
+
+        result = mod.generate_code_tool({"prompt": "Write a hello function"})
+
+        assert result["success"] is True
+        assert result["code"] == "def hello():\n    return 'world'\n"
+        assert result["language"] == "python"
+        assert result["filename"] == "hello.py"
+        assert result["lint_passed"] is True
+        assert result["provider"] == "anthropic-api"
+
+        mod.ClaudeAPIClient.reset()
+
+    def test_lint_failure_triggers_retry(self):
+        """Invalid syntax triggers retry with error feedback."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        # First response has invalid syntax, second is valid
+        bad_block = Mock()
+        bad_block.type = "tool_use"
+        bad_block.input = {"code": "def foo(", "language": "python", "filename": "foo.py"}
+        bad_block.id = "id1"
+        bad_block.name = "create_file"
+
+        good_block = Mock()
+        good_block.type = "tool_use"
+        good_block.input = {"code": "def foo():\n    pass\n", "language": "python", "filename": "foo.py"}
+        good_block.id = "id2"
+        good_block.name = "create_file"
+
+        bad_response = Mock()
+        bad_response.content = [bad_block]
+        bad_response.usage = Mock(input_tokens=10, output_tokens=10)
+
+        good_response = Mock()
+        good_response.content = [good_block]
+        good_response.usage = Mock(input_tokens=15, output_tokens=15)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.side_effect = [bad_response, good_response]
+        client._model = "test-model"
+
+        result = mod.generate_code_tool({"prompt": "Write foo"})
+
+        assert result["success"] is True
+        assert result["lint_passed"] is True
+        assert result["code"] == "def foo():\n    pass\n"
+        # Verify retry happened
+        assert client._client.messages.create.call_count == 2
+
+        mod.ClaudeAPIClient.reset()
+
+    def test_no_tool_use_block_returns_error(self):
+        """If model doesn't return tool_use, returns error."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        text_block = Mock()
+        text_block.type = "text"
+        text_block.text = "Here is the code..."
+
+        mock_response = Mock()
+        mock_response.content = [text_block]
+        mock_response.usage = Mock(input_tokens=10, output_tokens=10)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = mock_response
+        client._model = "test-model"
+
+        result = mod.generate_code_tool({"prompt": "Write code"})
+
+        assert result["success"] is False
+        assert "tool_use" in result["error"]
+
+        mod.ClaudeAPIClient.reset()
+
+
+@pytest.mark.unit
+class TestGenerateTextTool:
+    """Test generate_text_tool with mocked API."""
+
+    def _import_tools(self):
+        return _load_claude_api_module()
+
+    def test_missing_prompt_returns_error(self):
+        """Missing prompt returns error."""
+        mod = self._import_tools()
+        result = mod.generate_text_tool({})
+        assert result["success"] is False
+
+    def test_successful_text_generation(self):
+        """Successful text generation returns text with provider."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        text_block = Mock()
+        text_block.type = "text"
+        text_block.text = "The answer is 42."
+
+        mock_response = Mock()
+        mock_response.content = [text_block]
+        mock_response.usage = Mock(input_tokens=5, output_tokens=10)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = mock_response
+        client._model = "test-model"
+
+        result = mod.generate_text_tool({"prompt": "What is the answer?"})
+
+        assert result["success"] is True
+        assert result["text"] == "The answer is 42."
+        assert result["provider"] == "anthropic-api"
+
+        mod.ClaudeAPIClient.reset()
+
+
+@pytest.mark.unit
+class TestAgenticGenerateTool:
+    """Test agentic_generate_tool tool loop with mocked API."""
+
+    def _import_tools(self):
+        return _load_claude_api_module()
+
+    def test_missing_prompt_returns_error(self):
+        """Missing prompt returns error."""
+        mod = self._import_tools()
+        result = mod.agentic_generate_tool({})
+        assert result["success"] is False
+
+    def test_single_round_with_tool_use(self):
+        """Tool loop: model calls write_file, then ends."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        # Round 1: model calls write_file
+        tool_block = Mock()
+        tool_block.type = "tool_use"
+        tool_block.id = "call_1"
+        tool_block.name = "write_file"
+        tool_block.input = {"path": "hello.py", "content": "print('hi')\n"}
+
+        round1_response = Mock()
+        round1_response.content = [tool_block]
+        round1_response.stop_reason = "tool_use"
+        round1_response.usage = Mock(input_tokens=20, output_tokens=30)
+
+        # Round 2: model ends with text
+        text_block = Mock()
+        text_block.type = "text"
+        text_block.text = "Done! Created hello.py."
+
+        round2_response = Mock()
+        round2_response.content = [text_block]
+        round2_response.stop_reason = "end_turn"
+        round2_response.usage = Mock(input_tokens=30, output_tokens=10)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.side_effect = [round1_response, round2_response]
+        client._model = "test-model"
+
+        result = mod.agentic_generate_tool({
+            "prompt": "Create hello.py",
+            "working_directory": "/tmp",
+        })
+
+        assert result["success"] is True
+        assert result["response"] == "Done! Created hello.py."
+        assert len(result["tool_calls"]) == 1
+        assert result["tool_calls"][0]["tool"] == "write_file"
+        assert result["rounds"] == 2
+
+        mod.ClaudeAPIClient.reset()
+
+    def test_max_rounds_respected(self):
+        """Tool loop stops at max_tool_rounds."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        # Always return tool_use (never end_turn)
+        tool_block = Mock()
+        tool_block.type = "tool_use"
+        tool_block.id = "call_loop"
+        tool_block.name = "execute_command"
+        tool_block.input = {"command": "echo hi"}
+
+        loop_response = Mock()
+        loop_response.content = [tool_block]
+        loop_response.stop_reason = "tool_use"
+        loop_response.usage = Mock(input_tokens=10, output_tokens=10)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = loop_response
+        client._model = "test-model"
+
+        result = mod.agentic_generate_tool({
+            "prompt": "Loop forever",
+            "max_tool_rounds": 2,
+        })
+
+        assert result["success"] is True
+        assert result["rounds"] == 2
+        assert client._client.messages.create.call_count == 2
+
+        mod.ClaudeAPIClient.reset()
+
+
+@pytest.mark.unit
+class TestAgenticToolExecutor:
+    """Test AgenticToolExecutor file/command operations."""
+
+    def _get_executor_class(self):
+        mod = _load_claude_api_module()
+        return mod.AgenticToolExecutor
+
+    def test_write_file_creates_file(self, tmp_path):
+        """write_file creates the file and records it."""
+        Executor = self._get_executor_class()
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("write_file", {"path": "test.txt", "content": "hello"}))
+        assert result["success"] is True
+        assert (tmp_path / "test.txt").read_text() == "hello"
+        assert str(tmp_path / "test.txt") in ex.files_created
+
+    def test_write_file_lint_gates_python(self, tmp_path):
+        """write_file rejects invalid Python."""
+        Executor = self._get_executor_class()
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("write_file", {"path": "bad.py", "content": "def ("}))
+        assert result["success"] is False
+        assert "Lint" in result["error"] or "Syntax" in result["error"]
+        assert not (tmp_path / "bad.py").exists()
+
+    def test_read_file_returns_content(self, tmp_path):
+        """read_file returns file content."""
+        Executor = self._get_executor_class()
+        (tmp_path / "data.txt").write_text("contents here")
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("read_file", {"path": "data.txt"}))
+        assert result["success"] is True
+        assert result["content"] == "contents here"
+
+    def test_edit_file_replaces_text(self, tmp_path):
+        """edit_file replaces old_text with new_text."""
+        Executor = self._get_executor_class()
+        (tmp_path / "file.txt").write_text("hello world")
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("edit_file", {
+            "path": "file.txt",
+            "old_text": "hello",
+            "new_text": "goodbye",
+        }))
+        assert result["success"] is True
+        assert (tmp_path / "file.txt").read_text() == "goodbye world"
+
+    def test_execute_command_runs(self, tmp_path):
+        """execute_command runs a shell command."""
+        Executor = self._get_executor_class()
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("execute_command", {"command": "echo hi"}))
+        assert result["success"] is True
+        assert "hi" in result["output"]
+
+    def test_unknown_tool_returns_error(self, tmp_path):
+        """Unknown tool name returns error."""
+        Executor = self._get_executor_class()
+        ex = Executor(working_directory=str(tmp_path))
+        result = json.loads(ex.execute_tool("nonexistent", {}))
+        assert result["success"] is False
+
+    def test_tool_call_history_tracked(self, tmp_path):
+        """All tool calls are recorded in history."""
+        Executor = self._get_executor_class()
+        ex = Executor(working_directory=str(tmp_path))
+        ex.execute_tool("read_file", {"path": "nope.txt"})
+        ex.execute_tool("execute_command", {"command": "echo test"})
+        assert len(ex.tool_call_history) == 2
+        assert ex.tool_call_history[0]["tool"] == "read_file"
+        assert ex.tool_call_history[1]["tool"] == "execute_command"
+
+
+@pytest.mark.unit
+class TestStructuredOutputTool:
+    """Test structured_output_tool with mocked API."""
+
+    def _import_tools(self):
+        return _load_claude_api_module()
+
+    def test_missing_prompt_returns_error(self):
+        """Missing prompt returns error."""
+        mod = self._import_tools()
+        result = mod.structured_output_tool({})
+        assert result["success"] is False
+
+    def test_successful_structured_output(self):
+        """Returns parsed data from tool_use input."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        tool_block = Mock()
+        tool_block.type = "tool_use"
+        tool_block.input = {"name": "Alice", "age": 30}
+        tool_block.id = "ext_1"
+        tool_block.name = "extract_data"
+
+        mock_response = Mock()
+        mock_response.content = [tool_block]
+        mock_response.usage = Mock(input_tokens=10, output_tokens=20)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = mock_response
+        client._model = "test-model"
+
+        result = mod.structured_output_tool({
+            "prompt": "Extract name and age from: Alice is 30",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "integer"},
+                },
+                "required": ["name", "age"],
+            },
+        })
+
+        assert result["success"] is True
+        assert result["data"] == {"name": "Alice", "age": 30}
+        assert result["provider"] == "anthropic-api"
+
+        mod.ClaudeAPIClient.reset()
+
+    def test_default_schema_used_when_none(self):
+        """Default schema is used when no schema provided."""
+        mod = self._import_tools()
+        mod.ClaudeAPIClient.reset()
+
+        tool_block = Mock()
+        tool_block.type = "tool_use"
+        tool_block.input = {"result": "42"}
+        tool_block.id = "ext_2"
+        tool_block.name = "extract_data"
+
+        mock_response = Mock()
+        mock_response.content = [tool_block]
+        mock_response.usage = Mock(input_tokens=5, output_tokens=5)
+
+        client = mod.ClaudeAPIClient.get_instance()
+        client._client = Mock()
+        client._client.messages.create.return_value = mock_response
+        client._model = "test-model"
+
+        # Verify the tool definition uses default schema
+        result = mod.structured_output_tool({"prompt": "What is 6*7?"})
+        assert result["success"] is True
+
+        # Check that extract_data tool was sent
+        call_kwargs = client._client.messages.create.call_args[1]
+        tool_names = [t["name"] for t in call_kwargs["tools"]]
+        assert "extract_data" in tool_names
+
+        mod.ClaudeAPIClient.reset()
+
+
+@pytest.mark.unit
+class TestSkillSubstitution:
+    """Test runtime claude-cli-llm -> claude-api-llm substitution."""
+
+    def _make_step(self, skill_name, tool_name, params):
+        """Create a step-like object with all attributes ParameterResolver needs."""
+        step = Mock()
+        step.skill_name = skill_name
+        step.tool_name = tool_name
+        step.params = dict(params)
+        step.output_key = "test_output"
+        step.depends_on = []
+        step.inputs_needed = {}
+        step.outputs_produced = []
+        return step
+
+    @pytest.mark.asyncio
+    async def test_substitution_when_api_key_available(self):
+        """execute_step swaps claude-cli-llm to claude-api-llm when key is set."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        mock_api_skill = Mock()
+        mock_tool_fn = Mock(return_value={"success": True, "code": "x=1"})
+        mock_api_skill.tools = {"generate_code_tool": mock_tool_fn}
+        mock_api_skill.get_tool_schema = Mock(return_value=None)
+
+        def get_skill_side_effect(name):
+            if name == "claude-api-llm":
+                return mock_api_skill
+            return None
+
+        mock_registry.get_skill = Mock(side_effect=get_skill_side_effect)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("claude-cli-llm", "generate_code_tool", {"prompt": "hello"})
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            result = await executor.execute_step(step, {})
+
+        assert step.skill_name == "claude-api-llm"
+
+    @pytest.mark.asyncio
+    async def test_no_substitution_without_api_key(self):
+        """execute_step keeps claude-cli-llm when no API key."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        mock_cli_skill = Mock()
+        mock_cli_skill.tools = {"generate_text_tool": Mock(return_value={"success": True, "text": "hi"})}
+        mock_cli_skill.get_tool_schema = Mock(return_value=None)
+        mock_registry.get_skill = Mock(return_value=mock_cli_skill)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("claude-cli-llm", "generate_text_tool", {"prompt": "hello"})
+
+        env_copy = dict(os.environ)
+        env_copy.pop("ANTHROPIC_API_KEY", None)
+        with patch.dict(os.environ, env_copy, clear=True):
+            result = await executor.execute_step(step, {})
+
+        # get_skill was called with claude-cli-llm (not upgraded)
+        mock_registry.get_skill.assert_any_call("claude-cli-llm")
+
+    @pytest.mark.asyncio
+    async def test_no_substitution_for_other_skills(self):
+        """execute_step doesn't substitute non-claude-cli-llm skills."""
+        from Jotty.core.agents.base.skill_plan_executor import SkillPlanExecutor
+
+        mock_registry = Mock()
+        mock_skill = Mock()
+        mock_skill.tools = {"search_tool": Mock(return_value={"success": True})}
+        mock_skill.get_tool_schema = Mock(return_value=None)
+        mock_registry.get_skill = Mock(return_value=mock_skill)
+
+        executor = SkillPlanExecutor(mock_registry)
+        step = self._make_step("web-search", "search_tool", {"query": "test"})
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+            result = await executor.execute_step(step, {})
+
+        assert step.skill_name == "web-search"
+
+
 if __name__ == "__main__":
     import sys
     if "--integration" in sys.argv:

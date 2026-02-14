@@ -68,6 +68,13 @@ class ClaudeAPIClient:
         except ImportError:
             raise ImportError("anthropic package not installed. Run: pip install anthropic")
 
+        # DSPy loads dotenv which populates ANTHROPIC_API_KEY from .env files.
+        # Import it before reading client kwargs to ensure the key is available.
+        try:
+            import dspy  # noqa: F401 — side-effect: loads dotenv
+        except ImportError:
+            pass
+
         from Jotty.core.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
         from Jotty.core.foundation.config_defaults import MODEL_SONNET
 
@@ -794,11 +801,9 @@ def structured_output_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return tool_error("Model did not return structured data")
 
         status.emit("Done", "Structured output generated")
-        return tool_response(
-            data=tool_input,
-            model=api.model,
-            provider="anthropic-api",
-        )
+        result = tool_response(model=api.model, provider="anthropic-api")
+        result["data"] = tool_input
+        return result
 
     except Exception as e:
         logger.error("structured_output_tool error: %s", e, exc_info=True)

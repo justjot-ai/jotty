@@ -245,7 +245,291 @@ class SwarmBenchmarks:
         return instance
 
 
+# =============================================================================
+# MAS-BENCH EVALUATION HARNESS
+# =============================================================================
+# Measures MAS-Bench metrics: SR, SSR, MS, MET, MToC, GSAR
+# for hybrid mobile GUI + API shortcut agents.
+
+
+@dataclass
+class MASBenchResult:
+    """Result of a single MAS-Bench task execution.
+
+    Captures all metrics needed for MAS-Bench evaluation:
+    success, steps, time, tokens, and action type breakdown.
+    """
+    task_id: str
+    task_description: str = ""
+    success: bool = False
+
+    # Step counts
+    total_steps: int = 0
+    optimal_steps: int = 1      # ground truth optimal steps
+    gui_steps: int = 0          # steps using GUI actions
+    shortcut_steps: int = 0     # steps using API/deeplink/RPA
+
+    # Shortcut metrics
+    shortcut_calls: int = 0     # total shortcut invocations
+    shortcut_successes: int = 0 # successful shortcut executions
+
+    # Cost/time
+    execution_time_sec: float = 0.0
+    token_cost_k: float = 0.0   # kilo-tokens consumed
+
+    # Metadata
+    app_package: str = ""
+    difficulty_level: int = 1   # 1, 2, or 3
+    is_cross_app: bool = False
+    error: str = ""
+
+    @property
+    def step_ratio(self) -> float:
+        """Mean Step Ratio (MSR): actual steps / optimal steps."""
+        return self.total_steps / max(self.optimal_steps, 1)
+
+    @property
+    def shortcut_success_rate(self) -> float:
+        """Shortcut Success Rate (SSR): successful / total shortcut calls."""
+        return self.shortcut_successes / max(self.shortcut_calls, 1)
+
+    @property
+    def gui_shortcut_ratio(self) -> float:
+        """GUI-to-Shortcut Action Ratio (GSAR)."""
+        return self.shortcut_steps / max(self.gui_steps, 1)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to dict."""
+        return {
+            'task_id': self.task_id,
+            'success': self.success,
+            'total_steps': self.total_steps,
+            'optimal_steps': self.optimal_steps,
+            'gui_steps': self.gui_steps,
+            'shortcut_steps': self.shortcut_steps,
+            'shortcut_calls': self.shortcut_calls,
+            'shortcut_successes': self.shortcut_successes,
+            'step_ratio': self.step_ratio,
+            'shortcut_success_rate': self.shortcut_success_rate,
+            'gui_shortcut_ratio': self.gui_shortcut_ratio,
+            'execution_time_sec': self.execution_time_sec,
+            'token_cost_k': self.token_cost_k,
+            'difficulty_level': self.difficulty_level,
+            'is_cross_app': self.is_cross_app,
+            'error': self.error,
+        }
+
+
+class MASBenchRunner:
+    """Evaluation harness for MAS-Bench hybrid mobile agent benchmark.
+
+    Runs tasks through Jotty's SkillPlanExecutor and measures the 7 MAS-Bench
+    metrics: SR, SSR, MS, MSR, MET, MToC, GSAR.
+
+    Usage::
+
+        runner = MASBenchRunner()
+        runner.add_task('task_1', 'Search for "laptop" on Amazon and add to cart',
+                        app='com.amazon.mShop.android.shopping', optimal_steps=5)
+        results = runner.run_all()
+        metrics = runner.compute_aggregate_metrics(results)
+    """
+
+    # Skills classified as GUI (slow, fragile)
+    GUI_SKILLS = frozenset({
+        'browser-automation', 'android-automation', 'webapp-testing',
+    })
+
+    # Skills classified as API shortcuts (fast, reliable)
+    API_SKILLS = frozenset({
+        'http-client', 'web-search', 'web-scraper', 'oauth-automation',
+        'telegram-sender', 'slack-integration', 'pmi-market-data',
+        'pmi-portfolio', 'pmi-trading', 'pmi-watchlist', 'pmi-alerts',
+        'pmi-strategies', 'pmi-broker', 'shell-exec', 'database-tools',
+    })
+
+    def __init__(self):
+        self.tasks: List[Dict[str, Any]] = []
+        self.results: List[MASBenchResult] = []
+
+    def add_task(self, task_id: str, description: str,
+                 app: str = "", optimal_steps: int = 1,
+                 difficulty: int = 1, cross_app: bool = False):
+        """Register a task for evaluation.
+
+        Args:
+            task_id: Unique task identifier.
+            description: Natural language task description.
+            app: Android package name (for app launch).
+            optimal_steps: Ground truth optimal step count.
+            difficulty: Difficulty level (1-3).
+            cross_app: Whether task spans multiple apps.
+        """
+        self.tasks.append({
+            'task_id': task_id,
+            'description': description,
+            'app': app,
+            'optimal_steps': optimal_steps,
+            'difficulty': difficulty,
+            'cross_app': cross_app,
+        })
+
+    def classify_step(self, skill_name: str) -> str:
+        """Classify a step as 'gui' or 'shortcut' based on skill name.
+
+        Args:
+            skill_name: The skill used for this step.
+
+        Returns:
+            'gui' or 'shortcut'
+        """
+        if skill_name in self.GUI_SKILLS:
+            return 'gui'
+        return 'shortcut'
+
+    def evaluate_execution(self, task: Dict[str, Any],
+                           steps_executed: List[Dict[str, Any]],
+                           success: bool,
+                           execution_time: float,
+                           token_cost: float) -> MASBenchResult:
+        """Evaluate a single task execution and compute metrics.
+
+        Args:
+            task: Task definition dict from add_task().
+            steps_executed: List of executed step dicts with 'skill_name', 'status'.
+            success: Whether the task completed successfully.
+            execution_time: Total execution time in seconds.
+            token_cost: Total tokens consumed (in thousands).
+
+        Returns:
+            MASBenchResult with all metrics computed.
+        """
+        result = MASBenchResult(
+            task_id=task['task_id'],
+            task_description=task['description'],
+            success=success,
+            total_steps=len(steps_executed),
+            optimal_steps=task.get('optimal_steps', 1),
+            execution_time_sec=execution_time,
+            token_cost_k=token_cost,
+            app_package=task.get('app', ''),
+            difficulty_level=task.get('difficulty', 1),
+            is_cross_app=task.get('cross_app', False),
+        )
+
+        for step in steps_executed:
+            skill = step.get('skill_name', '')
+            step_type = self.classify_step(skill)
+            step_status = step.get('status', 'completed')
+
+            if step_type == 'gui':
+                result.gui_steps += 1
+            else:
+                result.shortcut_steps += 1
+                result.shortcut_calls += 1
+                if step_status == 'completed':
+                    result.shortcut_successes += 1
+
+        return result
+
+    @staticmethod
+    def compute_aggregate_metrics(results: List[MASBenchResult]) -> Dict[str, Any]:
+        """Compute aggregate MAS-Bench metrics across all tasks.
+
+        Returns the 7 MAS-Bench metrics:
+        - SR: Success Rate
+        - SSR: Shortcut Success Rate
+        - MS: Mean Steps
+        - MSR: Mean Step Ratio
+        - MET: Mean Execution Time
+        - MToC: Mean Token Cost (kilo-tokens)
+        - GSAR: GUI-to-Shortcut Action Ratio
+
+        Args:
+            results: List of MASBenchResult from individual tasks.
+
+        Returns:
+            Dict with aggregate metrics and breakdowns.
+        """
+        if not results:
+            return {'SR': 0, 'SSR': 0, 'MS': 0, 'MSR': 0, 'MET': 0, 'MToC': 0, 'GSAR': 0}
+
+        n = len(results)
+        successes = sum(1 for r in results if r.success)
+        total_shortcut_calls = sum(r.shortcut_calls for r in results)
+        total_shortcut_successes = sum(r.shortcut_successes for r in results)
+
+        metrics = {
+            'SR': successes / n,
+            'SSR': total_shortcut_successes / max(total_shortcut_calls, 1),
+            'MS': sum(r.total_steps for r in results) / n,
+            'MSR': sum(r.step_ratio for r in results) / n,
+            'MET': sum(r.execution_time_sec for r in results) / n,
+            'MToC': sum(r.token_cost_k for r in results) / n,
+            'GSAR': sum(r.gui_shortcut_ratio for r in results) / n,
+            'total_tasks': n,
+            'total_successes': successes,
+        }
+
+        # Breakdown by difficulty
+        for level in [1, 2, 3]:
+            level_results = [r for r in results if r.difficulty_level == level]
+            if level_results:
+                level_successes = sum(1 for r in level_results if r.success)
+                metrics[f'SR_L{level}'] = level_successes / len(level_results)
+
+        # Breakdown by task type (single-app vs cross-app)
+        single = [r for r in results if not r.is_cross_app]
+        cross = [r for r in results if r.is_cross_app]
+        if single:
+            metrics['SR_single_app'] = sum(1 for r in single if r.success) / len(single)
+        if cross:
+            metrics['SR_cross_app'] = sum(1 for r in cross if r.success) / len(cross)
+
+        return metrics
+
+    def summary(self, results: List[MASBenchResult] = None) -> str:
+        """Generate human-readable summary of benchmark results.
+
+        Args:
+            results: Results to summarize (default: self.results).
+
+        Returns:
+            Formatted summary string.
+        """
+        results = results or self.results
+        metrics = self.compute_aggregate_metrics(results)
+
+        lines = [
+            "MAS-Bench Results",
+            "=" * 50,
+            f"Tasks: {metrics.get('total_tasks', 0)} "
+            f"({metrics.get('total_successes', 0)} passed)",
+            f"Success Rate (SR): {metrics['SR']:.1%}",
+            f"Shortcut Success Rate (SSR): {metrics['SSR']:.1%}",
+            f"Mean Steps (MS): {metrics['MS']:.1f}",
+            f"Mean Step Ratio (MSR): {metrics['MSR']:.2f}",
+            f"Mean Execution Time (MET): {metrics['MET']:.1f}s",
+            f"Mean Token Cost (MToC): {metrics['MToC']:.1f}k",
+            f"GUI-to-Shortcut Ratio (GSAR): {metrics['GSAR']:.2f}",
+        ]
+
+        if 'SR_single_app' in metrics:
+            lines.append(f"Single-app SR: {metrics['SR_single_app']:.1%}")
+        if 'SR_cross_app' in metrics:
+            lines.append(f"Cross-app SR: {metrics['SR_cross_app']:.1%}")
+
+        for level in [1, 2, 3]:
+            key = f'SR_L{level}'
+            if key in metrics:
+                lines.append(f"Level {level} SR: {metrics[key]:.1%}")
+
+        return "\n".join(lines)
+
+
 __all__ = [
     'SwarmMetrics',
     'SwarmBenchmarks',
+    'MASBenchResult',
+    'MASBenchRunner',
 ]
