@@ -261,7 +261,7 @@ class ReportMixin:
         except Exception as e:
             logger.debug(f"Failed to add SHAP analysis: {e}")
 
-    def add_baseline_comparison(self, baseline_score: float, final_score -> None: float,
+    def add_baseline_comparison(self, baseline_score: float, final_score: float,
                                baseline_model: str = "DummyClassifier"):
         """Add baseline vs final model comparison."""
         if not self._report_available or not self._report_config.include_baseline_comparison:

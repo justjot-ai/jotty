@@ -128,7 +128,7 @@ class GroupedValueBaseline:
         # Default baseline
         return 0.5
 
-    def update_group(self, task_type: str, reward: float, domain -> None: str = None,
+    def update_group(self, task_type: str, reward: float, domain: str = None,
                      action_type: str = None):
         """
         Update group baseline from new sample.

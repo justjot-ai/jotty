@@ -342,7 +342,7 @@ class Vault:
     # MEMORY PERSISTENCE (NO HARDCODING)
     # =========================================================================
     
-    def save_memory(self, memory: 'SwarmMemory', name -> None: str = "shared",
+    def save_memory(self, memory: 'SwarmMemory', name: str = "shared",
                    max_per_level: int = 100):
         """
         Save hierarchical memory.

@@ -64,7 +64,7 @@ class EffectivenessTracker:
         # Global (all task types combined)
         self._global: deque = deque(maxlen=recent_window + historical_window)
 
-    def record(self, task_type: str, success: bool, quality -> None: float = 0.0,
+    def record(self, task_type: str, success: bool, quality: float = 0.0,
                agent: str = ""):
         """Record a task outcome. Call after every execution."""
         entry = (_time.time(), success, max(0.0, min(1.0, quality)), agent)

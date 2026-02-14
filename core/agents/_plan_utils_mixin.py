@@ -919,7 +919,7 @@ Filename: {filename}
         available_skill_names = {s.get('name', '') for s in skills if s.get('name')}
         logger.info(f" Available skills for validation: {sorted(available_skill_names)}")
 
-        def get_val(obj, key, default=''):
+        def get_val(obj: Union[Dict[str, Any], object], key: str, default: Any = '') -> Any:
             if isinstance(obj, dict):
                 return obj.get(key, default)
             return getattr(obj, key, default)

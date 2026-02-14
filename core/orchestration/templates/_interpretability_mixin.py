@@ -86,7 +86,7 @@ class InterpretabilityMixin:
         return any(t.lower() in model_name.lower()
                    for t in InterpretabilityMixin._TREE_MODEL_TYPES)
 
-    def add_feature_interactions(self, shap_values, feature_names -> None: List[str],
+    def add_feature_interactions(self, shap_values, feature_names: List[str],
                                  X_sample=None, model=None, top_n: int = 3):
         """
         Add feature interaction detection:

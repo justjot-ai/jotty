@@ -146,7 +146,7 @@ class HTMLSlideGenerator(SlideAssetsMixin, SlideRenderersMixin):
         self.colors = self.THEME_COLORS.get(config.theme, self.THEME_COLORS["navy"])
         self.slides: List[SlideConfig] = []
 
-    def add_slide(self, slide_type: SlideType, data -> None: Dict[str, Any],
+    def add_slide(self, slide_type: SlideType, data: Dict[str, Any],
                   animation: str = "slide_up", delay_start: float = 0.1):
         """Add a slide to the presentation"""
         self.slides.append(SlideConfig(

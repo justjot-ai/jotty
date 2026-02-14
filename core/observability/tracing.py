@@ -96,7 +96,7 @@ class Span:
         self.status = status
         self.status_message = message
 
-    def add_cost(self, input_tokens: int = 0, output_tokens -> None: int = 0,
+    def add_cost(self, input_tokens: int = 0, output_tokens: int = 0,
                  cost_usd: float = 0.0):
         """Add LLM cost to this span."""
         self.input_tokens += input_tokens
@@ -362,7 +362,7 @@ class TracingContext:
         stack = self._get_stack()
         return stack[-1] if stack else None
 
-    def add_cost_to_current(self, input_tokens: int = 0, output_tokens -> None: int = 0,
+    def add_cost_to_current(self, input_tokens: int = 0, output_tokens: int = 0,
                             cost_usd: float = 0.0):
         """Add LLM cost to the currently active span."""
         span = self.get_active_span()

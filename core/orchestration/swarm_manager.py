@@ -32,7 +32,7 @@ Usage:
 import asyncio
 import logging
 import time
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Callable
 
 from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.foundation.agent_config import AgentConfig
@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 # This is a known issue: LiteLLM's background LoggingWorker gets cancelled
 # when asyncio.run() tears down, producing harmless but alarming tracebacks.
 class _LiteLLMCancelledFilter(logging.Filter):
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
         return 'CancelledError' not in msg and 'LoggingWorker cancelled' not in msg
 
@@ -320,7 +320,7 @@ class AgentFactory:
         sm._runners_built = True
         logger.info(f"Runners built: {list(sm.runners.keys())}")
 
-    def register_agents_with_axon(self):
+    def register_agents_with_axon(self) -> None:
         """Register all agents with SmartAgentSlack for inter-agent messaging."""
         sm = self._manager
         from Jotty.core.agents.feedback_channel import FeedbackMessage, FeedbackType
@@ -360,7 +360,7 @@ class AgentFactory:
             except Exception as e:
                 logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")
 
-    def create_zero_config_agents(self, task: str, status_callback=None) -> List[AgentConfig]:
+    def create_zero_config_agents(self, task: str, status_callback: Optional[Callable] = None) -> List[AgentConfig]:
         """Delegate to ZeroConfigAgentFactory."""
         sm = self._manager
         if not hasattr(sm, '_zero_config_factory') or sm._zero_config_factory is None:

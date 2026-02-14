@@ -985,7 +985,7 @@ class SwarmTaskBoard:
         if task_id in self.subtasks:
             self.subtasks[task_id].intermediary_values.update(values)
     
-    def predict_next(self, task_id: str, next_task_id -> None: Optional[str],
+    def predict_next(self, task_id: str, next_task_id: Optional[str] = None,
                     duration: Optional[float] = None, reward: Optional[float] = None):
         """
         Record predictions for trajectory planning.

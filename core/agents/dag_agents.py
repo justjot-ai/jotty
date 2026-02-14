@@ -27,17 +27,17 @@ from .todo_creator_agent import TodoCreatorAgent       # noqa: F401
 from ..foundation.data_structures import SwarmConfig
 
 
-def get_swarm_resources(config=None) -> SwarmResources:
+def get_swarm_resources(config: Optional[SwarmConfig] = None) -> SwarmResources:
     """Get or create shared SwarmResources."""
     return SwarmResources(config or SwarmConfig())
 
 
-def create_task_breakdown_agent(config=None) -> TaskBreakdownAgent:
+def create_task_breakdown_agent(config: Optional[SwarmConfig] = None) -> TaskBreakdownAgent:
     """Create a TaskBreakdownAgent with shared resources."""
     return TaskBreakdownAgent(resources=get_swarm_resources(config))
 
 
-def create_todo_creator_agent(config=None, resources=None) -> TodoCreatorAgent:
+def create_todo_creator_agent(config: Optional[SwarmConfig] = None, resources: Optional[SwarmResources] = None) -> TodoCreatorAgent:
     """Create a TodoCreatorAgent with shared resources."""
     return TodoCreatorAgent(resources=resources or get_swarm_resources(config))
 

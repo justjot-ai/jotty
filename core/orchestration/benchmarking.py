@@ -61,7 +61,7 @@ class SwarmBenchmarks:
         # Iteration history for self-improvement tracking
         self.iteration_history: List[Dict] = []
 
-    def record_iteration(self, iteration_id: str, task_type -> None: str,
+    def record_iteration(self, iteration_id: str, task_type: str,
                          score: float, execution_time: float, success: bool):
         """Record a self-improvement iteration."""
         self.iteration_history.append({
@@ -105,7 +105,7 @@ class SwarmBenchmarks:
         if len(self.single_agent_runs[task_type]) > 100:
             self.single_agent_runs[task_type] = self.single_agent_runs[task_type][-100:]
 
-    def record_multi_agent_run(self, task_type: str, execution_time -> None: float,
+    def record_multi_agent_run(self, task_type: str, execution_time: float,
                                agents_count: int, success: bool = True):
         """Record multi-agent run."""
         self.multi_agent_runs[task_type].append((execution_time, agents_count, success))
@@ -352,7 +352,7 @@ class MASBenchRunner:
         self.tasks: List[Dict[str, Any]] = []
         self.results: List[MASBenchResult] = []
 
-    def add_task(self, task_id: str, description -> None: str,
+    def add_task(self, task_id: str, description: str,
                  app: str = "", optimal_steps: int = 1,
                  difficulty: int = 1, cross_app: bool = False):
         """Register a task for evaluation.

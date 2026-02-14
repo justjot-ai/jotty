@@ -275,7 +275,7 @@ class DriftMixin:
                           'results may be unreliable for non-Gaussian features.'),
         }
 
-    def add_drift_analysis(self, X_reference, X_current, feature_names -> None: List[str] = None,
+    def add_drift_analysis(self, X_reference, X_current, feature_names: List[str] = None,
                            psi_warn: float = 0.1, psi_alert: float = 0.25,
                            feature_importance: Dict[str, float] = None,
                            y_reference=None, y_current=None):

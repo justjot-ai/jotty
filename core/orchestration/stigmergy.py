@@ -516,7 +516,7 @@ class CrossSwarmStigmergy:
             cls._shared_instance = cls()
         return cls._shared_instance
 
-    def register_swarm(self, swarm_name: str, domain -> None: str = "general",
+    def register_swarm(self, swarm_name: str, domain: str = "general",
                        capabilities: List[str] = None):
         """Register a swarm for cross-swarm coordination."""
         self._swarm_registry[swarm_name] = {

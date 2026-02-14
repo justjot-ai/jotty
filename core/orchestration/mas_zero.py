@@ -105,7 +105,7 @@ class ExperienceLibrary:
         self.candidates: List[CandidateAnswer] = []
         self._iteration = 0
 
-    def record(self, agent_name: str, sub_goal: str, strategy -> None: str,
+    def record(self, agent_name: str, sub_goal: str, strategy: str,
                output_summary: str, success: bool, feedback: str = "",
                solvability: float = 0.0, completeness: float = 0.0):
         """Record an experience from this problem's execution."""
@@ -121,7 +121,7 @@ class ExperienceLibrary:
             completeness=completeness,
         ))
 
-    def add_candidate(self, source: str, agent_name: str, output -> None: Any,
+    def add_candidate(self, source: str, agent_name: str, output: Any,
                       success: bool, confidence: float = 0.5,
                       execution_time: float = 0.0):
         """Add a candidate answer to the pool."""

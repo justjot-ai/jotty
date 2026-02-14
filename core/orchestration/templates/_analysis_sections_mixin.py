@@ -27,7 +27,7 @@ class AnalysisSectionsMixin:
     self._validate_inputs(), self._maybe_add_narrative(), etc.
     """
 
-    def add_executive_summary(self, metrics: Dict[str, float], best_model -> None: str,
+    def add_executive_summary(self, metrics: Dict[str, float], best_model: str,
                              n_features: int, context: str = ""):
         """Add executive summary section with risk scoring and traffic-light indicators."""
         try:
@@ -35,7 +35,7 @@ class AnalysisSectionsMixin:
         except Exception as e:
             self._record_section_failure('Executive Summary', e)
 
-    def add_data_profile(self, shape: Tuple[int, int], dtypes -> None: Dict[str, int],
+    def add_data_profile(self, shape: Tuple[int, int], dtypes: Dict[str, int],
                         missing: Dict[str, int], recommendations: List[str]):
         """Add data profiling section."""
         try:
@@ -118,7 +118,7 @@ Visual representation of the ML pipeline data flow.
         except Exception as e:
             self._record_section_failure('Model Benchmarking', e)
 
-    def add_model_comparison(self, models -> None: Dict, X_test, y_true,
+    def add_model_comparison(self, models: Dict, X_test, y_true,
                              class_labels: List[str] = None):
         """Add side-by-side comparison of multiple trained models.
 
@@ -133,7 +133,7 @@ Visual representation of the ML pipeline data flow.
         except Exception as e:
             self._record_section_failure('Model Comparison', e)
 
-    def add_cross_dataset_validation(self, datasets_dict -> None: Dict[str, Tuple],
+    def add_cross_dataset_validation(self, datasets_dict: Dict[str, Tuple],
                                       model, metric_fn=None, metric_name: str = "Score"):
         """
         Add cross-dataset validation analysis.
@@ -267,7 +267,7 @@ Evaluating model generalization across {len(results)} different datasets.
         except Exception as e:
             self._record_section_failure('Precision-Recall Analysis', e)
 
-    def add_baseline_comparison(self, baseline_score: float, final_score -> None: float,
+    def add_baseline_comparison(self, baseline_score: float, final_score: float,
                                baseline_model: str = "Baseline"):
         """Add baseline comparison section."""
         try:
@@ -844,7 +844,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
     # SHAP DEEP DIVE
     # =========================================================================
 
-    def add_shap_deep_analysis(self, shap_values, feature_names -> None: List[str], X_sample,
+    def add_shap_deep_analysis(self, shap_values, feature_names: List[str], X_sample,
                                model=None, top_n: int = 3):
         """
         Add comprehensive SHAP analysis:
@@ -1067,7 +1067,7 @@ Choosing the right classification threshold depends on business objectives.
     # REPRODUCIBILITY SECTION
     # =========================================================================
 
-    def add_reproducibility_section(self, model, params: Dict = None, random_state -> None: int = None,
+    def add_reproducibility_section(self, model, params: Dict = None, random_state: int = None,
                                     environment: Dict = None):
         """
         Add reproducibility information:
@@ -1081,7 +1081,7 @@ Choosing the right classification threshold depends on business objectives.
         except Exception as e:
             self._record_section_failure('Reproducibility', e)
 
-    def add_hyperparameter_visualization(self, study_or_trials, param_names -> None: List[str] = None,
+    def add_hyperparameter_visualization(self, study_or_trials, param_names: List[str] = None,
                                           objective_name: str = "Objective"):
         """
         Add hyperparameter search visualization.
@@ -1160,7 +1160,7 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
         except Exception as e:
             self._record_section_failure('Hyperparameter Visualization', e)
 
-    def add_executive_dashboard(self, metrics: Dict[str, float], model_name -> None: str = "",
+    def add_executive_dashboard(self, metrics: Dict[str, float], model_name: str = "",
                                 dataset_name: str = ""):
         """
         Add executive dashboard with visual KPI gauge charts.
@@ -1630,7 +1630,7 @@ values are randomly shuffled, breaking the relationship with the target.
     # PARTIAL DEPENDENCE PLOTS (Phase 4)
     # =========================================================================
 
-    def add_partial_dependence(self, model, X, feature_names -> None: List[str] = None,
+    def add_partial_dependence(self, model, X, feature_names: List[str] = None,
                                 top_n: int = 3):
         """
         Add Partial Dependence Plots (PDP) with ICE lines:
@@ -1903,7 +1903,7 @@ reveals model discrimination capability.
     # DEEP LEARNING ANALYSIS
     # =========================================================================
 
-    def add_deep_learning_analysis(self, model, X_sample=None, layer_names -> None: List[str] = None,
+    def add_deep_learning_analysis(self, model, X_sample=None, layer_names: List[str] = None,
                                     training_history: Dict = None):
         """
         Add deep learning-specific analysis (conditional — only if model is a neural network).
@@ -2002,7 +2002,7 @@ Feature importance via input gradient analysis (gradient × input).
         except Exception as e:
             self._record_section_failure('Deep Learning Analysis', e)
 
-    def add_model_card(self, model, results -> None: Dict[str, Any],
+    def add_model_card(self, model, results: Dict[str, Any],
                        intended_use: str = "", limitations: str = "",
                        ethical: str = ""):
         """

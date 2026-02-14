@@ -807,7 +807,7 @@ class ProfessionalMLReport(VisualizationMixin, InterpretabilityMixin, DriftMixin
 
         return ""
 
-    def set_metadata(self, title: str, subtitle: str = "", author -> None: str = "Jotty ML",
+    def set_metadata(self, title: str, subtitle: str = "", author: str = "Jotty ML",
                     dataset: str = "", problem_type: str = "Classification"):
         """Set report metadata."""
         self._metadata = {
