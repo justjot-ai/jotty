@@ -110,3 +110,9 @@ Compose multiple skills into a workflow.
 - Data processing chains
 - Multi-step automation
 - Parallel data collection
+
+## Triggers
+- "skill composer"
+
+## Category
+workflow-automation

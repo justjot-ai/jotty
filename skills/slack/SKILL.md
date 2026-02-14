@@ -171,3 +171,12 @@ This skill uses the Slack Web API with the following endpoints:
 - `reactions.add` - Add reactions
 - `files.upload` - Upload files
 - `users.info` - Get user details
+
+## Triggers
+- "slack"
+- "send to slack"
+- "slack message"
+- "post to slack"
+
+## Category
+communication

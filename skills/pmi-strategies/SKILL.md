@@ -47,3 +47,9 @@ Generate trading signals from active strategies.
 **Parameters:**
 - `symbols` (list[str], optional): Filter for specific symbols
 - `strategy_id` (str, optional): Specific strategy only
+
+## Triggers
+- "pmi strategies"
+
+## Category
+financial-analysis

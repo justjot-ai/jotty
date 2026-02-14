@@ -46,3 +46,9 @@ Delete an alert.
 
 ### get_alert_stats_tool
 Get alert statistics.
+
+## Triggers
+- "pmi alerts"
+
+## Category
+financial-analysis

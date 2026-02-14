@@ -68,3 +68,9 @@ Source → Processor → Sink pattern:
 - **Sink**: Webapp testing
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "dev workflow"
+
+## Category
+development

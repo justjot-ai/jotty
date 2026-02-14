@@ -83,3 +83,12 @@ result = create_variation_tool({
     "size": "1024x1024"
 })
 ```
+
+## Triggers
+- "openai image gen"
+- "generate image"
+- "create image"
+- "image"
+
+## Category
+media-creation

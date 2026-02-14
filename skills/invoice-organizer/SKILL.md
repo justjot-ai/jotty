@@ -67,3 +67,12 @@ result = await organize_invoices_tool({
 - `file-operations`: For file operations
 - `claude-cli-llm`: For extracting information from invoices
 - `document-converter`: For reading PDF invoices
+
+## Triggers
+- "invoice organizer"
+- "invoice"
+- "receipt"
+- "billing"
+
+## Category
+workflow-automation

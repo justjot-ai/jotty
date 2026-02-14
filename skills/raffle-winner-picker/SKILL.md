@@ -63,3 +63,9 @@ result = await pick_raffle_winner_tool({
 
 - `pandas`: For reading CSV/Excel files
 - `secrets`: For cryptographically secure random selection
+
+## Triggers
+- "raffle winner picker"
+
+## Category
+workflow-automation

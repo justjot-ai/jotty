@@ -68,3 +68,13 @@ result = await download_video_tool({
 - Only download videos you have permission to download
 - Respect copyright laws and platform terms of service
 - Use for personal, educational, or fair use purposes
+
+## Triggers
+- "video downloader"
+- "download video"
+- "video"
+- "convert video"
+- "download"
+
+## Category
+media-creation

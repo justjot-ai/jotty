@@ -62,3 +62,12 @@ Source → Processor → Processor → Sink pattern:
 - **Sink**: Theme factory
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "content branding pipeline"
+- "brand"
+- "branding"
+- "brand guidelines"
+
+## Category
+media-creation

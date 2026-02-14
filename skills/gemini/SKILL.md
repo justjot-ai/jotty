@@ -148,3 +148,9 @@ Base URL: `https://generativelanguage.googleapis.com/v1beta/models/{model}:gener
 Uses direct HTTP requests to Google Generative Language API via urllib.
 No external dependencies required beyond Python standard library.
 The GeminiAPIClient class handles authentication, request formatting, and response parsing.
+
+## Triggers
+- "gemini"
+
+## Category
+workflow-automation

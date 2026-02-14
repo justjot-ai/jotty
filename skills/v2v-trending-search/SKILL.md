@@ -45,3 +45,13 @@ result = await search_v2v_trending_tool({
 - `query` (str, optional): Search query (default: searches for trending topics)
 - `format` (str, optional): Output format - 'markdown', 'json' (default: 'markdown')
 - `max_results` (int, optional): Maximum results (default: 10)
+
+## Triggers
+- "v2v trending search"
+- "search for"
+- "look up"
+- "find information"
+- "generate"
+
+## Category
+data-retrieval

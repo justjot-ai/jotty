@@ -58,3 +58,14 @@ NotebookLM may require authentication. The skill will attempt to use:
 1. NotebookLM API (if available)
 2. Browser automation with Playwright
 3. Direct file upload methods
+
+## Triggers
+- "notebooklm pdf"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "upload"
+
+## Category
+document-creation

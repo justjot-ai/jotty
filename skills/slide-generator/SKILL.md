@@ -40,3 +40,13 @@ Generate PowerPoint slides from a topic using AI.
 - `python-pptx` library
 - `claude-cli-llm` skill (for topic-based generation)
 - `telegram-sender` skill (optional, for sending)
+
+## Triggers
+- "slide generator"
+- "create slides"
+- "presentation"
+- "slideshow"
+- "generate"
+
+## Category
+media-creation

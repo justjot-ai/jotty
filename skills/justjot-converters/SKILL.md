@@ -203,3 +203,12 @@ sync_to_remarkable_tool({
 - Optional: youtube-transcript-api, yt-dlp for YouTube
 - Optional: rmapy, rmapi for reMarkable
 - Optional: html2text for HTML conversion
+
+## Triggers
+- "justjot converters"
+- "convert"
+- "transform"
+- "export"
+
+## Category
+document-creation

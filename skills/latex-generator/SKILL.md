@@ -53,3 +53,13 @@ result = generate_latex_document_tool({
     'compile_pdf': True
 })
 ```
+
+## Triggers
+- "latex generator"
+- "latex"
+- "tex document"
+- "mathematical notation"
+- "generate"
+
+## Category
+document-creation

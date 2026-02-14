@@ -15,3 +15,9 @@ base
 
 ## Use When
 User wants to trigger an n8n workflow, list automations, check execution status, or manage workflow activation
+
+## Triggers
+- "n8n workflows"
+
+## Category
+workflow-automation

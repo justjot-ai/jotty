@@ -68,3 +68,16 @@ Source → Processor → Sink pattern:
 - **Sink**: Notion research documentation
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "research to notion"
+- "save to notion"
+- "notion page"
+- "create notion"
+- "search for"
+- "look up"
+- "find information"
+- "research"
+
+## Category
+communication

@@ -61,3 +61,12 @@ result = await oauth_login_tool({
 
 - Playwright for browser automation
 - Credentials (provided securely)
+
+## Triggers
+- "oauth automation"
+- "oauth"
+- "authentication"
+- "authorize"
+
+## Category
+workflow-automation

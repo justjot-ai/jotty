@@ -70,3 +70,9 @@ List available styles in a Word document.
 - `python-docx` library
 
 Install with: `pip install python-docx`
+
+## Triggers
+- "docx tools"
+
+## Category
+document-creation

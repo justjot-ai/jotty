@@ -50,3 +50,16 @@ Complete workflow: Screener.in → Analysis → PDF → Telegram
 - `telegram_sent` (bool): Whether sent to Telegram
 - `analysis` (str): Generated analysis text
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "screener to pdf telegram"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+document-creation

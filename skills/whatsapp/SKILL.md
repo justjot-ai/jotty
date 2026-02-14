@@ -179,3 +179,12 @@ Set verification token:
 ```bash
 export WHATSAPP_VERIFY_TOKEN=jotty
 ```
+
+## Triggers
+- "whatsapp"
+- "whatsapp message"
+- "read whatsapp"
+- "whatsapp chat"
+
+## Category
+communication

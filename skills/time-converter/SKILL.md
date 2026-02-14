@@ -12,3 +12,15 @@ Convert time between timezones and formats
 ## Usage
 
 ### Convert between timezones
+
+## Triggers
+- "time converter"
+- "convert"
+- "transform"
+- "export"
+- "convert time"
+- "timezone"
+- "time zone"
+
+## Category
+document-creation

@@ -23,3 +23,12 @@ base
 
 ## Tags
 data-quality, validation, schema, drift-detection, data-integrity
+
+## Triggers
+- "data validator"
+- "analyze data"
+- "data analysis"
+- "dataset"
+
+## Category
+workflow-automation

@@ -75,3 +75,13 @@ result = await generate_changelog_tool({
 
 - `gitpython`: Git repository access
 - `claude-cli-llm`: AI-powered commit translation
+
+## Triggers
+- "changelog generator"
+- "changelog"
+- "release notes"
+- "version history"
+- "create"
+
+## Category
+workflow-automation

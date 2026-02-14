@@ -50,3 +50,11 @@ result = await send_to_remarkable_tool({
 1. Install rmapi: `go install github.com/juruen/rmapi@latest`
 2. Register device: Get code from https://my.remarkable.com/device/browser/connect
 3. Run: `rmapi` (will prompt for code)
+
+## Triggers
+- "remarkable sender"
+- "send to remarkable"
+- "remarkable tablet"
+
+## Category
+workflow-automation

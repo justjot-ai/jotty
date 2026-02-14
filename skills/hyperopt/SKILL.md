@@ -19,3 +19,9 @@ derived
 
 ## Tags
 hyperparameter, optimization, optuna, bayesian, tuning
+
+## Triggers
+- "hyperopt"
+
+## Category
+data-science

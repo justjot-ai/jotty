@@ -201,3 +201,11 @@ This skill uses the Spotify Web API with the following endpoints:
 - Spotify requires a Premium account for playback control features
 - Access tokens expire after 1 hour and need to be refreshed
 - Some endpoints may not work without an active Spotify device
+
+## Triggers
+- "spotify"
+- "music"
+- "playlist"
+
+## Category
+workflow-automation

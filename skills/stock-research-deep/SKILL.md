@@ -150,3 +150,16 @@ result = await tool({
 - `document-converter` skill
 - `telegram-sender` skill
 - Claude CLI installed and authenticated
+
+## Triggers
+- "stock research deep"
+- "search for"
+- "look up"
+- "find information"
+- "research"
+- "investigate"
+- "deep dive"
+- "stock"
+
+## Category
+data-retrieval

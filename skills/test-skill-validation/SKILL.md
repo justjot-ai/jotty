@@ -46,3 +46,13 @@ result = await tool_name_tool({
 
 - `dependency1`: For feature X
 - `dependency2`: For feature Y
+
+## Triggers
+- "test skill validation"
+- "run tests"
+- "test"
+- "testing"
+- "qa"
+
+## Category
+development

@@ -65,3 +65,9 @@ result = await write_internal_comm_tool({
 ## Dependencies
 
 - `claude-cli-llm`: For generating communications
+
+## Triggers
+- "internal comms"
+
+## Category
+workflow-automation

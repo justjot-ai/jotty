@@ -60,3 +60,12 @@ result = await enhance_image_tool({
 
 - `PIL` (Pillow): For image processing
 - `numpy`: For image manipulation
+
+## Triggers
+- "image enhancer"
+- "generate image"
+- "create image"
+- "image"
+
+## Category
+media-creation

@@ -19,3 +19,12 @@ derived
 
 ## Tags
 feature-engineering, preprocessing, encoding, imputation
+
+## Triggers
+- "feature engineer"
+- "feature engineering"
+- "extract features"
+- "feature selection"
+
+## Category
+data-science

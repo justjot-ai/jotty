@@ -26,3 +26,12 @@ derived
 
 ## Tags
 ensemble, stacking, blending, voting, meta-learning
+
+## Triggers
+- "ensemble builder"
+- "ensemble"
+- "combine models"
+- "model ensemble"
+
+## Category
+data-science

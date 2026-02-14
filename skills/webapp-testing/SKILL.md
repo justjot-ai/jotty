@@ -72,3 +72,16 @@ result = await test_webapp_tool({
 ⚠️ **Always wait for networkidle** on dynamic apps before inspecting DOM
 ⚠️ **Use headless mode** for automated testing
 ⚠️ **Check if server is running** before testing
+
+## Triggers
+- "webapp testing"
+- "web page"
+- "website"
+- "fetch url"
+- "run tests"
+- "test"
+- "testing"
+- "qa"
+
+## Category
+data-retrieval

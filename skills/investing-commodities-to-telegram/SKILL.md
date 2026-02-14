@@ -36,3 +36,12 @@ Fetches commodities prices and sends formatted report to Telegram.
 - `telegram_sent` (bool): Whether sent to Telegram
 - `telegram_message_id` (int, optional): Telegram message ID if sent
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "investing commodities to telegram"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+communication

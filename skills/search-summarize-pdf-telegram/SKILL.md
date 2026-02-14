@@ -61,3 +61,16 @@ Follows Source → Processor → Sink pattern:
 - Sink: telegram-sender
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "search summarize pdf telegram"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+document-creation

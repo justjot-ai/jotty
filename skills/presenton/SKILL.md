@@ -227,3 +227,10 @@ The skill will automatically use these environment variables if set:
 - `pixabay` - Free stock images
 - `dalle3` - OpenAI DALL-E 3
 - `gemini_flash` - Google Gemini image generation
+
+## Triggers
+- "presenton"
+- "generate"
+
+## Category
+workflow-automation

@@ -71,3 +71,10 @@ result = await validate_mcp_server_tool({
 ## Dependencies
 
 - `file-operations`: For creating files
+
+## Triggers
+- "mcp builder"
+- "create"
+
+## Category
+development

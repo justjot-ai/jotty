@@ -83,3 +83,10 @@ result = await bundle_artifact_tool({
 - Parcel (bundling)
 - Tailwind CSS
 - shadcn/ui components
+
+## Triggers
+- "artifacts builder"
+- "create"
+
+## Category
+media-creation

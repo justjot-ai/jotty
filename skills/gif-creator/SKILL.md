@@ -72,3 +72,12 @@ Extract individual frames from a GIF file.
 - `Pillow` library
 
 Install: `pip install Pillow`
+
+## Triggers
+- "gif creator"
+- "create gif"
+- "make gif"
+- "animated"
+
+## Category
+media-creation

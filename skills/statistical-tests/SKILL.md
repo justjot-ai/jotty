@@ -27,3 +27,13 @@ derived
 
 ## Tags
 statistics, hypothesis-testing, ttest, anova, chi-square
+
+## Triggers
+- "statistical tests"
+- "run tests"
+- "test"
+- "testing"
+- "qa"
+
+## Category
+data-science

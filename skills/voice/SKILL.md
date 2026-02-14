@@ -174,3 +174,9 @@ result = stream_voice_tool({
 ### Piper Voices
 - `en_US-lessac-medium` - Default English voice
 - Other Piper ONNX model files
+
+## Triggers
+- "voice"
+
+## Category
+workflow-automation

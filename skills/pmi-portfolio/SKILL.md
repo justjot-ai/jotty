@@ -40,3 +40,9 @@ Get P&L summary across all portfolios.
 **Returns:**
 - `realized_pnl`, `unrealized_pnl`, `total_pnl`, `day_pnl`
 
+
+## Triggers
+- "pmi portfolio"
+
+## Category
+financial-analysis

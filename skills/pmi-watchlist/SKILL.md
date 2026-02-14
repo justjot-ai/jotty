@@ -50,3 +50,9 @@ Refresh live prices for all symbols in a watchlist.
 
 **Parameters:**
 - `watchlist_id` (str, required): Watchlist ID
+
+## Triggers
+- "pmi watchlist"
+
+## Category
+financial-analysis

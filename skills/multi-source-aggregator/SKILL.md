@@ -54,3 +54,9 @@ result = await skill.tools['aggregate_sources_tool']({
     'output_format': 'pdf'
 })
 ```
+
+## Triggers
+- "multi source aggregator"
+
+## Category
+workflow-automation

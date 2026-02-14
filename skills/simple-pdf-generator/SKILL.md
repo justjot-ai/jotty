@@ -58,3 +58,13 @@ if result['success']:
 ## Customization
 
 See `customization.md` for how to customize this template.
+
+## Triggers
+- "simple pdf generator"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+
+## Category
+document-creation

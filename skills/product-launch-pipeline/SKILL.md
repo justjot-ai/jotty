@@ -66,3 +66,9 @@ Source → Processor → Processor → Sink pattern:
 - **Sink**: Content research writer
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "product launch pipeline"
+
+## Category
+content-creation

@@ -181,3 +181,9 @@ List all available color palettes for generative art.
 - `cyberpunk` - Dark with neon accents
 - `earth` - Natural earth tones (browns, tans)
 - `cosmic` - Space-themed deep purples and blues
+
+## Triggers
+- "algorithmic art"
+
+## Category
+media-creation

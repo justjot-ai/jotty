@@ -169,3 +169,12 @@ get_backlinks_tool({
     'note_path': 'Concepts/machine-learning'
 })
 ```
+
+## Triggers
+- "obsidian"
+- "save to obsidian"
+- "obsidian note"
+- "obsidian vault"
+
+## Category
+workflow-automation

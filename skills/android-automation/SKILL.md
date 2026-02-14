@@ -177,3 +177,9 @@ Get device hardware and software info.
 
 **Returns:**
 - `serial`, `model`, `brand`, `sdk`, `screen_width`, `screen_height`
+
+## Triggers
+- "android automation"
+
+## Category
+workflow-automation

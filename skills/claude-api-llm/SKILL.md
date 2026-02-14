@@ -79,3 +79,9 @@ base
 
 ## Author
 Jotty Framework
+
+## Triggers
+- "claude api llm"
+
+## Category
+workflow-automation

@@ -169,3 +169,12 @@ Tool Functions (exported)
     ├── summarize_file_tool
     └── extract_key_points_tool
 ```
+
+## Triggers
+- "summarize"
+- "summary"
+- "tldr"
+- "condense"
+
+## Category
+content-creation

@@ -62,3 +62,14 @@ Source → Processor → Sink pattern:
 - **Sink**: Internal communications
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "meeting intelligence pipeline"
+- "meeting notes"
+- "meeting summary"
+- "meeting insights"
+- "generate"
+- "analyze"
+
+## Category
+content-creation

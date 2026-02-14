@@ -242,3 +242,10 @@ asyncio.run(main())
                     |   (MongoDB)      |
                     +------------------+
 ```
+
+## Triggers
+- "lida to justjot"
+- "generate"
+
+## Category
+workflow-automation

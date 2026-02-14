@@ -25,3 +25,12 @@ derived
 
 ## Tags
 feature-engineering, dfs, featuretools, automated-ml, relational
+
+## Triggers
+- "feature tools"
+- "feature engineering"
+- "extract features"
+- "feature selection"
+
+## Category
+data-science

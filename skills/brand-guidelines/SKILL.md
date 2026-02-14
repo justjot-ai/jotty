@@ -67,3 +67,11 @@ result = await apply_brand_styling_tool({
 
 - `python-pptx`: For PowerPoint styling
 - `python-docx`: For Word document styling
+
+## Triggers
+- "brand guidelines"
+- "brand"
+- "branding"
+
+## Category
+media-creation

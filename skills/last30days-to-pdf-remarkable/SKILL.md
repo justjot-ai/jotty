@@ -59,3 +59,15 @@ result = await last30days_to_pdf_remarkable_tool({
 
 Uses composite skill framework for DRY workflow composition.
 No code duplication - reuses existing skills.
+
+## Triggers
+- "last30days to pdf remarkable"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to remarkable"
+- "remarkable tablet"
+
+## Category
+document-creation

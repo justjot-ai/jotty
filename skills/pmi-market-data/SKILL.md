@@ -84,3 +84,12 @@ Get sector-wise performance analysis.
 
 **Returns:**
 - `sectors` (list), `period`
+
+## Triggers
+- "pmi market data"
+- "analyze data"
+- "data analysis"
+- "dataset"
+
+## Category
+financial-analysis

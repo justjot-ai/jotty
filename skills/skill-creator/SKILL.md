@@ -72,3 +72,10 @@ result = await validate_skill_tool({
 ## Dependencies
 
 - `file-operations`: For creating files and directories
+
+## Triggers
+- "skill creator"
+- "create"
+
+## Category
+workflow-automation

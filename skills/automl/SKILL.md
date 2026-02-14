@@ -29,3 +29,12 @@ result = await automl_classify({
 
 ## Tags
 machine-learning, automl, classification, regression, ensemble
+
+## Triggers
+- "automl"
+- "auto ml"
+- "automatic model"
+- "model selection"
+
+## Category
+data-science

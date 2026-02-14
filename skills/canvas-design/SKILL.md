@@ -65,3 +65,10 @@ result = await create_design_artwork_tool({
 - `PIL` (Pillow): For image creation
 - `claude-cli-llm`: For design philosophy generation
 - `reportlab`: For PDF creation (optional)
+
+## Triggers
+- "canvas design"
+- "create"
+
+## Category
+media-creation

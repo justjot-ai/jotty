@@ -26,3 +26,9 @@ derived
 
 ## Tags
 dimensionality-reduction, pca, tsne, umap, visualization
+
+## Triggers
+- "dimensionality reduction"
+
+## Category
+data-science

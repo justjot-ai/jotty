@@ -53,3 +53,16 @@ result = await last30days_to_pdf_telegram_tool({
 
 Uses composite skill framework for DRY workflow composition.
 No code duplication - reuses existing skills.
+
+## Triggers
+- "last30days to pdf telegram"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+document-creation

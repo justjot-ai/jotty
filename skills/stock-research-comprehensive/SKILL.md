@@ -154,3 +154,16 @@ result = await tool({
 ## Conclusion & Investment Recommendation
 [0.5-1 page: Key findings, thesis, recommendation]
 ```
+
+## Triggers
+- "stock research comprehensive"
+- "search for"
+- "look up"
+- "find information"
+- "research"
+- "investigate"
+- "deep dive"
+- "stock"
+
+## Category
+data-retrieval

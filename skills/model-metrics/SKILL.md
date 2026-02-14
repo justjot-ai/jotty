@@ -26,3 +26,9 @@ derived
 
 ## Tags
 metrics, evaluation, classification, regression, cross-validation
+
+## Triggers
+- "model metrics"
+
+## Category
+data-science

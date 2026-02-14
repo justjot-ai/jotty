@@ -37,3 +37,9 @@ result = get_commodities_prices_tool({
     'format': 'markdown'
 })
 ```
+
+## Triggers
+- "investing commodities"
+
+## Category
+financial-analysis

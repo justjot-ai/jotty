@@ -66,3 +66,13 @@ Fetches key financial ratios for a company.
 - `success` (bool): Whether fetch succeeded
 - `ratios` (dict): Key financial ratios
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "screener financials"
+- "financial"
+- "finance"
+- "investment"
+- "portfolio"
+
+## Category
+financial-analysis

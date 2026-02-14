@@ -127,3 +127,9 @@ result = create_chart_tool({
     'title': 'Sales Data'
 })
 ```
+
+## Triggers
+- "xlsx tools"
+
+## Category
+document-creation

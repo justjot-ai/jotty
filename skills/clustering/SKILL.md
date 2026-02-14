@@ -26,3 +26,11 @@ derived
 
 ## Tags
 clustering, kmeans, dbscan, unsupervised, segmentation
+
+## Triggers
+- "clustering"
+- "cluster"
+- "group data"
+
+## Category
+data-science

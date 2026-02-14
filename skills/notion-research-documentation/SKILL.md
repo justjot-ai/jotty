@@ -67,3 +67,16 @@ result = await research_and_document_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For synthesis and analysis
+
+## Triggers
+- "notion research documentation"
+- "save to notion"
+- "notion page"
+- "create notion"
+- "search for"
+- "look up"
+- "find information"
+- "research"
+
+## Category
+document-creation

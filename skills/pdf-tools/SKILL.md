@@ -83,3 +83,13 @@ Install all dependencies:
 ```bash
 pip install pdfplumber pypdf reportlab
 ```
+
+## Triggers
+- "pdf tools"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+
+## Category
+document-creation

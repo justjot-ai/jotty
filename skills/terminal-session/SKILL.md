@@ -57,3 +57,9 @@ result = terminal_ssh_connect({
 ## Dependencies
 
 - pexpect
+
+## Triggers
+- "terminal session"
+
+## Category
+development

@@ -21,3 +21,9 @@ derived
 
 ## Tags
 automl, pycaret, classification, regression, ensemble
+
+## Triggers
+- "pycaret"
+
+## Category
+data-science

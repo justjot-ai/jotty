@@ -49,3 +49,16 @@ result = await v2v_to_pdf_and_send_tool({
 - `send_remarkable` (bool, optional): Send to reMarkable (default: True)
 - `telegram_chat_id` (str, optional): Telegram chat ID
 - `remarkable_folder` (str, optional): reMarkable folder (default: '/')
+
+## Triggers
+- "v2v to pdf telegram remarkable"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+document-creation

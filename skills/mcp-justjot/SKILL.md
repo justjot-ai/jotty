@@ -42,3 +42,10 @@ User wants to create, list, update, delete, or organize ideas on JustJot.ai
 | `JUSTJOT_API_KEY` or `CLERK_SECRET_KEY` | Clerk API key for service auth | No |
 | `JUSTJOT_USER_ID` | User ID for service auth | No |
 | `JUSTJOT_AUTH_TOKEN` | Bearer token (fallback) | No |
+
+## Triggers
+- "mcp justjot"
+- "create"
+
+## Category
+development

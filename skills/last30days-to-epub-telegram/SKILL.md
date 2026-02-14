@@ -53,3 +53,13 @@ result = await last30days_to_epub_telegram_tool({
 
 Uses composite skill framework for DRY workflow composition.
 No code duplication - reuses existing skills.
+
+## Triggers
+- "last30days to epub telegram"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+- "generate"
+
+## Category
+document-creation

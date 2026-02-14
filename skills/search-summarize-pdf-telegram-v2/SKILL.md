@@ -88,3 +88,16 @@ result = await search_summarize_pdf_telegram_v2_tool({
     'send_telegram': True
 })
 ```
+
+## Triggers
+- "search summarize pdf telegram v2"
+- "create pdf"
+- "generate pdf"
+- "convert to pdf"
+- "pdf"
+- "send to telegram"
+- "telegram message"
+- "notify via telegram"
+
+## Category
+document-creation

@@ -60,3 +60,9 @@ Jotty Framework
 ## Category
 
 research
+
+## Triggers
+- "last30days claude cli"
+
+## Category
+workflow-automation

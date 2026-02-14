@@ -69,3 +69,12 @@ result = await analyze_meeting_insights_tool({
 
 - `file-operations`: For reading transcript files
 - `claude-cli-llm`: For AI-powered pattern analysis
+
+## Triggers
+- "meeting insights analyzer"
+- "meeting notes"
+- "meeting summary"
+- "meeting insights"
+
+## Category
+workflow-automation

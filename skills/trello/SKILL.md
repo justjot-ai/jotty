@@ -159,3 +159,12 @@ result = add_comment_tool({
     'text': 'This is a comment on the card'
 })
 ```
+
+## Triggers
+- "trello"
+- "trello board"
+- "trello card"
+- "create"
+
+## Category
+workflow-automation

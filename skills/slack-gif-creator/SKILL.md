@@ -85,3 +85,15 @@ result = await create_slack_gif_tool({
 
 - `PIL` (Pillow): For image processing
 - `imageio`: For GIF creation
+
+## Triggers
+- "slack gif creator"
+- "send to slack"
+- "slack message"
+- "post to slack"
+- "create gif"
+- "make gif"
+- "animated"
+
+## Category
+communication

@@ -108,3 +108,9 @@ Capture browser screenshot and analyze with VLM.
 
 - litellm
 - Optional: pygmentize (code rendering), poppler/pdftoppm (PDF), LibreOffice (PPTX), ImageMagick (SVG)
+
+## Triggers
+- "visual inspector"
+
+## Category
+media-creation

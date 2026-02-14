@@ -59,3 +59,13 @@ Get order history with filters.
 - `status` (str, optional): Filter (open, completed, cancelled)
 - `broker` (str, optional): Filter by broker
 - `symbol` (str, optional): Filter by symbol
+
+## Triggers
+- "pmi trading"
+- "trade"
+- "trading"
+- "buy"
+- "sell"
+
+## Category
+financial-analysis

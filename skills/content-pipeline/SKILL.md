@@ -135,3 +135,9 @@ result = run_pipeline_tool({
 ## Dependencies
 - JustJot.ai core modules (auto-imported if available)
 - Optional: pandoc, latex, mermaid-cli for full functionality
+
+## Triggers
+- "content pipeline"
+
+## Category
+content-creation

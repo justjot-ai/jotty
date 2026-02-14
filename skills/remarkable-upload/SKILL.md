@@ -49,3 +49,12 @@ Check reMarkable connection status.
 - `registered` (bool): Whether device is registered
 - `connected` (bool): Whether currently connected
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "remarkable upload"
+- "send to remarkable"
+- "remarkable tablet"
+- "upload"
+
+## Category
+workflow-automation

@@ -64,3 +64,10 @@ result = await extract_competitive_ads_tool({
 - `web-search`: For finding ad libraries
 - `web-scraper`: For extracting ad content
 - `claude-cli-llm`: For analyzing ad strategies
+
+## Triggers
+- "competitive ads extractor"
+- "analyze"
+
+## Category
+workflow-automation

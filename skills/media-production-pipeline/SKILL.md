@@ -69,3 +69,9 @@ Source → Processor → Sink pattern:
 - **Sink**: Slack GIF creator
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "media production pipeline"
+
+## Category
+content-creation

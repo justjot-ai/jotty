@@ -83,3 +83,12 @@ result = translate_audio_tool({
 - For longer audio, consider splitting into chunks
 - Translation always outputs English text
 - The `verbose_json` format includes word-level timestamps
+
+## Triggers
+- "openai whisper api"
+- "transcribe"
+- "speech to text"
+- "audio transcription"
+
+## Category
+workflow-automation

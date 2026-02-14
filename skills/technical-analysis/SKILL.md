@@ -34,3 +34,9 @@ Analyze a stock ticker across multiple timeframes. Calculates 30+ indicators
 
 - pandas
 - pandas_ta (preferred) or ta (fallback)
+
+## Triggers
+- "technical analysis"
+
+## Category
+workflow-automation

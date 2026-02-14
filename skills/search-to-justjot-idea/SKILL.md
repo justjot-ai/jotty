@@ -81,3 +81,13 @@ result = await search_and_create_idea_tool({
 #     'message': 'Idea created successfully'
 # }
 ```
+
+## Triggers
+- "search to justjot idea"
+- "search for"
+- "look up"
+- "find information"
+- "create"
+
+## Category
+data-retrieval

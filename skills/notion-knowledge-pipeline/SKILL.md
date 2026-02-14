@@ -69,3 +69,12 @@ Source → Processor → Sink pattern:
 - **Sink**: Implementation planning
 
 No code duplication - reuses existing skills.
+
+## Triggers
+- "notion knowledge pipeline"
+- "save to notion"
+- "notion page"
+- "create notion"
+
+## Category
+communication

@@ -69,3 +69,12 @@ Or call the skill directly from swarm/API:
 ## Environment
 
 Uses the global WhatsApp Web client set by the CLI when you run `/whatsapp login`. No extra env vars for reading.
+
+## Triggers
+- "whatsapp reader"
+- "whatsapp message"
+- "read whatsapp"
+- "whatsapp chat"
+
+## Category
+communication

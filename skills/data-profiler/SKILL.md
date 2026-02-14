@@ -22,3 +22,16 @@ base
 
 ## Tags
 eda, profiling, data-quality, exploration, analysis
+
+## Triggers
+- "data profiler"
+- "file"
+- "read file"
+- "write file"
+- "organize files"
+- "analyze data"
+- "data analysis"
+- "dataset"
+
+## Category
+workflow-automation

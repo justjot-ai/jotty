@@ -85,3 +85,9 @@ result = await apply_theme_tool({
 
 - `python-pptx`: For PowerPoint styling
 - `claude-cli-llm`: For custom theme generation
+
+## Triggers
+- "theme factory"
+
+## Category
+workflow-automation

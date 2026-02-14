@@ -60,3 +60,10 @@ Uses parallel processing pattern:
   - Sink: Create idea (mcp-justjot)
 
 DRY: Reuses existing skills, no duplication.
+
+## Triggers
+- "trending topics to ideas"
+- "create"
+
+## Category
+workflow-automation

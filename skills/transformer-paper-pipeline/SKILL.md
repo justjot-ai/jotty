@@ -41,3 +41,11 @@ Generates a comprehensive transformer paper and sends PDF to Telegram.
 - `telegram_sent` (bool): Whether sent to Telegram
 - `telegram_message_id` (int, optional): Telegram message ID if sent
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "transformer paper pipeline"
+- "generate"
+- "send"
+
+## Category
+content-creation

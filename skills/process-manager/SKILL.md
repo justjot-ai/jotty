@@ -54,3 +54,12 @@ Terminates a process.
 - `pid` (int): Process ID
 - `method` (str): Termination method used
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "process manager"
+- "process"
+- "system process"
+- "kill process"
+
+## Category
+development

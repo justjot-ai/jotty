@@ -29,3 +29,14 @@ Generates a Mermaid mindmap diagram from text content.
 - `title` (str): Mindmap title
 - `output_format` (str): Output format (mermaid)
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "mindmap generator"
+- "mind map"
+- "mindmap"
+- "brainstorm diagram"
+- "generate"
+- "create"
+
+## Category
+workflow-automation

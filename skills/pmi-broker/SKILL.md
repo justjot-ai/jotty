@@ -32,3 +32,9 @@ Refresh authentication tokens for a broker.
 
 **Parameters:**
 - `broker` (str, required): Broker name to refresh
+
+## Triggers
+- "pmi broker"
+
+## Category
+financial-analysis

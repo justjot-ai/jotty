@@ -160,3 +160,10 @@ result = reorder_slides_tool({
     'new_order': [3, 0, 1, 2]  # For a 4-slide presentation
 })
 ```
+
+## Triggers
+- "pptx editor"
+- "create"
+
+## Category
+document-creation

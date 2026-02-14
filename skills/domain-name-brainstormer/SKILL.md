@@ -61,3 +61,10 @@ result = await brainstorm_domains_tool({
 
 - `claude-cli-llm`: For creative domain name generation
 - `http-client`: For checking domain availability (optional)
+
+## Triggers
+- "domain name brainstormer"
+- "generate"
+
+## Category
+workflow-automation

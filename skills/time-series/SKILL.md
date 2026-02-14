@@ -27,3 +27,12 @@ derived
 
 ## Tags
 time-series, forecasting, arima, decomposition, anomaly-detection
+
+## Triggers
+- "time series"
+- "convert time"
+- "timezone"
+- "time zone"
+
+## Category
+data-science

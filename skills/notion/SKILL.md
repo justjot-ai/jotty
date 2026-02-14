@@ -148,3 +148,12 @@ result = create_database_item_tool({
     }
 })
 ```
+
+## Triggers
+- "notion"
+- "save to notion"
+- "notion page"
+- "create notion"
+
+## Category
+communication

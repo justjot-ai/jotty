@@ -24,3 +24,9 @@ derived
 
 ## Tags
 automl, auto-sklearn, ensemble, meta-learning, optimization
+
+## Triggers
+- "auto sklearn"
+
+## Category
+data-science

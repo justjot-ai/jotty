@@ -65,3 +65,13 @@ result = await organize_files_tool({
 
 - `file-operations`: For file operations
 - `claude-cli-llm`: For intelligent categorization
+
+## Triggers
+- "file organizer"
+- "file"
+- "read file"
+- "write file"
+- "organize files"
+
+## Category
+workflow-automation

@@ -53,3 +53,10 @@ Uses generic pipeline pattern:
 - Sink: mcp-justjot (create_idea_tool)
 
 DRY: Reuses existing skills, no duplication.
+
+## Triggers
+- "reddit trending to justjot"
+- "create"
+
+## Category
+workflow-automation

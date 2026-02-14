@@ -29,3 +29,12 @@ Splits text into chunks with configurable size and overlap.
 - `chunks` (list): List of chunk dicts with text, index, char_count, token_count
 - `count` (int): Number of chunks created
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "text chunker"
+- "text processing"
+- "string manipulation"
+- "text utility"
+
+## Category
+workflow-automation

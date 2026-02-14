@@ -68,3 +68,12 @@ result = await create_implementation_plan_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For parsing specs and generating plans
+
+## Triggers
+- "notion spec to implementation"
+- "save to notion"
+- "notion page"
+- "create notion"
+
+## Category
+communication

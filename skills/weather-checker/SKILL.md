@@ -32,3 +32,12 @@ result = check_weather_tool({"location": "Delhi"})
 # Get 3-day forecast for New York
 result = get_weather_forecast_tool({"location": "New York", "days": 3})
 ```
+
+## Triggers
+- "weather checker"
+- "weather"
+- "forecast"
+- "temperature"
+
+## Category
+workflow-automation

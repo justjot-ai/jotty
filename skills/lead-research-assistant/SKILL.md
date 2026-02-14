@@ -71,3 +71,15 @@ result = await research_leads_tool({
 
 - `web-search`: For finding companies
 - `claude-cli-llm`: For analyzing and qualifying leads
+
+## Triggers
+- "lead research assistant"
+- "search for"
+- "look up"
+- "find information"
+- "research"
+- "investigate"
+- "deep dive"
+
+## Category
+data-retrieval

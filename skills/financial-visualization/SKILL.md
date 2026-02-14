@@ -192,3 +192,14 @@ This skill integrates with:
 - `stock-research-deep`: Add visualizations to comprehensive reports
 - `stock-research-comprehensive`: Enhance reports with charts and tables
 - `document-converter`: Charts embedded in PDF output
+
+## Triggers
+- "financial visualization"
+- "financial"
+- "finance"
+- "investment"
+- "portfolio"
+- "generate"
+
+## Category
+media-creation

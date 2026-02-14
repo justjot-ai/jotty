@@ -70,3 +70,9 @@ result = list_skills_tool({'category': 'documents'})
 # Get info about a skill
 result = get_skill_info_tool({'skill_name': 'slide-generator'})
 ```
+
+## Triggers
+- "skill discovery"
+
+## Category
+workflow-automation

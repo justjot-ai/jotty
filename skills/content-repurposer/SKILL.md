@@ -34,3 +34,9 @@ Repurposes content for different platforms.
 - `success` (bool): Whether repurposing succeeded
 - `outputs` (dict): Repurposed content for each requested format
 - `error` (str, optional): Error message if failed
+
+## Triggers
+- "content repurposer"
+
+## Category
+content-creation

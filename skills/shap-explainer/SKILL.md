@@ -25,3 +25,12 @@ derived
 
 ## Tags
 explainability, shap, interpretation, feature-importance, xai
+
+## Triggers
+- "shap explainer"
+- "explain model"
+- "feature importance"
+- "shap values"
+
+## Category
+data-science

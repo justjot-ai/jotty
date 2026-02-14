@@ -68,3 +68,12 @@ result = await capture_knowledge_to_notion_tool({
 ## Dependencies
 
 - `notion`: For Notion API integration
+
+## Triggers
+- "notion knowledge capture"
+- "save to notion"
+- "notion page"
+- "create notion"
+
+## Category
+communication

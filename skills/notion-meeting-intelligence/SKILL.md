@@ -63,3 +63,15 @@ result = await prepare_meeting_materials_tool({
 
 - `notion`: For Notion API integration
 - `claude-cli-llm`: For enriching with research
+
+## Triggers
+- "notion meeting intelligence"
+- "save to notion"
+- "notion page"
+- "create notion"
+- "meeting notes"
+- "meeting summary"
+- "meeting insights"
+
+## Category
+communication
