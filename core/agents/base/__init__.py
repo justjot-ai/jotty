@@ -30,6 +30,9 @@ from .base_agent import (
     AgentResult,
 )
 
+# Backwards compat: dag_types.py and others import AgentConfig from here
+from ...foundation.agent_config import AgentConfig  # noqa: F401
+
 # Domain agent for single-task execution
 from .domain_agent import (
     DomainAgent,
@@ -86,6 +89,7 @@ __all__ = [
     # Base
     'BaseAgent',
     'AgentRuntimeConfig',
+    'AgentConfig',
     'AgentResult',
     # Domain
     'DomainAgent',

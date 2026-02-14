@@ -6,6 +6,9 @@ This module re-exports from the decomposed submodules:
 - task_breakdown_agent: TaskBreakdownAgent
 - todo_creator_agent: TodoCreatorAgent
 """
+from __future__ import annotations
+
+from typing import Optional
 
 from .dag_types import (                         # noqa: F401
     DAGAgentMixin,

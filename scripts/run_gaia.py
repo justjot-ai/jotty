@@ -123,6 +123,10 @@ def parse_args(argv=None):
         "--optimize-dspy", action="store_true",
         help="Compile DSPy module from successful results after run",
     )
+    parser.add_argument(
+        "--attempts", type=int, default=1,
+        help="Number of attempts per question (Pass@N). Use 3 for ensemble approach (default: 1)",
+    )
     return parser.parse_args(argv)
 
 
@@ -281,6 +285,7 @@ def run_benchmark(args):
         model=args.model,
         dry_run=args.dry_run,
         use_llm_doc_sources=args.use_llm_doc_sources,
+        num_attempts=args.attempts,
     )
 
     # Setup EvalStore

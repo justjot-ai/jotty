@@ -521,27 +521,14 @@ class ContentAssemblerAgent(BaseOlympiadAgent):
 # =============================================================================
 
 class NarrativeEditorAgent(BaseOlympiadAgent):
-    """Final polish pass — weaves content into a coherent, curious narrative.
+    """Generates supplementary content: Socratic questions, parent guide, key takeaways.
 
-    Uses Sonnet model with 16K output tokens for large rewrites.
+    Uses Haiku for fast generation — no full-content rewrite needed.
     """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._ensure_sonnet_lm()
         self._editor = dspy.Predict(NarrativeEditorSignature)
-
-    def _ensure_sonnet_lm(self) -> None:
-        """Create Sonnet LM instance with 16K output for narrative editing."""
-        try:
-            from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=16384, timeout=240)
-                logger.info("NarrativeEditor using Sonnet model (16K output, 240s timeout)")
-                return
-        except Exception as e:
-            logger.debug(f"Sonnet not available for NarrativeEditor: {e}")
-        self._get_lm()
 
     async def edit(
         self,
@@ -550,41 +537,45 @@ class NarrativeEditorAgent(BaseOlympiadAgent):
         student_name: str,
         topic: str,
     ) -> Dict[str, Any]:
-        """Edit assembled content for coherence and curiosity."""
+        """Generate supplementary content (Socratic questions, parent guide, key takeaways)."""
         try:
-            logger.info(f"NarrativeEditor: processing {len(assembled_content)} chars with Sonnet")
+            # Truncate to first 2000 chars as a summary — enough context for supplements
+            content_summary = assembled_content[:2000] if assembled_content else ""
+            logger.info(f"NarrativeEditor: generating supplements from {len(content_summary)} char summary")
 
             result = self._call_with_own_lm(
                 self._editor,
-                assembled_content=assembled_content,
+                content_summary=content_summary,
                 running_example=running_example or "the scenario from the introduction",
                 student_name=student_name,
                 topic=topic,
             )
 
-            edited = str(result.edited_content)
             socratic = [q.strip() for q in str(result.socratic_questions).split('|') if q.strip()]
             parent_guide = str(result.parent_guide)
+            key_takeaways = [t.strip() for t in str(result.key_takeaways).split('|') if t.strip()]
 
             self._broadcast("narrative_edited", {
                 'topic': topic,
                 'socratic_count': len(socratic),
+                'takeaways_count': len(key_takeaways),
             })
 
-            logger.info(f"NarrativeEditor: {len(socratic)} Socratic questions added")
+            logger.info(f"NarrativeEditor: {len(socratic)} Socratic questions, "
+                        f"{len(key_takeaways)} takeaways, parent guide {len(parent_guide)} chars")
 
             return {
-                'edited_content': edited,
                 'socratic_questions': socratic,
                 'parent_guide': parent_guide,
+                'key_takeaways': key_takeaways,
             }
 
         except Exception as e:
-            logger.warning(f"NarrativeEditor failed, returning original content: {e}")
+            logger.warning(f"NarrativeEditor failed: {e}")
             return {
-                'edited_content': assembled_content,
                 'socratic_questions': [],
                 'parent_guide': '',
+                'key_takeaways': [],
             }
 
 

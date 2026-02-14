@@ -231,6 +231,8 @@ class StorytellerSignature(dspy.Signature):
 
     story: str = dspy.OutputField(
         desc="A complete story (MINIMUM 600-800 words) with a narrative arc. "
+        "Include at least 3 scenes with different settings. "
+        "The student ({student_name}) should be the protagonist or a central character. "
         "Include dialogue, sensory details, and emotional moments. "
         "The concept should be woven naturally — never feel like a lecture. "
         "Use paragraph breaks. End with a clear resolution."
@@ -263,10 +265,13 @@ class DebateArchitectSignature(dspy.Signature):
     Teach students to spot bias, ask tough questions, and form their own opinions.
     Never tell the student what to think — give them the tools to think for themselves.
 
+    CRITICAL: Both sides must be EQUALLY compelling. Do NOT bias toward one position.
+    A reader should genuinely struggle to pick a side after reading both arguments.
+
     APPROACH:
     1. Frame a CENTRAL DEBATABLE QUESTION (not a factual question)
     2. Present 3-4 strong arguments FOR one side with evidence
-    3. Present 3-4 strong arguments AGAINST with evidence
+    3. Present 3-4 EQUALLY STRONG arguments AGAINST with evidence
     4. Teach bias-spotting techniques
     5. Guide the student to form their OWN opinion with reasoning
     6. Provide critical questions that challenge both sides
@@ -284,15 +289,18 @@ class DebateArchitectSignature(dspy.Signature):
         "or should parents and schools filter what they see?'"
     )
     points_for_json: str = dspy.OutputField(
-        desc="JSON list of 3-4 arguments FOR one side. EACH argument MUST have: "
+        desc="JSON list of 3-4 DISTINCT arguments FOR one side. EACH argument MUST have: "
         "{position (str — the claim), argument (2-3 sentences explaining the reasoning), "
-        "evidence (1-2 sentences with a specific example, statistic, or scenario), "
+        "evidence (1-2 sentences with a REAL example, statistic, or named scenario — not generic), "
         "counterargument (1-2 sentences acknowledging a weakness in this argument), "
-        "critical_question (a question that tests this argument)}."
+        "critical_question (a question that tests this argument)}. "
+        "Present this side as GENUINELY compelling — a reader should find these arguments persuasive."
     )
     points_against_json: str = dspy.OutputField(
-        desc="JSON list of 3-4 arguments AGAINST. Same structure as points_for_json. "
-        "These must be EQUALLY STRONG — do not make one side a strawman."
+        desc="JSON list of 3-4 EQUALLY STRONG arguments for the opposing side. Same structure. "
+        "Do NOT make this side weaker — both sides must be fair and well-evidenced. "
+        "Each argument needs its own REAL evidence/statistics, not just opinions. "
+        "A reader should find THESE arguments just as persuasive as the FOR arguments."
     )
     bias_spotting_tips: str = dspy.OutputField(
         desc="3-4 bias-spotting tips separated by |. Each tip MUST be 2-3 sentences "
@@ -334,8 +342,11 @@ class ProjectDesignerSignature(dspy.Signature):
     running_example: str = dspy.InputField(desc="Running example scenario")
 
     projects_json: str = dspy.OutputField(
-        desc="JSON list of 3-4 project activities. EACH project MUST have: "
-        "{title (str), description (2-3 sentences), "
+        desc="JSON list of 3-4 project activities. Each project must be DIFFERENT in type "
+        "(e.g., poster, roleplay, experiment, survey/interview — NO duplicate types). "
+        "EACH project MUST have: "
+        "{title (str), type (str — one of: poster, roleplay, experiment, survey, presentation, craft), "
+        "description (2-3 sentences), "
         "materials (list of materials needed — keep simple and accessible), "
         "steps (list of 4-6 clear steps), "
         "learning_outcome (1-2 sentences — what the student will learn), "
@@ -343,9 +354,12 @@ class ProjectDesignerSignature(dspy.Signature):
         "Activities should be doable at home with common materials."
     )
     poster_design_brief: str = dspy.OutputField(
-        desc="A detailed poster design brief (MINIMUM 4-5 sentences). "
-        "Specify: topic/title, what sections to include, what images/drawings, "
-        "what text/slogans, suggested layout (top/middle/bottom), and colors."
+        desc="A detailed poster design brief (MINIMUM 5-7 sentences). "
+        "Include specific layout with sections: what goes at the TOP (title, slogan), "
+        "MIDDLE (main content, drawings), and BOTTOM (conclusion, call to action). "
+        "Specify what to draw/write in each section, and suggested colors. "
+        "Example: 'Title at top in large blue letters. Draw 3 boxes in the middle row, "
+        "each showing a different type of media...'"
     )
     role_play_scenario: str = dspy.OutputField(
         desc="A role-play scenario (MINIMUM 4-5 sentences). Define: "
@@ -384,27 +398,31 @@ class RealWorldConnectorSignature(dspy.Signature):
     running_example: str = dspy.InputField(desc="Running example scenario")
 
     daily_life_connections: str = dspy.OutputField(
-        desc="4-5 daily life connections separated by |. Each MUST be 2-3 sentences "
-        "showing where this topic appears in a child's typical day. Be specific: "
+        desc="5-7 SPECIFIC real scenarios separated by |. Each MUST be 2-3 sentences "
+        "with names, places, and concrete situations (not generic). Be specific: "
         "'When you see a YouTube ad before your favorite video, that's media trying "
         "to influence you — the company PAID to put that ad there because they know "
-        "kids your age watch these videos.'"
+        "kids your age watch these videos.' Include morning, school, after-school, "
+        "and weekend scenarios."
     )
     career_connections: str = dspy.OutputField(
-        desc="3-4 career connections separated by |. Each MUST be 2-3 sentences "
+        desc="3-4 career connections separated by |. Each MUST be 3-4 sentences "
         "explaining how this topic matters in a real job. Include: job title, "
-        "what they do, and how the topic is essential. Make careers sound exciting."
+        "what they ACTUALLY DO day-to-day, and how this topic appears in their work. "
+        "Make careers sound exciting and specific — not just the job title."
     )
     current_events_link: str = dspy.OutputField(
-        desc="2-3 current events or recent examples separated by |. Each MUST be "
+        desc="3-4 current events or recent examples separated by |. Each MUST be "
         "2-3 sentences connecting a real news story or cultural event to the topic. "
+        "Include approximate dates and specific details. "
         "Keep it age-appropriate and engaging."
     )
     future_impact: str = dspy.OutputField(
-        desc="How this topic shapes the student's future (MINIMUM 4-5 sentences). "
-        "Use the student's name. Paint a picture of how understanding this topic "
+        desc="How this topic shapes the student's future (MINIMUM 6-8 sentences). "
+        "Use the student's name. Paint a vivid picture of how understanding this topic "
         "will help them make better decisions, have more opportunities, or understand "
-        "the world better as they grow up."
+        "the world better as they grow up. Include specific scenarios at ages 15, 18, "
+        "and as an adult."
     )
     interview_questions: str = dspy.OutputField(
         desc="4-5 interview questions separated by | that the student can ask parents, "
@@ -521,43 +539,47 @@ class ContentAssemblerSignature(dspy.Signature):
 
 
 class NarrativeEditorSignature(dspy.Signature):
-    """Edit assembled content to be coherent, curious, and polished.
+    """Generate supplementary content for a multi-perspective lesson.
 
-    You are a master narrative editor. The content was generated by multiple
-    independent agents — your job is to weave it into ONE flowing story.
+    You receive a SUMMARY of a lesson that was assembled by multiple agents.
+    Your job is NOT to rewrite the content — it is to produce three supplementary pieces:
 
-    YOUR EDITING RULES:
-    1. THREAD THE RUNNING EXAMPLE — Reference it in every perspective section
-    2. ADD SOCRATIC QUESTIONS — "Pause and think..." before major reveals
-    3. ENSURE NATURAL TRANSITIONS — Between each perspective, write 1-2 bridge sentences
-    4. ELIMINATE REPETITION — If the same point is made in multiple perspectives,
-       keep the best version and reference it from other sections
-    5. POLISH LANGUAGE — Age-appropriate, engaging, celebratory tone
-    6. ADD PARENT GUIDE — Tips for parents to support learning at home
+    1. SOCRATIC QUESTIONS — 5-7 thought-provoking questions that a teacher or parent
+       could ask at key moments during the lesson. Each question should challenge the
+       student to think deeper, not just recall facts.
 
-    CRITICAL: Keep the same overall structure and LENGTH. Do NOT summarize or shorten.
-    Your output must be at LEAST 90% the length of the input. Enhance, don't compress.
+    2. PARENT'S GUIDE — A practical guide for parents to support learning at home.
+       Include conversation starters, activities, and what to look for.
+
+    3. KEY TAKEAWAYS — 5-7 memorable bullet points that synthesize the most important
+       lessons from ALL perspectives. Each takeaway should be one sentence that a
+       student could remember and apply.
     """
-    assembled_content: str = dspy.InputField(desc="The assembled lesson content in markdown")
-    running_example: str = dspy.InputField(desc="The running example scenario to thread throughout")
+    content_summary: str = dspy.InputField(desc="Summary of the lesson content (key concepts and themes)")
+    running_example: str = dspy.InputField(desc="The running example scenario used throughout the lesson")
     student_name: str = dspy.InputField(desc="Student's name")
     topic: str = dspy.InputField(desc="Topic being taught")
 
-    edited_content: str = dspy.OutputField(
-        desc="The edited lesson content with Socratic questions, narrative threading, "
-        "and natural transitions. Same markdown format. "
-        "MUST be at least 90% the length of the input. Do NOT summarize — ENHANCE."
-    )
     socratic_questions: str = dspy.OutputField(
-        desc="5-7 Socratic questions added to the content, separated by |. "
-        "These should appear before major reveals throughout the document."
+        desc="5-7 Socratic questions separated by |. Each question should challenge "
+        "the student to think beyond the surface. Use formats like: "
+        "'What would happen if...', 'Why do you think...', 'How is this different from...', "
+        "'What evidence would change your mind about...'. "
+        "Questions should span all perspectives (visual, narrative, critical, real-world)."
     )
     parent_guide: str = dspy.OutputField(
-        desc="A parent's guide (MINIMUM 6-8 sentences). Include: "
-        "1. Key conversation starters for discussing this topic at home "
-        "2. Activities parents can do with their child "
-        "3. What to look for in the student's understanding "
-        "4. How to extend the learning beyond this lesson"
+        desc="A parent's guide (MINIMUM 200-300 words, 8-10 sentences). Include: "
+        "1. Key conversation starters for discussing this topic at home (3-4 specific questions) "
+        "2. Activities parents can do with their child (2-3 concrete activities with steps) "
+        "3. What to look for in the student's understanding (signs of comprehension) "
+        "4. How to extend the learning beyond this lesson (books, videos, real-world observations)"
+    )
+    key_takeaways: str = dspy.OutputField(
+        desc="5-7 key takeaways separated by |. Each takeaway MUST be a single memorable "
+        "sentence that synthesizes a lesson from the content. Cover different perspectives: "
+        "one from the visual/intuitive angle, one from the story, one from the debate, "
+        "one from real-world connections, etc. These should feel like 'aha!' moments "
+        "the student can carry with them."
     )
 
 

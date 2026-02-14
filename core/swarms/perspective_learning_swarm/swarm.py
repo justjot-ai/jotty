@@ -27,6 +27,7 @@ Usage:
 import asyncio
 import logging
 import json
+import os
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
@@ -64,6 +65,19 @@ except ImportError:
     send_telegram_file_tool = None
 
 logger = logging.getLogger(__name__)
+
+# Log Telegram availability at import time
+if TELEGRAM_AVAILABLE:
+    _has_token = bool(os.environ.get('TELEGRAM_TOKEN'))
+    _has_chat = bool(os.environ.get('TELEGRAM_CHAT_ID'))
+    if _has_token and _has_chat:
+        logger.info("Telegram: available (token + chat_id present)")
+    else:
+        logger.warning(f"Telegram: tools imported but env vars missing "
+                       f"(TELEGRAM_TOKEN={'set' if _has_token else 'MISSING'}, "
+                       f"TELEGRAM_CHAT_ID={'set' if _has_chat else 'MISSING'})")
+else:
+    logger.info("Telegram: tools not available (import failed)")
 
 
 @register_swarm("perspective_learning")
@@ -360,10 +374,10 @@ class PerspectiveLearningSwarm(DomainSwarm):
         logger.info("Phase 4: Assembled multi-perspective lesson content")
 
         # ==============================================================
-        # PHASE 5: Narrative Editing (serial, Sonnet, 16K output)
+        # PHASE 5: Supplement Generation (Socratic questions, parent guide, takeaways)
         # ==============================================================
         narrative_result = await executor.run_phase(
-            5, "Narrative Editing", "NarrativeEditor", AgentRole.REVIEWER,
+            5, "Supplement Generation", "NarrativeEditor", AgentRole.REVIEWER,
             self._narrative_editor.edit(
                 assembled_content=complete_content,
                 running_example=running_example,
@@ -373,16 +387,30 @@ class PerspectiveLearningSwarm(DomainSwarm):
             tools_used=['narrative_edit'],
         )
 
-        # Accept edited content only if length > 50% of original
-        edited = narrative_result.get('edited_content', '') if isinstance(narrative_result, dict) else ''
-        if edited and len(edited) > len(complete_content) * 0.5:
-            complete_content = edited
-            logger.info(f"Phase 5: Accepted edited content ({len(edited)} chars)")
-        else:
-            logger.warning(f"Phase 5: Rejected edited content (too short: {len(edited)} vs {len(complete_content)})")
-
         socratic_questions = narrative_result.get('socratic_questions', []) if isinstance(narrative_result, dict) else []
         parent_guide = narrative_result.get('parent_guide', '') if isinstance(narrative_result, dict) else ''
+        key_takeaways = narrative_result.get('key_takeaways', []) if isinstance(narrative_result, dict) else []
+
+        logger.info(f"Phase 5: {len(socratic_questions)} Socratic questions, "
+                    f"{len(key_takeaways)} takeaways, parent guide {len(parent_guide)} chars")
+
+        # Append supplement sections to the assembled content
+        supplement_parts = []
+        if parent_guide:
+            supplement_parts.append(f"\n## Parent's Guide\n\n{parent_guide}\n")
+        if key_takeaways:
+            supplement_parts.append("\n## Key Takeaways\n")
+            for takeaway in key_takeaways:
+                supplement_parts.append(f"- {takeaway}")
+            supplement_parts.append("")
+        if socratic_questions:
+            supplement_parts.append("\n## Questions to Think About\n")
+            for i, q in enumerate(socratic_questions, 1):
+                supplement_parts.append(f"{i}. {q}")
+            supplement_parts.append("")
+
+        if supplement_parts:
+            complete_content += '\n'.join(supplement_parts)
 
         # Build structured LessonContent
         perspective_sections = self._build_perspective_sections(
@@ -416,6 +444,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parent_guide=parent_guide,
             socratic_questions=socratic_questions,
             total_words=len(complete_content.split()),
+            key_takeaways=key_takeaways,
             transdisciplinary_connections=transdisciplinary,
         )
 
@@ -488,8 +517,12 @@ class PerspectiveLearningSwarm(DomainSwarm):
         # PHASE 7: Telegram (if enabled)
         # ==============================================================
         should_send = send_telegram if send_telegram is not None else config.send_telegram
+        if should_send and not TELEGRAM_AVAILABLE:
+            logger.warning("send_telegram=True but Telegram tools not available")
+        elif should_send and not os.environ.get('TELEGRAM_TOKEN'):
+            logger.warning("send_telegram=True but TELEGRAM_TOKEN not set in environment")
         if should_send and TELEGRAM_AVAILABLE and content:
-            logger.info("Sending to Telegram...")
+            logger.info(f"Sending to Telegram (token={'set' if os.environ.get('TELEGRAM_TOKEN') else 'MISSING'})...")
             await self._send_to_telegram(
                 topic, student_name, content,
                 complete_content,

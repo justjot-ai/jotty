@@ -186,26 +186,67 @@ class SkillGenerator:
         examples: Optional[list]
     ) -> str:
         """Generate SKILL.md content using Jotty's unified LLM interface."""
-        prompt = f"""Create SKILL.md for "{skill_name}" skill.
+        prompt = f"""Create SKILL.md for "{skill_name}" skill following Anthropic best practices.
 
-Description: {description}
-{f'Requirements: {requirements}' if requirements else ''}
+REQUIREMENTS:
+1. Clear, unambiguous description (explain as if to a new team member)
+2. List tools with semantic, action-oriented names ending in _tool
+3. Document parameters with types and examples
+4. Include natural language triggers for tool discovery
+5. Specify skill type (base/derived/composite) and category
 
-Output ONLY the markdown file content, no explanations:
+TEMPLATE:
+---
+name: {skill_name.replace('-', '_').replace('_', '')}
+description: "[Clear description. Include triggers: 'when user wants to...']"
+---
 
-# {skill_name}
+# {skill_name.title().replace('-', ' ')} Skill
 
 ## Description
 {description}
 
-## Tools
-[List tools this skill provides]
+## Type
+base  # or derived/composite
 
-## Usage
-[Usage examples]
+## Capabilities
+- [data-fetch | analyze | communicate | generate]
+
+## Triggers
+- "[natural phrase 1]"
+- "[action verb 2]"
+
+## Category
+[workflow-automation | communication | data-analysis | research | general]
+
+## Tools
+
+### {skill_name.replace('-', '_')}_tool
+[Clear description]
+
+**Parameters:**
+- `param_name` (type, required/optional): Description with example
+
+**Returns:**
+- `success` (bool): Whether operation succeeded
+- `result` (type): Main result
+- `error` (str, optional): Error message if failed
+
+## Usage Examples
+```python
+# Example usage
+result = {skill_name.replace('-', '_')}_tool({{'param': 'value'}})
+```
 
 ## Requirements
-{requirements or 'No external dependencies'}"""
+{requirements or 'No external dependencies'}
+
+USER INPUTS:
+Description: {description}
+Requirements: {requirements or 'None'}
+{f'Examples: {examples}' if examples else ''}
+
+Generate complete SKILL.md following template above. Output ONLY markdown, no explanations:"""
         
         # Use DSPy LM interface
         try:
@@ -274,18 +315,69 @@ Use the {skill_name} tool to {description.lower()}.
         examples: Optional[list]
     ) -> str:
         """Generate tools.py content using Jotty's unified LLM interface."""
-        # Direct prompt for code generation
-        prompt = f"""Write Python code for tools.py file. Skill: "{skill_name}".
+        tool_func_name = skill_name.replace('-', '_') + '_tool'
 
+        # Enhanced prompt with Anthropic best practices
+        prompt = f"""Write production-ready Python code for tools.py following Anthropic best practices.
+
+CRITICAL REQUIREMENTS:
+
+1. IMPORTS (MANDATORY):
+from typing import Dict, Any
+from Jotty.core.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.utils.skill_status import SkillStatus
+
+2. TOOL DECORATOR (MANDATORY):
+@tool_wrapper(required_params=['param1'])
+def {tool_func_name}(params: Dict[str, Any]) -> Dict[str, Any]:
+    \"\"\"
+    {description}
+
+    Args:
+        params: Dictionary containing required parameters
+
+    Returns:
+        Dictionary with success, result, error
+    \"\"\"
+
+3. STATUS REPORTING:
+status = SkillStatus("{skill_name}")
+status.set_callback(params.pop('_status_callback', None))
+status.emit("Processing", "🔄 Processing...")
+
+4. ERROR HANDLING WITH CORRECTIVE EXAMPLES (CRITICAL):
+# BAD - vague error
+return tool_error('Invalid input')
+
+# GOOD - actionable error with example
+return tool_error(
+    'Invalid date format. Use ISO 8601: "2024-01-15T10:30:00Z"'
+)
+
+5. SUCCESS RESPONSES WITH SEMANTIC FIELDS:
+# GOOD - semantic names, no UUIDs
+return tool_response(
+    result=value,
+    semantic_field=data
+)
+
+6. PARAMETER EXTRACTION:
+param1 = params.get('param1')
+if not param1:
+    return tool_error('Parameter "param1" required. Example: {{"param1": "value"}}')
+
+7. EXPORTS (MANDATORY):
+__all__ = ['{tool_func_name}']
+
+USER REQUIREMENTS:
+Skill: {skill_name}
 Description: {description}
 {f'Requirements: {requirements}' if requirements else ''}
+{f'Examples: {examples}' if examples else ''}
 
-Create Python functions that:
-- Accept params: dict parameter
-- Return dict with success/error info
-- Function names end with _tool
-
-Output ONLY Python code, no explanations, no markdown:"""
+Generate COMPLETE Python code following ALL patterns above.
+Include imports, decorator, error handling with examples, status reporting, exports.
+Output ONLY Python code, no markdown fences:"""
         
         # Use DSPy LM interface with increased timeout for code generation
         try:

@@ -115,8 +115,9 @@ class LLMProvider:
             total_input_tokens = 0
             total_output_tokens = 0
 
-            # Tool-calling loop (max 15 iterations for complex multi-hop questions like GAIA)
-            MAX_ITERATIONS = 15
+            # Tool-calling loop (max 20 iterations for complex multi-hop questions like GAIA)
+            # Increased from 15 to handle complex questions that need many steps
+            MAX_ITERATIONS = 20
             for iteration in range(MAX_ITERATIONS):
                 api_kwargs = {
                     'model': self._model,
@@ -874,16 +875,6 @@ class TierExecutor:
         # Extract final answer content
         output = response.get('content', response)
 
-        # For fact-retrieval tasks, add numerical validation
-        if kwargs.get('_intent') == 'fact_retrieval':
-            # Check if question seems numerical
-            if self._is_numerical_question(goal):
-                # Validate the answer makes sense
-                validation_result = await self._validate_numerical_answer(goal, output, tools)
-                if validation_result and validation_result != output:
-                    logger.info(f"Numerical validation corrected answer: '{output}' → '{validation_result}'")
-                    output = validation_result
-
         # For fact-retrieval tasks (from intent classification), extract concise answer
         # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
         if kwargs.get('_intent') == 'fact_retrieval' and len(output) > 100:
@@ -910,12 +901,21 @@ Final Answer:"""
 
             # Use extracted answer if it's significantly shorter and non-empty
             # BUT don't use it if it's empty or just says "Unable to..." or error messages
+            # ALSO avoid over-extraction (e.g., "Rockhopper penguin" → "penguin")
             if (extracted and
                 len(extracted) < len(output) / 3 and
                 len(extracted) > 0 and
                 not extracted.lower().startswith(('unable', 'error', 'i cannot', 'i apologize'))):
-                logger.info(f"Extracted concise answer: '{extracted}' from verbose response")
-                output = extracted
+
+                # Check for over-extraction: if original is 2-5 words and extracted is 1, keep original
+                output_words = output.strip().split()
+                extracted_words = extracted.strip().split()
+                if len(output_words) >= 2 and len(extracted_words) == 1 and len(output_words) <= 5:
+                    # Original is short (2-5 words), extracted to 1 word - too aggressive
+                    logger.warning(f"Skipping extraction: '{output}' → '{extracted}' (removes qualifier)")
+                else:
+                    logger.info(f"Extracted concise answer: '{extracted}' from verbose response")
+                    output = extracted
             elif not extracted or len(extracted) < 2:
                 # Extraction returned empty/garbage - keep original
                 logger.warning(f"Answer extraction returned empty/invalid, keeping original output")

@@ -168,6 +168,7 @@ class LessonContent:
     parent_guide: str
     socratic_questions: List[str]
     total_words: int
+    key_takeaways: List[str] = None
     transdisciplinary_connections: str = ""
 
 

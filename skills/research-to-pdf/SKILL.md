@@ -1,110 +1,92 @@
 ---
-name: researching-to-pdf
-description: "Research any topic and generate a comprehensive PDF report with AI-synthesized analysis. Use when the user wants to research report, create report, pdf report."
+name: researchtopdf
+description: "Research a topic, create comprehensive report, and optionally send to Telegram. Use when user wants to research and create PDF report."
 ---
 
-# research-to-pdf
+# Research to PDF Skill
 
-Research any topic and generate a comprehensive PDF report with AI-synthesized analysis.
-
+## Description
+Composite skill that performs end-to-end research workflow: web search → LLM analysis → PDF generation → optional Telegram delivery. Consolidates 4 separate tools into one seamless operation.
 
 ## Type
 composite
+
+## Capabilities
+- data-fetch
+- analyze
+- generate
+- communicate
+
+## Triggers
+- "research and create PDF"
+- "research to PDF"
+- "create research report"
+- "research and send"
+
+## Category
+research
 
 ## Base Skills
 - web-search
 - claude-cli-llm
 - document-converter
+- telegram-sender
 
-## Execution
+## Execution Mode
 sequential
 
-**USE THIS SKILL when user asks to:**
-- Research something AND generate/create PDF
-- Compare topics AND send as PDF
-- Analyze something AND create PDF report
-- Any task with "pdf" + research/compare/analyze
+## Tools
 
-**Key Features:**
-- **AI Synthesis**: Converts raw search results into comprehensive 8-15 page analysis
-- **Structured Reports**: Executive summary, detailed analysis, insights, recommendations
-- **Deep Research**: Uses `last30days-claude-cli` for comprehensive web research
-- **PDF Generation**: Professional PDF with proper formatting
-- **No API keys required**: Uses Jotty's built-in web search and Claude CLI
+### research_to_pdf_tool
+Research a topic, analyze results, create PDF report, and optionally send via Telegram (all-in-one).
 
+**Parameters:**
+- `topic` (str, required): Topic to research (e.g., "AI trends 2024")
+- `depth` (str, optional): Research depth - "quick" (5 results), "standard" (10), "deep" (20). Defaults to "standard"
+- `send_telegram` (bool, optional): Whether to send PDF to Telegram. Defaults to False
+- `telegram_chat_id` (str, optional): Telegram chat ID if send_telegram is True
 
-## Capabilities
-- research
-- document
+**Returns:**
+- `success` (bool): Whether operation completed successfully
+- `pdf_path` (str): Path to generated PDF report
+- `topic` (str): Topic researched
+- `sources_count` (int): Number of sources analyzed
+- `summary_length` (int): Length of generated summary
+- `telegram_sent` (bool): Whether PDF was sent to Telegram
+- `error` (str, optional): Error message if failed
 
-
-## Workflow
-
-```
-Task Progress:
-- [ ] Step 1: Search for topic information
-- [ ] Step 2: Synthesize research with AI
-- [ ] Step 3: Generate PDF document
-```
-
-**Step 1: Search for topic information**
-Use web-search to gather comprehensive data on the research topic.
-
-**Step 2: Synthesize research with AI**
-Use Claude LLM to analyze and synthesize findings into a structured report.
-
-**Step 3: Generate PDF document**
-Convert the markdown report into a professional PDF with proper formatting.
-
-## Triggers
-- "research report"
-- "create report"
-- "pdf report"
-- "research to pdf"
-
-## Category
-document-creation
-
-## Usage
-
+## Usage Examples
 ```python
-from core.registry.skills_registry import get_skills_registry
+# Example 1: Basic research to PDF
+result = research_to_pdf_tool({
+    'topic': 'Quantum Computing Advances 2024'
+})
+# Returns: {'success': True, 'pdf_path': '/path/to/report.pdf', ...}
 
-registry = get_skills_registry()
-registry.init()
-
-skill = registry.get_skill('research-to-pdf')
-tool = skill.tools['research_to_pdf_tool']
-
-result = await tool({
-    'topic': 'multi agent systems',
-    'deep': True,
-    'title': 'Multi-Agent Systems Research',
-    'author': 'Your Name'
+# Example 2: Deep research with Telegram delivery
+result = research_to_pdf_tool({
+    'topic': 'Climate Tech Startups',
+    'depth': 'deep',
+    'send_telegram': True,
+    'telegram_chat_id': '123456789'
 })
 ```
 
-## Parameters
+## Requirements
+- web-search skill
+- claude-cli-llm skill
+- document-converter skill
+- telegram-sender skill (if send_telegram=True)
 
-- `topic` (required): Topic to research
-- `output_dir` (optional): Output directory (default: ~/jotty/reports)
-- `title` (optional): Report title (default: auto-generated from topic)
-- `author` (optional): Report author (default: 'Jotty Framework')
-- `page_size` (optional): PDF page size - 'a4', 'a5', 'a6', 'letter' (default: 'a4')
-- `deep` (optional): Deep research mode (default: False)
-- `quick` (optional): Quick research mode (default: False)
+## Workflow
+1. **Search**: Perform web search for topic
+2. **Analyze**: Use LLM to analyze and synthesize findings
+3. **Generate**: Create formatted PDF report
+4. **Deliver**: Optionally send via Telegram
 
-## Returns
-
-- `success` (bool): Whether operation succeeded
-- `pdf_path` (str): Path to generated PDF
-- `md_path` (str): Path to markdown file
-- `file_size` (int): PDF file size in bytes
-
-## Version
-
-1.0.0
-
-## Author
-
-Jotty Framework
+## Error Handling
+Common errors and solutions:
+- **Web search failed**: Check internet connection and search API availability
+- **LLM analysis failed**: Verify LLM provider (Claude, OpenAI, Groq) is configured
+- **PDF generation failed**: Check document-converter skill and filesystem permissions
+- **Telegram send failed**: Verify `TELEGRAM_TOKEN` environment variable and chat_id

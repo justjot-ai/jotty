@@ -85,13 +85,24 @@ class ResearchSwarm(DomainSwarm):
 
         # Auto-configure DSPy LM if needed
         if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+            # Try direct Anthropic API first (fastest, no subprocess)
             try:
-                from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
-                lm = DirectClaudeCLI()  # model resolved from config_defaults
-                dspy.configure(lm=lm)
-                logger.info(" Auto-configured DSPy with DirectClaudeCLI")
-            except Exception as e:
-                logger.warning(f"Could not configure DSPy LM: {e}")
+                from Jotty.core.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+                if is_api_key_available():
+                    lm = DirectAnthropicLM(model="haiku", max_tokens=8192)
+                    dspy.configure(lm=lm)
+                    logger.info(" Auto-configured DSPy with DirectAnthropicLM")
+                else:
+                    raise ValueError("No API key")
+            except Exception:
+                # Fallback to Claude CLI
+                try:
+                    from Jotty.core.integration.direct_claude_cli_lm import DirectClaudeCLI
+                    lm = DirectClaudeCLI()
+                    dspy.configure(lm=lm)
+                    logger.info(" Auto-configured DSPy with DirectClaudeCLI")
+                except Exception as e:
+                    logger.warning(f"Could not configure DSPy LM: {e}")
 
         # Initialize shared resources
         try:

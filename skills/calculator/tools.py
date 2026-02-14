@@ -152,11 +152,23 @@ def calculate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return tool_error(f'Expression did not evaluate to a number: {result}')
 
     except ZeroDivisionError:
-        return tool_error('Division by zero')
+        return tool_error(
+            'Division by zero error. Check your expression for division operations. '
+            f'Expression attempted: {expression}'
+        )
     except NameError as e:
-        return tool_error(f'Unknown function or variable: {str(e)}. Expression: {expression}')
+        return tool_error(
+            f'Unknown function or variable: {str(e)}. '
+            f'Expression: {expression}. '
+            f'Available functions: sqrt, sin, cos, tan, log, exp, abs, round. '
+            f'Example: "sqrt(16)" or "sin(pi/2)"'
+        )
     except SyntaxError as e:
-        return tool_error(f'Invalid expression syntax: {str(e)}. Expression: {expression}')
+        return tool_error(
+            f'Invalid expression syntax: {str(e)}. '
+            f'Expression: {expression}. '
+            f'Use standard math notation. Examples: "2 + 2", "(5 * 3) - 2", "sqrt(16)"'
+        )
 
 
 @tool_wrapper(required_params=['value', 'from_unit', 'to_unit'])
@@ -181,7 +193,10 @@ def convert_units_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         value = float(params['value'])
     except ValueError:
-        return tool_error('value must be a number')
+        return tool_error(
+            f'Parameter "value" must be a number, got: {params.get("value")}. '
+            f'Example: {{"value": 100, "from_unit": "km", "to_unit": "miles"}}'
+        )
 
     from_unit = params['from_unit'].lower()
     to_unit = params['to_unit'].lower()
