@@ -1666,6 +1666,8 @@ class SkillsRegistry:
             'relevance_score': score,
             'trust_level': skill.trust_level.value,
         }
+        if skill.executor_type:
+            d['executor_type'] = skill.executor_type
         if skill.skill_type == SkillType.COMPOSITE and skill.execution_mode:
             d['execution_mode'] = skill.execution_mode
         if skill.use_when:
