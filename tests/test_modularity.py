@@ -1224,65 +1224,340 @@ class TestFacadeReturnAnnotations:
 
 
 # =============================================================================
-# TaskClassifier — Smart Swarm Routing
+# TaskClassifier — Smart Swarm Routing (110+ scenarios)
 # =============================================================================
 
-@pytest.mark.unit
-class TestTaskClassifier:
-    """Verify TaskClassifier selects the right swarm for various goals."""
+# Shared classifier instance (avoid re-creating per test for speed)
+_tc_instance = None
 
-    def _get_classifier(self):
+def _get_tc():
+    global _tc_instance
+    if _tc_instance is None:
         from Jotty.core.execution.intent_classifier import TaskClassifier
-        return TaskClassifier()
+        _tc_instance = TaskClassifier()
+    return _tc_instance
 
-    def test_task_classifier_coding_task(self):
-        """'Write a Python REST API' → coding swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Write a Python REST API")
-        assert result.swarm_name == "coding", f"Expected coding, got {result.swarm_name}"
 
-    def test_task_classifier_research_task(self):
-        """'Research AI trends 2024' → research swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Research AI trends 2024")
-        assert result.swarm_name == "research", f"Expected research, got {result.swarm_name}"
+# --- Coding swarm (15 scenarios) ---
+_CODING_SCENARIOS = [
+    ("Write a Python REST API", "coding"),
+    ("Implement a binary search tree in Java", "coding"),
+    ("Debug this segfault in my C++ program", "coding"),
+    ("Refactor the authentication module", "coding"),
+    ("Create a React component for user profiles", "coding"),
+    ("Fix the null pointer exception in UserService.java", "coding"),
+    ("Build a microservice with FastAPI", "coding"),
+    ("Optimize this SQL query for performance", "coding"),
+    ("Add error handling to the file upload endpoint", "coding"),
+    ("Convert this JavaScript to TypeScript", "coding"),
+    ("Implement OAuth2 login flow", "coding"),
+    ("Write a CLI tool in Go that parses JSON logs", "coding"),
+    ("Create a Python script to rename files in bulk", "coding"),
+    ("Build a REST API backend with authentication", "coding"),
+    ("Write a recursive algorithm to solve Tower of Hanoi", "coding"),
+]
 
-    def test_task_classifier_data_task(self):
-        """'Analyze this CSV dataset' → data_analysis swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Analyze this CSV dataset")
-        assert result.swarm_name == "data_analysis", f"Expected data_analysis, got {result.swarm_name}"
+# --- Research swarm (10 scenarios) ---
+_RESEARCH_SCENARIOS = [
+    ("Research AI trends 2024", "research"),
+    ("Investigate the impact of climate change on agriculture", "research"),
+    ("Research competitor pricing strategies", "research"),
+    ("Investigate why our conversion rate dropped last quarter", "research"),
+    ("Do a deep dive into quantum computing applications", "research"),
+    ("Research the regulatory landscape for fintech in India", "research"),
+    ("Investigate supply chain disruptions in semiconductor industry", "research"),
+    ("Research the history of neural network architectures", "research"),
+    ("Research emerging technologies in renewable energy", "research"),
+    ("Investigate the root cause of the production outage", "research"),
+]
 
-    def test_task_classifier_ambiguous_fallback(self):
-        """'Hello, how are you?' → None (fallback to auto-swarm)."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Hello, how are you?")
-        assert result.swarm_name is None, f"Expected None, got {result.swarm_name}"
+# --- Testing swarm (10 scenarios) ---
+_TESTING_SCENARIOS = [
+    ("Write unit tests for the payment gateway", "testing"),
+    ("Write integration tests for the checkout flow", "testing"),
+    ("Increase test coverage to 90%", "testing"),
+    ("Run pytest on the authentication module", "testing"),
+    ("Write regression tests for the billing bug fix", "testing"),
+    ("Set up end-to-end testing with Cypress", "testing"),
+    ("Create load tests with Locust for the API", "testing"),
+    ("Write unit tests for the data validation layer", "testing"),
+    ("Add integration test for the payment webhook", "testing"),
+    ("Benchmark the database query performance", "testing"),
+]
 
-    def test_task_classifier_content_task(self):
-        """'Write a blog post about AI' → idea_writer swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Write a blog post about AI trends")
-        assert result.swarm_name == "idea_writer", f"Expected idea_writer, got {result.swarm_name}"
+# --- Review swarm (8 scenarios) ---
+_REVIEW_SCENARIOS = [
+    ("Review the pull request for feature/auth-redesign", "review"),
+    ("Audit the codebase for security vulnerabilities", "review"),
+    ("Do a code review of the new caching layer", "review"),
+    ("Review this PR and check for memory leaks", "review"),
+    ("Audit our API for OWASP top 10 vulnerabilities", "review"),
+    ("Review the database migration scripts", "review"),
+    ("Check code quality of the reporting module", "review"),
+    ("Peer review the machine learning pipeline code", "review"),
+]
 
-    def test_task_classifier_devops_task(self):
-        """'Deploy with Docker and Kubernetes' → devops swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Deploy with Docker and Kubernetes")
-        assert result.swarm_name == "devops", f"Expected devops, got {result.swarm_name}"
+# --- Data analysis swarm (12 scenarios) ---
+_DATA_ANALYSIS_SCENARIOS = [
+    ("Analyze this CSV dataset of sales figures", "data_analysis"),
+    ("Create a visualization of monthly revenue trends", "data_analysis"),
+    ("Build a dashboard showing user engagement metrics", "data_analysis"),
+    ("Plot a histogram of response times from the logs", "data_analysis"),
+    ("Create a pandas dataframe from this JSON and find outliers", "data_analysis"),
+    ("Analyze customer churn patterns in this spreadsheet", "data_analysis"),
+    ("Generate statistics on website traffic by region", "data_analysis"),
+    ("Visualize the correlation matrix for these features", "data_analysis"),
+    ("Analyze this Excel file of employee satisfaction surveys", "data_analysis"),
+    ("Create a bar chart comparing quarterly performance", "data_analysis"),
+    ("Process this dataset and identify trends", "data_analysis"),
+    ("Analyze the A/B test results from last sprint", "data_analysis"),
+]
 
-    def test_task_classifier_arxiv_task(self):
-        """'Get the arXiv preprint 2401.12345' → arxiv_learning swarm."""
-        tc = self._get_classifier()
-        result = tc.classify_swarm("Get the arXiv preprint 2401.12345")
-        assert result.swarm_name == "arxiv_learning", f"Expected arxiv_learning, got {result.swarm_name}"
+# --- DevOps swarm (12 scenarios) ---
+_DEVOPS_SCENARIOS = [
+    ("Deploy the application to Kubernetes cluster", "devops"),
+    ("Set up a CI/CD pipeline with GitHub Actions", "devops"),
+    ("Configure Nginx as a reverse proxy", "devops"),
+    ("Set up Terraform for AWS infrastructure", "devops"),
+    ("Configure monitoring with Prometheus and Grafana", "devops"),
+    ("Deploy to AWS using CloudFormation", "devops"),
+    ("Set up auto-scaling for the web server cluster", "devops"),
+    ("Configure the CI pipeline to run on every commit", "devops"),
+    ("Create an Ansible playbook for server provisioning", "devops"),
+    ("Migrate the database to a new cloud region", "devops"),
+    ("Set up log aggregation with ELK stack", "devops"),
+    ("Deploy with Docker and Kubernetes", "devops"),
+]
 
-    def test_task_classifier_confidence_range(self):
+# --- Idea writer swarm (10 scenarios) ---
+_IDEA_WRITER_SCENARIOS = [
+    ("Write a blog post about AI trends in healthcare", "idea_writer"),
+    ("Draft a newsletter about our product launch", "idea_writer"),
+    ("Create an editorial about remote work culture", "idea_writer"),
+    ("Write a technical blog post about GraphQL vs REST", "idea_writer"),
+    ("Draft an article about sustainable technology", "idea_writer"),
+    ("Create content for our social media campaign", "idea_writer"),
+    ("Write a whitepaper on zero-trust security", "idea_writer"),
+    ("Draft a case study about our biggest client", "idea_writer"),
+    ("Compose a company announcement for the new feature", "idea_writer"),
+    ("Write copy for the landing page hero section", "idea_writer"),
+]
+
+# --- Fundamental swarm (10 scenarios) ---
+_FUNDAMENTAL_SCENARIOS = [
+    ("Analyze the fundamentals of Reliance Industries stock", "fundamental"),
+    ("Calculate the intrinsic valuation of Apple Inc", "fundamental"),
+    ("Review the earnings report for Tesla Q4", "fundamental"),
+    ("Analyze the PE ratio trends for HDFC Bank", "fundamental"),
+    ("Evaluate the dividend yield of this portfolio", "fundamental"),
+    ("Do a fundamental analysis of Infosys stock", "fundamental"),
+    ("Assess the market cap and revenue growth of Amazon", "fundamental"),
+    ("Analyze the investment potential of NVIDIA stock", "fundamental"),
+    ("Review the balance sheet of JPMorgan Chase", "fundamental"),
+    ("Compare the financial ratios of TCS vs Wipro", "fundamental"),
+]
+
+# --- Learning swarm (8 scenarios) ---
+_LEARNING_SCENARIOS = [
+    ("Create a curriculum for learning Python", "learning"),
+    ("Build a lesson plan for teaching machine learning basics", "learning"),
+    ("Design a training program for new hires on our tech stack", "learning"),
+    ("Create a study guide for AWS certifications", "learning"),
+    ("Develop an education program on cybersecurity fundamentals", "learning"),
+    ("Create a teaching module on data structures", "learning"),
+    ("Design a training course for junior developers", "learning"),
+    ("Create a tutorial on React hooks for beginners", "learning"),
+]
+
+# --- ArXiv learning swarm (8 scenarios) ---
+_ARXIV_SCENARIOS = [
+    ("Get the arXiv preprint 2401.12345", "arxiv_learning"),
+    ("Summarize this arXiv paper on diffusion models", "arxiv_learning"),
+    ("Read the academic paper on transformer architectures", "arxiv_learning"),
+    ("Find recent preprints on reinforcement learning from human feedback", "arxiv_learning"),
+    ("Review this scientific paper about protein folding", "arxiv_learning"),
+    ("Summarize the key findings from this journal article on LLMs", "arxiv_learning"),
+    ("Analyze this arXiv preprint about multi-agent systems", "arxiv_learning"),
+    ("Do a literature review of papers on graph neural networks", "arxiv_learning"),
+]
+
+# --- Olympiad learning swarm (8 scenarios) ---
+_OLYMPIAD_SCENARIOS = [
+    ("Prepare for the math olympiad with practice problems", "olympiad_learning"),
+    ("Create olympiad-level problems in combinatorics", "olympiad_learning"),
+    ("Help me prepare for the International Math Olympiad", "olympiad_learning"),
+    ("Generate competition problems for science olympiad", "olympiad_learning"),
+    ("Practice problems for the International Olympiad in Informatics", "olympiad_learning"),
+    ("Create challenging contest problems in number theory", "olympiad_learning"),
+    ("Prepare materials for competitive programming", "olympiad_learning"),
+    ("Design olympiad training exercises for algebra", "olympiad_learning"),
+]
+
+# --- Fallback / None (15 scenarios) ---
+_FALLBACK_SCENARIOS = [
+    ("Hello, how are you?", None),
+    ("What time is it?", None),
+    ("Tell me a joke", None),
+    ("Thanks for your help!", None),
+    ("Good morning", None),
+    ("Who are you?", None),
+    ("Can you help me?", None),
+    ("What can you do?", None),
+    ("I am bored", None),
+    ("Explain quantum physics to me", None),
+    ("Translate this to French: Hello world", None),
+    ("Send an email to the team about the deadline", None),
+    ("Schedule a meeting for next Tuesday", None),
+    ("Remind me to buy groceries", None),
+    ("I learned a lot from the coding workshop", None),
+]
+
+# Combine all "strict" scenarios — classifier must get these right.
+_ALL_STRICT_SCENARIOS = (
+    _CODING_SCENARIOS
+    + _RESEARCH_SCENARIOS
+    + _TESTING_SCENARIOS
+    + _REVIEW_SCENARIOS
+    + _DATA_ANALYSIS_SCENARIOS
+    + _DEVOPS_SCENARIOS
+    + _IDEA_WRITER_SCENARIOS
+    + _FUNDAMENTAL_SCENARIOS
+    + _LEARNING_SCENARIOS
+    + _ARXIV_SCENARIOS
+    + _OLYMPIAD_SCENARIOS
+    + _FALLBACK_SCENARIOS
+)
+
+# "Flexible" scenarios — genuinely ambiguous, accept multiple valid answers.
+# Format: (goal, set_of_acceptable_swarm_names)
+_FLEXIBLE_SCENARIOS = [
+    # Multi-domain overlap (both answers are defensible)
+    ("Study the correlation between sleep and productivity",
+        {"research", "data_analysis"}),
+    ("Analyze market trends for electric vehicles",
+        {"research", "data_analysis"}),
+    ("Research best practices for microservice architecture",
+        {"research", "coding"}),
+    ("Create a Docker Compose file for the microservices",
+        {"devops", "coding"}),
+    ("Build a step-by-step tutorial on Docker basics",
+        {"learning", "devops"}),
+    ("Create tests for the Docker deployment scripts",
+        {"testing", "devops"}),
+    ("Review the data analysis pipeline code",
+        {"review", "coding"}),
+    ("Write Python code to analyze a CSV dataset",
+        {"coding", "data_analysis"}),
+    ("Can you deploy a simple hello world script?",
+        {"devops", "coding"}),
+    ("Research and write a report on AI safety",
+        {"research", "idea_writer"}),
+    ("Build a dashboard and deploy it to AWS",
+        {"devops", "data_analysis", "coding"}),
+    ("Set up a WebSocket server in Node.js",
+        {"coding", "devops"}),
+    # Edge cases — context-dependent or idiomatic
+    ("Summarize this meeting transcript",
+        {"idea_writer", None}),
+    ("Test the waters with a new market strategy",
+        {"testing", None}),
+    ("The data shows that our API is fast",
+        {"coding", None}),
+    ("test",
+        {"testing", None}),
+    ("code",
+        {"coding", None}),
+    ("deploy",
+        {"devops", None}),
+]
+
+
+@pytest.mark.unit
+class TestTaskClassifierStrict:
+    """110+ parametrized scenarios where classifier must return the exact swarm."""
+
+    @pytest.mark.parametrize("goal,expected", _ALL_STRICT_SCENARIOS,
+                             ids=[f"{e}:{g[:50]}" for g, e in _ALL_STRICT_SCENARIOS])
+    def test_strict_routing(self, goal, expected):
+        tc = _get_tc()
+        result = tc.classify_swarm(goal)
+        assert result.swarm_name == expected, (
+            f"Goal: '{goal}'\n"
+            f"  Expected: {expected}\n"
+            f"  Got:      {result.swarm_name}\n"
+            f"  Conf:     {result.confidence:.2f}\n"
+            f"  Reason:   {result.reasoning}"
+        )
+
+
+@pytest.mark.unit
+class TestTaskClassifierFlexible:
+    """18 ambiguous scenarios where multiple answers are acceptable."""
+
+    @pytest.mark.parametrize("goal,acceptable", _FLEXIBLE_SCENARIOS,
+                             ids=[f"flex:{g[:50]}" for g, _ in _FLEXIBLE_SCENARIOS])
+    def test_flexible_routing(self, goal, acceptable):
+        tc = _get_tc()
+        result = tc.classify_swarm(goal)
+        assert result.swarm_name in acceptable, (
+            f"Goal: '{goal}'\n"
+            f"  Acceptable: {acceptable}\n"
+            f"  Got:        {result.swarm_name}\n"
+            f"  Conf:       {result.confidence:.2f}\n"
+            f"  Reason:     {result.reasoning}"
+        )
+
+
+@pytest.mark.unit
+class TestTaskClassifierProperties:
+    """Structural properties that must hold for ALL inputs."""
+
+    @pytest.mark.parametrize("goal,_", _ALL_STRICT_SCENARIOS[:20],
+                             ids=[f"prop:{g[:40]}" for g, _ in _ALL_STRICT_SCENARIOS[:20]])
+    def test_confidence_in_range(self, goal, _):
         """Confidence is always in [0.0, 1.0]."""
-        tc = self._get_classifier()
-        for goal in ["Write code", "Research AI", "Hello"]:
+        tc = _get_tc()
+        result = tc.classify_swarm(goal)
+        assert 0.0 <= result.confidence <= 1.0, (
+            f"confidence={result.confidence} out of range for '{goal}'"
+        )
+
+    @pytest.mark.parametrize("goal,_", _ALL_STRICT_SCENARIOS[:20],
+                             ids=[f"intent:{g[:40]}" for g, _ in _ALL_STRICT_SCENARIOS[:20]])
+    def test_has_intent(self, goal, _):
+        """Result always has a valid TaskIntent."""
+        from Jotty.core.execution.intent_classifier import TaskIntent
+        tc = _get_tc()
+        result = tc.classify_swarm(goal)
+        assert isinstance(result.intent, TaskIntent), (
+            f"intent is not TaskIntent for '{goal}'"
+        )
+
+    @pytest.mark.parametrize("goal,_", _ALL_STRICT_SCENARIOS[:20],
+                             ids=[f"reason:{g[:40]}" for g, _ in _ALL_STRICT_SCENARIOS[:20]])
+    def test_has_reasoning(self, goal, _):
+        """Result always has non-empty reasoning."""
+        tc = _get_tc()
+        result = tc.classify_swarm(goal)
+        assert result.reasoning, f"Empty reasoning for '{goal}'"
+
+    def test_none_result_has_zero_or_low_confidence(self):
+        """When swarm_name is None, confidence should be below threshold."""
+        from Jotty.core.execution.intent_classifier import CONFIDENCE_THRESHOLD
+        tc = _get_tc()
+        for goal in ["Hello", "Good morning", "Thanks"]:
             result = tc.classify_swarm(goal)
-            assert 0.0 <= result.confidence <= 1.0, f"confidence={result.confidence} out of range"
+            if result.swarm_name is None:
+                assert result.confidence < CONFIDENCE_THRESHOLD, (
+                    f"None result has high confidence {result.confidence} for '{goal}'"
+                )
+
+    def test_singleton_returns_same_instance(self):
+        """get_task_classifier() returns the same singleton."""
+        from Jotty.core.execution.intent_classifier import get_task_classifier
+        tc1 = get_task_classifier()
+        tc2 = get_task_classifier()
+        assert tc1 is tc2
 
 
 @pytest.mark.unit
